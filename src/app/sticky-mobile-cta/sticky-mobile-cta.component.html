@@ -1,0 +1,20 @@
+<div class="sticky-mobile-cta" *ngIf="isVisible">
+  <button type="button" class="cta-btn call-btn" (click)="onCallClick()">
+    <svg viewBox="0 0 24 24" fill="currentColor" class="cta-icon">
+      <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+    </svg>
+    Call
+  </button>
+  <a routerLink="/booking" class="cta-btn book-btn">
+    <svg viewBox="0 0 24 24" fill="currentColor" class="cta-icon">
+      <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/>
+    </svg>
+    Book
+  </a>
+  <a routerLink="/free-quote" class="cta-btn quote-btn">
+    <svg viewBox="0 0 24 24" fill="currentColor" class="cta-icon">
+      <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 14H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+    </svg>
+    Quote
+  </a>
+</div>

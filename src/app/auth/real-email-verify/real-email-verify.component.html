@@ -1,0 +1,145 @@
+<div class="real-email-page">
+  <div class="card">
+    <!-- Step 1: Enter email -->
+    <ng-container *ngIf="step === 'email'">
+      <h1 class="title">We need your real email to continue</h1>
+      <p class="subtitle">
+        Dream Cleaning uses your email for booking confirmations, receipts, and important updates about your cleaning appointments. Please provide your real email address.
+      </p>
+      <form [formGroup]="emailForm" (ngSubmit)="sendCode()">
+        <div class="form-group">
+          <input
+            type="email"
+            formControlName="email"
+            placeholder="Enter your real email"
+            class="input"
+            [class.input-error]="(emailForm.get('email')?.invalid && emailForm.get('email')?.touched) || (isRelayEmail && emailForm.get('email')?.value)"
+            autocomplete="email"
+          />
+          <p class="error-message" *ngIf="isRelayEmail && emailForm.get('email')?.value">
+            Please enter your real email, not an Apple relay address.
+          </p>
+          <p class="error-message" *ngIf="emailForm.get('email')?.invalid && emailForm.get('email')?.touched && !isRelayEmail">
+            <span *ngIf="emailForm.get('email')?.errors?.['required']">Email is required.</span>
+            <span *ngIf="emailForm.get('email')?.errors?.['email']">Please enter a valid email.</span>
+          </p>
+        </div>
+        <button type="submit" class="btn primary" [disabled]="emailForm.invalid || isLoading">
+          {{ isLoading ? 'Sending...' : 'Send Verification Code' }}
+        </button>
+      </form>
+    </ng-container>
+
+    <!-- Step 2: Enter code -->
+    <ng-container *ngIf="step === 'code'">
+      <h1 class="title">Check your email</h1>
+      <p class="subtitle">
+        We sent a 6-digit code to <strong>{{ submittedEmail }}</strong>. Enter it below to verify your email.
+      </p>
+      <form [formGroup]="codeForm" (ngSubmit)="verifyCode()">
+        <div class="form-group">
+          <input
+            type="text"
+            formControlName="code"
+            placeholder="000000"
+            class="input code-input"
+            maxlength="6"
+            pattern="[0-9]*"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+          />
+          <p class="error-message" *ngIf="codeForm.get('code')?.invalid && codeForm.get('code')?.touched">
+            Please enter the 6-digit code.
+          </p>
+        </div>
+        <button type="submit" class="btn primary" [disabled]="codeForm.invalid || isLoading">
+          {{ isLoading ? 'Verifying...' : 'Verify' }}
+        </button>
+        <div class="links">
+          <button type="button" class="link-btn" (click)="resendCode()" [disabled]="resendCooldown > 0 || isLoading">
+            <ng-container *ngIf="resendCooldown > 0">Resend code ({{ resendCooldown }}s)</ng-container>
+            <ng-container *ngIf="resendCooldown === 0">Resend code</ng-container>
+          </button>
+          <button type="button" class="link-btn" (click)="backToEmail()" [disabled]="isLoading">
+            Use a different email
+          </button>
+        </div>
+      </form>
+    </ng-container>
+
+    <!-- Step 3: Account found — merge choice -->
+    <ng-container *ngIf="step === 'account-found'">
+      <h1 class="title">Account Found</h1>
+      <p class="subtitle">
+        An account with the email <strong>{{ existingAccountEmail }}</strong> already exists
+        <span *ngIf="existingAccountName"> (registered as <strong>{{ existingAccountName }}</strong>)</span>.
+        Would you like to merge your accounts? All your orders, addresses, and data from both accounts will be combined.
+      </p>
+      <div class="merge-actions">
+        <button type="button" class="btn primary" (click)="goToMergeWithEmail()" [disabled]="isLoading">
+          Merge with Email
+        </button>
+      </div>
+      <div class="links">
+        <button type="button" class="link-btn" (click)="backToEmail()" [disabled]="isLoading">
+          Use a different email instead
+        </button>
+      </div>
+    </ng-container>
+
+    <!-- Step 4: Merge with email — enter confirmation code -->
+    <ng-container *ngIf="step === 'merge-email'">
+      <h1 class="title">Confirm Account Merge</h1>
+      <p class="subtitle">
+        We sent a confirmation code to <strong>{{ existingAccountEmail }}</strong>. Enter the code to merge your accounts.
+      </p>
+      <form [formGroup]="mergeCodeForm" (ngSubmit)="verifyMergeCode()" class="merge-code-form">
+        <div class="form-group">
+          <input
+            type="text"
+            formControlName="code"
+            placeholder="000000"
+            class="input code-input"
+            maxlength="6"
+            pattern="[0-9]*"
+            inputmode="numeric"
+            autocomplete="one-time-code"
+          />
+          <p class="error-message" *ngIf="mergeCodeForm.get('code')?.invalid && mergeCodeForm.get('code')?.touched">
+            Please enter the 6-digit code.
+          </p>
+        </div>
+        <button type="submit" class="btn primary" [disabled]="mergeCodeForm.invalid || isLoading">
+          {{ isLoading ? 'Verifying...' : 'Verify & Merge' }}
+        </button>
+        <div class="links">
+          <button type="button" class="link-btn" (click)="resendMergeCode()" [disabled]="mergeResendCooldown > 0 || isLoading">
+            <ng-container *ngIf="mergeResendCooldown > 0">Resend code ({{ mergeResendCooldown }}s)</ng-container>
+            <ng-container *ngIf="mergeResendCooldown === 0">Resend code</ng-container>
+          </button>
+          <button type="button" class="link-btn" (click)="backFromMergeEmail()" [disabled]="isLoading">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </ng-container>
+
+    <!-- Step 5: Merge success -->
+    <ng-container *ngIf="step === 'merge-success' && mergeResult">
+      <h1 class="title">Accounts Merged!</h1>
+      <p class="subtitle">
+        Your accounts have been successfully merged. All your orders and addresses are now in one place.
+      </p>
+      <div class="merge-summary" *ngIf="mergeResult.mergedData">
+        <p *ngIf="mergeResult.mergedData.ordersTransferred > 0">{{ mergeResult.mergedData.ordersTransferred }} orders transferred</p>
+        <p *ngIf="mergeResult.mergedData.addressesTransferred > 0">{{ mergeResult.mergedData.addressesTransferred }} addresses added</p>
+        <p *ngIf="mergeResult.mergedData.subscriptionTransferred">Plan transferred</p>
+      </div>
+      <button type="button" class="btn primary" (click)="continueAfterMerge()">
+        Continue to Dream Cleaning
+      </button>
+    </ng-container>
+
+    <p class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</p>
+  </div>
+</div>

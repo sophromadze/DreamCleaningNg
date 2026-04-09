@@ -1,0 +1,727 @@
+/* You can add global styles to this file, and also import other style files */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,400;1,500;1,600&display=swap');
+@import '@fortawesome/fontawesome-free/css/all.css';
+
+/* Color Variables */
+:root {
+  --main-hero-image: url('/images/mainImage.webp');
+  
+  /* Theme: day (light) – page backgrounds and text */
+  --page-bg: #f5f5f5;
+  --text-primary: #1a1a1a;
+  --text-secondary: #444;
+  --text-muted: #666;
+  --text-color: #1a1a1a;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  --surface-overlay: rgba(255, 255, 255, 0.85);
+  --border-color: rgba(0, 0, 0, 0.1);
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --shimmer-bg: #e3effd;
+  --footer-bg: #0056b3;
+  --footer-text: #fff;
+  --footer-text-muted: #b3d9ff;
+  
+  /* New color palette */
+  --primary-color: #007bff;
+  --soft-lavender: #9ea8df;
+  --mint-fresh: #e6f4f1;
+  --soft-blue: #e3f2fd;
+  --soft-red: #f4e6e6;
+  --soft-yellow: #eee8a9;
+  --soft-yellow-text: #856404;
+  --bright-red: #ff6b6b;
+  --fresh-green: #28a745;
+  --mint-fresh-border: #beddd7;
+  --primary-color-hover: #0056b3;
+  --primary-text: #0056b3;
+  --active-nav-link: #0056b3;
+  --soft-lavender-background: linear-gradient(135deg, #9ea8df 0%, #b8c0e6 100%);
+  --soft-lavender-background-light: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
+  --soft-yellow-background: linear-gradient(135deg, #eee8a9 0%, #f5f3d8 100%);
+  
+  /* Button gradient colors (unchanged for both themes) */
+  --btn-primary: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+  --btn-primary-hover: linear-gradient(135deg, #339cff 0%, #1a82ff 100%);
+  --btn-secondary: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+  --btn-secondary-hover: linear-gradient(135deg, #48d164 0%, #34ce57 100%);
+  --btn-danger: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
+  --btn-danger-hover: linear-gradient(135deg, #ff8787 0%, #ff7979 100%);
+  
+  /* Button shadow colors */
+  --btn-primary-shadow: 0 4px 5px rgba(0, 123, 255, 0.3);
+  --btn-primary-shadow-hover: 0 8px 15px rgba(0, 123, 255, 0.4);
+  --btn-secondary-shadow: 0 4px 5px rgba(40, 167, 69, 0.3);
+  --btn-secondary-shadow-hover: 0 8px 15px rgba(40, 167, 69, 0.4);
+  --btn-danger-shadow: 0 4px 5px rgba(255, 107, 107, 0.3);
+  --btn-danger-shadow-hover: 0 8px 15px rgba(255, 107, 107, 0.4);
+  --btn-quote: #4a5599;
+  --btn-quote-hover: #6b77bd;
+  --btn-quote-shadow: 0 4px 5px rgba(107, 119, 189, 0.3);
+  --btn-quote-shadow-hover: 0 8px 15px rgba(107, 119, 189, 0.4);
+
+  /* Day mode: address autocomplete field has no border */
+  --address-field-border: none;
+}
+
+/* Night (dark) theme – opposite backgrounds and text */
+[data-theme="dark"] {
+  --page-bg: #1a1a1a;
+  --text-primary: #f0f0f0;
+  --text-secondary: #d8d8d8;
+  --text-muted: #b0b0b0;
+  --text-color: #f0f0f0;
+  /* Lighter gray for cards so they stand out from page background */
+  --surface: #383838;
+  --surface-elevated: #454545;
+  --surface-overlay: rgba(56, 56, 56, 0.95);
+  --border-color: rgba(255, 255, 255, 0.15);
+  --shadow-color: rgba(0, 0, 0, 0.4);
+  --shimmer-bg: #2a3548;
+  --footer-bg: #1e2a3a;
+  --footer-text: #f0f0f0;
+  --footer-text-muted: #a0c4e8;
+  /* Section backgrounds that are light in day mode → dark in night mode */
+  --soft-blue: #1a2744;
+  --mint-fresh: #1e332e;
+  --soft-red: #2a1f1f;
+  --soft-lavender-background: linear-gradient(135deg, #2a2a3a 0%, #252535 100%);
+  --soft-lavender-background-light: linear-gradient(135deg, #2a2a3a 0%, #252535 100%);
+
+  --primary-text: #66b3ff;
+  --active-nav-link: #66b3ff;
+
+  /* Dark mode: address autocomplete field has border */
+  --address-field-border: 1px solid var(--border-color);
+}
+
+/* Admin: Special Offers edit/create form — force dark container (avoids encapsulation override) */
+[data-theme="dark"] .special-offers-section .offer-form-container {
+  background: var(--surface-elevated) !important;
+  background-color: var(--surface-elevated) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] .special-offers-section .offer-form-container form {
+  background: transparent !important;
+}
+
+[data-theme="dark"] .special-offers-section td.edit-mode-td,
+[data-theme="dark"] .special-offers-section td.edit-mode-td .inline-edit-form {
+  background: var(--surface-elevated) !important;
+  background-color: var(--surface-elevated) !important;
+}
+
+/* Admin: Booking Services — force dark for forms and inline edits (service types, services, extra services) */
+[data-theme="dark"] .admin-container .tab-content .form-section,
+[data-theme="dark"] .admin-container .tab-content .service-form {
+  background: var(--surface-elevated) !important;
+  background-color: var(--surface-elevated) !important;
+}
+[data-theme="dark"] .admin-container .tab-content td.edit-mode-td,
+[data-theme="dark"] .admin-container .tab-content td.edit-mode-td .inline-edit-form {
+  background: var(--surface-elevated) !important;
+  background-color: var(--surface-elevated) !important;
+}
+
+/* Admin: Subscriptions — force dark for add form and editing row */
+[data-theme="dark"] .admin-container .subscriptions-section .add-form {
+  background: var(--surface-elevated) !important;
+  background-color: var(--surface-elevated) !important;
+}
+[data-theme="dark"] .admin-container .subscriptions-section .subscriptions-list table tbody tr.editing,
+[data-theme="dark"] .admin-container .subscriptions-section .subscriptions-list table tbody tr.editing td {
+  background: var(--surface-elevated) !important;
+  background-color: var(--surface-elevated) !important;
+}
+
+/* Admin: Gift Cards — force dark for config, filters, details row */
+[data-theme="dark"] .admin-container .admin-gift-cards .gift-card-config-section .config-card {
+  background: var(--surface-elevated) !important;
+  background-color: var(--surface-elevated) !important;
+}
+[data-theme="dark"] .admin-container .admin-gift-cards .filters {
+  background: var(--surface-elevated) !important;
+}
+[data-theme="dark"] .admin-container .admin-gift-cards .details-row td {
+  background: var(--surface-elevated) !important;
+}
+
+/* Admin: Mails & SMS — force dark for compose/edit form */
+[data-theme="dark"] .admin-container .mails-host .compose-form,
+[data-theme="dark"] .admin-container .sms-host .compose-form {
+  background: var(--surface-elevated) !important;
+  background-color: var(--surface-elevated) !important;
+}
+
+/* Profile: Order History — section title in dark mode */
+[data-theme="dark"] .order-history-container .section-header h2 {
+  color: var(--text-primary) !important;
+}
+
+/* Booking: Reorder modal — dark mode */
+[data-theme="dark"] .reorder-modal {
+  background: var(--surface-elevated) !important;
+}
+[data-theme="dark"] .reorder-modal .reorder-modal-header {
+  background: var(--surface) !important;
+  border-bottom-color: var(--border-color);
+  color: var(--text-primary);
+}
+[data-theme="dark"] .reorder-modal .reorder-modal-header h3,
+[data-theme="dark"] .reorder-modal .reorder-modal-header .close-btn {
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] .reorder-modal .reorder-modal-body .order-item {
+  background: var(--surface) !important;
+  border-color: var(--border-color);
+}
+[data-theme="dark"] .reorder-modal .reorder-modal-body .order-item h4,
+[data-theme="dark"] .reorder-modal .reorder-modal-body .order-item-details p {
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] .reorder-modal .reorder-modal-body .order-item-details p.order-address {
+  color: var(--text-muted) !important;
+}
+[data-theme="dark"] .reorder-modal .reorder-modal-body .loading-orders,
+[data-theme="dark"] .reorder-modal .reorder-modal-body .no-orders {
+  color: var(--text-muted) !important;
+}
+
+/* Order payment page (/order/:id/pay) — dark mode */
+[data-theme="dark"] .order-payment-container {
+  background-color: var(--page-bg) !important;
+}
+[data-theme="dark"] .order-payment-container .payment-content,
+[data-theme="dark"] .order-payment-container .success-content {
+  background: var(--surface-elevated) !important;
+}
+[data-theme="dark"] .order-payment-container h1,
+[data-theme="dark"] .order-payment-container .order-summary h2,
+[data-theme="dark"] .order-payment-container .payment-section h2 {
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] .order-payment-container .order-summary .summary-details p,
+[data-theme="dark"] .order-payment-container .order-summary .summary-details strong {
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] .order-payment-container .order-summary {
+  background-color: var(--surface) !important;
+}
+[data-theme="dark"] .order-payment-container .card-element-container {
+  background: var(--surface) !important;
+  border-color: var(--border-color);
+}
+[data-theme="dark"] .order-payment-container .success-content .order-info {
+  color: var(--text-primary) !important;
+}
+[data-theme="dark"] .order-payment-container .success-content .redirect-info {
+  color: var(--text-muted) !important;
+}
+
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    
+}
+
+/* Remove mobile click background effects globally */
+* {
+    -webkit-tap-highlight-color: transparent !important;
+    // -webkit-touch-callout: none !important;
+    // -webkit-user-select: none !important;
+    // -khtml-user-select: none !important;
+    // -moz-user-select: none !important;
+    // -ms-user-select: none !important;
+    // user-select: none !important;
+    outline: none !important;
+}
+
+/* Remove focus outlines and backgrounds */
+*:focus {
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Remove button and input mobile effects */
+button, input, select, textarea, a {
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-touch-callout: none !important;
+    // -webkit-user-select: none !important;
+    // -khtml-user-select: none !important;
+    // -moz-user-select: none !important;
+    // -ms-user-select: none !important;
+    // user-select: none !important;
+    outline: none !important;
+}
+
+button:focus, input:focus, select:focus, textarea:focus, a:focus {
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Remove iOS Safari specific effects */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    * {
+        -webkit-tap-highlight-color: transparent !important;
+    }
+}
+
+html {
+    scroll-behavior: smooth;
+    // user-select: none;
+    // -webkit-user-select: none;
+}
+
+body {
+  background: var(--page-bg);
+  color: var(--text-primary);
+  transition: background 0.25s ease, color 0.25s ease;
+}
+
+/* Form inputs and dropdowns use theme (dark backgrounds get light text in night mode) */
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+textarea {
+  background: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* Sections and cards inherit theme when using these classes (components can add them) */
+.section-bg {
+  background: var(--surface) !important;
+}
+.section-bg-alt {
+  background: var(--page-bg) !important;
+}
+
+/* Google Sign-in Button Styling */
+.google-button-wrapper {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+    min-height: 52px !important;
+}
+
+/* Google button content – height match, bold text (Inter 16px 700) */
+asl-google-signin-button,
+asl-google-signin-button * {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+}
+asl-google-signin-button div[role="button"] > div > div > div {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+}
+
+/* Fix: Google Sign-in overlay div collapsing to 0 height on production (GSI renders differently) */
+asl-google-signin-button div[style*="position: relative"] > div {
+    min-height: 52px !important;
+}
+asl-google-signin-button div[role="button"] {
+    min-height: 52px !important;
+}
+
+/* Fix: Google Sign-in empty overlay div blocking clicks on production */
+asl-google-signin-button div[style*="position: relative"] > div:not([role="button"]) {
+    pointer-events: none !important;
+}
+
+/* Iframe: full 52px height on top of button – works local and production */
+asl-google-signin-button iframe {
+    height: 52px !important;
+    min-height: 52px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+    position: relative !important;
+    top: 0 !important;
+    left: 0 !important;
+    border: none !important;
+    margin: -52px 0 !important;
+}
+
+/* Main Hero Image - Global styling for immediate loading */
+.main-image-container {
+    height: 400px;
+    width: 100%;
+    max-width: 800px;
+    overflow: hidden;
+    border-radius: 20px;
+    background-image: var(--main-hero-image);
+    background-repeat: no-repeat;
+    background-position: center center;
+    background-size: cover;
+    background-attachment: scroll;
+
+    @media (max-width: 768px) {
+        display: none;
+    }
+}
+
+/* Mobile responsive for main image */
+@media (max-width: 768px) {
+    .main-image-container {
+        height: 250px;
+        max-width: 100%;
+        border-radius: 15px;
+    }
+}
+
+/* Button Styles */
+.btn-primary {
+    background: var(--btn-primary);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn-primary:hover {
+    background: var(--btn-primary-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--btn-primary-shadow-hover);
+}
+
+.btn-primary:hover::before {
+    left: 100%;
+}
+
+.btn-primary:active {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+.btn-secondary {
+    background: var(--btn-secondary);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-secondary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn-secondary:hover {
+    background: var(--btn-secondary-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--btn-secondary-shadow-hover);
+}
+
+.btn-secondary:hover::before {
+    left: 100%;
+}
+
+.btn-secondary:active {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+.btn-quote {
+    background: var(--btn-quote);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-quote::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn-quote:hover {
+    background: var(--btn-quote-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--btn-quote-shadow-hover);
+}
+
+.btn-quote:hover::before {
+    left: 100%;
+}
+
+.btn-quote:active {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(107, 119, 189, 0.3);
+}
+
+.btn-danger {
+    background: var(--btn-danger);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-danger::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn-danger:hover {
+    background: var(--btn-danger-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--btn-danger-shadow-hover);
+}
+
+.btn-danger:hover::before {
+    left: 100%;
+}
+
+.btn-danger:active {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(255, 107, 107, 0.3);
+}
+
+// ============================================================
+// 3D FOAM BUBBLES SHIMMER SYSTEM (CSS-only)
+// No canvas, no RAF loop, no layout-delay animations.
+// ============================================================
+
+// --- Shimmer base colors ---
+:root {
+  --shimmer-base: #ebebeb;
+  --shimmer-sweep: rgba(255, 255, 255, 0.45);
+}
+
+// Match these selectors to your app's actual dark mode
+body.dark-theme,
+body.dark-mode,
+body.dark,
+html.dark,
+[data-theme="dark"] {
+  --shimmer-base: #1e2a4a;
+  --shimmer-sweep: rgba(255, 255, 255, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light-theme):not([data-theme="light"]) {
+    --shimmer-base: #1e2a4a;
+    --shimmer-sweep: rgba(255, 255, 255, 0.06);
+  }
+}
+
+// --- Host element base ---
+.shimmer-loading {
+  background-color: var(--shimmer-base) !important;
+  position: relative;
+  overflow: hidden;
+  color: transparent !important;
+
+  // Hide children while shimmering (classic placeholders)
+  > * {
+    visibility: hidden !important;
+  }
+
+  // SSR hydration fallback: instant sweep while Angular hydrates.
+  // Bubble DOM spans are injected later and will naturally paint above this.
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      transparent 30%,
+      var(--shimmer-sweep) 48%,
+      var(--shimmer-sweep) 52%,
+      transparent 70%,
+      transparent 100%
+    );
+    animation: shimmer-sweep 1.8s ease-in-out infinite;
+    will-change: transform;
+  }
+}
+
+@keyframes shimmer-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+// ============================================================
+// ACCESSIBILITY
+// ============================================================
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-loading::after {
+    animation: none !important;
+    opacity: 0.3;
+  }
+}
+
+// ============================================================
+// End shimmer system
+// ============================================================
+
+/* Google Places Autocomplete – day mode: white background, black text */
+gmp-place-autocomplete::part(prediction-list) {
+  background: #ffffff !important;
+  color: #1a1a1a !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
+  margin-top: 4px !important;
+}
+
+gmp-place-autocomplete::part(prediction-item),
+gmp-place-autocomplete::part(prediction-item-main-text) {
+  color: #1a1a1a !important;
+}
+
+gmp-place-autocomplete::part(prediction-item):hover,
+gmp-place-autocomplete::part(prediction-item-selected) {
+  background: #f0f0f0 !important;
+  color: #1a1a1a !important;
+}
+
+/* Legacy .pac-container: day mode default */
+.pac-container {
+  z-index: 10000 !important;
+  background-color: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12) !important;
+  margin-top: 4px !important;
+  font-family: inherit !important;
+
+  .pac-item {
+    padding: 10px 14px !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.06) !important;
+    color: #1a1a1a !important;
+    cursor: pointer !important;
+    font-size: 14px !important;
+
+    &:first-child { border-top: none !important; }
+    &:hover, &.pac-item-selected { background-color: #f0f0f0 !important; }
+
+    .pac-item-query { color: #1a1a1a !important; }
+    .pac-matched { font-weight: 600 !important; }
+    span:not(.pac-item-query) { color: #666 !important; }
+  }
+
+  .pac-icon { display: none !important; }
+}
+
+/* Dark theme: Places dropdown */
+[data-theme="dark"] gmp-place-autocomplete::part(prediction-list) {
+  background: #1e1e1e !important;
+  color: #f0f0f0 !important;
+  border: 1px solid #444 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] gmp-place-autocomplete::part(prediction-item),
+[data-theme="dark"] gmp-place-autocomplete::part(prediction-item-main-text) {
+  color: #f0f0f0 !important;
+}
+
+[data-theme="dark"] gmp-place-autocomplete::part(prediction-item):hover,
+[data-theme="dark"] gmp-place-autocomplete::part(prediction-item-selected) {
+  background: #333 !important;
+  color: #f0f0f0 !important;
+}
+
+[data-theme="dark"] .pac-container {
+  background-color: #1e1e1e !important;
+  border: 1px solid #444 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+
+  .pac-item {
+    border-top: 1px solid #333 !important;
+    color: #fff !important;
+
+    &:hover, &.pac-item-selected { background-color: #333 !important; }
+
+    .pac-item-query { color: #fff !important; }
+    span:not(.pac-item-query) { color: #999 !important; }
+  }
+}

@@ -1,0 +1,36 @@
+<ng-container *ngIf="summary && summary.pointsSystemEnabled">
+  <button
+    class="bubble-badge"
+    (click)="goToRewards()"
+    (mouseenter)="showTooltip = true"
+    (mouseleave)="showTooltip = false"
+    [attr.aria-label]="'Bubble Rewards: ' + summary.points + ' points'"
+  >
+    <div class="bubble-badge__inner">
+      <!-- CSS realistic bubble cluster -->
+      <div class="bb-cluster">
+        <span class="bb-bubble bb-bubble--lg"></span>
+        <span class="bb-bubble bb-bubble--md"></span>
+        <span class="bb-bubble bb-bubble--sm"></span>
+      </div>
+
+      <div class="bubble-badge__info">
+        <span class="bubble-badge__points">{{ summary.points | number }}</span>
+        <span class="bubble-badge__tier">Points</span>
+      </div>
+    </div>
+
+    <!-- Glowing progress bar -->
+    <div class="bubble-badge__bar">
+      <div class="bubble-badge__bar-fill" [style.width.%]="summary.tierProgressPercent"></div>
+    </div>
+
+    <!-- Tooltip (desktop only) -->
+    <div class="bubble-badge__tooltip" *ngIf="showTooltip">
+      <div class="tooltip-tier">{{ summary.tier === 'UltraBubble' ? 'Ultra Bubble' : summary.tier === 'SuperBubble' ? 'Super Bubble' : 'Bubble' }}</div>
+      <div class="tooltip-progress" *ngIf="summary.nextTierName">{{ summary.tierProgressPercent }}% to {{ summary.nextTierName }}</div>
+      <div class="tooltip-credits" *ngIf="summary.credits > 0">${{ summary.credits | number:'1.2-2' }} credit</div>
+      <div class="tooltip-link">View Rewards →</div>
+    </div>
+  </button>
+</ng-container>

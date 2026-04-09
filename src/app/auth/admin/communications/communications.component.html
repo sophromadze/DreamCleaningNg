@@ -1,0 +1,10 @@
+<div class="communications-host">
+  <div class="sub-tabs">
+    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab === 'mails'" (click)="setSubTab('mails')">Mails</button>
+    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab === 'sms'" (click)="setSubTab('sms')">SMS</button>
+  </div>
+  <div class="sub-content">
+    <app-mails *ngIf="activeSubTab === 'mails'"></app-mails>
+    <app-sms *ngIf="activeSubTab === 'sms'"></app-sms>
+  </div>
+</div>

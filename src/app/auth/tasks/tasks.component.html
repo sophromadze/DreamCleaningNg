@@ -1,0 +1,1160 @@
+<div class="tasks-container" (click)="onDocumentClick()">
+
+  <!-- ═══ TAB LAYOUT ═══ -->
+  <div class="tab-layout">
+
+    <!-- Left sidebar tabs -->
+    <div class="tab-sidebar">
+      <button class="tab-btn tab-purple" [class.active]="activeTab === 'dashboard'" (click)="setActiveTab('dashboard')">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </button>
+      <button class="tab-btn tab-green" [class.active]="activeTab === 'shared'" (click)="setActiveTab('shared')">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
+        Shared Tasks
+      </button>
+      <button class="tab-btn tab-yellow" [class.active]="activeTab === 'mytasks'" (click)="setActiveTab('mytasks')">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        My Tasks
+        <span class="tab-indicator-yellow" *ngIf="myAssignedTasks.length > 0"></span>
+        <span class="tab-indicator-green" *ngIf="uncheckedDoneCreatedCount > 0"></span>
+      </button>
+      <button class="tab-btn tab-red" [class.active]="activeTab === 'interactions'" (click)="setActiveTab('interactions')">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Client Interactions
+      </button>
+      <button class="tab-btn tab-blue" [class.active]="activeTab === 'handover'" (click)="setActiveTab('handover')">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Handover Notes
+      </button>
+      <button class="tab-btn tab-orange" [class.active]="activeTab === 'logs'" (click)="setActiveTab('logs')" *ngIf="isSuperAdmin">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Logs
+      </button>
+    </div>
+
+    <!-- Tab content -->
+    <div class="tab-content" [ngSwitch]="activeTab">
+
+      <!-- ═══ DASHBOARD TAB (original layout) ═══ -->
+      <div *ngSwitchCase="'dashboard'" class="tab-panel">
+
+        <!-- Top Row: Urgent Tasks + New Entry -->
+        <div class="top-row">
+          <!-- URGENT TASKS & FOLLOW-UPS -->
+          <div class="card urgent-card">
+            <div class="card-header">
+              <div class="card-title">
+                <span class="icon-alert">!</span>
+                <h2>URGENT TASKS & FOLLOW-UPS</h2>
+                <span class="count-badge" *ngIf="urgentTasks.length">{{ urgentTasks.length }}</span>
+              </div>
+              <a class="view-all" (click)="goToSharedTab('urgent')">
+                View All &rarr;
+              </a>
+            </div>
+            <div class="urgent-list" *ngIf="!loadingTasks && urgentTasks.length > 0">
+              <div class="task-row task-row-columns" *ngFor="let task of dashboardUrgentTasks"
+                   (click)="openEditTask(task)">
+                <label class="checkbox-wrap" (click)="$event.stopPropagation()">
+                  <input type="checkbox" [checked]="task.status === 'Done'" (change)="toggleTaskStatus(task)">
+                  <span class="checkmark"></span>
+                </label>
+                <div class="task-col-left">
+                  <span class="task-title" [class.done]="task.status === 'Done'"><span class="entity-id">#{{ task.id }}</span> {{ task.title }}</span>
+                  <span class="task-detail" *ngIf="task.clientName">
+                    <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    {{ task.clientName }}
+                  </span>
+                  <span class="task-detail" *ngIf="task.clientPhone">
+                    <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    {{ task.clientPhone }}
+                  </span>
+                </div>
+                <div class="task-col-middle">
+                  <span class="task-detail" *ngIf="task.orderId">
+                    <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></svg>
+                    Order #{{ task.orderId }}
+                  </span>
+                  <span class="task-detail" *ngIf="task.clientEmail">
+                    <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>
+                    {{ task.clientEmail }}
+                  </span>
+                  <span class="task-description-line" *ngIf="task.description">{{ task.description }}</span>
+                </div>
+                <div class="task-col-right">
+                  <div class="task-badges">
+                    <span class="priority-badge" [ngClass]="'priority-' + task.priority.toLowerCase()">{{ task.priority | uppercase }}</span>
+                    <span class="due-badge" *ngIf="task.dueDate" [ngClass]="getDueLabelClass(task)">{{ getDueLabel(task) }}</span>
+                  </div>
+                  <span class="admin-role-badge" [ngClass]="task.createdByAdminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ task.createdByAdminName }}</span>
+                  <span class="task-created-date" *ngIf="task.createdAt">{{ formatFullDate(task.createdAt) }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="empty-state" *ngIf="!loadingTasks && urgentTasks.length === 0">No urgent tasks right now.</div>
+            <div class="loading-state" *ngIf="loadingTasks">Loading tasks...</div>
+          </div>
+
+          <!-- NEW ENTRY -->
+          <div class="card new-entry-card">
+            <div class="card-header">
+              <div class="card-title">
+                <span class="icon-plus">+</span>
+                <h2>NEW ENTRY</h2>
+              </div>
+            </div>
+            <div class="new-entry-actions">
+              <button class="entry-action entry-action-green" (click)="openCreateTask()">
+                <svg class="entry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg>
+                <span>Add Task</span>
+              </button>
+              <button class="entry-action entry-action-yellow" (click)="openCreatePersonalTask()">
+                <svg class="entry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span>Admin's Task</span>
+              </button>
+              <button class="entry-action entry-action-red" (click)="openCreateInteraction()">
+                <svg class="entry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <span>Client Inter</span>
+              </button>
+              <button class="entry-action entry-action-blue" (click)="openCreateNote()">
+                <svg class="entry-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                <span>Shift Note</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Middle Row: Active Tasks + Client Interactions History -->
+        <div class="middle-row">
+
+        <!-- ACTIVE TASKS -->
+        <div class="card active-tasks-card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="icon-tasks">&#9776;</span>
+              <h2>ACTIVE TASKS ({{ activeTaskCount }})</h2>
+            </div>
+            <a class="view-all" (click)="goToSharedTab('active')">Show All &rarr;</a>
+          </div>
+          <div class="tasks-list" *ngIf="!loadingTasks && activeTasks.length > 0">
+            <div class="task-row task-row-columns" *ngFor="let task of dashboardActiveTasks"
+                 [class.task-done]="task.status === 'Done'" (click)="openEditTask(task)">
+              <label class="checkbox-wrap" (click)="$event.stopPropagation()">
+                <input type="checkbox" [checked]="task.status === 'Done'" (change)="toggleTaskStatus(task)">
+                <span class="checkmark" [class.checked]="task.status === 'Done'"></span>
+              </label>
+              <div class="task-col-left">
+                <span class="task-title" [class.done]="task.status === 'Done'"><span class="entity-id">#{{ task.id }}</span> {{ task.title }}</span>
+                <span class="task-detail" *ngIf="task.clientName">
+                  <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  {{ task.clientName }}
+                </span>
+                <span class="task-detail" *ngIf="task.clientPhone">
+                  <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                  {{ task.clientPhone }}
+                </span>
+              </div>
+              <div class="task-col-middle">
+                <span class="task-detail" *ngIf="task.orderId">
+                  <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></svg>
+                  Order #{{ task.orderId }}
+                </span>
+                <span class="task-detail" *ngIf="task.clientEmail">
+                  <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 7l-10 7L2 7"/></svg>
+                  {{ task.clientEmail }}
+                </span>
+                <span class="task-description-line" *ngIf="task.description">{{ task.description }}</span>
+              </div>
+              <div class="task-col-right">
+                <div class="task-badges">
+                  <span class="priority-badge" [ngClass]="'priority-' + task.priority.toLowerCase()">{{ task.priority | uppercase }}</span>
+                  <span class="due-badge" *ngIf="task.dueDate" [ngClass]="getDueLabelClass(task)">{{ getDueLabel(task) }}</span>
+                </div>
+                <span class="admin-role-badge" [ngClass]="task.createdByAdminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ task.createdByAdminName }}</span>
+                <span class="task-created-date" *ngIf="task.createdAt">{{ formatFullDate(task.createdAt) }}</span>
+              </div>
+              <div class="task-menu-wrap" (click)="$event.stopPropagation()">
+                <button class="menu-btn" (click)="toggleMenu(task.id, $event)" title="Actions">&#8942;</button>
+                <div class="task-menu" *ngIf="openMenuTaskId === task.id">
+                  <button (click)="openEditTask(task)">Edit</button>
+                  <button (click)="deleteTask(task)" class="danger">Delete</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="empty-state" *ngIf="!loadingTasks && activeTasks.length === 0">No tasks found.</div>
+          <div class="loading-state" *ngIf="loadingTasks">Loading tasks...</div>
+        </div>
+
+        <!-- CLIENT INTERACTIONS HISTORY -->
+        <div class="card history-card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="12" y2="16"/></svg>
+              <h2>CLIENT INTERACTIONS HISTORY</h2>
+            </div>
+            <a class="view-all" (click)="setActiveTab('interactions')">View All &rarr;</a>
+          </div>
+          <div class="history-filters">
+            <input type="text" class="search-input" placeholder="Search clients..." [(ngModel)]="historySearch" (ngModelChange)="onHistoryFilterChange()">
+            <select class="filter-select" [(ngModel)]="historyStatusFilter" (ngModelChange)="onHistoryFilterChange()">
+              <option value="">All Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Urgent">Urgent</option>
+              <option value="Closed">Closed</option>
+            </select>
+            <select class="filter-select" [(ngModel)]="historyAdminFilter" (ngModelChange)="onHistoryFilterChange()">
+              <option value="">All Admins</option>
+              <option *ngFor="let admin of historyAdmins" [value]="admin.id">{{ admin.firstName }}</option>
+            </select>
+          </div>
+          <div class="history-list" *ngIf="!loadingInteractions && filteredHistory.length > 0">
+            <div class="history-row" *ngFor="let item of dashboardInteractions" (click)="openEditInteraction(item)">
+              <div class="history-client">
+                <span class="avatar-circle" [style.background]="getAvatarColor(item.clientName)">{{ getInitials(item.clientName) }}</span>
+                <div class="client-details">
+                  <span class="client-name"><span class="entity-id">#{{ item.id }}</span> {{ item.clientName }}</span>
+                  <span class="client-phone" *ngIf="item.clientPhone">{{ item.clientPhone }}</span>
+                </div>
+              </div>
+              <div class="history-interaction">
+                <div class="interaction-date-row">
+                  <span class="interaction-date">{{ formatDate(item.interactionDate) }} &ndash;</span>
+                  <span class="admin-role-badge" [ngClass]="item.adminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ item.adminName }}</span>
+                </div>
+                <span class="interaction-type">{{ item.type }}<span *ngIf="item.notes"> &ndash; {{ item.notes }}</span></span>
+              </div>
+              <span class="status-badge" [ngClass]="'status-' + item.status.toLowerCase()">{{ item.status }}</span>
+              <div class="task-menu-wrap" (click)="$event.stopPropagation()">
+                <button class="menu-btn" (click)="toggleInteractionMenu(item.id, $event)" title="Actions">&#8942;</button>
+                <div class="task-menu" *ngIf="openMenuInteractionId === item.id">
+                  <button (click)="openEditInteraction(item)">Edit</button>
+                  <button (click)="deleteInteraction(item)" class="danger">Delete</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="empty-state" *ngIf="!loadingInteractions && filteredHistory.length === 0">No client history found.</div>
+          <div class="loading-state" *ngIf="loadingInteractions">Loading...</div>
+        </div>
+
+        </div><!-- /middle-row -->
+
+        <!-- HANDOVER NOTES -->
+        <div class="card notes-card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              <h2>HANDOVER NOTES</h2>
+            </div>
+            <a class="view-all" (click)="setActiveTab('handover')">View All &rarr;</a>
+          </div>
+          <div class="notes-list" *ngIf="!loadingNotes && handoverNotes.length > 0">
+            <div class="note-card" *ngFor="let note of dashboardNotes">
+              <div class="note-header">
+                <div class="note-meta">
+                  <span class="entity-id">#{{ note.id }}</span>
+                  <span class="note-date">{{ formatFullDate(note.createdAt) }}</span>
+                  <span class="note-separator">&bull;</span>
+                  <span class="admin-role-badge" [ngClass]="note.adminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ note.adminName }}</span>
+                </div>
+                <span class="audience-badge">{{ getTargetAudienceLabel(note.targetAudience) }}</span>
+              </div>
+              <p class="note-content">{{ note.content }}</p>
+              <div class="note-footer">
+                <span class="note-counts">{{ note.taskCount }} task{{ note.taskCount !== 1 ? 's' : '' }} &bull; {{ note.interactionCount }} client interaction{{ note.interactionCount !== 1 ? 's' : '' }}</span>
+                <span class="note-actions" *ngIf="note.adminId === currentAdminId || isSuperAdmin">
+                  <button class="edit-note-btn" (click)="openEditNote(note)" title="Edit note">&#9998;</button>
+                  <button class="delete-note-btn" (click)="deleteNote(note)" title="Delete note">&#10005;</button>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="empty-state" *ngIf="!loadingNotes && handoverNotes.length === 0">No handover notes yet.</div>
+          <div class="loading-state" *ngIf="loadingNotes">Loading...</div>
+        </div>
+      </div>
+
+      <!-- ═══ SHARED TASKS TAB ═══ -->
+      <div *ngSwitchCase="'shared'" class="tab-panel">
+        <button class="create-new-btn create-btn-green" (click)="openCreateTask()">+ Create New Task</button>
+
+        <div class="sub-tabs">
+          <button class="sub-tab-btn" [class.active]="sharedSubTab === 'urgent'" (click)="sharedSubTab = 'urgent'">
+            Urgent <span class="sub-tab-count" *ngIf="urgentTasks.length">{{ urgentTasks.length }}</span>
+          </button>
+          <button class="sub-tab-btn" [class.active]="sharedSubTab === 'active'" (click)="sharedSubTab = 'active'">
+            Active <span class="sub-tab-count" *ngIf="activeTaskCount">{{ activeTaskCount }}</span>
+          </button>
+          <button class="sub-tab-btn" [class.active]="sharedSubTab === 'done'" (click)="sharedSubTab = 'done'">
+            Done <span class="sub-tab-count" *ngIf="doneSharedTasks.length">{{ doneSharedTasks.length }}</span>
+          </button>
+        </div>
+
+        <div class="card" [ngSwitch]="sharedSubTab">
+
+          <!-- Urgent sub-tab -->
+          <ng-container *ngSwitchCase="'urgent'">
+            <div class="urgent-list" *ngIf="!loadingTasks && urgentTasks.length > 0">
+              <div class="task-row task-row-columns" *ngFor="let task of paginatedUrgentTasks" (click)="openEditTask(task)">
+                <label class="checkbox-wrap" (click)="$event.stopPropagation()">
+                  <input type="checkbox" [checked]="task.status === 'Done'" (change)="toggleTaskStatus(task)">
+                  <span class="checkmark"></span>
+                </label>
+                <div class="task-col-left">
+                  <span class="task-title" [class.done]="task.status === 'Done'"><span class="entity-id">#{{ task.id }}</span> {{ task.title }}</span>
+                  <span class="task-detail" *ngIf="task.clientName">
+                    <svg class="detail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    {{ task.clientName }}
+                  </span>
+                </div>
+                <div class="task-col-middle">
+                  <span class="task-detail" *ngIf="task.orderId">Order #{{ task.orderId }}</span>
+                  <span class="task-description-line" *ngIf="task.description">{{ task.description }}</span>
+                </div>
+                <div class="task-col-right">
+                  <div class="task-badges">
+                    <span class="priority-badge" [ngClass]="'priority-' + task.priority.toLowerCase()">{{ task.priority | uppercase }}</span>
+                    <span class="due-badge" *ngIf="task.dueDate" [ngClass]="getDueLabelClass(task)">{{ getDueLabel(task) }}</span>
+                  </div>
+                  <span class="admin-role-badge" [ngClass]="task.createdByAdminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ task.createdByAdminName }}</span>
+                  <span class="task-created-date" *ngIf="task.createdAt">{{ formatFullDate(task.createdAt) }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="empty-state" *ngIf="!loadingTasks && urgentTasks.length === 0">No urgent tasks right now.</div>
+            <div class="loading-state" *ngIf="loadingTasks">Loading tasks...</div>
+            <div class="pagination" *ngIf="urgentTotalPages > 1">
+              <button class="page-btn" (click)="goToPageFor('urgent', urgentPage - 1)" [disabled]="urgentPage === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('urgent', 1)" [class.active]="urgentPage === 1">1</button>
+              <span *ngIf="urgentTotalPages > 5 && urgentPage > 3" class="page-ellipsis">...</span>
+              <button *ngFor="let page of getVisiblePagesFor('urgent')" class="page-btn" (click)="goToPageFor('urgent', page)" [class.active]="urgentPage === page">{{ page }}</button>
+              <span *ngIf="urgentTotalPages > 5 && urgentPage < urgentTotalPages - 2" class="page-ellipsis">...</span>
+              <button *ngIf="urgentTotalPages > 1" class="page-btn" (click)="goToPageFor('urgent', urgentTotalPages)" [class.active]="urgentPage === urgentTotalPages">{{ urgentTotalPages }}</button>
+              <button class="page-btn" (click)="goToPageFor('urgent', urgentPage + 1)" [disabled]="urgentPage === urgentTotalPages">Next &#8250;</button>
+            </div>
+          </ng-container>
+
+          <!-- Active sub-tab -->
+          <ng-container *ngSwitchCase="'active'">
+            <div class="tasks-list" *ngIf="!loadingTasks && activeTasks.length > 0">
+              <div class="task-row task-row-columns" *ngFor="let task of paginatedActiveTasks" (click)="openEditTask(task)">
+                <label class="checkbox-wrap" (click)="$event.stopPropagation()">
+                  <input type="checkbox" [checked]="task.status === 'Done'" (change)="toggleTaskStatus(task)">
+                  <span class="checkmark"></span>
+                </label>
+                <div class="task-col-left">
+                  <span class="task-title"><span class="entity-id">#{{ task.id }}</span> {{ task.title }}</span>
+                  <span class="task-detail" *ngIf="task.clientName">{{ task.clientName }}</span>
+                </div>
+                <div class="task-col-middle">
+                  <span class="task-detail" *ngIf="task.orderId">Order #{{ task.orderId }}</span>
+                  <span class="task-description-line" *ngIf="task.description">{{ task.description }}</span>
+                </div>
+                <div class="task-col-right">
+                  <div class="task-badges">
+                    <span class="priority-badge" [ngClass]="'priority-' + task.priority.toLowerCase()">{{ task.priority | uppercase }}</span>
+                    <span class="due-badge" *ngIf="task.dueDate" [ngClass]="getDueLabelClass(task)">{{ getDueLabel(task) }}</span>
+                  </div>
+                  <span class="admin-role-badge" [ngClass]="task.createdByAdminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ task.createdByAdminName }}</span>
+                  <span class="task-created-date" *ngIf="task.createdAt">{{ formatFullDate(task.createdAt) }}</span>
+                </div>
+                <div class="task-menu-wrap" (click)="$event.stopPropagation()">
+                  <button class="menu-btn" (click)="toggleMenu(task.id, $event)" title="Actions">&#8942;</button>
+                  <div class="task-menu" *ngIf="openMenuTaskId === task.id">
+                    <button (click)="openEditTask(task)">Edit</button>
+                    <button (click)="deleteTask(task)" class="danger">Delete</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="empty-state" *ngIf="!loadingTasks && activeTasks.length === 0">No active tasks.</div>
+            <div class="loading-state" *ngIf="loadingTasks">Loading tasks...</div>
+            <div class="pagination" *ngIf="activeTotalPages > 1">
+              <button class="page-btn" (click)="goToPageFor('active', activePage - 1)" [disabled]="activePage === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('active', 1)" [class.active]="activePage === 1">1</button>
+              <span *ngIf="activeTotalPages > 5 && activePage > 3" class="page-ellipsis">...</span>
+              <button *ngFor="let page of getVisiblePagesFor('active')" class="page-btn" (click)="goToPageFor('active', page)" [class.active]="activePage === page">{{ page }}</button>
+              <span *ngIf="activeTotalPages > 5 && activePage < activeTotalPages - 2" class="page-ellipsis">...</span>
+              <button *ngIf="activeTotalPages > 1" class="page-btn" (click)="goToPageFor('active', activeTotalPages)" [class.active]="activePage === activeTotalPages">{{ activeTotalPages }}</button>
+              <button class="page-btn" (click)="goToPageFor('active', activePage + 1)" [disabled]="activePage === activeTotalPages">Next &#8250;</button>
+            </div>
+          </ng-container>
+
+          <!-- Done sub-tab -->
+          <ng-container *ngSwitchCase="'done'">
+            <div class="tasks-list" *ngIf="!loadingTasks && doneSharedTasks.length > 0">
+              <div class="task-row task-row-columns task-done" *ngFor="let task of paginatedDoneSharedTasks" (click)="openEditTask(task)">
+                <label class="checkbox-wrap" (click)="$event.stopPropagation()">
+                  <input type="checkbox" [checked]="true" (change)="toggleTaskStatus(task)">
+                  <span class="checkmark checked"></span>
+                </label>
+                <div class="task-col-left">
+                  <span class="task-title done"><span class="entity-id">#{{ task.id }}</span> {{ task.title }}</span>
+                  <span class="task-detail" *ngIf="task.clientName">{{ task.clientName }}</span>
+                </div>
+                <div class="task-col-middle">
+                  <span class="task-detail" *ngIf="task.orderId">Order #{{ task.orderId }}</span>
+                  <span class="task-description-line" *ngIf="task.description">{{ task.description }}</span>
+                </div>
+                <div class="task-col-right">
+                  <div class="task-badges">
+                    <span class="priority-badge" [ngClass]="'priority-' + task.priority.toLowerCase()">{{ task.priority | uppercase }}</span>
+                  </div>
+                  <span class="admin-role-badge" [ngClass]="task.createdByAdminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ task.createdByAdminName }}</span>
+                  <span class="task-created-date" *ngIf="task.createdAt">{{ formatFullDate(task.createdAt) }}</span>
+                </div>
+                <div class="task-menu-wrap" (click)="$event.stopPropagation()">
+                  <button class="menu-btn" (click)="toggleMenu(task.id, $event)" title="Actions">&#8942;</button>
+                  <div class="task-menu" *ngIf="openMenuTaskId === task.id">
+                    <button (click)="openEditTask(task)">Edit</button>
+                    <button (click)="deleteTask(task)" class="danger">Delete</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="empty-state" *ngIf="!loadingTasks && doneSharedTasks.length === 0">No completed tasks.</div>
+            <div class="loading-state" *ngIf="loadingTasks">Loading...</div>
+            <div class="pagination" *ngIf="doneSharedTotalPages > 1">
+              <button class="page-btn" (click)="goToPageFor('doneShared', doneSharedPage - 1)" [disabled]="doneSharedPage === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('doneShared', 1)" [class.active]="doneSharedPage === 1">1</button>
+              <span *ngIf="doneSharedTotalPages > 5 && doneSharedPage > 3" class="page-ellipsis">...</span>
+              <button *ngFor="let page of getVisiblePagesFor('doneShared')" class="page-btn" (click)="goToPageFor('doneShared', page)" [class.active]="doneSharedPage === page">{{ page }}</button>
+              <span *ngIf="doneSharedTotalPages > 5 && doneSharedPage < doneSharedTotalPages - 2" class="page-ellipsis">...</span>
+              <button *ngIf="doneSharedTotalPages > 1" class="page-btn" (click)="goToPageFor('doneShared', doneSharedTotalPages)" [class.active]="doneSharedPage === doneSharedTotalPages">{{ doneSharedTotalPages }}</button>
+              <button class="page-btn" (click)="goToPageFor('doneShared', doneSharedPage + 1)" [disabled]="doneSharedPage === doneSharedTotalPages">Next &#8250;</button>
+            </div>
+          </ng-container>
+
+        </div>
+      </div>
+
+      <!-- ═══ CLIENT INTERACTIONS TAB ═══ -->
+      <div *ngSwitchCase="'interactions'" class="tab-panel">
+        <button class="create-new-btn create-btn-red" (click)="openCreateInteraction()">+ Create New Interaction</button>
+
+        <div class="sub-tabs">
+          <button class="sub-tab-btn" [class.active]="interactionsSubTab === 'active'" (click)="interactionsSubTab = 'active'">
+            Active <span class="sub-tab-count" *ngIf="filteredHistory.length">{{ filteredHistory.length }}</span>
+          </button>
+          <button class="sub-tab-btn" [class.active]="interactionsSubTab === 'closed'" (click)="interactionsSubTab = 'closed'">
+            Closed <span class="sub-tab-count" *ngIf="closedInteractions.length">{{ closedInteractions.length }}</span>
+          </button>
+        </div>
+
+        <div class="card" [ngSwitch]="interactionsSubTab">
+
+          <!-- Active interactions sub-tab -->
+          <ng-container *ngSwitchCase="'active'">
+            <div class="history-filters">
+              <input type="text" class="search-input" placeholder="Search clients..." [(ngModel)]="historySearch" (ngModelChange)="onHistoryFilterChange()">
+              <select class="filter-select" [(ngModel)]="historyStatusFilter" (ngModelChange)="onHistoryFilterChange()">
+                <option value="">All Status</option><option value="Pending">Pending</option><option value="Urgent">Urgent</option>
+              </select>
+              <select class="filter-select" [(ngModel)]="historyAdminFilter" (ngModelChange)="onHistoryFilterChange()">
+                <option value="">All Admins</option>
+                <option *ngFor="let admin of historyAdmins" [value]="admin.id">{{ admin.firstName }}</option>
+              </select>
+            </div>
+            <div class="history-list" *ngIf="!loadingInteractions && filteredHistory.length > 0">
+              <div class="history-row" *ngFor="let item of paginatedFilteredHistory" (click)="openEditInteraction(item)">
+                <div class="history-client">
+                  <span class="avatar-circle" [style.background]="getAvatarColor(item.clientName)">{{ getInitials(item.clientName) }}</span>
+                  <div class="client-details">
+                    <span class="client-name"><span class="entity-id">#{{ item.id }}</span> {{ item.clientName }}</span>
+                    <span class="client-phone" *ngIf="item.clientPhone">{{ item.clientPhone }}</span>
+                  </div>
+                </div>
+                <div class="history-interaction">
+                  <div class="interaction-date-row">
+                    <span class="interaction-date">{{ formatDate(item.interactionDate) }} &ndash;</span>
+                    <span class="admin-role-badge" [ngClass]="item.adminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ item.adminName }}</span>
+                  </div>
+                  <span class="interaction-type">{{ item.type }}<span *ngIf="item.notes"> &ndash; {{ item.notes }}</span></span>
+                </div>
+                <span class="status-badge" [ngClass]="'status-' + item.status.toLowerCase()">{{ item.status }}</span>
+                <div class="task-menu-wrap" (click)="$event.stopPropagation()">
+                  <button class="menu-btn" (click)="toggleInteractionMenu(item.id, $event)" title="Actions">&#8942;</button>
+                  <div class="task-menu" *ngIf="openMenuInteractionId === item.id">
+                    <button (click)="openEditInteraction(item)">Edit</button>
+                    <button (click)="deleteInteraction(item)" class="danger">Delete</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="empty-state" *ngIf="!loadingInteractions && filteredHistory.length === 0">No active interactions.</div>
+            <div class="loading-state" *ngIf="loadingInteractions">Loading...</div>
+            <div class="pagination" *ngIf="interactionsTotalPages > 1">
+              <button class="page-btn" (click)="goToPageFor('interactions', interactionsPage - 1)" [disabled]="interactionsPage === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('interactions', 1)" [class.active]="interactionsPage === 1">1</button>
+              <span *ngIf="interactionsTotalPages > 5 && interactionsPage > 3" class="page-ellipsis">...</span>
+              <button *ngFor="let page of getVisiblePagesFor('interactions')" class="page-btn" (click)="goToPageFor('interactions', page)" [class.active]="interactionsPage === page">{{ page }}</button>
+              <span *ngIf="interactionsTotalPages > 5 && interactionsPage < interactionsTotalPages - 2" class="page-ellipsis">...</span>
+              <button *ngIf="interactionsTotalPages > 1" class="page-btn" (click)="goToPageFor('interactions', interactionsTotalPages)" [class.active]="interactionsPage === interactionsTotalPages">{{ interactionsTotalPages }}</button>
+              <button class="page-btn" (click)="goToPageFor('interactions', interactionsPage + 1)" [disabled]="interactionsPage === interactionsTotalPages">Next &#8250;</button>
+            </div>
+          </ng-container>
+
+          <!-- Closed interactions sub-tab -->
+          <ng-container *ngSwitchCase="'closed'">
+            <div class="history-list" *ngIf="!loadingInteractions && closedInteractions.length > 0">
+              <div class="history-row" *ngFor="let item of paginatedClosedInteractions" (click)="openEditInteraction(item)">
+                <div class="history-client">
+                  <span class="avatar-circle" [style.background]="getAvatarColor(item.clientName)">{{ getInitials(item.clientName) }}</span>
+                  <div class="client-details">
+                    <span class="client-name"><span class="entity-id">#{{ item.id }}</span> {{ item.clientName }}</span>
+                    <span class="client-phone" *ngIf="item.clientPhone">{{ item.clientPhone }}</span>
+                  </div>
+                </div>
+                <div class="history-interaction">
+                  <div class="interaction-date-row">
+                    <span class="interaction-date">{{ formatDate(item.interactionDate) }} &ndash;</span>
+                    <span class="admin-role-badge" [ngClass]="item.adminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ item.adminName }}</span>
+                  </div>
+                  <span class="interaction-type">{{ item.type }}<span *ngIf="item.notes"> &ndash; {{ item.notes }}</span></span>
+                </div>
+                <span class="status-badge status-closed">{{ item.status }}</span>
+                <div class="task-menu-wrap" (click)="$event.stopPropagation()">
+                  <button class="menu-btn" (click)="toggleInteractionMenu(item.id, $event)" title="Actions">&#8942;</button>
+                  <div class="task-menu" *ngIf="openMenuInteractionId === item.id">
+                    <button (click)="openEditInteraction(item)">Edit</button>
+                    <button (click)="deleteInteraction(item)" class="danger">Delete</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="empty-state" *ngIf="!loadingInteractions && closedInteractions.length === 0">No closed interactions.</div>
+            <div class="loading-state" *ngIf="loadingInteractions">Loading...</div>
+            <div class="pagination" *ngIf="closedInteractionsTotalPages > 1">
+              <button class="page-btn" (click)="goToPageFor('closedInteractions', closedInteractionsPage - 1)" [disabled]="closedInteractionsPage === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('closedInteractions', 1)" [class.active]="closedInteractionsPage === 1">1</button>
+              <span *ngIf="closedInteractionsTotalPages > 5 && closedInteractionsPage > 3" class="page-ellipsis">...</span>
+              <button *ngFor="let page of getVisiblePagesFor('closedInteractions')" class="page-btn" (click)="goToPageFor('closedInteractions', page)" [class.active]="closedInteractionsPage === page">{{ page }}</button>
+              <span *ngIf="closedInteractionsTotalPages > 5 && closedInteractionsPage < closedInteractionsTotalPages - 2" class="page-ellipsis">...</span>
+              <button *ngIf="closedInteractionsTotalPages > 1" class="page-btn" (click)="goToPageFor('closedInteractions', closedInteractionsTotalPages)" [class.active]="closedInteractionsPage === closedInteractionsTotalPages">{{ closedInteractionsTotalPages }}</button>
+              <button class="page-btn" (click)="goToPageFor('closedInteractions', closedInteractionsPage + 1)" [disabled]="closedInteractionsPage === closedInteractionsTotalPages">Next &#8250;</button>
+            </div>
+          </ng-container>
+
+        </div>
+      </div>
+
+      <!-- ═══ MY TASKS TAB ═══ -->
+      <div *ngSwitchCase="'mytasks'" class="tab-panel">
+        <button class="create-new-btn create-btn-yellow" (click)="openCreatePersonalTask()">+ Create New Admin Task</button>
+
+        <div class="sub-tabs">
+          <button class="sub-tab-btn" [class.active]="myTasksSubTab === 'assigned'" (click)="myTasksSubTab = 'assigned'">
+            My Tasks <span class="sub-tab-count" *ngIf="myAssignedTasks.length">{{ myAssignedTasks.length }}</span>
+            <span class="pending-task-dot" *ngIf="myAssignedTasks.length > 0"></span>
+          </button>
+          <button class="sub-tab-btn" [class.active]="myTasksSubTab === 'created'" (click)="myTasksSubTab = 'created'">
+            Tasks I Created <span class="sub-tab-count" *ngIf="myCreatedTasks.length">{{ myCreatedTasks.length }}</span>
+            <span class="unchecked-done-dot" *ngIf="uncheckedDoneCreatedCount > 0"></span>
+          </button>
+          <button class="sub-tab-btn" [class.active]="myTasksSubTab === 'done'" (click)="myTasksSubTab = 'done'">
+            Done <span class="sub-tab-count" *ngIf="donePersonalTasks.length">{{ donePersonalTasks.length }}</span>
+          </button>
+          <button class="sub-tab-btn" *ngIf="isSuperAdmin" [class.active]="myTasksSubTab === 'allAdmin'" (click)="myTasksSubTab = 'allAdmin'">
+            All Admin Tasks <span class="sub-tab-count" *ngIf="allAdminTasks.length">{{ allAdminTasks.length }}</span>
+          </button>
+        </div>
+
+        <div class="card" [ngSwitch]="myTasksSubTab">
+
+          <!-- My assigned tasks sub-tab -->
+          <ng-container *ngSwitchCase="'assigned'">
+            <div class="tasks-list" *ngIf="!loadingPersonalTasks && myAssignedTasks.length > 0">
+              <div class="task-row task-row-columns" *ngFor="let task of paginatedMyAssignedTasks" (click)="openEditPersonalTask(task)">
+                <label class="checkbox-wrap" (click)="$event.stopPropagation()">
+                  <input type="checkbox" [checked]="task.status === 'Done'" (change)="togglePersonalTaskStatus(task)">
+                  <span class="checkmark"></span>
+                </label>
+                <div class="task-col-left">
+                  <span class="task-title"><span class="entity-id">#{{ task.id }}</span> {{ task.title }}</span>
+                  <span class="task-detail">
+                    From: <span class="admin-role-badge" [ngClass]="task.createdByAdminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ task.createdByAdminName }}</span>
+                  </span>
+                </div>
+                <div class="task-col-middle">
+                  <span class="task-description-line" *ngIf="task.description">{{ task.description }}</span>
+                </div>
+                <div class="task-col-right">
+                  <div class="task-badges">
+                    <span class="priority-badge" [ngClass]="'priority-' + task.priority.toLowerCase()">{{ task.priority | uppercase }}</span>
+                    <span class="due-badge" *ngIf="task.dueDate" [ngClass]="getDueLabelClass(task)">{{ getDueLabel(task) }}</span>
+                  </div>
+                  <span class="task-created-date" *ngIf="task.createdAt">{{ formatFullDate(task.createdAt) }}</span>
+                </div>
+                <div class="task-menu-wrap" (click)="$event.stopPropagation()">
+                  <button class="menu-btn" (click)="togglePersonalTaskMenu(task.id, $event)" title="Actions">&#8942;</button>
+                  <div class="task-menu" *ngIf="openMenuPersonalTaskId === task.id">
+                    <button (click)="openEditPersonalTask(task)">Edit</button>
+                    <button (click)="deletePersonalTask(task)" class="danger">Delete</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="empty-state" *ngIf="!loadingPersonalTasks && myAssignedTasks.length === 0">No tasks assigned to you.</div>
+            <div class="loading-state" *ngIf="loadingPersonalTasks">Loading...</div>
+            <div class="pagination" *ngIf="myAssignedTotalPages > 1">
+              <button class="page-btn" (click)="goToPageFor('myAssigned', myAssignedPage - 1)" [disabled]="myAssignedPage === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('myAssigned', 1)" [class.active]="myAssignedPage === 1">1</button>
+              <span *ngIf="myAssignedTotalPages > 5 && myAssignedPage > 3" class="page-ellipsis">...</span>
+              <button *ngFor="let page of getVisiblePagesFor('myAssigned')" class="page-btn" (click)="goToPageFor('myAssigned', page)" [class.active]="myAssignedPage === page">{{ page }}</button>
+              <span *ngIf="myAssignedTotalPages > 5 && myAssignedPage < myAssignedTotalPages - 2" class="page-ellipsis">...</span>
+              <button *ngIf="myAssignedTotalPages > 1" class="page-btn" (click)="goToPageFor('myAssigned', myAssignedTotalPages)" [class.active]="myAssignedPage === myAssignedTotalPages">{{ myAssignedTotalPages }}</button>
+              <button class="page-btn" (click)="goToPageFor('myAssigned', myAssignedPage + 1)" [disabled]="myAssignedPage === myAssignedTotalPages">Next &#8250;</button>
+            </div>
+          </ng-container>
+
+          <!-- Tasks I created sub-tab -->
+          <ng-container *ngSwitchCase="'created'">
+            <div class="tasks-list" *ngIf="!loadingPersonalTasks && myCreatedTasks.length > 0">
+              <div class="task-row task-row-columns" [class.task-done-unchecked]="task.status === 'Done' && !task.checkedByCreator" *ngFor="let task of paginatedMyCreatedTasks" (click)="openEditPersonalTask(task)">
+                <label class="checkbox-wrap" (click)="$event.stopPropagation()">
+                  <input type="checkbox" [checked]="task.status === 'Done'" (change)="togglePersonalTaskStatus(task)">
+                  <span class="checkmark"></span>
+                </label>
+                <div class="task-col-left">
+                  <span class="task-title"><span class="entity-id">#{{ task.id }}</span> {{ task.title }}</span>
+                  <span class="task-detail">
+                    Assigned to: <span class="admin-role-badge" [ngClass]="task.assignedToAdminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ task.assignedToAdminName }}</span>
+                  </span>
+                </div>
+                <div class="task-col-middle">
+                  <span class="task-description-line" *ngIf="task.description">{{ task.description }}</span>
+                </div>
+                <div class="task-col-right">
+                  <div class="task-badges">
+                    <span class="priority-badge" [ngClass]="'priority-' + task.priority.toLowerCase()">{{ task.priority | uppercase }}</span>
+                    <span class="due-badge" *ngIf="task.dueDate" [ngClass]="getDueLabelClass(task)">{{ getDueLabel(task) }}</span>
+                  </div>
+                  <span class="task-created-date" *ngIf="task.createdAt">{{ formatFullDate(task.createdAt) }}</span>
+                </div>
+                <div class="task-menu-wrap" (click)="$event.stopPropagation()">
+                  <button class="menu-btn" (click)="togglePersonalTaskMenu(task.id, $event)" title="Actions">&#8942;</button>
+                  <div class="task-menu" *ngIf="openMenuPersonalTaskId === task.id">
+                    <button (click)="openEditPersonalTask(task)">Edit</button>
+                    <button (click)="deletePersonalTask(task)" class="danger">Delete</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="empty-state" *ngIf="!loadingPersonalTasks && myCreatedTasks.length === 0">You haven't created any tasks for other admins.</div>
+            <div class="loading-state" *ngIf="loadingPersonalTasks">Loading...</div>
+            <div class="pagination" *ngIf="myCreatedTotalPages > 1">
+              <button class="page-btn" (click)="goToPageFor('myCreated', myCreatedPage - 1)" [disabled]="myCreatedPage === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('myCreated', 1)" [class.active]="myCreatedPage === 1">1</button>
+              <span *ngIf="myCreatedTotalPages > 5 && myCreatedPage > 3" class="page-ellipsis">...</span>
+              <button *ngFor="let page of getVisiblePagesFor('myCreated')" class="page-btn" (click)="goToPageFor('myCreated', page)" [class.active]="myCreatedPage === page">{{ page }}</button>
+              <span *ngIf="myCreatedTotalPages > 5 && myCreatedPage < myCreatedTotalPages - 2" class="page-ellipsis">...</span>
+              <button *ngIf="myCreatedTotalPages > 1" class="page-btn" (click)="goToPageFor('myCreated', myCreatedTotalPages)" [class.active]="myCreatedPage === myCreatedTotalPages">{{ myCreatedTotalPages }}</button>
+              <button class="page-btn" (click)="goToPageFor('myCreated', myCreatedPage + 1)" [disabled]="myCreatedPage === myCreatedTotalPages">Next &#8250;</button>
+            </div>
+          </ng-container>
+
+          <!-- Done tasks sub-tab -->
+          <ng-container *ngSwitchCase="'done'">
+            <div class="tasks-list" *ngIf="!loadingPersonalTasks && donePersonalTasks.length > 0">
+              <div class="task-row task-row-columns task-done" [class.task-done-unchecked]="!task.checkedByCreator && task.createdByAdminId === currentAdminId" *ngFor="let task of paginatedDonePersonalTasks" (click)="openEditPersonalTask(task)">
+                <label class="checkbox-wrap" (click)="$event.stopPropagation()">
+                  <input type="checkbox" [checked]="true" (change)="togglePersonalTaskStatus(task)">
+                  <span class="checkmark checked"></span>
+                </label>
+                <div class="task-col-left">
+                  <span class="task-title done"><span class="entity-id">#{{ task.id }}</span> {{ task.title }}</span>
+                  <span class="task-detail">
+                    Assigned to: <span class="admin-role-badge" [ngClass]="task.assignedToAdminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ task.assignedToAdminName }}</span>
+                  </span>
+                  <span class="task-detail">
+                    From: <span class="admin-role-badge" [ngClass]="task.createdByAdminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ task.createdByAdminName }}</span>
+                  </span>
+                </div>
+                <div class="task-col-middle">
+                  <span class="task-description-line" *ngIf="task.description">{{ task.description }}</span>
+                </div>
+                <div class="task-col-right">
+                  <div class="task-badges">
+                    <span class="priority-badge" [ngClass]="'priority-' + task.priority.toLowerCase()">{{ task.priority | uppercase }}</span>
+                  </div>
+                  <span class="task-created-date" *ngIf="task.createdAt">{{ formatFullDate(task.createdAt) }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="empty-state" *ngIf="!loadingPersonalTasks && donePersonalTasks.length === 0">No completed tasks.</div>
+            <div class="loading-state" *ngIf="loadingPersonalTasks">Loading...</div>
+            <div class="pagination" *ngIf="donePersonalTotalPages > 1">
+              <button class="page-btn" (click)="goToPageFor('donePersonal', donePersonalPage - 1)" [disabled]="donePersonalPage === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('donePersonal', 1)" [class.active]="donePersonalPage === 1">1</button>
+              <span *ngIf="donePersonalTotalPages > 5 && donePersonalPage > 3" class="page-ellipsis">...</span>
+              <button *ngFor="let page of getVisiblePagesFor('donePersonal')" class="page-btn" (click)="goToPageFor('donePersonal', page)" [class.active]="donePersonalPage === page">{{ page }}</button>
+              <span *ngIf="donePersonalTotalPages > 5 && donePersonalPage < donePersonalTotalPages - 2" class="page-ellipsis">...</span>
+              <button *ngIf="donePersonalTotalPages > 1" class="page-btn" (click)="goToPageFor('donePersonal', donePersonalTotalPages)" [class.active]="donePersonalPage === donePersonalTotalPages">{{ donePersonalTotalPages }}</button>
+              <button class="page-btn" (click)="goToPageFor('donePersonal', donePersonalPage + 1)" [disabled]="donePersonalPage === donePersonalTotalPages">Next &#8250;</button>
+            </div>
+          </ng-container>
+
+          <!-- All admin tasks sub-tab (SuperAdmin only) -->
+          <ng-container *ngSwitchCase="'allAdmin'">
+            <div class="tasks-list" *ngIf="!loadingAllAdminTasks && allAdminTasks.length > 0">
+              <div class="task-row task-row-columns" *ngFor="let task of paginatedAllAdminTasks" (click)="openViewPersonalTask(task)">
+                <div class="task-col-left">
+                  <span class="task-title"><span class="entity-id">#{{ task.id }}</span> {{ task.title }}</span>
+                  <span class="task-detail">
+                    Assigned to: <span class="admin-role-badge" [ngClass]="task.assignedToAdminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ task.assignedToAdminName }}</span>
+                  </span>
+                  <span class="task-detail">
+                    Created by: <span class="admin-role-badge" [ngClass]="task.createdByAdminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ task.createdByAdminName }}</span>
+                  </span>
+                </div>
+                <div class="task-col-middle">
+                  <span class="task-description-line" *ngIf="task.description">{{ task.description }}</span>
+                </div>
+                <div class="task-col-right">
+                  <div class="task-badges">
+                    <span class="priority-badge" [ngClass]="'priority-' + task.priority.toLowerCase()">{{ task.priority | uppercase }}</span>
+                    <span class="due-badge" *ngIf="task.dueDate" [ngClass]="getDueLabelClass(task)">{{ getDueLabel(task) }}</span>
+                  </div>
+                  <span class="task-created-date" *ngIf="task.createdAt">{{ formatFullDate(task.createdAt) }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="empty-state" *ngIf="!loadingAllAdminTasks && allAdminTasks.length === 0">No admin tasks found.</div>
+            <div class="loading-state" *ngIf="loadingAllAdminTasks">Loading...</div>
+            <div class="pagination" *ngIf="allAdminTotalPages > 1">
+              <button class="page-btn" (click)="goToPageFor('allAdmin', allAdminPage - 1)" [disabled]="allAdminPage === 1">&#8249; Previous</button>
+              <button class="page-btn" (click)="goToPageFor('allAdmin', 1)" [class.active]="allAdminPage === 1">1</button>
+              <span *ngIf="allAdminTotalPages > 5 && allAdminPage > 3" class="page-ellipsis">...</span>
+              <button *ngFor="let page of getVisiblePagesFor('allAdmin')" class="page-btn" (click)="goToPageFor('allAdmin', page)" [class.active]="allAdminPage === page">{{ page }}</button>
+              <span *ngIf="allAdminTotalPages > 5 && allAdminPage < allAdminTotalPages - 2" class="page-ellipsis">...</span>
+              <button *ngIf="allAdminTotalPages > 1" class="page-btn" (click)="goToPageFor('allAdmin', allAdminTotalPages)" [class.active]="allAdminPage === allAdminTotalPages">{{ allAdminTotalPages }}</button>
+              <button class="page-btn" (click)="goToPageFor('allAdmin', allAdminPage + 1)" [disabled]="allAdminPage === allAdminTotalPages">Next &#8250;</button>
+            </div>
+          </ng-container>
+
+        </div>
+      </div>
+
+      <!-- ═══ HANDOVER NOTES TAB ═══ -->
+      <div *ngSwitchCase="'handover'" class="tab-panel">
+        <button class="create-new-btn create-btn-blue" (click)="openCreateNote()">+ Create New Handover Note</button>
+
+        <div class="card notes-card-tab">
+          <div class="card-header">
+            <div class="card-title">
+              <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              <h2>HANDOVER NOTES</h2>
+            </div>
+          </div>
+          <div class="notes-list" *ngIf="!loadingNotes && handoverNotes.length > 0">
+            <div class="note-card" *ngFor="let note of paginatedHandoverNotes">
+              <div class="note-header">
+                <div class="note-meta">
+                  <span class="entity-id">#{{ note.id }}</span>
+                  <span class="note-date">{{ formatFullDate(note.createdAt) }}</span>
+                  <span class="note-separator">&bull;</span>
+                  <span class="admin-role-badge" [ngClass]="note.adminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ note.adminName }}</span>
+                </div>
+                <span class="audience-badge">{{ getTargetAudienceLabel(note.targetAudience) }}</span>
+              </div>
+              <p class="note-content">{{ note.content }}</p>
+              <div class="note-footer">
+                <span class="note-counts">{{ note.taskCount }} task{{ note.taskCount !== 1 ? 's' : '' }} &bull; {{ note.interactionCount }} client interaction{{ note.interactionCount !== 1 ? 's' : '' }}</span>
+                <span class="note-actions" *ngIf="note.adminId === currentAdminId || isSuperAdmin">
+                  <button class="edit-note-btn" (click)="openEditNote(note)" title="Edit note">&#9998;</button>
+                  <button class="delete-note-btn" (click)="deleteNote(note)" title="Delete note">&#10005;</button>
+                </span>
+              </div>
+            </div>
+          </div>
+          <div class="empty-state" *ngIf="!loadingNotes && handoverNotes.length === 0">No handover notes yet.</div>
+          <div class="loading-state" *ngIf="loadingNotes">Loading...</div>
+          <!-- Pagination -->
+          <div class="pagination" *ngIf="handoverTotalPages > 1">
+            <button class="page-btn" (click)="goToPageFor('handover', handoverPage - 1)" [disabled]="handoverPage === 1">&#8249; Previous</button>
+            <button class="page-btn" (click)="goToPageFor('handover', 1)" [class.active]="handoverPage === 1">1</button>
+            <span *ngIf="handoverTotalPages > 5 && handoverPage > 3" class="page-ellipsis">...</span>
+            <button *ngFor="let page of getVisiblePagesFor('handover')" class="page-btn" (click)="goToPageFor('handover', page)" [class.active]="handoverPage === page">{{ page }}</button>
+            <span *ngIf="handoverTotalPages > 5 && handoverPage < handoverTotalPages - 2" class="page-ellipsis">...</span>
+            <button *ngIf="handoverTotalPages > 1" class="page-btn" (click)="goToPageFor('handover', handoverTotalPages)" [class.active]="handoverPage === handoverTotalPages">{{ handoverTotalPages }}</button>
+            <button class="page-btn" (click)="goToPageFor('handover', handoverPage + 1)" [disabled]="handoverPage === handoverTotalPages">Next &#8250;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ LOGS TAB (SuperAdmin only) ═══ -->
+      <div *ngSwitchCase="'logs'" class="tab-panel">
+        <div class="card logs-card">
+          <div class="card-header">
+            <div class="card-title">
+              <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              <h2>ACTIVITY LOGS</h2>
+            </div>
+          </div>
+          <div class="log-filters">
+            <input type="text" class="search-input" placeholder="Search by ID..." [(ngModel)]="logSearchId" (ngModelChange)="onLogFilterChange()">
+            <select class="filter-select" [(ngModel)]="logEntityTypeFilter" (ngModelChange)="onLogFilterChange()">
+              <option value="">All Types</option>
+              <option value="SharedTask">Shared Task</option>
+              <option value="PersonalTask">Admin Task</option>
+              <option value="ClientInteraction">Client Interaction</option>
+              <option value="HandoverNote">Handover Note</option>
+            </select>
+            <select class="filter-select" [(ngModel)]="logActionFilter" (ngModelChange)="onLogFilterChange()">
+              <option value="">All Actions</option>
+              <option value="Created">Created</option>
+              <option value="Updated">Updated</option>
+              <option value="StatusChanged">Status Changed</option>
+              <option value="Deleted">Deleted</option>
+            </select>
+            <select class="filter-select" [(ngModel)]="logAdminFilter" (ngModelChange)="onLogFilterChange()">
+              <option value="">All Admins</option>
+              <option *ngFor="let admin of admins" [value]="admin.id">{{ admin.firstName }}</option>
+            </select>
+          </div>
+          <div class="log-list" *ngIf="!loadingLogs || activityLogs.length > 0">
+            <div class="log-entry" *ngFor="let log of paginatedActivityLogs">
+              <div class="log-header-row">
+                <span class="log-action-badge" [ngClass]="getActionClass(log.action)">{{ getActionLabel(log.action) }}</span>
+                <span class="log-entity-type">{{ getEntityTypeLabel(log.entityType) }} #{{ log.entityId }}</span>
+                <span class="log-entity-title" *ngIf="log.entityTitle">{{ log.entityTitle }}</span>
+                <span class="log-spacer"></span>
+                <span class="admin-role-badge" [ngClass]="log.adminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ log.adminName }}</span>
+                <span class="log-time">{{ formatFullDateTime(log.createdAt) }}</span>
+              </div>
+              <div class="log-changes" *ngIf="log.changes && log.action !== 'Deleted'">
+                <div class="log-change-row" *ngFor="let change of parseChanges(log.changes)">
+                  <span class="log-field-name">{{ change.field }}:</span>
+                  <span class="log-old-value" *ngIf="change.from && log.action !== 'Created'">"{{ change.from }}"</span>
+                  <span class="log-arrow" *ngIf="change.from && log.action !== 'Created'">&rarr;</span>
+                  <span class="log-new-value">"{{ change.to }}"</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="empty-state" *ngIf="!loadingLogs && activityLogs.length === 0">No activity logs yet.</div>
+          <div class="loading-state" *ngIf="loadingLogs && activityLogs.length === 0">Loading...</div>
+          <div class="loading-state" *ngIf="loadingLogs && activityLogs.length > 0">Loading more...</div>
+          <!-- Pagination -->
+          <div class="pagination" *ngIf="logsTotalPages > 1 || logHasMore">
+            <button class="page-btn" (click)="goToPageFor('logs', logsPage - 1)" [disabled]="logsPage === 1">&#8249; Previous</button>
+            <button class="page-btn" (click)="goToPageFor('logs', 1)" [class.active]="logsPage === 1">1</button>
+            <span *ngIf="logsTotalPages > 5 && logsPage > 3" class="page-ellipsis">...</span>
+            <button *ngFor="let page of getVisiblePagesFor('logs')" class="page-btn" (click)="goToPageFor('logs', page)" [class.active]="logsPage === page">{{ page }}</button>
+            <span *ngIf="logsTotalPages > 5 && logsPage < logsTotalPages - 2" class="page-ellipsis">...</span>
+            <button *ngIf="logsTotalPages > 1" class="page-btn" (click)="goToPageFor('logs', logsTotalPages)" [class.active]="logsPage === logsTotalPages">{{ logsTotalPages }}</button>
+            <button class="page-btn" (click)="goToPageFor('logs', logsPage + 1)" [disabled]="logsPage === logsTotalPages">Next &#8250;</button>
+            <button class="page-btn load-more-page-btn" *ngIf="logHasMore && !loadingLogs" (click)="loadMoreLogs()">Load More...</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════ MODALS ═══════════════════════════ -->
+
+  <!-- Task Modal -->
+  <div class="modal-overlay" *ngIf="showTaskModal" (click)="closeModal($event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>{{ editingTaskId ? 'Edit Task #' + editingTaskId : 'New Task' }}</h3>
+        <button class="close-btn" (click)="showTaskModal = false">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Title *</label>
+          <input type="text" [(ngModel)]="taskForm.title" placeholder="Task title" class="form-input">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea [(ngModel)]="taskForm.description" placeholder="Details..." class="form-input" rows="3"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Priority</label>
+            <select [(ngModel)]="taskForm.priority" class="form-input">
+              <option value="Urgent">Urgent</option><option value="High">High</option><option value="Medium">Medium</option><option value="Normal">Normal</option><option value="Low">Low</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Due Date</label>
+            <input type="date" [(ngModel)]="taskForm.dueDate" class="form-input">
+          </div>
+        </div>
+        <div class="form-group autocomplete-group" (click)="$event.stopPropagation()">
+          <label>Client Name</label>
+          <input type="text" [ngModel]="taskClientQuery" (ngModelChange)="onTaskClientInput($event)" placeholder="Search or type client name..." class="form-input" autocomplete="off">
+          <div class="autocomplete-dropdown" *ngIf="showTaskClientDropdown && taskClientResults.length > 0">
+            <div class="autocomplete-item" *ngFor="let client of taskClientResults" (click)="selectTaskClient(client, $event)">
+              <span class="ac-name">{{ client.firstName }} {{ client.lastName }}</span>
+              <span class="ac-email">{{ client.email }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="form-group autocomplete-group" (click)="$event.stopPropagation()">
+          <label>Order (optional)</label>
+          <input type="text" [ngModel]="taskOrderQuery" (ngModelChange)="onTaskOrderInput($event)" placeholder="Search by order ID or client name..." class="form-input" autocomplete="off">
+          <div class="autocomplete-dropdown" *ngIf="showTaskOrderDropdown && taskOrderResults.length > 0">
+            <div class="autocomplete-item order-item" *ngFor="let order of taskOrderResults" (click)="selectTaskOrder(order, $event)">
+              <span class="ac-name">#{{ order.id }} &ndash; {{ order.contactFirstName }} {{ order.contactLastName }}</span>
+              <span class="ac-email">{{ order.serviceTypeName }} &bull; {{ formatDate(order.serviceDate) }} &bull; {{ order.status }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Client Email</label>
+            <input type="email" [(ngModel)]="taskForm.clientEmail" placeholder="Email (optional)" class="form-input">
+          </div>
+          <div class="form-group">
+            <label>Client Phone</label>
+            <input type="text" [(ngModel)]="taskForm.clientPhone" placeholder="Phone (optional)" class="form-input">
+          </div>
+        </div>
+        <div class="form-group" *ngIf="editingTaskId">
+          <label>Completion Note</label>
+          <textarea [(ngModel)]="taskForm.completionNote" placeholder="What was done to complete this task..." class="form-input" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="showTaskModal = false">Cancel</button>
+        <button class="btn btn-primary" (click)="saveTask()" [disabled]="!taskForm.title.trim()">{{ editingTaskId ? 'Update' : 'Create' }}</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Personal Admin Task Modal -->
+  <div class="modal-overlay" *ngIf="showPersonalTaskModal" (click)="closeModal($event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>{{ editingPersonalTaskId ? 'Edit Admin Task #' + editingPersonalTaskId : 'New Admin Task' }}</h3>
+        <button class="close-btn" (click)="showPersonalTaskModal = false">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Title *</label>
+          <input type="text" [(ngModel)]="personalTaskForm.title" placeholder="Task title" class="form-input" [disabled]="personalTaskReadOnly">
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea [(ngModel)]="personalTaskForm.description" placeholder="Details..." class="form-input" rows="3" [disabled]="personalTaskReadOnly"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Priority</label>
+            <select [(ngModel)]="personalTaskForm.priority" class="form-input" [disabled]="personalTaskReadOnly">
+              <option value="Urgent">Urgent</option><option value="High">High</option><option value="Medium">Medium</option><option value="Normal">Normal</option><option value="Low">Low</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Due Date</label>
+            <input type="date" [(ngModel)]="personalTaskForm.dueDate" class="form-input" [disabled]="personalTaskReadOnly">
+          </div>
+        </div>
+        <!-- Multi-admin select for create mode -->
+        <div class="form-group" *ngIf="!editingPersonalTaskId">
+          <label>Assign To * (select one or more)</label>
+          <div class="admin-multi-select">
+            <div class="admin-select-item" *ngFor="let admin of admins"
+                 [class.selected]="isAdminSelected(admin.id)"
+                 (click)="toggleAdminSelection(admin.id)">
+              <span class="admin-select-check">{{ isAdminSelected(admin.id) ? '\u2713' : '' }}</span>
+              <span class="admin-select-name">{{ admin.firstName }}</span>
+              <span class="admin-role-badge" [ngClass]="admin.role === 'SuperAdmin' ? 'role-superadmin' : admin.role === 'Admin' ? 'role-admin' : ''">{{ displayRole(admin.role) }}</span>
+            </div>
+          </div>
+        </div>
+        <!-- Single admin display for edit mode -->
+        <div class="form-group" *ngIf="editingPersonalTaskId">
+          <label>Assigned To</label>
+          <select [(ngModel)]="personalTaskForm.assignedToAdminId" class="form-input" [disabled]="personalTaskReadOnly">
+            <option [ngValue]="0" disabled>Select admin...</option>
+            <option *ngFor="let admin of admins" [ngValue]="admin.id">
+              {{ admin.firstName }} ({{ displayRole(admin.role) }})
+            </option>
+          </select>
+        </div>
+        <div class="form-group" *ngIf="editingPersonalTaskId">
+          <label>Completion Note</label>
+          <textarea [(ngModel)]="personalTaskForm.completionNote" placeholder="What was done to complete this task..." class="form-input" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="showPersonalTaskModal = false">Cancel</button>
+        <button class="btn btn-primary" (click)="savePersonalTask()"
+                [disabled]="!personalTaskForm.title.trim() || (!editingPersonalTaskId && (!personalTaskForm.assignedToAdminIds || personalTaskForm.assignedToAdminIds.length === 0)) || (editingPersonalTaskId && !personalTaskForm.assignedToAdminId)">
+          {{ editingPersonalTaskId ? 'Update' : 'Create' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Interaction Modal -->
+  <div class="modal-overlay" *ngIf="showInteractionModal" (click)="closeModal($event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>{{ editingInteractionId ? 'Edit Interaction #' + editingInteractionId : 'Log Client Interaction' }}</h3>
+        <button class="close-btn" (click)="showInteractionModal = false">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group autocomplete-group" (click)="$event.stopPropagation()">
+          <label>Client Name *</label>
+          <input type="text" [ngModel]="interactionClientQuery" (ngModelChange)="onInteractionClientInput($event)" placeholder="Search or type client name..." class="form-input" autocomplete="off">
+          <div class="autocomplete-dropdown" *ngIf="showInteractionClientDropdown && interactionClientResults.length > 0">
+            <div class="autocomplete-item" *ngFor="let client of interactionClientResults" (click)="selectInteractionClient(client, $event)">
+              <span class="ac-name">{{ client.firstName }} {{ client.lastName }}</span>
+              <span class="ac-email">{{ client.email }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="text" [(ngModel)]="interactionForm.clientPhone" placeholder="Phone number" class="form-input">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" [(ngModel)]="interactionForm.clientEmail" placeholder="Email (optional)" class="form-input">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Type</label>
+            <select [(ngModel)]="interactionForm.type" class="form-input">
+              <option value="">Select type...</option>
+              <option value="Phone call">Phone call</option><option value="SMS sent">SMS sent</option><option value="Email sent">Email sent</option>
+              <option value="Quote sent">Quote sent</option><option value="Reminder call">Reminder call</option><option value="Booking confirmed">Booking confirmed</option>
+              <option value="Complaint">Complaint</option><option value="Follow-up">Follow-up</option><option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select [(ngModel)]="interactionForm.status" class="form-input">
+              <option value="Pending">Pending</option><option value="Urgent">Urgent</option><option value="Closed">Closed</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Notes</label>
+          <textarea [(ngModel)]="interactionForm.notes" placeholder="Interaction details..." class="form-input" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="showInteractionModal = false">Cancel</button>
+        <button class="btn btn-primary" (click)="saveInteraction()" [disabled]="!interactionForm.clientName.trim()">{{ editingInteractionId ? 'Update' : 'Save' }}</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Handover Note Modal -->
+  <div class="modal-overlay" *ngIf="showNoteModal" (click)="closeModal($event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>{{ editingNoteId ? 'Edit Note #' + editingNoteId : 'Add Shift Note' }}</h3>
+        <button class="close-btn" (click)="showNoteModal = false">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Note *</label>
+          <textarea [(ngModel)]="noteForm.content" placeholder="Write your handover note here..." class="form-input" rows="5"></textarea>
+        </div>
+        <div class="form-group">
+          <label>For</label>
+          <select [(ngModel)]="noteForm.targetAudience" class="form-input">
+            <option value="ForNextAdmin">Next Admin</option>
+            <option value="ForAllAdmins">All Admins</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="showNoteModal = false">Cancel</button>
+        <button class="btn btn-primary" (click)="saveNote()" [disabled]="!noteForm.content.trim()">{{ editingNoteId ? 'Update' : 'Save Note' }}</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- View Personal Task Modal (SuperAdmin read-only) -->
+  <div class="modal-overlay" *ngIf="showViewPersonalTaskModal" (click)="closeModal($event)">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>View Admin Task {{ viewingPersonalTask ? '#' + viewingPersonalTask.id : '' }}</h3>
+        <button class="close-btn" (click)="showViewPersonalTaskModal = false">&times;</button>
+      </div>
+      <div class="modal-body" *ngIf="viewingPersonalTask">
+        <div class="view-field">
+          <label>Title</label>
+          <p>{{ viewingPersonalTask.title }}</p>
+        </div>
+        <div class="view-field" *ngIf="viewingPersonalTask.description">
+          <label>Description</label>
+          <p>{{ viewingPersonalTask.description }}</p>
+        </div>
+        <div class="view-row">
+          <div class="view-field">
+            <label>Priority</label>
+            <span class="priority-badge" [ngClass]="'priority-' + viewingPersonalTask.priority.toLowerCase()">{{ viewingPersonalTask.priority }}</span>
+          </div>
+          <div class="view-field">
+            <label>Status</label>
+            <span class="status-badge" [ngClass]="viewingPersonalTask.status === 'Done' ? 'status-closed' : 'status-pending'">{{ viewingPersonalTask.status }}</span>
+          </div>
+          <div class="view-field" *ngIf="viewingPersonalTask.dueDate">
+            <label>Due Date</label>
+            <p>{{ formatFullDate(viewingPersonalTask.dueDate) }}</p>
+          </div>
+        </div>
+        <div class="view-row">
+          <div class="view-field">
+            <label>Assigned To</label>
+            <span class="admin-role-badge" [ngClass]="viewingPersonalTask.assignedToAdminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ viewingPersonalTask.assignedToAdminName }}</span>
+          </div>
+          <div class="view-field">
+            <label>Created By</label>
+            <span class="admin-role-badge" [ngClass]="viewingPersonalTask.createdByAdminRole === 'SuperAdmin' ? 'role-superadmin' : 'role-admin'">{{ viewingPersonalTask.createdByAdminName }}</span>
+          </div>
+        </div>
+        <div class="view-field" *ngIf="viewingPersonalTask.completionNote">
+          <label>Completion Note</label>
+          <p>{{ viewingPersonalTask.completionNote }}</p>
+        </div>
+        <div class="view-row">
+          <div class="view-field">
+            <label>Created</label>
+            <p>{{ formatFullDate(viewingPersonalTask.createdAt) }}</p>
+          </div>
+          <div class="view-field" *ngIf="viewingPersonalTask.completedAt">
+            <label>Completed</label>
+            <p>{{ formatFullDate(viewingPersonalTask.completedAt) }}</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="showViewPersonalTaskModal = false">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Completion Note Modal -->
+  <div class="modal-overlay" *ngIf="showCompletionModal" (click)="closeModal($event)">
+    <div class="modal completion-modal">
+      <div class="modal-header">
+        <h3>Mark as Done</h3>
+        <button class="close-btn" (click)="closeCompletionModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="completion-prompt">What did you do to complete this task? (optional)</p>
+        <div class="form-group">
+          <textarea [(ngModel)]="completionNoteText" placeholder="Describe what was done..." class="form-input" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" (click)="skipCompletion()">Skip</button>
+        <button class="btn btn-primary" (click)="confirmCompletion()">Done</button>
+      </div>
+    </div>
+  </div>
+
+</div>

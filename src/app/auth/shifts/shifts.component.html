@@ -1,0 +1,333 @@
+<div class="shifts-container">
+  <!-- Multi-select bar (replaces header when active) -->
+  <div class="multi-bar" *ngIf="multiSelectMode">
+    <div class="multi-bar-left">
+      <div class="multi-bar-info" *ngIf="multiSelectedDates.length > 0">
+        <span class="multi-bar-count">{{ multiSelectedDates.length }}</span>
+        <span>day{{ multiSelectedDates.length > 1 ? 's' : '' }}</span>
+      </div>
+      <div class="multi-bar-dates" *ngIf="multiSelectedDates.length > 0">
+        <span class="multi-date-chip" *ngFor="let d of getMultiSelectedSorted()">
+          {{ d.getDate() }}
+          <i class="fas fa-times" (click)="toggleMultiDate(d)"></i>
+        </span>
+      </div>
+      <span class="multi-bar-empty" *ngIf="multiSelectedDates.length === 0">Select days on the calendar</span>
+    </div>
+    <div class="multi-bar-actions">
+      <button class="btn btn-secondary btn-sm" (click)="clearMultiSelection()" [disabled]="multiSelectedDates.length === 0">
+        <i class="fas fa-eraser"></i> Clear
+      </button>
+      <button class="btn btn-primary btn-sm" (click)="openMultiModal()" [disabled]="multiSelectedDates.length === 0">
+        <i class="fas fa-user-plus"></i> Assign
+      </button>
+      <button class="btn btn-secondary btn-cancel btn-sm" (click)="toggleMultiSelectMode()">
+        <i class="fas fa-times"></i> Exit
+      </button>
+    </div>
+  </div>
+
+  <!-- Header (hidden in multi-select mode) -->
+  <div class="shifts-header" *ngIf="!multiSelectMode">
+    <div class="header-left">
+      <h1>
+        <i class="fas fa-calendar-alt"></i>
+        Shift Calendar
+      </h1>
+      <p class="header-subtitle">Manage admin shifts for each day</p>
+    </div>
+    <button
+      class="multi-select-btn"
+      (click)="toggleMultiSelectMode()">
+      <i class="fas fa-check-double"></i>
+      Multi-Select
+    </button>
+  </div>
+
+  <!-- Messages -->
+  <div class="message success-message" *ngIf="successMessage">
+    <i class="fas fa-check-circle"></i> {{ successMessage }}
+  </div>
+  <div class="message error-message" *ngIf="errorMessage">
+    <i class="fas fa-exclamation-circle"></i> {{ errorMessage }}
+  </div>
+
+  <!-- Calendar -->
+  <div class="calendar-panel">
+    <!-- Calendar navigation -->
+    <div class="calendar-nav">
+      <button class="nav-btn" (click)="prevMonth()" title="Previous month">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      <div class="month-label-group">
+        <span class="month-label">{{ getMonthLabel() }}</span>
+        <button class="today-btn" (click)="goToToday()">Today</button>
+      </div>
+      <button class="nav-btn" (click)="nextMonth()" title="Next month">
+        <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+
+    <!-- Calendar grid -->
+    <div class="calendar-grid">
+      <div class="calendar-day-header" *ngFor="let day of ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']">
+        {{ day }}
+      </div>
+
+      <ng-container *ngFor="let week of calendarWeeks">
+        <div
+          *ngFor="let date of week"
+          class="calendar-cell"
+          [class.other-month]="!isCurrentMonth(date)"
+          [class.today]="isToday(date)"
+          [class.selected]="!multiSelectMode && isSelected(date)"
+          [class.multi-selected]="multiSelectMode && isMultiSelected(date)"
+          [class.past]="isPast(date)"
+          [class.has-shifts]="getShiftCount(date) > 0 && !dateHasNotes(date)"
+          [class.has-notes]="getShiftCount(date) > 0 && dateHasNotes(date)"
+          [class.multi-mode]="multiSelectMode"
+          (click)="onDateClick(date)">
+
+          <span class="date-number">{{ date.getDate() }}</span>
+
+          <!-- Multi-select checkmark -->
+          <span class="multi-check" *ngIf="multiSelectMode && isMultiSelected(date)">
+            <i class="fas fa-check"></i>
+          </span>
+
+          <div class="cell-shifts" *ngIf="getShiftCount(date) > 0">
+            <ng-container *ngFor="let item of getShiftAdminNames(date); let i = index">
+              <span
+                *ngIf="i < 3"
+                class="shift-name-tag"
+                [style.background-color]="item.color"
+                [title]="item.name">
+                {{ item.name }}
+              </span>
+            </ng-container>
+            <span class="shift-overflow" *ngIf="getShiftCount(date) > 3">
+              +{{ getShiftCount(date) - 3 }}
+            </span>
+          </div>
+
+          <div class="cell-empty" *ngIf="getShiftCount(date) === 0 && isCurrentMonth(date) && !multiSelectMode">
+            <i class="fas fa-plus"></i>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!--  Single-day modal                       -->
+  <!-- ═══════════════════════════════════════ -->
+  <div class="modal-overlay" *ngIf="selectedDate && !multiSelectMode" (click)="onOverlayClick($event)">
+    <div class="modal-panel">
+      <div class="editor-header">
+        <div>
+          <h2>{{ formatSelectedDate() }}</h2>
+          <span class="editor-badge" *ngIf="isPast(selectedDate)">
+            <i class="fas fa-history"></i> Past date
+          </span>
+          <span class="editor-badge today-badge" *ngIf="isToday(selectedDate)">
+            <i class="fas fa-star"></i> Today
+          </span>
+        </div>
+        <button class="close-btn" (click)="closeEditor()" title="Close">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <!-- Current shifts summary -->
+      <div class="current-shifts-section" *ngIf="selectedShifts.length > 0">
+        <h3>Current Shifts</h3>
+        <div class="assigned-list">
+          <div class="assigned-card" *ngFor="let shift of selectedShifts">
+            <div class="assigned-avatar" [style.background-color]="getAdminColor(shift.adminId, shift.adminName)">
+              {{ getInitials(shift.adminName) }}
+            </div>
+            <div class="assigned-info">
+              <span class="assigned-name">{{ shift.adminName }}</span>
+              <span class="assigned-meta">Assigned by {{ shift.createdByUserName }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="no-shifts-message" *ngIf="selectedShifts.length === 0">
+        <i class="fas fa-info-circle"></i>
+        No shifts assigned yet. Select admins below.
+      </div>
+
+      <!-- Admin selection -->
+      <div class="admin-selection">
+        <h3>Select Admins for This Day</h3>
+        <div class="admins-grid" *ngIf="admins.length > 0">
+          <div
+            *ngFor="let admin of admins"
+            class="admin-card"
+            [class.selected]="isAdminSelected(admin.id)"
+            (click)="toggleAdmin(admin.id)">
+            <div class="admin-avatar" [style.background-color]="getAdminColorById(admin.id)">
+              {{ getInitials(admin.firstName + ' ' + admin.lastName) }}
+            </div>
+            <div class="admin-details">
+              <span class="admin-name">{{ admin.firstName }} {{ admin.lastName }}</span>
+              <span class="admin-email">{{ admin.email }}</span>
+            </div>
+            <button class="color-picker-btn" (click)="toggleColorPicker(admin.id, $event)" title="Change color">
+              <span class="color-dot" [style.background-color]="getAdminColorById(admin.id)"></span>
+            </button>
+            <div class="admin-check">
+              <i class="fas" [class.fa-check-circle]="isAdminSelected(admin.id)" [class.fa-circle]="!isAdminSelected(admin.id)"></i>
+            </div>
+            <!-- RGBA Color picker dropdown -->
+            <div class="color-picker-dropdown" *ngIf="colorPickerAdminId === admin.id" (click)="$event.stopPropagation()">
+              <div class="picker-preview" [style.background-color]="getPickerColor()">
+                <span class="picker-hex">{{ getPickerHex() }}</span>
+              </div>
+              <div class="picker-slider">
+                <div class="slider-header">
+                  <label>R</label>
+                  <span class="slider-value">{{ pickerR }}</span>
+                </div>
+                <input type="range" min="0" max="255" step="1"
+                       [(ngModel)]="pickerR"
+                       class="r-slider"
+                       (input)="onSliderInput($event)">
+              </div>
+              <div class="picker-slider">
+                <div class="slider-header">
+                  <label>G</label>
+                  <span class="slider-value">{{ pickerG }}</span>
+                </div>
+                <input type="range" min="0" max="255" step="1"
+                       [(ngModel)]="pickerG"
+                       class="g-slider"
+                       (input)="onSliderInput($event)">
+              </div>
+              <div class="picker-slider">
+                <div class="slider-header">
+                  <label>B</label>
+                  <span class="slider-value">{{ pickerB }}</span>
+                </div>
+                <input type="range" min="0" max="255" step="1"
+                       [(ngModel)]="pickerB"
+                       class="b-slider"
+                       (input)="onSliderInput($event)">
+              </div>
+              <div class="picker-slider">
+                <div class="slider-header">
+                  <label>A</label>
+                  <span class="slider-value">{{ pickerA }}%</span>
+                </div>
+                <input type="range" min="0" max="100" step="1"
+                       [(ngModel)]="pickerA"
+                       class="a-slider"
+                       (input)="onSliderInput($event)">
+              </div>
+              <button class="picker-apply-btn" (click)="applyPickerColor($event)">Apply</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="notes-section">
+        <h3>Shift Notes <span class="optional-label">(optional)</span></h3>
+        <textarea
+          [(ngModel)]="shiftNotes"
+          placeholder="Add any notes for this shift day..."
+          rows="3"
+          maxlength="500">
+        </textarea>
+        <span class="char-count">{{ shiftNotes.length }}/500</span>
+      </div>
+
+      <!-- Actions -->
+      <div class="editor-actions">
+        <button class="btn btn-secondary" (click)="clearDay()" [disabled]="selectedAdminIds.length === 0">
+          <i class="fas fa-eraser"></i> Clear All
+        </button>
+        <button
+          class="btn btn-primary"
+          (click)="saveShifts()"
+          [disabled]="saving || !hasChanges()">
+          <i class="fas fa-save" *ngIf="!saving"></i>
+          <i class="fas fa-spinner fa-spin" *ngIf="saving"></i>
+          {{ saving ? 'Saving...' : 'Save Shifts' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════ -->
+  <!--  Multi-select modal                     -->
+  <!-- ═══════════════════════════════════════ -->
+  <div class="modal-overlay" *ngIf="multiModalOpen" (click)="onMultiOverlayClick($event)">
+    <div class="modal-panel">
+      <div class="editor-header">
+        <div>
+          <h2>Assign to {{ multiSelectedDates.length }} Day{{ multiSelectedDates.length > 1 ? 's' : '' }}</h2>
+          <div class="multi-dates-preview">
+            <span *ngFor="let d of getMultiSelectedSorted()" class="mini-date-chip">{{ formatShortDate(d) }}</span>
+          </div>
+        </div>
+        <button class="close-btn" (click)="closeMultiModal()" title="Close">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <!-- Admin selection -->
+      <div class="admin-selection">
+        <h3>Select Admins</h3>
+        <div class="admins-grid" *ngIf="admins.length > 0">
+          <div
+            *ngFor="let admin of admins"
+            class="admin-card"
+            [class.selected]="isMultiAdminSelected(admin.id)"
+            (click)="toggleMultiAdmin(admin.id)">
+            <div class="admin-avatar" [style.background-color]="getAdminColorById(admin.id)">
+              {{ getInitials(admin.firstName + ' ' + admin.lastName) }}
+            </div>
+            <div class="admin-details">
+              <span class="admin-name">{{ admin.firstName }} {{ admin.lastName }}</span>
+              <span class="admin-email">{{ admin.email }}</span>
+            </div>
+            <div class="admin-check">
+              <i class="fas" [class.fa-check-circle]="isMultiAdminSelected(admin.id)" [class.fa-circle]="!isMultiAdminSelected(admin.id)"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="notes-section">
+        <h3>Shift Notes <span class="optional-label">(optional, applies to all days)</span></h3>
+        <textarea
+          [(ngModel)]="multiNotes"
+          placeholder="Add any notes for these shift days..."
+          rows="3"
+          maxlength="500">
+        </textarea>
+        <span class="char-count">{{ multiNotes.length }}/500</span>
+      </div>
+
+      <!-- Actions -->
+      <div class="editor-actions">
+        <button class="btn btn-secondary btn-cancel" (click)="closeMultiModal()">
+          <i class="fas fa-times"></i> Cancel
+        </button>
+        <button
+          class="btn btn-primary"
+          (click)="saveMultiShifts()"
+          [disabled]="saving || multiAdminIds.length === 0">
+          <i class="fas fa-save" *ngIf="!saving"></i>
+          <i class="fas fa-spinner fa-spin" *ngIf="saving"></i>
+          {{ saving ? 'Saving...' : 'Save to All ' + multiSelectedDates.length + ' Days' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

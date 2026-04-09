@@ -1,0 +1,125 @@
+<div class="order-history-container">
+    <div class="section-header">
+      <h2>Order History</h2>
+      <a routerLink="/booking" class="new-order-btn">Book New Service</a>
+    </div>
+  
+    <div *ngIf="isLoading" class="loading">Loading orders...</div>
+    
+    <div *ngIf="errorMessage" class="error-message">{{ errorMessage }}</div>
+  
+    <div *ngIf="!isLoading && orders.length === 0" class="no-orders">
+      <p>You haven't placed any orders yet.</p>
+      <a routerLink="/booking" class="book-now-btn">Book Your First Service</a>
+    </div>
+  
+    <div class="orders-list" *ngIf="!isLoading && orders.length > 0">
+      <div class="order-card" *ngFor="let order of orders">
+        <div class="order-header">
+          <div class="order-info">
+            <h3>{{ order.serviceTypeName }}</h3>
+            <p class="order-date">Ordered on {{ formatDate(order.orderDate) }}</p>
+          </div>
+          <div class="order-status">
+            <span class="status-badge" [ngClass]="getStatusClass(order.status)">
+              {{ order.status }}
+            </span>
+            <span class="payment-badge unpaid" *ngIf="!order.isPaid">
+              Unpaid
+            </span>
+            <span class="payment-badge unpaid" *ngIf="order.isPaid && (order.pendingUpdateAmount || 0) > 0.01 && order.status !== 'Cancelled'">
+              Payment Due
+            </span>
+            <span class="payment-badge paid" *ngIf="order.isPaid && (order.pendingUpdateAmount || 0) <= 0.01">
+              Paid
+            </span>
+          </div>
+        </div>
+        
+        <div class="order-details">
+          <div class="detail-row">
+            <span class="label">Service Date:</span>
+            <span class="value">{{ formatDate(order.serviceDate) }} at {{ formatTime(order.serviceTime) }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">Address:</span>
+            <span class="value">{{ order.serviceAddress }}</span>
+          </div>
+          <div class="detail-row">
+            <span class="label">Total:</span>
+            <span class="value price">${{ order.total.toFixed(2) }}</span>
+          </div>
+        </div>
+  
+        <div class="order-actions">
+          <!-- Pay and Cancel buttons for unpaid orders (not cancelled) -->
+          <div class="unpaid-actions" *ngIf="!order.isPaid && order.status !== 'Cancelled'">
+            <button 
+              (click)="payOrder(order.id)" 
+              class="pay-btn">
+              Pay ${{ order.total.toFixed(2) }}
+            </button>
+            <button 
+              (click)="cancelUnpaidOrder(order.id)" 
+              class="cancel-btn"
+              [disabled]="isCancellingOrder(order.id)">
+              <span *ngIf="!isCancellingOrder(order.id)">Cancel</span>
+              <span *ngIf="isCancellingOrder(order.id)">Cancelling...</span>
+            </button>
+          </div>
+
+          <!-- Pay button for pending additional payments (admin/customer updates). Amount excludes tips when backend sends initial* fields. -->
+          <div class="unpaid-actions" *ngIf="order.isPaid && order.status !== 'Cancelled' && (order.pendingUpdateAmount || 0) > 0.01">
+            <button
+              (click)="payOrder(order.id)"
+              class="pay-btn">
+              Pay Additional ${{ getEffectivePendingUpdateAmount(order).toFixed(2) }}
+            </button>
+          </div>
+          
+          <a [routerLink]="['/order', order.id]" class="view-btn">View Details</a>
+          <a [routerLink]="['/order', order.id, 'edit']" class="edit-btn" *ngIf="canEditOrder(order)">Edit Order</a>
+          <button
+            (click)="openCancelModal(order.id)"
+            class="cancel-order-btn"
+            *ngIf="canCancelOrder(order)">
+            Cancel Order
+          </button>
+          <button
+            (click)="reorder(order.id)"
+            class="reorder-btn"
+            [disabled]="isReordering(order.id)"
+            *ngIf="!order.isCustomServiceType && (order.isPaid || order.status === 'Cancelled')">
+            <span *ngIf="!isReordering(order.id)">Reorder</span>
+            <span *ngIf="isReordering(order.id)">Loading...</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Cancel Order Modal -->
+    <div class="modal-backdrop" *ngIf="showCancelModal" (click)="closeCancelModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <h2>Cancel Order</h2>
+        <p>Are you sure you want to cancel this order?</p>
+        <p class="refund-notice">Your payment will be refunded within 7 working days.</p>
+
+        <p *ngIf="getCancelModalOrder() && isLateCancellation(getCancelModalOrder()!)" class="late-cancellation-notice">
+          <strong>Please note:</strong> Since you are cancelling less than 48 hours before the scheduled service, a $70.00 late cancellation fee will apply in accordance with our terms of service.
+        </p>
+
+        <div class="form-group">
+          <label>Reason for cancellation:</label>
+          <textarea [(ngModel)]="cancelReason" rows="3" placeholder="Please provide a reason..."></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button class="confirm-btn" (click)="confirmCancelOrder()" [disabled]="!cancelReason.trim() || cancellingOrderId !== null">
+            <span *ngIf="cancellingOrderId === null">Confirm Cancellation</span>
+            <span *ngIf="cancellingOrderId !== null">Cancelling...</span>
+          </button>
+          <button class="close-btn" (click)="closeCancelModal()">Keep Order</button>
+        </div>
+      </div>
+    </div>
+  </div>

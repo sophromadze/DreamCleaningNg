@@ -1,0 +1,97 @@
+<div class="booking-success-container">
+  <div class="success-card">
+
+    <!-- Step 1: Booking confirmation + supplies list -->
+    <ng-container *ngIf="step === 'success'">
+      <div class="success-icon">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <h1>Payment Successful!</h1>
+      <p class="success-message">
+        Your booking has been confirmed. Order #{{ orderId }}
+      </p>
+
+      <ng-container *ngIf="suppliesLoaded">
+        <div *ngIf="hasCleaningSupplies && !isCustomServiceType; else noSuppliesTemplate">
+          <p class="redirect-info">Please provide the following items:</p>
+          <ul class="supplies-list">
+            <li>Paper towels</li>
+            <li>Garbage bags</li>
+            <li>Broom or vacuum cleaner</li>
+          </ul>
+        </div>
+
+        <ng-template #noSuppliesTemplate>
+          <p class="redirect-info">Please have all the following items ready for our team:</p>
+          <ul class="supplies-list">
+            <li>Paper towels</li>
+            <li>Garbage bags</li>
+            <li>Broom or vacuum cleaner</li>
+            <li *ngIf="!isCustomServiceType">
+              Zep liquids:
+              {{
+                isDeepCleaning
+                  ? 'Green, Floor (or similar), Oven Cleaner (or similar)'
+                  : 'Green, Floor (or similar)'
+              }}
+            </li>
+            <li *ngIf="!isCustomServiceType">Windex liquid (or similar)</li>
+            <li *ngIf="!isCustomServiceType">Cleaning cloths, Sponge and Mop</li>
+          </ul>
+        </ng-template>
+      </ng-container>
+
+      <div *ngIf="otpError" class="otp-error">{{ otpError }}</div>
+
+      <button class="view-order-btn" (click)="viewOrderNow()" [disabled]="sendingOtp">
+        {{ sendingOtp ? 'Sending code...' : 'View Your Order Now' }}
+      </button>
+    </ng-container>
+
+    <!-- Step 2: OTP verification -->
+    <ng-container *ngIf="step === 'verify-otp'">
+      <div class="success-icon">
+        <i class="fas fa-envelope-open-text"></i>
+      </div>
+      <h1>Verify Your Email</h1>
+      <p class="success-message">
+        We sent a 6-digit code to <strong>{{ loginEmail }}</strong>.
+        Enter it below to verify your account and set a password.
+      </p>
+
+      <div class="otp-form">
+        <input
+          type="text"
+          inputmode="numeric"
+          pattern="\d{6}"
+          maxlength="6"
+          placeholder="000000"
+          [(ngModel)]="otpCode"
+          class="otp-input"
+          [disabled]="otpLoading"
+          (keydown.enter)="submitOtp()"
+        />
+
+        <div *ngIf="otpError" class="otp-error">{{ otpError }}</div>
+
+        <button
+          class="view-order-btn"
+          (click)="submitOtp()"
+          [disabled]="otpLoading || otpCode.length !== 6"
+        >
+          {{ otpLoading ? 'Verifying...' : 'Verify & Continue' }}
+        </button>
+
+        <button
+          class="resend-btn"
+          type="button"
+          (click)="resendOtp()"
+          [disabled]="resendCooldown > 0"
+        >
+          {{ resendCooldown > 0 ? 'Resend in ' + resendCooldown + 's' : 'Resend code' }}
+        </button>
+      </div>
+    </ng-container>
+
+  </div>
+</div>

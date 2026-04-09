@@ -1,0 +1,79 @@
+.floor-type-section {
+  margin: 12px 0;
+}
+
+.floor-type-label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+
+  .optional-tag {
+    color: #9ca3af;
+    font-weight: 400;
+    font-size: 0.8em;
+    margin-left: 4px;
+  }
+}
+
+.floor-type-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.floor-type-chip {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border: 1px solid #e5e7eb;
+  background-color: #f0f0f0;
+  color: #6b7280;
+  transition: all 0.2s ease;
+  user-select: none;
+  white-space: nowrap;
+
+  &:hover {
+    background-color: #e5e7eb;
+  }
+
+  &.selected {
+    background-color: var(--primary-color, #3b82f6);
+    color: #ffffff;
+    border-color: var(--primary-color, #3b82f6);
+    transform: scale(1.02);
+  }
+}
+
+.floor-type-other-wrapper {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height 0.2s ease, opacity 0.2s ease;
+
+  &.visible {
+    max-height: 50px;
+    opacity: 1;
+  }
+}
+
+.floor-type-other-input {
+  margin-top: 6px;
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.2s ease;
+  background-color: #fafafa;
+  box-sizing: border-box;
+
+  &:focus {
+    border-color: var(--primary-color, #3b82f6);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+}

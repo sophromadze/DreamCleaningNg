@@ -1,0 +1,20 @@
+<div class="payment-form">
+    <h3>Payment Information</h3>
+    
+    <div class="form-group">
+      <label>Card Details</label>
+      <div id="card-element" class="stripe-card-element"></div>
+      <div class="card-errors" *ngIf="cardError">{{ cardError }}</div>
+    </div>
+
+    <button 
+      class="pay-button" 
+      (click)="processPayment()" 
+      [disabled]="isProcessing">
+      {{ isProcessing ? 'Processing...' : 'Pay $' + amount.toFixed(2) }}
+    </button>
+
+    <div class="error-message" *ngIf="errorMessage">
+      {{ errorMessage }}
+    </div>
+  </div>

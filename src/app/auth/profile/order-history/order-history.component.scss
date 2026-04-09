@@ -1,0 +1,564 @@
+.order-history-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+  
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+  
+    h2 {
+      margin: 0;
+      color: #333;
+    }
+  
+    .new-order-btn {
+      background: var(--btn-secondary);
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: var(--btn-secondary-shadow);
+
+      &:hover {
+        background: var(--btn-secondary-hover);
+        transform: translateY(-2px);
+        box-shadow: var(--btn-secondary-shadow-hover);
+      }
+    }
+  }
+  
+  .loading {
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+  }
+  
+  .error-message {
+    background: var(--soft-red);
+    color: var(--bright-red);
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+  }
+  
+  .no-orders {
+    text-align: center;
+    padding: 4rem 2rem;
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  
+    p {
+      color: #666;
+      font-size: 1.1rem;
+      margin-bottom: 2rem;
+    }
+  
+    .book-now-btn {
+      background: var(--btn-primary);
+      color: white;
+      padding: 0.75rem 2rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      box-shadow: var(--btn-primary-shadow);
+
+      &:hover {
+        background: var(--btn-primary-hover);
+        transform: translateY(-2px);
+        box-shadow: var(--btn-primary-shadow-hover);
+      }
+    }
+  }
+  
+  .orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  
+  .order-card {
+    background: var(--soft-yellow-background);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+    transition: box-shadow 0.3s;
+    position: relative;
+    overflow: hidden;
+
+    &::before{
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -10%;
+      width: 400px;
+      height: 400px;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+    }
+  
+    &:hover {
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+  }
+  
+  .order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--soft-lavender);
+    position: relative;
+    
+  
+    .order-info {
+      position: relative;
+      h3 {
+        margin: 0 0 0.5rem 0;
+        color: #333;
+      }
+  
+      .order-date {
+        margin: 0;
+        color: #666;
+        font-size: 0.9rem;
+      }
+    }
+  
+    .order-status {
+      .status-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 600;
+  
+        &.status-active {
+          background: var(--mint-fresh);
+          color: var(--fresh-green);
+        }
+  
+        &.status-done {
+          background: var(--soft-blue);
+          color: var(--primary-color);
+        }
+  
+        &.status-cancelled {
+          background: var(--soft-red);
+          color: var(--bright-red);
+        }
+
+        &.status-pending {
+          background: rgba(108, 117, 125, 0.2);
+          color: #495057;
+        }
+      }
+    }
+  }
+  
+  .order-details {
+    margin-bottom: 1.5rem;
+    position: relative;
+  
+    .detail-row {
+      display: flex;
+      padding: 0.5rem 0;
+  
+      .label {
+        font-weight: 600;
+        color: #666;
+        min-width: 120px;
+      }
+  
+      .value {
+        color: #333;
+  
+        &.price {
+          font-weight: 600;
+          color: var(--fresh-green);
+        }
+      }
+    }
+  }
+  
+  .order-actions {
+    display: flex;
+    gap: 1rem;
+    position: relative;
+    flex-wrap: wrap;
+  
+    .view-btn,
+    .edit-btn,
+    .reorder-btn,
+    .pay-btn {
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+  
+    .view-btn {
+      background: var(--btn-primary);
+      color: white;
+      box-shadow: var(--btn-primary-shadow);
+
+      &:hover {
+        background: var(--btn-primary-hover);
+        transform: translateY(-2px);
+        box-shadow: var(--btn-primary-shadow-hover);
+      }
+    }
+  
+    .edit-btn {
+      background: transparent;
+      color: var(--primary-color);
+      border: 1px solid var(--primary-color);
+
+      &:hover {
+        background: var(--primary-color);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: var(--btn-primary-shadow);
+      }
+    }
+
+    .reorder-btn {
+      background: var(--btn-secondary);
+      color: white;
+      box-shadow: var(--btn-secondary-shadow);
+
+      &:hover:not(:disabled) {
+        background: var(--btn-secondary-hover);
+        transform: translateY(-2px);
+        box-shadow: var(--btn-secondary-shadow-hover);
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+    }
+
+    .pay-btn {
+      background: var(--btn-secondary);
+      color: white;
+      box-shadow: var(--btn-secondary-shadow);
+
+      &:hover:not(:disabled) {
+        background: var(--btn-secondary-hover);
+        transform: translateY(-2px);
+        box-shadow: var(--btn-secondary-shadow-hover);
+      }
+    }
+
+    .unpaid-actions {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .cancel-btn,
+    .cancel-order-btn {
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+      font-family: inherit;
+      box-shadow: 0 2px 4px rgba(220, 53, 69, 0.3);
+
+      &:hover:not(:disabled) {
+        background: #c82333;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(220, 53, 69, 0.4);
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+      }
+    }
+  }
+
+  .payment-badge {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+
+    &.paid {
+      background: var(--mint-fresh);
+      color: var(--fresh-green);
+    }
+
+    &.unpaid {
+      background: rgba(220, 53, 69, 0.12);
+      color: var(--bright-red);
+    }
+  }
+
+  // Dark mode: Pending and Unpaid badges – solid dark backgrounds and white text for contrast
+  :host-context([data-theme="dark"]) .order-status .status-badge.status-pending {
+    background: #5a6268;
+    color: #ffffff;
+  }
+
+  :host-context([data-theme="dark"]) .order-status .payment-badge.unpaid {
+    background: #c82333;
+    color: #ffffff;
+  }
+
+  // Dark mode: ensure Paid badge stays readable on dark cards if card gets dark
+  :host-context([data-theme="dark"]) .order-status .payment-badge.paid {
+    background: #1e7e34;
+    color: #ffffff;
+  }
+
+  // Dark mode: status badges (Active, Done, Cancelled) – solid backgrounds and white text
+  :host-context([data-theme="dark"]) .order-status .status-badge.status-active {
+    background: #1e7e34;
+    color: #ffffff;
+  }
+
+  :host-context([data-theme="dark"]) .order-status .status-badge.status-done {
+    background: var(--primary-color);
+    color: #ffffff;
+  }
+
+  :host-context([data-theme="dark"]) .order-status .status-badge.status-cancelled {
+    background: #c82333;
+    color: #ffffff;
+  }
+  
+  @media (max-width: 768px) {
+    .order-history-container {
+      padding: 1rem;
+    }
+  
+    .section-header {
+      flex-direction: column;
+      gap: 1rem;
+      align-items: stretch;
+  
+      .new-order-btn {
+        text-align: center;
+      }
+    }
+  
+    .order-header {
+      flex-direction: column;
+      gap: 1rem;
+    }
+  
+    .order-details {
+      .detail-row {
+        flex-direction: column;
+        gap: 0.25rem;
+      }
+    }
+  
+    .order-actions {
+      flex-direction: column;
+
+      .view-btn,
+      .edit-btn {
+        text-align: center;
+      }
+    }
+  }
+
+// Cancel Order Modal styles
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+
+  h2 {
+    margin: 0 0 1.5rem 0;
+    color: #333;
+  }
+
+  p {
+    color: #666;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+  }
+
+  .refund-notice {
+    background: var(--mint-fresh);
+    color: var(--fresh-green);
+    padding: 0.75rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+  }
+
+  .late-cancellation-notice {
+    background: #fff3e0;
+    color: #bf360c;
+    padding: 0.75rem;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    border-left: 3px solid #ff9800;
+    font-weight: 500;
+
+    strong {
+      color: #8e2400;
+    }
+  }
+
+  .form-group {
+    margin: 1.5rem 0;
+
+    label {
+      display: block;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1rem;
+      resize: vertical;
+      font-family: inherit;
+      box-sizing: border-box;
+
+      &:focus {
+        outline: none;
+        border-color: var(--primary-color);
+      }
+    }
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+
+    button {
+      flex: 1;
+      padding: 0.75rem;
+      border: none;
+      border-radius: 4px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s;
+      font-family: inherit;
+    }
+
+    .confirm-btn {
+      background: var(--btn-danger);
+      color: white;
+      box-shadow: var(--btn-danger-shadow);
+
+      &:hover:not(:disabled) {
+        background: var(--btn-danger-hover);
+        box-shadow: var(--btn-danger-shadow-hover);
+        transform: translateY(-2px);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+
+    .close-btn {
+      background-color: #6c757d;
+      color: white;
+
+      &:hover {
+        background-color: #5a6268;
+      }
+    }
+  }
+}
+
+:host-context([data-theme="dark"]) {
+  .modal {
+    background: var(--surface);
+    h2, .form-group label {
+      color: var(--text-primary);
+    }
+    p {
+      color: var(--text-secondary);
+    }
+    .late-cancellation-notice {
+      background: rgba(255, 152, 0, 0.12);
+      color: #ffcc80;
+      border-left-color: #ff9800;
+
+      strong {
+        color: #ffb74d;
+      }
+    }
+    .form-group textarea {
+      background: var(--surface-elevated, rgba(255, 255, 255, 0.06));
+      border-color: var(--border-color, rgba(255, 255, 255, 0.2));
+      color: var(--text-primary);
+      &::placeholder {
+        color: var(--text-secondary);
+      }
+    }
+  }
+}
+
+// Dark mode: section header title
+:host-context([data-theme="dark"]) .order-history-container .section-header h2 {
+  color: var(--text-primary) !important;
+}
+
+// Dark mode: no-orders empty state
+:host-context([data-theme="dark"]) .order-history-container .no-orders {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px var(--shadow-color);
+
+  p {
+    color: var(--text-secondary);
+  }
+
+  .book-now-btn {
+    color: #fff;
+  }
+}

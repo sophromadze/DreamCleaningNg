@@ -1,0 +1,505 @@
+.tab-content {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 0.75rem;
+  }
+
+  @media (max-width: 320px) {
+    padding: 0.5rem;
+  }
+}
+
+.subscriptions-section {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+
+  @media (max-width: 480px) {
+    padding: 0.75rem;
+  }
+
+  @media (max-width: 320px) {
+    padding: 0.5rem;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+    color: #495057;
+    margin: 0 0 1rem 0;
+
+    @media (max-width: 768px) {
+      font-size: 1.25rem;
+    }
+
+    @media (max-width: 480px) {
+      font-size: 1.1rem;
+    }
+
+    @media (max-width: 320px) {
+      font-size: 1rem;
+    }
+  }
+}
+
+.subscriptions-list {
+  margin-top: 1rem;
+  width: 100%;
+
+  .table-wrapper {
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+
+    &::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 3px;
+    }
+  }
+
+  table {
+    width: 100%;
+    min-width: 800px;
+    border-collapse: separate;
+    border-spacing: 0;
+    border: 1px solid #e9ecef;
+    border-bottom: none;
+    display: table;
+    position: static;
+    table-layout: auto;
+
+    @media (max-width: 480px) {
+      min-width: 700px;
+    }
+
+    @media (max-width: 320px) {
+      min-width: 600px;
+    }
+    
+    thead {
+      display: table-header-group;
+      
+      th {
+        text-align: center;
+        padding: 5px;
+        font-weight: 600;
+        color: #495057;
+        border-bottom: 1px solid #e9ecef;
+        border-right: 1px solid #e9ecef;
+        white-space: nowrap;
+        background: #f8f9fa;
+        font-size: 0.875rem;
+        box-shadow: 0 1px 0 0 #e9ecef;
+        background-color: #f8f9fa !important;
+        display: table-cell;
+
+        @media (max-width: 768px) {
+          font-size: 0.8rem;
+          padding: 4px;
+        }
+
+        @media (max-width: 480px) {
+          font-size: 0.75rem;
+          padding: 3px;
+        }
+
+        @media (max-width: 320px) {
+          font-size: 0.7rem;
+          padding: 2px;
+        }
+
+        &:last-child {
+          border-right: none;
+        }
+      }
+    }
+    
+    tbody {
+      tr {
+        &:hover {
+          background: #f8f9fa;
+        }
+        
+        &.selected {
+          background: #e7f3ff;
+        }
+        
+        td {
+          padding: 0 5px;
+          color: #6c757d;
+          font-size: 0.875rem;
+          border-bottom: 1px solid #e9ecef;
+          border-right: 1px solid #e9ecef;
+          vertical-align: middle;
+
+          @media (max-width: 768px) {
+            font-size: 0.8rem;
+            padding: 4px;
+          }
+
+          @media (max-width: 480px) {
+            font-size: 0.75rem;
+            padding: 3px;
+          }
+
+          @media (max-width: 320px) {
+            font-size: 0.7rem;
+            padding: 2px;
+          }
+          
+          &.actions {
+            border-right: none;
+            text-align: center;
+            
+            .action-btn{
+              margin:2px 3px;
+
+              @media (max-width: 480px) {
+                margin: 1px 2px;
+                padding: 3px 6px;
+                font-size: 0.7rem;
+              }
+
+              @media (max-width: 320px) {
+                margin: 1px;
+                padding: 2px 4px;
+                font-size: 0.65rem;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+.status-badge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+
+  &.active {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  &.inactive {
+    background: #f8d7da;
+    color: #721c24;
+  }
+}
+
+.action-btn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+
+  &.edit {
+    background: #007bff;
+    color: white;
+    
+    &:hover {
+      background: #0056b3;
+    }
+  }
+  
+  &.delete {
+    background: #dc3545;
+    color: white;
+    
+    &:hover {
+      background: #c82333;
+    }
+  }
+
+  &.activate {
+    background-color: #28a745;
+    color: white;
+
+    &:hover {
+      background-color: #218838;
+    }
+  }
+
+  &.deactivate {
+    background: #ffc107;
+    color: #212529;
+
+    &:hover {
+      background-color: #e0a800;
+    }
+  }
+
+  &.add {
+    background: #28a745;
+    color: white;
+
+    &:hover {
+      background: #218838;
+    }
+  }
+
+  &.save {
+    background: #28a745;
+    color: white;
+
+    &:hover {
+      background: #218838;
+    }
+  }
+
+  &.cancel {
+    background: #6c757d;
+    color: white;
+
+    &:hover {
+      background: #5a6268;
+    }
+  }
+}
+
+.add-form {
+  background: #f8f9fa;
+  padding: 1rem;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+
+  h3 {
+    margin-top: 0;
+    color: #333;
+  }
+
+  .form-group {
+    margin-bottom: 1rem;
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #555;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1rem;
+
+      &:focus {
+        outline: none;
+        border-color: #007bff;
+      }
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+}
+
+.error-message {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #f8d7da;
+  color: #721c24;
+  border-radius: 4px;
+}
+
+.success-message {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #d4edda;
+  color: #155724;
+  border-radius: 4px;
+}
+
+// Subscription Edit Styling
+.edit-input,
+.edit-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  background-color: #fff;
+  font-size: 0.875rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:focus {
+    border-color: #007bff !important;
+    outline: 0 !important;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+  }
+
+  &:hover {
+    border-color: #adb5bd;
+  }
+}
+
+.edit-input {
+  height: 36px;
+}
+
+.edit-textarea {
+  min-height: 80px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+// Enhanced table styling for edit mode
+.subscriptions-list {
+  table {
+    tbody {
+      tr {
+        &.editing {
+          background-color: #f8f9fa;
+          border: 2px solid #007bff;
+          border-radius: 4px;
+          
+          td {
+            padding: 8px;
+            background-color: #fff;
+            
+            .edit-input,
+            .edit-textarea {
+              margin: 0;
+              background-color: #fff;
+              
+              &:focus {
+                border-color: #007bff !important;
+                outline: 0 !important;
+                box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25) !important;
+              }
+            }
+          }
+          
+          &:hover {
+            background-color: #f8f9fa;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Dark mode: section, add form, table, inline edits, messages, badges
+:host-context([data-theme="dark"]) .subscriptions-section {
+  background: var(--surface) !important;
+  border-color: var(--border-color);
+  color: var(--text-primary) !important;
+
+  h2,
+  .section-header h2 {
+    color: var(--text-primary) !important;
+  }
+
+  // Add Subscription form
+  .add-form {
+    background: var(--surface-elevated) !important;
+    border-color: var(--border-color);
+    h3 { color: var(--text-primary) !important; }
+    .form-group label { color: var(--text-secondary) !important; }
+    input, select, textarea {
+      background: var(--surface) !important;
+      color: var(--text-primary) !important;
+      border-color: var(--border-color);
+      &::placeholder { color: var(--text-muted); }
+    }
+  }
+
+  // Table
+  .subscriptions-list .table-wrapper {
+    &::-webkit-scrollbar-track { background: var(--surface); }
+    &::-webkit-scrollbar-thumb { background: var(--text-muted); }
+  }
+  .subscriptions-list table {
+    border-color: var(--border-color);
+  }
+  .subscriptions-list table thead th {
+    background: var(--surface-elevated) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color);
+  }
+  .subscriptions-list table tbody tr {
+    &:hover td {
+      background: var(--surface-elevated) !important;
+    }
+    &.selected td {
+      background: var(--surface-elevated) !important;
+    }
+    &.editing {
+      background: var(--surface-elevated) !important;
+      border-color: var(--border-color);
+      td {
+        background: var(--surface-elevated) !important;
+        .edit-input, .edit-textarea {
+          background: var(--surface) !important;
+          color: var(--text-primary) !important;
+          border-color: var(--border-color);
+          &::placeholder { color: var(--text-muted); }
+        }
+      }
+    }
+  }
+  .subscriptions-list table tbody td {
+    color: var(--text-primary) !important;
+    border-color: var(--border-color);
+    background: var(--surface) !important;
+    .edit-input, .edit-textarea {
+      background: var(--surface) !important;
+      color: var(--text-primary) !important;
+      border-color: var(--border-color);
+      &::placeholder { color: var(--text-muted); }
+    }
+  }
+
+  // Status badges
+  .status-badge.active {
+    background: rgba(40, 167, 69, 0.3);
+    color: #90ee90;
+  }
+  .status-badge.inactive {
+    background: rgba(220, 53, 69, 0.3);
+    color: #f8a0a0;
+  }
+
+  // Messages
+  .error-message {
+    background: rgba(220, 53, 69, 0.2) !important;
+    color: #f8a0a0;
+    border-color: var(--border-color);
+  }
+  .success-message {
+    background: rgba(40, 167, 69, 0.2) !important;
+    color: #90ee90;
+    border-color: var(--border-color);
+  }
+} 

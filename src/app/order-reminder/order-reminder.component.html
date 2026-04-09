@@ -1,0 +1,29 @@
+<!-- Modal for Admin only -->
+<div class="reminder-modal-overlay" *ngIf="modalReminder && isAdmin" (click)="onModalOk()">
+  <div class="reminder-modal" (click)="$event.stopPropagation()">
+    <div class="reminder-modal-header">
+      <i class="fas" [ngClass]="getReminderIcon(modalReminder.type)"></i>
+      <span>Order Reminder</span>
+    </div>
+    <div class="reminder-modal-body">
+      <p class="reminder-modal-message">{{ modalReminder.message }}</p>
+    </div>
+    <div class="reminder-modal-footer">
+      <button class="reminder-modal-btn" (click)="onModalOk()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Floating notifications (Facebook-style) for Admin & SuperAdmin -->
+<div class="floating-reminders" *ngIf="activeReminders.length > 0">
+  <div *ngFor="let r of activeReminders"
+       class="floating-reminder"
+       (click)="onDismiss(r)">
+    <div class="floating-reminder-pulse"></div>
+    <i class="fas" [ngClass]="getReminderIcon(r.type)"></i>
+    <span class="floating-reminder-text">{{ r.message }}</span>
+    <button class="floating-reminder-dismiss" (click)="onDismiss(r); $event.stopPropagation()" title="Dismiss">
+      <i class="fas fa-check"></i>
+    </button>
+  </div>
+</div>

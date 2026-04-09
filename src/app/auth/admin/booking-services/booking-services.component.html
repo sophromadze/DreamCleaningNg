@@ -1,0 +1,904 @@
+<div class="tab-content">
+  <!-- Service Types Section -->
+  <div class="section">
+    <div class="section-header">
+      <h2>Service Types</h2>
+      <button *ngIf="userPermissions.permissions.canCreate" 
+              class="action-btn add" 
+              (click)="startAddingServiceType()">
+        Add Service Type
+      </button>
+    </div>
+
+    <!-- Service Types Messages -->
+    <div *ngIf="serviceTypeMessage.error" class="alert alert-danger">
+      {{serviceTypeMessage.error}}
+    </div>
+    <div *ngIf="serviceTypeMessage.success" class="alert alert-success">
+      {{serviceTypeMessage.success}}
+    </div>
+
+    <!-- Add Service Type Form -->
+    <div *ngIf="isAddingServiceType" class="form-section">
+      <h3>Add New Service Type</h3>
+      <form (ngSubmit)="addServiceType()">
+        <div class="form-group">
+          <label for="newServiceTypeName">Name:</label>
+          <input type="text" 
+                 id="newServiceTypeName" 
+                 [(ngModel)]="newServiceType.name" 
+                 name="name" 
+                 required>
+        </div>
+        <div class="form-group">
+          <label for="newServiceTypeBasePrice">Price:</label>
+          <input type="number" 
+                 id="newServiceTypeBasePrice" 
+                 [(ngModel)]="newServiceType.basePrice" 
+                 name="basePrice" 
+                 required>
+        </div>
+        <div class="form-group">
+          <label for="newServiceTypeTimeDuration">Time Duration (minutes) *</label>
+          <input type="number" 
+                 id="newServiceTypeTimeDuration" 
+                 [(ngModel)]="newServiceType.timeDuration" 
+                 name="timeDuration" 
+                 required>
+        </div>
+        <div class="form-group">
+          <label for="newServiceTypeDisplayOrder">Display Order:</label>
+          <input type="number" 
+                 id="newServiceTypeDisplayOrder" 
+                 [(ngModel)]="newServiceType.displayOrder" 
+                 name="displayOrder" 
+                 min="1"
+                 required>
+        </div>
+        <div class="form-group">
+          <label for="newServiceTypeDescription">Description:</label>
+          <textarea id="newServiceTypeDescription" 
+                    [(ngModel)]="newServiceType.description" 
+                    name="description" 
+                    required></textarea>
+        </div>
+        <div class="form-group">
+          <label>Service Type Mode:</label>
+          <div class="radio-group">
+            <label>
+              <input type="radio" 
+                     name="newServiceTypeMode" 
+                     [checked]="!newServiceType.hasPoll && !newServiceType.isCustom"
+                     (change)="newServiceType.hasPoll = false; newServiceType.isCustom = false">
+              Regular (Services & Extra Services)
+            </label>
+            <label>
+              <input type="radio" 
+                     name="newServiceTypeMode" 
+                     [checked]="newServiceType.hasPoll"
+                     (change)="newServiceType.hasPoll = true; newServiceType.isCustom = false">
+              Poll (Custom Quote)
+            </label>
+            <label>
+              <input type="radio" 
+                     name="newServiceTypeMode" 
+                     [checked]="newServiceType.isCustom"
+                     (change)="newServiceType.hasPoll = false; newServiceType.isCustom = true">
+              Custom Pricing
+            </label>
+          </div>
+          <small class="form-note">
+            Regular: Shows services and extra services<br>
+            Poll: Shows questionnaire for custom quotes<br>
+            Custom: Allows users to enter custom amount, cleaners, and duration
+          </small>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="action-btn save">Add</button>
+          <button type="button" class="action-btn cancel" (click)="cancelAddServiceType()">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Service Types List -->
+    <div class="data-table service-types-table">
+      <div class="table-container">
+        <div class="table-wrapper" #serviceTypesTableWrapper>
+          <table>
+            <thead #serviceTypesTableHeader>
+              <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Price</th>
+            <th>Time</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Order</th>
+            <th>Status</th>
+            <th *ngIf="userRole !== 'Moderator'">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let type of serviceTypes" 
+              [class.selected]="selectedServiceType?.id === type.id"
+              [class.editing]="isEditingServiceType && selectedServiceType?.id === type.id"
+              (click)="selectServiceType(type)">
+            <td>{{type.id}}</td>
+            <td>
+              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
+                {{type.name}}
+              </ng-container>
+              <input *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
+                     type="text" 
+                     [(ngModel)]="type.name"
+                     class="edit-input">
+            </td>
+            <td>
+              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
+                {{type.basePrice | currency}}
+              </ng-container>
+              <input *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
+                     type="number" 
+                     [(ngModel)]="type.basePrice"
+                     class="edit-input">
+            </td>
+            <td>
+              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
+                {{type.timeDuration}} min
+              </ng-container>
+              <input *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
+                     type="number" 
+                     [(ngModel)]="type.timeDuration"
+                     class="edit-input">
+            </td>
+            <td>
+              <ng-container *ngIf="!isEditingServiceType || !selectedServiceType || selectedServiceType.id !== type.id">
+                <span *ngIf="type.isCustom" class="badge badge-warning">Custom</span>
+                <span *ngIf="type.hasPoll && !type.isCustom" class="badge badge-info">Poll</span>
+                <span *ngIf="!type.hasPoll && !type.isCustom" class="badge badge-secondary">Regular</span>
+              </ng-container>
+              <div *ngIf="isEditingServiceType && selectedServiceType && selectedServiceType.id === type.id" class="service-type-options">
+                <label>
+                  <input type="radio" 
+                         name="serviceTypeMode"
+                         [checked]="!selectedServiceType.hasPoll && !selectedServiceType.isCustom"
+                         (change)="setServiceTypeMode('regular')">
+                  Regular
+                </label>
+                <label>
+                  <input type="radio" 
+                         name="serviceTypeMode"
+                         [checked]="selectedServiceType.hasPoll"
+                         (change)="setServiceTypeMode('poll')">
+                  Poll
+                </label>
+                <label>
+                  <input type="radio" 
+                         name="serviceTypeMode"
+                         [checked]="selectedServiceType.isCustom"
+                         (change)="setServiceTypeMode('custom')">
+                  Custom
+                </label>
+              </div>
+            </td>
+            <td>
+              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
+                {{type.description}}
+              </ng-container>
+              <textarea *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
+                        [(ngModel)]="type.description"
+                        class="edit-textarea"></textarea>
+            </td>
+            <td>
+              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
+                {{type.displayOrder || 0}}
+              </ng-container>
+              <input *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
+                     type="number" 
+                     [(ngModel)]="type.displayOrder"
+                     class="edit-input"
+                     min="1">
+            </td>
+            <td>
+              <span class="status-badge" [class.active]="type.isActive" [class.inactive]="!type.isActive">
+                {{type.isActive ? 'Active' : 'Inactive'}}
+              </span>
+            </td>
+            <td class="actions" *ngIf="userRole !== 'Moderator'">
+              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
+                <button *ngIf="userPermissions.permissions.canUpdate" 
+                        class="action-btn edit" 
+                        (click)="editServiceType(); selectServiceType(type); $event.stopPropagation()">
+                  Edit
+                </button>
+                <button *ngIf="userPermissions.permissions.canActivate && !type.isActive" 
+                        class="action-btn activate" 
+                        (click)="activateServiceType(type); $event.stopPropagation()">
+                  Enable
+                </button>
+                <button *ngIf="userPermissions.permissions.canDeactivate && type.isActive" 
+                        class="action-btn deactivate" 
+                        (click)="deactivateServiceType(type); $event.stopPropagation()">
+                  Disable
+                </button>
+                <button *ngIf="userPermissions.permissions.canDelete" 
+                        class="action-btn delete" 
+                        (click)="deleteServiceType(type); $event.stopPropagation()">
+                  Delete
+                </button>
+              </ng-container>
+              <ng-container *ngIf="isEditingServiceType && selectedServiceType?.id === type.id">
+                <button class="action-btn save" (click)="saveServiceType(); $event.stopPropagation()">Save</button>
+                <button class="action-btn cancel" (click)="cancelEditServiceType(); $event.stopPropagation()">Cancel</button>
+              </ng-container>
+            </td>
+          </tr>
+        </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Service Details Section -->
+  <div *ngIf="selectedServiceType" class="section">
+    
+    <!-- Show Poll Questions if service type has poll -->
+    <div *ngIf="selectedServiceType.hasPoll" class="poll-questions-section">
+      <div class="subsection">
+        <div class="subsection-header">
+          <h3>Poll Questions for {{ selectedServiceType.name }}</h3>
+          <button *ngIf="userPermissions.permissions.canCreate" 
+                  class="action-btn add" 
+                  (click)="startAddingPollQuestion()">
+            Add Question
+          </button>
+        </div>
+
+        <!-- Poll Questions Messages -->
+        <div *ngIf="pollQuestionMessage.error" class="alert alert-danger">
+          {{ pollQuestionMessage.error }}
+        </div>
+        <div *ngIf="pollQuestionMessage.success" class="alert alert-success">
+          {{ pollQuestionMessage.success }}
+        </div>
+
+        <!-- Add Poll Question Form -->
+        <div class="service-form" *ngIf="isAddingPollQuestion">
+          <h4>Add New Poll Question</h4>
+          
+          <div class="form-grid">
+            <div class="form-group full-width">
+              <label>Question *</label>
+              <input type="text" [(ngModel)]="newPollQuestion.question" placeholder="Enter your question">
+            </div>
+            
+            <div class="form-group">
+              <label>Question Type</label>
+              <select [(ngModel)]="newPollQuestion.questionType">
+                <option *ngFor="let type of questionTypes" [value]="type.value">
+                  {{ type.label }}
+                </option>
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label>Display Order</label>
+              <input type="number" [(ngModel)]="newPollQuestion.displayOrder" min="1">
+            </div>
+            
+            <div class="form-group full-width" *ngIf="newPollQuestion.questionType === 'dropdown' || newPollQuestion.questionType === 'radio' || newPollQuestion.questionType === 'checkbox'">
+              <label>Options (comma-separated)</label>
+              <input type="text" [(ngModel)]="newPollQuestion.options" placeholder="Option 1, Option 2, Option 3">
+              <small class="form-note">Enter options separated by commas</small>
+            </div>
+            
+            <div class="form-group checkbox-group">
+              <label>
+                <input type="checkbox" [(ngModel)]="newPollQuestion.isRequired">
+                Required Question
+              </label>
+            </div>
+          </div>
+          
+          <div class="form-actions">
+            <button class="save-btn" (click)="addPollQuestion()">Create Question</button>
+            <button class="cancel-btn" (click)="cancelAddPollQuestion()">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Poll Questions List -->
+        <div class="poll-questions-list">
+          <div class="data-table" *ngIf="pollQuestions.length > 0">
+            <div class="table-container">
+              <div class="table-wrapper" #pollTableWrapper>
+                <table>
+                  <thead #pollTableHeader>
+                    <tr>
+                <th>Order</th>
+                <th>Question</th>
+                <th>Type</th>
+                <th>Options</th>
+                <th>Required</th>
+                <th>Status</th>
+                <th *ngIf="userRole !== 'Moderator'">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let question of pollQuestions">
+                <!-- Display Mode -->
+                <td *ngIf="editingPollQuestionId !== question.id">{{ getPollQuestionDisplayPosition(question) }}</td>
+                <td *ngIf="editingPollQuestionId !== question.id">{{ question.question }}</td>
+                <td *ngIf="editingPollQuestionId !== question.id">
+                  <span class="question-type-badge" [class]="'type-' + question.questionType">
+                    {{ getQuestionTypeLabel(question.questionType) }}
+                  </span>
+                </td>
+                <td *ngIf="editingPollQuestionId !== question.id">
+                  <span *ngIf="question.options" class="options-preview">{{ question.options }}</span>
+                  <span *ngIf="!question.options" class="no-options">-</span>
+                </td>
+                <td *ngIf="editingPollQuestionId !== question.id">
+                  <span class="required-badge" [class.required]="question.isRequired" [class.optional]="!question.isRequired">
+                    {{ question.isRequired ? 'Required' : 'Optional' }}
+                  </span>
+                </td>
+                <td *ngIf="editingPollQuestionId !== question.id">
+                  <span class="status-badge" [class.active]="question.isActive" [class.inactive]="!question.isActive">
+                    {{ question.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </td>
+
+                <!-- Edit Mode -->
+                <td *ngIf="editingPollQuestionId === question.id">
+                  {{ getPollQuestionDisplayPosition(question) }}
+                </td>
+                <td *ngIf="editingPollQuestionId === question.id">
+                  <input type="text" [(ngModel)]="question.question" class="edit-input">
+                </td>
+                <td *ngIf="editingPollQuestionId === question.id">
+                  <select [(ngModel)]="question.questionType" class="edit-select">
+                    <option *ngFor="let type of questionTypes" [value]="type.value">
+                      {{ type.label }}
+                    </option>
+                  </select>
+                </td>
+                <td *ngIf="editingPollQuestionId === question.id">
+                  <input type="text" 
+                         [(ngModel)]="question.options" 
+                         class="edit-input"
+                         [disabled]="question.questionType === 'text' || question.questionType === 'textarea'"
+                         title="Options required for dropdown, radio, and checkbox"
+                         placeholder="Option 1, Option 2, Option 3">
+                </td>
+                <td *ngIf="editingPollQuestionId === question.id">
+                  <label class="checkbox-label">
+                    <input type="checkbox" [(ngModel)]="question.isRequired">
+                    Required
+                  </label>
+                </td>
+                <td *ngIf="editingPollQuestionId === question.id">
+                  <label class="checkbox-label">
+                    <input type="checkbox" [(ngModel)]="question.isActive">
+                    Active
+                  </label>
+                </td>
+
+                <!-- Actions -->
+                <td *ngIf="userRole !== 'Moderator'">
+                  <div class="action-buttons" *ngIf="editingPollQuestionId !== question.id">
+                    <button *ngIf="userPermissions.permissions.canUpdate" 
+                            class="action-btn edit" 
+                            (click)="editPollQuestion(question)">
+                      Edit
+                    </button>
+                    <button *ngIf="userPermissions.permissions.canDelete" 
+                            class="action-btn delete" 
+                            (click)="deletePollQuestion(question.id)">
+                      Delete
+                    </button>
+                  </div>
+                  
+                  <div class="action-buttons" *ngIf="editingPollQuestionId === question.id">
+                    <button class="action-btn save" (click)="savePollQuestion(question)">Save</button>
+                    <button class="action-btn cancel" (click)="cancelEditPollQuestion()">Cancel</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+          <div *ngIf="pollQuestions.length === 0" class="no-questions">
+            <p>No poll questions added yet. Click "Add Question" to create your first question.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+     <!-- Show Custom Service Type Message if service type is custom -->
+    <div *ngIf="selectedServiceType.isCustom" class="custom-service-message">
+      <div class="subsection">
+        <div class="subsection-header">
+          <h3>Custom Service Type</h3>
+        </div>
+        <div class="info-message">
+          <p>This is a custom service type. Users can set their own pricing, number of cleaners, and duration when booking this service.</p>
+          <p>No services or extra services are needed for custom service types.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Show Services and Extra Services if service type doesn't have poll -->
+    <div *ngIf="!selectedServiceType.hasPoll && !selectedServiceType.isCustom">
+      <!-- Services Subsection -->
+      <div class="subsection">
+        <div class="subsection-header">
+          <h3>Services</h3>
+          <button *ngIf="userPermissions.permissions.canCreate" 
+                  class="action-btn add" 
+                  (click)="startAddingService()">
+            Add Service
+          </button>
+        </div>  
+
+        <!-- Services Messages -->
+        <div *ngIf="serviceMessage.error" class="alert alert-danger">
+          {{serviceMessage.error}}
+        </div>
+        <div *ngIf="serviceMessage.success" class="alert alert-success">
+          {{serviceMessage.success}}
+        </div>
+
+        <!-- Add Service Form -->
+        <div class="service-form" *ngIf="isAddingService">
+          <h4>Add New Service</h4>
+          
+          <!-- Option to copy existing service -->
+          <div class="copy-option">
+            <label>
+              <input type="checkbox" [(ngModel)]="showExistingServices">
+              Copy from existing service
+            </label>
+            
+            <div *ngIf="showExistingServices" class="existing-services-select">
+              <select [(ngModel)]="selectedExistingServiceId" (change)="onServiceSelectionChange($event)">
+                <option value="">Select a service to copy</option>
+                <option *ngFor="let service of allServices" [value]="service.id">
+                  {{ service.name }} ({{ getServiceTypeNameById(service.serviceTypeId) }})
+                </option>
+              </select>
+              <button class="copy-btn" (click)="copyExistingService()" [disabled]="!selectedExistingServiceId">
+                Copy Service
+              </button>
+            </div>
+          </div>
+          
+          <div *ngIf="!showExistingServices" class="form-grid">
+            <div class="form-group">
+              <label>Name</label>
+              <input type="text" [(ngModel)]="newService.name" placeholder="e.g., Bedrooms">
+            </div>
+            <div class="form-group">
+              <label>Service Key</label>
+              <input type="text" [(ngModel)]="newService.serviceKey" placeholder="e.g., bedrooms">
+            </div>
+            <div class="form-group">
+              <label>Cost</label>
+              <input type="number" [(ngModel)]="newService.cost" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>Duration (minutes)</label>
+              <input type="number" [(ngModel)]="newService.timeDuration">
+            </div>
+            <div class="form-group">
+              <label>Display Order</label>
+              <input type="number" [(ngModel)]="newService.displayOrder" min="1">
+            </div>
+            <div class="form-group">
+              <label>Input Type</label>
+              <select [(ngModel)]="newService.inputType">
+                <option value="dropdown">Dropdown</option>
+                <option value="slider">Slider</option>
+                <option value="number">Number</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Min Value</label>
+              <input type="number" [(ngModel)]="newService.minValue">
+            </div>
+            <div class="form-group">
+              <label>Max Value</label>
+              <input type="number" [(ngModel)]="newService.maxValue">
+            </div>
+            <div class="form-group">
+              <label>Step Value</label>
+              <input type="number" [(ngModel)]="newService.stepValue">
+            </div>
+            <div class="form-group">
+              <label>Unit</label>
+              <input type="text" [(ngModel)]="newService.unit" placeholder="e.g., per hour">
+            </div>
+            <div class="form-group">
+              <label>Service Type</label>
+              <select [(ngModel)]="newService.serviceRelationType">
+                <option value="">Regular Service</option>
+                <option value="cleaner">Cleaner Service</option>
+                <option value="hours">Hours for Cleaners</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" [(ngModel)]="newService.isRangeInput">
+                Is Range Input
+              </label>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="save-btn" (click)="addService()" *ngIf="!showExistingServices">Create</button>
+            <button class="cancel-btn" (click)="cancelAddService()">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Services List -->
+        <div class="services-list">
+          <div class="data-table">
+            <div class="table-container">
+              <div class="table-wrapper" #servicesTableWrapper>
+                <table>
+                  <thead #servicesTableHeader>
+                    <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Service Key</th>
+                <th>Cost</th>
+                <th>Duration</th>
+                <th>Type</th>
+                <th>Order</th>
+                <th>Status</th>
+                <th *ngIf="userRole !== 'Moderator'">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let service of selectedServiceType.services">
+                <td *ngIf="editingServiceId !== service.id">{{ service.id }}</td>
+                <td *ngIf="editingServiceId !== service.id">{{ service.name }}</td>
+                <td *ngIf="editingServiceId !== service.id">{{ service.serviceKey }}</td>
+                <td *ngIf="editingServiceId !== service.id">${{ service.cost }}</td>
+                <td *ngIf="editingServiceId !== service.id">{{ service.timeDuration }}min</td>
+                <td *ngIf="editingServiceId !== service.id">{{ service.inputType }}</td>
+                <td *ngIf="editingServiceId !== service.id">{{ service.displayOrder || 0 }}</td>
+                <td *ngIf="editingServiceId !== service.id">
+                  <span class="status-badge" [class.active]="service.isActive" [class.inactive]="!service.isActive">
+                    {{ service.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </td>
+                <td *ngIf="editingServiceId !== service.id && userRole !== 'Moderator'">
+                  <button class="action-btn edit" *ngIf="userPermissions.permissions.canUpdate" (click)="editService(service); $event.stopPropagation()">Edit</button>
+                  <button class="action-btn activate" *ngIf="userPermissions.permissions.canActivate && !service.isActive" (click)="activateService(service); $event.stopPropagation()">Enable</button>
+                  <button class="action-btn deactivate" *ngIf="userPermissions.permissions.canDeactivate && service.isActive" (click)="deactivateService(service); $event.stopPropagation()">Disable</button>
+                  <button class="action-btn delete" *ngIf="userPermissions.permissions.canDelete" (click)="deleteService(service); $event.stopPropagation()">Delete</button>
+                </td>
+                
+                <!-- Edit mode -->
+                <td class="edit-mode-td" colspan="8" *ngIf="editingServiceId === service.id">
+                  <div class="inline-edit-form">
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" [(ngModel)]="service.name">
+                      </div>
+                      <div class="form-group">
+                        <label>Service Key</label>
+                        <input type="text" [(ngModel)]="service.serviceKey">
+                      </div>
+                      <div class="form-group">
+                        <label>Cost</label>
+                        <input type="number" [(ngModel)]="service.cost" step="0.01">
+                      </div>
+                      <div class="form-group">
+                        <label>Duration (minutes)</label>
+                        <input type="number" [(ngModel)]="service.timeDuration">
+                      </div>
+                      <div class="form-group">
+                        <label>Display Order</label>
+                        <input type="number" [(ngModel)]="service.displayOrder" min="1">
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Input Type</label>
+                        <select [(ngModel)]="service.inputType">
+                          <option value="dropdown">Dropdown</option>
+                          <option value="slider">Slider</option>
+                          <option value="number">Number</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label>Min Value</label>
+                        <input type="number" [(ngModel)]="service.minValue">
+                      </div>
+                      <div class="form-group">
+                        <label>Max Value</label>
+                        <input type="number" [(ngModel)]="service.maxValue">
+                      </div>
+                      <div class="form-group">
+                        <label>Step Value</label>
+                        <input type="number" [(ngModel)]="service.stepValue">
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Unit</label>
+                        <input type="text" [(ngModel)]="service.unit" placeholder="e.g., per hour">
+                      </div>
+                      <div class="form-group">
+                        <label>Service Type</label>
+                        <select [(ngModel)]="service.serviceRelationType">
+                          <option value="">Regular Service</option>
+                          <option value="cleaner">Cleaner Service</option>
+                          <option value="hours">Hours for Cleaners</option>
+                        </select>
+                      </div>
+                      <div class="form-group checkbox-group">
+                        <label>
+                          <input type="checkbox" [(ngModel)]="service.isRangeInput">
+                          Is Range Input
+                        </label>
+                      </div>
+                    </div>
+                    <div class="form-actions">
+                      <button class="save-btn" (click)="saveService(service)">Save</button>
+                      <button class="cancel-btn" (click)="cancelEditService()">Cancel</button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+        </div>
+      </div>
+
+      <!-- Extra Services Subsection -->
+      <div class="subsection">
+        <div class="subsection-header">
+          <h3>Extra Services</h3>
+          <button *ngIf="userPermissions.permissions.canCreate" 
+                  class="action-btn add" 
+                  (click)="startAddingExtraService()">
+            Add Extra Service
+          </button>
+        </div>
+
+        <!-- Extra Services Messages -->
+        <div *ngIf="extraServiceMessage.error" class="alert alert-danger">
+          {{extraServiceMessage.error}}
+        </div>
+        <div *ngIf="extraServiceMessage.success" class="alert alert-success">
+          {{extraServiceMessage.success}}
+        </div>
+
+        <!-- Add Extra Service Form -->
+        <div class="service-form" *ngIf="isAddingExtraService">
+          <h4>Add New Extra Service</h4>
+          
+          <!-- Option to copy existing extra service -->
+          <div class="copy-option">
+            <label>
+              <input type="checkbox" [(ngModel)]="showExistingExtraServices">
+              Copy from existing extra service
+            </label>
+            
+            <div *ngIf="showExistingExtraServices" class="existing-services-select">
+              <select [(ngModel)]="selectedExistingExtraServiceId" (change)="onExtraServiceSelectionChange($event)">
+                <option value="">Select an extra service to copy</option>
+                <option *ngFor="let extra of getAvailableExtraServicesForCopy()" [value]="extra.id">
+                  {{ extra.name }} ({{ extra.isAvailableForAll ? 'Universal' : 'Service-specific' }})
+                </option>
+              </select>
+              <button class="copy-btn" (click)="copyExistingExtraService()" [disabled]="!selectedExistingExtraServiceId">
+                Copy Extra Service
+              </button>
+            </div>
+          </div>
+          
+          <div *ngIf="!showExistingExtraServices" class="form-grid">
+            <div class="form-group">
+              <label>Name</label>
+              <input type="text" [(ngModel)]="newExtraService.name">
+            </div>
+            <div class="form-group">
+              <label>Description</label>
+              <input type="text" [(ngModel)]="newExtraService.description">
+            </div>
+            <div class="form-group">
+              <label>Price</label>
+              <input type="number" [(ngModel)]="newExtraService.price" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>Duration (minutes)</label>
+              <input type="number" [(ngModel)]="newExtraService.duration">
+            </div>
+            <div class="form-group">
+              <label>Display Order</label>
+              <input type="number" [(ngModel)]="newExtraService.displayOrder" min="1">
+            </div>
+            <div class="form-group">
+              <label>Price Multiplier</label>
+              <input type="number" [(ngModel)]="newExtraService.priceMultiplier" step="0.1">
+            </div>
+            <div class="form-group">
+              <label>Icon</label>
+              <input type="text" [(ngModel)]="newExtraService.icon">
+            </div>
+          </div>
+          <div class="form-group full-width">
+            <label>Options</label>
+            <div class="checkbox-group">
+              <label>
+                <input type="checkbox" [(ngModel)]="newExtraService.hasQuantity">
+                Has Quantity
+              </label>
+              <label>
+                <input type="checkbox" [(ngModel)]="newExtraService.hasHours">
+                Has Hours
+              </label>
+              <label>
+                <input type="checkbox" [(ngModel)]="newExtraService.isDeepCleaning">
+                Is Deep Cleaning
+              </label>
+              <label>
+                <input type="checkbox" [(ngModel)]="newExtraService.isSuperDeepCleaning">
+                Is Super Deep Cleaning
+              </label>
+              <label>
+                <input type="checkbox" [(ngModel)]="newExtraService.isSameDayService">
+                Is Same Day Service
+              </label>
+              <label>
+                <input type="checkbox" [(ngModel)]="newExtraService.isAvailableForAll">
+                Available for All Service Types
+              </label>
+            </div>
+            <p class="form-note" *ngIf="newExtraService.isAvailableForAll">
+              <strong>Note:</strong> When checked, this extra service will be available for all service types.
+            </p>
+          </div>
+          <div class="form-actions">
+            <button class="save-btn" (click)="addExtraService()" *ngIf="!showExistingExtraServices">Create</button>
+            <button class="cancel-btn" (click)="cancelAddExtraService()">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Extra Services List -->
+        <div class="extra-services-list">
+          <div class="data-table">
+            <div class="table-container">
+              <div class="table-wrapper" #extraServicesTableWrapper>
+                <table>
+                  <thead #extraServicesTableHeader>
+                    <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Price</th>
+                <th>Duration</th>
+                <th>Type</th>
+                <th>Order</th>
+                <th>Status</th>
+                <th *ngIf="userRole !== 'Moderator'">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let extra of selectedServiceType.extraServices">
+                <td *ngIf="editingExtraServiceId !== extra.id">{{ extra.id }}</td>
+                <td *ngIf="editingExtraServiceId !== extra.id">{{ extra.name }}</td>
+                <td *ngIf="editingExtraServiceId !== extra.id">{{ extra.description || 'No description' }}</td>
+                <td *ngIf="editingExtraServiceId !== extra.id">${{ extra.price }}</td>
+                <td *ngIf="editingExtraServiceId !== extra.id">{{ extra.duration }}min</td>
+                <td *ngIf="editingExtraServiceId !== extra.id">
+                  <span class="universal-badge" *ngIf="extra.isAvailableForAll">Universal</span>
+                  <span class="service-specific-badge" *ngIf="!extra.isAvailableForAll">Specific</span>
+                </td>
+                <td *ngIf="editingExtraServiceId !== extra.id">{{ extra.displayOrder || 0 }}</td>
+                <td *ngIf="editingExtraServiceId !== extra.id">
+                  <span class="status-badge" [class.active]="extra.isActive" [class.inactive]="!extra.isActive">
+                    {{ extra.isActive ? 'Active' : 'Inactive' }}
+                  </span>
+                </td>
+                <td *ngIf="editingExtraServiceId !== extra.id && userRole !== 'Moderator'">
+                  <button class="action-btn edit" *ngIf="userPermissions.permissions.canUpdate" (click)="editExtraService(extra); $event.stopPropagation()">Edit</button>
+                  <button class="action-btn activate" *ngIf="userPermissions.permissions.canActivate && !extra.isActive" (click)="activateExtraService(extra); $event.stopPropagation()">Enable</button>
+                  <button class="action-btn deactivate" *ngIf="userPermissions.permissions.canDeactivate && extra.isActive" (click)="deactivateExtraService(extra); $event.stopPropagation()">Disable</button>
+                  <button class="action-btn delete" *ngIf="userPermissions.permissions.canDelete" (click)="deleteExtraService(extra); $event.stopPropagation()">Delete</button>
+                </td>
+                
+                <!-- Edit mode -->
+                <td class="edit-mode-td" colspan="8" *ngIf="editingExtraServiceId === extra.id">
+                  <div class="inline-edit-form">
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" [(ngModel)]="extra.name">
+                      </div>
+                      <div class="form-group">
+                        <label>Description</label>
+                        <input type="text" [(ngModel)]="extra.description">
+                      </div>
+                      <div class="form-group">
+                        <label>Price</label>
+                        <input type="number" [(ngModel)]="extra.price" step="0.01">
+                      </div>
+                      <div class="form-group">
+                        <label>Duration (minutes)</label>
+                        <input type="number" [(ngModel)]="extra.duration">
+                      </div>
+                      <div class="form-group">
+                        <label>Display Order</label>
+                        <input type="number" [(ngModel)]="extra.displayOrder" min="1">
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Price Multiplier</label>
+                        <input type="number" [(ngModel)]="extra.priceMultiplier" step="0.1">
+                      </div>
+                      <div class="form-group">
+                        <label>Icon</label>
+                        <input type="text" [(ngModel)]="extra.icon">
+                      </div>
+                    </div>
+                    <div class="form-group full-width">
+                      <label>Options</label>
+                      <div class="checkbox-group">
+                        <label>
+                          <input type="checkbox" [(ngModel)]="extra.hasQuantity">
+                          Has Quantity
+                        </label>
+                        <label>
+                          <input type="checkbox" [(ngModel)]="extra.hasHours">
+                          Has Hours
+                        </label>
+                        <label>
+                          <input type="checkbox" [(ngModel)]="extra.isDeepCleaning">
+                          Is Deep Cleaning
+                        </label>
+                        <label>
+                          <input type="checkbox" [(ngModel)]="extra.isSuperDeepCleaning">
+                          Is Super Deep Cleaning
+                        </label>
+                        <label>
+                          <input type="checkbox" [(ngModel)]="extra.isSameDayService">
+                          Is Same Day Service
+                        </label>
+                        <label>
+                          <input type="checkbox" [(ngModel)]="extra.isAvailableForAll">
+                          Available for All Service Types
+                        </label>
+                      </div>
+                      <p class="form-note" *ngIf="extra.isAvailableForAll">
+                        <strong>Note:</strong> When checked, this extra service will be available for all service types.
+                      </p>
+                    </div>
+                    <div class="form-actions">
+                      <button class="save-btn" (click)="saveExtraService(extra)">Save</button>
+                      <button class="cancel-btn" (click)="cancelEditExtraService()">Cancel</button>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

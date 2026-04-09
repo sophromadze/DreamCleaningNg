@@ -1,0 +1,63 @@
+<div class="booking-confirmation-container">
+  <div class="confirmation-content" *ngIf="!paymentCompleted">
+    <h1>Complete Your Booking</h1>
+    
+    <!-- Booking Summary Section -->
+    <div class="booking-summary">
+      <h2>Booking Summary</h2>
+      <div class="summary-details">
+        <p><strong>Service Date:</strong> {{ bookingData.serviceDate | date:'fullDate' }}</p>
+        <p><strong>Service Time:</strong> {{ bookingData.serviceTime }}</p>
+        <p><strong>Total Amount:</strong> ${{ orderTotal | number:'1.2-2' }}</p>
+      </div>
+    </div>
+
+    <!-- Payment Form Section -->
+    <div class="payment-section">
+      <h2>Payment Information</h2>
+      
+      <!-- Card Element Container -->
+      <div id="card-element" class="card-element-container">
+        <!-- Stripe Elements will be mounted here -->
+      </div>
+      
+      <!-- Card Error Message -->
+      <div class="card-error" *ngIf="cardError">
+        {{ cardError }}
+      </div>
+      
+      <!-- Error Message -->
+      <div class="error-message" *ngIf="errorMessage">
+        {{ errorMessage }}
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="payment-actions">
+        <button 
+          class="pay-btn" 
+          (click)="processPayment()"
+          [disabled]="isProcessing || !!cardError">
+          <span *ngIf="!isProcessing">Pay ${{ orderTotal | number:'1.2-2' }}</span>
+          <span *ngIf="isProcessing">Processing...</span>
+        </button>
+        
+        <button 
+          class="cancel-btn" 
+          (click)="cancelBooking()"
+          [disabled]="isProcessing">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Success Content -->
+  <div class="success-content" *ngIf="paymentCompleted">
+    <i class="fas fa-check-circle success-icon"></i>
+    <h1>Payment Successful!</h1>
+    <p>Your booking has been confirmed.</p>
+    <p class="order-info">Order #{{ orderId }}</p>
+    
+    <a [routerLink]="['/order', orderId]" class="view-order-btn">View Order Now</a>
+  </div>
+</div>

@@ -1,0 +1,102 @@
+<div class="statistics-container">
+  <!-- Filters -->
+  <div class="filters-section">
+    <div class="filters-row">
+      <div class="quick-filter-dropdown">
+        <select [(ngModel)]="activeQuickFilter" (ngModelChange)="onQuickFilterChange($event)">
+          <option value="all">All Time</option>
+          <option value="today">Today</option>
+          <option value="week">This Week</option>
+          <option value="month">This Month</option>
+        </select>
+      </div>
+
+      <div class="custom-range">
+        <label>From</label>
+        <input type="date" [(ngModel)]="customFrom" />
+        <label>To</label>
+        <input type="date" [(ngModel)]="customTo" />
+        <button class="apply-btn" (click)="applyCustomRange()" [disabled]="!customFrom || !customTo">Apply</button>
+        <button class="clear-btn" (click)="clearCustomRange()" *ngIf="customFrom || customTo">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading-state" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <p>Loading statistics...</p>
+  </div>
+
+  <!-- Error -->
+  <div class="error-state" *ngIf="error && !isLoading">
+    <p>{{ error }}</p>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="stats-grid" *ngIf="stats && !isLoading">
+    <div class="stat-card">
+      <div class="stat-label">Total Orders</div>
+      <div class="stat-value orders">{{ stats.totalOrders | number }}</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-label">Total Amount (without tips)</div>
+      <div class="stat-value amount">{{ stats.totalAmount | currency:'USD' }}</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-label">Total Taxes</div>
+      <div class="stat-value taxes">{{ stats.totalTaxes | currency:'USD' }}</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-label">Total Tips</div>
+      <div class="stat-value tips">{{ stats.totalTips | currency:'USD' }}</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-label">Total Cleaners Salary</div>
+      <div class="stat-value salary">{{ stats.totalCleanersSalary | currency:'USD' }}</div>
+    </div>
+
+    <div class="stat-card highlight">
+      <div class="stat-label">Company Revenue</div>
+      <div class="stat-value revenue">{{ stats.totalCompanyRevenue | currency:'USD' }}</div>
+    </div>
+  </div>
+
+  <!-- Orders Chart -->
+  <div class="chart-section" *ngIf="stats && !isLoading">
+    <div class="chart-header">
+      <div class="chart-header-left">
+        <h2>Orders</h2>
+        <div class="chart-group-toggles">
+          <button class="group-btn" [class.active]="chartGrouping === 'days'" (click)="setGrouping('days')">Days</button>
+          <button class="group-btn" [class.active]="chartGrouping === 'weeks'" (click)="setGrouping('weeks')">Weeks</button>
+          <button class="group-btn" [class.active]="chartGrouping === 'months'" (click)="setGrouping('months')">Months</button>
+        </div>
+      </div>
+    </div>
+    <div class="chart-wrapper">
+      <canvas #ordersChart></canvas>
+    </div>
+  </div>
+
+  <!-- Revenue Chart -->
+  <div class="chart-section" *ngIf="stats && !isLoading">
+    <div class="chart-header">
+      <div class="chart-header-left">
+        <h2>Revenue</h2>
+        <div class="chart-group-toggles">
+          <button class="group-btn" [class.active]="chartGrouping === 'days'" (click)="setGrouping('days')">Days</button>
+          <button class="group-btn" [class.active]="chartGrouping === 'weeks'" (click)="setGrouping('weeks')">Weeks</button>
+          <button class="group-btn" [class.active]="chartGrouping === 'months'" (click)="setGrouping('months')">Months</button>
+        </div>
+      </div>
+    </div>
+    <div class="chart-wrapper">
+      <canvas #revenueChart></canvas>
+    </div>
+  </div>
+</div>

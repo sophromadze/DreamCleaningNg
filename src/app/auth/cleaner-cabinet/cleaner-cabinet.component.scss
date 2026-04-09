@@ -1,0 +1,48 @@
+.cleaner-cabinet {
+    min-height: 100vh;
+    background: #f8f9fa;
+  }
+  
+  .cabinet-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 3rem 2rem;
+    text-align: center;
+    
+    h1 {
+      margin: 0 0 0.5rem 0;
+      font-size: 2.5rem;
+    }
+    
+    p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 1.1rem;
+    }
+  }
+  
+  @media (max-width: 768px) {
+    .cabinet-header {
+      padding: 2rem 1rem;
+      
+      h1 {
+        font-size: 2rem;
+      }
+    }
+  }
+
+
+/* Dark theme */
+:host-context([data-theme="dark"]) {
+  .cleaner-cabinet {
+    background: var(--surface);
+  }
+  .cabinet-header {
+    background: linear-gradient(135deg, var(--surface-elevated) 0%, var(--surface) 100%);
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+    p {
+      color: var(--text-secondary);
+    }
+  }
+}

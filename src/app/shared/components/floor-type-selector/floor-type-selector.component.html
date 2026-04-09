@@ -1,0 +1,24 @@
+<div class="floor-type-section">
+  <label class="floor-type-label">
+    Floor Type <span class="optional-tag">(optional)</span>
+  </label>
+  <div class="floor-type-chips">
+    <span
+      *ngFor="let option of floorTypeOptions"
+      class="floor-type-chip"
+      [class.selected]="isFloorTypeSelected(option.value)"
+      (click)="toggleFloorType(option.value)">
+      {{ option.label }}
+    </span>
+  </div>
+  <div class="floor-type-other-wrapper" [class.visible]="showOtherInput()">
+    <input
+      *ngIf="showOtherInput()"
+      type="text"
+      class="floor-type-other-input"
+      [(ngModel)]="otherText"
+      (ngModelChange)="onOtherTextChange()"
+      placeholder="Please specify your floor type..."
+      maxlength="100">
+  </div>
+</div>

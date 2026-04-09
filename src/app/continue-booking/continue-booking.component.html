@@ -1,0 +1,42 @@
+<div class="continue-booking-container" *ngIf="showContinueBooking && !userDismissed" [class.expanded]="isExpanded">
+  <!-- Expanded State -->
+  <div class="continue-booking-card" *ngIf="isExpanded">
+    <div class="continue-booking-actions">
+      <button class="continue-booking-minimize" (click)="onMinimize()" aria-label="Minimize">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M5 12H19" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <button class="continue-booking-btn" (click)="onContinueBooking()" aria-label="Continue">
+        <svg width="18" height="18" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Back square (right side) - only top and right borders -->
+          <path d="M 4.5 1.5 Q 4.5 1.5 6.5 1.5 L 12.5 1.5 Q 14.5 1.5 14.5 3.5 L 14.5 11.5" stroke="currentColor" stroke-width="1" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Front square (left side, on top) -->
+          <rect x="2" y="4" width="10" height="10" rx="2" stroke="currentColor" stroke-width="1" fill="none" class="front-square"/>
+        </svg>
+      </button>
+      <button class="continue-booking-dismiss" (click)="onClose()" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </div>
+    <div class="continue-booking-content">
+      <div class="continue-booking-text">
+        <span class="continue-booking-subtitle">Your booking is saved, continue it whenever you want!</span>
+      </div>
+      <div class="continue-booking-icon" *ngIf="!isExpanded">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toggle Button (Collapsed State) -->
+  <button class="toggle-button" *ngIf="!isExpanded" (click)="toggleExpanded()" title="Continue Booking">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M9 12L11 14L15 10M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+</div>

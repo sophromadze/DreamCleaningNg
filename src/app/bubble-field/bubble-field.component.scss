@@ -1,0 +1,103 @@
+:host {
+  display: block;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.bubble-field {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  /* 3D sphere: bright highlight top-left, mid-tone body, dark rim bottom-right */
+  background:
+    radial-gradient(circle at 28% 25%,
+      rgba(255, 255, 255, 0.95) 0%,
+      rgba(255, 255, 255, 0.6) 8%,
+      transparent 35%
+    ),
+    radial-gradient(circle at 65% 70%,
+      transparent 40%,
+      rgba(0, 90, 200, 0.06) 60%,
+      rgba(0, 60, 160, 0.12) 80%,
+      rgba(0, 40, 120, 0.18) 95%
+    ),
+    radial-gradient(circle at 50% 50%,
+      rgba(200, 230, 255, 0.15) 0%,
+      rgba(140, 200, 255, 0.1) 30%,
+      rgba(80, 160, 240, 0.08) 55%,
+      rgba(40, 100, 200, 0.15) 78%,
+      rgba(20, 60, 150, 0.22) 92%,
+      transparent 100%
+    );
+  border: 1px solid rgba(140, 200, 255, 0.3);
+  box-shadow:
+    inset 2px 2px 6px rgba(255, 255, 255, 0.5),
+    inset -3px -3px 8px rgba(0, 80, 180, 0.08),
+    0 2px 12px rgba(0, 100, 200, 0.06),
+    0 0 1px rgba(0, 80, 180, 0.15);
+  animation: float var(--duration) ease-in-out infinite, iridescent var(--iri-duration) ease-in-out infinite;
+  animation-delay: var(--delay);
+  will-change: transform;
+}
+
+/* Iridescent film overlay */
+.bubble::before {
+  content: '';
+  position: absolute;
+  inset: 6%;
+  border-radius: 50%;
+  background:
+    conic-gradient(
+      from var(--hue-start, 0deg) at 45% 50%,
+      rgba(255, 120, 180, 0.04) 0deg,
+      rgba(100, 200, 255, 0.07) 72deg,
+      rgba(120, 255, 200, 0.05) 144deg,
+      rgba(255, 220, 100, 0.04) 216deg,
+      rgba(180, 120, 255, 0.06) 288deg,
+      rgba(255, 120, 180, 0.04) 360deg
+    );
+  animation: rotate-film var(--film-duration, 14s) linear infinite;
+  mix-blend-mode: normal;
+  opacity: 0.8;
+}
+
+/* Secondary small specular highlight */
+.bubble::after {
+  content: '';
+  position: absolute;
+  width: 18%;
+  height: 12%;
+  top: 18%;
+  left: 22%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(255, 255, 255, 0.85) 0%, rgba(255, 255, 255, 0.2) 55%, transparent 80%);
+  transform: rotate(-30deg);
+  filter: blur(1px);
+}
+
+@keyframes float {
+  0%   { transform: translate(0, 0) scale(1); }
+  20%  { transform: translate(var(--dx1), var(--dy1)) scale(var(--s1)); }
+  40%  { transform: translate(var(--dx2), var(--dy2)) scale(var(--s2)); }
+  60%  { transform: translate(var(--dx3), var(--dy3)) scale(var(--s1)); }
+  80%  { transform: translate(var(--dx4), var(--dy4)) scale(var(--s2)); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+@keyframes iridescent {
+  0%, 100% { filter: hue-rotate(0deg); }
+  33%      { filter: hue-rotate(25deg); }
+  66%      { filter: hue-rotate(-20deg); }
+}
+
+@keyframes rotate-film {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

@@ -1,0 +1,45 @@
+<app-header></app-header>
+<div class="main-content">
+  <!-- Same flow as header auth slot: show shimmer until auth ready, then show content (outlet) -->
+  <div *ngIf="showRouteLoading" class="route-loading-overlay">
+    <div class="route-loading-animation">
+      <div class="loader-rings">
+        <div class="loader-ring loader-ring-outer"></div>
+        <div class="loader-ring loader-ring-inner"></div>
+      </div>
+      <p class="loader-label">Loading</p>
+    </div>
+  </div>
+  <ng-container *ngIf="!showRouteLoading">
+    <router-outlet></router-outlet>
+  </ng-container>
+</div>
+<app-footer></app-footer>
+<app-sticky-mobile-cta></app-sticky-mobile-cta>
+    
+<!-- Add the notification modal -->
+<app-notification-modal></app-notification-modal>
+<app-order-reminder></app-order-reminder>
+
+<!-- Add auth modal -->
+<app-auth-modal></app-auth-modal>
+
+<!-- Add floating action buttons -->
+<app-floating-action-buttons></app-floating-action-buttons>
+<div *ngIf="showSocialStickyBanners" class="social-sticky-banners" aria-label="Social media links">
+  <a href="https://www.facebook.com/profile.php?id=61563387757936" target="_blank" rel="noopener noreferrer" aria-label="Facebook" class="social-sticky-banner social-sticky-banner-facebook">
+    <i class="fa-brands fa-facebook-f"></i>
+  </a>
+  <a href="https://www.instagram.com/thedream_cleaning" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="social-sticky-banner social-sticky-banner-instagram">
+    <i class="fa-brands fa-instagram"></i>
+  </a>
+  <a href="https://www.tiktok.com/@dreamcleaningny" target="_blank" rel="noopener noreferrer" aria-label="TikTok" class="social-sticky-banner social-sticky-banner-tiktok">
+    <i class="fa-brands fa-tiktok"></i>
+  </a>
+</div>
+
+<!-- Add continue booking component -->
+<app-continue-booking></app-continue-booking>
+
+<!-- Live chat widget — hidden on admin/cleaner pages -->
+<app-live-chat-widget *ngIf="showLiveChat"></app-live-chat-widget>

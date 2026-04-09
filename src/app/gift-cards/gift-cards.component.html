@@ -1,0 +1,183 @@
+<div class="gift-cards-page">
+  <app-bubble-field></app-bubble-field>
+  <div class="gift-cards-page-content">
+<!-- Header -->
+<div class="page-header">
+  <h1>Gift Cards</h1>
+  <p>Give the gift of a clean home with our gift cards</p>
+</div>
+
+<div class="gift-cards-container">
+  <!-- Success Message -->
+  <div class="alert alert-success" *ngIf="successMessage">
+    {{ successMessage }}
+  </div>
+
+  <!-- Error Message -->
+  <div class="alert alert-error" *ngIf="errorMessage">
+    {{ errorMessage }}
+  </div>
+
+  <!-- Main Content -->
+  <div class="gift-cards-content">
+    <form [formGroup]="giftCardForm" (ngSubmit)="onCreateGiftCard(); $event.preventDefault()" class="gift-card-form">
+      <div class="form-layout">
+        <!-- Left Side - Form Fields -->
+        <div class="form-fields">
+          <!-- Amount Selection -->
+          <div class="form-group">
+            <label for="amount">Gift Card Amount *</label>
+            <div class="amount-selection">
+              <select 
+                id="amount" 
+                formControlName="amount" 
+                class="amount-select">
+                <option value="">Select amount</option>
+                <option *ngFor="let amount of predefinedAmounts" [value]="amount">
+                  ${{ amount }}
+                </option>
+              </select>
+              <div class="custom-amount">
+                <span class="currency-symbol">$</span>
+                <input 
+                  type="number" 
+                  id="customAmount" 
+                  formControlName="amount" 
+                  placeholder="Enter custom amount"
+                  min="50" 
+                  max="10000">
+              </div>
+            </div>
+            <div class="error-message" *ngIf="amount?.invalid && amount?.touched">
+              <span *ngIf="amount?.errors?.['required']">Amount is required</span>
+              <span *ngIf="amount?.errors?.['min']">Minimum amount is $50</span>
+              <span *ngIf="amount?.errors?.['max']">Maximum amount is $10,000</span>
+            </div>
+          </div>
+
+          <!-- Recipient Information -->
+          <div class="form-section">
+            <h3>Recipient Information</h3>
+            
+            <div class="form-group">
+              <label for="recipientName">Recipient Name *</label>
+              <input 
+                type="text" 
+                id="recipientName" 
+                formControlName="recipientName" 
+                placeholder="Enter recipient's full name"
+                maxlength="15"
+                class="text-wrap">
+              <div class="error-message" *ngIf="recipientName?.invalid && recipientName?.touched">
+                <span *ngIf="recipientName?.errors?.['required']">Recipient name is required</span>
+                <span *ngIf="recipientName?.errors?.['maxlength']">Name cannot exceed 15 characters</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="recipientEmail">Recipient Email *</label>
+              <input 
+                type="email" 
+                id="recipientEmail" 
+                formControlName="recipientEmail" 
+                placeholder="Enter recipient's email address">
+              <div class="error-message" *ngIf="recipientEmail?.invalid && recipientEmail?.touched">
+                <span *ngIf="recipientEmail?.errors?.['required']">Recipient email is required</span>
+                <span *ngIf="recipientEmail?.errors?.['email']">Please enter a valid email address</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sender Information -->
+          <div class="form-section">
+            <h3>Your Information</h3>
+            
+            <div class="form-group">
+              <label for="senderName">Your Name *</label>
+              <input 
+                type="text" 
+                id="senderName" 
+                formControlName="senderName" 
+                placeholder="Enter your full name">
+              <div class="error-message" *ngIf="senderName?.invalid && senderName?.touched">
+                <span *ngIf="senderName?.errors?.['required']">Your name is required</span>
+                <span *ngIf="senderName?.errors?.['maxlength']">Name cannot exceed 100 characters</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="senderEmail">Your Email *</label>
+              <input 
+                type="email" 
+                id="senderEmail" 
+                formControlName="senderEmail" 
+                placeholder="Enter your email address">
+              <div class="error-message" *ngIf="senderEmail?.invalid && senderEmail?.touched">
+                <span *ngIf="senderEmail?.errors?.['required']">Your email is required</span>
+                <span *ngIf="senderEmail?.errors?.['email']">Please enter a valid email address</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Message -->
+          <div class="form-group">
+            <label for="message">Personal Message *</label>
+            <textarea 
+              id="message" 
+              formControlName="message" 
+              rows="4" 
+              placeholder="Add a personal message for the recipient..."
+              maxlength="70"
+              class="text-wrap"></textarea>
+            <div class="char-count">
+              {{ message?.value?.length || 0 }}/70
+            </div>
+            <div class="error-message" *ngIf="message?.invalid && message?.touched">
+              <span *ngIf="message?.errors?.['required']">Personal message is required</span>
+              <span *ngIf="message?.errors?.['maxlength']">Message cannot exceed 70 characters</span>
+            </div>
+          </div>
+
+          <!-- Form Actions -->
+          <div class="form-actions">
+            <button type="button" class="btn btn-primary" [disabled]="isLoading" (click)="onCreateGiftCard()">
+              {{ isLoading ? 'Processing...' : 'Purchase Gift Card' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Right Side - Gift Card Preview -->
+        <div class="gift-card-preview">
+          <div class="gift-card" 
+                [style.backgroundImage]="giftCardBackgroundPath ? 'url(' + giftCardBackgroundPath + ')' : 'none'"
+                [class.loading]="isLoadingBackground">
+            
+            <!-- Optional: Show loading overlay -->
+            <div class="loading-overlay" *ngIf="isLoadingBackground"></div>
+            
+            <!-- Your existing gift card content -->
+            <div class="gift-card-header">
+              <h3>Dream Cleaning</h3>
+              <div class="amount">{{ formatCurrency(previewGiftCard?.amount || 0) }}</div>
+            </div>
+            
+            <div class="gift-card-body">
+              <div class="left-section"></div>
+              <div class="right-section">
+                <div class="recipient-info">
+                  <p class="dear">Dear {{ previewGiftCard?.recipientName || 'Recipient Name' }},</p>
+                  <div class="message" *ngIf="previewGiftCard?.message">
+                    <p>{{ previewGiftCard.message }}</p>
+                  </div>
+                </div>
+                <div class="gift-card-note">Gift card code will be sent to recipient's and your email</div>
+              </div>
+            </div>
+          </div>
+        </div>
+  </div>
+</form>
+</div>
+  </div>
+</div>
+

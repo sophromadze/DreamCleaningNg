@@ -1,0 +1,78 @@
+.sticky-mobile-cta {
+  display: none;
+}
+
+/* Show on narrow screen OR touch device (tablets in landscape still get the bar) */
+@media (max-width: 768px), (hover: none) {
+  .sticky-mobile-cta {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 999;
+    padding: 10px 12px;
+    gap: 8px;
+    background: var(--surface);
+    box-shadow: 0 -4px 12px var(--shadow-color);
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .cta-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 13px;
+    text-decoration: none;
+    color: white;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+
+  .call-btn {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+
+    &:hover {
+      background: linear-gradient(135deg, #48d164 0%, #34ce57 100%);
+      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+    }
+  }
+
+  .book-btn {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+
+    &:hover {
+      background: linear-gradient(135deg, #339cff 0%, #1a82ff 100%);
+      box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
+    }
+  }
+
+  .quote-btn {
+    background: var(--btn-quote);
+    box-shadow: var(--btn-quote-shadow);
+
+    &:hover {
+      background: var(--btn-quote-hover);
+      box-shadow: var(--btn-quote-shadow-hover);
+    }
+  }
+
+  .cta-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+}

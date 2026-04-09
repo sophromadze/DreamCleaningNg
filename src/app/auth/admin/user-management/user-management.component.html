@@ -1,0 +1,578 @@
+<div class="user-management-section">
+  <div class="section-header">
+    <div class="header-left">
+      <h2>User Management</h2>
+    </div>
+    <div class="header-right">
+      <button class="action-btn register-customer" *ngIf="canCreate" (click)="openRegisterModal()">
+        Register Customer
+      </button>
+      <button class="action-btn refresh"
+              (click)="loadUsers()"
+              [disabled]="loadingUsers">
+        {{ loadingUsers ? 'Loading...' : 'Refresh' }}
+      </button>
+    </div>
+  </div>
+  <div class="messages">
+    <div class="error-message" *ngIf="errorMessage">
+      {{ errorMessage }}
+    </div>
+    <div class="success-message" *ngIf="successMessage">
+      {{ successMessage }}
+    </div>
+  </div>
+  <div class="filters-section">
+    <div class="search-box">
+      <input type="text"
+             [(ngModel)]="searchTerm"
+             placeholder="Search by ID or email..."
+             class="search-input">
+    </div>
+    <div class="filter-controls">
+      <select [(ngModel)]="statusFilter" class="filter-select">
+        <option value="all">All Status</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+      <select [(ngModel)]="roleFilter" class="filter-select">
+        <option value="all">All Roles</option>
+        <option value="SuperAdmin">SAdmin</option>
+        <option value="Admin">Admin</option>
+        <option value="Moderator">Moderator</option>
+        <option value="Cleaner">Cleaner</option>
+        <option value="Customer">Customer</option>
+      </select>
+    </div>
+  </div>
+  <div class="users-list">
+    <div class="data-table">
+      <div class="table-wrapper" #tableWrapper>
+        <table>
+          <thead #tableHeader>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Role</th>
+              <th>Provider</th>
+              <th>First Time</th>
+              <th>Status</th>
+              <th>Mail</th>
+              <th>Msg</th>
+              <th *ngIf="userRole !== 'Moderator'">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+          <ng-container *ngFor="let user of filteredUsers">
+            <!-- ORIGINAL: Main User Row - Made clickable but preserving all original content -->
+            <tr [class.expanded]="viewingUserId === user.id" 
+                (click)="viewUserDetails(user.id)" 
+                style="cursor: pointer;"
+                [attr.title]="'Click to view detailed information'">
+              <td>{{ user.id }}</td>
+              <td>
+                <span class="user-name-cell">
+                  <span class="status-indicator" [class.online]="user.isOnline === true" [class.offline]="user.isOnline !== true" [attr.title]="user.isOnline ? 'Online' : 'Offline'"></span>
+                  {{ user.firstName }} {{ user.lastName }}
+                </span>
+              </td>
+              <td>{{ user.email }}</td>
+              <td>{{ user.phone || 'N/A' }}</td>
+              <td (click)="$event.stopPropagation()" class="role-cell">
+                <div class="role-dropdown" *ngIf="canModifyUserRole(user)">
+                  <button type="button" class="role-badge role-badge-clickable"
+                      [class.superadmin]="user.role === 'SuperAdmin'"
+                      [class.admin]="user.role === 'Admin'"
+                      [class.moderator]="user.role === 'Moderator'"
+                      [class.cleaner]="user.role === 'Cleaner'"
+                      [class.customer]="user.role === 'Customer'"
+                      (click)="toggleRoleDropdown(user.id)"
+                      [attr.title]="getRoleButtonTooltip(user)">
+                    {{ displayRole(user.role) }}
+                    <span class="chevron">▼</span>
+                  </button>
+                  <div class="dropdown-menu" *ngIf="roleDropdownUserId === user.id">
+                    <a class="dropdown-item" [class.disabled]="!canChangeUserRole(user, 'Customer')"
+                       (click)="canChangeUserRole(user, 'Customer') && updateUserRole(user, 'Customer')">Customer</a>
+                    <a class="dropdown-item" [class.disabled]="!canChangeUserRole(user, 'Cleaner')"
+                       (click)="canChangeUserRole(user, 'Cleaner') && updateUserRole(user, 'Cleaner')">Cleaner</a>
+                    <a class="dropdown-item" [class.disabled]="!canChangeUserRole(user, 'Moderator')"
+                       (click)="canChangeUserRole(user, 'Moderator') && updateUserRole(user, 'Moderator')">Moderator</a>
+                    <a class="dropdown-item" [class.disabled]="!canChangeUserRole(user, 'Admin')"
+                       (click)="canChangeUserRole(user, 'Admin') && updateUserRole(user, 'Admin')">Admin</a>
+                    <a class="dropdown-item" *ngIf="currentUserRole === 'SuperAdmin'"
+                       [class.disabled]="!canChangeUserRole(user, 'SuperAdmin')"
+                       (click)="canChangeUserRole(user, 'SuperAdmin') && updateUserRole(user, 'SuperAdmin')">SAdmin</a>
+                  </div>
+                </div>
+                <span *ngIf="!canModifyUserRole(user)" class="role-badge"
+                      [class.superadmin]="user.role === 'SuperAdmin'"
+                      [class.admin]="user.role === 'Admin'"
+                      [class.moderator]="user.role === 'Moderator'"
+                      [class.cleaner]="user.role === 'Cleaner'"
+                      [class.customer]="user.role === 'Customer'">{{ displayRole(user.role) }}</span>
+              </td>
+              <td>{{ user.authProvider || 'Local' }}</td>
+              <td>
+                <span class="badge" [class.bg-success]="user.firstTimeOrder" [class.bg-secondary]="!user.firstTimeOrder">
+                  {{ user.firstTimeOrder ? 'Yes' : 'No' }}
+                </span>
+              </td>
+              <td>
+                <span class="status-badge" 
+                      [class.active]="user.isActive" 
+                      [class.inactive]="!user.isActive">
+                  {{ user.isActive ? 'Active' : 'Inactive' }}
+                </span>
+              </td>
+              <td (click)="$event.stopPropagation()" class="messages-cell">
+                <ng-container *ngIf="canUpdate">
+                  <button type="button" class="comm-toggle-btn"
+                          [class.yes]="userCanReceiveEmails(user)"
+                          [class.no]="!userCanReceiveEmails(user)"
+                          [class.disabled]="togglingCommsUserId === user.id"
+                          (click)="toggleUserEmailsPreference(user, !userCanReceiveEmails(user), $event)">
+                    {{ userCanReceiveEmails(user) ? 'Yes' : 'No' }}
+                  </button>
+                  <span *ngIf="togglingCommsUserId === user.id" class="saving">...</span>
+                </ng-container>
+                <span *ngIf="!canUpdate" class="comm-toggle-label" [class.yes]="userCanReceiveEmails(user)" [class.no]="!userCanReceiveEmails(user)">{{ userCanReceiveEmails(user) ? 'Yes' : 'No' }}</span>
+              </td>
+              <td (click)="$event.stopPropagation()" class="messages-cell">
+                <ng-container *ngIf="canUpdate">
+                  <button type="button" class="comm-toggle-btn"
+                          [class.yes]="userCanReceiveMessages(user)"
+                          [class.no]="!userCanReceiveMessages(user)"
+                          [class.disabled]="togglingCommsUserId === user.id"
+                          (click)="toggleUserMessagesPreference(user, !userCanReceiveMessages(user), $event)">
+                    {{ userCanReceiveMessages(user) ? 'Yes' : 'No' }}
+                  </button>
+                  <span *ngIf="togglingCommsUserId === user.id" class="saving">...</span>
+                </ng-container>
+                <span *ngIf="!canUpdate" class="comm-toggle-label" [class.no]="!userCanReceiveMessages(user)" [class.yes]="userCanReceiveMessages(user)">{{ userCanReceiveMessages(user) ? 'Yes' : 'No' }}</span>
+              </td>
+              <!-- ORIGINAL: Your exact actions column with stop propagation -->
+              <td *ngIf="userRole !== 'Moderator'" (click)="$event.stopPropagation()" class="actions">
+                <!-- Status Actions -->
+                <button class="action-btn deactivate" 
+                        *ngIf="canBanUser(user)" 
+                        (click)="updateUserStatus(user, false)">
+                  Block
+                </button>
+                <button class="action-btn activate" 
+                        *ngIf="canUnbanUser(user)" 
+                        (click)="updateUserStatus(user, true)">
+                  Unblock
+                </button>
+
+                <!-- Delete (SuperAdmin only) -->
+                <button class="action-btn delete" 
+                        *ngIf="isSuperAdmin" 
+                        (click)="deleteUser(user, $event)"
+                        title="Permanently delete user">
+                  Delete
+                </button>
+              </td>
+            </tr>
+
+            <!-- NEW: User Details Row (Similar to order details in orders component) -->
+            <tr *ngIf="viewingUserId === user.id" class="user-details-row">
+              <td [attr.colspan]="userRole !== 'Moderator' ? 11 : 10">
+                <div class="user-details-content">
+                  <div *ngIf="loadingUserDetails" class="loading-details">
+                    <p>Loading user details...</p>
+                  </div>
+                  
+                  <div *ngIf="!loadingUserDetails && selectedUser" class="user-details">
+                    <h4 class="detail-title-with-status">
+                      <span class="status-indicator" [class.online]="selectedUser.isOnline === true" [class.offline]="selectedUser.isOnline !== true" [attr.title]="selectedUser.isOnline ? 'Online' : 'Offline'"></span>
+                      Detailed Information for {{ selectedUser.firstName }} {{ selectedUser.lastName }}
+                    </h4>
+                    
+                    <!-- SuperAdmin Edit Form -->
+                    <div *ngIf="editingUser && isSuperAdmin" class="superadmin-edit-form">
+                      <h5>Edit User — all changes are recorded in Audit logs</h5>
+                      <div class="edit-fields">
+                        <div class="edit-row">
+                          <label>First Name</label>
+                          <input type="text" [(ngModel)]="editUserForm.firstName" required>
+                        </div>
+                        <div class="edit-row">
+                          <label>Last Name</label>
+                          <input type="text" [(ngModel)]="editUserForm.lastName" required>
+                        </div>
+                        <div class="edit-row">
+                          <label>Email</label>
+                          <input type="email" [(ngModel)]="editUserForm.email" required>
+                        </div>
+                        <div class="edit-row">
+                          <label>Phone</label>
+                          <input type="text" [(ngModel)]="editUserForm.phone" placeholder="Optional">
+                        </div>
+                        <div class="edit-row">
+                          <label>Role</label>
+                          <select [(ngModel)]="editUserForm.role">
+                            <option value="Customer">Customer</option>
+                            <option value="Cleaner">Cleaner</option>
+                            <option value="Moderator">Moderator</option>
+                            <option value="Admin">Admin</option>
+                            <option value="SuperAdmin">SAdmin</option>
+                          </select>
+                        </div>
+                        <div class="edit-row checkbox-row">
+                          <label><input type="checkbox" [(ngModel)]="editUserForm.isActive"> Active</label>
+                        </div>
+                        <div class="edit-row checkbox-row">
+                          <label><input type="checkbox" [(ngModel)]="editUserForm.firstTimeOrder"> First Time Customer</label>
+                        </div>
+                        <div class="edit-row yes-no-row">
+                          <label>Emails</label>
+                          <span class="yes-no-toggle">
+                            <span class="yn-btn" [class.active]="editUserForm.canReceiveEmails"
+                                  (click)="editUserForm.canReceiveEmails = true">Yes</span>
+                            <span class="yn-btn" [class.active]="!editUserForm.canReceiveEmails"
+                                  (click)="editUserForm.canReceiveEmails = false">No</span>
+                          </span>
+                        </div>
+                        <div class="edit-row yes-no-row">
+                          <label>Messages</label>
+                          <span class="yes-no-toggle">
+                            <span class="yn-btn" [class.active]="editUserForm.canReceiveMessages"
+                                  (click)="editUserForm.canReceiveMessages = true">Yes</span>
+                            <span class="yn-btn" [class.active]="!editUserForm.canReceiveMessages"
+                                  (click)="editUserForm.canReceiveMessages = false">No</span>
+                          </span>
+                        </div>
+                        <!-- Saved Addresses (edit) -->
+                        <div class="edit-row addresses-edit-section">
+                          <label>Saved Addresses</label>
+                          <div class="addresses-edit-list" *ngIf="selectedUser.apartments?.length">
+                            <div class="address-edit-item" *ngFor="let apt of selectedUser.apartments">
+                              <div *ngIf="editingAddressId !== apt.id" class="address-display">
+                                <div class="address-display-text">
+                                  <strong>{{ apt.name }}</strong> — {{ apt.address }}<span *ngIf="apt.aptSuite">, {{ apt.aptSuite }}</span><br>
+                                  {{ apt.city }}, {{ apt.state }} {{ apt.postalCode }}
+                                  <span *ngIf="apt.specialInstructions"><br><em>{{ apt.specialInstructions }}</em></span>
+                                </div>
+                                <div class="address-actions">
+                                  <button type="button" class="action-btn small" (click)="startEditAddress(apt)" [disabled]="savingAddress">Edit</button>
+                                  <button type="button" class="action-btn small danger" (click)="deleteAddress(apt, $event)" [disabled]="savingAddress">Delete</button>
+                                </div>
+                              </div>
+                              <div *ngIf="editingAddressId === apt.id" class="address-inline-form">
+                                <div class="edit-row"><label>Name</label><input type="text" [(ngModel)]="apt.name" placeholder="e.g. Home"></div>
+                                <div class="edit-row"><label>Address</label><input type="text" [(ngModel)]="apt.address" placeholder="Street address"></div>
+                                <div class="edit-row"><label>Apt/Suite</label><input type="text" [(ngModel)]="apt.aptSuite" placeholder="Optional"></div>
+                                <div class="edit-row"><label>City</label><input type="text" [(ngModel)]="apt.city"></div>
+                                <div class="edit-row"><label>State</label><input type="text" [(ngModel)]="apt.state"></div>
+                                <div class="edit-row"><label>Postal Code</label><input type="text" [(ngModel)]="apt.postalCode" placeholder="5 digits" maxlength="5"></div>
+                                <div class="edit-row"><label>Special instructions</label><input type="text" [(ngModel)]="apt.specialInstructions" placeholder="Optional"></div>
+                                <div class="address-inline-actions">
+                                  <button type="button" class="action-btn primary small" (click)="saveEditAddress(apt)" [disabled]="savingAddress">{{ savingAddress ? 'Saving...' : 'Save' }}</button>
+                                  <button type="button" class="action-btn small" (click)="cancelEditAddress()" [disabled]="savingAddress">Cancel</button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          <p *ngIf="!selectedUser.apartments?.length" class="no-addresses">No saved addresses.</p>
+                          <button type="button" class="action-btn small add-address-btn" (click)="openAddAddress()" *ngIf="!showAddAddress" [disabled]="savingAddress">Add address</button>
+                          <div *ngIf="showAddAddress" class="address-inline-form new-address-form">
+                            <div class="edit-row"><label>Name</label><input type="text" [(ngModel)]="newAddress.name" placeholder="e.g. Home"></div>
+                            <div class="edit-row"><label>Address</label><input type="text" [(ngModel)]="newAddress.address" placeholder="Street address"></div>
+                            <div class="edit-row"><label>Apt/Suite</label><input type="text" [(ngModel)]="newAddress.aptSuite" placeholder="Optional"></div>
+                            <div class="edit-row"><label>City</label><input type="text" [(ngModel)]="newAddress.city"></div>
+                            <div class="edit-row"><label>State</label><input type="text" [(ngModel)]="newAddress.state"></div>
+                            <div class="edit-row"><label>Postal Code</label><input type="text" [(ngModel)]="newAddress.postalCode" placeholder="5 digits" maxlength="5"></div>
+                            <div class="edit-row"><label>Special instructions</label><input type="text" [(ngModel)]="newAddress.specialInstructions" placeholder="Optional"></div>
+                            <div class="address-inline-actions">
+                              <button type="button" class="action-btn primary small" (click)="addNewAddress()" [disabled]="savingAddress">{{ savingAddress ? 'Saving...' : 'Add' }}</button>
+                              <button type="button" class="action-btn small" (click)="cancelAddAddress()" [disabled]="savingAddress">Cancel</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="edit-actions">
+                        <button class="action-btn primary" (click)="saveUserEdit()" [disabled]="savingUser">{{ savingUser ? 'Saving...' : 'Save' }}</button>
+                        <button class="action-btn" (click)="cancelEditUser()" [disabled]="savingUser">Cancel</button>
+                      </div>
+                    </div>
+
+                    <div *ngIf="!editingUser" class="details-grid">
+                      <!-- Personal Information Section -->
+                      <div class="detail-section">
+                        <h5>Personal Information</h5>
+                        <p><strong>User ID:</strong> {{ selectedUser.id }}</p>
+                        <p><strong>Full Name:</strong> {{ selectedUser.firstName }} {{ selectedUser.lastName }}</p>
+                        <p><strong>Email:</strong> {{ selectedUser.email }}</p>
+                        <p><strong>Phone:</strong> {{ selectedUser.phone || 'Not provided' }}</p>
+                        <p><strong>Role:</strong> 
+                          <span class="role-badge" 
+                                [class.superadmin]="selectedUser.role === 'SuperAdmin'"
+                                [class.admin]="selectedUser.role === 'Admin'"
+                                [class.moderator]="selectedUser.role === 'Moderator'"
+                                [class.cleaner]="selectedUser.role === 'Cleaner'"
+                                [class.customer]="selectedUser.role === 'Customer'">{{ displayRole(selectedUser.role) }}
+                          </span>
+                        </p>
+                        <p><strong>Auth Provider:</strong> {{ selectedUser.authProvider || 'Local' }}</p>
+                        <p><strong>Account Status:</strong> 
+                          <span class="status-badge" [class.active]="selectedUser.isActive" [class.inactive]="!selectedUser.isActive">{{ selectedUser.isActive ? 'Active' : 'Inactive' }}
+                          </span>
+                        </p>
+                        <p><strong>First Time Customer:</strong> {{ selectedUser.firstTimeOrder ? 'Yes' : 'No' }}</p>
+                        <p><strong>Emails:</strong> 
+                          <ng-container *ngIf="canUpdate">
+                            <span class="yes-no-toggle">
+                              <span class="yn-btn" [class.active]="userCanReceiveEmails(selectedUser)"
+                                    (click)="toggleUserEmailsPreference(selectedUser, true, $event)"
+                                    [class.disabled]="togglingCommsUserId === selectedUser.id">Yes</span>
+                              <span class="yn-btn" [class.active]="!userCanReceiveEmails(selectedUser)"
+                                    (click)="toggleUserEmailsPreference(selectedUser, false, $event)"
+                                    [class.disabled]="togglingCommsUserId === selectedUser.id">No</span>
+                            </span>
+                            <span *ngIf="togglingCommsUserId === selectedUser.id" class="saving"> (saving...)</span>
+                          </ng-container>
+                          <ng-container *ngIf="!canUpdate">{{ userCanReceiveEmails(selectedUser) ? 'Yes' : 'No' }}</ng-container>
+                        </p>
+                        <p><strong>Messages:</strong> 
+                          <ng-container *ngIf="canUpdate">
+                            <span class="yes-no-toggle">
+                              <span class="yn-btn" [class.active]="userCanReceiveMessages(selectedUser)"
+                                    (click)="toggleUserMessagesPreference(selectedUser, true, $event)"
+                                    [class.disabled]="togglingCommsUserId === selectedUser.id">Yes</span>
+                              <span class="yn-btn" [class.active]="!userCanReceiveMessages(selectedUser)"
+                                    (click)="toggleUserMessagesPreference(selectedUser, false, $event)"
+                                    [class.disabled]="togglingCommsUserId === selectedUser.id">No</span>
+                            </span>
+                            <span *ngIf="togglingCommsUserId === selectedUser.id" class="saving"> (saving...)</span>
+                          </ng-container>
+                          <ng-container *ngIf="!canUpdate">{{ userCanReceiveMessages(selectedUser) ? 'Yes' : 'No' }}</ng-container>
+                        </p>
+                        <p><strong>Subscription:</strong> {{ selectedUser.subscriptionName || 'None' }}</p>
+                        <p><strong>Registration Date:</strong> {{ formatDate(selectedUser.registrationDate) }}</p>
+                      </div>
+
+                      <!-- Order Statistics Section -->
+                      <div class="detail-section">
+                        <h5>Order Statistics</h5>
+                        <p><strong>Total Orders:</strong> {{ selectedUser.totalOrders || 0 }}</p>
+                        <p><strong>Total Spent:</strong>
+                          <span class="total-amount">{{ formatCurrency(selectedUser.totalSpent || 0) }}</span>
+                        </p>
+                        <p><strong>Last Order:</strong> {{ formatDate(selectedUser.lastOrderDate) }}</p>
+                        <ng-container *ngIf="userRewardsSummary && userRewardsSummary.pointsSystemEnabled">
+                          <p><strong>Tier:</strong> {{ getTierLabel(userRewardsSummary.tier) }}</p>
+                          <p><strong>Points Earned:</strong> {{ userRewardsSummary.totalEarned | number }}</p>
+                          <p><strong>Points Redeemed:</strong> {{ userRewardsSummary.totalRedeemed | number }}</p>
+                          <p><strong>Current Points:</strong> {{ userRewardsSummary.currentPoints | number }}</p>
+                          <p *ngIf="userRewardsSummary.bubbleCredits > 0"><strong>Reward Balance:</strong> ${{ userRewardsSummary.bubbleCredits | number:'1.2-2' }}</p>
+                          <p *ngIf="userRewardsSummary.streakCount > 1"><strong>Order Streak:</strong> {{ userRewardsSummary.streakCount }}</p>
+                        </ng-container>
+                      </div>
+
+                      <!-- Recent Orders Section -->
+                      <div class="detail-section" *ngIf="selectedUser.orders && selectedUser.orders.length > 0">
+                        <h5>Recent Orders</h5>
+                        <div class="orders-list-mini">
+                          <div *ngFor="let order of selectedUser.orders" class="order-item-mini order-item-mini--clickable" (click)="openOrderInAdmin(order.id)">
+                            <div class="order-info-mini">
+                              <span class="order-id">#{{ order.id }}</span>
+                              <span class="service-type">{{ order.serviceTypeName }}</span>
+                              <span class="order-date">{{ formatDate(order.serviceDate) }}</span>
+                              <span class="order-amount">{{ formatCurrency(order.total) }}</span>
+                              <span class="order-status" [ngClass]="getStatusClass(order.status)">{{ order.status }}</span>
+                            </div>
+                            <div class="order-rewards-mini" *ngIf="order.pointsEarned || order.pointsRedeemed || order.rewardBalanceUsed">
+                              <span class="order-pts-earned" *ngIf="order.pointsEarned">+{{ order.pointsEarned }} pts earned</span>
+                              <span class="order-pts-spent" *ngIf="order.pointsRedeemed">−{{ order.pointsRedeemed }} pts (${{ order.pointsRedeemedDiscount | number:'1.2-2' }} off)</span>
+                              <span class="order-credits-used" *ngIf="order.rewardBalanceUsed">−${{ order.rewardBalanceUsed | number:'1.2-2' }} reward used</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Saved Addresses Section -->
+                      <div class="detail-section" *ngIf="selectedUser.apartments && selectedUser.apartments.length > 0">
+                        <h5>Saved Addresses ({{ selectedUser.apartments.length }})</h5>
+                        <div class="apartments-list-mini">
+                          <div *ngFor="let apartment of selectedUser.apartments" class="apartment-item-mini">
+                            <h6>{{ apartment.name }}</h6>
+                            <p>{{ apartment.address }}</p>
+                            <p *ngIf="apartment.aptSuite">Apt/Suite: {{ apartment.aptSuite }}</p>
+                            <p>{{ apartment.city }}, {{ apartment.state }} {{ apartment.postalCode }}</p>
+                            <p *ngIf="apartment.specialInstructions" class="special-instructions">
+                              <em>{{ apartment.specialInstructions }}</em>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Bubble Rewards Section -->
+                      <div class="detail-section bubble-rewards-section">
+                        <h5>Bubble Rewards</h5>
+                        <div *ngIf="rewardsLoading" class="rewards-loading">Loading...</div>
+                        <ng-container *ngIf="!rewardsLoading && userRewardsSummary">
+                          <ng-container *ngIf="userRewardsSummary.pointsSystemEnabled">
+                            <!-- Referred by -->
+                            <p *ngIf="userRewardsSummary.referredByName" class="br-referred">
+                              Referred by: <strong>{{ userRewardsSummary.referredByName }}</strong>
+                              <button *ngIf="isSuperAdmin" class="br-remove-btn" [disabled]="removingReferredBy" (click)="removeReferredBy()" title="Remove referred-by link">×</button>
+                            </p>
+                            <!-- Referred users list -->
+                            <div class="br-referrals">
+                              <p><strong>Referred users:</strong></p>
+                              <ng-container *ngIf="userRewardsSummary.referrals && userRewardsSummary.referrals.length > 0; else noReferrals">
+                                <div *ngFor="let ref of userRewardsSummary.referrals" class="br-referral-item">
+                                  <span>{{ ref.referredUserEmail }}</span>
+                                  <span class="br-referral-status" [class.status-done]="ref.orderBonusGiven" [class.status-pending]="!ref.orderBonusGiven">
+                                    {{ ref.orderBonusGiven ? 'Bonus earned' : ref.registrationBonusGiven ? 'Signed up' : 'Pending' }}
+                                  </span>
+                                  <button *ngIf="isSuperAdmin" class="br-remove-btn" [disabled]="removingReferralId === ref.id" (click)="removeReferredUser(ref.id)" title="Remove this referral">×</button>
+                                </div>
+                              </ng-container>
+                              <ng-template #noReferrals><p class="br-no-referrals">No referrals yet.</p></ng-template>
+                            </div>
+                            <!-- Add referral (SuperAdmin only) -->
+                            <div *ngIf="isSuperAdmin" class="br-add-referral">
+                              <div class="br-add-referral__row">
+                                <div class="br-add-referral__input-wrap">
+                                  <input type="email" [(ngModel)]="newReferralEmail"
+                                         (ngModelChange)="searchReferrals($event)"
+                                         placeholder="Add referred user by email"
+                                         class="br-add-referral__input">
+                                  <div *ngIf="newReferralSearchResults.length > 0" class="br-add-referral__suggestions">
+                                    <div *ngFor="let s of newReferralSearchResults"
+                                         class="br-add-referral__suggestion"
+                                         (click)="selectReferralSuggestion(s.email)">
+                                      {{ s.email }} <span class="br-suggestion-name">{{ s.name }}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <button class="action-btn primary small" (click)="addReferredUser()" [disabled]="addingReferral || !newReferralEmail.trim()">
+                                  {{ addingReferral ? '...' : 'Add' }}
+                                </button>
+                              </div>
+                              <div *ngIf="referralActionMessage" class="br-referral-msg">{{ referralActionMessage }}</div>
+                            </div>
+                            <!-- SuperAdmin adjust points form -->
+                            <div *ngIf="isSuperAdmin" class="br-adjust-form">
+                              <div class="br-adjust-row">
+                                <input type="number" [(ngModel)]="adjustPointsAmount"
+                                       placeholder="New points total" class="br-adjust-input" min="0">
+                                <input type="text" [(ngModel)]="adjustPointsDesc"
+                                       placeholder="Reason (optional)" class="br-adjust-desc">
+                                <button class="action-btn primary small"
+                                        (click)="savePointsAdjustment()"
+                                        [disabled]="savingPoints">
+                                  {{ savingPoints ? '...' : 'Save' }}
+                                </button>
+                              </div>
+                              <div *ngIf="pointsSaveMessage" class="br-save-msg">{{ pointsSaveMessage }}</div>
+                            </div>
+                          </ng-container>
+                        </ng-container>
+                      </div>
+
+                      <!-- Admin Comment Section (next to Saved Addresses) -->
+                      <div class="detail-section admin-comment-section">
+                        <h5>Admin comment</h5>
+                        <div *ngIf="!showCommentForm">
+                          <p *ngIf="selectedUser.adminNotes" class="admin-comment-text">{{ selectedUser.adminNotes }}</p>
+                          <p *ngIf="!selectedUser.adminNotes" class="admin-comment-empty">No comment</p>
+                        </div>
+                        <div *ngIf="showCommentForm" class="admin-comment-form">
+                          <textarea [(ngModel)]="commentFormText" rows="3" placeholder="Add a comment about this user..." maxlength="2000" class="admin-comment-textarea"></textarea>
+                          <div class="admin-comment-actions">
+                            <button type="button" class="action-btn primary" (click)="saveComment()" [disabled]="savingComment">{{ savingComment ? 'Saving...' : 'Save' }}</button>
+                            <button type="button" class="action-btn" (click)="cancelCommentForm()" [disabled]="savingComment">Cancel</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Action Buttons in Details View -->
+                    <div class="detail-actions" *ngIf="!editingUser">
+                      <button class="action-btn edit-btn" *ngIf="isSuperAdmin" (click)="startEditUser()">
+                        Edit
+                      </button>
+                      <button class="action-btn comment-btn" *ngIf="canUpdate" (click)="openCommentForm()" [attr.title]="selectedUser.adminNotes ? 'Edit comment' : 'Add comment'">
+                        {{ selectedUser.adminNotes ? 'Edit comment' : 'Add comment' }}
+                      </button>
+                      <button class="action-btn primary" (click)="viewUserDetails(selectedUser.id)">
+                        Close Details
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </ng-container>
+        </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Register Customer Modal -->
+    <div class="register-modal-overlay" *ngIf="showRegisterModal" (click)="closeRegisterModal()">
+      <div class="register-modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3 class="modal-title">Register Customer</h3>
+          <button type="button" class="modal-close" (click)="closeRegisterModal()" aria-label="Close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="register-modal-error" *ngIf="registerModalError">{{ registerModalError }}</div>
+          <div class="form-group">
+            <label for="reg-firstName">First Name <span class="required">*</span></label>
+            <input id="reg-firstName" type="text" [(ngModel)]="registerForm.firstName" placeholder="First name" [disabled]="isRegistering">
+          </div>
+          <div class="form-group">
+            <label for="reg-lastName">Last Name <span class="required">*</span></label>
+            <input id="reg-lastName" type="text" [(ngModel)]="registerForm.lastName" placeholder="Last name" [disabled]="isRegistering">
+          </div>
+          <div class="form-group">
+            <label for="reg-email">Email <span class="required">*</span></label>
+            <input id="reg-email" type="email" [(ngModel)]="registerForm.email" placeholder="Email" [disabled]="isRegistering">
+          </div>
+          <div class="form-group">
+            <label for="reg-phone">Phone <span class="optional">(optional)</span></label>
+            <input id="reg-phone" type="text" [(ngModel)]="registerForm.phone" placeholder="Phone" [disabled]="isRegistering">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="action-btn" (click)="closeRegisterModal()" [disabled]="isRegistering">Cancel</button>
+          <button type="button" class="action-btn primary" (click)="registerUser()" [disabled]="isRegistering">
+            {{ isRegistering ? 'Registering...' : 'Register' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pagination (matches audit-history) -->
+    <div class="pagination" *ngIf="totalPages > 1">
+      <button class="page-btn" (click)="previousPage()" [disabled]="currentPage === 1">‹ Previous</button>
+      
+      <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage === 1">1</button>
+      
+      <span *ngIf="totalPages > 5 && currentPage > 3" class="page-ellipsis">...</span>
+      
+      <button *ngFor="let page of getVisiblePages()" 
+              class="page-btn" 
+              (click)="goToPage(page)"
+              [class.active]="currentPage === page">
+        {{ page }}
+      </button>
+      
+      <span *ngIf="totalPages > 5 && currentPage < totalPages - 2" class="page-ellipsis">...</span>
+      
+      <button *ngIf="totalPages > 1" 
+              class="page-btn" 
+              (click)="goToPage(totalPages)"
+              [class.active]="currentPage === totalPages">
+        {{ totalPages }}
+      </button>
+      
+      <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages">Next ›</button>
+    </div>
+  </div>
+</div>

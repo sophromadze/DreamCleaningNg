@@ -1,0 +1,60 @@
+.payment-form {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+  }
+
+  .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+
+  .stripe-card-element {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background: white;
+  }
+
+  .card-errors {
+    color: #fa755a;
+    margin-top: 8px;
+    font-size: 14px;
+  }
+
+  .pay-button {
+    width: 100%;
+    padding: 12px;
+    background: #5cb85c;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .pay-button:hover:not(:disabled) {
+    background: #4cae4c;
+  }
+
+  .pay-button:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+
+  .error-message {
+    color: #721c24;
+    margin-top: 10px;
+    padding: 1rem;
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }

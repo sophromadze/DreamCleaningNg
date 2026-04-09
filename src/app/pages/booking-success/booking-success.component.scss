@@ -1,0 +1,229 @@
+.booking-success-container {
+  min-height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+}
+
+.success-card {
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px var(--shadow-color);
+  padding: 2rem;
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+}
+
+.success-icon {
+  font-size: 3rem;
+  color: var(--fresh-green, #28a745);
+  margin-bottom: 0.75rem;
+}
+
+h1 {
+  margin: 0 0 1rem 0;
+  color: var(--text-primary);
+  font-size: 1.6rem;
+}
+
+.success-message {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.redirect-info {
+  font-size: 0.95rem; /* ~15px min */
+  color: var(--soft-yellow-text);
+  margin: 0 auto 1rem auto;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: var(--soft-yellow-background);
+  border: 1px solid rgba(133, 100, 4, 0.25);
+  max-width: 520px;
+}
+
+.supplies-list {
+  margin: 0 auto 1rem auto;
+  padding-left: 1rem;
+  text-align: left;
+  max-width: 420px;
+  color: var(--soft-yellow-text);
+  font-size: 0.95rem;
+
+  li {
+    margin: 0.3rem 0;
+    font-weight: 500;
+  }
+}
+
+.progress-bar {
+  height: 6px;
+  background: var(--border-color);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--fresh-green, #28a745);
+  transition: width 1s linear;
+}
+
+.brand-link {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--primary-color, #007bff);
+  text-decoration: none;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.view-order-btn {
+  display: inline-block;
+  padding: 0.65rem 1.25rem;
+  background: var(--primary-color, #007bff);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s;
+  width: 100%;
+  margin-top: 0.75rem;
+
+  &:hover:not(:disabled) {
+    background: var(--primary-color-hover, #0056b3);
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.otp-form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  width: 100%;
+}
+
+.otp-input {
+  width: 100%;
+  max-width: 220px;
+  padding: 0.75rem 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: 0.5rem;
+  text-align: center;
+  border: 2px solid var(--border-color, #e1e1e1);
+  border-radius: 8px;
+  background: var(--input-bg, #fff);
+  color: var(--text-primary);
+
+  &::placeholder {
+    letter-spacing: 0.25rem;
+    font-weight: 400;
+    color: var(--text-muted, #aaa);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color, #007bff);
+  }
+}
+
+.otp-error {
+  color: var(--bright-red, #dc3545);
+  font-size: 0.875rem;
+  text-align: center;
+  width: 100%;
+}
+
+.resend-btn {
+  background: none;
+  border: none;
+  color: var(--primary-color, #007bff);
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  text-decoration: underline;
+
+  &:disabled {
+    color: var(--text-muted);
+    cursor: not-allowed;
+    text-decoration: none;
+  }
+}
+
+// Dark mode tweaks for warning styling
+:host-context([data-theme="dark"]) .redirect-info {
+  color: #ffc107 !important;
+  background: rgba(255, 193, 7, 0.08) !important;
+  border-color: rgba(255, 193, 7, 0.25) !important;
+}
+
+:host-context([data-theme="dark"]) .supplies-list {
+  color: #ffc107 !important;
+  border-left-color: transparent !important;
+}
+
+@media (max-width: 534px) {
+  .booking-success-container {
+    padding: 1rem;
+  }
+
+  .success-card {
+    padding: 1rem;
+    max-width: 100%;
+  }
+
+  .success-icon {
+    font-size: 2.4rem;
+    margin-bottom: 0.5rem;
+  }
+
+  h1 {
+    font-size: 1.35rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .success-message {
+    font-size: 0.95rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .redirect-info {
+    font-size: 0.9rem; /* ~14.4px */
+    margin: 0 auto 0.85rem auto;
+    padding: 0.45rem 0.65rem;
+    max-width: 100%;
+  }
+
+  .supplies-list {
+    font-size: 0.9rem; /* ~14.4px */
+    margin: 0 auto 0.85rem auto;
+    padding-left: 0.85rem;
+    max-width: 100%;
+
+    li {
+      margin: 0.25rem 0;
+    }
+  }
+
+  .view-order-btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.95rem;
+  }
+}

@@ -1,0 +1,155 @@
+<div class="free-quote-container">
+  <app-bubble-field></app-bubble-field>
+  <!-- Help Header Section -->
+  <div class="help-header">
+    <h1>Need assistance?</h1>
+    <p class="help-subtitle">Our team is ready to help you.</p>
+    <p class="phone-number">
+      <a href="tel:+19299301525">(929) 930-1525</a>
+    </p>
+    <p class="help-description">
+      Check out our <a href="/faq" class="faq-link">FAQ</a> for quick answers, or fill out the form below to get in touch with us:
+    </p>
+  </div>
+
+  <div class="free-quote-content">
+    <!-- Success Message -->
+    <div class="alert alert-success" *ngIf="showSuccess">
+      <i class="fas fa-check-circle success-icon"></i>
+      <span>Thank you! We've received your request and will call you back soon.</span>
+    </div>
+
+    <!-- Error Message -->
+    <div class="alert alert-error" *ngIf="showError">
+      <i class="fas fa-times-circle error-icon"></i>
+      <span>{{ errorMessage }}</span>
+    </div>
+
+    <form [formGroup]="quoteForm" (ngSubmit)="onSubmit()" class="quote-form">
+      <!-- First Name and Last Name Row -->
+      <div class="form-row">
+        <div class="form-group">
+          <label for="firstName">First Name *</label>
+          <input 
+            type="text" 
+            id="firstName" 
+            formControlName="firstName" 
+            class="form-control"
+            [class.error]="hasError('firstName')"
+            placeholder="First Name">
+          <span class="error-message" *ngIf="hasError('firstName')">
+            {{ getErrorMessage('firstName') }}
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label for="lastName">Last Name</label>
+          <input 
+            type="text" 
+            id="lastName" 
+            formControlName="lastName" 
+            class="form-control"
+            placeholder="Last Name">
+        </div>
+      </div>
+
+      <!-- Phone and Email Row -->
+      <div class="form-row">
+        <div class="form-group">
+          <label for="phone">Phone Number *</label>
+          <input 
+            type="tel" 
+            id="phone" 
+            formControlName="phone" 
+            class="form-control"
+            [class.error]="hasError('phone')"
+            (input)="onPhoneInput($event)"
+            placeholder="Phone"
+            maxlength="10">
+          <span class="error-message" *ngIf="hasError('phone')">
+            {{ getErrorMessage('phone') }}
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email *</label>
+          <input 
+            type="email" 
+            id="email" 
+            formControlName="email" 
+            class="form-control"
+            [class.error]="hasError('email')"
+            placeholder="Email">
+          <span class="error-message" *ngIf="hasError('email')">
+            {{ getErrorMessage('email') }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Home Address and Cleaning Type Row -->
+      <div class="form-row">
+        <div class="form-group">
+          <label for="homeAddress">Home Address *</label>
+          <input 
+            type="text" 
+            id="homeAddress" 
+            formControlName="homeAddress" 
+            class="form-control"
+            [class.error]="hasError('homeAddress')"
+            placeholder="">
+          <span class="error-message" *ngIf="hasError('homeAddress')">
+            {{ getErrorMessage('homeAddress') }}
+          </span>
+        </div>
+
+        <div class="form-group">
+          <label for="cleaningType">Type of Cleaning *</label>
+          <select 
+            id="cleaningType" 
+            formControlName="cleaningType" 
+            class="form-control"
+            [class.error]="hasError('cleaningType')">
+            <option value="">Select cleaning type</option>
+            <option value="residential cleaning">Residential Cleaning</option>
+            <option value="deep cleaning">Deep Cleaning</option>
+            <option value="move-in/out cleaning">Move-in/out Cleaning</option>
+            <option value="hourly service">Hourly Service</option>
+            <option value="post-construction cleaning">Post-Construction Cleaning</option>
+            <option value="office cleaning">Office Cleaning</option>
+            <option value="heavy conditional cleaning">Heavy Conditional Cleaning</option>
+            <option value="filthy cleaning">Filthy Cleaning</option>
+          </select>
+          <span class="error-message" *ngIf="hasError('cleaningType')">
+            {{ getErrorMessage('cleaningType') }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Message Field -->
+      <div class="form-group">
+        <label for="message">Message *</label>
+        <textarea 
+          id="message" 
+          formControlName="message" 
+          class="form-control"
+          [class.error]="hasError('message')"
+          rows="4"
+          placeholder="Tell us about your cleaning needs or any questions you have..."></textarea>
+        <span class="error-message" *ngIf="hasError('message')">
+          {{ getErrorMessage('message') }}
+        </span>
+      </div>
+
+      <!-- Submit Button -->
+      <div class="form-group">
+        <button 
+          type="submit" 
+          class="submit-btn"
+          [disabled]="isSubmitting || quoteForm.invalid">
+          <span *ngIf="!isSubmitting">Send for Quote</span>
+          <span *ngIf="isSubmitting">Sending...</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

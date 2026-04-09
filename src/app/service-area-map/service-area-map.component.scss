@@ -1,0 +1,130 @@
+.service-area-map-wrapper {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px var(--shadow-color);
+}
+
+.search-section {
+  flex-shrink: 0;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--surface);
+}
+
+.search-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.search-input {
+  flex: 1;
+  width: 100%;
+  max-width: 320px;
+  padding: 0.6rem 0.9rem;
+  font-size: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s;
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+
+  &:focus {
+    border-color: var(--primary-color);
+  }
+}
+
+.search-btn {
+  padding: 0.6rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #fff;
+  background: #1e90ff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+
+  &:hover {
+    background: #1873cc;
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.message {
+  margin: 0.75rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+
+  &.success {
+    color: #059669;
+  }
+
+  &.error {
+    color: #dc2626;
+  }
+}
+
+.map-container {
+  width: 100%;
+  height: 420px;
+  min-height: 320px;
+  background: var(--page-bg);
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid var(--border-color);
+}
+
+@media (max-width: 767px) {
+  .map-container {
+    height: 280px;
+    min-height: 240px;
+  }
+}
+
+/* Light-theme overrides for Leaflet (full leaflet.css is loaded globally) */
+:host ::ng-deep .service-area-tooltip {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  box-shadow: 0 1px 3px var(--shadow-color);
+}
+
+:host ::ng-deep .leaflet-control-zoom {
+  border: 1px solid var(--border-color) !important;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px var(--shadow-color);
+}
+
+:host ::ng-deep .leaflet-control-zoom a {
+  background: var(--surface) !important;
+  color: var(--text-primary) !important;
+}
+
+:host ::ng-deep .leaflet-control-zoom a:hover {
+  background: var(--page-bg) !important;
+}
+
+/* Hide Leaflet attribution (bottom-right) */
+:host ::ng-deep .leaflet-bottom.leaflet-right {
+  display: none !important;
+}

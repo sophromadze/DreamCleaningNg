@@ -1,0 +1,100 @@
+<div class="order-payment-container">
+  <div class="payment-content" *ngIf="!paymentCompleted">
+    <h1>Complete Payment</h1>
+    
+    <div *ngIf="isLoading" class="loading">
+      <p>Loading order details...</p>
+    </div>
+
+    <div *ngIf="!isLoading && order">
+      <!-- Order Summary Section -->
+      <div class="order-summary">
+        <h2>Order Summary</h2>
+        <div class="summary-details">
+          <p><strong>Order #:</strong> {{ order.id }}</p>
+          <p><strong>Service Type:</strong> {{ order.serviceTypeName }}</p>
+          <p><strong>Service Date:</strong> {{ formatDate(order.serviceDate) }}</p>
+          <p><strong>Service Time:</strong> {{ formatTime(order.serviceTime) }}</p>
+          <p><strong>Address:</strong> {{ order.serviceAddress }}{{ order.aptSuite ? ', ' + order.aptSuite : '' }}</p>
+          <p><strong>Amount Due:</strong> ${{ orderTotal | number:'1.2-2' }}</p>
+        </div>
+      </div>
+
+      <!-- Payment Form Section -->
+      <div class="payment-section">
+        <h2>Payment Information</h2>
+        
+        <!-- Card Element Container -->
+        <div id="card-element" class="card-element-container">
+          <!-- Stripe Elements will be mounted here -->
+        </div>
+        
+        <!-- Card Error Message -->
+        <div class="card-error" *ngIf="cardError">
+          {{ cardError }}
+        </div>
+        
+        <!-- Error Message -->
+        <div class="error-message" *ngIf="errorMessage">
+          {{ errorMessage }}
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="payment-actions">
+          <button 
+            class="pay-btn" 
+            (click)="processPayment()"
+            [disabled]="isProcessing || !!cardError || isLoading">
+            <span *ngIf="!isProcessing">Pay ${{ orderTotal | number:'1.2-2' }}</span>
+            <span *ngIf="isProcessing">Processing...</span>
+          </button>
+          
+          <button 
+            class="cancel-btn" 
+            (click)="cancelPayment()"
+            [disabled]="isProcessing">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Success Content -->
+  <div class="success-content" *ngIf="paymentCompleted">
+    <i class="fas fa-check-circle success-icon"></i>
+    <h1>Payment Successful!</h1>
+    <p>Your booking has been confirmed.</p>
+    <p class="order-info">Order #{{ orderId }}</p>
+
+    <div *ngIf="hasCleaningSupplies && !isCustomServiceType; else noSuppliesTemplate">
+      <p class="redirect-info">Please provide the following items:</p>
+      <ul class="supplies-list">
+        <li>Paper towels</li>
+        <li>Garbage bags</li>
+        <li>Broom or vacuum cleaner</li>
+      </ul>
+    </div>
+
+    <ng-template #noSuppliesTemplate>
+      <p class="redirect-info">Please have all the following items ready for our team:</p>
+      <ul class="supplies-list">
+        <li>Paper towels</li>
+        <li>Garbage bags</li>
+        <li>Broom or vacuum cleaner</li>
+        <li *ngIf="!isCustomServiceType">
+          Zep liquids:
+          {{
+            isDeepCleaning
+              ? 'Green, Floor (or similar), Oven Cleaner (or similar)'
+              : 'Green, Floor (or similar)'
+          }}
+        </li>
+        <li *ngIf="!isCustomServiceType">Windex liquid (or similar)</li>
+        <li *ngIf="!isCustomServiceType">Cleaning cloths, Sponge and Mop</li>
+      </ul>
+    </ng-template>
+    
+    <a [routerLink]="['/order', orderId]" class="view-order-btn">View Order Now</a>
+  </div>
+</div>

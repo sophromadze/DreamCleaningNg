@@ -1,0 +1,28 @@
+{
+    "/api": {
+      "target": "http://localhost:5107",
+      "secure": false,
+      "changeOrigin": true,
+      "logLevel": "debug"
+    },
+    "/userManagementHub": {
+      "target": "http://localhost:5107",
+      "secure": false,
+      "changeOrigin": true,
+      "ws": true,
+      "logLevel": "debug"
+    },
+    "/liveChatHub": {
+      "target": "http://localhost:5107",
+      "secure": false,
+      "changeOrigin": true,
+      "ws": true,
+      "logLevel": "debug"
+    },
+    "/images": {
+      "target": "http://localhost:5107",
+      "secure": false,
+      "changeOrigin": true,
+      "logLevel": "debug"
+    }
+  }

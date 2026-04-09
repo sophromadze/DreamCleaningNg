@@ -1,0 +1,435 @@
+<div class="profile-page">
+  <app-bubble-field></app-bubble-field>
+<div class="profile-container">
+    <div class="profile-header">
+      <h1>My Profile</h1>
+      <button class="logout-btn" (click)="logout()">Logout</button>
+    </div>
+  
+    <div *ngIf="errorMessage" class="error-message">{{ errorMessage }}</div>
+    <div *ngIf="successMessage" class="success-message">{{ successMessage }}</div>
+  
+    <!-- Loading skeleton: labels visible, shimmer for backend data -->
+    <div *ngIf="isLoading" class="profile-content profile-content-skeleton">
+      <div class="section">
+        <div class="section-header">
+          <h2>Personal Information</h2>
+          <div class="header-actions header-actions-shimmer">
+            <span class="profile-shimmer-header-btn" [shimmer]="true"></span>
+            <span class="profile-shimmer-header-btn" [shimmer]="true"></span>
+            <span class="profile-shimmer-header-btn" [shimmer]="true"></span>
+          </div>
+        </div>
+        <div class="info-display">
+          <div class="info-row">
+            <label>First Name:</label>
+            <span class="profile-shimmer-value" [shimmer]="true"></span>
+          </div>
+          <div class="info-row">
+            <label>Last Name:</label>
+            <span class="profile-shimmer-value" [shimmer]="true"></span>
+          </div>
+          <div class="info-row">
+            <label>Email:</label>
+            <span class="profile-shimmer-value" [shimmer]="true"></span>
+          </div>
+          <div class="info-row">
+            <label>Phone:</label>
+            <span class="profile-shimmer-value" [shimmer]="true"></span>
+          </div>
+          <div class="info-row subscription-row">
+            <label>Current plan:</label>
+            <span class="profile-shimmer-value profile-shimmer-subscription" [shimmer]="true"></span>
+          </div>
+          <div class="info-row">
+            <label>Emails:</label>
+            <span class="profile-shimmer-value profile-shimmer-toggle" [shimmer]="true"></span>
+          </div>
+          <div class="info-row">
+            <label>Messages:</label>
+            <span class="profile-shimmer-value profile-shimmer-toggle" [shimmer]="true"></span>
+          </div>
+          <div class="info-row">
+            <label>Special Offers:</label>
+            <span class="profile-shimmer-value profile-shimmer-offers" [shimmer]="true"></span>
+          </div>
+        </div>
+      </div>
+      <div class="section recent-orders-section">
+        <div class="section-header">
+          <h2>Recent Orders</h2>
+        </div>
+        <div class="recent-orders">
+          <div class="profile-shimmer-order" [shimmer]="true"></div>
+          <div class="view-all-orders">
+            <button class="view-all-btn" disabled>View All Orders</button>
+          </div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-header">
+          <h2>Saved Addresses</h2>
+        </div>
+        <div class="apartments-list">
+          <div class="profile-shimmer-apartment" [shimmer]="true"></div>
+        </div>
+      </div>
+    </div>
+  
+    <div *ngIf="!isLoading && profile" class="profile-content">
+      <!-- Profile Information Section -->
+      <div class="section">
+        <div class="section-header">
+          <h2>Personal Information</h2>
+          <div class="header-actions">
+            <a routerLink="/change-email" class="change-email-btn">Change Email</a>
+            <a *ngIf="profile.hasPassword !== false" routerLink="/change-password" class="change-password-btn">Change Password</a>
+            <a *ngIf="profile.hasPassword === false" routerLink="/set-password" class="set-password-btn">Set Password</a>
+            <button *ngIf="!isEditingProfile" class="edit-btn" (click)="startEditProfile()">Edit</button>
+          </div>
+        </div>
+  
+        <div *ngIf="!isEditingProfile" class="info-display">
+          <div class="info-row">
+            <label>First Name:</label>
+            <span>{{ displayFirstName }}</span>
+          </div>
+          <div class="info-row">
+            <label>Last Name:</label>
+            <span>{{ displayLastName }}</span>
+          </div>
+          <div class="info-row">
+            <label>Email:</label>
+            <span>{{ profile.email }}</span>
+          </div>
+          <div class="info-row">
+            <label>Phone:</label>
+            <span>{{ profile.phone || 'Not provided' }}</span>
+          </div>
+          <div class="info-row subscription-row">
+            <label>Current plan:</label>
+            <span *ngIf="!hasActiveSubscription">No active plan</span>
+            <span *ngIf="hasActiveSubscription" class="subscription-value-wrap">
+              <span class="subscription-active">{{ profile.subscriptionName }} ({{ profile.subscriptionDiscountPercentage }}% discount)</span>
+              <small class="subscription-details" *ngIf="profile.subscriptionExpiryDate">
+                Expires: {{ profile.subscriptionExpiryDate | date: 'MMM d, y' }}
+              </small>
+            </span>
+          </div>
+          <div class="info-row comm-preference">
+            <label>Emails:</label>
+            <span class="comm-toggle">
+              <span class="yes-no-toggle">
+                <span class="yn-btn yes"
+                      [class.active]="canReceiveEmails"
+                      [class.disabled]="updatingComms"
+                      (click)="!updatingComms && setEmailsPreference(true)">Yes</span>
+                <span class="yn-btn no"
+                      [class.active]="!canReceiveEmails"
+                      [class.disabled]="updatingComms"
+                      (click)="!updatingComms && setEmailsPreference(false)">No</span>
+                <span class="yn-icon yes-icon" *ngIf="canReceiveEmails" aria-hidden="true">
+                  <i class="fas fa-check"></i>
+                </span>
+                <span class="yn-icon no-icon" *ngIf="!canReceiveEmails" aria-hidden="true">
+                  <i class="fas fa-ban"></i>
+                </span>
+              </span>
+              <span *ngIf="updatingComms" class="comm-saving">Updating...</span>
+            </span>
+          </div>
+          <div class="info-row comm-preference">
+            <label>Messages:</label>
+            <span class="comm-toggle">
+              <span class="yes-no-toggle">
+                <span class="yn-btn yes"
+                      [class.active]="canReceiveMessages"
+                      [class.disabled]="updatingComms"
+                      (click)="!updatingComms && setMessagesPreference(true)">Yes</span>
+                <span class="yn-btn no"
+                      [class.active]="!canReceiveMessages"
+                      [class.disabled]="updatingComms"
+                      (click)="!updatingComms && setMessagesPreference(false)">No</span>
+                <span class="yn-icon yes-icon" *ngIf="canReceiveMessages" aria-hidden="true">
+                  <i class="fas fa-check"></i>
+                </span>
+                <span class="yn-icon no-icon" *ngIf="!canReceiveMessages" aria-hidden="true">
+                  <i class="fas fa-ban"></i>
+                </span>
+              </span>
+              <span *ngIf="updatingComms" class="comm-saving">Updating...</span>
+            </span>
+          </div>
+          <div class="info-row special-offers-row">
+            <label>Special Offers:</label>
+            <div *ngIf="specialOffers === null" class="profile-shimmer-value profile-shimmer-offers" [shimmer]="true"></div>
+            <span *ngIf="specialOffers !== null && specialOffers.length === 0" class="no-offers-text">No special offers yet.</span>
+            <div *ngIf="specialOffers !== null && specialOffers.length > 0" class="special-offers-container">
+              <div class="special-offer-item" *ngFor="let offer of specialOffers">
+                <span class="offer-badge" [style.background-color]="offer.badgeColor || '#28a745'">
+                  <i class="fas fa-gift"></i>
+                </span>
+                <div class="offer-details">
+                  <span class="offer-name">{{ offer.name }}:</span>
+                  <span class="offer-description" *ngIf="offer.description"> {{ offer.description }}</span>
+                  <span class="offer-expiry" *ngIf="offer.expiresAt">
+                    (Expires: {{ offer.expiresAt | date: 'MMM d, y' }})
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+  
+        <div *ngIf="isEditingProfile" class="edit-form">
+          <div class="form-group">
+            <label>First Name</label>
+            <input type="text" [(ngModel)]="editProfileForm.firstName" (blur)="onNameBlur('firstName')" required>
+          </div>
+          <div class="form-group">
+            <label>Last Name</label>
+            <input type="text" [(ngModel)]="editProfileForm.lastName" (blur)="onNameBlur('lastName')" required>
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input type="tel" 
+                   [(ngModel)]="editProfileForm.phone" 
+                   (input)="onPhoneInput($event)"
+                   pattern="[0-9]{10}" 
+                   maxlength="10" 
+                   placeholder="1234567890">
+            <div class="error-message" *ngIf="errorMessage && errorMessage.includes('phone number')">
+              {{ errorMessage }}
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="save-btn" (click)="saveProfile()">Save</button>
+            <button class="cancel-btn" (click)="cancelEditProfile()">Cancel</button>
+          </div>
+        </div>
+      </div>
+  
+      <!-- Recent Orders Section -->
+      <div class="section recent-orders-section">
+        <div class="section-header">
+          <h2>Recent Orders</h2>
+        </div>
+
+        <div class="recent-orders">
+          <div *ngIf="recentOrders === null" class="profile-shimmer-order" [shimmer]="true"></div>
+          <div *ngIf="recentOrders !== null && recentOrders.length > 0">
+            <div *ngFor="let order of recentOrders" class="order-item">
+              <div class="order-info">
+                <span class="service-type">{{ order.serviceTypeName }}</span>
+                <span class="order-date">{{ formatDate(order.serviceDate) }}</span>
+                <span class="order-amount">${{ order.total }}</span>
+                <span class="order-status" [ngClass]="order.status.toLowerCase()">{{ order.status }}</span>
+              </div>
+              <div class="order-actions">
+                <div class="unpaid-actions" *ngIf="order.status !== 'Cancelled' && (!order.isPaid || (order.pendingUpdateAmount || 0) > 0.01)">
+                  <button 
+                    class="pay-btn" 
+                    (click)="payOrder(order.id)">
+                    {{ !order.isPaid ? 'Pay' : 'Pay Additional' }}
+                  </button>
+                  <button 
+                    class="cancel-btn" 
+                    (click)="cancelUnpaidOrder(order.id)"
+                    [disabled]="isCancellingOrder(order.id)"
+                    *ngIf="!order.isPaid">
+                    <span *ngIf="!isCancellingOrder(order.id)">Cancel</span>
+                    <span *ngIf="isCancellingOrder(order.id)">Cancelling...</span>
+                  </button>
+                </div>
+                <button class="view-details-btn" (click)="viewOrderDetails(order.id)">View Details</button>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="recentOrders !== null && recentOrders.length === 0" class="no-orders">
+            <p>No recent orders found.</p>
+          </div>
+          <div class="view-all-orders">
+            <button class="view-all-btn" routerLink="/profile/orders">View All Orders</button>
+          </div>
+        </div>
+      </div>
+  
+      <!-- Apartments Section -->
+      <div class="section">
+        <div class="section-header">
+          <h2>Saved Addresses ({{ profile.apartments.length }}/10)</h2>
+          <button 
+            class="add-btn" 
+            (click)="startAddApartment()"
+            [disabled]="profile.apartments.length >= 10"
+            *ngIf="!isAddingApartment && !editingApartmentId">
+            Add New Address
+          </button>
+        </div>
+        
+        <!-- Show message when at limit -->
+        <div class="info-message" *ngIf="profile.apartments.length >= 10">
+          You have reached the maximum limit of 10 saved addresses.
+        </div>
+      
+        <!-- Add New Apartment Form -->
+        <div *ngIf="isAddingApartment" class="apartment-form">
+          <h3>Add New Apartment</h3>
+          
+          <!-- Show error message at the top of the form -->
+          <div class="error-message" *ngIf="errorMessage">
+            {{ errorMessage }}
+          </div>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Name *</label>
+              <input type="text" 
+                     [(ngModel)]="newApartment.name" 
+                     (ngModelChange)="onApartmentNameChange()"
+                     placeholder="e.g., My Home" 
+                     required>
+            </div>
+            <div class="form-group full-width">
+              <label>Address *</label>
+              <input type="text" 
+                     [(ngModel)]="newApartment.address" 
+                     (input)="onApartmentAddressChange()"
+                     required>
+            </div>
+            <div class="form-group">
+              <label>Apt/Suite</label>
+              <input type="text" [(ngModel)]="newApartment.aptSuite">
+            </div>
+            <div class="form-group">
+              <label>State *</label>
+              <select [(ngModel)]="newApartment.state" 
+                      (change)="onStateChange(newApartment.state)" 
+                      required>
+                <option value="">Select state</option>
+                <option *ngFor="let state of states" [value]="state">{{ state }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>City *</label>
+              <select [(ngModel)]="newApartment.city" 
+                      required>
+                <option value="">Select city</option>
+                <option *ngFor="let city of cities" [value]="city">{{ city }}</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Zip Code *</label>
+              <input type="text" 
+                     [(ngModel)]="newApartment.postalCode" 
+                     pattern="[0-9]{5}" 
+                     maxlength="5" 
+                     placeholder="12345" 
+                     required>
+            </div>            
+            <div class="form-group full-width">
+              <label>Special Instructions</label>
+              <textarea [(ngModel)]="newApartment.specialInstructions" rows="3"></textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="save-btn" 
+                    (click)="addApartment()"
+                    [disabled]="!newApartment.name || !newApartment.address || !newApartment.city || 
+                               !newApartment.state || !newApartment.postalCode || errorMessage">
+              Add Apartment
+            </button>
+            <button class="cancel-btn" (click)="cancelAddApartment()">Cancel</button>
+          </div>
+        </div>
+      
+        <!-- Apartments List -->
+        <div class="apartments-list" *ngIf="!isAddingApartment">
+          <div *ngFor="let apartment of profile.apartments" class="apartment-card">
+            <div *ngIf="editingApartmentId !== apartment.id">
+              <h3>{{ apartment.name }}</h3>
+              <p><strong>Address:</strong> {{ apartment.address }}<span *ngIf="apartment.aptSuite">, {{ apartment.aptSuite }}</span></p>
+              <p><strong>City:</strong> {{ apartment.city }}</p>
+              <p><strong>State:</strong> {{ apartment.state }}</p>
+              <p><strong>Postal Code:</strong> {{ apartment.postalCode }}</p>
+              <p *ngIf="apartment.specialInstructions" class="special-instructions">
+                <strong>Special Instructions:</strong> {{ apartment.specialInstructions }}
+              </p>
+              <div class="apartment-actions">
+                <button class="edit-btn" (click)="startEditApartment(apartment)">Edit</button>
+                <button class="delete-btn" (click)="deleteApartment(apartment)">Delete</button>
+              </div>
+            </div>
+      
+            <!-- Edit Apartment Form -->
+            <div *ngIf="editingApartmentId === apartment.id && editingApartment" class="edit-apartment-form">
+              
+              <!-- Show error message at the top of the form -->
+              <div class="error-message" *ngIf="errorMessage">
+                {{ errorMessage }}
+              </div>
+              
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Name *</label>
+                  <input type="text" [(ngModel)]="editingApartment.name" required>
+                </div>
+                <div class="form-group full-width">
+                  <label>Address *</label>
+                  <input type="text" [(ngModel)]="editingApartment.address" required>
+                </div>
+                <div class="form-group">
+                  <label>Apt/Suite</label>
+                  <input type="text" [(ngModel)]="editingApartment.aptSuite">
+                </div>
+                <div class="form-group">
+                  <label>State *</label>
+                  <select [(ngModel)]="editingApartment.state" 
+                          (change)="onStateChange(editingApartment.state)" 
+                          required>
+                    <option value="">Select state</option>
+                    <option *ngFor="let state of states" [value]="state">{{ state }}</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>City *</label>
+                  <select [(ngModel)]="editingApartment.city" required>
+                    <option value="">Select city</option>
+                    <option *ngFor="let city of cities" [value]="city">{{ city }}</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>Zip Code *</label>
+                  <input type="text" 
+                         [(ngModel)]="editingApartment.postalCode" 
+                         pattern="[0-9]{5}" 
+                         maxlength="5" 
+                         placeholder="12345" 
+                         required>
+                </div>
+                <div class="form-group full-width">
+                  <label>Special Instructions</label>
+                  <textarea [(ngModel)]="editingApartment.specialInstructions" rows="3"></textarea>
+                </div>
+              </div>
+              <div class="form-actions">
+                <button class="save-btn" 
+                        (click)="saveApartment()"
+                        [disabled]="!editingApartment.name || !editingApartment.address || !editingApartment.city || 
+                                   !editingApartment.state || !editingApartment.postalCode">
+                  Save
+                </button>
+                <button class="cancel-btn" (click)="cancelEditApartment()">Cancel</button>
+              </div>
+            </div>
+          </div>
+      
+          <div *ngIf="profile.apartments.length === 0" class="no-apartments">
+            <p>You haven't added any apartments yet.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

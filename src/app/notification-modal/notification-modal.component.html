@@ -1,0 +1,28 @@
+<div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <div class="modal-header" [ngClass]="getHeaderClass()">
+        <h3>{{ getTitle() }}</h3>
+        <button class="close-btn" (click)="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="notification-icon" [ngClass]="getIconClass()">
+          {{ getIcon() }}
+        </div>
+        <p>{{ currentNotification?.message }}</p>
+        <small class="timestamp">
+          {{ currentNotification?.timestamp | date:'medium' }}
+        </small>
+      </div>
+      <div class="modal-footer">
+        <button 
+          class="btn btn-primary" 
+          (click)="handleAction()"
+          *ngIf="hasAction()">
+          {{ getActionText() }}
+        </button>
+        <button class="btn btn-secondary" (click)="closeModal()">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>

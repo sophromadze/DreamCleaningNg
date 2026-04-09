@@ -1,0 +1,169 @@
+<div class="promo-codes-section">
+  <div class="section-header">
+    <h2>Promo Codes Management</h2>
+    <button *ngIf="userPermissions.permissions.canCreate" 
+            class="action-btn add" 
+            (click)="startAddingPromoCode()">
+      Add Promo Code
+    </button>
+  </div>
+
+  <!-- Add Promo Code Form -->
+  <div *ngIf="isAddingPromoCode" class="add-form">
+    <h3>Add New Promo Code</h3>
+    <form (ngSubmit)="addPromoCode()">
+      <div class="form-group">
+        <label for="code">Code</label>
+        <input type="text" id="code" [(ngModel)]="newPromoCode.code" name="code" required>
+      </div>
+
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea id="description" [(ngModel)]="newPromoCode.description" name="description" required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="discountType">Discount Type</label>
+        <select id="discountType" [(ngModel)]="newPromoCode.isPercentage" name="isPercentage">
+          <option [ngValue]="false">Fixed Amount</option>
+          <option [ngValue]="true">Percentage</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="discountValue">Discount Value</label>
+        <input type="number" id="discountValue" [(ngModel)]="newPromoCode.discountValue" name="discountValue" required>
+      </div>
+
+      <div class="form-group">
+        <label for="maxUsageCount">Max Usage Count</label>
+        <input type="number" id="maxUsageCount" [(ngModel)]="newPromoCode.maxUsageCount" name="maxUsageCount">
+      </div>
+
+      <div class="form-group">
+        <label for="maxUsagePerUser">Max Usage Per User</label>
+        <input type="number" id="maxUsagePerUser" [(ngModel)]="newPromoCode.maxUsagePerUser" name="maxUsagePerUser">
+      </div>
+
+      <div class="form-group">
+        <label for="validFrom">Valid From</label>
+        <input type="datetime-local" id="validFrom" [(ngModel)]="newPromoCode.validFrom" name="validFrom">
+      </div>
+
+      <div class="form-group">
+        <label for="validTo">Valid To</label>
+        <input type="datetime-local" id="validTo" [(ngModel)]="newPromoCode.validTo" name="validTo">
+      </div>
+
+      <div class="form-group">
+        <label for="minimumOrderAmount">Minimum Order Amount</label>
+        <input type="number" id="minimumOrderAmount" [(ngModel)]="newPromoCode.minimumOrderAmount" name="minimumOrderAmount">
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="action-btn save">Save</button>
+        <button type="button" class="action-btn cancel" (click)="cancelAddPromoCode()">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Promo Codes List -->
+  <div class="promo-codes-list">
+    <div class="table-wrapper" #tableWrapper>
+      <table>
+        <thead #tableHeader>
+          <tr>
+            <th>Code</th>
+            <th>Description</th>
+            <th>Discount</th>
+            <th>Usage Limits</th>
+            <th>Validity</th>
+          <th>Status</th>
+          <th *ngIf="userRole !== 'Moderator'">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let code of promoCodes">
+          <td>{{code.code}}</td>
+          <td>
+            <div *ngIf="editingPromoCodeId !== code.id">{{code.description}}</div>
+            <textarea *ngIf="editingPromoCodeId === code.id" [(ngModel)]="code.description"></textarea>
+          </td>
+          <td>
+            <div *ngIf="editingPromoCodeId !== code.id">
+              {{code.isPercentage ? code.discountValue + '%' : '$' + code.discountValue}}
+            </div>
+            <div *ngIf="editingPromoCodeId === code.id" class="edit-discount">
+              <input type="number" [(ngModel)]="code.discountValue">
+              <select [(ngModel)]="code.isPercentage">
+                <option [ngValue]="false">$</option>
+                <option [ngValue]="true">%</option>
+              </select>
+            </div>
+          </td>
+          <td>
+            <div *ngIf="editingPromoCodeId !== code.id">
+              {{code.maxUsageCount ? 'Max: ' + code.maxUsageCount : 'Unlimited'}}
+              {{code.maxUsagePerUser ? ' (Per User: ' + code.maxUsagePerUser + ')' : ''}}
+            </div>
+            <div *ngIf="editingPromoCodeId === code.id" class="edit-limits">
+              <input type="number" [(ngModel)]="code.maxUsageCount" placeholder="Max Usage">
+              <input type="number" [(ngModel)]="code.maxUsagePerUser" placeholder="Per User">
+            </div>
+          </td>
+          <td>
+            <div *ngIf="editingPromoCodeId !== code.id">
+              {{code.validFrom | date:'short'}} - {{code.validTo | date:'short'}}
+            </div>
+            <div *ngIf="editingPromoCodeId === code.id" class="edit-validity">
+              <input type="datetime-local" [(ngModel)]="code.validFrom">
+              <input type="datetime-local" [(ngModel)]="code.validTo">
+            </div>
+          </td>
+          <td>
+            <span class="status-badge" [class.active]="code.isActive" [class.inactive]="!code.isActive">
+              {{code.isActive ? 'Active' : 'Inactive'}}
+            </span>
+          </td>
+          <td class="actions" *ngIf="userRole !== 'Moderator'">
+            <ng-container *ngIf="editingPromoCodeId !== code.id">
+              <button *ngIf="userPermissions.permissions.canUpdate" 
+                      class="action-btn edit" 
+                      (click)="editPromoCode(code)">
+                Edit
+              </button>
+              <button *ngIf="userPermissions.permissions.canActivate && !code.isActive" 
+                      class="action-btn activate" 
+                      (click)="activatePromoCode(code)">
+                Enable
+              </button>
+              <button *ngIf="userPermissions.permissions.canDeactivate && code.isActive" 
+                      class="action-btn deactivate" 
+                      (click)="deactivatePromoCode(code)">
+                Disable
+              </button>
+              <button *ngIf="userPermissions.permissions.canDelete" 
+                      class="action-btn delete" 
+                      (click)="deletePromoCode(code)">
+                Delete
+              </button>
+            </ng-container>
+            <ng-container *ngIf="editingPromoCodeId === code.id">
+              <button class="action-btn save" (click)="savePromoCode(code)">Save</button>
+              <button class="action-btn cancel" (click)="cancelEditPromoCode()">Cancel</button>
+            </ng-container>
+          </td>
+        </tr>
+      </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div *ngIf="errorMessage" class="error-message">
+    {{errorMessage}}
+  </div>
+  <div *ngIf="successMessage" class="success-message">
+    {{successMessage}}
+  </div>
+</div>

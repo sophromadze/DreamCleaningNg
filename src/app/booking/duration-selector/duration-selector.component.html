@@ -1,0 +1,56 @@
+<div class="duration-selector">
+  <div class="duration-inputs">
+    <!-- Hours Selector -->
+    <div class="selector-group">
+      <label class="selector-label">Hours</label>
+      <div class="number-selector">
+        <div class="selector-container" (click)="toggleHoursDropdown($event)">
+          <div class="selector-display">
+            {{ formatHours(selectedHours) }}
+          </div>
+          <div class="selector-arrow" [class.rotated]="isHoursDropdownOpen">
+            <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
+              <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="selector-options" *ngIf="isHoursDropdownOpen">
+            <div 
+              *ngFor="let hour of hours" 
+              class="selector-option"
+              [class.selected]="hour === selectedHours"
+              (click)="selectHours(hour, $event)">
+              {{ formatHours(hour) }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Minutes Selector -->
+    <div class="selector-group">
+      <label class="selector-label">Minutes</label>
+      <div class="number-selector">
+        <div class="selector-container" (click)="toggleMinutesDropdown($event)">
+          <div class="selector-display">
+            {{ formatMinutes(selectedMinutes) }}
+          </div>
+          <div class="selector-arrow" [class.rotated]="isMinutesDropdownOpen">
+            <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
+              <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="selector-options" *ngIf="isMinutesDropdownOpen">
+            <div 
+              *ngFor="let minute of minutes" 
+              class="selector-option"
+              [class.selected]="minute === selectedMinutes"
+              (click)="selectMinutes(minute, $event)">
+              {{ formatMinutes(minute) }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div> 

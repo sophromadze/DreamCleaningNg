@@ -1,0 +1,325 @@
+// ─── Keyframes ────────────────────────────────────────────────────────────────
+
+@keyframes bubble-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%       { transform: translateY(-4px) scale(1.04); }
+}
+
+@keyframes bubble-shimmer {
+  0%   { filter: hue-rotate(0deg) brightness(1); }
+  50%  { filter: hue-rotate(40deg) brightness(1.08); }
+  100% { filter: hue-rotate(0deg) brightness(1); }
+}
+
+@keyframes badge-sweep {
+  0%   { left: -80%; }
+  100% { left: 160%; }
+}
+
+// ─── Realistic CSS Bubble ─────────────────────────────────────────────────────
+
+.bb-cluster {
+  position: relative;
+  width: 36px;
+  height: 30px;
+  flex-shrink: 0;
+}
+
+.bb-bubble {
+  position: absolute;
+  border-radius: 50%;
+
+  // Soap-bubble body: transparent with a thin iridescent ring
+  background:
+    radial-gradient(ellipse 52% 28% at 34% 26%, rgba(255, 255, 255, 0.88) 0%, transparent 100%),
+    radial-gradient(circle 18% at 70% 72%, rgba(255, 255, 255, 0.5) 0%, transparent 100%),
+    radial-gradient(
+      circle at 40% 38%,
+      rgba(230, 250, 255, 0.22)  0%,
+      rgba(180, 225, 255, 0.08) 35%,
+      rgba(140, 195, 255, 0.06) 55%,
+      rgba(90,  160, 255, 0.16) 75%,
+      rgba(60,  120, 240, 0.30) 100%
+    );
+
+  border: 1px solid rgba(160, 220, 255, 0.55);
+
+  box-shadow:
+    inset 0 0 5px rgba(255, 255, 255, 0.18),
+    inset 0 -3px 6px rgba(60, 130, 255, 0.14),
+    0 3px 10px rgba(40, 130, 255, 0.22),
+    0 1px 3px rgba(0, 0, 0, 0.15);
+
+  animation: bubble-shimmer 5s ease-in-out infinite;
+
+  &--lg {
+    width: 20px;
+    height: 20px;
+    bottom: 0;
+    left: 0;
+    animation:
+      bubble-float   3.4s ease-in-out          infinite,
+      bubble-shimmer 5.2s ease-in-out          infinite;
+  }
+
+  &--md {
+    width: 14px;
+    height: 14px;
+    bottom: 9px;
+    left: 14px;
+    opacity: 0.93;
+    animation:
+      bubble-float   2.8s ease-in-out 0.5s  infinite,
+      bubble-shimmer 4.6s ease-in-out 0.8s  infinite;
+  }
+
+  &--sm {
+    width: 10px;
+    height: 10px;
+    bottom: 18px;
+    left: 5px;
+    opacity: 0.82;
+    animation:
+      bubble-float   2.2s ease-in-out 1.1s  infinite,
+      bubble-shimmer 3.8s ease-in-out 1.5s  infinite;
+  }
+}
+
+// ─── Badge Pill ───────────────────────────────────────────────────────────────
+
+.bubble-badge {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 6px 14px 0;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1.5px solid rgba(0, 123, 255, 0.35);
+  cursor: pointer;
+  font-family: inherit;
+  position: relative;
+  overflow: hidden;
+  width: auto;
+  min-width: 120px;
+  max-width: 200px;
+  outline: none;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+
+  // Shimmer sweep pseudo on hover
+  &::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -80%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.06) 50%, transparent 100%);
+    transform: skewX(-15deg);
+    pointer-events: none;
+  }
+
+  &:hover {
+    border-color: rgba(0, 123, 255, 0.6);
+    box-shadow:
+      0 0 14px rgba(0, 123, 255, 0.15),
+      0 3px 10px rgba(0, 0, 0, 0.08);
+
+    &::after {
+      animation: badge-sweep 0.55s ease forwards;
+    }
+  }
+
+  &__inner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-bottom: 6px;
+    position: relative;
+    z-index: 1;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  &__points {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0a1a3a;
+    letter-spacing: 0.3px;
+    line-height: 1;
+  }
+
+  &__tier {
+    font-size: 8px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: rgba(0, 86, 179, 0.75);
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  // Progress bar — flush to pill bottom edge
+  &__bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(0, 80, 180, 0.2);
+    border-radius: 0 0 22px 22px;
+    overflow: visible;
+    z-index: 2;
+  }
+
+  &__bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #1a7fff 0%, #00cfff 100%);
+    border-radius: 0 3px 3px 0;
+    box-shadow:
+      0 0 10px rgba(0, 210, 255, 0.75),
+      0 0 22px rgba(0, 160, 255, 0.35);
+    transition: width 0.9s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 10px;
+    position: relative;
+
+    // Glowing tip dot
+    &::after {
+      content: '';
+      position: absolute;
+      right: -3px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 8px;
+      height: 8px;
+      background: radial-gradient(circle, #fff 0%, rgba(0, 230, 255, 0.9) 35%, transparent 75%);
+      border-radius: 50%;
+      box-shadow: 0 0 6px rgba(0, 220, 255, 0.9);
+    }
+  }
+
+  // Tooltip
+  &__tooltip {
+    position: absolute;
+    top: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--surface, #fff);
+    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+    border-radius: 10px;
+    padding: 10px 14px;
+    min-width: 155px;
+    text-align: center;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    pointer-events: none;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: -5px;
+      left: 50%;
+      transform: translateX(-50%) rotate(45deg);
+      width: 8px;
+      height: 8px;
+      background: var(--surface, #fff);
+      border-left: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+      border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+    }
+  }
+
+  .tooltip-tier {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--primary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 3px;
+  }
+
+  .tooltip-progress {
+    font-size: 11px;
+    color: var(--text-muted, #888);
+    margin-bottom: 3px;
+  }
+
+  .tooltip-credits {
+    font-size: 12px;
+    color: var(--fresh-green, #28a745);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .tooltip-link {
+    font-size: 11px;
+    color: var(--text-muted, #666);
+    margin-top: 4px;
+  }
+}
+
+// ─── Dark theme ───────────────────────────────────────────────────────────────
+
+:host-context([data-theme="dark"]) .bubble-badge {
+  background: rgba(6, 14, 36, 0.68);
+  border-color: rgba(80, 160, 255, 0.3);
+  backdrop-filter: blur(8px);
+  box-shadow: none;
+
+  .bubble-badge__points { color: #dff0ff; }
+  .bubble-badge__tier   { color: rgba(130, 200, 255, 0.7); }
+
+  &:hover {
+    border-color: rgba(100, 200, 255, 0.62);
+    box-shadow:
+      0 0 20px rgba(0, 170, 255, 0.2),
+      0 0 8px rgba(0, 230, 255, 0.1),
+      0 5px 16px rgba(0, 0, 0, 0.4);
+  }
+
+  .bb-bubble {
+    border-color: rgba(120, 200, 255, 0.4);
+    box-shadow:
+      inset 0 0 6px rgba(255, 255, 255, 0.12),
+      0 4px 12px rgba(40, 130, 255, 0.22);
+  }
+}
+
+// ─── Mobile ───────────────────────────────────────────────────────────────────
+
+@media (max-width: 768px) {
+  .bubble-badge {
+    padding: 6px 12px 0;
+    min-width: 110px;
+    max-width: 180px;
+
+    &__tooltip { display: none; }
+  }
+}
+
+@media (max-width: 435px) {
+  .bubble-badge {
+    padding: 5px 10px 0;
+    min-width: 88px;
+    max-width: 140px;
+
+    &__points { font-size: 11px; }
+    &__tier   { font-size: 7px; letter-spacing: 0.8px; }
+    &__inner  { gap: 5px; padding-bottom: 5px; }
+  }
+
+  .bb-cluster {
+    width: 26px;
+    height: 22px;
+  }
+
+  .bb-bubble {
+    &--lg { width: 15px; height: 15px; }
+    &--md { width: 10px; height: 10px; left: 10px; bottom: 7px; }
+    &--sm { width: 7px;  height: 7px;  left: 4px;  bottom: 14px; }
+  }
+}

@@ -1,0 +1,53 @@
+<div class="time-selector">
+  <div class="time-inputs">
+    <!-- Hours Selector (field 1) -->
+    <div class="selector-group">
+      <div class="number-selector">
+        <div class="selector-container" (click)="toggleHoursDropdown($event)">
+          <div class="selector-display">
+            {{ formatHour(selectedHour) }}
+          </div>
+          <div class="selector-arrow" [class.rotated]="isHoursDropdownOpen">
+            <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
+              <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="selector-options" *ngIf="isHoursDropdownOpen">
+            <div 
+              *ngFor="let hour of hours" 
+              class="selector-option"
+              [class.selected]="hour === selectedHour"
+              (click)="selectHour(hour, $event)">
+              {{ formatHour(hour) }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Minutes Selector (field 2) -->
+    <div class="selector-group">
+      <div class="number-selector">
+        <div class="selector-container" (click)="toggleMinutesDropdown($event)">
+          <div class="selector-display">
+            {{ formatMinute(selectedMinute) }}
+          </div>
+          <div class="selector-arrow" [class.rotated]="isMinutesDropdownOpen">
+            <svg width="12" height="8" viewBox="0 0 12 8" fill="none">
+              <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="selector-options" *ngIf="isMinutesDropdownOpen">
+            <div 
+              *ngFor="let minute of getAvailableMinutes()" 
+              class="selector-option"
+              [class.selected]="minute === selectedMinute"
+              (click)="selectMinute(minute, $event)">
+              {{ formatMinute(minute) }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 

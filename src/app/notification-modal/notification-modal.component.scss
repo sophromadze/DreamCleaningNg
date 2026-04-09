@@ -1,0 +1,184 @@
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    animation: fadeIn 0.3s ease;
+  }
+
+  .modal-content {
+    background: var(--surface);
+    border-radius: 12px;
+    min-width: 400px;
+    max-width: 500px;
+    box-shadow: 0 20px 40px var(--shadow-color);
+    animation: slideIn 0.3s ease;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    padding: 20px;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-header.blocked {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+  }
+
+  .modal-header.unblocked {
+    background: linear-gradient(135deg, #27ae60, #229954);
+  }
+
+  .modal-header.role-changed,
+  .modal-header.account-updated {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+  }
+
+  .modal-header.force-logout {
+    background: linear-gradient(135deg, #e67e22, #d35400);
+  }
+
+  .modal-header.user-deleted {
+    background: linear-gradient(135deg, #c0392b, #922b21);
+  }
+
+  .modal-header h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+  }
+
+  .close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 2rem;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+  }
+
+  .close-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+  }
+
+  .modal-body {
+    padding: 30px;
+    text-align: center;
+  }
+
+  .notification-icon {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .notification-icon.blocked {
+    color: #e74c3c;
+  }
+
+  .notification-icon.unblocked {
+    color: #27ae60;
+  }
+
+  .notification-icon.role-changed,
+  .notification-icon.account-updated {
+    color: #3498db;
+  }
+
+  .notification-icon.force-logout {
+    color: #e67e22;
+  }
+
+  .notification-icon.user-deleted {
+    color: #c0392b;
+  }
+
+  .modal-body p {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 15px;
+    color: var(--text-primary, #2c3e50);
+  }
+
+  .timestamp {
+    color: var(--text-primary, #7f8c8d);
+    font-size: 0.9rem;
+    opacity: 0.9;
+  }
+
+  /* Night mode: ensure notification body text is visible (white/light) */
+  :host-context([data-theme="dark"]) .modal-body p,
+  :host-context([data-theme="dark"]) .modal-body .timestamp {
+    color: #f0f0f0 !important;
+  }
+
+  .modal-footer {
+    padding: 20px 30px;
+    border-top: 1px solid #ecf0f1;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: #3498db;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: #2980b9;
+  }
+
+  .btn-secondary {
+    background: #95a5a6;
+    color: white;
+  }
+
+  .btn-secondary:hover {
+    background: #7f8c8d;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-50px) scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }

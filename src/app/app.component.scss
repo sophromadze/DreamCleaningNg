@@ -1,0 +1,154 @@
+.main-content {
+  padding-top: 80px; // Same as header height
+  min-height: 100vh;
+  position: relative;
+  background: var(--page-bg);
+  transition: background 0.25s ease;
+}
+
+.route-loading-overlay {
+  position: absolute;
+  inset: 0;
+  top: 80px; // below header
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: var(--page-bg);
+  z-index: 100;
+}
+
+.route-loading-animation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.loader-rings {
+  position: relative;
+  width: 72px;
+  height: 72px;
+}
+
+.loader-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid transparent;
+}
+
+.loader-ring-outer {
+  border-top-color: var(--primary-color);
+  border-right-color: var(--soft-lavender);
+  animation: loader-spin 0.9s cubic-bezier(0.5, 0.2, 0.3, 0.8) infinite;
+}
+
+.loader-ring-inner {
+  inset: 8px;
+  border-bottom-color: var(--primary-color);
+  border-left-color: var(--soft-lavender);
+  animation: loader-spin 0.9s cubic-bezier(0.5, 0.2, 0.3, 0.8) infinite reverse;
+}
+
+@keyframes loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loader-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--primary-color);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  animation: loader-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes loader-pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding-top: 60px;
+  }
+
+  .route-loading-overlay {
+    top: 60px;
+  }
+}
+
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+router-outlet + * {
+  display: block;
+  padding-top: 80px; // Same as header height
+}
+
+.social-sticky-banners {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 998;
+  display: flex;
+  flex-direction: column;
+}
+
+.social-sticky-banner {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  text-decoration: none;
+  transition: filter 0.2s ease;
+
+  i {
+    transition: transform 0.2s ease;
+  }
+
+  &:hover {
+    filter: brightness(1.08);
+
+    i {
+      transform: scale(1.12);
+    }
+  }
+}
+
+.social-sticky-banner-facebook {
+  background: #1877F2;
+  border-radius: 0 8px 0 0;
+}
+
+.social-sticky-banner-instagram {
+  background: linear-gradient(135deg, #f09433, #e6683c, #dc2743, #cc2366, #bc1888);
+}
+
+.social-sticky-banner-tiktok {
+  background: #010101;
+  border-radius: 0 0 8px 0;
+}
+
+@media (max-width: 768px), (hover: none) {
+  .social-sticky-banners {
+    top: 83%;
+  }
+
+  .social-sticky-banner {
+    width: 32px;
+    height: 32px;
+  }
+}

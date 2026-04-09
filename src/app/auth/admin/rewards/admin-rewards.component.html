@@ -1,0 +1,160 @@
+<div class="admin-rewards-page">
+  <div class="admin-rewards-header">
+    <h1>🫧 Bubble Rewards Management</h1>
+    <button class="reset-btn" (click)="openResetModal()">Reset Points</button>
+    <div class="master-switch-row">
+      <label class="switch-label">Rewards System:</label>
+      <label class="toggle-switch">
+        <input type="checkbox" [checked]="masterSwitch" (change)="toggleMasterSwitch($any($event.target).checked)">
+        <span class="toggle-slider"></span>
+      </label>
+      <span class="master-status" [class.on]="masterSwitch" [class.off]="!masterSwitch">
+        {{ masterSwitch ? 'ENABLED' : 'DISABLED' }}
+      </span>
+    </div>
+  </div>
+
+  <div class="save-message" *ngIf="settingsSaveMessage">{{ settingsSaveMessage }}</div>
+
+  <!-- Tabs -->
+  <div class="rewards-tabs">
+    <button [class.active]="activeTab === 'settings'" (click)="switchTab('settings')">Settings</button>
+    <button [class.active]="activeTab === 'stats'" (click)="switchTab('stats')">Stats</button>
+  </div>
+
+  <!-- ─── Settings Tab ─────────────────────────────────────────── -->
+  <div *ngIf="activeTab === 'settings'">
+    <div *ngIf="settingsLoading" class="loading-text">Loading settings...</div>
+
+    <div *ngFor="let group of categoryGroups" class="settings-category">
+      <div class="category-header" (click)="group.open = !group.open">
+        <h3>{{ group.category }}</h3>
+        <span class="toggle-arrow">{{ group.open ? '▲' : '▼' }}</span>
+      </div>
+
+      <div class="category-body" *ngIf="group.open">
+        <div *ngFor="let setting of group.settings" class="setting-row">
+          <div class="setting-info">
+            <div class="setting-key">{{ getDisplayLabel(setting.settingKey) }}</div>
+            <div class="setting-desc" *ngIf="setting.description">{{ setting.description }}</div>
+          </div>
+          <div class="setting-control">
+            <!-- Boolean toggle -->
+            <ng-container *ngIf="isBooleanSetting(setting.settingKey)">
+              <label class="toggle-switch small">
+                <input type="checkbox"
+                       [checked]="(group.pendingChanges[setting.settingKey] ?? setting.settingValue) === 'true'"
+                       (change)="onSettingChange(group, setting.settingKey, $any($event.target).checked ? 'true' : 'false')">
+                <span class="toggle-slider"></span>
+              </label>
+            </ng-container>
+            <!-- Numeric/text input -->
+            <ng-container *ngIf="!isBooleanSetting(setting.settingKey)">
+              <input type="text"
+                     class="setting-input"
+                     [value]="group.pendingChanges[setting.settingKey] ?? setting.settingValue"
+                     (change)="onSettingChange(group, setting.settingKey, $any($event.target).value)">
+            </ng-container>
+          </div>
+        </div>
+
+        <div class="category-actions">
+          <button class="save-category-btn"
+                  [disabled]="group.saving || !hasPendingChanges(group)"
+                  (click)="saveCategory(group)">
+            {{ group.saving ? 'Saving...' : 'Save ' + group.category }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── Stats Tab ────────────────────────────────────────────── -->
+  <div *ngIf="activeTab === 'stats'">
+    <div *ngIf="statsLoading" class="loading-text">Loading stats...</div>
+    <div *ngIf="stats && !statsLoading" class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">{{ stats.totalPointsIssued | number }}</div>
+        <div class="stat-label">Total Points Issued</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ stats.totalPointsRedeemed | number }}</div>
+        <div class="stat-label">Total Points Redeemed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${{ stats.totalCreditsIssued | number:'1.2-2' }}</div>
+        <div class="stat-label">Total Credits Issued</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ stats.activeUsersWithPoints | number }}</div>
+        <div class="stat-label">Users With Points</div>
+      </div>
+      <div class="stat-card tier-bubble-card">
+        <div class="stat-value">🫧 {{ stats.bubbleTierCount | number }}</div>
+        <div class="stat-label">Bubble Tier</div>
+      </div>
+      <div class="stat-card tier-super-card">
+        <div class="stat-value">🫧🫧 {{ stats.superBubbleTierCount | number }}</div>
+        <div class="stat-label">Super Bubble Tier</div>
+      </div>
+      <div class="stat-card tier-ultra-card">
+        <div class="stat-value">🫧🫧🫧 {{ stats.ultraBubbleTierCount | number }}</div>
+        <div class="stat-label">Ultra Bubble Tier</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ stats.totalReferrals | number }}</div>
+        <div class="stat-label">Total Referrals</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ stats.completedReferrals | number }}</div>
+        <div class="stat-label">Completed Referrals</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Reset Modal ───────────────────────────────────────────── -->
+<div class="reset-modal-backdrop" *ngIf="showResetModal" (click)="closeResetModal()">
+  <div class="reset-modal" (click)="$event.stopPropagation()">
+    <h2>Reset Bubble Points</h2>
+    <p class="reset-warning">This will permanently delete all point histories, streaks, credits, and reset tier progress.</p>
+
+    <div class="reset-target-row">
+      <label class="reset-radio">
+        <input type="radio" name="resetTarget" value="all" [(ngModel)]="resetTarget">
+        All clients
+      </label>
+      <label class="reset-radio">
+        <input type="radio" name="resetTarget" value="specific" [(ngModel)]="resetTarget">
+        Specific client
+      </label>
+    </div>
+
+    <div class="reset-user-search" *ngIf="resetTarget === 'specific'">
+      <input
+        type="text"
+        placeholder="Search by name or email..."
+        [(ngModel)]="resetUserSearch"
+        (input)="onUserSearchChange()"
+        class="reset-search-input">
+      <div class="reset-user-dropdown" *ngIf="filteredUsers.length > 0 && !resetUserId && resetUserSearch.length > 0">
+        <div
+          class="reset-user-option"
+          *ngFor="let u of filteredUsers | slice:0:10"
+          (click)="selectResetUser(u)">
+          {{ u.firstName }} {{ u.lastName }} <span class="reset-user-email">{{ u.email }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="reset-feedback success" *ngIf="resetMessage">{{ resetMessage }}</div>
+    <div class="reset-feedback error" *ngIf="resetError">{{ resetError }}</div>
+
+    <div class="reset-modal-actions">
+      <button class="reset-confirm-btn" (click)="confirmReset()" [disabled]="resetLoading">
+        {{ resetLoading ? 'Clearing...' : 'Clear' }}
+      </button>
+      <button class="reset-cancel-btn" (click)="closeResetModal()">Cancel</button>
+    </div>
+  </div>
+</div>

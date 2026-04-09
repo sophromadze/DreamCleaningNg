@@ -1,0 +1,54 @@
+<div class="notice-container">
+  <div class="notice-card">
+    <div class="email-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+        <polyline points="22,6 12,13 2,6"/>
+      </svg>
+    </div>
+
+    <h1>Verify Your Email</h1>
+    <p>We've sent a 6-digit verification code to <strong>{{ userEmail }}</strong>.</p>
+    <p>Enter the code below to activate your account.</p>
+
+    <form [formGroup]="otpForm" (ngSubmit)="onOtpSubmit()" class="otp-form">
+      <div class="form-group">
+        <label for="verifyCode">6-Digit Code</label>
+        <input
+          type="text"
+          id="verifyCode"
+          formControlName="code"
+          placeholder="000000"
+          maxlength="6"
+          inputmode="numeric"
+          autocomplete="one-time-code"
+          class="otp-input"
+          [class.error]="otpForm.get('code')?.invalid && otpForm.get('code')?.touched">
+        <div class="field-error" *ngIf="otpForm.get('code')?.invalid && otpForm.get('code')?.touched">
+          Please enter the 6-digit code
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary" style="margin-top: 1.5rem;" [disabled]="otpForm.invalid || isVerifying">
+        {{ isVerifying ? 'Verifying...' : 'Verify Email' }}
+      </button>
+    </form>
+
+    <div class="resend-section">
+      <p>Didn't receive the code? Check your spam folder or</p>
+      <button type="button" (click)="resendCode()" [disabled]="isResending" class="btn-link">
+        {{ isResending ? 'Sending...' : 'resend the code' }}
+      </button>
+    </div>
+
+    <div *ngIf="successMessage" class="success-message">
+      {{ successMessage }}
+    </div>
+
+    <div *ngIf="errorMessage" class="error-message">
+      {{ errorMessage }}
+    </div>
+
+    <a routerLink="/login" class="back-link">Back to Login</a>
+  </div>
+</div>

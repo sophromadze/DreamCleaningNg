@@ -1,0 +1,19 @@
+<div class="service-area-map-wrapper">
+  <div class="search-section">
+    <div class="search-row">
+      <input
+        type="text"
+        class="search-input"
+        [(ngModel)]="searchZip"
+        placeholder="Enter your ZIP code to check coverage"
+        maxlength="5"
+        (keydown.enter)="onSearch()"
+      />
+      <button type="button" class="search-btn" (click)="onSearch()">Search</button>
+    </div>
+    @if (searchMessage) {
+      <p [class]="messageClass">{{ searchMessage }}</p>
+    }
+  </div>
+  <div id="service-area-map" class="map-container"></div>
+</div>

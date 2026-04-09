@@ -1,0 +1,276 @@
+.laundry-dishwashing-container {
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  font-family: 'Arial', sans-serif;
+  line-height: 1.6;
+  color: var(--text-primary);
+
+  .hero-section {
+    background: var(--btn-primary);
+    color: white;
+    padding: 30px 20px;
+    text-align: center;
+    margin-bottom: 25px;
+
+    h1 {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .subtitle {
+      font-size: 1.3rem;
+      font-weight: 500;
+      margin-bottom: 15px;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+      color: #e3f2fd;
+    }
+
+    .book-now-btn {
+      background: var(--btn-danger);
+      color: white;
+      border: none;
+      padding: 15px 40px;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-block;
+      font-size: 1.2rem;
+      font-weight: 500;
+      margin-top: 20px;
+
+      &:hover {
+        background: var(--btn-danger-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+      }
+    }
+  }
+
+  .definition-lead {
+    font-size: 1.15rem;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    max-width: 900px;
+    margin: 0 auto 2rem;
+    text-align: center;
+  }
+
+  .important-notice {
+    background: var(--surface-elevated, #fff8e1);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid #f9a825;
+    padding: 1rem 1.25rem;
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 2rem;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    line-height: 1.6;
+
+    strong {
+      color: #f9a825;
+    }
+  }
+
+  .service-section {
+    margin-bottom: 2.5rem;
+
+    h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.75rem;
+      position: relative;
+      padding-bottom: 12px;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 60px;
+        height: 3px;
+        background: var(--btn-primary);
+        border-radius: 2px;
+      }
+    }
+
+    > p {
+      font-size: 1.1rem;
+      color: var(--text-primary);
+      margin-bottom: 1.25rem;
+    }
+  }
+
+  .service-block {
+    margin-bottom: 1.5rem;
+
+    h3 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.75rem;
+    }
+
+    > p {
+      font-size: 1.05rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.75rem;
+    }
+  }
+
+  .check-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 1rem;
+
+    li {
+      position: relative;
+      padding-left: 28px;
+      margin-bottom: 0.5rem;
+      font-size: 1.05rem;
+      color: var(--text-primary);
+
+      &::before {
+        content: '✓';
+        position: absolute;
+        left: 0;
+        color: var(--primary-text);
+        font-weight: 700;
+        font-size: 1.1rem;
+      }
+    }
+  }
+
+  .benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+
+    .benefit-item {
+      background: var(--mint-fresh);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1rem;
+
+      strong {
+        display: block;
+        font-size: 1.1rem;
+        color: var(--text-primary);
+        margin-bottom: 0.25rem;
+      }
+
+      p {
+        font-size: 0.95rem;
+        color: var(--text-secondary);
+        margin: 0;
+      }
+    }
+  }
+
+  .cta-section {
+    text-align: center;
+    background: var(--mint-fresh);
+    padding: 2rem;
+    border-radius: 16px;
+    margin-bottom: 2rem;
+    border: 1px solid var(--border-color);
+
+    h2 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+    }
+
+    .cta-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+
+      .btn {
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease;
+      }
+
+      .btn-primary {
+        background: var(--btn-primary);
+        color: white;
+        border: none;
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        }
+      }
+
+      .btn-second {
+        background: var(--surface);
+        color: var(--primary-text);
+        border: 2px solid var(--primary-color);
+
+        &:hover {
+          background: var(--primary-color);
+          color: white;
+          transform: translateY(-2px);
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .laundry-dishwashing-container {
+    .hero-section {
+      h1 {
+        font-size: 1.8rem;
+      }
+
+      .subtitle {
+        font-size: 1.1rem;
+      }
+    }
+
+    .definition-lead {
+      font-size: 1rem;
+    }
+
+    .service-section h2 {
+      font-size: 1.6rem;
+    }
+
+    .benefits-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .laundry-dishwashing-container {
+    .hero-section h1 {
+      font-size: 1.5rem;
+    }
+
+    .benefits-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+}

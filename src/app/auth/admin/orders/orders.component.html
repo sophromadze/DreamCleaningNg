@@ -1,0 +1,813 @@
+<div class="orders-section">
+  <div class="section-header">
+    <h2>Orders Management</h2>
+    <div class="header-actions">
+      <button class="action-btn refresh" 
+              (click)="loadOrders()"
+              [disabled]="loadingStates.orders">
+        {{ loadingStates.orders ? 'Loading...' : 'Refresh' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Statistics Section for SuperAdmin -->
+  <div class="stats-section" *ngIf="isSuperAdmin && !loadingStates.orders">
+    <div class="stats-cards">
+      <div class="stat-card">
+        <div class="stat-value">{{ totalOrders }}</div>
+        <div class="stat-label">Total Orders</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${{ formatCurrency(totalAmount) }}</div>
+        <div class="stat-label">Total Amount (No Tips)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${{ formatCurrency(totalTaxes) }}</div>
+        <div class="stat-label">Total Taxes</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${{ formatCurrency(totalTips) }}</div>
+        <div class="stat-label">Total Tips</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${{ formatCurrency(totalAmountWithoutTipsAndTaxes) }}</div>
+        <div class="stat-label">Amount (No Tips & Tax)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">{{ formatTotalDuration(totalDuration) }}</div>
+        <div class="stat-label">Total Duration</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SuperAdmin: Global list of pending order edits (admin-submitted, awaiting confirmation) -->
+  <div *ngIf="isSuperAdmin && !loadingStates.orders && pendingOrderEdits.length > 0" class="pending-edits-global">
+    <h4><i class="fas fa-clock"></i> Pending order edits ({{ pendingOrderEdits.length }}) — confirm or reject</h4>
+    <div class="pending-edits-list">
+      <div *ngFor="let pe of pendingOrderEdits" class="pending-edit-row">
+        <span class="pending-summary">{{ pe.orderSummary }}</span>
+        <span class="pending-meta">Requested by {{ pe.requestedByName }} · {{ pe.requestedAt | date:'short' }}</span>
+        <button class="action-btn primary small" (click)="openPendingEditDetail(pe.id)">Review &amp; confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Indicator for Orders -->
+  <div *ngIf="loadingStates.orders" class="loading-indicator">
+    <div class="spinner"></div>
+    <span>Loading orders...</span>
+  </div>
+
+  <!-- Filters Section -->
+  <div class="filters-section" *ngIf="!loadingStates.orders">
+    <div class="search-box">
+      <input type="text" 
+             [(ngModel)]="searchTerm" 
+             placeholder="Search by ID or email..."
+             class="search-input">
+    </div>
+    
+    <div class="filter-controls">
+      <select [(ngModel)]="statusFilter" class="filter-select">
+        <option value="all">All Status</option>
+        <option value="pending">Pending</option>
+        <option value="active">Active</option>
+        <option value="done">Done</option>
+        <option value="cancelled">Cancelled</option>
+      </select>
+      
+      <select [(ngModel)]="dateFilter" class="filter-select">
+        <option value="all">All Time</option>
+        <option value="today">Today</option>
+        <option value="week">This Week</option>
+        <option value="month">This Month</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Orders Table -->
+  <div class="orders-list" *ngIf="!loadingStates.orders">
+    <div class="table-container">
+      <div class="table-wrapper" #tableWrapper>
+        <table class="data-table">
+          <thead #tableHeader>
+            <tr>
+              <th class="sortable" (click)="setSort('id')">ID <span *ngIf="sortColumn === 'id'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
+              <th class="sortable" (click)="setSort('email')">Email <span *ngIf="sortColumn === 'email'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
+              <th class="sortable" (click)="setSort('serviceDate')">Service Date <span *ngIf="sortColumn === 'serviceDate'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
+              <th class="sortable" (click)="setSort('orderDate')">Order Date <span *ngIf="sortColumn === 'orderDate'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
+              <th class="sortable" (click)="setSort('total')">Total <span *ngIf="sortColumn === 'total'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
+              <th class="sortable" (click)="setSort('status')">Status <span *ngIf="sortColumn === 'status'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
+              <th class="sortable" (click)="setSort('cleaners')">Cleaners <span *ngIf="sortColumn === 'cleaners'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
+              <th *ngIf="userPermissions.permissions.canUpdate">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+          <ng-container *ngFor="let order of filteredOrders">
+            <tr [class.expanded]="viewingOrderId === order.id"
+                [class.has-reminder]="orderReminderService.hasActiveReminder(order.id)"
+                [class.is-new-order]="newOrderNotificationService.isUnviewed(order.id)"
+                (click)="viewOrderDetails(order.id)" style="cursor: pointer;">
+              <td>
+                <span *ngIf="orderReminderService.hasActiveReminder(order.id)" class="reminder-indicator" title="Check this order!"></span>
+                <span *ngIf="newOrderNotificationService.isUnviewed(order.id)" class="new-order-indicator" title="New order!"></span>
+                {{order.id}}
+              </td>
+              <td>{{getCustomerEmail(order.id)}}</td>
+              <td>{{formatDateTime(order.serviceDate, order.serviceTime)}}</td>
+              <td>{{formatDateTime(order.orderDate)}}</td>
+              <td class="amount">$ {{formatCurrency(getOrderTotalWithoutTips(order))}}</td>
+              <td>
+                <span class="status-badge" [ngClass]="getStatusClass(order.status)">
+                  {{order.status}}
+                </span>
+              </td>
+              <!-- Assigned Cleaners Column -->
+              <td class="assigned-cleaners">
+                <!-- Loading state: per-order, shown until this order's cleaners are loaded -->
+                <div *ngIf="!isCleanersLoaded(order.id)" class="loading-small">
+                  <div class="spinner-small"></div>
+                </div>
+                <!-- Cleaners display: only after this order's cleaners have been loaded -->
+                <div *ngIf="isCleanersLoaded(order.id)">
+                  <ng-container *ngIf="getAssignedCleaners(order.id).length > 0; else noCleaners">
+                    <div class="cleaners-names" [title]="getAssignedCleaners(order.id).join(', ')">
+                      ({{ getAssignedCleaners(order.id).length}})
+                      {{ getAssignedCleaners(order.id).join(', ') }}
+                    </div>
+                  </ng-container>
+                  <ng-template #noCleaners>
+                    <span class="no-cleaners">Not assigned</span>
+                  </ng-template>
+                </div>
+              </td>
+              <td class="actions" *ngIf="userPermissions.permissions.canUpdate">
+                <button *ngIf="userPermissions.permissions.canUpdate && order.status.toLowerCase() === 'active'" 
+                        class="action-btn complete" 
+                        (click)="markOrderAsDone(order); $event.stopPropagation()"
+                        title="Mark as Done">
+                  Done
+                </button>
+                <button *ngIf="userPermissions.permissions.canUpdate && order.status.toLowerCase() !== 'cancelled' && order.status.toLowerCase() !== 'done'" 
+                        class="action-btn cancel" 
+                        (click)="cancelOrder(order); $event.stopPropagation()"
+                        title="Cancel Order">
+                  Cancel
+                </button>                
+                <button *ngIf="userPermissions.permissions.canUpdate && (order.status.toLowerCase() === 'done' || order.status.toLowerCase() === 'cancelled')" 
+                        class="action-btn reactivate" 
+                        (click)="reactivateOrder(order); $event.stopPropagation()"
+                        title="Reactivate Order">
+                  <i class="fas fa-undo"></i> Reactivate
+                </button>
+              </td>
+            </tr>
+            
+            <!-- Order Details Row -->
+            <tr *ngIf="viewingOrderId === order.id && selectedOrder" class="order-details-row">
+              <td colspan="8">
+                <!-- Loading Indicator for Order Details -->
+                <div *ngIf="loadingStates.orderDetails" class="loading-small">
+                  <div class="spinner-small"></div>
+                  <span>Loading order details...</span>
+                </div>
+
+                <div *ngIf="!loadingStates.orderDetails" class="order-details-content">
+                  <h4>Order Details</h4>
+                  
+                  <!-- Order Edit Form (SuperAdmin: direct save; Admin: submit for approval) -->
+                  <div *ngIf="editingOrder && canEditOrder" class="superadmin-order-edit">
+                    <h5>Edit Order <span *ngIf="isSuperAdmin">— all changes are recorded in Audit logs</span><span *ngIf="!isSuperAdmin">— your changes will be sent to SAdmin for approval</span></h5>
+                    <div class="edit-grid">
+                      <div class="edit-group">
+                        <h6>Contact</h6>
+                        <div class="edit-row"><label>First Name</label><input [(ngModel)]="editOrderForm.contactFirstName"></div>
+                        <div class="edit-row"><label>Last Name</label><input [(ngModel)]="editOrderForm.contactLastName"></div>
+                        <div class="edit-row"><label>Email</label><input type="email" [(ngModel)]="editOrderForm.contactEmail"></div>
+                        <div class="edit-row"><label>Phone</label><input [(ngModel)]="editOrderForm.contactPhone"></div>
+                      </div>
+                      <div class="edit-group">
+                        <h6>Address</h6>
+                        <div class="edit-row"><label>Address</label><input [(ngModel)]="editOrderForm.serviceAddress"></div>
+                        <div class="edit-row"><label>Apt/Suite</label><input [(ngModel)]="editOrderForm.aptSuite"></div>
+                        <div class="edit-row"><label>City</label><input [(ngModel)]="editOrderForm.city"></div>
+                        <div class="edit-row"><label>State</label><input [(ngModel)]="editOrderForm.state"></div>
+                        <div class="edit-row"><label>Zip</label><input [(ngModel)]="editOrderForm.zipCode"></div>
+                      </div>
+                      <div class="edit-group">
+                        <h6>Service</h6>
+                        <div class="edit-row"><label>Service Date</label><input type="date" [(ngModel)]="editOrderForm.serviceDate"></div>
+                        <div class="edit-row"><label>Service Time (HH:mm)</label><input type="text" [(ngModel)]="editOrderForm.serviceTime" placeholder="14:30"></div>
+                        <div class="edit-row"><label>Maids</label><input type="number" [(ngModel)]="editOrderForm.maidsCount" (ngModelChange)="onEditMaidsChange()" title="Auto from duration (1 per 6h); you can override"></div>
+                        <div class="edit-row"><label>Duration (min)</label><input type="number" [(ngModel)]="editOrderForm.totalDuration" (ngModelChange)="onEditDurationChange()" min="60" placeholder="min"> <span class="duration-hint">{{ formatEditDuration(editOrderForm.totalDuration ?? 0) }}</span></div>
+                        <div class="edit-row"><label>Entry</label><input [(ngModel)]="editOrderForm.entryMethod"></div>
+                        <div class="edit-row"><label>{{ isCustomServiceType(selectedOrder) ? 'Description' : 'Instructions' }}</label><textarea [(ngModel)]="editOrderForm.specialInstructions" rows="2"></textarea></div>
+                        <div class="edit-row">
+                          <app-floor-type-selector
+                            [selectedTypes]="editFloorTypes"
+                            [otherText]="editFloorTypeOther"
+                            (selectionChange)="onEditFloorTypeChange($event)">
+                          </app-floor-type-selector>
+                        </div>
+                      </div>
+                      <div class="edit-group">
+                        <h6>Pricing & Status</h6>
+                        <div class="edit-row"><label>SubTotal</label><input type="number" step="1" [(ngModel)]="editOrderForm.subTotal" (ngModelChange)="recalculateEditPricing()"></div>
+                        <div class="edit-row"><label>Tax</label><input type="number" step="1" [(ngModel)]="editOrderForm.tax" readonly></div>
+                        <div class="edit-row"><label>Tips</label><input type="number" step="1" [(ngModel)]="editOrderForm.tips" (ngModelChange)="recalculateEditPricing()"></div>
+                        <div class="edit-row"><label>Company Tips</label><input type="number" step="1" [(ngModel)]="editOrderForm.companyDevelopmentTips" (ngModelChange)="recalculateEditPricing()"></div>
+                        <div class="edit-row"><label>Discount (promo/special)</label><input type="number" step="1" [(ngModel)]="editOrderForm.discountAmount" (ngModelChange)="recalculateEditPricing()"></div>
+                        <div class="edit-row"><label>Subscription Discount</label><input type="number" step="1" [(ngModel)]="editOrderForm.subscriptionDiscountAmount" (ngModelChange)="recalculateEditPricing()"></div>
+                        <div class="edit-row edit-row--readonly-discount" *ngIf="(selectedOrder?.pointsRedeemed || 0) > 0">
+                          <label>Bubble Points ({{selectedOrder.pointsRedeemed}} pts)</label>
+                          <input type="number" [value]="selectedOrder.pointsRedeemedDiscount || 0" readonly>
+                        </div>
+                        <div class="edit-row edit-row--readonly-discount" *ngIf="(selectedOrder?.rewardBalanceUsed || 0) > 0">
+                          <label>Reward Balance</label>
+                          <input type="number" [value]="selectedOrder.rewardBalanceUsed || 0" readonly>
+                        </div>
+                        <div class="edit-row"><label>Total</label><input type="number" step="1" [(ngModel)]="editOrderForm.total" readonly></div>
+                        <div class="edit-row edit-row--pts-preview" *ngIf="pointsEnabled && editEstimatedPoints > 0">
+                          <label>🫧 Est. Points Earned</label>
+                          <span class="pts-preview-val">~{{ editEstimatedPoints | number }} pts</span>
+                        </div>
+                        <div class="edit-row"><label>Status</label><select [(ngModel)]="editOrderForm.status"><option value="Pending">Pending</option><option value="Active">Active</option><option value="Done">Done</option><option value="Cancelled">Cancelled</option></select></div>
+                        <div class="edit-row"><label>Cancellation Reason</label><input [(ngModel)]="editOrderForm.cancellationReason" placeholder="If status=Cancelled"></div>
+                        <div class="edit-row"><label>Cleaner $/hr</label><input type="number" step="0.5" [(ngModel)]="editOrderForm.cleanerHourlyRate" (ngModelChange)="recalcCleanerTotalSalary()"></div>
+                        <div class="edit-row" *ngIf="isSuperAdmin"><label>Cleaners Total Salary</label><input type="number" step="1" [(ngModel)]="editOrderForm.cleanerTotalSalary"></div>
+                      </div>
+                    </div>
+                    <div class="edit-group" *ngIf="editOrderForm.services && editOrderForm.services.length > 0">
+                      <h6>Services (Qty, Hours, Duration, Cost)</h6>
+                      <div class="mini-table">
+                        <div *ngFor="let s of editOrderForm.services; let i = index" class="mini-row">
+                          <span class="minilabel">{{ getEditServiceDisplayName(s, i) }}</span>
+                          <ng-container *ngIf="!getEditServiceIsHoursOnlyRow(i); else hoursRowQty">
+                            <input type="number" [(ngModel)]="s.quantity" (ngModelChange)="onEditServiceQuantityChange(s, i)" style="width:60px" placeholder="Qty">
+                          </ng-container>
+                          <ng-template #hoursRowQty><span class="placeholder-hrs">—</span></ng-template>
+                          <ng-container *ngIf="getEditServiceShowsHours(i); else noHoursCol">
+                            <input type="number" step="0.5" min="0.5" [ngModel]="getEditServiceHours(i)" (ngModelChange)="onEditServiceHoursChange(i, $event)" style="width:56px" placeholder="Hrs" class="service-hrs-input" title="Hours (affects cost and duration)">
+                          </ng-container>
+                          <ng-template #noHoursCol><span class="duration-min placeholder-hrs">—</span></ng-template>
+                          <span class="duration-min">{{ getEditServiceDurationMinDisplay(s, i) }} min</span>
+                          <input type="number" step="1" [(ngModel)]="s.cost" (ngModelChange)="onEditServiceCostChange()" style="width:80px" placeholder="Cost">
+                        </div>
+                      </div>
+                    </div>
+                    <div class="edit-group">
+                      <h6>Extra Services (Qty or Hrs, Duration, Cost)</h6>
+                      <div class="mini-table" *ngIf="editOrderForm.extraServices && editOrderForm.extraServices.length > 0">
+                        <div *ngFor="let e of editOrderForm.extraServices; let i = index" class="mini-row">
+                          <span class="minilabel">{{ getExtraServiceName(selectedOrder, i, e) }}</span>
+                          <ng-container *ngIf="getEditExtraHasHours(e, i); else showQty">
+                            <input type="number" step="0.5" [(ngModel)]="e.hours" (ngModelChange)="onEditExtraHoursChange(e, i)" style="width:60px" placeholder="Hrs" class="extra-hrs-input">
+                          </ng-container>
+                          <ng-template #showQty>
+                            <input type="number" [(ngModel)]="e.quantity" (ngModelChange)="onEditExtraQuantityChange(e, i)" style="width:50px" placeholder="Qty" class="extra-qty-input">
+                          </ng-template>
+                          <span class="duration-min">{{ getEditExtraDurationMin(e, i) }} min</span>
+                          <input type="number" step="1" [(ngModel)]="e.cost" (ngModelChange)="onEditExtraCostChange()" style="width:80px" placeholder="Cost">
+                          <button type="button" class="remove-extra-row-btn" (click)="removeEditExtraService(i)" title="Remove this extra service">Remove</button>
+                        </div>
+                      </div>
+                      <div class="add-extra-row" *ngIf="getEditOrderExtrasToAdd().length > 0">
+                        <label>Add extra service:</label>
+                        <select #addExtraSelect (change)="onAddExtraServiceChange(addExtraSelect.value); addExtraSelect.value = ''" class="add-extra-select">
+                          <option value="">-- Select --</option>
+                          <option *ngFor="let ex of getEditOrderExtrasToAdd()" [value]="ex.id">{{ ex.name }}</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="edit-actions">
+                      <button class="action-btn primary" (click)="saveOrderEdit()" [disabled]="savingOrder">{{ savingOrder ? 'Saving...' : (isSuperAdmin ? 'Save' : 'Send for approval') }}</button>
+                      <button class="action-btn" (click)="cancelEditOrder()" [disabled]="savingOrder">Cancel</button>
+                    </div>
+                  </div>
+
+                  <!-- SuperAdmin: Pending edits for this order (quick link) -->
+                  <div *ngIf="isSuperAdmin && !editingOrder && getPendingEditsForSelectedOrder().length > 0" class="pending-edits-inline">
+                    <h5>Pending edit(s) for this order</h5>
+                    <div *ngFor="let pe of getPendingEditsForSelectedOrder()" class="pending-item">
+                      <span class="pending-by">{{ pe.requestedByName }} at {{ pe.requestedAt | date:'short' }}</span>
+                      <button class="action-btn primary" (click)="openPendingEditDetail(pe.id)">Review &amp; confirm</button>
+                    </div>
+                  </div>
+
+                  <div *ngIf="!editingOrder" class="details-grid">
+                    <!-- Customer Information -->
+                    <div class="detail-section">
+                      <h5>Customer Information</h5>
+                      <p><strong>User ID:</strong> {{selectedOrder.userId}}</p>
+                      <p><strong>Name:</strong> {{selectedOrder.contactFirstName}} {{selectedOrder.contactLastName}}</p>
+                      <p><strong>Email:</strong> {{selectedOrder.contactEmail}}</p>
+                      <p><strong>Phone:</strong> {{selectedOrder.contactPhone}}</p>
+                    </div>
+                    
+                    <!-- Service Details -->
+                    <div class="detail-section">
+                      <h5>Service Details</h5>
+                      <p><strong>Service Type:</strong> {{selectedOrder.serviceTypeName}}</p>
+                      <p><strong>Service Time:</strong> {{formatDateTime((selectedOrder.serviceDate || '1970-01-01'), selectedOrder.serviceTime)}}</p>
+                      <p><strong>Duration:</strong>
+                        <ng-container *ngIf="hasCleanersService(); else perMaid">
+                          {{formatDuration(selectedOrder.totalDuration)}}
+                        </ng-container>
+                        <ng-template #perMaid>
+                          {{formatDuration(selectedOrder.totalDuration / (selectedOrder.maidsCount || 1))}}
+                        </ng-template>
+                      </p>
+                      <p><strong>Cleaners Count:</strong> {{selectedOrder.maidsCount}}</p>
+                      <p><strong>Cleaner Hourly Rate:</strong> ${{selectedOrder.cleanerHourlyRate.toFixed(2)}}/hr</p>
+                      <p *ngIf="isSuperAdmin"><strong>Cleaners Total Salary:</strong> ${{getDisplayCleanerTotalSalary().toFixed(2)}}</p>
+                    </div>
+                    
+                    <!-- Address -->
+                    <div class="detail-section">
+                      <h5>Service Address</h5>
+                      <p>{{selectedOrder.serviceAddress}}</p>
+                      <p *ngIf="selectedOrder.aptSuite">{{selectedOrder.aptSuite}}</p>
+                      <p>{{selectedOrder.state}}, {{selectedOrder.city}}</p>
+                      <p>{{selectedOrder.zipCode}}</p>
+                      <p *ngIf="selectedOrder.entryMethod"><strong>Entry Method:</strong> {{selectedOrder.entryMethod}}</p>
+                    </div>
+                  </div>
+
+                  <!-- Pricing Breakdown - New Row with 3 Columns -->
+                  <div *ngIf="!editingOrder" class="pricing-breakdown-row">
+                    <!-- Original Pricing Column -->
+                    <div class="pricing-column original-pricing" 
+                         *ngIf="(selectedOrder.initialTotal && selectedOrder.initialTotal > 0 && selectedOrder.initialTotal !== selectedOrder.total) || 
+                                (orderUpdateHistory && orderUpdateHistory.length > 0)">
+                      <h5>Original Pricing</h5>
+                      <div class="pricing-content">
+                        <p><strong>Subtotal:</strong>
+                          ${{formatCurrency(selectedOrder.initialTotal > 0 ? selectedOrder.initialSubTotal :
+                                           (orderUpdateHistory && orderUpdateHistory.length > 0 ? orderUpdateHistory[0].originalSubTotal : 0))}}
+                        </p>
+                        <p><strong>Tax:</strong>
+                          ${{formatCurrency(selectedOrder.initialTotal > 0 ? selectedOrder.initialTax :
+                                           (orderUpdateHistory && orderUpdateHistory.length > 0 ? orderUpdateHistory[0].originalTax : 0))}}
+                        </p>
+                        <p *ngIf="(selectedOrder.initialTotal > 0 ? selectedOrder.initialTips :
+                                   (orderUpdateHistory && orderUpdateHistory.length > 0 ? orderUpdateHistory[0].originalTips : 0)) > 0">
+                          <strong class="tips-cleaner-label">Tips for Cleaners:</strong>
+                          <span class="tips-cleaner-value">${{formatCurrency(selectedOrder.initialTotal > 0 ? selectedOrder.initialTips :
+                                           (orderUpdateHistory && orderUpdateHistory.length > 0 ? orderUpdateHistory[0].originalTips : 0))}}</span>
+                        </p>
+                        <p *ngIf="(selectedOrder.initialTotal > 0 ? selectedOrder.initialCompanyDevelopmentTips :
+                                   (orderUpdateHistory && orderUpdateHistory.length > 0 ? orderUpdateHistory[0].originalCompanyDevelopmentTips : 0)) > 0">
+                          <strong>Tips for Company:</strong>
+                          ${{formatCurrency(selectedOrder.initialTotal > 0 ? selectedOrder.initialCompanyDevelopmentTips :
+                                           (orderUpdateHistory && orderUpdateHistory.length > 0 ? orderUpdateHistory[0].originalCompanyDevelopmentTips : 0))}}
+                        </p>
+                        <!-- Original subscription discount (derived from discount rate × original subtotal) -->
+                        <p *ngIf="getOriginalSubscriptionDiscountAmount() > 0">
+                          <strong>Subscription Discount ({{selectedOrder.subscriptionName}}):</strong>
+                          <span class="discount">-${{formatCurrency(getOriginalSubscriptionDiscountAmount())}}</span>
+                        </p>
+                        <div class="total-line">
+                          <strong>Original Total (no tips):</strong> 
+                          ${{formatCurrency(getOriginalTotalWithoutTips())}}
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Current Pricing Column -->
+                    <div class="pricing-column current-pricing">
+                      <h5>{{ (selectedOrder.initialTotal && selectedOrder.initialTotal !== selectedOrder.total) || 
+                             (orderUpdateHistory && orderUpdateHistory.length > 0) ? 'Current Pricing' : 'Order Pricing' }}</h5>
+                      <div class="pricing-content">
+                        <p><strong>Subtotal:</strong> ${{formatCurrency(selectedOrder.subTotal)}}</p>
+                        <p><strong>Tax:</strong> ${{formatCurrency(selectedOrder.tax)}}</p>
+                        <p *ngIf="selectedOrder.tips > 0">
+                          <strong class="tips-cleaner-label">Tips for Cleaners:</strong> <span class="tips-cleaner-value">${{formatCurrency(selectedOrder.tips)}}</span>
+                        </p>
+                        <p *ngIf="selectedOrder.companyDevelopmentTips > 0">
+                          <strong>Tips for Company:</strong> ${{formatCurrency(selectedOrder.companyDevelopmentTips)}}
+                        </p>
+
+                        <!-- Subscription Discount -->
+                        <p *ngIf="selectedOrder.subscriptionDiscountAmount && selectedOrder.subscriptionDiscountAmount > 0">
+                          <strong>Subscription Discount ({{selectedOrder.subscriptionName}}):</strong>
+                          <span class="discount">-${{formatCurrency(selectedOrder.subscriptionDiscountAmount)}}</span>
+                        </p>
+
+                        <!-- Special Offer Discount -->
+                        <p *ngIf="selectedOrder.specialOfferName && selectedOrder.discountAmount > 0">
+                          <strong>{{selectedOrder.specialOfferName}}:</strong>
+                          <span class="discount">-${{formatCurrency(selectedOrder.discountAmount)}}</span>
+                        </p>
+
+                        <!-- Promo Code Discount -->
+                        <p *ngIf="!selectedOrder.specialOfferName && selectedOrder.promoCodeDetails && selectedOrder.discountAmount > 0">
+                          <strong>Promo Code {{selectedOrder.promoCodeDetails}}:</strong>
+                          <span class="discount">-${{formatCurrency(selectedOrder.discountAmount)}}</span>
+                        </p>
+
+                        <!-- Legacy Discount (fallback) -->
+                        <p *ngIf="!selectedOrder.specialOfferName && !selectedOrder.promoCodeDetails && selectedOrder.discountAmount > 0">
+                          <strong>Discount:</strong>
+                          <span class="discount">-${{formatCurrency(selectedOrder.discountAmount)}}</span>
+                        </p>
+
+                        <!-- Gift Card -->
+                        <p *ngIf="selectedOrder.giftCardDetails && (selectedOrder.giftCardAmountUsed || 0) > 0">
+                          <strong>Gift Card {{selectedOrder.giftCardDetails}}:</strong>
+                          <span class="discount">-${{formatCurrency(selectedOrder.giftCardAmountUsed || 0)}}</span>
+                        </p>
+
+                        <!-- Bubble Points -->
+                        <p *ngIf="(selectedOrder.pointsRedeemed || 0) > 0">
+                          <strong>Bubble Points ({{selectedOrder.pointsRedeemed}} pts):</strong>
+                          <span class="discount">-${{formatCurrency(selectedOrder.pointsRedeemedDiscount || 0)}}</span>
+                        </p>
+
+                        <!-- Reward Balance -->
+                        <p *ngIf="(selectedOrder.rewardBalanceUsed || 0) > 0">
+                          <strong>Reward Balance:</strong>
+                          <span class="discount">-${{formatCurrency(selectedOrder.rewardBalanceUsed || 0)}}</span>
+                        </p>
+
+                        <div class="total-line">
+                          <strong>Current Total (no tips):</strong> ${{formatCurrency(getCurrentTotalWithoutTips())}}
+                        </div>
+                        <p *ngIf="(selectedOrder.pointsEarned || 0) > 0" class="pts-earned-line">
+                          <strong>🫧 Points earned:</strong>
+                          <span class="pts-earned-val">+{{ selectedOrder.pointsEarned | number }} pts</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <!-- Update History Column -->
+                    <div class="pricing-column update-history" 
+                         *ngIf="orderUpdateHistory && orderUpdateHistory.length > 0">
+                      <h5>Update History</h5>
+                      <div class="pricing-content">
+                        <div class="update-items">
+                          <div class="update-item" *ngFor="let update of orderUpdateHistory">
+                            <div class="update-header">
+                              <span class="update-date">{{formatUpdateDate(update.updatedAt)}}</span>
+                              <span class="update-amount" [class.positive]="update.additionalAmount > 0">
+                                {{update.additionalAmount >= 0 ? '+' : ''}}${{formatCurrency(Math.abs(update.additionalAmount))}}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="total-additional" *ngIf="orderUpdateHistory.length > 1">
+                          <strong>Total Additional Payments:</strong> 
+                          <span class="amount">
+                            ${{formatCurrency(getTotalAdditionalAmount())}}
+                          </span>
+                        </div>
+                        <div class="remind-unpaid-row" *ngIf="selectedOrder.isPaid && selectedOrder.status !== 'Cancelled' && getUnpaidAdditionalAmount() > 0.01">
+                          <button type="button" class="action-btn primary remind-btn" 
+                                  (click)="sendPaymentReminder()" 
+                                  [disabled]="sendingReminder"
+                                  title="Send email and SMS reminder to the customer about the unpaid amount">
+                            {{ sendingReminder ? 'Sending...' : 'Send payment reminder' }}
+                          </button>
+                          <span class="remind-hint">Unpaid: ${{formatCurrency(getUnpaidAdditionalAmount())}}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Loading indicator for update history -->
+                    <div class="loading-history" *ngIf="loadingUpdateHistory">
+                      <small>Loading update history...</small>
+                    </div>
+                  </div>
+                  
+                  <!-- Services and Instructions Row -->
+                  <div *ngIf="!editingOrder" class="services-instructions-row">
+                    <!-- Services Column -->
+                    <div class="services-column" *ngIf="selectedOrder.services.length > 0">
+                      <h5>Services</h5>
+                      <div class="services-content">
+                        <ul class="services-list">
+                          <li *ngFor="let service of selectedOrder.services">
+                            <span *ngIf="service.serviceName.toLowerCase().includes('bedroom') && service.quantity === 0">
+                              Studio - {{formatCurrency(service.cost)}}
+                            </span>
+                            <span *ngIf="!(service.serviceName.toLowerCase().includes('bedroom') && service.quantity === 0)">
+                              {{service.serviceName}} - Qty: {{service.quantity}} - ${{formatCurrency(service.cost)}}
+                            </span>
+                            <span *ngIf="service.serviceName.toLowerCase().includes('cleaner')">
+                              - Hours: {{(selectedOrder.totalDuration / 60) | number:'1.0-0'}}h
+                            </span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <!-- Extra Services Column -->
+                    <div class="services-column" *ngIf="selectedOrder.extraServices.length > 0">
+                      <h5>Extra Services</h5>
+                      <div class="services-content">
+                        <ul class="services-list">
+                          <li *ngFor="let extra of selectedOrder.extraServices">
+                            <ng-container *ngIf="extra.hours > 0 && extra.quantity > 0; else singleDisplay">
+                              {{extra.extraServiceName}} - Qty: {{extra.quantity}} - Hours: {{extra.hours}} - ${{formatCurrency(extra.cost)}}
+                            </ng-container>
+                            <ng-template #singleDisplay>
+                              <ng-container *ngIf="extra.hours > 0; else quantityOnly">
+                                {{extra.extraServiceName}} - Hours: {{extra.hours}} - ${{formatCurrency(extra.cost)}}
+                              </ng-container>
+                              <ng-template #quantityOnly>
+                                {{extra.extraServiceName}} - Qty: {{extra.quantity}} - ${{formatCurrency(extra.cost)}}
+                              </ng-template>
+                            </ng-template>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <!-- Special Instructions Column -->
+                    <div class="services-column" *ngIf="selectedOrder.specialInstructions">
+                      <h5>{{ isCustomServiceType(selectedOrder) ? 'Service Description' : 'Special Instructions' }}</h5>
+                      <div class="services-content">
+                        <p>{{selectedOrder.specialInstructions}}</p>
+                      </div>
+                    </div>
+
+                    <!-- Floor Types Column -->
+                    <div class="services-column" *ngIf="selectedOrder.floorTypes">
+                      <h5>Floor Types</h5>
+                      <div class="services-content">
+                        <p>{{ formatFloorTypes(selectedOrder.floorTypes, selectedOrder.floorTypeOther) }}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Cancellation Reason -->
+                  <div *ngIf="!editingOrder && selectedOrder.status === 'Cancelled' && selectedOrder.cancellationReason" class="cancellation-reason-section">
+                    <h5>Cancellation Reason</h5>
+                    <div class="cancellation-reason-content">
+                      <p class="cancellation-reason-text">{{ selectedOrder.cancellationReason }}</p>
+                      <span *ngIf="selectedOrder.isLateCancellation" class="late-fee-badge">Late Cancellation - $70 Fee</span>
+                    </div>
+                  </div>
+
+                  <!-- Assigned Cleaners Section with Enhanced Loading States -->
+                  <div *ngIf="!editingOrder" class="assigned-cleaners-section">
+                    <h5>Assigned Cleaners</h5>
+                    
+                    <!-- Loading state for assigned cleaners in details -->
+                    <div *ngIf="loadingStates.assignedCleaners" class="loading-small">
+                      <div class="spinner-small"></div>
+                      <span>Loading assigned cleaners...</span>
+                    </div>
+                    
+                    <!-- Cleaners list with removal capability -->
+                    <div *ngIf="!loadingStates.assignedCleaners" class="cleaners-content">
+                      <div *ngIf="getAssignedCleanersWithIds(selectedOrder.id).length > 0; else noAssignedCleaners" 
+                           class="cleaners-list">
+                        <div *ngFor="let cleaner of getAssignedCleanersWithIds(selectedOrder.id)" 
+                             class="cleaner-item">
+                          <span class="cleaner-name">{{ cleaner.name }}</span>
+                          <button class="remove-cleaner-btn" 
+                                  (click)="removeCleanerFromOrder(selectedOrder.id, cleaner.id, cleaner.name)"
+                                  [disabled]="loadingStates.removingCleaner"
+                                  title="Remove cleaner from this order">
+                            {{ loadingStates.removingCleaner ? 'Removing...' : 'Remove' }}
+                          </button>
+                        </div>
+                      </div>
+                      
+                      <ng-template #noAssignedCleaners>
+                        <p class="no-cleaners-message">No cleaners assigned to this order yet.</p>
+                      </ng-template>
+                    </div>
+                  </div>
+
+                  <!-- Messages for Order Details -->
+                  <div *ngIf="errorMessage && viewingOrderId" class="error-message order-detail-message">
+                    {{errorMessage}}
+                    <button class="close-btn" (click)="clearMessages()">×</button>
+                  </div>
+                  <div *ngIf="successMessage && viewingOrderId" class="success-message order-detail-message">
+                    {{successMessage}}
+                    <button class="close-btn" (click)="clearMessages()">×</button>
+                  </div>
+
+                  <!-- Action Buttons in Details View -->
+                  <div class="detail-actions" *ngIf="!editingOrder">
+                    <button class="action-btn assign-cleaners" 
+                            (click)="openCleanerAssignmentModal(selectedOrder.id)"
+                            [disabled]="loadingStates.assigningCleaners"
+                            *ngIf="userPermissions.permissions.canView">
+                      {{ loadingStates.assigningCleaners ? 'Assigning...' : 'Assign Cleaners' }}
+                    </button>
+                    <button class="action-btn edit-btn" *ngIf="canEditOrder" (click)="startEditOrder()">
+                      Edit
+                    </button>
+                    <button class="action-btn primary" (click)="viewOrderDetails(selectedOrder.id)">
+                      Close Details
+                    </button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </ng-container>
+        </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <!-- Pagination (matches audit-history) -->
+    <div class="pagination" *ngIf="totalPages > 1">
+      <button class="page-btn" (click)="previousPage()" [disabled]="currentPage === 1">‹ Previous</button>
+      
+      <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage === 1">1</button>
+      
+      <span *ngIf="totalPages > 5 && currentPage > 3" class="page-ellipsis">...</span>
+      
+      <button *ngFor="let page of getVisiblePages()" 
+              class="page-btn" 
+              (click)="goToPage(page)"
+              [class.active]="currentPage === page">
+        {{ page }}
+      </button>
+      
+      <span *ngIf="totalPages > 5 && currentPage < totalPages - 2" class="page-ellipsis">...</span>
+      
+      <button *ngIf="totalPages > 1" 
+              class="page-btn" 
+              (click)="goToPage(totalPages)"
+              [class.active]="currentPage === totalPages">
+        {{ totalPages }}
+      </button>
+      
+      <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages">Next ›</button>
+    </div>
+  </div>
+
+  <!-- Global Messages for Table Actions -->
+  <div *ngIf="errorMessage && !viewingOrderId" class="error-message">
+    {{errorMessage}}
+    <button class="close-btn" (click)="clearMessages()">×</button>
+  </div>
+  <div *ngIf="successMessage && !viewingOrderId" class="success-message">
+    {{successMessage}}
+    <button class="close-btn" (click)="clearMessages()">×</button>
+  </div>
+</div>
+
+<!-- Pending order edit review modal (SuperAdmin) -->
+<div class="modal-overlay pending-edit-modal-overlay" *ngIf="selectedPendingEdit != null" (click)="closePendingEditDetail()">
+  <div class="modal-content pending-edit-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Review order edit — Order #{{ selectedPendingEdit.orderId }}</h3>
+      <button class="close-btn" (click)="closePendingEditDetail()">×</button>
+    </div>
+    <div class="modal-body" *ngIf="selectedPendingEdit">
+      <p class="pending-edit-meta">Requested by <strong>{{ selectedPendingEdit.requestedByName }}</strong> on {{ selectedPendingEdit.requestedAt | date:'medium' }}</p>
+      <p class="pending-edit-hint">Review every change below. Approve to apply to the order, or Reject to discard.</p>
+      <div *ngIf="loadingPendingEditDetail" class="loading-small"><div class="spinner-small"></div> Loading...</div>
+      <div *ngIf="!loadingPendingEditDetail && getPendingEditChanges().length === 0" class="no-changes">No field changes to show (or invalid data).</div>
+      <div *ngIf="!loadingPendingEditDetail && getPendingEditChanges().length > 0" class="pending-edit-changes">
+        <table class="changes-table">
+          <thead>
+            <tr><th>Field</th><th>Current</th><th>Proposed</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let ch of getPendingEditChanges()">
+              <td class="field-name">{{ ch.field }}</td>
+              <td class="current-val">{{ ch.current }}</td>
+              <td class="proposed-val">{{ ch.proposed }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-actions" *ngIf="selectedPendingEdit && !loadingPendingEditDetail">
+      <button class="action-btn btn-approve" (click)="approvePendingOrderEdit(selectedPendingEdit.id)" [disabled]="approvingPendingId === selectedPendingEdit.id">
+        {{ approvingPendingId === selectedPendingEdit.id ? 'Applying...' : 'Approve & apply' }}
+      </button>
+      <button class="action-btn btn-reject" (click)="rejectPendingOrderEdit(selectedPendingEdit.id)" [disabled]="rejectingPendingId === selectedPendingEdit.id">
+        {{ rejectingPendingId === selectedPendingEdit.id ? 'Rejecting...' : 'Reject' }}
+      </button>
+      <button class="action-btn btn-close" (click)="closePendingEditDetail()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cleaner Assignment Modal -->
+<div class="modal-overlay" *ngIf="showCleanerModal" (click)="closeCleanerModal()">
+  <div class="modal-content cleaner-assignment-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Assign Cleaners to Order #{{ assigningOrderId }}</h3>
+      <button class="close-btn" (click)="closeCleanerModal()">×</button>
+    </div>
+    
+    <div class="modal-body">
+      <div class="cleaners-list">
+        <h4>Available Cleaners</h4>
+        <div class="cleaner-grid">
+          <div *ngFor="let cleaner of availableCleaners" 
+               class="cleaner-card"
+               [class.selected]="isCleanerSelected(cleaner.id)"
+               [class.unavailable]="!cleaner.isAvailable"
+               (click)="cleaner.isAvailable && toggleCleanerSelection(cleaner.id)">
+            
+            <div class="cleaner-info">
+              <div class="cleaner-name">{{ cleaner.firstName }} {{ cleaner.lastName }}</div>
+              <div class="cleaner-email">{{ cleaner.email }}</div>
+              <div class="availability-status" 
+                   [class.available]="cleaner.isAvailable"
+                   [class.busy]="!cleaner.isAvailable">
+                {{ cleaner.isAvailable ? 'Available' : 'Busy' }}
+              </div>
+            </div>
+            
+            <div class="selection-indicator" *ngIf="isCleanerSelected(cleaner.id)">
+                              <i class="fas fa-check"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="cleaner-salary-section">
+        <h4>Cleaner Hourly Rate</h4>
+        <div class="salary-input-row">
+          <label for="cleanerHourlySalary">$/hr:</label>
+          <input id="cleanerHourlySalary"
+                 type="number"
+                 step="0.5"
+                 min="0"
+                 [(ngModel)]="cleanerHourlySalary"
+                 class="salary-input">
+          <span class="salary-hint" *ngIf="selectedOrder">
+            Est. Total: ${{ getEstimatedTotalSalary().toFixed(2) }}
+            ({{ formatDuration(roundToQuarter(selectedOrder.totalDuration)) }} × ${{ cleanerHourlySalary }})
+          </span>
+        </div>
+      </div>
+
+      <div class="tips-section">
+        <label for="tipsForCleaner">Special Instructions for Cleaners (optional):</label>
+        <textarea id="tipsForCleaner"
+                  [(ngModel)]="tipsForCleaner"
+                  placeholder="Enter any special instructions or tips for the cleaning team..."
+                  rows="3"></textarea>
+      </div>
+      
+      <div class="modal-actions">
+        <button class="btn-primary" 
+                (click)="assignCleanersToOrder()"
+                [disabled]="selectedCleaners.length === 0 || loadingStates.assigningCleaners">
+          {{ loadingStates.assigningCleaners ? 'Assigning...' : `Assign ${selectedCleaners.length} Cleaner(s)` }}
+        </button>
+        <button class="btn-secondary" (click)="closeCleanerModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Mark as Done Modal -->
+<div class="modal-overlay" *ngIf="showDoneModal" (click)="closeDoneModal()">
+  <div class="modal-content done-review-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Mark Order #{{ doneModalOrder?.id }} as Done</h3>
+      <button class="close-btn" (click)="closeDoneModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p>Would you like to send a review link to the customer?</p>
+      <div class="modal-actions done-modal-actions">
+        <button class="btn-success" (click)="confirmDone(true)">Yes, Send Review Link</button>
+        <button class="btn-danger" (click)="confirmDone(false)">No, Just Mark Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Cancel Order Modal -->
+<div class="modal-overlay" *ngIf="showAdminCancelModal" (click)="closeAdminCancelModal()">
+  <div class="modal-content admin-cancel-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Cancel Order #{{ adminCancelOrderId }}</h3>
+      <button class="close-btn" (click)="closeAdminCancelModal()">×</button>
+    </div>
+
+    <div class="modal-body">
+      <p>Are you sure you want to cancel this order?</p>
+
+      <div class="cancel-reason-group">
+        <label for="adminCancelReason"><strong>Reason for cancellation:</strong></label>
+        <textarea id="adminCancelReason"
+                  [(ngModel)]="adminCancelReason"
+                  rows="3"
+                  placeholder="Please provide a reason for cancelling this order..."></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-danger"
+                (click)="confirmAdminCancelOrder()"
+                [disabled]="!adminCancelReason.trim()">
+          Confirm Cancellation
+        </button>
+        <button class="btn-secondary" (click)="closeAdminCancelModal()">Keep Order</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,230 @@
+.date-selector {
+  width: 100%;
+}
+
+.date-selector-container {
+  position: relative;
+  border: none;
+  border-radius: 58px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0.75rem;
+
+  &:hover {
+    border-color: #9ca3af;
+  }
+
+  &:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+}
+
+.date-display {
+  flex: 1;
+  font-size: 1.1rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.calendar-icon {
+  color: #6b7280;
+  pointer-events: none;
+  transition: color 0.2s ease;
+
+  .date-selector-container:hover & {
+    color: #9ca3af;
+  }
+
+  .date-selector-container:focus-within & {
+    color: #3b82f6;
+  }
+}
+
+// Custom Calendar Dropdown
+.calendar-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  z-index: 1000;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  padding: 1rem;
+  min-width: 280px;
+  width: max-content;
+}
+
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.nav-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  color: #6b7280;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background-color: #f3f4f6;
+    color: #374151;
+    transform: scale(1.1);
+  }
+
+  &:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+  }
+}
+
+.month-year {
+  font-weight: 700;
+  color: #111827;
+  font-size: 1rem;
+  text-transform: capitalize;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.weekday {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 0.75rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.25rem;
+}
+
+.calendar-day {
+  text-align: center;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  color: #9ca3af;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &.current-month {
+    color: #374151;
+  }
+
+  &:hover:not(.disabled) {
+    background-color: #f3f4f6;
+    transform: scale(1.05);
+  }
+
+  &.selected {
+    background-color: #3b82f6;
+    color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+  }
+
+  &.disabled {
+    color: #d1d5db;
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}
+
+// Focus states for accessibility
+.date-selector-container:focus-within {
+  outline: none;
+}
+
+// Responsive design
+@media (max-width: 640px) {
+  .calendar-dropdown {
+    min-width: 260px;
+    padding: 0.75rem;
+  }
+
+  .calendar-day {
+    padding: 0.375rem;
+    font-size: 0.8rem;
+  }
+}
+
+:host-context([data-theme="dark"]) {
+  .date-selector-container {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border-color);
+  }
+  .date-display {
+    color: var(--text-primary);
+  }
+  .calendar-icon {
+    color: var(--text-muted);
+  }
+  .calendar-dropdown {
+    background: var(--surface);
+    border-color: var(--border-color);
+    box-shadow: 0 10px 25px -5px var(--shadow-color);
+  }
+  .calendar-header {
+    border-bottom-color: var(--border-color);
+  }
+  .nav-button {
+    color: var(--text-muted);
+    &:hover {
+      background: var(--surface-elevated);
+      color: var(--text-primary);
+    }
+  }
+  .month-year {
+    color: var(--text-primary);
+  }
+  .weekday {
+    color: var(--text-muted);
+  }
+  .calendar-day {
+    color: var(--text-muted);
+    &.current-month {
+      color: var(--text-primary);
+    }
+    &:hover:not(.disabled) {
+      background: var(--surface-elevated);
+    }
+    &.selected {
+      background: var(--primary-color);
+      color: white;
+    }
+    &.disabled {
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+  }
+} 

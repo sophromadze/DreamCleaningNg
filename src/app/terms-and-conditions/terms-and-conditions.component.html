@@ -1,0 +1,295 @@
+<div class="terms-conditions-container">
+    <h1>Terms & Conditions</h1>
+    <p class="effective-date">Effective Date: {{ effectiveDate }}</p>
+  
+    <p>Welcome to {{ companyName }}! These Terms & Conditions ("Terms") govern your use of our website at <a [href]="websiteUrl">{{ websiteUrl }}</a> (the "Website") and our cleaning services (the "Services"). By accessing our Website or using our Services, you agree to be bound by these Terms.</p>
+  
+    <section>
+      <h2>1. Definitions</h2>
+      <div class="definitions">
+        <dl>
+          <dt>"{{ companyName }}," "we," "us," or "our"</dt>
+          <dd>Refers to {{ companyName }} and its affiliates</dd>
+          
+          <dt>"You" or "User"</dt>
+          <dd>Refers to the individual or entity using our Website or Services</dd>
+          
+          <dt>"Services"</dt>
+          <dd>Refers to all cleaning services offered by {{ companyName }}</dd>
+          
+          <dt>"Booking"</dt>
+          <dd>Refers to a scheduled cleaning service appointment</dd>
+          
+          <dt>"Service Provider"</dt>
+          <dd>Refers to the cleaning professionals who perform the Services</dd>
+        </dl>
+      </div>
+    </section>
+  
+    <section>
+      <h2>2. Acceptance of Terms</h2>
+      <p>By using our Website or Services, you acknowledge that you have read, understood, and agree to be bound by these Terms. If you do not agree to these Terms, please do not use our Website or Services.</p>
+      <p>You must be at least 18 years old to use our Services. By using our Services, you represent and warrant that you are at least 18 years of age.</p>
+    </section>
+  
+    <section class="sms-terms">
+      <h2>3. SMS Terms of Service</h2>
+      <p class="sms-intro"><strong>By opting into SMS from a web form or other medium, you are agreeing to receive SMS messages from {{ companyName }}.</strong></p>
+      
+      <h3>Types of Messages</h3>
+      <p>You may receive the following types of SMS messages:</p>
+      <ul>
+        <li>Appointment reminders</li>
+        <li>Service confirmations and updates</li>
+        <li>Account notifications</li>
+        <li>Customer care messages</li>
+        <li>Promotional offers (only if opted in)</li>
+        <li>Order alerts and status updates</li>
+      </ul>
+      
+      <h3>Important SMS Information:</h3>
+      <ul class="sms-info">
+        <li><strong>Message frequency varies</strong> based on your bookings and preferences</li>
+        <li><strong>Message and data rates may apply</strong> according to your mobile carrier plan</li>
+        <li><strong>To opt out at any time, text STOP</strong> to any message</li>
+        <li><strong>For assistance, text HELP</strong> or visit <a [href]="websiteUrl">{{ websiteUrl }}</a></li>
+        <li>Visit <a [href]="websiteUrl + '/privacy-policy'">{{ websiteUrl }}/privacy-policy</a> for our privacy policy</li>
+        <li>SMS consent is not shared with third parties</li>
+      </ul>
+    </section>
+  
+    <section>
+      <h2>4. Services</h2>
+      
+      <h3>4.1 Service Description</h3>
+      <p>{{ companyName }} provides professional cleaning services for residential and commercial properties. Specific services include but are not limited to:</p>
+      <ul>
+        <li>Regular house cleaning</li>
+        <li>Deep cleaning</li>
+        <li>Move-in/move-out cleaning</li>
+        <li>Office cleaning</li>
+        <li>Post-construction cleaning</li>
+        <li>Special event cleaning</li>
+      </ul>
+  
+      <h3>4.2 Booking and Scheduling</h3>
+      <ul>
+        <li>All bookings are subject to availability</li>
+        <li>Minimum booking duration is 2 hours</li>
+        <li>Bookings must be made at least 24 hours in advance</li>
+        <li>We will confirm your booking via email and/or SMS</li>
+      </ul>
+  
+      <h3>4.3 Service Areas</h3>
+      <p>We currently provide services in {{ state }}, specifically serving <span *ngFor="let city of serviceCities; let last = last">{{ city }}<span *ngIf="!last">, </span></span>.</p>
+    </section>
+  
+    <section>
+      <h2>5. Pricing and Payment</h2>
+      
+      <h3>5.1 Pricing</h3>
+      <ul>
+        <li>Prices are displayed on our Website and are subject to change</li>
+        <li>All prices are in US dollars and include applicable taxes</li>
+        <li>Additional charges may apply for special requests or services</li>
+      </ul>
+  
+      <h3>5.2 Payment Terms</h3>
+      <ul>
+        <li>Payment is due upon completion of Services</li>
+        <li>We accept major credit cards, debit cards, and electronic payments</li>
+        <li>By providing payment information, you authorize us to charge the payment method</li>
+        <li>All payments are processed securely through our payment processor</li>
+      </ul>
+    </section>
+  
+    <section>
+      <h2>6. Cancellation and Rescheduling</h2>
+      
+      <h3>6.1 Customer Cancellations</h3>
+      <ul>
+        <li>Cancellations made 48+ hours before service: No charge</li>
+        <li>Cancellations made 24-48 hours before service: 50% cancellation fee</li>
+        <li>Cancellations made less than 24 hours before service: 100% cancellation fee</li>
+      </ul>
+  
+      <h3>6.2 Rescheduling</h3>
+      <ul>
+        <li>Rescheduling requests made 24+ hours before service: No charge</li>
+        <li>Rescheduling requests made less than 24 hours: Subject to availability and fees</li>
+      </ul>
+  
+      <h3>6.3 Our Right to Cancel</h3>
+      <p>We reserve the right to cancel or reschedule Services due to:</p>
+      <ul>
+        <li>Unsafe working conditions</li>
+        <li>Inclement weather</li>
+        <li>Service Provider unavailability</li>
+        <li>Other circumstances beyond our control</li>
+      </ul>
+    </section>
+  
+    <section>
+      <h2>7. User Responsibilities</h2>
+      <p>When using our Services, you agree to:</p>
+      <ul>
+        <li>Provide accurate and complete information</li>
+        <li>Ensure safe access to the property</li>
+        <li>Secure valuables and fragile items</li>
+        <li>Inform us of any hazards or special requirements</li>
+        <li>Treat our Service Providers with respect</li>
+        <li>Pay for Services in a timely manner</li>
+      </ul>
+    </section>
+  
+    <section>
+      <h2>8. Service Provider Safety Limitations</h2>
+      <p>The health and safety of our cleaning professionals is our top priority. Our Service Providers will not perform the following tasks:</p>
+      <ul>
+        <li>Climb heights beyond what is safely reachable using a three-step ladder</li>
+        <li>Move, lift, or rearrange heavy furniture that would require more than one person to handle</li>
+        <li>Clean biohazard substances, including but not limited to animal or human waste</li>
+        <li>Clean areas infested with insects or vermin</li>
+        <li>Clean areas affected by mold or mildew</li>
+        <li>Use cleaning products or chemicals brought or supplied by the customer without prior written approval from Dream Cleaning</li>
+        <li>Perform any other tasks that may jeopardize their health, safety, or wellbeing</li>
+      </ul>
+      <p>If any of the above conditions are discovered upon arrival at the service location, our Service Provider reserves the right to decline those specific tasks or, if conditions are unsafe, to leave the premises. In such cases, cancellation fees may still apply as outlined in Section 6.</p>
+    </section>
+  
+    <section>
+      <h2>9. Utilities Requirement</h2>
+      <p>Our cleaning services require access to running water and electricity. If utilities are turned off or unavailable at the service location, we will reschedule the appointment at no additional charge, provided you notify us before the scheduled service time. If our Service Provider arrives and discovers that utilities are unavailable, standard cancellation fees as outlined in Section 6 may apply.</p>
+    </section>
+  
+    <section>
+      <h2>10. Property Access and Security</h2>
+      <ul>
+        <li>You must provide legal access to the property</li>
+        <li>If providing keys/codes, you agree we may use them to access the property</li>
+        <li>We will take reasonable care to secure your property upon completion</li>
+        <li>You are responsible for securing all pets during service. While our Service Providers exercise reasonable care and mindfulness around pets, Dream Cleaning does not assume liability for the health, safety, or wellbeing of your pets during or after the cleaning service. This includes, but is not limited to, pets escaping through open doors, ingesting cleaning products, or experiencing stress due to the cleaning process. If a pet poses a safety risk to our Service Provider, the Service Provider may request that the pet be secured in a separate area or may decline to service the affected areas.</li>
+      </ul>
+    </section>
+  
+    <section>
+      <h2>11. Heavily Soiled or Cluttered Properties</h2>
+      <p>If the property is in a condition significantly beyond normal cleaning standards — including but not limited to broken glass, excessive clutter, hoarding conditions, or extreme neglect — the following applies:</p>
+      <ul>
+        <li>Dream Cleaning will make reasonable efforts to bring the space to a livable and habitable standard; however, the results may not be comparable to the level of cleanliness achievable in a standard home or office.</li>
+        <li>Our Service Provider or a Dream Cleaning representative will discuss the scope and expectations with you before beginning the job and upon arrival at the property.</li>
+        <li>We may photograph the property before and after the service for internal purposes, including quality assurance, staff training, and process improvement.</li>
+        <li>We may use anonymized before-and-after photos on our website, social media, or marketing materials. No personally identifiable information will be included in any published photos (e.g., photos will show only surfaces such as sinks, stoves, floors, or vacant spaces).</li>
+        <li>Additional charges may apply based on the condition of the property and the time required to complete the service.</li>
+      </ul>
+      <p>By booking our Filthy Cleaning or similar heavy-duty service, you consent to the photography and potential use of anonymized images as described above.</p>
+    </section>
+  
+    <section>
+      <h2>12. Non-Solicitation of Employees</h2>
+      <p>By using Dream Cleaning's services, you agree not to directly or indirectly solicit, recruit, hire, or engage any Dream Cleaning employee, contractor, or Service Provider for any cleaning, housekeeping, or home-related services outside of Dream Cleaning.</p>
+      <p>Dream Cleaning invests significant time and resources in recruiting, screening (including background checks), training, and retaining our cleaning professionals. Our employees and contractors sign agreements restricting them from performing home-related services for Dream Cleaning's past or present customers outside of our platform.</p>
+      <p>If you wish to directly employ a Dream Cleaning team member, please contact us at <a [href]="'mailto:' + emailAddress">{{ emailAddress }}</a> to discuss terms. If you are found to have solicited or hired a Dream Cleaning employee or contractor in violation of this provision, a referral and training fee of $5,000 per hired individual will apply, payable upon demand.</p>
+      <p>We consider our team members our most valuable asset and enforce this provision to protect our business and the quality of service we provide to all customers.</p>
+    </section>
+  
+    <section>
+      <h2>13. Photography and Social Media Consent</h2>
+      <p>Dream Cleaning may photograph or video record the results of our cleaning services for the following purposes:</p>
+      <ul>
+        <li>Quality assurance and internal training</li>
+        <li>Marketing and promotional materials, including our website and social media accounts</li>
+        <li>Before-and-after portfolio showcasing</li>
+      </ul>
+      <p>All published photos and videos will be anonymized — no personally identifiable information, including addresses, personal belongings, family photos, or recognizable features of your property, will be included. Examples of what may be shown include cleaned surfaces such as kitchens, bathrooms, floors, and vacant spaces.</p>
+      <p>If you do not wish to have your property photographed, please notify us in writing at <a [href]="'mailto:' + emailAddress">{{ emailAddress }}</a> prior to your scheduled service. We will note this preference on your account.</p>
+    </section>
+  
+    <section>
+      <h2>14. Limitation of Liability</h2>
+      
+      <h3>14.1 Service Liability</h3>
+      <p>While we strive to provide excellent service, we limit our liability as follows:</p>
+      <ul>
+        <li>We are insured for damage to property caused by our negligence</li>
+        <li>Claims must be reported within 24 hours of service completion</li>
+        <li>Our liability is limited to the actual cost of repair or replacement</li>
+        <li>We are not liable for pre-existing damage or normal wear and tear</li>
+      </ul>
+      <p>The following are common examples of damage scenarios and our liability position:</p>
+      <ul>
+        <li><strong>Carpet &amp; Rug Snags:</strong> Carpet snags result from exposed loops caused by normal wear and tear, furniture movement, or aging. These loops may be caught by a vacuum's roller brush during routine cleaning. Dream Cleaning uses professional-grade vacuums set to industry standards. We will make reasonable efforts to avoid areas with visible carpet damage, but we are not liable for snags caused by pre-existing wear.</li>
+        <li><strong>Blinds and Window Treatments:</strong> Customers should be aware that blinds and window treatments become brittle from daily sun exposure and aging. Strings, cords, and slats may weaken over time and break during routine cleaning. Dream Cleaning is not liable for damage to blinds or window treatments caused by normal aging and sun exposure.</li>
+        <li><strong>Improperly Secured Wall Items:</strong> Pictures, decorations, mirrors, shelves, and other wall-mounted items must be properly and securely attached to the wall. Dream Cleaning is not liable for items that fall during routine dusting or cleaning if they were not securely installed.</li>
+        <li><strong>Artwork, Collectibles, and Family Heirlooms (valued over $200):</strong> Items of significant monetary or sentimental value that exceed $200 are expensive and/or impossible to replace. Dream Cleaning does not assume the risk of cleaning such items. It is the customer's responsibility to notify Dream Cleaning in writing at the time of booking of any items that fall into this category. Failure to disclose such items releases Dream Cleaning from liability for any damage to undisclosed valuable items.</li>
+        <li><strong>Wood Furniture and Special Care Items:</strong> If you have unsealed woodwork, vintage or antique wood furniture, unfinished surfaces, leather furniture, pianos, or any items requiring special cleaning products or methods, please inform us during your booking. You may provide your own preferred cleaning products for specific items. Dream Cleaning is not liable for damage to specialty surfaces that were not disclosed prior to service.</li>
+        <li><strong>General Notice:</strong> All claims for damage must be reported to Dream Cleaning within 24 hours of the completed service. We will work in good faith to investigate and resolve any valid claims promptly.</li>
+      </ul>
+  
+      <h3>14.2 General Limitations</h3>
+      <p>To the maximum extent permitted by law, {{ companyName }} shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of our Services.</p>
+    </section>
+  
+    <section>
+      <h2>15. Intellectual Property</h2>
+      <p>All content on our Website, including text, graphics, logos, images, and software, is the property of {{ companyName }} and is protected by intellectual property laws. You may not use, reproduce, or distribute our content without written permission.</p>
+    </section>
+  
+    <section>
+      <h2>16. Privacy</h2>
+      <p>Your use of our Services is also governed by our Privacy Policy, available at <a [href]="websiteUrl + '/privacy-policy'">{{ websiteUrl }}/privacy-policy</a>. By using our Services, you consent to our collection and use of information as described in our Privacy Policy.</p>
+    </section>
+  
+    <section>
+      <h2>17. Indemnification</h2>
+      <p>You agree to indemnify and hold {{ companyName }} harmless from any claims, damages, losses, or expenses arising from:</p>
+      <ul>
+        <li>Your breach of these Terms</li>
+        <li>Your violation of any laws or regulations</li>
+        <li>Your negligence or willful misconduct</li>
+        <li>Any third-party claims related to your use of our Services</li>
+      </ul>
+    </section>
+  
+    <section>
+      <h2>18. Dispute Resolution</h2>
+      
+      <h3>18.1 Informal Resolution</h3>
+      <p>We prefer to resolve disputes informally. Please contact us first to attempt resolution.</p>
+  
+      <h3>18.2 Arbitration</h3>
+      <p>Any disputes that cannot be resolved informally shall be resolved through binding arbitration in accordance with the rules of the American Arbitration Association.</p>
+    </section>
+  
+    <section>
+      <h2>19. Governing Law</h2>
+      <p>These Terms shall be governed by and construed in accordance with the laws of {{ state }}, without regard to its conflict of law provisions.</p>
+    </section>
+  
+    <section>
+      <h2>20. Changes to Terms</h2>
+      <p>We reserve the right to modify these Terms at any time. Changes will be effective immediately upon posting to our Website. Your continued use of our Services after changes constitutes acceptance of the modified Terms.</p>
+    </section>
+  
+    <section>
+      <h2>21. Severability</h2>
+      <p>If any provision of these Terms is found to be unenforceable or invalid, that provision shall be limited or eliminated to the minimum extent necessary, and the remaining provisions shall remain in full effect.</p>
+    </section>
+  
+    <section>
+      <h2>22. Entire Agreement</h2>
+      <p>These Terms, together with our Privacy Policy, constitute the entire agreement between you and {{ companyName }} regarding the use of our Services.</p>
+    </section>
+  
+    <section>
+      <h2>23. Contact Information</h2>
+      <div class="contact-info">
+        <p><strong>{{ companyName }} Customer Service</strong></p>
+        <p>Email: <a [href]="'mailto:' + emailAddress">{{ emailAddress }}</a></p>
+        <p>Phone: {{ phoneNumber }}</p>
+        <p>Website: <a [href]="websiteUrl">{{ websiteUrl }}</a></p>
+      </div>
+  
+      <p>Thank you for choosing {{ companyName }}. We look forward to serving you!</p>
+    </section>
+  </div>

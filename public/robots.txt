@@ -1,0 +1,61 @@
+# Robots.txt for dreamcleaningnearme.com
+# Generated based on Angular routes structure
+
+User-agent: *
+
+# Block authentication and admin routes
+Disallow: /login
+Disallow: /profile
+Disallow: /cleaner-cabinet
+Disallow: /admin-panel
+Disallow: /admin
+
+# Block API endpoints
+Disallow: /api/
+
+# Block Angular internal files
+Disallow: /*.json$
+Disallow: /*.map$
+Disallow: /assets/config/
+
+# Allow necessary resources
+Allow: /assets/
+Allow: /*.css$
+Allow: /*.js$
+Allow: /*.jpg$
+Allow: /*.jpeg$
+Allow: /*.png$
+Allow: /*.gif$
+Allow: /*.svg$
+Allow: /*.webp$
+Allow: /*.woff$
+Allow: /*.woff2$
+Allow: /*.ttf$
+
+# AI Search Engine Crawlers - Allow all
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: cohere-ai
+Allow: /
+
+# Sitemap location
+Sitemap: https://dreamcleaningnearme.com/sitemap.xml

@@ -1,0 +1,44 @@
+<div class="floating-action-buttons" [class.expanded]="isExpanded">
+  <!-- Book Now (top) & Free Quote (bottom) - Left Side -->
+  <div class="book-now-container" *ngIf="isExpanded">
+    <button class="action-button book-button" (click)="bookNow()" title="Book Now">
+      <svg viewBox="0 0 24 24" fill="currentColor" class="action-icon">
+        <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11zM9 11H7v2h2v-2zm4 0h-2v2h2v-2zm4 0h-2v2h2v-2z"/>
+      </svg>
+      <span class="button-text">Book Now</span>
+    </button>
+    <a routerLink="/free-quote" class="action-button quote-button" title="Get Free Quote">
+      <svg viewBox="0 0 24 24" fill="currentColor" class="action-icon">
+        <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 14H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+      </svg>
+      <span class="button-text">Free Quote</span>
+    </a>
+  </div>
+
+  <!-- Action Buttons Container (Right Side) - Call (top) & Email (bottom) -->
+  <div class="action-buttons-container" *ngIf="isExpanded">
+    <button class="action-button call-button" (click)="callPhone()" title="Call us">
+      <svg viewBox="0 0 24 24" fill="currentColor" class="action-icon call-icon">
+        <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+      </svg>
+      <span class="button-text">Call</span>
+    </button>
+    
+    <button class="action-button email-button" (click)="sendEmail()" title="Email us">
+      <svg viewBox="0 0 24 24" fill="currentColor" class="action-icon">
+        <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+      </svg>
+      <span class="button-text">Email</span>
+    </button>
+  </div>
+
+  <!-- Toggle Button - Vertical tab on right edge, icon at top -->
+  <button class="toggle-button" (click)="toggleExpanded()" title="Contact Us">
+    <svg viewBox="0 0 24 24" fill="currentColor" class="toggle-icon">
+      <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+    </svg>
+    <span class="toggle-letters">
+      <span *ngFor="let letter of contactLetters" class="toggle-letter">{{ letter }}</span>
+    </span>
+  </button>
+</div> 

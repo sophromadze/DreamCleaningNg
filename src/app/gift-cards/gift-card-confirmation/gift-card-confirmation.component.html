@@ -1,0 +1,67 @@
+<div class="gift-card-confirmation-container">
+  <div class="confirmation-content" *ngIf="!paymentCompleted">
+    <h1>Complete Your Gift Card Purchase</h1>
+    
+    <div class="purchase-summary">
+      <h3>Purchase Summary</h3>
+      <div class="summary-item">
+        <span>Recipient:</span>
+        <span>{{ giftCardData?.recipientName }}</span>
+      </div>
+      <div class="summary-item">
+        <span>Amount:</span>
+        <span class="amount">${{ giftCardAmount.toFixed(2) }}</span>
+      </div>
+    </div>
+    
+    <!-- Payment Form Section -->
+    <div class="payment-section">
+      <h3>Payment Information</h3>
+      
+      <!-- Card Element Container -->
+      <div id="card-element" class="card-element-container">
+        <!-- Stripe Elements will be mounted here -->
+      </div>
+      
+      <!-- Card Error Message -->
+      <div class="card-error" *ngIf="cardError">
+        {{ cardError }}
+      </div>
+      
+      <!-- Error Message -->
+      <div class="error-message" *ngIf="errorMessage">
+        {{ errorMessage }}
+      </div>
+      
+      <!-- Action Buttons -->
+      <div class="payment-actions">
+        <button 
+          class="pay-btn" 
+          (click)="processPayment()"
+          [disabled]="isProcessing || !!cardError">
+          <span *ngIf="!isProcessing">Pay ${{ giftCardAmount | number:'1.2-2' }}</span>
+          <span *ngIf="isProcessing">Processing...</span>
+        </button>
+        
+        <button 
+          class="btn-danger" 
+          (click)="cancelPurchase()"
+          [disabled]="isProcessing">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Success Content -->
+  <div class="success-content" *ngIf="paymentCompleted">
+    <i class="fas fa-check-circle success-icon"></i>
+    <h1>Payment Successful!</h1>
+    <p>Your gift card has been created and sent to the recipient.</p>
+    <div class="email-notification">
+      <i class="fas fa-envelope email-icon"></i>
+      <p class="email-message">Please check your email to see gift card data.</p>
+      <p class="recipient-info">The gift card has been sent to: <strong>{{ giftCardData?.recipientEmail }}</strong></p>
+    </div>
+  </div>
+</div>

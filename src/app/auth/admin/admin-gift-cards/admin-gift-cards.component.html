@@ -1,0 +1,309 @@
+<!-- admin-gift-cards.component.html -->
+<div class="admin-gift-cards">
+    <div class="header">
+      <h1>Gift Card Management</h1>
+      <button class="refresh-btn" (click)="loadGiftCards()">
+        Refresh
+      </button>
+      
+      <div class="stats-cards">
+        <div class="stat-card">
+          <div class="stat-value">{{ totalGiftCards }}</div>
+          <div class="stat-label">Total Gift Cards</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ formatCurrency(totalAmountSold) }}</div>
+          <div class="stat-label">Total Sold</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ formatCurrency(totalAmountUsed) }}</div>
+          <div class="stat-label">Total Used</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">{{ activeGiftCards }}</div>
+          <div class="stat-label">Active Cards</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="gift-card-config-section">
+      <div class="config-card">
+        <div class="config-form">
+          <!-- Left Side: Title, Description, and Upload Section -->
+          <div class="left-section">
+            <h3>Gift Card Background Configuration</h3>
+            <p class="config-description">Upload a background image for all gift cards</p>
+            
+            <div class="upload-section">
+              <div class="upload-controls">
+                <input 
+                  type="file" 
+                  id="file-input"
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
+                  (change)="onFileSelected($event)"
+                  class="file-input">
+                <label for="file-input" class="file-label">
+                  Choose Image
+                </label>
+                <button 
+                  class="btn-upload" 
+                  (click)="uploadImage()"
+                  [disabled]="!selectedFile || isUploading || (!isSuperAdmin && !userPermissions.permissions.canUpdate)">
+                  {{ isUploading ? 'Uploading...' : 'Upload' }}
+                </button>
+              </div>
+              
+              <div class="upload-info">
+                <small>Supported formats: JPG, PNG, GIF, WebP (Max 5MB)</small>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Right Side: Preview Section -->
+          <div class="preview-section">
+            <div class="preview-container">
+              <!-- Show uploaded preview if available -->
+              <div 
+                class="background-preview" 
+                *ngIf="imagePreviewUrl"
+                [style.backgroundImage]="'url(' + imagePreviewUrl + ')'">
+                <span class="preview-badge">New Upload</span>
+              </div>
+              <!-- Show current background -->
+              <div 
+                class="background-preview" 
+                *ngIf="!imagePreviewUrl && giftCardBackgroundPath"
+                [style.backgroundImage]="'url(' + giftCardBackgroundPath + ')'">
+                <span class="preview-badge">Current</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  
+    <div class="filters">
+      <div class="search-box">
+        <input 
+          type="text" 
+          [(ngModel)]="searchTerm" 
+          (ngModelChange)="applyFilters()"
+          placeholder="Search by ID or email...">
+      </div>
+      
+      <div class="filter-group">
+        <select [(ngModel)]="filterStatus" (ngModelChange)="applyFilters()">
+          <option value="all">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="fullyUsed">Fully Used</option>
+          <option value="partiallyUsed">Partially Used</option>
+        </select>
+        
+        <select [(ngModel)]="filterPaidStatus" (ngModelChange)="applyFilters()">
+          <option value="all">All Payment Status</option>
+          <option value="paid">Paid</option>
+          <option value="unpaid">Unpaid</option>
+        </select>
+      </div>
+    </div>
+  
+    <div class="gift-cards-table" *ngIf="!loading">
+      <div class="table-wrapper" #tableWrapper>
+        <table>
+          <thead #tableHeader>
+            <tr>
+              <th>ID</th>
+              <th>Amount</th>
+              <th>Balance</th>
+            <th>Used</th>
+            <th>Recipient</th>
+            <th>Sender</th>
+            <th>Status</th>
+            <th *ngIf="isSuperAdmin || userPermissions.permissions.canActivate || userPermissions.permissions.canDeactivate">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <ng-container *ngFor="let giftCard of paginatedGiftCards">
+            <tr [class.inactive]="!giftCard.isActive"
+                [class.fully-used]="giftCard.isFullyUsed"
+                [class.expanded]="selectedGiftCard?.id === giftCard.id"
+                (click)="viewDetails(giftCard)">
+              <td>{{ giftCard.id }}</td>
+              <td>{{ formatCurrency(giftCard.originalAmount) }}</td>
+              <td>{{ formatCurrency(giftCard.currentBalance) }}</td>
+              <td>
+                <span class="usage-info">
+                  {{ formatCurrency(giftCard.totalAmountUsed) }}
+                  <small>({{ giftCard.timesUsed }})</small>
+                </span>
+              </td>
+              <td>
+                <div class="user-info">
+                  <div>{{ giftCard.recipientName }}</div>
+                  <small>{{ giftCard.recipientEmail }}</small>
+                </div>
+              </td>
+              <td>
+                <div class="user-info">
+                  <div>{{ giftCard.senderName }}</div>
+                  <small>{{ giftCard.senderEmail }}</small>
+                </div>
+              </td>
+              <td>
+                <span class="status-badge" [class.active]="giftCard.isActive && !giftCard.isFullyUsed"
+                      [class.inactive]="!giftCard.isActive"
+                      [class.used]="giftCard.isFullyUsed">
+                  {{ giftCard.isFullyUsed ? 'Fully Used' : (giftCard.isActive ? 'Active' : 'Inactive') }}
+                </span>
+                <span class="payment-badge" [class.paid]="giftCard.isPaid" [class.unpaid]="!giftCard.isPaid">
+                  {{ giftCard.isPaid ? 'Paid' : 'Unpaid' }}
+                </span>
+              </td>
+              <td *ngIf="isSuperAdmin || userPermissions.permissions.canActivate || userPermissions.permissions.canDeactivate" class="actions">
+                <button *ngIf="canToggleGiftCardStatus(giftCard)"
+                        (click)="toggleGiftCardStatus(giftCard); $event.stopPropagation()" 
+                        class="btn-toggle"
+                        [class.activate]="!giftCard.isActive"
+                        [disabled]="giftCard.isFullyUsed">
+                  {{ giftCard.isActive ? 'Deactivate' : 'Activate' }}
+                </button>
+              </td>
+            </tr>
+            <!-- Expanded Details Row -->
+            <tr *ngIf="selectedGiftCard?.id === giftCard.id" class="details-row">
+              <td colspan="8">
+                <div class="details-content">
+                  <div class="detail-section">
+                    <h3>Card Information</h3>
+                    <div class="detail-grid">
+                      <div class="detail-item">
+                        <label>Code:</label>
+                        <span>{{ maskGiftCardCode(selectedGiftCard!.code) }}</span>
+                      </div>
+                      <div class="detail-item">
+                        <label>Original Amount:</label>
+                        <span>{{ formatCurrency(selectedGiftCard!.originalAmount) }}</span>
+                      </div>
+                      <div class="detail-item">
+                        <label>Current Balance:</label>
+                        <span>{{ formatCurrency(selectedGiftCard!.currentBalance) }}</span>
+                      </div>
+                      <div class="detail-item">
+                        <label>Amount Used:</label>
+                        <span>{{ formatCurrency(selectedGiftCard!.totalAmountUsed) }}</span>
+                      </div>
+                      <div class="detail-item">
+                        <label>Created:</label>
+                        <span>{{ formatDateTime(selectedGiftCard!.createdAt) }}</span>
+                      </div>
+                      <div class="detail-item" *ngIf="selectedGiftCard!.paidAt">
+                        <label>Paid At:</label>
+                        <span>{{ formatDateTime(selectedGiftCard!.paidAt) }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="detail-section">
+                    <h3>Recipient & Sender</h3>
+                    <div class="detail-grid">
+                      <div class="detail-item">
+                        <label>Recipient:</label>
+                        <div class="user-details">
+                          <div>{{ selectedGiftCard!.recipientName }}</div>
+                          <small>{{ selectedGiftCard!.recipientEmail }}</small>
+                        </div>
+                      </div>
+                      <div class="detail-item">
+                        <label>Sender:</label>
+                        <div class="user-details">
+                          <div>{{ selectedGiftCard!.senderName }}</div>
+                          <small>{{ selectedGiftCard!.senderEmail }}</small>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="detail-section" *ngIf="selectedGiftCard!.message">
+                    <h3>Message</h3>
+                    <p class="gift-message">{{ selectedGiftCard!.message }}</p>
+                  </div>
+
+                  <div class="detail-section" *ngIf="selectedGiftCard!.usages.length > 0">
+                    <h3>Usage History</h3>
+                    <table class="usage-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Used By</th>
+                          <th>Amount</th>
+                          <th>Balance After</th>
+                          <th>Order</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr *ngFor="let usage of selectedGiftCard!.usages">
+                          <td>{{ formatDateTime(usage.usedAt) }}</td>
+                          <td>
+                            <div class="user-info">
+                              <div>{{ usage.usedByName }}</div>
+                              <small>{{ usage.usedByEmail }}</small>
+                            </div>
+                          </td>
+                          <td>{{ formatCurrency(usage.amountUsed) }}</td>
+                          <td>{{ formatCurrency(usage.balanceAfterUsage) }}</td>
+                          <td>{{ usage.orderReference }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  <div class="close-details-container">
+                    <button class="close-details-btn" (click)="closeDetails()">
+                      Close Details
+                    </button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </ng-container>
+        </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination (matches audit-history) -->
+      <div class="pagination" *ngIf="totalPages > 1">
+        <button class="page-btn" (click)="previousPage()" [disabled]="currentPage === 1">‹ Previous</button>
+        
+        <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage === 1">1</button>
+        
+        <span *ngIf="totalPages > 5 && currentPage > 3" class="page-ellipsis">...</span>
+        
+        <button *ngFor="let page of getVisiblePages()" 
+                class="page-btn" 
+                (click)="goToPage(page)"
+                [class.active]="currentPage === page">
+          {{ page }}
+        </button>
+        
+        <span *ngIf="totalPages > 5 && currentPage < totalPages - 2" class="page-ellipsis">...</span>
+        
+        <button *ngIf="totalPages > 1" 
+                class="page-btn" 
+                (click)="goToPage(totalPages)"
+                [class.active]="currentPage === totalPages">
+          {{ totalPages }}
+        </button>
+        
+        <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages">Next ›</button>
+      </div>
+    </div>
+  
+    <div class="loading" *ngIf="loading">
+      Loading gift cards...
+    </div>
+  
+    <div class="error-message" *ngIf="errorMessage">
+      {{ errorMessage }}
+    </div>
+  </div>

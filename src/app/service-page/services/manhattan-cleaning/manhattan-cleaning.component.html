@@ -1,0 +1,484 @@
+<div class="manhattan-cleaning-container">
+  <div class="hero-section">
+    <div class="container">
+      <div class="hero-map">
+        <app-service-area-map
+          borough="manhattan"
+          [serviceZipCodes]="manhattanZips"
+          [mapCenter]="manhattanMapCenter"
+          [zoomLevel]="manhattanZoom">
+        </app-service-area-map>
+      </div>
+      <div class="hero-content">
+        <h1>Cleaning Service in Manhattan NY</h1>
+        <div class="overall-rating" *ngIf="showGoogleReviews">
+          <div class="rating-stars">
+            <span class="star">⭐</span>
+            <span class="rating-number">5.0</span>
+            <img src="https://cdn.nicejob.co/icons/google-2025.svg" alt="Google" class="google-icon">
+          </div>
+          <a href="https://g.page/r/CSmN7-QdmiyoEAI/review" target="_blank" class="reviews-link">Based on {{totalReviews}} reviews</a>
+        </div>
+        <p class="hero-description">
+          Dream Cleaning is a 5.0-star rated professional cleaning service serving 24 ZIP codes across Manhattan, New York — including Midtown, Chelsea, Lower East Side, Upper West Side, Financial District, SoHo, East Village, Greenwich Village, and Tribeca. We offer standard cleaning (from $110), deep cleaning (from $190), move in/out cleaning, office cleaning, and specialized services with online booking and a 100% satisfaction guarantee.
+        </p>
+        <div class="call-to-action-buttons">
+          <a routerLink="/booking" class="btn-primary">Book in 60 Seconds</a>
+          <a routerLink="/free-quote" class="btn-secondary">Get a Quote</a>
+        </div>
+        <div class="borough-switch">
+          <span>Also serving:</span>
+          <a routerLink="/services/brooklyn-cleaning">Brooklyn</a>
+          <a routerLink="/services/queens-cleaning">Queens</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="service-overview">
+    <div class="container">
+      <div class="overview-content">
+        <h2>Manhattan's Premier Cleaning Service</h2>
+        <p>
+          Our team of experienced and professional house cleaners near Manhattan will work diligently to clean your home from top to bottom, ensuring that no detail is overlooked. We use high-quality cleaning products and equipment to get your home sparkling clean, and we're always happy to customize our services to meet your specific needs.
+        </p>
+        
+        <div class="why-choose-us">
+          <h3>What sets Manhattan's best cleaning service apart from other cleaning services in Manhattan?</h3>
+          <p><strong>First and foremost, our commitment to customer satisfaction.</strong> We understand that your home is your sanctuary, and we take pride in keeping it clean and comfortable for you and your family. We also understand that your time is valuable, which is why we offer flexible scheduling options to fit your busy lifestyle. Whether you need us to come during the day or evening, we'll work around your schedule to get the job done.</p>
+          
+          <p>If you're looking for a reliable, professional, and affordable cleaning service in Manhattan, look no further than Dream Cleaning.</p>
+        </div>
+
+        <div class="cta-section">
+          <a routerLink="/booking" class="btn-primary">Book a Cleaner Today</a>
+          <a routerLink="/contact" class="btn-secondary">Contact Us</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="why-choose-dream-cleaning">
+    <div class="container">
+      <h2>Why Choose Dream Cleaning?</h2>
+      <div class="benefits-grid">
+
+        <div class="benefit-card">
+          <div class="benefit-icon">✅</div>
+          <h3>Qualified Cleaning Professionals</h3>
+          <p>All our cleaners are trained, background-checked, and experienced</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">🔒</div>
+          <h3>Trustworthy Cleaning Professionals</h3>
+          <p>Fully insured and bonded for your peace of mind</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">💻</div>
+          <h3>Secure Online Booking System</h3>
+          <p>Book your cleaning service quickly and securely online</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">🛡️</div>
+          <h3>Fully Insured and Bonded</h3>
+          <p>Complete protection for your home and belongings</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">📅</div>
+          <h3>Same day bookings</h3>
+          <p>Need cleaning today? We can accommodate urgent requests</p>
+        </div>
+        <div class="benefit-card">
+          <div class="benefit-icon">🕒</div>
+          <h3>Open 7 days a week</h3>
+          <p>Flexible scheduling to fit your busy lifestyle</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="maid-service">
+    <div class="container">
+      <div class="service-content">
+        <div class="service-text">
+          <h2>Maid Service Manhattan</h2>
+          <p>
+            Dream Cleaning maid services can be done weekly, bi-weekly, or monthly, as well as one-time maid service for those special occasions. We also offer Move-In/Move-Out maid service, as well as Spring Cleaning maid service.
+          </p>
+          <p>
+            What sets Dream Cleaning Manhattan maid service apart from other cleaning lady or maid services in Manhattan is our commitment to customer service. We know that when you hire a maid cleaning service, you are entrusting us with your home and your belongings. That's why we treat every customer with the utmost respect, and go above and beyond to ensure that you are completely satisfied with our maid service.
+          </p>
+        </div>
+        <div class="service-image">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="services-list">
+    <div class="container">
+      <h2>Our Manhattan Cleaning Services</h2>
+      <div class="services-grid">
+        <div class="service-item">
+          <img src="/images/airbn-cleaning-service-nyc.webp" alt="Airbnb Cleaning Manhattan" />
+          <h3>Airbnb Cleaning, Manhattan</h3>
+        </div>
+        <div class="service-item">
+          <img src="/images/office-cleaning.webp" alt="Office Cleaning Manhattan" />
+          <h3>Office Cleaning, Manhattan</h3>
+        </div>
+        <div class="service-item">
+          <img src="/images/office-cleaning-2.webp" alt="Commercial Cleaning Manhattan" />
+          <h3>Commercial Cleaning, Manhattan</h3>
+        </div>
+        <div class="service-item">
+          <img src="/images/house-cleaning-service-nyc-3.webp" alt="House Cleaning Manhattan" />
+          <h3>House Cleaning, Manhattan</h3>
+        </div>
+        <div class="service-item">
+          <img src="/images/residential-cleaning.webp" alt="Residential Cleaning Manhattan" />
+          <h3>Residential Cleaning, Manhattan</h3>
+        </div>
+        <div class="service-item">
+          <img src="/images/residential-cleaning3.webp" alt="Maid Service Manhattan" />
+          <h3>Maid Service, Manhattan</h3>
+        </div>
+      </div>
+      <div class="call-to-action-buttons">
+        <a routerLink="/booking" class="btn-primary">Book a Cleaner Today</a>
+        <a routerLink="/contact" class="btn-secondary">Contact Us</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="residential-cleaning">
+    <div class="container">
+      <div class="service-content">
+        <div class="service-text">
+          <h2>Residential Cleaning Manhattan</h2>
+          <p>
+            No matter how big or small your home is, the experienced and professional home cleaning team at Dream Cleaning Manhattan offer a wide range of residential cleaning services to keep your home clean and tidy. Not everyone is great at organizing their home, which is why you can take advantage of our home organizer service to help you with the clutter in your Manhattan residence.
+          </p>
+          <p>
+            From general cleaning and dusting to more specific tasks like cleaning the oven or mopping the floors, we can do it all. We understand that everyone has different cleaning needs, which is why we offer a flexible and customizable service. We work around your schedule and can tailor our services to suit your individual needs. We use high-quality products and equipment to get the job done right, and our team is always professional and courteous.
+          </p>
+        </div>
+        <div class="service-image">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="house-cleaning-service">
+    <div class="container">
+      <div class="service-content">
+        <div class="service-text">
+          <h2>Manhattan House Cleaning Service</h2>
+          <p>
+            For a professional, affordable, and reliable house cleaning crew in Manhattan, Dream Cleaning offer deep cleaning to light cleaning, and we can customize our services to meet your specific needs. When it comes to house cleaning, it's important to find a service that you can trust. With Dream Cleaning Manhattan house cleaning service, you can rest assured that your home is in good hands.
+          </p>
+          <p>
+            We love to clean homes in Manhattan, and have a team of experienced and professional cleaners who are dedicated to providing the best possible service to give you the clean house you deserve.
+          </p>
+        </div>
+        <div class="service-image">
+        </div>
+      </div>
+      <div class="call-to-action-buttons">
+        <a routerLink="/booking" class="btn-primary">Book a Cleaner Today</a>
+        <a routerLink="/contact" class="btn-secondary">Contact Us</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="featured-services">
+    <div class="container">
+      <h2>Our Cleaning Services Manhattan</h2>
+      <div class="services-list">
+        <div class="service-category">
+          <h4>Floor Cleaning Manhattan</h4>
+          <h4>Deep Cleaning Manhattan</h4>
+          <h4>Move Out Cleaning Manhattan</h4>
+          <h4>Move In Cleaning Manhattan</h4>
+          <h4>Airbnb Cleaning Manhattan</h4>
+          <h4>Apartment Cleaning Manhattan</h4>
+          <h4>Janitorial Services Manhattan</h4>
+          <h4>Office Cleaning Manhattan</h4>
+          <h4>Commercial Cleaning Manhattan</h4>
+          <h4>House Cleaning Manhattan</h4>
+          <h4>Residential Cleaner Manhattan</h4>
+          <h4>Maid Service</h4>
+        </div>
+      </div>
+      <div class="call-to-action-buttons">
+        <a routerLink="/booking" class="btn-primary">Book a Cleaner Today</a>
+        <a routerLink="/free-quote" class="btn-secondary">More Cleaning Services</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="commercial-cleaning">
+    <div class="container">
+      <div class="service-content">
+        <div class="service-text">
+          <h2>Commercial Cleaning Manhattan</h2>
+          <p>
+            If you are a business owner in Manhattan, you know that first impressions are important. You also know that a clean business is a successful business. Whether you have a retail store, office, or restaurant, you need to make sure that your business is clean. The best way to do this is to hire Dream Cleaning commercial cleaning company in Manhattan.
+          </p>
+          <p>
+            You don't want to be left with a dirty office or store because the cleaning crew didn't show up. Dream Cleaning always show up on time and will never cut corners or do a half-hearted job. We make sure you are getting the best value for your money, and that the products that are being used in your business are safe for the environment. With Dream Cleaning commercial cleaning Manhattan, you will be glad that you found our professional and reliable commercial cleaning services.
+          </p>
+        </div>
+        <div class="service-image">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="office-cleaner">
+    <div class="container">
+      <div class="service-content">
+        <div class="service-text">
+          <h2>Our Office Cleaner Serves Manhattan</h2>
+          <p>
+            We understand the importance of keeping your office clean and tidy, and choosing the best office cleaning service in Manhattan is a great place to start. From office deep cleaning to regular office janitorial maintenance, we're always here to help. No matter how big or small your office is, we have the experience and expertise to get the job done right.
+          </p>
+          <p>
+            We understand that every office is different, and we'll work with you to create a custom cleaning plan that fits your needs and budget. We know that a clean office is a happy office, and we're dedicated to making your workplace a clean and comfortable environment.
+          </p>
+        </div>
+        <div class="service-image">
+        </div>
+      </div>
+      <div class="call-to-action-buttons">
+        <a routerLink="/booking" class="btn-primary">Book a Cleaner Today</a>
+        <a routerLink="/contact" class="btn-secondary">Contact Us</a>
+      </div>
+    </div>
+  </section>
+
+
+
+  <section class="janitorial-services">
+    <div class="container">
+      <div class="service-content">
+        <div class="service-text">
+          <h2>Manhattan Janitorial Services</h2>
+          <p>
+            Dream Cleaning Manhattan janitorial services provide expert cleaning services to homes and businesses in the Manhattan area. We have the experience and the resources to get your space clean and keep it that way. We can help you with everything from vacuuming and dusting to mopping and disinfecting.
+          </p>
+          <p>
+            One of the biggest benefits of hiring a Dream Cleaning janitor is that you can save time. If you are like most people, you probably don't have a lot of extra time to clean your home or office. When you use Manhattan's top janitorial service, you can free up your time so that you can focus on other things.
+          </p>
+          <p>
+            If you are like most people, you probably don't have a lot of extra money to spend on cleaning supplies and equipment. With Dream Cleaning Manhattan janitorial services at hand, you can get the same high-quality services for a fraction of the cost. Our cleaning experts will make sure that your space is clean and that it stays that way, too.
+          </p>
+        </div>
+        <div class="service-image">
+        </div>
+      </div>
+      <div class="call-to-action-buttons">
+        <a routerLink="/booking" class="btn-primary">Book a Cleaner Today</a>
+        <a routerLink="/contact" class="btn-secondary">Contact Us</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="nyc-services">
+    <div class="container">
+      <div class="service-content">
+        <div class="service-text">
+          <h2>Cleaning Services in New York City</h2>
+          <p>
+            Get your apartment cleaned in NYC. It's that simple, affordable, and convenient. Our friendly, professional cleaners are all trained, reliable, referenced, insured and trustworthy. Our online booking tool makes scheduling effortless.
+          </p>
+        </div>
+        <div class="service-image">
+        </div>
+      </div>
+      <div class="call-to-action-buttons">
+        <a routerLink="/booking" class="btn-primary">Book a Cleaner Today</a>
+        <a routerLink="/contact" class="btn-secondary">Contact Us</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="process-section">
+    <div class="container">
+      <h2>Our Process Is Simple</h2>
+      <div class="process-grid">
+        <div class="process-step">
+          <div class="step-content">
+            <div class="step-icon">📅</div>
+            <h3>Book</h3>
+            <p>Our friendly, professional cleaners are all trained, reliable, referenced, insured and trustworthy. Our online booking tool makes scheduling effortless.</p>
+          </div>
+          <div class="step-buttons">
+            <a routerLink="/booking" class="btn-primary">Book a Cleaner Today</a>
+            <a routerLink="/service-page" class="btn-secondary">More Cleaning Services</a>
+          </div>
+        </div>
+        <div class="process-step">
+          <div class="step-content">
+            <div class="step-icon">🧹</div>
+            <h3>We Clean</h3>
+            <p>Your trusted, fully equipped professional cleaner will arrive on time, every time and clean your home.</p>
+          </div>
+          <div class="step-buttons">
+            <a routerLink="/booking" class="btn-primary">Book a Cleaner Today</a>
+            <a routerLink="/service-page" class="btn-secondary">More Cleaning Services</a>
+          </div>
+        </div>
+        <div class="process-step">
+          <div class="step-content">
+            <div class="step-icon">😌</div>
+            <h3>You Relax</h3>
+            <p>Sit back and relax whilst we make your home sparkling clean!</p>
+          </div>
+          <div class="step-buttons">
+            <a routerLink="/booking" class="btn-primary">Book a Cleaner Today</a>
+            <a routerLink="/service-page" class="btn-secondary">More Cleaning Services</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="apartment-cleaning">
+    <div class="container">
+      <div class="service-content">
+        <div class="service-text">
+          <h2>Apartment Cleaning Service Manhattan</h2>
+          <p>
+            We work diligently to clean your apartment from top to bottom, paying close attention to details. No matter the size or layout of your apartment, our cleaners will be able to get the job done quickly and efficiently. We understand that your time is valuable, so we will work quickly and efficiently to make sure your apartment looks amazing.
+          </p>
+          <p>
+            In addition to our general apartment cleaning services, we also offer deep cleaning services for those who need a little extra help getting their place spick and span. Our deep cleaning services are perfect for those who are moving out of their apartment or who simply need a thorough cleaning.
+          </p>
+          <p>
+            If you are looking for a reliable and affordable apartment cleaning service in Manhattan, look no further than Dream Cleaning!
+          </p>
+        </div>
+        <div class="service-image">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="airbnb-cleaning">
+    <div class="container">
+      <div class="service-content">
+        <div class="service-text">
+          <h2>Airbnb Cleaning Manhattan</h2>
+          <p>
+            We understand the importance of keeping your Airbnb clean and tidy, and we go above and beyond to make sure that your space is sparkling clean for your guests. We offer a wide range of Airbnb cleaning services to suit your needs, and we're always happy to customize our services to fit your specific requirements.
+          </p>
+          <p>
+            We understand that every Airbnb is unique, and we'll work with you to ensure that your space is cleaned according to your standards. We also offer a flexible scheduling system so that we can work around your busy schedule. We use high-quality, eco-friendly cleaning products to clean your Airbnb, and we're always happy to answer any questions you may have about our services. We're committed to providing the best possible cleaning experience for our clients, and we're confident that you'll be happy with the results.
+          </p>
+        </div>
+        <div class="service-image">
+        </div>
+      </div>
+      <div class="call-to-action-buttons">
+        <a routerLink="/booking" class="btn-primary">Book a Cleaner Today</a>
+        <a routerLink="/contact" class="btn-secondary">Contact Us</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="moving-services">
+    <div class="container">
+      <div class="service-content">
+        <div class="service-text">
+          <h2>Moving In Cleaning</h2>
+          <p>
+            Dream Cleaning move in cleaning service in Manhattan specializes in move in cleanings for both residential and commercial properties. We understand that moving can be a stressful and chaotic time, and the last thing you want to worry about is cleaning your new place. That's where we come in!
+          </p>
+          <p>
+            Our team of experienced and detail-oriented cleaners will take care of everything for you, so you can focus on settling into your new home or office. We offer a comprehensive move in cleaning service that covers all the bases, from dusting and vacuuming to scrubbing bathrooms and kitchens. We will make sure that your new space is sparkling clean from top to bottom. And because we know that everyone's needs are different, we offer customizable cleaning packages so you can pick and choose the services that you need.
+          </p>
+          <p>
+            If you're looking for a hassle-free move in cleaning experience, arrange a Dream Cleaning move in cleaning. We'll take care of everything for you so you can start enjoying your new space right away.
+          </p>
+        </div>
+        <div class="service-image">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="moving-out">
+    <div class="container">
+      <div class="service-content">
+        <div class="service-text">
+          <h2>Moving Out Cleaning</h2>
+          <p>
+            We understand that moving out can be a very stressful time and that is why we offer a wide range of move out cleaning services to make your move out as stress-free as possible. We offer a full range of move out cleaning services including: carpet cleaning, furniture cleaning, window cleaning, floor cleaning, bathroom cleaning, kitchen cleaning, and more!
+          </p>
+          <p>
+            Moving can be a very stressful time but it doesn't have to be. Let us help you make your move out as stress-free as possible. Contact us today to learn more about our services or to schedule a consultation.
+          </p>
+        </div>
+        <div class="service-image">
+        </div>
+      </div>
+      <div class="call-to-action-buttons">
+        <a routerLink="/booking" class="btn-primary">Book a Cleaner Today</a>
+        <a routerLink="/contact" class="btn-secondary">Contact Us</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="deep-cleaning">
+    <div class="container">
+      <div class="service-content">
+        <div class="service-text">
+          <h2>Deep Cleaning or Post Construction Cleaning</h2>
+          <p>
+            No matter what type of deep cleaning services you need, we have you covered. We offer one-time post construction deep cleaning services, as well as recurring deep cleaning services. We also offer move-in/move-out deep cleaning services. No matter what your deep cleaning needs are, we are sure to have a service that is right for you.
+          </p>
+          <p>
+            We also offer a variety of package options so that you can choose the services that are right for you. Our deep cleaning services are sure to leave your home or office looking and feeling its best. We use only the highest quality products and equipment to ensure that your space is thoroughly cleaned. Get in touch with Dream Cleaning in Manhattan to get your home sparkling today!
+          </p>
+        </div>
+        <div class="service-image">
+        </div>
+      </div>
+      <div class="call-to-action-buttons">
+        <a routerLink="/booking" class="btn-primary">Book a Cleaner Today</a>
+        <a routerLink="/contact" class="btn-secondary">Contact Us</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="about-dream-cleaning">
+    <div class="container">
+      <div class="service-content">
+        <div class="service-text">
+          <h2>About Dream Cleaning</h2>
+          <p>
+            We started our company in response to real needs and growing demand right here in New York. We noticed a common problem in the cleaning service industry — too many companies focused on standardized solutions and overlooked the most important factor: <strong>the customer</strong>.
+          </p>
+          <p>
+            That's why we created a cleaning service built around one clear mission — <strong>to put people first</strong> by offering personalized, reliable, and high-quality service tailored to your lifestyle and your space.
+          </p>
+          <p>
+            Cleaning isn't just about tidying up — it's about creating a sense of comfort, calm, and safety in your everyday life. Whether it's your home or your business, we believe every space is unique and deserves customized attention.
+          </p>
+          <p>
+            Our team is made up of skilled, experienced professionals who understand what it takes to deliver top-tier results. Each team member is carefully trained, background-checked, and equipped to handle everything from routine cleaning to the toughest jobs — all with professionalism and care.
+          </p>
+          <p>
+            We're not just a cleaning service — we're a partner in making your life easier, more comfortable, and more peaceful. In a fast-paced city like New York, your time and space are valuable. That's why our goal is to deliver not just clean rooms — but real peace of mind.
+          </p>
+        </div>
+        <div class="service-image">
+        </div>
+      </div>
+      <div class="call-to-action-buttons">
+        <a routerLink="/booking" class="btn-primary">Book Now</a>
+      </div>
+    </div>
+  </section>
+</div> 

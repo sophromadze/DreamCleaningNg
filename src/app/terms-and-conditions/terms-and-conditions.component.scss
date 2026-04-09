@@ -1,0 +1,132 @@
+.terms-conditions-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  
+    h1 {
+      color: var(--text-primary);
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      border-bottom: 3px solid var(--primary-color);
+      padding-bottom: 10px;
+    }
+  
+    h2 {
+      color: var(--text-primary);
+      font-size: 1.8rem;
+      margin-top: 30px;
+      margin-bottom: 15px;
+    }
+  
+    h3 {
+      color: var(--text-secondary);
+      font-size: 1.3rem;
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+  
+    p {
+      margin-bottom: 15px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+  
+    .effective-date {
+      font-style: italic;
+      color: var(--text-muted);
+      margin-bottom: 30px;
+    }
+  
+    ul, ol {
+      margin-bottom: 15px;
+      padding-left: 30px;
+  
+      li {
+        margin-bottom: 8px;
+        color: var(--text-secondary);
+        line-height: 1.6;
+      }
+    }
+  
+    a {
+      color: var(--primary-color);
+      text-decoration: none;
+      
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  
+    strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+  
+    section {
+      margin-bottom: 30px;
+    }
+  
+    .definitions {
+      background-color: var(--surface);
+      border: 1px solid var(--border-color);
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+  
+      dt {
+        font-weight: bold;
+        margin-top: 10px;
+        color: var(--text-primary);
+      }
+  
+      dd {
+        margin-left: 20px;
+        margin-bottom: 10px;
+        color: var(--text-secondary);
+      }
+    }
+  
+    .sms-terms {
+      background: var(--mint-fresh);
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+      border: 2px solid var(--mint-fresh-border);
+  
+      .sms-intro {
+        color: var(--fresh-green);
+        font-size: 1.1rem;
+        margin-bottom: 15px;
+      }
+  
+      h3 {
+        color: var(--fresh-green);
+      }
+  
+      .sms-info {
+        li {
+          color: var(--fresh-green);
+          
+          strong {
+            color: var(--fresh-green);
+          }
+        }
+      }
+    }
+  
+    .contact-info {
+      background: var(--soft-lavender-background-light);
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 30px;
+  
+      p {
+        margin-bottom: 10px;
+        color: var(--soft-lavender-background);
+        
+        &:last-child {
+          margin-bottom: 0;
+        }
+      }
+    }
+  }

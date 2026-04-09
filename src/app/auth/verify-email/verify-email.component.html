@@ -1,0 +1,33 @@
+<div class="verify-container">
+    <div class="verify-card">
+      <div *ngIf="isVerifying" class="verifying">
+        <div class="spinner"></div>
+        <h2>Verifying your email...</h2>
+        <p>Please wait while we verify your email address.</p>
+      </div>
+
+      <div *ngIf="!isVerifying && isSuccess" class="success">
+        <div class="success-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
+        </div>
+        <h2>Email Verified Successfully!</h2>
+        <p>Your email has been verified. You will be redirected to login in a moment.</p>
+        <a routerLink="/login" class="btn-primary">Go to Login</a>
+      </div>
+
+      <div *ngIf="!isVerifying && !isSuccess" class="error">
+        <div class="error-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <h2>Verification Failed</h2>
+        <p>{{ errorMessage }}</p>
+        <a routerLink="/login" class="btn-secondary">Back to Login</a>
+      </div>
+    </div>
+  </div>

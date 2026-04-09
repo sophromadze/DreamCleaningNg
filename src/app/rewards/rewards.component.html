@@ -1,0 +1,270 @@
+<div class="rewards-page">
+
+  <!-- Loading skeleton -->
+  <div *ngIf="summaryLoading" class="rewards-skeleton">
+    <div class="skeleton-hero"></div>
+    <div class="skeleton-row">
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </div>
+  </div>
+
+  <ng-container *ngIf="!summaryLoading && summary && summary.pointsSystemEnabled">
+
+    <!-- ── Refer a Friend (top) ──────────────────────────── -->
+    <div class="referral-hero">
+      <div class="referral-hero__left">
+        <div class="referral-hero__title">Refer a Friend</div>
+        <div class="referral-hero__hint">
+          Both of you get a reward — your friend gets bonus points when they sign up, and you earn a reward balance when they complete their first cleaning.
+        </div>
+        <div class="referral-code">
+          <span class="referral-code__text">{{ summary.referralCode }}</span>
+          <button class="referral-code__copy" (click)="copyReferralLink()">
+            {{ copySuccess ? '✓ Copied!' : 'Copy Link' }}
+          </button>
+          <button class="referral-code__share" (click)="shareReferralLink()">Share</button>
+        </div>
+      </div>
+      <!-- Decorative bubbles -->
+      <div class="referral-hero__bubbles" aria-hidden="true">
+        <span class="rb rb--a"></span>
+        <span class="rb rb--b"></span>
+        <span class="rb rb--c"></span>
+        <span class="rb rb--d"></span>
+      </div>
+    </div>
+
+    <!-- Referral list -->
+    <div *ngIf="referrals.length > 0" class="referral-list referral-list--scroll">
+      <div *ngFor="let r of referrals" class="referral-item">
+        <div class="referral-item__name">{{ r.referredUserName }}</div>
+        <div class="referral-item__status" [class.status-done]="r.orderBonusGiven" [class.status-pending]="!r.orderBonusGiven">
+          {{ r.orderBonusGiven ? 'Bonus earned' : r.registrationBonusGiven ? 'Signed up' : 'Pending' }}
+        </div>
+      </div>
+    </div>
+    <p *ngIf="!referralsLoading && referrals.length === 0" class="empty-hint referral-empty">No referrals yet. Share your code to start earning!</p>
+
+    <!-- ── Hero tier card ─────────────────────────────────── -->
+    <div class="tier-hero" [style.--tier-color]="getTierColor(summary.tier)">
+
+      <!-- Floating CSS bubbles decoration -->
+      <div class="tier-hero__bubbles" aria-hidden="true">
+        <span class="hb hb--1"></span>
+        <span class="hb hb--2"></span>
+        <span class="hb hb--3"></span>
+        <span class="hb hb--4"></span>
+        <span class="hb hb--5"></span>
+      </div>
+
+      <div class="tier-hero__top">
+        <div class="tier-hero__tier-badge">
+          <span class="tier-hero__tier-label">Tier</span>
+          <span class="tier-hero__name">{{ getTierLabel(summary.tier) }}</span>
+        </div>
+        <div class="tier-hero__points-block">
+          <div class="tier-hero__points-num">{{ summary.currentPoints | number }}</div>
+          <div class="tier-hero__points-label">bubble points</div>
+        </div>
+      </div>
+
+      <!-- Tier progress bar -->
+      <div class="tier-progress" *ngIf="summary.nextTierName">
+        <div class="tier-progress__labels">
+          <span>{{ getTierLabel(summary.tier) }}</span>
+          <span class="tier-progress__next">{{ summary.nextTierName }}</span>
+        </div>
+        <div class="tier-progress__track">
+          <div class="tier-progress__fill" [style.width.%]="summary.tierProgressPercent"></div>
+        </div>
+        <div class="tier-progress__hint">${{ summary.amountToNextTier | number:'1.0-0' }} more to unlock {{ summary.nextTierName }}</div>
+      </div>
+      <div class="tier-progress" *ngIf="!summary.nextTierName">
+        <div class="tier-progress__track tier-progress__track--full">
+          <div class="tier-progress__fill" style="width:100%"></div>
+        </div>
+        <div class="tier-progress__hint">🏆 You've reached the top tier!</div>
+      </div>
+    </div>
+
+    <!-- ── Stats row ─────────────────────────────────────── -->
+    <div class="stats-row">
+      <div class="stat-pill">
+        <div class="stat-pill__icon">⭐</div>
+        <div class="stat-pill__value">{{ summary.totalEarned | number }}</div>
+        <div class="stat-pill__label">Total Earned</div>
+      </div>
+      <div class="stat-pill">
+        <div class="stat-pill__icon">🎁</div>
+        <div class="stat-pill__value">{{ summary.totalRedeemed | number }}</div>
+        <div class="stat-pill__label">Redeemed</div>
+      </div>
+      <div class="stat-pill stat-pill--green" *ngIf="summary.bubbleCredits > 0">
+        <div class="stat-pill__icon">💵</div>
+        <div class="stat-pill__value">${{ summary.bubbleCredits | number:'1.2-2' }}</div>
+        <div class="stat-pill__label">Reward Balance</div>
+      </div>
+      <div class="stat-pill stat-pill--fire" *ngIf="summary.streakCount > 1">
+        <div class="stat-pill__icon">🔥</div>
+        <div class="stat-pill__value">{{ summary.streakCount }}</div>
+        <div class="stat-pill__label">Order Streak</div>
+      </div>
+    </div>
+
+    <!-- ── Redemption options ────────────────────────────── -->
+    <div class="section">
+      <h2 class="section-title">Redeem Points</h2>
+      <p class="section-hint">Apply points at checkout on your next booking.</p>
+      <div class="redemption-grid">
+        <div *ngFor="let opt of summary.availableRedemptions"
+             class="redemption-card"
+             [class.redemption-card--available]="opt.available"
+             [class.redemption-card--locked]="!opt.available">
+          <!-- Bubble decorations on card -->
+          <span class="rc-bubble rc-bubble--a" aria-hidden="true"></span>
+          <span class="rc-bubble rc-bubble--b" aria-hidden="true"></span>
+          <div class="redemption-card__points">{{ opt.points | number }} pts</div>
+          <div class="redemption-card__value">${{ opt.dollarValue | number:'1.0-0' }} <span class="off-label">off</span></div>
+          <div class="redemption-card__status">
+            <span class="status-badge" *ngIf="opt.available">✓ Available</span>
+            <span class="status-badge status-badge--locked" *ngIf="!opt.available">{{ summary.currentPoints | number }} / {{ opt.points | number }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Points History ────────────────────────────────── -->
+    <div class="section">
+      <h2 class="section-title">Points History</h2>
+      <div *ngIf="historyLoading" class="loading-hint">Loading history...</div>
+      <div *ngIf="!historyLoading && history.length === 0" class="empty-hint">No transactions yet.</div>
+      <div *ngIf="!historyLoading && history.length > 0" class="history-list history-list--scroll">
+        <div *ngFor="let item of history"
+             class="history-item"
+             [class.history-item--clickable]="!!item.orderId"
+             (click)="goToOrder(item)">
+          <div class="history-item__icon">{{ item.type === 'ReferralOrderCompleted' ? '🎉' : item.points > 0 ? '⭐' : '🎁' }}</div>
+          <div class="history-item__info">
+            <div class="history-item__type">{{ getHistoryTypeLabel(item.type) }}</div>
+            <div class="history-item__desc" *ngIf="item.description">{{ item.description }}</div>
+            <div class="history-item__date">{{ item.createdAt | date:'MMM d, y' }}</div>
+          </div>
+          <div class="history-item__points"
+               [class.positive]="item.points > 0 || item.type === 'ReferralOrderCompleted'"
+               [class.negative]="item.points < 0"
+               [class.neutral]="item.points === 0 && item.type !== 'ReferralOrderCompleted'">
+            {{ getHistoryPointsDisplay(item) }}
+          </div>
+          <span class="history-item__arrow" *ngIf="item.orderId">›</span>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div class="history-pagination" *ngIf="historyTotalPages > 1">
+        <button (click)="prevHistoryPage()" [disabled]="historyPage === 1">←</button>
+        <span>{{ historyPage }} / {{ historyTotalPages }}</span>
+        <button (click)="nextHistoryPage()" [disabled]="historyPage === historyTotalPages">→</button>
+      </div>
+    </div>
+
+    <!-- ── How It Works Guide ────────────────────────────── -->
+    <div class="section guide-section" *ngIf="summary.guide">
+      <h2 class="section-title">How It Works</h2>
+
+      <!-- Earning Points -->
+      <div class="guide-block">
+        <div class="guide-block__title">Earning Points</div>
+        <div class="guide-block__body">
+          <p>Every dollar you spend on a cleaning earns you <strong>{{ summary.guide.pointsPerDollar | number:'1.0-1' }} bubble points</strong>. Your tier multiplies this:</p>
+          <ul class="guide-list">
+            <li>Bubble tier — <strong>{{ summary.guide.bubbleMultiplier }}x</strong> (base rate)</li>
+            <li>Super Bubble tier — <strong>{{ summary.guide.superBubbleMultiplier }}x</strong></li>
+            <li>Ultra Bubble tier — <strong>{{ summary.guide.ultraBubbleMultiplier }}x</strong></li>
+          </ul>
+          <p class="guide-example">Example: a $100 cleaning at Bubble tier = {{ 100 * summary.guide.pointsPerDollar * summary.guide.bubbleMultiplier | number:'1.0-0' }} pts &nbsp;|&nbsp; Super Bubble = {{ 100 * summary.guide.pointsPerDollar * summary.guide.superBubbleMultiplier | number:'1.0-0' }} pts &nbsp;|&nbsp; Ultra Bubble = {{ 100 * summary.guide.pointsPerDollar * summary.guide.ultraBubbleMultiplier | number:'1.0-0' }} pts</p>
+        </div>
+      </div>
+
+      <!-- Tiers -->
+      <div class="guide-block">
+        <div class="guide-block__title">Tiers</div>
+        <div class="guide-block__body">
+          <p>Your tier is based on your <strong>total lifetime spending</strong> with us.</p>
+          <ul class="guide-list">
+            <li>Bubble — starts from $0</li>
+            <li>Super Bubble — unlock at <strong>${{ summary.guide.tierSuperBubbleMinSpent | number:'1.0-0' }} spent</strong></li>
+            <li>Ultra Bubble — unlock at <strong>${{ summary.guide.tierUltraBubbleMinSpent | number:'1.0-0' }} spent</strong></li>
+          </ul>
+          <p>Higher tiers multiply every point you earn going forward.</p>
+        </div>
+      </div>
+
+      <!-- Redeeming Points -->
+      <div class="guide-block">
+        <div class="guide-block__title">Redeeming Points</div>
+        <div class="guide-block__body">
+          <p>Apply points at checkout to get a discount on your next booking:</p>
+          <ul class="guide-list" *ngIf="summary.availableRedemptions.length > 0">
+            <li *ngFor="let opt of summary.availableRedemptions">
+              <strong>{{ opt.points | number }} pts</strong> = <strong>${{ opt.dollarValue | number:'1.0-0' }} off</strong>
+            </li>
+          </ul>
+          <p>Points are applied before payment and reduce your total directly.</p>
+        </div>
+      </div>
+
+      <!-- Bonuses -->
+      <div class="guide-block">
+        <div class="guide-block__title">Bonuses</div>
+        <div class="guide-block__body">
+          <ul class="guide-list">
+            <li *ngIf="summary.guide.welcomeBonusEnabled">
+              <strong>Welcome bonus:</strong> get <strong>{{ summary.guide.welcomeBonusPoints | number }} pts</strong> when you create your account.
+            </li>
+            <li *ngIf="summary.guide.recurringBonusEnabled">
+              <strong>Returning customer bonus:</strong>
+              <p class="guide-li-para">After your first cleaning, you can earn <strong>extra points</strong> on future bookings based on the <strong>cleaning frequency</strong> you choose when you book — on the step <strong>“How often would you like us to clean?”</strong> It is tied to that choice for each booking, not a flat boost on every order.</p>
+              <p class="guide-li-para"><strong>One Time</strong> cleanings are <strong>not</strong> eligible. Recurring plans are, for example: <strong>Weekly</strong> <strong>{{ summary.guide.recurringBonusPercent | number:'1.0-0' }}%</strong> extra on points for that order, <strong>Bi-Weekly</strong> <strong>10%</strong>, and <strong>Monthly</strong> <strong>5%</strong> — the same percentages you see on each option when you book.</p>
+            </li>
+            <li *ngIf="summary.guide.nextOrderBoosterEnabled">
+              <strong>Loyalty booster:</strong> book again within <strong>{{ summary.guide.nextOrderBoosterDays }} days</strong> of your last cleaning and earn an extra <strong>{{ summary.guide.nextOrderBoosterPercent | number:'1.0-0' }}%</strong> points.
+            </li>
+            <li *ngIf="summary.guide.streakEnabled">
+              <strong>Streak bonuses:</strong> book 3 cleanings in a row and earn <strong>+{{ summary.guide.streak3Bonus | number }} pts</strong>; reach 6 in a row for <strong>+{{ summary.guide.streak6Bonus | number }} pts</strong>.
+            </li>
+            <li *ngIf="summary.guide.reviewBonusEnabled">
+              <strong>Review bonus:</strong> leave us a Google review and earn <strong>{{ summary.guide.reviewBonusPoints | number }} pts</strong> (awarded manually by our team).
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Referrals -->
+      <div class="guide-block" *ngIf="summary.guide.referralEnabled">
+        <div class="guide-block__title">Refer a Friend</div>
+        <div class="guide-block__body">
+          <p>Share your referral link and both of you benefit:</p>
+          <ul class="guide-list">
+            <li *ngIf="summary.guide.referralNewUserBonusEnabled && summary.guide.referralNewUserBonusPoints > 0">
+              Your friend gets the normal <strong>welcome bonus</strong> when they create an account, plus an extra <strong>{{ summary.guide.referralNewUserBonusPoints | number }} pts</strong> for signing up with your link.
+            </li>
+            <li>
+              You earn a <strong>${{ summary.guide.referralOrderCreditAmount | number:'1.0-0' }} reward balance</strong> once your friend completes their first cleaning — apply manually on your future bookings.
+            </li>
+          </ul>
+          <p>There's no limit to how many friends you can refer.</p>
+        </div>
+      </div>
+
+    </div>
+
+  </ng-container>
+
+  <!-- System disabled notice -->
+  <div *ngIf="!summaryLoading && summary && !summary.pointsSystemEnabled" class="disabled-notice">
+    The Bubble Rewards program is currently paused. Check back soon!
+  </div>
+
+</div>

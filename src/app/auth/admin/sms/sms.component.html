@@ -1,0 +1,123 @@
+<div class="sms-host">
+  <h2>SMS</h2>
+  <p class="muted">Compose and send SMS to users by role, like Mails. Only users with a valid 10+ digit phone and &quot;Can receive emails&quot; ON receive SMS; others are skipped.</p>
+
+  <div class="alerts">
+    <div class="error" *ngIf="error">{{ error }}</div>
+    <div class="success" *ngIf="success">{{ success }}</div>
+  </div>
+
+  <div class="stats" *ngIf="stats">
+    <span>Drafts: {{ stats.draftCount }}</span>
+    <span>Scheduled: {{ stats.scheduledCount }}</span>
+    <span>Sent: {{ stats.sentCount }}</span>
+    <span>Total sends: {{ stats.totalSmsSent }}</span>
+  </div>
+
+  <div class="toolbar">
+    <div class="filters">
+      <button type="button" [class.active]="filterStatus === null" (click)="setFilter(null)">All</button>
+      <button type="button" [class.active]="filterStatus === 0" (click)="setFilter(0)">Draft</button>
+      <button type="button" [class.active]="filterStatus === 1" (click)="setFilter(1)">Scheduled</button>
+      <button type="button" [class.active]="filterStatus === 2" (click)="setFilter(2)">Sent</button>
+    </div>
+    <button type="button" class="btn-compose" (click)="startCompose()" *ngIf="userPermissions?.permissions?.canCreate">Compose</button>
+  </div>
+
+  <div class="compose-form" *ngIf="isComposing">
+    <h3>{{ editingId ? 'Edit SMS' : 'New SMS' }}</h3>
+    <div class="form-group">
+      <label>Message</label>
+      <textarea [(ngModel)]="content" rows="6" placeholder="SMS content (max 1600 chars). 160 chars = 1 segment."></textarea>
+      <span class="hint">Length: {{ (content || '').length }} characters.</span>
+    </div>
+    <div class="form-group">
+      <label>Send to roles (only users with valid 10+ digit phone and &quot;Can receive emails&quot; ON)</label>
+      <div class="role-chks">
+        <label *ngFor="let r of ROLES"><input type="checkbox" [(ngModel)]="selectedRoles[r]" /> {{ r }}</label>
+      </div>
+      <span class="hint" *ngIf="userCounts.length">Recipients: {{ withValidPhoneCount() }}</span>
+    </div>
+    <div class="form-group" *ngIf="!editingId">
+      <label><input type="radio" [(ngModel)]="sendNow" [value]="true" /> Send now</label>
+      <label><input type="radio" [(ngModel)]="sendNow" [value]="false" /> Schedule</label>
+    </div>
+    <div class="schedule-opts" *ngIf="!sendNow || editingId">
+      <p class="timezone-note">All times are in <strong>New York (NY)</strong> time.</p>
+      <div class="form-group">
+        <label>Schedule</label>
+        <select [(ngModel)]="frequency">
+          <option [ngValue]="null">Once (specific date)</option>
+          <option [ngValue]="1">Weekly (specific day of week)</option>
+          <option [ngValue]="2">Monthly (specific day of month)</option>
+        </select>
+      </div>
+      <div class="form-group" *ngIf="frequency === null">
+        <label>Date</label>
+        <input type="date" [(ngModel)]="scheduledDate" />
+      </div>
+      <div class="form-group" *ngIf="frequency === 1">
+        <label>Day of week</label>
+        <select [(ngModel)]="dayOfWeek">
+          <option [ngValue]="0">Sunday</option>
+          <option [ngValue]="1">Monday</option>
+          <option [ngValue]="2">Tuesday</option>
+          <option [ngValue]="3">Wednesday</option>
+          <option [ngValue]="4">Thursday</option>
+          <option [ngValue]="5">Friday</option>
+          <option [ngValue]="6">Saturday</option>
+        </select>
+      </div>
+      <div class="form-group" *ngIf="frequency === 2">
+        <label>Day of month (1–31)</label>
+        <select [(ngModel)]="dayOfMonth">
+          <option *ngFor="let d of daysOfMonth" [ngValue]="d">{{ d }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Time</label>
+        <input type="time" [(ngModel)]="scheduledTime" step="3600" />
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="button" class="btn-send-now" (click)="doSendNow()" *ngIf="sendNow && !editingId">Send now</button>
+      <button type="button" class="btn-success" (click)="doSchedule()" *ngIf="!sendNow || editingId">Schedule</button>
+      <button type="button" class="btn-save-draft" (click)="doSaveDraft()">Save as draft</button>
+      <button type="button" class="btn-cancel-red" (click)="cancelCompose()">Cancel</button>
+    </div>
+  </div>
+
+  <div class="table-wrap">
+    <div class="table-wrapper" #tableWrapper>
+      <table class="sms-table">
+        <thead #tableHeader>
+          <tr>
+            <th>Content</th>
+            <th>Roles</th>
+            <th>Status</th>
+            <th>Recipients</th>
+            <th>Next / Sent</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let s of list">
+          <td>{{ (s.content || '').length > 60 ? (s.content || '').slice(0, 60) + '…' : s.content }}</td>
+          <td>{{ targetRolesDisplay(s.targetRoles) }}</td>
+          <td>{{ statusLabel(s) }}</td>
+          <td>{{ s.recipientCount }}</td>
+          <td>{{ s.nextScheduledAt ? (s.nextScheduledAt | date:'short') : (s.sentAt ? (s.sentAt | date:'short') : '–') }}</td>
+          <td>
+            <button type="button" class="btn-send" (click)="sendNowFor(s.id)" *ngIf="s.status === 0 && userPermissions?.permissions?.canCreate">Send now</button>
+            <button type="button" class="btn-edit" (click)="edit(s)" *ngIf="(s.status === 0 || s.status === 1) && userPermissions?.permissions?.canUpdate">Edit</button>
+            <button type="button" class="btn-disable" (click)="disable(s.id)" *ngIf="s.status === 1 && s.isActive && userPermissions?.permissions?.canUpdate">Disable</button>
+            <button type="button" class="btn-enable" (click)="enable(s.id)" *ngIf="s.status === 1 && !s.isActive && userPermissions?.permissions?.canUpdate">Enable</button>
+            <button type="button" class="btn-delete" (click)="delete(s.id)" *ngIf="(s.status === 0 || s.status === 1 || s.status === 3) && userPermissions?.permissions?.canDelete">Delete</button>
+          </td>
+        </tr>
+      </tbody>
+      </table>
+    </div>
+    <p *ngIf="list.length === 0" class="empty">No SMS.</p>
+  </div>
+</div>

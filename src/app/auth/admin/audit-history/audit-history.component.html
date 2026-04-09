@@ -1,0 +1,442 @@
+<div class="audit-history-section">
+  <div class="section-header">
+    <h2>Audit History</h2>
+    <div class="header-actions">
+      <button class="action-btn refresh" (click)="loadRecentLogs()">
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <!-- Filters Section -->
+  <div class="filters-section">
+    <div class="search-box">
+      <input type="text" 
+             [(ngModel)]="searchTerm" 
+             placeholder="Search by email, ID, or EentityID..."
+             class="search-input">
+    </div>
+    
+    <div class="filter-controls">
+      <select [(ngModel)]="selectedEntityType" class="filter-select">
+        <option *ngFor="let type of entityTypes" [value]="type.value">
+          {{ type.label }}
+        </option>
+      </select>
+      
+      <select [(ngModel)]="selectedDays" 
+              class="filter-select"
+              (change)="loadRecentLogs()">
+        <option [value]="180">All Logs (6 Months)</option>
+        <option [value]="1">Last 24 hours</option>
+        <option [value]="7">Last 7 days</option>
+        <option [value]="30">Last 30 days</option>
+        <option [value]="90">Last 90 days</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="error-message" *ngIf="errorMessage">
+    {{ errorMessage }}
+    <button class="close-btn" (click)="clearMessages()">×</button>
+  </div>
+
+  <div class="audit-logs" *ngIf="filteredLogs.length > 0">
+    <div class="data-table">
+      <div class="table-wrapper" #tableWrapper>
+        <table>
+          <thead #tableHeader>
+            <tr>
+              <th>ID</th>
+              <th>Action</th>
+              <th>Entity Type</th>
+              <th>Entity ID</th>
+              <th>Changed By</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+          <ng-container *ngFor="let log of filteredLogs">
+            <tr [class.expanded]="viewingLogId === log.id" (click)="viewLogDetails(log.id)" style="cursor: pointer;">
+              <td>#{{ log.id }}</td>
+              <td>
+                <span class="action-badge" [ngClass]="getActionClass(log.action)">
+                  {{ log.action }}
+                </span>
+              </td>
+              <td>{{ getEntityTypeDisplayName(log.entityType) }}</td>
+              <td>E{{ log.entityId }}</td>
+              <td>{{ log.changedByEmail || log.changedBy || 'System' }}</td>
+              <td>{{ formatDate(log.createdAt) }}</td>
+            </tr>
+            
+            <!-- ENHANCED: Details row with special handling for cleaner assignments -->
+            <tr *ngIf="viewingLogId === log.id" class="details-row">
+              <td colspan="6">
+                <div class="log-details">
+                  
+                  <!-- Special view for BubblePointsAdjustment logs -->
+                  <div *ngIf="log.entityType === 'BubblePointsAdjustment'" class="cleaner-assignment-details">
+                    <h4>Bubble Points Adjustment</h4>
+                    <ng-container *ngIf="log.newValues as v">
+                      <div class="detail-item">
+                        <strong>User:</strong> {{ v['TargetUserName'] }} (ID {{ v['TargetUserId'] }})
+                      </div>
+                      <div class="detail-item">
+                        <strong>Points:</strong>
+                        <span [style.color]="v['Points'] > 0 ? '#28a745' : '#dc3545'">
+                          {{ v['Points'] > 0 ? '+' : '' }}{{ v['Points'] }}
+                        </span>
+                      </div>
+                      <div class="detail-item" *ngIf="v['Reason'] && v['Reason'] !== 'No reason provided'">
+                        <strong>Reason:</strong> {{ v['Reason'] }}
+                      </div>
+                      <div class="detail-item">
+                        <strong>Adjusted by:</strong> {{ v['AdjustedBy'] }} (Admin ID {{ v['AdjustedByAdminId'] }})
+                      </div>
+                    </ng-container>
+                  </div>
+
+                  <!-- Special view for CleanerAssignment logs -->
+                  <div *ngIf="log.entityType === 'CleanerAssignment'" class="cleaner-assignment-details">
+                    <h4>Cleaner Assignment Details</h4>
+                    <ng-container *ngIf="getCleanerAssignmentDetails(log) as details">
+                      <div class="detail-item">
+                        <strong>Cleaner Email:</strong> {{ details.cleanerEmail }}
+                      </div>
+                      <div class="detail-item">
+                        <strong>Order ID:</strong> {{ details.orderId }}
+                      </div>
+                    </ng-container>
+                  </div>
+
+                  <!-- Standard view for other entity types (only when not a merged log) -->
+                  <div *ngIf="log.entityType !== 'CleanerAssignment' && !log.hasServiceChanges">
+                    <!-- REMOVED: The "Updated:" label as requested -->
+                    
+                    <!-- Show changed fields for updates -->
+                    <div *ngIf="showChangedFields(log) && hasMeaningfulChangedFields(log)" class="changed-fields">
+                      <h4>Changed Fields</h4>
+                      <div class="field-changes">
+                        <ng-container *ngFor="let field of log.changedFields">
+                          <div *ngIf="shouldShowField(field)" class="field-change">
+                            <!-- Special handling for combined ServiceDate&Time field -->
+                            <div *ngIf="field === 'ServiceDate&Time'" class="field-item">
+                              <div class="field-name">{{ getFieldDisplayName(field) }}:</div>
+                              <div class="field-values">
+                                <span class="old-value">{{ getCombinedServiceDateTimeDisplay(log.oldValues, 'old') }}</span>
+                                <span class="arrow">→</span>
+                                <span class="new-value">{{ getCombinedServiceDateTimeDisplay(log.newValues, 'new') }}</span>
+                              </div>
+                            </div>
+                            <!-- Regular field handling -->
+                            <div *ngIf="field !== 'ServiceDate&Time'" class="field-item">
+                              <div class="field-name">{{ getFieldDisplayName(field) }}:</div>
+                              <div class="field-values">
+                                <span class="old-value">{{ getFieldDisplayValue(log.oldValues[field], field) }}</span>
+                                <span class="arrow">→</span>
+                                <span class="new-value">{{ getFieldDisplayValue(log.newValues[field], field) }}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </ng-container>
+                      </div>
+                    </div>
+
+                    <!-- Show created values for creates -->
+                    <div *ngIf="log.action === 'Create' && log.newValues" class="created-values">
+                      <h4>Created With Values</h4>
+                      <div class="field-values-list">
+                        <div *ngFor="let key of getObjectKeys(log.newValues)" class="value-item">
+                          <div *ngIf="shouldShowField(key)">
+                            <strong>{{ getFieldDisplayName(key) }}:</strong>
+                            {{ getFieldDisplayValue(log.newValues[key], key) }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Show deleted values for deletes -->
+                    <div *ngIf="log.action === 'Delete' && log.oldValues" class="deleted-values">
+                      <h4>Deleted Values</h4>
+                      <div class="field-values-list">
+                        <div *ngFor="let key of getObjectKeys(log.oldValues)" class="value-item">
+                          <div *ngIf="shouldShowField(key)">
+                            <strong>{{ getFieldDisplayName(key) }}:</strong>
+                            {{ getFieldDisplayValue(log.oldValues[key], key) }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Combined view for merged Order logs with service changes -->
+                  <div *ngIf="log.hasServiceChanges && log.serviceLogs" class="combined-update-details">
+                    <h4>Order Update Details</h4>
+                    
+                    <div class="order-changes-container">
+                      <!-- Regular field changes -->
+                      <div *ngIf="showChangedFields(log) && hasMeaningfulChangedFields(log)" class="changed-fields">
+                        <h4>Changed Fields</h4>
+                        <div class="field-changes">
+                                                  <ng-container *ngFor="let field of log.changedFields">
+                          <div *ngIf="shouldShowField(field)" class="field-change">
+                            <!-- Special handling for combined ServiceDate&Time field -->
+                            <div *ngIf="field === 'ServiceDate&Time'">
+                              <div class="field-name">{{ getFieldDisplayName(field) }}:</div>
+                              <span class="old-value">{{ getCombinedServiceDateTimeDisplay(log.oldValues, 'old') }}</span>
+                              <span class="arrow">→</span>
+                              <span class="new-value">{{ getCombinedServiceDateTimeDisplay(log.newValues, 'new') }}</span>
+                            </div>
+                            <!-- Regular field handling -->
+                            <div *ngIf="field !== 'ServiceDate&Time'">
+                              <div class="field-name">{{ getFieldDisplayName(field) }}:</div>
+                              <span class="old-value">{{ getFieldDisplayValue(log.oldValues[field], field) }}</span>
+                              <span class="arrow">→</span>
+                              <span class="new-value">{{ getFieldDisplayValue(log.newValues[field], field) }}</span>
+                            </div>
+                          </div>
+                        </ng-container>
+                        </div>
+                      </div>
+
+                      <!-- Service changes from related logs -->
+                      <ng-container *ngFor="let serviceLog of log.serviceLogs">
+                        <ng-container *ngIf="getServiceUpdateDetails(serviceLog) as details">
+                          
+                          <!-- Regular Services -->
+                          <div class="services-section" *ngIf="getAllServices(details.services.old, details.services.new).length > 0">
+                            <h4>Services</h4>
+                            <div class="service-changes">
+                              <ng-container *ngFor="let service of getAllServices(details.services.old, details.services.new)">
+                                <div class="service-change"
+                                     [class.added]="!isServiceInList(service, details.services.old)"
+                                     [class.modified]="isServiceModified(service, details.services.old)"
+                                     [class.removed]="isServiceRemoved(service)">
+                                  <span class="service-name">{{ service.ServiceName }}:</span>
+                                  <ng-container *ngIf="isServiceRemoved(service)">
+                                    <span class="old-value">{{ getServiceQuantityDisplay(service) }}</span>
+                                    <span class="arrow">→</span>
+                                    <span class="new-value">0</span>
+                                  </ng-container>
+                                  <ng-container *ngIf="!isServiceRemoved(service)">
+                                    <ng-container *ngIf="isServiceModified(service, details.services.old)">
+                                      <span class="old-value">{{ getServiceQuantityDisplay(getOldService(service, details.services.old)) }}</span>
+                                      <span class="arrow">→</span>
+                                      <span class="new-value">{{ getServiceQuantityDisplay(service) }}</span>
+                                    </ng-container>
+                                    <ng-container *ngIf="!isServiceModified(service, details.services.old)">
+                                      <span class="old-value">0</span>
+                                      <span class="arrow">→</span>
+                                      <span class="new-value">{{ getServiceQuantityDisplay(service) }}</span>
+                                    </ng-container>
+                                  </ng-container>
+                                </div>
+                              </ng-container>
+                            </div>
+                          </div>
+                          
+                          <!-- Extra Services -->
+                          <div class="extra-services-section" *ngIf="getAllExtraServices(details.extraServices.old, details.extraServices.new).length > 0">
+                            <h4>Extra Services</h4>
+                            <div class="service-changes">
+                              <ng-container *ngFor="let service of getAllExtraServices(details.extraServices.old, details.extraServices.new)">
+                                <div class="service-change"
+                                     [class.added]="!isExtraServiceInList(service, details.extraServices.old)"
+                                     [class.modified]="isExtraServiceModified(service, details.extraServices.old)"
+                                     [class.removed]="isExtraServiceRemoved(service)"
+                                     [class.reduced]="isExtraServiceReduced(service, details.extraServices.old)">
+                                  <span class="service-name">{{ service.ExtraServiceName }}:</span>
+                                  <ng-container *ngIf="isExtraServiceRemoved(service)">
+                                    <span class="old-value">
+                                      <span *ngIf="shouldShowExtraServiceQuantity(service)">{{ service.Quantity }}</span>
+                                      <span *ngIf="shouldShowExtraServiceHours(service)">{{ service.Hours }}h</span>
+                                    </span>
+                                    <span class="arrow">→</span>
+                                    <span class="new-value">
+                                      <span *ngIf="shouldShowExtraServiceQuantity(service)">0</span>
+                                      <span *ngIf="shouldShowExtraServiceHours(service)">0h</span>
+                                    </span>
+                                  </ng-container>
+                                  <ng-container *ngIf="!isExtraServiceRemoved(service)">
+                                    <ng-container *ngIf="isExtraServiceModified(service, details.extraServices.old)">
+                                      <span class="old-value">
+                                        <span *ngIf="shouldShowExtraServiceQuantity(getOldExtraService(service, details.extraServices.old))">{{ getOldExtraService(service, details.extraServices.old).Quantity }}</span>
+                                        <span *ngIf="shouldShowExtraServiceHours(getOldExtraService(service, details.extraServices.old))">{{ getOldExtraService(service, details.extraServices.old).Hours }}h</span>
+                                      </span>
+                                      <span class="arrow">→</span>
+                                      <span class="new-value">
+                                        <span *ngIf="shouldShowExtraServiceQuantity(service)">{{ service.Quantity }}</span>
+                                        <span *ngIf="shouldShowExtraServiceHours(service)">{{ service.Hours }}h</span>
+                                      </span>
+                                    </ng-container>
+                                    <ng-container *ngIf="!isExtraServiceModified(service, details.extraServices.old)">
+                                      <span class="old-value">
+                                        <span *ngIf="shouldShowExtraServiceQuantity(service)">0</span>
+                                        <span *ngIf="shouldShowExtraServiceHours(service)">0h</span>
+                                      </span>
+                                      <span class="arrow">→</span>
+                                      <span class="new-value">
+                                        <span *ngIf="shouldShowExtraServiceQuantity(service)">{{ service.Quantity }}</span>
+                                        <span *ngIf="shouldShowExtraServiceHours(service)">{{ service.Hours }}h</span>
+                                      </span>
+                                    </ng-container>
+                                  </ng-container>
+                                </div>
+                              </ng-container>
+                            </div>
+                          </div>
+                          
+                        </ng-container>
+                      </ng-container>
+                    </div>
+                    <button class="close-details-btn" (click)="viewLogDetails(log.id)">
+                      Close Details
+                    </button>
+                  </div>
+
+                  <!-- Special view for standalone OrderServicesUpdate logs -->
+                  <div *ngIf="isServiceUpdateLog(log) && !log.hasServiceChanges" class="service-update-details">
+                    <h4>Order Services Update Details</h4>
+                    <ng-container *ngIf="getServiceUpdateDetails(log) as details">
+                      
+                      <div class="order-changes-container">
+                        <!-- Regular Services -->
+                        <div class="services-section" *ngIf="getAllServices(details.services.old, details.services.new).length > 0">
+                        <h4>Services</h4>
+                        <div class="service-changes">
+                          <ng-container *ngFor="let service of getAllServices(details.services.old, details.services.new)">
+                            <div class="service-change"
+                                 [class.added]="!isServiceInList(service, details.services.old)"
+                                 [class.modified]="isServiceModified(service, details.services.old)"
+                                 [class.removed]="isServiceRemoved(service)">
+                              <span class="service-name">{{ service.ServiceName }}:</span>
+                              <ng-container *ngIf="isServiceRemoved(service)">
+                                <span class="old-value">{{ getServiceQuantityDisplay(service) }}</span>
+                                <span class="arrow">→</span>
+                                <span class="new-value">0</span>
+                              </ng-container>
+                              <ng-container *ngIf="!isServiceRemoved(service)">
+                                <ng-container *ngIf="isServiceModified(service, details.services.old)">
+                                  <span class="old-value">{{ getServiceQuantityDisplay(getOldService(service, details.services.old)) }}</span>
+                                  <span class="arrow">→</span>
+                                  <span class="new-value">{{ getServiceQuantityDisplay(service) }}</span>
+                                </ng-container>
+                                <ng-container *ngIf="!isServiceModified(service, details.services.old)">
+                                  <span class="old-value">0</span>
+                                  <span class="arrow">→</span>
+                                  <span class="new-value">{{ getServiceQuantityDisplay(service) }}</span>
+                                </ng-container>
+                              </ng-container>
+                            </div>
+                          </ng-container>
+                        </div>
+                      </div>
+                      
+                      <!-- Extra Services -->
+                      <div class="extra-services-section" *ngIf="getAllExtraServices(details.extraServices.old, details.extraServices.new).length > 0">
+                        <h4>Extra Services</h4>
+                        <div class="service-changes">
+                          <ng-container *ngFor="let service of getAllExtraServices(details.extraServices.old, details.extraServices.new)">
+                            <div class="service-change"
+                                 [class.added]="!isExtraServiceInList(service, details.extraServices.old)"
+                                 [class.modified]="isExtraServiceModified(service, details.extraServices.old)"
+                                 [class.removed]="isExtraServiceRemoved(service)"
+                                 [class.reduced]="isExtraServiceReduced(service, details.extraServices.old)">
+                              <span class="service-name">{{ service.ExtraServiceName }}:</span>
+                              <ng-container *ngIf="isExtraServiceRemoved(service)">
+                                <span class="old-value">
+                                  <span *ngIf="shouldShowExtraServiceQuantity(service)">{{ service.Quantity }}</span>
+                                  <span *ngIf="shouldShowExtraServiceHours(service)">{{ service.Hours }}h</span>
+                                </span>
+                                <span class="arrow">→</span>
+                                <span class="new-value">
+                                  <span *ngIf="shouldShowExtraServiceQuantity(service)">0</span>
+                                  <span *ngIf="shouldShowExtraServiceHours(service)">0h</span>
+                                </span>
+                              </ng-container>
+                              <ng-container *ngIf="!isExtraServiceRemoved(service)">
+                                <ng-container *ngIf="isExtraServiceModified(service, details.extraServices.old)">
+                                  <span class="old-value">
+                                    <span *ngIf="shouldShowExtraServiceQuantity(getOldExtraService(service, details.extraServices.old))">{{ getOldExtraService(service, details.extraServices.old).Quantity }}</span>
+                                    <span *ngIf="shouldShowExtraServiceHours(getOldExtraService(service, details.extraServices.old))">{{ getOldExtraService(service, details.extraServices.old).Hours }}h</span>
+                                  </span>
+                                  <span class="arrow">→</span>
+                                  <span class="new-value">
+                                    <span *ngIf="shouldShowExtraServiceQuantity(service)">{{ service.Quantity }}</span>
+                                    <span *ngIf="shouldShowExtraServiceHours(service)">{{ service.Hours }}h</span>
+                                  </span>
+                                </ng-container>
+                                <ng-container *ngIf="!isExtraServiceModified(service, details.extraServices.old)">
+                                  <span class="old-value">
+                                    <span *ngIf="shouldShowExtraServiceQuantity(service)">0</span>
+                                    <span *ngIf="shouldShowExtraServiceHours(service)">0h</span>
+                                  </span>
+                                  <span class="arrow">→</span>
+                                  <span class="new-value">
+                                    <span *ngIf="shouldShowExtraServiceQuantity(service)">{{ service.Quantity }}</span>
+                                    <span *ngIf="shouldShowExtraServiceHours(service)">{{ service.Hours }}h</span>
+                                  </span>
+                                </ng-container>
+                              </ng-container>
+                            </div>
+                          </ng-container>
+                        </div>
+                      </div>
+                      </div>
+                    </ng-container>
+                    <button class="close-details-btn" (click)="viewLogDetails(log.id)">
+                      Close Details
+                    </button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+          </ng-container>
+        </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" *ngIf="totalPages > 1">
+      <button class="page-btn" (click)="previousPage()" [disabled]="currentPage === 1">
+        ‹ Previous
+      </button>
+      
+      <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage === 1">
+        1
+      </button>
+      
+      <span *ngIf="totalPages > 5 && currentPage > 3" class="page-ellipsis">...</span>
+      
+      <button *ngFor="let page of getVisiblePages()" 
+              class="page-btn" 
+              (click)="goToPage(page)"
+              [class.active]="currentPage === page">
+        {{ page }}
+      </button>
+      
+      <span *ngIf="totalPages > 5 && currentPage < totalPages - 2" class="page-ellipsis">...</span>
+      
+      <button *ngIf="totalPages > 1" 
+              class="page-btn" 
+              (click)="goToPage(totalPages)"
+              [class.active]="currentPage === totalPages">
+        {{ totalPages }}
+      </button>
+      
+      <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages">
+        Next ›
+      </button>
+    </div>
+  </div>
+
+  <div class="no-logs" *ngIf="!isLoading && filteredLogs.length === 0">
+    <p>No audit logs found for the selected criteria.</p>
+  </div>
+
+  <div class="loading" *ngIf="isLoading">
+    <p>Loading audit logs...</p>
+  </div>
+</div>

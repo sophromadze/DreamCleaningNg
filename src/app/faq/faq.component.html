@@ -1,0 +1,255 @@
+<div class="faq-page">
+  <app-bubble-field></app-bubble-field>
+<div class="faq-container">
+  <div class="faq-content">
+    <div class="faq-header">
+      <h1>Frequently Asked Questions</h1>
+      <p class="faq-subtitle">Everything you need to know about Dream Cleaning services</p>
+    </div>
+    
+    <div class="faq-body">
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(0)" [attr.aria-expanded]="isOpen(0)">
+          <span>Do I need to be home during the cleaning?</span>
+          <span class="faq-icon">{{ isOpen(0) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(0)">
+          <div class="faq-answer-content">
+            <p>Not at all. Many of our clients prefer "no-contact" service. You can leave a key, door code, or simply keep the door open - we'll take care of the rest and leave your space spotless.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(1)" [attr.aria-expanded]="isOpen(1)">
+          <span>Is fridge interior cleaning included?</span>
+          <span class="faq-icon">{{ isOpen(1) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(1)">
+          <div class="faq-answer-content">
+            <p>Deep Cleaning, Move-In/Out, and Heavy Condition Cleaning include interior fridge cleaning.<br>
+            For Standard Cleaning, it can be added as an extra.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(2)" [attr.aria-expanded]="isOpen(2)">
+          <span>Do you bring your own supplies and vacuum?</span>
+          <span class="faq-icon">{{ isOpen(2) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(2)">
+          <div class="faq-answer-content">
+            <p>We can bring cleaning solutions for $35 and a vacuum for $100. Please let us know in advance which location(s) may require them.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(3)" [attr.aria-expanded]="isOpen(3)">
+          <span>What's the difference between Deep and Heavy Condition Cleaning?</span>
+          <span class="faq-icon">{{ isOpen(3) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(3)">
+          <div class="faq-answer-content">
+            <p>Deep Cleaning includes baseboards, hard-to-reach areas, and dusting above head level.<br>
+            Heavy Condition Cleaning goes further: it covers wall washing, cabinet interiors, under sinks, and more. Perfect for neglected or high-traffic spaces.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(4)" [attr.aria-expanded]="isOpen(4)">
+          <span>What's included in Move-In / Move-Out Cleaning?</span>
+          <span class="faq-icon">{{ isOpen(4) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(4)">
+          <div class="faq-answer-content">
+            <p>Includes:<br>
+            • Baseboards<br>
+            • Outside kitchen cabinets<br>
+            • Fridge interior<br>
+            • Light wall spot cleaning<br>
+            • Oven and dishwasher (can be added if not selected)</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(5)" [attr.aria-expanded]="isOpen(5)">
+          <span>How is the price calculated?</span>
+          <span class="faq-icon">{{ isOpen(5) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(5)">
+          <div class="faq-answer-content">
+            <p>Pricing is based on the size of your home, level of dirt, and selected services. You'll get the most accurate quote through our booking form or by requesting a custom estimate.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(6)" [attr.aria-expanded]="isOpen(6)">
+          <span>Can I book recurring cleanings?</span>
+          <span class="faq-icon">{{ isOpen(6) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(6)">
+          <div class="faq-answer-content">
+            <p>Absolutely! Weekly, biweekly, or monthly plans are available - with special rates for regular clients. Let us know your preferred schedule.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(7)" [attr.aria-expanded]="isOpen(7)">
+          <span>What's your cancellation or rescheduling policy?</span>
+          <span class="faq-icon">{{ isOpen(7) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(7)">
+          <div class="faq-answer-content">
+            <p>We kindly ask for a minimum of 48 hours' notice. Late cancellations may incur a small fee due to the short notice.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(8)" [attr.aria-expanded]="isOpen(8)">
+          <span>Are you insured and background-checked?</span>
+          <span class="faq-icon">{{ isOpen(8) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(8)">
+          <div class="faq-answer-content">
+            <p>Yes. Dream Cleaning carries liability insurance, and all cleaners are thoroughly vetted and trained to deliver safe, top-quality service.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(9)" [attr.aria-expanded]="isOpen(9)">
+          <span>What if I'm not satisfied with the cleaning?</span>
+          <span class="faq-icon">{{ isOpen(9) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(9)">
+          <div class="faq-answer-content">
+            <p>We offer a 100% Satisfaction Guarantee. If you're not fully happy, let us know within 24 hours and we'll return to make it right - no questions asked.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(10)" [attr.aria-expanded]="isOpen(10)">
+          <span>When do I pay for the service?</span>
+          <span class="faq-icon">{{ isOpen(10) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(10)">
+          <div class="faq-answer-content">
+            <p>We accept credit and debit cards only. We no longer accept cash or personal checks.<br>
+            All payments are securely processed through Stripe, ensuring a safe and reliable booking experience with Dream Cleaning.<br>
+            When you schedule a service, we place a temporary authorization hold on your card (this may appear as "pending" on your statement). This is not a charge.<br>
+            Your card will only be charged after the cleaning has been completed.<br>
+            By booking a service and providing your payment information, you authorize us to charge your card for the total cost of the service.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(11)" [attr.aria-expanded]="isOpen(11)">
+          <span>Can I place an order by phone?</span>
+          <span class="faq-icon">{{ isOpen(11) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(11)">
+          <div class="faq-answer-content">
+            <p>Yes, phone bookings are possible. However, we will still need to create an account for you in our system.<br>
+            For a smoother and more practical experience, we highly recommend that you create your own profile. This allows you to easily customize your service, edit your booking, and add any extra services you may need - as long as changes are made at least 48 hours in advance.<br>
+            Please note: All payments are made online, and having an account is required in order to complete your booking.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(12)" [attr.aria-expanded]="isOpen(12)">
+          <span>Can I request the same cleaner or choose a different one?</span>
+          <span class="faq-icon">{{ isOpen(12) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(12)">
+          <div class="faq-answer-content">
+            <p>Absolutely! At Dream Cleaning, you have the option to request your preferred cleaner or let us assign someone new.<br>
+            If you have a specific cleaner in mind, just mention their name in the comment section when booking - we'll do our best to accommodate your request.<br>
+            For recurring cleanings, we aim to keep things consistent by assigning the same cleaner every time, whenever possible.</p>
+          </div>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(13)" [attr.aria-expanded]="isOpen(13)">
+          <span>How much does apartment cleaning cost in NYC?</span>
+          <span class="faq-icon">{{ isOpen(13) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(13)">
+          <div class="faq-answer-content">
+            <p>Dream Cleaning's standard residential cleaning starts from $110, deep cleaning from $190, and move in/out cleaning from $200. Pricing depends on home size, condition, and selected services. Get an instant estimate at dreamcleaningnearme.com/booking.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(14)" [attr.aria-expanded]="isOpen(14)">
+          <span>What areas do you serve in NYC?</span>
+          <span class="faq-icon">{{ isOpen(14) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(14)">
+          <div class="faq-answer-content">
+            <p>Dream Cleaning serves 120 ZIP codes across three NYC boroughs: Brooklyn (38 ZIP codes including Park Slope, Williamsburg, DUMBO, Bay Ridge), Manhattan (24 ZIP codes including Midtown, Chelsea, Lower East Side), and Queens (58 ZIP codes including Astoria, Long Island City, Forest Hills, Flushing).</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(15)" [attr.aria-expanded]="isOpen(15)">
+          <span>How often should I get my apartment deep cleaned in NYC?</span>
+          <span class="faq-icon">{{ isOpen(15) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(15)">
+          <div class="faq-answer-content">
+            <p>Most NYC apartments benefit from professional deep cleaning every 3-6 months, with standard cleaning every 1-2 weeks for regular maintenance. High-traffic homes or apartments with pets may need deep cleaning more frequently.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(16)" [attr.aria-expanded]="isOpen(16)">
+          <span>How do I book a cleaning service with Dream Cleaning?</span>
+          <span class="faq-icon">{{ isOpen(16) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(16)">
+          <div class="faq-answer-content">
+            <p>Book online at dreamcleaningnearme.com/booking in under 2 minutes — select your home size, cleaning type, preferred date and time, and get an instant estimate. You can also call (929) 930-1525 for immediate assistance. Payment is processed securely through Stripe after service completion.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(17)" [attr.aria-expanded]="isOpen(17)">
+          <span>Can I trust a cleaning service with my apartment keys in NYC?</span>
+          <span class="faq-icon">{{ isOpen(17) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(17)">
+          <div class="faq-answer-content">
+            <p>All Dream Cleaning professionals are fully background-checked, reference-checked, and insured. Many of our clients use our no-contact service, leaving a key or door code. We carry full liability insurance for your peace of mind.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item">
+        <button class="faq-question" (click)="toggleItem(18)" [attr.aria-expanded]="isOpen(18)">
+          <span>How do I tip my house cleaner in NYC?</span>
+          <span class="faq-icon">{{ isOpen(18) ? '−' : '+' }}</span>
+        </button>
+        <div class="faq-answer" [class.open]="isOpen(18)">
+          <div class="faq-answer-content">
+            <p>Tipping is not required but always appreciated. The standard tip for cleaning services in NYC is typically 15-20% of the service cost. You can tip your cleaner directly in cash after the service.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>

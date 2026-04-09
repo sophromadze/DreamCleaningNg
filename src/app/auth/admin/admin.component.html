@@ -1,0 +1,104 @@
+<!-- src/app/auth/admin/admin.component.html -->
+
+<div class="admin-container">
+  <div class="admin-header">
+    <h1>Admin Panel</h1>
+    <button
+      *ngIf="userRole === 'SuperAdmin'"
+      class="maintenance-btn"
+      [class.enabled]="maintenanceStatus?.isEnabled"
+      (click)="confirmToggleMaintenance()"
+      [disabled]="isTogglingMaintenance">
+      {{ maintenanceStatus?.isEnabled ? 'Stop Maintenance' : 'Start Maintenance' }}
+    </button>
+    <button
+      *ngIf="userRole === 'Admin' || userRole === 'SuperAdmin'"
+      class="chat-toggle-btn"
+      [class.chat-toggle-btn--off]="!chatEnabled"
+      (click)="toggleChat()"
+      [disabled]="isTogglingChat">
+      {{ chatEnabled ? '💬 Disable Chat' : '💬 Enable Chat' }}
+    </button>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="admin-tabs">
+    <button class="tab-btn" 
+            [class.active]="activeTab === 'orders'"
+            (click)="setActiveTab('orders')"
+            *ngIf="userPermissions?.permissions?.canView">
+      Orders
+    </button>
+    <button class="tab-btn" 
+            [class.active]="activeTab === 'users'"
+            (click)="setActiveTab('users')"
+            *ngIf="userPermissions?.permissions?.canView">
+      Users
+    </button>
+    <button class="tab-btn" 
+            [class.active]="activeTab === 'promo-codes'"
+            (click)="setActiveTab('promo-codes')"
+            *ngIf="userPermissions?.permissions?.canView">
+      Promos
+    </button>
+    <button class="tab-btn" 
+            [class.active]="activeTab === 'special-offers'"
+            (click)="setActiveTab('special-offers')"
+            *ngIf="userPermissions?.permissions?.canView">
+      Special Offers
+    </button>
+    <button class="tab-btn" 
+            [class.active]="activeTab === 'booking-services'"
+            (click)="setActiveTab('booking-services')"
+            *ngIf="userPermissions?.permissions?.canView">
+      Services
+    </button>
+    <button class="tab-btn" 
+            [class.active]="activeTab === 'subscriptions'"
+            (click)="setActiveTab('subscriptions')"
+            *ngIf="userPermissions?.permissions?.canView">
+      Subs
+    </button>
+    <button class="tab-btn" 
+            [class.active]="activeTab === 'gift-cards'"
+            (click)="setActiveTab('gift-cards')"
+            *ngIf="userPermissions?.permissions?.canView">
+      Gift Cards
+    </button>
+    <button class="tab-btn" 
+            [class.active]="activeTab === 'audit-history'"
+            (click)="setActiveTab('audit-history')"
+            *ngIf="userPermissions?.permissions?.canView">
+      Audits
+    </button>
+    <button class="tab-btn" 
+            [class.active]="activeTab === 'mails-sms'"
+            (click)="setActiveTab('mails-sms')"
+            *ngIf="userPermissions?.permissions?.canView">
+      Mails &amp; SMS
+    </button>
+  </div>
+
+  <!-- Messages -->
+  <div class="error-message" *ngIf="errorMessage">
+    {{ errorMessage }}
+  </div>
+  <div class="success-message" *ngIf="successMessage">
+    {{ successMessage }}
+  </div>
+
+  <!-- Tab Content -->
+  <div class="tab-content">
+    <ng-container [ngSwitch]="activeTab">
+      <app-orders *ngSwitchCase="'orders'" [openOrderId]="pendingOrderId"></app-orders>
+      <app-user-management *ngSwitchCase="'users'"></app-user-management>
+      <app-promo-codes *ngSwitchCase="'promo-codes'"></app-promo-codes>
+      <app-special-offers *ngSwitchCase="'special-offers'"></app-special-offers>
+      <app-booking-services *ngSwitchCase="'booking-services'"></app-booking-services>
+      <app-subscriptions *ngSwitchCase="'subscriptions'"></app-subscriptions>
+      <app-admin-gift-cards *ngSwitchCase="'gift-cards'"></app-admin-gift-cards>
+      <app-audit-history *ngSwitchCase="'audit-history'"></app-audit-history>
+      <app-communications *ngSwitchCase="'mails-sms'"></app-communications>
+    </ng-container>
+  </div>
+</div>

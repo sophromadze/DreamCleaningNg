@@ -1,0 +1,292 @@
+<div class="modal-overlay" *ngIf="showModal" (click)="onBackdropClick($event)">
+  <div class="modal-content" (click)="$event.stopPropagation()">
+    <button class="close-btn" (click)="closeModal()" aria-label="Close modal">&times;</button>
+
+    <div class="auth-card">
+      <div class="auth-header">
+        <h2>{{ isLoginMode ? 'Welcome Back!' : 'Create Account' }}</h2>
+        <p>{{ isLoginMode ? 'Please sign in to continue' : 'Please fill in your details' }}</p>
+      </div>
+
+      <div class="error-banner" *ngIf="errorMessage">
+        {{ errorMessage }}
+        <div *ngIf="showResendOption" class="resend-section">
+          <button type="button" (click)="resendVerification()" class="resend-link">
+            Resend verification email
+          </button>
+        </div>
+      </div>
+
+      <div class="success-banner" *ngIf="successMessage">
+        {{ successMessage }}
+      </div>
+
+      <!-- LOGIN FLOW -->
+      <ng-container *ngIf="isLoginMode">
+
+        <!-- STEP 1: Email -->
+        <form *ngIf="loginStep === 'email'" [formGroup]="emailForm" (ngSubmit)="onEmailSubmit()" class="auth-form">
+          <div class="form-group">
+            <label for="modalLoginEmail">Email</label>
+            <input
+              type="email"
+              id="modalLoginEmail"
+              formControlName="email"
+              [class.error]="emailForm.get('email')?.invalid && emailForm.get('email')?.touched"
+              placeholder="Enter your email"
+              autocomplete="email">
+            <div class="error-message" *ngIf="emailForm.get('email')?.invalid && emailForm.get('email')?.touched">
+              Please enter a valid email
+            </div>
+          </div>
+
+          <button type="submit" class="submit-btn" [disabled]="emailForm.invalid || isLoading">
+            {{ isLoading ? 'Checking...' : 'Continue' }}
+          </button>
+        </form>
+
+        <!-- STEP 2a: Password -->
+        <form *ngIf="loginStep === 'password'" [formGroup]="passwordForm" (ngSubmit)="onPasswordSubmit()" class="auth-form">
+          <div class="step-info">
+            <span class="step-email">{{ checkedEmail }}</span>
+            <button type="button" class="change-email-btn" (click)="goBackToEmail()">Change</button>
+          </div>
+
+          <div class="form-group">
+            <label for="modalLoginPassword">Password</label>
+            <div class="password-input-wrap">
+              <input
+                [type]="showPassword ? 'text' : 'password'"
+                id="modalLoginPassword"
+                formControlName="password"
+                [class.error]="passwordForm.get('password')?.invalid && passwordForm.get('password')?.touched"
+                placeholder="Enter your password"
+                autocomplete="current-password">
+              <button type="button" class="password-toggle" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'">
+                <svg *ngIf="!showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                <svg *ngIf="showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              </button>
+            </div>
+            <div class="error-message" *ngIf="passwordForm.get('password')?.invalid && passwordForm.get('password')?.touched">
+              Password is required
+            </div>
+          </div>
+
+          <button type="submit" class="submit-btn" [disabled]="passwordForm.invalid || isLoading">
+            {{ isLoading ? 'Signing In...' : 'Sign In' }}
+          </button>
+
+          <p class="forgot-password">
+            <a (click)="onForgotPassword()" class="text-link">Forgot your password?</a>
+          </p>
+        </form>
+
+        <!-- STEP 2b: OTP -->
+        <form *ngIf="loginStep === 'otp'" [formGroup]="otpForm" (ngSubmit)="onOtpSubmit()" class="auth-form">
+          <div class="step-info">
+            <span class="step-email">{{ checkedEmail }}</span>
+            <button type="button" class="change-email-btn" (click)="goBackToEmail()">Change</button>
+          </div>
+
+          <p class="otp-info">
+            A 6-digit code has been sent to your email. Enter it below to continue and set up your password.
+          </p>
+
+          <div class="form-group">
+            <label for="modalOtpCode">6-Digit Code</label>
+            <input
+              type="text"
+              id="modalOtpCode"
+              formControlName="code"
+              [class.error]="otpForm.get('code')?.invalid && otpForm.get('code')?.touched"
+              placeholder="000000"
+              maxlength="6"
+              inputmode="numeric"
+              autocomplete="one-time-code"
+              class="otp-input">
+            <div class="error-message" *ngIf="otpForm.get('code')?.invalid && otpForm.get('code')?.touched">
+              Please enter the 6-digit code
+            </div>
+          </div>
+
+          <button type="submit" class="submit-btn" [disabled]="otpForm.invalid || isLoading">
+            {{ isLoading ? 'Verifying...' : 'Verify Code' }}
+          </button>
+
+          <p class="resend-otp">
+            Didn't receive the code?
+            <button type="button" class="text-link" (click)="resendOtp()" [disabled]="isLoading">Resend</button>
+          </p>
+        </form>
+
+        <!-- Social login (only on email step) -->
+        <ng-container *ngIf="loginStep === 'email'">
+          <div class="social-login-section">
+            <div class="divider"><span>OR</span></div>
+
+            <div class="google-button-wrapper" [class.loading]="isLoading">
+              <app-google-signin-wrapper (googleSignInError)="errorMessage = $event || null"></app-google-signin-wrapper>
+            </div>
+
+            <div class="apple-button-wrapper">
+              <app-apple-signin-button
+                (appleSignIn)="handleAppleSignIn($event)"
+                (appleError)="handleAppleError($event)">
+              </app-apple-signin-button>
+            </div>
+
+            <div class="auth-footer">
+              <p class="forgot-password">
+                <a (click)="onForgotPassword()" class="text-link">Forgot your password?</a>
+              </p>
+              <p>
+                Don't have an account?
+                <a (click)="toggleMode()" class="toggle-link">Sign Up</a>
+              </p>
+            </div>
+          </div>
+        </ng-container>
+
+        <!-- Footer for password/otp steps -->
+        <div class="auth-footer" *ngIf="loginStep !== 'email'">
+          <p>
+            Don't have an account?
+            <a (click)="toggleMode()" class="toggle-link">Sign Up</a>
+          </p>
+        </div>
+
+      </ng-container>
+
+      <!-- REGISTRATION FLOW -->
+      <form *ngIf="!isLoginMode" [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="auth-form">
+        <div class="form-group">
+          <label for="modalFirstName">First Name</label>
+          <input
+            type="text"
+            id="modalFirstName"
+            formControlName="firstName"
+            (blur)="onNameBlur('firstName')"
+            [class.error]="registerForm.get('firstName')?.invalid && registerForm.get('firstName')?.touched"
+            placeholder="Enter your first name">
+          <div class="error-message" *ngIf="registerForm.get('firstName')?.invalid && registerForm.get('firstName')?.touched">
+            First name is required
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="modalLastName">Last Name</label>
+          <input
+            type="text"
+            id="modalLastName"
+            formControlName="lastName"
+            (blur)="onNameBlur('lastName')"
+            [class.error]="registerForm.get('lastName')?.invalid && registerForm.get('lastName')?.touched"
+            placeholder="Enter your last name">
+          <div class="error-message" *ngIf="registerForm.get('lastName')?.invalid && registerForm.get('lastName')?.touched">
+            Last name is required
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="modalPhone">Phone Number (Optional)</label>
+          <input
+            type="tel"
+            id="modalPhone"
+            formControlName="phone"
+            placeholder="Enter your phone number">
+        </div>
+
+        <div class="form-group">
+          <label for="modalEmail">Email</label>
+          <input
+            type="email"
+            id="modalEmail"
+            formControlName="email"
+            [class.error]="registerForm.get('email')?.invalid && registerForm.get('email')?.touched"
+            placeholder="Enter your email">
+          <div class="error-message" *ngIf="registerForm.get('email')?.invalid && registerForm.get('email')?.touched">
+            Please enter a valid email
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="modalPassword">Password</label>
+          <div class="password-input-wrap">
+            <input
+              [type]="showPassword ? 'text' : 'password'"
+              id="modalPassword"
+              formControlName="password"
+              placeholder="Enter password"
+              [class.error]="registerForm.get('password')?.invalid && registerForm.get('password')?.touched">
+            <button type="button" class="password-toggle" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'">
+              <svg *ngIf="!showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg *ngIf="showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+
+          <div class="password-requirements">
+            <small class="requirement-header">Password must contain:</small>
+            <ul class="requirements-list">
+              <li [class.met]="hasMinLength()">At least 8 characters</li>
+              <li [class.met]="hasUppercase()">At least one uppercase letter</li>
+              <li [class.met]="hasLowercase()">At least one lowercase letter</li>
+              <li [class.met]="hasNumber()">At least one number</li>
+              <li [class.met]="hasLatinOnly()">Latin letters, numbers, and common keyboard symbols (e.g. ! &#64; # $ %)</li>
+            </ul>
+          </div>
+
+          <div class="error-message" *ngIf="registerForm.get('password')?.invalid && registerForm.get('password')?.touched">
+            <span *ngFor="let error of getPasswordErrors()">{{ error }}<br></span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="modalConfirmPassword">Confirm Password</label>
+          <div class="password-input-wrap">
+            <input
+              [type]="showConfirmPassword ? 'text' : 'password'"
+              id="modalConfirmPassword"
+              formControlName="confirmPassword"
+              [class.error]="registerForm.get('confirmPassword')?.invalid && registerForm.get('confirmPassword')?.touched"
+              placeholder="Confirm your password">
+            <button type="button" class="password-toggle" (click)="showConfirmPassword = !showConfirmPassword" [attr.aria-label]="showConfirmPassword ? 'Hide password' : 'Show password'">
+              <svg *ngIf="!showConfirmPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg *ngIf="showConfirmPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+          <div class="error-message" *ngIf="registerForm.get('confirmPassword')?.invalid && registerForm.get('confirmPassword')?.touched">
+            <span *ngIf="registerForm.get('confirmPassword')?.errors?.['required']">Confirm password is required</span>
+            <span *ngIf="registerForm.get('confirmPassword')?.errors?.['passwordMismatch']">Passwords do not match</span>
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn" [disabled]="registerForm.invalid || isLoading">
+          {{ isLoading ? 'Creating Account...' : 'Create Account' }}
+        </button>
+
+        <div class="social-login-section">
+          <div class="divider"><span>OR</span></div>
+
+          <div class="google-button-wrapper" [class.loading]="isLoading">
+            <app-google-signin-wrapper (googleSignInError)="errorMessage = $event || null"></app-google-signin-wrapper>
+          </div>
+
+          <div class="apple-button-wrapper">
+            <app-apple-signin-button
+              (appleSignIn)="handleAppleSignIn($event)"
+              (appleError)="handleAppleError($event)">
+            </app-apple-signin-button>
+          </div>
+        </div>
+
+        <div class="auth-footer">
+          <p>
+            Already have an account?
+            <a (click)="toggleMode()" class="toggle-link">Sign In</a>
+          </p>
+        </div>
+      </form>
+
+    </div>
+  </div>
+</div>

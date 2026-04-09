@@ -1,0 +1,853 @@
+// ── Keyframes ────────────────────────────────────────────────────────────────
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes bubble-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%       { transform: translateY(-6px) scale(1.05); }
+}
+
+@keyframes bubble-shimmer {
+  0%   { filter: hue-rotate(0deg) brightness(1); }
+  50%  { filter: hue-rotate(50deg) brightness(1.1); }
+  100% { filter: hue-rotate(0deg) brightness(1); }
+}
+
+@keyframes bar-fill-in {
+  from { width: 0; }
+}
+
+// ── Shared realistic bubble mixin ─────────────────────────────────────────────
+
+%bubble-base {
+  position: absolute;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse 52% 28% at 34% 26%, rgba(255, 255, 255, 0.9) 0%, transparent 100%),
+    radial-gradient(circle 18% at 70% 72%, rgba(255, 255, 255, 0.5) 0%, transparent 100%),
+    radial-gradient(
+      circle at 40% 38%,
+      rgba(230, 250, 255, 0.18) 0%,
+      rgba(160, 220, 255, 0.07) 35%,
+      rgba(100, 180, 255, 0.06) 55%,
+      rgba(70, 140, 255, 0.18) 75%,
+      rgba(40, 100, 240, 0.28) 100%
+    );
+  border: 1px solid rgba(150, 215, 255, 0.5);
+  box-shadow:
+    inset 0 0 6px rgba(255, 255, 255, 0.15),
+    inset 0 -3px 8px rgba(60, 130, 255, 0.12),
+    0 4px 12px rgba(40, 130, 255, 0.18),
+    0 1px 4px rgba(0, 0, 0, 0.12);
+  pointer-events: none;
+}
+
+// ── Page shell ────────────────────────────────────────────────────────────────
+
+.rewards-page {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 28px 16px 80px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+// ── Skeleton ─────────────────────────────────────────────────────────────────
+
+.rewards-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.skeleton-hero {
+  height: 180px;
+  border-radius: 20px;
+  background: linear-gradient(90deg, var(--border-color) 25%, var(--surface) 50%, var(--border-color) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+.skeleton-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.skeleton-card {
+  height: 80px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, var(--border-color) 25%, var(--surface) 50%, var(--border-color) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+// ── Referral Hero (top) ───────────────────────────────────────────────────────
+
+.referral-hero {
+  position: relative;
+  background: linear-gradient(135deg, #007bff 0%, #0062cc 60%, #0056b3 100%);
+  border-radius: 20px;
+  padding: 24px 24px 20px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  box-shadow:
+    0 8px 32px rgba(10, 50, 160, 0.35),
+    0 2px 8px rgba(0, 0, 0, 0.2);
+
+  &__left {
+    position: relative;
+    z-index: 2;
+    max-width: calc(100% - 90px);
+  }
+
+  &__title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 6px;
+    letter-spacing: -0.3px;
+  }
+
+  &__hint {
+    font-size: 13px;
+    color: rgba(180, 215, 255, 0.85);
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+
+  // Decorative bubble cluster top-right
+  &__bubbles {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 110px;
+    height: 100%;
+    z-index: 1;
+  }
+}
+
+// Referral bubble decorations
+.rb {
+  @extend %bubble-base;
+  animation: bubble-float 3s ease-in-out infinite, bubble-shimmer 5s ease-in-out infinite;
+
+  &--a { width: 44px; height: 44px; top: 12px;  right: 22px; animation-delay: 0s, 0s; }
+  &--b { width: 28px; height: 28px; top: 10px;  right: 58px; animation-delay: 0.6s, 1s;   animation-duration: 2.6s, 4.5s; }
+  &--c { width: 20px; height: 20px; bottom: 20px; right: 14px; animation-delay: 1.1s, 2s;  animation-duration: 2.2s, 3.8s; }
+  &--d { width: 14px; height: 14px; top: 55px; right: 72px;  animation-delay: 1.8s, 0.5s; animation-duration: 3.1s, 6s; }
+}
+
+// ── Referral Code bar ─────────────────────────────────────────────────────────
+
+.referral-code {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 10px 14px;
+  backdrop-filter: blur(6px);
+
+  &__text {
+    font-size: 15px;
+    font-weight: 700;
+    font-family: monospace;
+    color: #fff;
+    flex: 1;
+    word-break: break-all;
+    letter-spacing: 0.5px;
+  }
+
+  &__copy,
+  &__share {
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s, color 0.2s;
+    border: none;
+    white-space: nowrap;
+  }
+
+  &__copy {
+    background: #fff;
+    color: #0b3085;
+
+    &:hover { background: #dff0ff; }
+  }
+
+  &__share {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+
+    &:hover { background: rgba(255, 255, 255, 0.28); }
+  }
+}
+
+// Referral empty
+.referral-empty {
+  margin-bottom: 20px;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+// Referral list
+.referral-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+
+  &--scroll {
+    max-height: 200px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+  }
+}
+
+.referral-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 10px 16px;
+
+  &__name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  &__status {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    letter-spacing: 0.3px;
+
+    &.status-done {
+      background: rgba(40, 167, 69, 0.12);
+      color: #1a7f42;
+    }
+
+    &.status-pending {
+      background: rgba(255, 193, 7, 0.15);
+      color: #946500;
+    }
+  }
+}
+
+// ── Tier Hero Card ────────────────────────────────────────────────────────────
+
+.tier-hero {
+  position: relative;
+  background: var(--surface, #fff);
+  border: 2px solid var(--tier-color, #007bff);
+  border-radius: 20px;
+  padding: 22px 22px 18px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 4px rgba(var(--tier-color, 0, 123, 255), 0.06),
+    0 4px 20px rgba(0, 0, 0, 0.07);
+
+  // Soft tier-color glow in top-right corner
+  &::before {
+    content: '';
+    position: absolute;
+    top: -40px;
+    right: -40px;
+    width: 180px;
+    height: 180px;
+    background: radial-gradient(circle, rgba(0, 140, 255, 0.1) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  &__bubbles {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 130px;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  &__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+    position: relative;
+    z-index: 1;
+  }
+
+  &__tier-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__tier-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-muted);
+    margin-bottom: 3px;
+  }
+
+  &__name {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--tier-color, #007bff);
+    line-height: 1.1;
+    letter-spacing: -0.5px;
+  }
+
+  &__points-block {
+    text-align: right;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  &__points-num {
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--text-primary);
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+
+  &__points-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-top: 2px;
+  }
+}
+
+// Hero bubbles (floating CSS-drawn)
+.hb {
+  @extend %bubble-base;
+
+  &--1 { width: 52px; height: 52px; top: 8px;   right: 14px;  animation: bubble-float 3.8s ease-in-out infinite, bubble-shimmer 6s ease-in-out infinite; }
+  &--2 { width: 32px; height: 32px; top: 14px;  right: 60px;  animation: bubble-float 3.1s ease-in-out 0.5s infinite, bubble-shimmer 5.2s ease-in-out 0.8s infinite; }
+  &--3 { width: 22px; height: 22px; bottom: 18px; right: 22px; animation: bubble-float 2.5s ease-in-out 1.1s infinite, bubble-shimmer 4.5s ease-in-out 1.5s infinite; }
+  &--4 { width: 16px; height: 16px; bottom: 24px; right: 66px; animation: bubble-float 2.8s ease-in-out 0.8s infinite, bubble-shimmer 5.8s ease-in-out 2s   infinite; }
+  &--5 { width: 11px; height: 11px; top: 62px;  right: 88px;  animation: bubble-float 2.2s ease-in-out 1.6s infinite, bubble-shimmer 3.8s ease-in-out 0.3s infinite; }
+}
+
+// ── Tier Progress bar ─────────────────────────────────────────────────────────
+
+.tier-progress {
+  position: relative;
+  z-index: 1;
+
+  &__labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 7px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  &__next { color: var(--tier-color, #007bff); }
+
+  &__track {
+    width: 100%;
+    height: 10px;
+    background: var(--border-color, #e5e7eb);
+    border-radius: 99px;
+    overflow: hidden;
+
+    &--full .tier-progress__fill {
+      background: linear-gradient(90deg, #f0b800, #ffd94a) !important;
+    }
+  }
+
+  &__fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--tier-color, #007bff), rgba(0, 200, 255, 0.85));
+    border-radius: 99px;
+    transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+    min-width: 8px;
+    box-shadow: 0 0 8px rgba(0, 180, 255, 0.45);
+    animation: bar-fill-in 1s ease both;
+  }
+
+  &__hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 7px;
+    text-align: right;
+  }
+}
+
+// ── Stats row ─────────────────────────────────────────────────────────────────
+
+.stats-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 28px;
+}
+
+.stat-pill {
+  flex: 1 1 110px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 14px 12px 12px;
+  text-align: center;
+  min-width: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s, transform 0.2s;
+
+  &:hover {
+    box-shadow: 0 4px 14px rgba(0, 100, 255, 0.1);
+    transform: translateY(-2px);
+  }
+
+  &--green {
+    border-color: rgba(40, 167, 69, 0.4);
+    background: rgba(40, 167, 69, 0.04);
+    .stat-pill__value { color: #1a7f42; }
+  }
+
+  &--fire {
+    border-color: rgba(255, 100, 0, 0.3);
+    background: rgba(255, 100, 0, 0.04);
+    .stat-pill__value { color: #c44600; }
+  }
+
+  &__icon {
+    font-size: 18px;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  &__value {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.2;
+    letter-spacing: -0.5px;
+  }
+
+  &__label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-top: 4px;
+  }
+}
+
+// ── Sections ──────────────────────────────────────────────────────────────────
+
+.section {
+  margin-bottom: 32px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+  letter-spacing: -0.3px;
+}
+
+.section-hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0 0 14px;
+  line-height: 1.5;
+}
+
+// ── Redemption Grid ───────────────────────────────────────────────────────────
+
+.redemption-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+
+  @media (max-width: 480px) { gap: 8px; }
+}
+
+.redemption-card {
+  position: relative;
+  background: var(--surface, #fff);
+  border: 1.5px solid var(--border-color);
+  border-radius: 16px;
+  padding: 18px 10px 14px;
+  text-align: center;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+
+  &--available {
+    border-color: #007bff;
+    background: rgba(0, 123, 255, 0.04);
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.08);
+
+    &:hover {
+      box-shadow: 0 4px 20px rgba(0, 123, 255, 0.18), 0 0 0 3px rgba(0, 123, 255, 0.1);
+      transform: translateY(-2px);
+    }
+  }
+
+  &--locked {
+    opacity: 0.52;
+  }
+
+  &__points {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary-color, #007bff);
+    margin-bottom: 6px;
+    position: relative;
+    z-index: 1;
+  }
+
+  &__value {
+    font-size: 26px;
+    font-weight: 900;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    line-height: 1;
+    position: relative;
+    z-index: 1;
+    letter-spacing: -0.5px;
+  }
+
+  &__status {
+    position: relative;
+    z-index: 1;
+  }
+}
+
+.off-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.status-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+  background: rgba(0, 123, 255, 0.1);
+  color: #0047b0;
+
+  &--locked {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--text-muted);
+  }
+}
+
+// Tiny bubble decorations on redemption cards
+.rc-bubble {
+  @extend %bubble-base;
+  opacity: 0.6;
+  animation: bubble-float 3s ease-in-out infinite, bubble-shimmer 5s ease-in-out infinite;
+
+  &--a { width: 28px; height: 28px; top: -10px; right: -8px;  }
+  &--b { width: 16px; height: 16px; bottom: 6px; right: 8px; animation-delay: 0.8s; animation-duration: 2.5s, 4s; }
+}
+
+// ── Points History ────────────────────────────────────────────────────────────
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  overflow: hidden;
+
+  &--scroll {
+    max-height: 500px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+  }
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  background: var(--surface, #fff);
+  border-bottom: 1px solid var(--border-color);
+  transition: background 0.15s;
+
+  &:last-child { border-bottom: none; }
+
+  &--clickable {
+    cursor: pointer;
+
+    &:hover { background: var(--surface-alt, rgba(0, 0, 0, 0.04)); }
+  }
+
+  &__icon {
+    font-size: 18px;
+    flex-shrink: 0;
+    line-height: 1;
+  }
+
+  &__info { flex: 1; min-width: 0; }
+
+  &__type {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  &__desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__date {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  &__points {
+    font-size: 16px;
+    font-weight: 700;
+    flex-shrink: 0;
+
+    &.positive { color: #1a7f42; }
+    &.negative { color: #c0392b; }
+    &.neutral { color: var(--text-muted); }
+  }
+
+  &__arrow {
+    font-size: 20px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    line-height: 1;
+    opacity: 0.5;
+    margin-left: 2px;
+  }
+}
+
+.history-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 14px;
+
+  button {
+    padding: 7px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: var(--surface, #fff);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.15s;
+
+    &:disabled { opacity: 0.35; cursor: not-allowed; }
+    &:hover:not(:disabled) { background: var(--border-color); }
+  }
+
+  span {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+}
+
+// ── Misc ──────────────────────────────────────────────────────────────────────
+
+.empty-hint,
+.loading-hint {
+  font-size: 14px;
+  color: var(--text-muted);
+  padding: 12px 0;
+}
+
+.disabled-notice {
+  text-align: center;
+  padding: 60px 20px;
+  font-size: 16px;
+  color: var(--text-muted);
+  background: var(--surface);
+  border-radius: 20px;
+  border: 1px solid var(--border-color);
+}
+
+// ── How It Works Guide ────────────────────────────────────────────────────────
+
+.guide-section {
+  margin-top: 8px;
+}
+
+.guide-block {
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 12px;
+
+  &__title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    padding: 10px 16px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-size: 12px;
+  }
+
+  &__body {
+    padding: 14px 16px;
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.6;
+
+    p { margin: 0 0 8px; &:last-child { margin-bottom: 0; } }
+  }
+}
+
+.guide-list {
+  margin: 6px 0 10px 0;
+  padding-left: 20px;
+  list-style: disc;
+
+  li {
+    font-size: 14px;
+    color: var(--text-primary);
+    line-height: 1.7;
+    padding-left: 4px;
+
+    .guide-li-para {
+      margin: 6px 0 0;
+      &:first-of-type {
+        margin-top: 4px;
+      }
+    }
+  }
+}
+
+.guide-example {
+  font-size: 12px !important;
+  color: var(--text-muted) !important;
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 8px 12px !important;
+  margin-top: 6px !important;
+}
+
+// ── Dark theme overrides ──────────────────────────────────────────────────────
+
+[data-theme="dark"] {
+  .tier-hero {
+    box-shadow: 0 0 0 3px rgba(0, 140, 255, 0.08), 0 6px 24px rgba(0, 0, 0, 0.4);
+
+    &::before {
+      background: radial-gradient(circle, rgba(0, 160, 255, 0.12) 0%, transparent 70%);
+    }
+  }
+
+  .referral-hero {
+    background: linear-gradient(135deg, #0056b3 0%, #004a99 60%, #003d80 100%);
+  }
+
+  .stat-pill {
+    &:hover { box-shadow: 0 4px 14px rgba(0, 100, 255, 0.15); }
+  }
+
+  .history-item {
+    background: var(--surface);
+
+    &--clickable:hover { background: rgba(255, 255, 255, 0.05); }
+  }
+
+  .hb, .rb, .rc-bubble {
+    border-color: rgba(120, 200, 255, 0.4);
+    box-shadow:
+      inset 0 0 6px rgba(255, 255, 255, 0.12),
+      0 4px 12px rgba(40, 130, 255, 0.22);
+  }
+}
+
+// ── Mobile ────────────────────────────────────────────────────────────────────
+
+@media (max-width: 600px) {
+  .rewards-page { padding: 20px 12px 60px; }
+
+  .referral-hero {
+    padding: 20px 16px 18px;
+
+    &__left { max-width: 100%; }
+    &__bubbles { display: none; }
+    &__title { font-size: 17px; }
+  }
+
+  .tier-hero {
+    padding: 18px 16px 14px;
+
+    &__bubbles { display: none; }
+    &__name { font-size: 20px; }
+    &__points-num { font-size: 28px; }
+    &__emoji { font-size: 30px; }
+  }
+
+  .stat-pill {
+    flex: 1 1 90px;
+    padding: 12px 8px;
+
+    &__value { font-size: 18px; }
+    &__icon  { font-size: 15px; }
+  }
+
+  .redemption-grid { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+  .redemption-card {
+    padding: 14px 8px 12px;
+    border-radius: 12px;
+
+    &__value { font-size: 20px; }
+    &__points { font-size: 11px; }
+  }
+
+  .rc-bubble { display: none; }
+}

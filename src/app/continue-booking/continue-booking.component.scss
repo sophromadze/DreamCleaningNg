@@ -1,0 +1,227 @@
+.continue-booking-container {
+  position: fixed;
+  right: 20px;
+  top: 100px; // Below header, above quick actions
+  z-index: 1000;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  
+  @media (max-width: 768px) {
+    top: 80px; // Adjust for mobile header height
+    right: 15px;
+  }
+  
+  @media (max-width: 480px) {
+    top: 70px;
+    right: 10px;
+  }
+}
+
+.continue-booking-card {
+  display: flex;
+  flex-direction: column;
+  margin-right: 10px;
+  transform: translateX(100%);
+  opacity: 0;
+  transition: all 0.3s ease;
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px var(--shadow-color);
+  border: 1px solid var(--border-color);
+  padding: 10px;
+  width: 215px;
+  gap: 12px;
+  
+  @media (max-width: 768px) {
+    padding: 10px;
+  }
+  
+  @media (max-width: 480px) {
+    padding: 10px;
+  }
+}
+
+.continue-booking-container.expanded .continue-booking-card {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.continue-booking-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-direction: row;
+}
+
+.continue-booking-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--btn-primary, #007bff);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+  animation: pulse 2s infinite;
+}
+
+.continue-booking-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.continue-booking-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.continue-booking-subtitle {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.continue-booking-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  justify-content: flex-end;
+}
+
+.continue-booking-btn {
+  background: #28a745;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #218838;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+.continue-booking-minimize {
+  background: var(--btn-warning, #ffc107);
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-size: 12px;
+
+  &:hover {
+    background: var(--btn-warning-hover, #e0a800);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// Night mode: keep minimize icon dark (not white) so it stays visible on the warning background
+:host-context([data-theme="dark"]) .continue-booking-minimize {
+  color: #1a1a1a;
+}
+
+.continue-booking-dismiss {
+  background: var(--btn-danger, #dc3545);
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-size: 12px;
+
+  &:hover {
+    background: var(--btn-danger-hover, #c82333);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// Toggle button (collapsed state) - positioned in top-right
+.toggle-button {
+  width: 40px;
+  height: 40px;
+  background: var(--btn-primary);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  color: white;
+  animation: pulse 2s infinite;
+  
+  &:hover {
+    background: var(--btn-primary-hover);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+    transform: translateY(-2px);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  @media (max-width: 768px) {
+    width: 36px;
+    height: 36px;
+  }
+  
+  @media (max-width: 480px) {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+.toggle-text {
+  display: none; // Hide text for circular button, use icon instead
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(0, 123, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
+  }
+}

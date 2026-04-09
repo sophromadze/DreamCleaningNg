@@ -1,0 +1,511 @@
+<main>
+    <section class="main-container">
+      <div class="container">
+        <!-- Main Booking Form -->
+        <div class="main-booking-form-container">
+          <div class="booking-form-wrapper">
+            <div class="booking-form-card">
+              <h2 class="booking-form-title">Book Your Cleaning</h2>
+              
+              <form class="booking-form" (ngSubmit)="continueBooking()">
+                <!-- Service Type: shimmer when loading, dropdown when loaded -->
+                <div class="form-group">
+                  <div *ngIf="isLoadingServiceTypes" class="service-type-dropdown main-card-shimmer-dropdown" [shimmer]="true"></div>
+                  <div *ngIf="!isLoadingServiceTypes" class="service-type-dropdown">
+                    <button 
+                      type="button"
+                      class="dropdown-toggle"
+                      [class.error]="serviceTypeControl.invalid && serviceTypeControl.touched"
+                      (click)="toggleServiceTypeDropdown()">
+                      <span>{{ selectedServiceType ? selectedServiceType.name : 'Select a service type' }}</span>
+                      <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="dropdown-menu" *ngIf="serviceTypeDropdownOpen">
+                      <button 
+                        *ngFor="let type of serviceTypes" 
+                        type="button"
+                        class="dropdown-item"
+                        (click)="selectServiceType(type)">
+                        {{ type.name }}
+                      </button>
+                    </div>
+                  </div>
+                  <div class="error-message" *ngIf="!isLoadingServiceTypes && serviceTypeControl.invalid && serviceTypeControl.touched">
+                    Service type is required
+                  </div>
+                </div>
+
+                <!-- About Your Home: full shimmer lines when loading (no labels), real inputs when loaded -->
+                <div class="form-section" *ngIf="isLoadingServiceTypes || selectedServiceType">
+                  <h3 class="section-title">About Your Home</h3>
+                  <!-- Full-width shimmer lines (generic; service names unknown until loaded) -->
+                  <div class="services services-shimmer" *ngIf="isLoadingServiceTypes">
+                    <div class="main-card-shimmer-service-line" *ngFor="let i of [1,2,3]" [shimmer]="true"></div>
+                  </div>
+                  <!-- Real content when loaded -->
+                  <div class="services" *ngIf="!isLoadingServiceTypes && selectedServiceType">
+                    <div class="service-item" *ngFor="let selected of selectedServices">
+                      <label>{{ selected.service.name }}</label>
+                      <div class="service-input" *ngIf="selected.service.inputType === 'dropdown'">
+                        <div class="quantity-control">
+                          <div class="control-buttons">
+                            <button
+                              type="button"
+                              [attr.aria-label]="'Decrease ' + selected.service.name"
+                              (click)="decrementServiceQuantity(selected.service)"
+                              [disabled]="selected.quantity <= (selected.service.minValue || 0)">
+                              <svg width="12" height="2" viewBox="0 0 12 2" fill="none">
+                                <line x1="1" y1="1" x2="11" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                              </svg>
+                            </button>
+                            <span class="quantity-value">
+                              {{ selected.service.serviceKey === 'bedrooms' && selected.quantity === 0 ? 'Studio' : selected.quantity }}
+                            </span>
+                            <button
+                              type="button"
+                              [attr.aria-label]="'Increase ' + selected.service.name"
+                              (click)="incrementServiceQuantity(selected.service)"
+                              [disabled]="selected.quantity >= (selected.service.maxValue || 10)">
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                                <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="service-input slider-input" *ngIf="selected.service.isRangeInput">
+                        <div class="slider-container">
+                          <span class="slider-quantity">{{ selected.quantity }}</span>
+                          <input
+                            type="range"
+                            [attr.aria-label]="selected.service.name + ' square footage'"
+                            [(ngModel)]="selected.quantity"
+                            [ngModelOptions]="{standalone: true}"
+                            [min]="getSquareFeetMinForBedrooms()"
+                            [max]="selected.service.maxValue"
+                            [step]="selected.service.stepValue"
+                            (input)="updateServiceQuantity(selected.service, +selected.quantity)"
+                            class="slider-input">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Cleaning Type: two button shimmers when loading, real buttons when loaded -->
+                <div class="form-section" *ngIf="isLoadingServiceTypes || canSelectDeepCleaning">
+                  <h3 class="section-title">Cleaning Type</h3>
+                  <div *ngIf="isLoadingServiceTypes" class="cleaning-type-buttons">
+                    <div class="main-card-shimmer-btn-pill" [shimmer]="true"></div>
+                    <div class="main-card-shimmer-btn-pill" [shimmer]="true"></div>
+                  </div>
+                  <div *ngIf="!isLoadingServiceTypes && canSelectDeepCleaning" class="cleaning-type-buttons">
+                    <button 
+                      type="button"
+                      class="cleaning-type-btn"
+                      [class.selected]="cleaningTypeControl.value === 'normal'"
+                      (click)="selectCleaningType('normal')">
+                      Regular Cleaning
+                    </button>
+                    <button 
+                      type="button"
+                      class="cleaning-type-btn"
+                      [class.selected]="cleaningTypeControl.value === 'deep'"
+                      (click)="selectCleaningType('deep')">
+                      Deep Cleaning
+                    </button>
+                  </div>
+                  <div class="error-message" *ngIf="!isLoadingServiceTypes && cleaningTypeControl.invalid && cleaningTypeControl.touched">
+                    Cleaning type is required
+                  </div>
+                </div>
+
+                <!-- Estimate: always show "Estimate:", shimmer only the price when loading -->
+                <div class="booking-form-pricing-hint" *ngIf="isLoadingServiceTypes || selectedServiceType">
+                  <span class="estimate-label">Estimate:</span>
+                  <div *ngIf="isLoadingServiceTypes" class="main-card-shimmer-price" [shimmer]="true"></div>
+                  <span *ngIf="!isLoadingServiceTypes" class="estimate-price">${{ getEstimatedPrice() }}</span>
+                </div>
+
+                <!-- Get Exact Price Button: shimmer when loading -->
+                <div *ngIf="isLoadingServiceTypes" class="main-card-shimmer-btn" [shimmer]="true"></div>
+                <button *ngIf="!isLoadingServiceTypes" type="submit" class="continue-booking-btn">
+                  Get Exact Price <i class="fas fa-chevron-right btn-arrow" aria-hidden="true"></i>
+                </button>
+              </form>
+            </div>
+            
+          </div>
+        </div>
+        
+        <div class="main-content-description">
+          <h1>Professional Cleaning Services in NYC</h1>
+          <h2 class="hero-subtitle">Trusted Home &amp; Apartment Cleaning in Brooklyn, Manhattan &amp; Queens<br>Book Online Today</h2>
+          <hgroup>
+            <button routerLink="/services/manhattan-cleaning" class="location-btn">Manhattan</button>
+            <button routerLink="/services/brooklyn-cleaning" class="location-btn">Brooklyn</button>
+            <button routerLink="/services/queens-cleaning" class="location-btn">Queens</button>
+          </hgroup>
+          <p class="hero-accent">We Clean – You Relax</p>
+          <div class="btn-container">
+            <a routerLink="/booking" class="btn-primary ">Book Now</a>
+            <a href="tel:+19299301525" class="btn-secondary ">(929) 930-1525</a>
+            <a routerLink="/free-quote" class="btn-quote">Get Free Quote</a>
+          </div>
+          <div class="tagline-container">
+            <div class="icons-container">
+              <img src="/images/guarantee.webp" alt="100% Satisfaction Guarantee" class="guaranty-icon">
+              <img src="/images/eco-friendly.webp" alt="Eco-Friendly" class="eco-friendly-icon">
+              <img src="/images/insured.webp" alt="insured" class="insured-icon">
+            </div>
+          </div>
+        </div>
+        <!-- Main Image Container - COMMENTED OUT - May use in future
+        <div class="main-image-container" role="img" aria-label="Professional cleaning service in NYC - Dream Cleaning"></div>
+        -->
+      </div>
+      
+      <!-- Special Offers Section -->
+      <!-- COMMENTED OUT - May use in future
+      <div class="special-offers-section" *ngIf="specialOffers.length > 0">
+        <div class="offers-loading" *ngIf="isLoadingOffers">
+          <div class="loading-spinner"></div>
+          <p>Loading special offers...</p>
+        </div>
+        <div class="offers-text-container" *ngIf="!isLoadingOffers">
+                    <div class="badge-container" *ngFor="let offer of getDisplayOffers(); let i = index">
+            <div class="curved-text">
+              <svg viewBox="0 0 200 200">
+                <defs>
+                  <path [id]="'circle-path-' + i" d="M 100, 100 m -85, 0 a 85,85 0 1,1 170,0 a 85,85 0 1,1 -170,0"></path>
+                </defs>
+                <text>
+                  <textPath [attr.href]="'#circle-path-' + i" startOffset="0%">
+                    • {{ offer.description }}
+                  </textPath>
+                </text>
+              </svg>
+            </div>
+            <div class="circle" (click)="onOfferClick()">
+              <div class="circle-text">
+                <span class="main-text">{{ offer.isPercentage ? offer.discountValue + '%' : '$' + offer.discountValue }}</span>
+                <span class="alternating-text">
+                  <span class="text-1">DISCOUNT</span>
+                  <span class="text-2">{{ offer.name }}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+                  <div class="offers-note" *ngIf="!isLoggedIn && !isLoadingOffers">
+            <p>💡 <strong><a routerLink="/login" class="note-link">Sign up</a> or <a routerLink="/login" class="note-link">log in</a></strong> to see your personalized offers!</p>
+          </div>
+      </div>
+      -->
+    </section>
+    
+    <section class="google-reviews" *ngIf="showGoogleReviews">
+      <div class="container">
+        <h2>Real Client Reviews</h2>
+        <div class="overall-rating">
+          <div class="rating-stars">
+            <span class="star">⭐</span>
+            <span class="rating-number">{{overallRating.toFixed(1)}}</span>
+            <img src="https://cdn.nicejob.co/icons/google-2025.svg" alt="Google" class="google-icon">
+          </div>
+          <a href="https://g.page/r/CSmN7-QdmiyoEAI/review" target="_blank" class="reviews-link">Based on {{totalReviews}} reviews</a>
+        </div>
+        <div class="reviews-grid">
+          <div class="review-card" *ngFor="let review of reviews">
+            <div class="reviewer-info">
+              <img [src]="review.profilePhotoUrl" alt="Reviewer" class="reviewer-avatar" *ngIf="review.profilePhotoUrl">
+              <div class="reviewer-details">
+                <h3>{{review.authorName}}</h3>
+                <div class="review-date">{{review.time | date}}</div>
+              </div>
+            </div>
+            <div class="rating">
+              <span class="star" *ngFor="let star of [1,2,3,4,5]" [class.filled]="star <= review.rating">⭐</span>
+            </div>
+            <p class="review-text" [class.expanded]="review.isExpanded">{{review.text}}</p>
+            <span class="see-more" *ngIf="review.text.length > 100" (click)="review.isExpanded = !review.isExpanded">
+              {{review.isExpanded ? 'Show less' : 'See more'}}
+            </span>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <section class="about-section">
+      <div class="container">
+        <div class="about-content">
+          <div class="about-image">
+            <img src="/images/dream-cleaning-maids-in-nyc.webp" alt="Dream Cleaning Team" loading="lazy" />
+          </div>
+          <div class="about-text">
+            <h2>About Us</h2>
+            <p>Dream Cleaning is a locally owned professional cleaning company in New York City, founded in 2024. We serve 120 ZIP codes across Brooklyn, Manhattan, and Queens with a team of background-checked, insured professionals. With a 5.0-star Google rating across 100+ reviews and over 300 homes cleaned, we offer standard cleaning (from $110), deep cleaning (from $190), move in/out cleaning (from $200), office cleaning, and specialized services — with online booking, transparent pricing, and a 100% satisfaction guarantee.</p>
+            <a routerLink="/about" class="btn-primary">Learn More About Us</a>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <section class="why-choose-us">
+      <div class="container">
+        <h2>Why Choose Dream Cleaning?</h2>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg viewBox="0 0 48 48" fill="none">
+                <!-- Background -->
+                <rect x="4" y="4" width="40" height="40" rx="20" fill="#e3f2fd"/>
+                <!-- Calendar -->
+                <rect x="12" y="8" width="24" height="20" rx="2" fill="#007bff"/>
+                <rect x="14" y="10" width="20" height="16" rx="1" fill="white"/>
+                <!-- Calendar header -->
+                <rect x="12" y="8" width="24" height="6" rx="2" fill="#28a745"/>
+                <!-- Calendar rings -->
+                <circle cx="18" cy="11" r="1" fill="white"/>
+                <circle cx="22" cy="11" r="1" fill="white"/>
+                <circle cx="26" cy="11" r="1" fill="white"/>
+                <circle cx="30" cy="11" r="1" fill="white"/>
+                <!-- Calendar dates -->
+                <circle cx="16" cy="16" r="1.5" fill="#007bff"/>
+                <circle cx="20" cy="16" r="1.5" fill="#007bff"/>
+                <circle cx="24" cy="16" r="1.5" fill="#007bff"/>
+                <circle cx="28" cy="16" r="1.5" fill="#007bff"/>
+                <circle cx="16" cy="20" r="1.5" fill="#007bff"/>
+                <circle cx="20" cy="20" r="1.5" fill="#007bff"/>
+                <circle cx="24" cy="20" r="1.5" fill="#007bff"/>
+                <!-- Checkmark -->
+                <path d="M32 32 L36 36 L40 32" stroke="#28a745" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- Clock -->
+                <circle cx="12" cy="32" r="6" fill="#ffd700"/>
+                <circle cx="12" cy="32" r="4" fill="white"/>
+                <path d="M12 28 L12 32 L16 32" stroke="#007bff" stroke-width="2" stroke-linecap="round"/>
+                <circle cx="12" cy="32" r="1" fill="#007bff"/>
+              </svg>
+            </div>
+            <h3>Consistent & Dependable</h3>
+            <p>Expect the same level of quality and detail every time, on-time, and no surprises. We always show up and deliver exactly what we promise—every single time.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg viewBox="0 0 48 48" fill="none">
+                <!-- Background -->
+                <rect x="4" y="4" width="40" height="40" rx="20" fill="#e6f4f1"/>
+                <!-- Cleaning bucket -->
+                <path d="M16 12 L16 32 C16 34 18 36 20 36 L28 36 C30 36 32 34 32 32 L32 12 Z" fill="#007bff"/>
+                <path d="M18 14 L18 30 C18 32 19 34 20 34 L28 34 C29 34 30 32 30 30 L30 14 Z" fill="white"/>
+                <!-- Bucket handle -->
+                <path d="M14 14 L34 14" stroke="#28a745" stroke-width="3" stroke-linecap="round"/>
+                <!-- Cleaning tools -->
+                <rect x="12" y="18" width="3" height="12" rx="1.5" fill="#ffd700"/>
+                <rect x="33" y="18" width="3" height="12" rx="1.5" fill="#ffd700"/>
+                <!-- Sponge -->
+                <rect x="20" y="20" width="8" height="6" rx="1" fill="#28a745"/>
+                <rect x="21" y="21" width="6" height="4" rx="0.5" fill="white"/>
+                <!-- Bubbles -->
+                <circle cx="14" cy="24" r="1" fill="#e3f2fd"/>
+                <circle cx="34" cy="24" r="1" fill="#e3f2fd"/>
+                <circle cx="24" cy="38" r="1" fill="#e3f2fd"/>
+                <!-- Star for experience -->
+                <path d="M24 6 L26 10 L30 10 L27 13 L28 17 L24 15 L20 17 L21 13 L18 10 L22 10 Z" fill="#ffd700"/>
+              </svg>
+            </div>
+            <h3>Experienced & Trained</h3>
+            <p>Our team consists of professional cleaners with extensive experience. We invest in continuous training to ensure the highest quality service.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg viewBox="0 0 48 48" fill="none">
+                <!-- Background -->
+                <rect x="4" y="4" width="40" height="40" rx="20" fill="#f4e6e6"/>
+                <!-- Shield -->
+                <path d="M24 8 L36 12 L36 20 C36 28 24 36 24 36 C24 36 12 28 12 20 L12 12 Z" fill="#dc3545"/>
+                <path d="M24 10 L34 13 L34 20 C34 26 24 32 24 32 C24 32 14 26 14 20 L14 13 Z" fill="white"/>
+                <!-- Lock -->
+                <rect x="20" y="18" width="8" height="10" rx="2" fill="#007bff"/>
+                <circle cx="24" cy="22" r="2" fill="white"/>
+                <!-- Checkmark -->
+                <path d="M20 26 L22 28 L28 22" stroke="#28a745" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3>Safe & Vetted</h3>
+            <p>Every cleaner is background-checked, reference-checked, and thoroughly trained. Your safety is our top priority.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg viewBox="0 0 48 48" fill="none">
+                <!-- Background -->
+                <rect x="4" y="4" width="40" height="40" rx="20" fill="#e6f4f1"/>
+                <!-- Trophy -->
+                <path d="M16 16 L20 16 L20 20 L28 20 L28 16 L32 16 L32 24 C32 28 28 32 24 32 C20 32 16 28 16 24 Z" fill="#ffd700"/>
+                <path d="M18 18 L22 18 L22 22 L26 22 L26 18 L30 18 L30 24 C30 26 28 28 24 28 C20 28 18 26 18 24 Z" fill="white"/>
+                <!-- Handles -->
+                <path d="M16 20 C14 20 12 22 12 24" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+                <path d="M32 20 C34 20 36 22 36 24" stroke="#ffd700" stroke-width="2" stroke-linecap="round"/>
+                <!-- Checkmark -->
+                <path d="M20 24 L22 26 L28 20" stroke="#28a745" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- 100% -->
+                <text x="24" y="38" text-anchor="middle" font-size="6" font-weight="bold" fill="#007bff">100%</text>
+              </svg>
+            </div>
+            <h3>100% Satisfaction Guarantee</h3>
+            <p>Not completely satisfied? We'll come back and make it right—no questions asked. Your satisfaction is our top priority.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg viewBox="0 0 48 48" fill="none">
+                <!-- Background -->
+                <rect x="4" y="4" width="40" height="40" rx="20" fill="#e3f2fd"/>
+                <!-- Spray bottle -->
+                <path d="M16 12 L16 28 C16 30 18 32 20 32 L28 32 C30 32 32 30 32 28 L32 12 Z" fill="#007bff"/>
+                <path d="M18 14 L18 26 C18 28 19 30 20 30 L28 30 C29 30 30 28 30 26 L30 14 Z" fill="white"/>
+                <!-- Nozzle -->
+                <path d="M32 12 L36 8 L36 12 Z" fill="#007bff"/>
+                <!-- Trigger -->
+                <path d="M20 16 L24 14 L24 18 Z" fill="#28a745"/>
+                <!-- Cleaning tools -->
+                <rect x="12" y="20" width="4" height="8" rx="2" fill="#ffd700"/>
+                <rect x="34" y="20" width="4" height="8" rx="2" fill="#ffd700"/>
+                <!-- Sparkles -->
+                <circle cx="14" cy="16" r="1" fill="#ffd700"/>
+                <circle cx="34" cy="16" r="1" fill="#ffd700"/>
+                <circle cx="24" cy="36" r="1" fill="#ffd700"/>
+              </svg>
+            </div>
+            <h3>Professional Equipment</h3>
+            <p>We use professional-grade cleaning equipment and tools to ensure thorough cleaning results that exceed your expectations.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">
+              <svg viewBox="0 0 48 48" fill="none">
+                <!-- Background -->
+                <rect x="4" y="4" width="40" height="40" rx="20" fill="#e6f4f1"/>
+                <!-- Phone -->
+                <rect x="16" y="12" width="16" height="24" rx="3" fill="#007bff"/>
+                <rect x="18" y="14" width="12" height="20" rx="2" fill="white"/>
+                <!-- Screen -->
+                <rect x="20" y="16" width="8" height="12" rx="1" fill="#28a745"/>
+                <!-- Buttons -->
+                <circle cx="24" cy="30" r="1" fill="#007bff"/>
+                <!-- Signal waves -->
+                <path d="M36 16 C38 16 40 18 40 20" stroke="#28a745" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+                <path d="M36 18 C37 18 38 20 38 22" stroke="#28a745" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+                <path d="M36 20 C36.5 20 37 22 37 24" stroke="#28a745" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                <!-- Clock -->
+                <circle cx="12" cy="16" r="6" fill="#ffd700"/>
+                <circle cx="12" cy="16" r="4" fill="white"/>
+                <path d="M12 12 L12 16 L16 16" stroke="#007bff" stroke-width="1.5" stroke-linecap="round"/>
+                <circle cx="12" cy="16" r="1" fill="#007bff"/>
+              </svg>
+            </div>
+            <h3>Always Available</h3>
+            <p>Need something? Reach us by phone, text, or email. Our office is fully staffed to assist you with any questions or concerns.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <section class="services-container">
+      <div class="container">
+        <h2>Our Cleaning Services</h2>
+        <div class="service-description">
+          <p>Dream Cleaning offers a full range of professional cleaning services across Manhattan, Brooklyn, and Queens — from standard weekly maintenance (from $110) to deep cleaning (from $190), move in/out cleaning (from $200), and specialized services. All services include background-checked cleaners, professional equipment, and a 100% satisfaction guarantee.</p>
+
+          <div class="services-overview">
+            <h3>
+              <svg class="offer-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+              </svg>
+              What We Offer:
+            </h3>
+            <p><strong>Residential Cleaning:</strong> Keep your home consistently fresh with weekly, biweekly, or monthly cleaning starting from $110. Our experienced cleaners handle everything from dusting and vacuuming to bathroom and kitchen sanitization. <a routerLink="/services/residential-cleaning" class="read-more-link">Read more about residential cleaning</a></p>
+
+            <p><strong>Deep Cleaning:</strong> Thorough top-to-bottom restoration starting from $190, covering baseboards, inside appliances, behind furniture, and hard-to-reach areas. Recommended every 3–6 months for NYC homes. <a routerLink="/services/deep-cleaning" class="read-more-link">Read more about deep cleaning</a></p>
+
+            <p><strong>Move In/Out Cleaning:</strong> Comprehensive transition cleaning starting from $200 — cabinet interiors, appliance cleaning, wall spot cleaning, and scuff mark removal to meet lease requirements. <a routerLink="/services/move-in-out-cleaning" class="read-more-link">Read more about move in/out cleaning</a></p>
+
+            <p><strong>Office & Commercial Cleaning:</strong> Flexible scheduling around your business hours with daily, weekly, or custom plans. We keep your workplace pristine while minimizing disruption. <a routerLink="/services/office-cleaning" class="read-more-link">Read more about office cleaning</a></p>
+
+            <p><strong>Heavy Condition & Filthy Cleaning:</strong> Professional restoration of severely neglected spaces at $55/hour per cleaner. We handle years of accumulated grime with industrial-strength equipment. <a routerLink="/services/heavy-condition-cleaning" class="read-more-link">Read more about heavy condition cleaning</a></p>
+
+            <p><strong>Post Construction Cleaning:</strong> Construction dust, debris, and residue removal from every surface. We make your newly renovated space move-in ready. <a routerLink="/services/post-construction-cleaning" class="read-more-link">Read more about post construction cleaning</a></p>
+
+            <p><strong>Laundry & Dishwashing:</strong> We wash, dry, and fold your laundry using your building's or in-unit machines, and handle all your dishes — no outsourcing, everything is done on-site. Available as add-on or standalone service. <a routerLink="/services/laundry-and-dishwashing" class="read-more-link">Read more about laundry and dishwashing</a></p>
+          </div>
+
+          <div class="included-services">
+            <h3>
+              <svg class="included-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="M9 12l2 2 4-4"/>
+              </svg>
+              What's Included in Every Service:
+            </h3>
+            <ul>
+              <li><p>Background-checked, insured cleaning professionals</p></li>
+              <li><p>Professional-grade cleaning products and equipment</p></li>
+              <li><p>Flexible scheduling 7 days a week</p></li>
+              <li><p>Transparent pricing with no hidden fees</p></li>
+            </ul>
+          </div>
+
+          <div class="button-group">
+            <a routerLink="/booking" class="btn-primary">Book Now</a>
+            <a routerLink="/service-page" class="btn-secondary">More Services</a>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Service Areas Section -->
+    <section class="service-areas-section">
+      <div class="container">
+        <h2>Where We Clean in NYC</h2>
+        <p class="service-areas-intro">Dream Cleaning serves 120 ZIP codes across three NYC boroughs.</p>
+        <div class="service-areas-grid">
+          <div class="area-card">
+            <h3>Brooklyn</h3>
+            <span class="zip-count">38 ZIP Codes</span>
+            <p class="neighborhoods">Park Slope, Williamsburg, DUMBO, Brooklyn Heights, Bay Ridge, Sunset Park, Bushwick, Flatbush, Greenpoint</p>
+            <a routerLink="/services/brooklyn-cleaning" class="area-link">View Brooklyn Services</a>
+          </div>
+          <div class="area-card">
+            <h3>Manhattan</h3>
+            <span class="zip-count">24 ZIP Codes</span>
+            <p class="neighborhoods">Midtown, Chelsea, Lower East Side, Upper West Side, Financial District, SoHo, East Village, Tribeca</p>
+            <a routerLink="/services/manhattan-cleaning" class="area-link">View Manhattan Services</a>
+          </div>
+          <div class="area-card">
+            <h3>Queens</h3>
+            <span class="zip-count">58 ZIP Codes</span>
+            <p class="neighborhoods">Astoria, Long Island City, Forest Hills, Flushing, Jamaica, Rego Park, Jackson Heights, Bayside</p>
+            <a routerLink="/services/queens-cleaning" class="area-link">View Queens Services</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Final CTA Section -->
+    <section class="final-cta-section">
+      <div class="container">
+        <div class="final-content">
+          <h2>Ready for a Cleaner Home?</h2>
+          <p>Book online in 2 minutes or call us directly. Professional cleaning across Manhattan, Brooklyn, and Queens — backed by our 100% satisfaction guarantee.</p>
+          <div class="final-cta-buttons">
+            <a routerLink="/booking" class="btn-primary">Book Your Cleaning</a>
+            <a href="tel:+19299301525" class="btn-secondary">Call: (929) 930-1525</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>

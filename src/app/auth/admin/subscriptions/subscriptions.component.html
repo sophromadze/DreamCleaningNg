@@ -1,0 +1,154 @@
+<div class="subscriptions-section">
+  <div class="section-header">
+    <h2>Subscriptions Management</h2>
+    <button *ngIf="userPermissions.permissions.canCreate" 
+            class="action-btn add" 
+            (click)="startAddingSubscription()">
+      Add Subscription
+    </button>
+  </div>
+
+  <!-- Add Subscription Form -->
+  <div *ngIf="isAddingSubscription" class="add-form">
+    <h3>Add New Subscription</h3>
+    <form (ngSubmit)="addSubscription()">
+      <div class="form-group">
+        <label for="name">Name</label>
+        <input type="text" id="name" [(ngModel)]="newSubscription.name" name="name" required>
+      </div>
+
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea id="description" [(ngModel)]="newSubscription.description" name="description"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="discountPercentage">Discount Percentage</label>
+        <input type="number" id="discountPercentage" [(ngModel)]="newSubscription.discountPercentage" name="discountPercentage" required min="0" max="100">
+      </div>
+
+      <div class="form-group">
+        <label for="subscriptionDays">Duration (Days)</label>
+        <input type="number" id="subscriptionDays" [(ngModel)]="newSubscription.subscriptionDays" name="subscriptionDays" required min="0">
+      </div>
+
+      <div class="form-group">
+        <label for="displayOrder">Display Order</label>
+        <input type="number" id="displayOrder" [(ngModel)]="newSubscription.displayOrder" name="displayOrder" required min="0">
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="action-btn save">Save</button>
+        <button type="button" class="action-btn cancel" (click)="cancelAddSubscription()">Cancel</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Subscriptions List -->
+  <div class="subscriptions-list">
+    <div class="table-wrapper" #tableWrapper>
+      <table>
+        <thead #tableHeader>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Discount</th>
+            <th>Duration</th>
+            <th>Order</th>
+            <th>Status</th>
+            <th *ngIf="userRole !== 'Moderator'">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+        <tr *ngFor="let subscription of subscriptions"
+            [class.editing]="editingSubscriptionId === subscription.id">
+          <td>
+            <div *ngIf="editingSubscriptionId !== subscription.id">{{subscription.name}}</div>
+            <input *ngIf="editingSubscriptionId === subscription.id" 
+                   type="text" 
+                   [(ngModel)]="subscription.name"
+                   class="edit-input">
+          </td>
+          <td>
+            <div *ngIf="editingSubscriptionId !== subscription.id">{{subscription.description}}</div>
+            <textarea *ngIf="editingSubscriptionId === subscription.id" 
+                      [(ngModel)]="subscription.description"
+                      class="edit-textarea"></textarea>
+          </td>
+          <td>
+            <div *ngIf="editingSubscriptionId !== subscription.id">{{subscription.discountPercentage}}%</div>
+            <input *ngIf="editingSubscriptionId === subscription.id" 
+                   type="number" 
+                   [(ngModel)]="subscription.discountPercentage" 
+                   min="0" 
+                   max="100"
+                   class="edit-input">
+          </td>
+          <td>
+            <div *ngIf="editingSubscriptionId !== subscription.id">
+              <span *ngIf="subscription.subscriptionDays === 0">One Time</span>
+              <span *ngIf="subscription.subscriptionDays > 0">{{subscription.subscriptionDays}} days</span>
+            </div>
+            <input *ngIf="editingSubscriptionId === subscription.id" 
+                   type="number" 
+                   [(ngModel)]="subscription.subscriptionDays" 
+                   min="0"
+                   class="edit-input">
+          </td>
+          <td>
+            <div *ngIf="editingSubscriptionId !== subscription.id">
+              {{ subscription.displayOrder || 0 }}
+            </div>
+            <input *ngIf="editingSubscriptionId === subscription.id" 
+                   type="number" 
+                   [(ngModel)]="subscription.displayOrder" 
+                   class="edit-input"
+                   min="1">
+          </td>
+          <td>
+            <span class="status-badge" [class.active]="subscription.isActive" [class.inactive]="!subscription.isActive">
+              {{subscription.isActive ? 'Active' : 'Inactive'}}
+            </span>
+          </td>
+          <td class="actions" *ngIf="userRole !== 'Moderator'">
+            <ng-container *ngIf="editingSubscriptionId !== subscription.id">
+              <button *ngIf="userPermissions.permissions.canUpdate" 
+                      class="action-btn edit" 
+                      (click)="editSubscription(subscription)">
+                Edit
+              </button>
+              <button *ngIf="userPermissions.permissions.canActivate && !subscription.isActive" 
+                      class="action-btn activate" 
+                      (click)="activateSubscription(subscription)">
+                Enable
+              </button>
+              <button *ngIf="userPermissions.permissions.canDeactivate && subscription.isActive" 
+                      class="action-btn deactivate" 
+                      (click)="deactivateSubscription(subscription)">
+                Disable
+              </button>
+              <button *ngIf="userPermissions.permissions.canDelete" 
+                      class="action-btn delete" 
+                      (click)="deleteSubscription(subscription)">
+                Delete
+              </button>
+            </ng-container>
+            <ng-container *ngIf="editingSubscriptionId === subscription.id">
+              <button class="action-btn save" (click)="saveSubscription(subscription)">Save</button>
+              <button class="action-btn cancel" (click)="cancelEditSubscription()">Cancel</button>
+            </ng-container>
+          </td>
+        </tr>
+      </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div *ngIf="errorMessage" class="error-message">
+    {{errorMessage}}
+  </div>
+  <div *ngIf="successMessage" class="success-message">
+    {{successMessage}}
+  </div>
+</div>

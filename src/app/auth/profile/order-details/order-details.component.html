@@ -1,0 +1,321 @@
+<div class="order-details-container">
+    <div class="page-header">
+      <a routerLink="/profile/orders" class="back-link">← Back to Orders</a>
+      <h1>Order Details</h1>
+    </div>
+  
+    <div *ngIf="isLoading" class="loading">Loading order details...</div>
+    
+    <div *ngIf="errorMessage" class="error-message">{{ errorMessage }}</div>
+  
+  <div *ngIf="!isLoading && order" class="prep-warning">
+    <div class="prep-title">Please provide the following items:</div>
+
+    <div *ngIf="hasCleaningSuppliesSelected(); else noSuppliesTemplate">
+      <ul class="prep-list">
+        <li>Paper towels</li>
+        <li>Garbage bags</li>
+        <li>Broom or vacuum cleaner</li>
+      </ul>
+    </div>
+
+    <ng-template #noSuppliesTemplate>
+      <ul class="prep-list">
+        <li>Paper towels</li>
+        <li>Garbage bags</li>
+        <li>Broom or vacuum cleaner</li>
+        <li>
+          Zep liquids:
+          {{
+            isDeepCleaningOrder()
+              ? 'Green, Floor (or similar), Oven Cleaner (or similar)'
+              : 'Green, Floor (or similar)'
+          }}
+        </li>
+        <li>Windex liquid (or similar)</li>
+        <li>Cleaning cloths, Sponge and Mop</li>
+      </ul>
+    </ng-template>
+  </div>
+
+    <div *ngIf="!isLoading && order" class="order-content">
+      <!-- Order Summary -->
+      <div class="order-summary">
+        <div class="summary-header">
+          <h2>{{ order.serviceTypeName }}</h2>
+          <span class="status-badge" [ngClass]="getStatusClass(order.status)">
+            {{ order.status }}
+          </span>
+        </div>
+        
+        <div class="summary-info">
+          <div class="info-row">
+            <span class="label">Order ID:</span>
+            <span class="value">#{{ order.id }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Order Date:</span>
+            <span class="value">{{ formatDate(order.orderDate) }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Service Date:</span>
+            <span class="value">{{ formatDate(order.serviceDate) }} at {{ formatTime(order.serviceTime) }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Duration:</span>
+            <span class="value" *ngIf="!isCustomServiceType()">{{ formatDuration(getServiceDuration()) }}</span>
+            <span class="value" *ngIf="isCustomServiceType()">{{ formatDuration(order.totalDuration) }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Cleaning frequency:</span>
+            <span class="value">{{ order.subscriptionName }}</span>
+          </div>
+          <div class="info-row">
+            <span class="label">Cleaners:</span>
+            <span class="value">{{ order.maidsCount }}</span>
+          </div>
+        </div>
+      </div>
+  
+      <!-- Service Details -->
+      <div class="section">
+        <h3>Services</h3>
+
+        <div class="services-list">
+          <div class="service-item" *ngFor="let service of order.services">
+            <span class="service-name">{{ service.serviceName }}</span>
+            <span class="service-quantity">
+              <ng-container *ngIf="service.serviceName.toLowerCase().includes('bedroom') && service.quantity === 0">Studio</ng-container>
+              <ng-container *ngIf="!(service.serviceName.toLowerCase().includes('bedroom') && service.quantity === 0)">
+                <ng-container *ngIf="service.serviceName.toLowerCase().includes('cleaner')">
+                  Qty: {{ service.quantity }} | Hours: {{ service.duration / 60 }}
+                </ng-container>
+                <ng-container *ngIf="!service.serviceName.toLowerCase().includes('cleaner')">
+                  Qty: {{ service.quantity }}
+                </ng-container>
+              </ng-container>
+            </span>
+          </div>
+        </div>
+      </div>
+  
+      <!-- Extra Services -->
+      <div class="section" *ngIf="order.extraServices.length > 0">
+        <h3>Extra Services</h3>
+        <div class="cleaning-type-display">
+          <strong>Cleaning Type:</strong>
+          <span [class]="getCleaningTypeText().toLowerCase().replace(' ', '-')"
+                [class.regular]="getCleaningTypeText() === 'Normal Cleaning'"
+                [class.deep]="getCleaningTypeText() === 'Deep Cleaning'"
+                [class.super-deep]="getCleaningTypeText() === 'Super Deep Cleaning'">
+            {{ getCleaningTypeText() }}
+          </span>
+        </div>
+        <div class="extra-services-list">
+          <div class="extra-service-item" *ngFor="let extra of order.extraServices">
+            <span class="service-name">{{ extra.extraServiceName }}</span>
+            <span class="service-quantity">
+              <ng-container *ngIf="extra.quantity > 0 && extra.hours > 0">
+                Qty: {{ extra.quantity }}
+              </ng-container>
+              <ng-container *ngIf="extra.quantity > 0 && extra.hours <= 0">
+                Qty: {{ extra.quantity }}
+              </ng-container>
+              <ng-container *ngIf="extra.quantity <= 0 && extra.hours > 0">
+                <!-- Hours are shown in duration column, so nothing here -->
+              </ng-container>
+            </span>
+          </div>
+        </div>
+      </div>
+  
+      <!-- Floor Types -->
+      <div class="section" *ngIf="order.floorTypes">
+        <h3>Floor Types</h3>
+        <div class="special-instructions">
+          <p>{{ formatFloorTypes(order.floorTypes, order.floorTypeOther) }}</p>
+        </div>
+      </div>
+
+      <!-- Contact Information -->
+      <div class="section">
+        <h3>Contact Information</h3>
+        <div class="contact-info">
+          <p><strong>Name:</strong> {{ order.contactFirstName }} {{ order.contactLastName }}</p>
+          <p><strong>Email:</strong> {{ order.contactEmail }}</p>
+          <p><strong>Phone:</strong> {{ order.contactPhone }}</p>
+        </div>
+      </div>
+
+      <!-- Service Address -->
+      <div class="section">
+        <h3>Service Address</h3>
+        <div class="address-info">
+          <p>{{ order.serviceAddress }}<span *ngIf="order.aptSuite">, {{ order.aptSuite }}</span></p>
+          <p>{{ order.city }}, {{ order.state }} {{ order.zipCode }}</p>
+        </div>
+      </div>
+
+      <!-- Entry Method -->
+      <div class="section" *ngIf="order.entryMethod">
+        <h3>Entry Method</h3>
+        <div class="special-instructions">
+          <p>{{ order.entryMethod }}</p>
+        </div>
+      </div>
+
+      <!-- Special Instructions -->
+      <div class="section" *ngIf="order.specialInstructions">
+        <h3>{{ isCustomServiceType() ? 'Service Description' : 'Special Instructions' }}</h3>
+        <div class="special-instructions">
+          <p>{{ order.specialInstructions }}</p>
+        </div>
+      </div>
+
+      <!-- Price Breakdown -->
+      <div class="section">
+        <h3>Price Breakdown</h3>
+        <div class="price-breakdown">
+          <div class="price-row">
+            <span>Subtotal:</span>
+            <span>${{ order.subTotal.toFixed(2) }}</span>
+          </div>
+          
+          <!-- Subscription Discount -->
+          <div class="price-row" *ngIf="order.subscriptionDiscountAmount && order.subscriptionDiscountAmount > 0">
+            <span>Plan discount ({{ order.subscriptionName }}):</span>
+            <span class="discount">-${{ order.subscriptionDiscountAmount.toFixed(2) }}</span>
+          </div>
+          
+          <!-- Special Offer Discount -->
+          <div class="price-row" *ngIf="order.specialOfferName && order.discountAmount > 0">
+            <span>{{ order.specialOfferName }}:</span>
+            <span class="discount">-${{ order.discountAmount.toFixed(2) }}</span>
+          </div>
+          
+          <!-- Promo Code Discount -->
+          <div class="price-row" *ngIf="!order.specialOfferName && order.promoCodeDetails && order.discountAmount > 0">
+            <span>Promo Code {{ order.promoCodeDetails }}:</span>
+            <span class="discount">-${{ order.discountAmount.toFixed(2) }}</span>
+          </div>
+          
+          <!-- Legacy First-Time Discount -->
+          <div class="price-row" *ngIf="!order.specialOfferName && order.promoCode === 'firstUse' && order.discountAmount > 0">
+            <span>First-Time Discount:</span>
+            <span class="discount">-${{ order.discountAmount.toFixed(2) }}</span>
+          </div>
+          
+          <!-- Gift Card -->
+          <div class="price-row" *ngIf="order.giftCardDetails && (order.giftCardAmountUsed || 0) > 0">
+            <span>Gift Card {{ order.giftCardDetails }}:</span>
+            <span class="discount">-${{ (order.giftCardAmountUsed || 0).toFixed(2) }}</span>
+          </div>
+
+          <!-- Bubble Points -->
+          <div class="price-row" *ngIf="(order.pointsRedeemed || 0) > 0">
+            <span>Bubble Points ({{ order.pointsRedeemed }} pts):</span>
+            <span class="discount">-${{ (order.pointsRedeemedDiscount || 0).toFixed(2) }}</span>
+          </div>
+
+          <!-- Reward Balance -->
+          <div class="price-row" *ngIf="(order.rewardBalanceUsed || 0) > 0">
+            <span>Reward Balance:</span>
+            <span class="discount">-${{ (order.rewardBalanceUsed || 0).toFixed(2) }}</span>
+          </div>
+
+          <div class="price-row">
+            <span>Tax (8.875%):</span>
+            <span>${{ order.tax.toFixed(2) }}</span>
+          </div>
+          
+          <div class="price-row" *ngIf="order.tips > 0">
+            <span>Tips for Cleaners:</span>
+            <span>${{ order.tips.toFixed(2) }}</span>
+          </div>
+          
+          <div class="price-row" *ngIf="order.companyDevelopmentTips > 0">
+            <span>Tips for Company Development:</span>
+            <span>${{ order.companyDevelopmentTips.toFixed(2) }}</span>
+          </div>
+          
+          <div class="price-row total">
+            <span>Total:</span>
+            <span>${{ order.total.toFixed(2) }}</span>
+          </div>
+
+          <!-- Points earned on this order -->
+          <div class="price-row pts-earned-row" *ngIf="(order.pointsEarned || 0) > 0">
+            <span>🫧 Points earned:</span>
+            <span class="pts-earned-val">+{{ order.pointsEarned | number }} pts</span>
+          </div>
+        </div>
+      </div>
+  
+      <!-- Action Buttons -->
+      <div class="action-buttons">
+        <!-- Pay and Cancel buttons for unpaid orders (not cancelled) -->
+        <div class="unpaid-actions" *ngIf="!order.isPaid && order.status !== 'Cancelled'">
+          <a [routerLink]="['/order', order.id, 'pay']"
+             class="pay-btn">
+            Pay Now
+          </a>
+          <button 
+            (click)="cancelUnpaidOrder()" 
+            class="cancel-btn"
+            [disabled]="isCancelling">
+            <span *ngIf="!isCancelling">Cancel Order</span>
+            <span *ngIf="isCancelling">Cancelling...</span>
+          </button>
+        </div>
+
+        <!-- Pay button for pending additional payments (admin/customer updates). Amount shown excludes tips so customer pays the correct difference. -->
+        <div class="unpaid-actions" *ngIf="order.isPaid && order.status !== 'Cancelled' && (order.pendingUpdateAmount || 0) > 0.01">
+          <a [routerLink]="['/order', order.id, 'pay']"
+             class="pay-btn">
+            Pay Additional ${{ getEffectivePendingUpdateAmount().toFixed(2) }}
+          </a>
+        </div>
+
+        <!-- Only show edit button if not custom service type -->
+        <a *ngIf="!isCustomServiceType()"
+           [routerLink]="canEditOrder() ? ['/order', order.id, 'edit'] : null" 
+           class="edit-btn" 
+           [class.disabled]="!canEditOrder()"
+           [attr.data-tooltip]="!canEditOrder() ? (order.status === 'Done' ? 'Order is completed' : order.status === 'Cancelled' ? 'Order is cancelled' : 'Orders must be edited at least 48 hours before service') : null">
+          Edit Order
+        </a>
+        
+        <button class="cancel-btn"
+                (click)="canCancelOrder() ? openCancelModal() : null"
+                [class.disabled]="!canCancelOrder()"
+                [attr.data-tooltip]="!canCancelOrder() ? (order.status === 'Done' ? 'Order is completed' : order.status === 'Cancelled' ? 'Order is already cancelled' : null) : null">
+          Cancel Order
+        </button>
+      </div>
+    </div>
+  
+    <!-- Cancel Modal -->
+    <div class="modal-backdrop" *ngIf="showCancelModal" (click)="closeCancelModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <h2>Cancel Order</h2>
+        <p>Are you sure you want to cancel this order?</p>
+        <p class="refund-notice">Your payment will be refunded within 7 working days.</p>
+
+        <p *ngIf="isLateCancellation()" class="late-cancellation-notice">
+          <strong>Please note:</strong> Since you are cancelling less than 48 hours before the scheduled service, a $70.00 late cancellation fee will apply in accordance with our terms of service.
+        </p>
+
+        <div class="form-group">
+          <label>Reason for cancellation:</label>
+          <textarea [(ngModel)]="cancelReason" rows="3" placeholder="Please provide a reason..."></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button class="confirm-btn" (click)="confirmCancelOrder()" [disabled]="!cancelReason.trim()">
+            Confirm Cancellation
+          </button>
+          <button class="close-btn" (click)="closeCancelModal()">Keep Order</button>
+        </div>
+      </div>
+    </div>
+  </div>
