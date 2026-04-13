@@ -259,50 +259,6 @@
   }
 }
 
-.password-requirements {
-  margin-top: 0.5rem;
-  background-color: #f5f5f5;
-  padding: 0.75rem;
-  border-radius: 4px;
-  font-size: 0.875rem;
-
-  .requirement-header {
-    color: var(--text-muted);
-    font-weight: 500;
-    display: block;
-    margin-bottom: 0.5rem;
-  }
-
-  .requirements-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-
-    li {
-      color: #999;
-      margin-bottom: 0.25rem;
-      padding-left: 1.25rem;
-      position: relative;
-
-      &::before {
-        content: '○';
-        position: absolute;
-        left: 0;
-        top: 0;
-      }
-
-      &.met {
-        color: var(--fresh-green);
-
-        &::before {
-          content: '✓';
-          color: var(--fresh-green);
-        }
-      }
-    }
-  }
-}
-
 .forgot-password {
   text-align: center;
   margin-top: 1rem;

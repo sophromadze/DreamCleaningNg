@@ -34,7 +34,6 @@ export class LoginComponent implements OnInit {
   resendEmail = '';
   showPassword = false;
   showConfirmPassword = false;
-  showReferralField = false;
   referralValid: boolean | null = null;
   private isBrowser: boolean;
 
@@ -68,7 +67,7 @@ export class LoginComponent implements OnInit {
       lastName: ['', [Validators.required]],
       email: ['', [Validators.required, Validators.email]],
       phone: [''],
-      password: ['', [Validators.required, Validators.minLength(8)]],
+      password: ['', [Validators.required, passwordValidator()]],
       confirmPassword: ['', [Validators.required]],
       referralCode: ['']
     });
@@ -96,31 +95,6 @@ export class LoginComponent implements OnInit {
     return [];
   }
 
-  hasMinLength(): boolean {
-    const pw = this.isLoginMode ? this.passwordForm.get('password')?.value : this.registerForm.get('password')?.value;
-    return pw ? pw.length >= 8 : false;
-  }
-
-  hasUppercase(): boolean {
-    const pw = this.isLoginMode ? this.passwordForm.get('password')?.value : this.registerForm.get('password')?.value;
-    return pw ? /[A-Z]/.test(pw) : false;
-  }
-
-  hasLowercase(): boolean {
-    const pw = this.isLoginMode ? this.passwordForm.get('password')?.value : this.registerForm.get('password')?.value;
-    return pw ? /[a-z]/.test(pw) : false;
-  }
-
-  hasNumber(): boolean {
-    const pw = this.isLoginMode ? this.passwordForm.get('password')?.value : this.registerForm.get('password')?.value;
-    return pw ? /\d/.test(pw) : false;
-  }
-
-  hasLatinOnly(): boolean {
-    const pw = this.isLoginMode ? this.passwordForm.get('password')?.value : this.registerForm.get('password')?.value;
-    return pw ? /^[\x20-\x7E]+$/.test(pw) : false;
-  }
-
   ngOnInit() {
     if (this.isBrowser && this.returnUrl && this.returnUrl !== '/') {
       localStorage.setItem('returnUrl', this.returnUrl);
@@ -131,7 +105,6 @@ export class LoginComponent implements OnInit {
       const savedCode = localStorage.getItem('dreamcleaning_referral');
       if (savedCode) {
         this.registerForm.patchValue({ referralCode: savedCode.toUpperCase() });
-        this.showReferralField = true;
       }
     }
 
@@ -379,6 +352,9 @@ export class LoginComponent implements OnInit {
         });
       } else {
         this.isLoading = false;
+        Object.keys(this.registerForm.controls).forEach(key => {
+          this.registerForm.get(key)?.markAsTouched();
+        });
       }
     }
   }

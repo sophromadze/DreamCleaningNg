@@ -48,6 +48,8 @@ export interface BookingFormData {
   customAmount?: number;
   customCleaners?: number;
   customDuration?: number;
+  bedroomsQuantity?: number;
+  bathroomsQuantity?: number;
   
   // Poll Data
   pollAnswers?: { [key: number]: string };

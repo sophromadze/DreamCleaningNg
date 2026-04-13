@@ -80,6 +80,11 @@
       <!-- Service Details -->
       <div class="section">
         <h3>Services</h3>
+        <p *ngIf="order.bedroomsQuantity !== undefined || order.bathroomsQuantity !== undefined">
+          <strong>Bedrooms:</strong> {{ (order.bedroomsQuantity ?? 0) === 0 ? 'Studio' : (order.bedroomsQuantity ?? 'N/A') }}
+          |
+          <strong>Bathrooms:</strong> {{ order.bathroomsQuantity ?? 'N/A' }}
+        </p>
 
         <div class="services-list">
           <div class="service-item" *ngFor="let service of order.services">

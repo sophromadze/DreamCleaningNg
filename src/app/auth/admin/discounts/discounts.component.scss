@@ -1,0 +1,95 @@
+.discounts-host {
+  .sub-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid #e0e0e0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+
+    @media (max-width: 480px) {
+      margin-bottom: 1rem;
+      gap: 0;
+    }
+
+    &::-webkit-scrollbar {
+      height: 4px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 2px;
+    }
+
+    .sub-tab-btn {
+      background: none;
+      border: 1px solid #e0e0e0;
+      padding: 0.75rem 1.5rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+      flex: 1;
+
+      @media (max-width: 768px) {
+        padding: 0.6rem 1.25rem;
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 480px) {
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+      }
+
+      @media (max-width: 320px) {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+      }
+
+      &:hover {
+        color: #333;
+        border-color: #ccc;
+      }
+
+      &.active {
+        color: #007bff;
+        border-color: #007bff;
+        background-color: #f0f8ff;
+      }
+    }
+  }
+
+  .sub-content {
+    // Child components bring their own layout
+  }
+}
+
+// Dark mode: tab text and borders only (child components own their dark styles)
+:host-context([data-theme="dark"]) {
+  .discounts-host .sub-tabs {
+    border-color: var(--border-color);
+    &::-webkit-scrollbar-track {
+      background: var(--surface-elevated);
+    }
+  }
+
+  .discounts-host .sub-tab-btn {
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+    &:hover {
+      color: var(--text-primary);
+      border-color: var(--text-muted);
+    }
+    &.active {
+      color: #007bff;
+      border-color: #007bff;
+      background-color: rgba(0, 123, 255, 0.15);
+    }
+  }
+}

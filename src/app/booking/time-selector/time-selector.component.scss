@@ -107,6 +107,25 @@
     color: white;
     font-weight: 500;
   }
+
+  &.blocked {
+    opacity: 0.5;
+    cursor: not-allowed;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    &:hover {
+      background-color: transparent;
+    }
+
+    .busy-label {
+      color: #dc3545;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-left: 0.5rem;
+    }
+  }
 }
 
 .selector-arrow {
@@ -166,5 +185,11 @@
   }
   .selector-arrow {
     color: var(--text-muted);
+  }
+  .selector-option.blocked {
+    opacity: 0.4;
+    .busy-label {
+      color: #f87171;
+    }
   }
 } 

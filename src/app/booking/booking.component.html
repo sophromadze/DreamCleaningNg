@@ -395,6 +395,52 @@
                 </div>
               </div>
 
+              <div class="services custom-pricing-bed-bath-services">
+                <div class="service-item">
+                  <label>Bedrooms</label>
+                  <div class="service-input">
+                    <div class="quantity-control">
+                      <div class="control-buttons">
+                        <button type="button" (click)="bedroomsQuantityControl.setValue(Math.max((bedroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()">
+                          <svg width="12" height="2" viewBox="0 0 12 2" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <line x1="1" y1="1" x2="11" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                          </svg>
+                        </button>
+                        <span>{{ (bedroomsQuantityControl.value || 0) === 0 ? 'Studio' : bedroomsQuantityControl.value }}</span>
+                        <button type="button" (click)="bedroomsQuantityControl.setValue(Math.min((bedroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="service-item">
+                  <label>Bathrooms</label>
+                  <div class="service-input">
+                    <div class="quantity-control">
+                      <div class="control-buttons">
+                        <button type="button" (click)="bathroomsQuantityControl.setValue(Math.max((bathroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()">
+                          <svg width="12" height="2" viewBox="0 0 12 2" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <line x1="1" y1="1" x2="11" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                          </svg>
+                        </button>
+                        <span>{{ bathroomsQuantityControl.value || 0 }}</span>
+                        <button type="button" (click)="bathroomsQuantityControl.setValue(Math.min((bathroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div class="form-group">
                 <label>Describe Your Cleaning</label>
                 <textarea
@@ -408,14 +454,19 @@
               <div class="form-group">
                 <label>Service Date <span class="required">*</span></label>
                 <div class="date-time-field" [shimmer]="loading.availableDates">
-                  <app-date-selector 
-                    [value]="serviceDate.value" 
+                  <app-date-selector
+                    [value]="serviceDate.value"
                     [minDate]="getMinDateString()"
                     [isSameDaySelected]="isSameDaySelected"
+                    [blockedDates]="getBlockedDates()"
+                    [partiallyBlockedDates]="getPartiallyBlockedDates()"
                     (valueChange)="onDateSelectorChange($event)">
                   </app-date-selector>
                   <div class="error-message" *ngIf="serviceDate.invalid && serviceDate.touched">
                     <div *ngIf="serviceDate.errors?.['required']">Service date is required</div>
+                  </div>
+                  <div class="blocked-date-warning" *ngIf="isSelectedDateTimeBlocked()">
+                    {{ getBlockedReasonForDate(serviceDate.value) || 'We are too busy on this date/time. Please select a different date or time.' }}
                   </div>
                 </div>
               </div>
@@ -426,10 +477,11 @@
                     <div class="time-field-shimmer" [shimmer]="true"></div>
                     <div class="time-field-shimmer" [shimmer]="true"></div>
                   </div>
-                  <app-time-selector 
+                  <app-time-selector
                     *ngIf="!loading.timeSlots"
-                    [value]="serviceTime.value" 
+                    [value]="serviceTime.value"
                     [availableTimeSlots]="getAvailableTimeSlots()"
+                    [blockedHours]="getBlockedHoursForSelectedDate()"
                     (valueChange)="onTimeChange($event)">
                   </app-time-selector>
                   <div class="error-message" *ngIf="serviceTime.invalid && serviceTime.touched">
@@ -484,6 +536,50 @@
                             (input)="updateServiceQuantity(selected.service, +selected.quantity)">
                         <!-- Removed cost display -->
                     </div>                  
+                  </div>
+                </div>
+
+                <div class="service-item" *ngIf="shouldShowStandaloneBedroomBathroom()">
+                  <label>Bedrooms</label>
+                  <div class="service-input">
+                    <div class="quantity-control">
+                      <div class="control-buttons">
+                        <button (click)="bedroomsQuantityControl.setValue(Math.max((bedroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()">
+                          <svg width="12" height="2" viewBox="0 0 12 2" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <line x1="1" y1="1" x2="11" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                          </svg>
+                        </button>
+                        <span>{{ (bedroomsQuantityControl.value || 0) === 0 ? 'Studio' : bedroomsQuantityControl.value }}</span>
+                        <button (click)="bedroomsQuantityControl.setValue(Math.min((bedroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="service-item" *ngIf="shouldShowStandaloneBedroomBathroom()">
+                  <label>Bathrooms</label>
+                  <div class="service-input">
+                    <div class="quantity-control">
+                      <div class="control-buttons">
+                        <button (click)="bathroomsQuantityControl.setValue(Math.max((bathroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()">
+                          <svg width="12" height="2" viewBox="0 0 12 2" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <line x1="1" y1="1" x2="11" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                          </svg>
+                        </button>
+                        <span>{{ bathroomsQuantityControl.value || 0 }}</span>
+                        <button (click)="bathroomsQuantityControl.setValue(Math.min((bathroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
+                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                            <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -574,14 +670,19 @@
                   <div class="form-group">
                     <label>Service Date <span class="required">*</span></label>
                     <div class="date-time-field" [shimmer]="loading.availableDates">
-                      <app-date-selector 
-                        [value]="serviceDate.value" 
+                      <app-date-selector
+                        [value]="serviceDate.value"
                         [minDate]="getMinDateString()"
                         [isSameDaySelected]="isSameDaySelected"
+                        [blockedDates]="getBlockedDates()"
+                        [partiallyBlockedDates]="getPartiallyBlockedDates()"
                         (valueChange)="onDateSelectorChange($event)">
                       </app-date-selector>
                       <div class="error-message" *ngIf="serviceDate.invalid && serviceDate.touched">
                         <div *ngIf="serviceDate.errors?.['required']">Service date is required</div>
+                      </div>
+                      <div class="blocked-date-warning" *ngIf="isSelectedDateTimeBlocked()">
+                        {{ getBlockedReasonForDate(serviceDate.value) || 'We are too busy on this date/time. Please select a different date or time.' }}
                       </div>
                     </div>
                   </div>
@@ -592,10 +693,11 @@
                         <div class="time-field-shimmer" [shimmer]="true"></div>
                         <div class="time-field-shimmer" [shimmer]="true"></div>
                       </div>
-                      <app-time-selector 
+                      <app-time-selector
                         *ngIf="!loading.timeSlots"
-                        [value]="serviceTime.value" 
+                        [value]="serviceTime.value"
                         [availableTimeSlots]="getAvailableTimeSlots()"
+                        [blockedHours]="getBlockedHoursForSelectedDate()"
                         (valueChange)="onTimeChange($event)">
                       </app-time-selector>
                       <div class="error-message" *ngIf="serviceTime.invalid && serviceTime.touched">
@@ -743,6 +845,11 @@
               </div>
             </section>
           </ng-container>
+
+          <!-- Same-day fully booked warning -->
+          <div class="blocked-date-warning" *ngIf="isSameDaySelected && isSameDayFullyBooked()">
+            We are fully booked for today. Please uncheck Same Day Service and select a different date.
+          </div>
 
         </div>
 

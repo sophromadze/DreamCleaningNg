@@ -1,6 +1,6 @@
-import { Component } from '@angular/core';
+import { Component, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgModel } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { validatePassword } from '../../utils/password-validator';
@@ -24,14 +24,14 @@ import { validatePassword } from '../../utils/password-validator';
                 name="currentPassword"
                 [(ngModel)]="currentPassword"
                 required
-                #currentPasswordInput="ngModel"
+                #currentPasswordField="ngModel"
               />
               <button type="button" class="password-toggle" (click)="showCurrentPassword = !showCurrentPassword" [attr.aria-label]="showCurrentPassword ? 'Hide password' : 'Show password'" title="{{ showCurrentPassword ? 'Hide' : 'Show' }}">
                 <svg *ngIf="!showCurrentPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 <svg *ngIf="showCurrentPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
               </button>
             </div>
-            <div class="error" *ngIf="currentPasswordInput.invalid && currentPasswordInput.touched">
+            <div class="error" *ngIf="currentPasswordField.invalid && currentPasswordField.touched">
               Current password is required
             </div>
           </div>
@@ -47,36 +47,15 @@ import { validatePassword } from '../../utils/password-validator';
                 (ngModelChange)="validateNewPassword()"
                 required
                 minlength="8"
-                #newPasswordInput="ngModel"
+                #newPasswordField="ngModel"
               />
               <button type="button" class="password-toggle" (click)="showNewPassword = !showNewPassword" [attr.aria-label]="showNewPassword ? 'Hide password' : 'Show password'" title="{{ showNewPassword ? 'Hide' : 'Show' }}">
                 <svg *ngIf="!showNewPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 <svg *ngIf="showNewPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
               </button>
             </div>
-            
-            <div class="password-requirements">
-              <h3 class="requirement-header">Password must contain:</h3>
-              <ul class="requirements-list">
-                <li [class.met]="hasMinLength()">
-                  At least 8 characters
-                </li>
-                <li [class.met]="hasUppercase()">
-                  At least one uppercase letter
-                </li>
-                <li [class.met]="hasLowercase()">
-                  At least one lowercase letter
-                </li>
-                <li [class.met]="hasNumber()">
-                  At least one number
-                </li>
-                <li [class.met]="hasLatinOnly()">
-                  Latin letters, numbers, and common keyboard symbols (e.g. ! &#64; # $ %)
-                </li>
-              </ul>
-            </div>
-            
-            <div class="error" *ngIf="newPasswordInput.touched && passwordErrors.length > 0">
+
+            <div class="error" *ngIf="newPasswordField.touched && passwordErrors.length > 0">
               <span *ngFor="let error of passwordErrors">{{ error }}<br></span>
             </div>
           </div>
@@ -90,17 +69,17 @@ import { validatePassword } from '../../utils/password-validator';
                 name="confirmPassword"
                 [(ngModel)]="confirmPassword"
                 required
-                #confirmPasswordInput="ngModel"
+                #confirmPasswordField="ngModel"
               />
               <button type="button" class="password-toggle" (click)="showConfirmPassword = !showConfirmPassword" [attr.aria-label]="showConfirmPassword ? 'Hide password' : 'Show password'" title="{{ showConfirmPassword ? 'Hide' : 'Show' }}">
                 <svg *ngIf="!showConfirmPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 <svg *ngIf="showConfirmPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
               </button>
             </div>
-            <div class="error" *ngIf="confirmPasswordInput.invalid && confirmPasswordInput.touched">
+            <div class="error" *ngIf="confirmPasswordField.invalid && confirmPasswordField.touched">
               Please confirm your new password
             </div>
-            <div class="error" *ngIf="confirmPassword !== newPassword && confirmPasswordInput.touched">
+            <div class="error" *ngIf="confirmPassword !== newPassword && confirmPasswordField.touched">
               Passwords do not match
             </div>
           </div>
@@ -242,48 +221,6 @@ import { validatePassword } from '../../utils/password-validator';
       box-shadow: none;
     }
 
-    .password-requirements {
-      margin-top: 0.5rem;
-      background-color: var(--soft-yellow);
-      padding: 0.75rem;
-      border-radius: 4px;
-      font-size: 0.875rem;
-    }
-
-    .requirement-header {
-      color: var(--soft-yellow-text);
-      margin: 0 0 0.5rem 0;
-      font-size: 1rem;
-    }
-
-    .requirements-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-
-    .requirements-list li {
-      color: var(--soft-yellow-text);
-      margin-bottom: 0.25rem;
-      padding-left: 1.25rem;
-      position: relative;
-    }
-
-    .requirements-list li::before {
-      content: '○';
-      position: absolute;
-      left: 0;
-      top: 0;
-    }
-
-    .requirements-list li.met {
-      color: #4CAF50;
-    }
-
-    .requirements-list li.met::before {
-      content: '✓';
-      color: #4CAF50;
-    }
   `]
 })
 export class ChangePasswordComponent {
@@ -298,22 +235,18 @@ export class ChangePasswordComponent {
   showNewPassword = false;
   showConfirmPassword = false;
 
+  @ViewChild('currentPasswordField') currentPasswordField?: NgModel;
+  @ViewChild('newPasswordField') newPasswordField?: NgModel;
+  @ViewChild('confirmPasswordField') confirmPasswordField?: NgModel;
+
   constructor(
     private authService: AuthService,
     private router: Router
   ) {}
 
-  ngOnChanges() {
-    this.validateNewPassword();
-  }
-
   validateNewPassword() {
-    if (this.newPassword) {
-      const validation = validatePassword(this.newPassword);
-      this.passwordErrors = validation.errors;
-    } else {
-      this.passwordErrors = [];
-    }
+    const validation = validatePassword(this.newPassword ?? '');
+    this.passwordErrors = validation.errors;
   }
 
   isFormValid(): boolean {
@@ -323,28 +256,12 @@ export class ChangePasswordComponent {
            this.newPassword === this.confirmPassword;
   }
 
-  // Helper methods for template
-  hasMinLength(): boolean {
-    return this.newPassword ? this.newPassword.length >= 8 : false;
-  }
-
-  hasUppercase(): boolean {
-    return this.newPassword ? /[A-Z]/.test(this.newPassword) : false;
-  }
-
-  hasLowercase(): boolean {
-    return this.newPassword ? /[a-z]/.test(this.newPassword) : false;
-  }
-
-  hasNumber(): boolean {
-    return this.newPassword ? /\d/.test(this.newPassword) : false;
-  }
-
-  hasLatinOnly(): boolean {
-    return this.newPassword ? /^[\x20-\x7E]+$/.test(this.newPassword) : false;
-  }
-
   onSubmit() {
+    this.currentPasswordField?.control.markAsTouched();
+    this.newPasswordField?.control.markAsTouched();
+    this.confirmPasswordField?.control.markAsTouched();
+    this.validateNewPassword();
+
     if (!this.isFormValid()) {
       return;
     }

@@ -71,6 +71,13 @@ export interface UserPermissions {
   };
 }
 
+/** Assigned cleaner row from admin API (includes whether assignment email was sent). */
+export interface AssignedCleanerAdmin {
+  id: number;
+  name: string;
+  assignmentNotificationSentAt?: string | null;
+}
+
 export interface UsersResponse {
   users: UserAdmin[];
   currentUserRole: string;
@@ -169,6 +176,8 @@ export interface SuperAdminUpdateOrderDto {
   serviceTime?: string | null;
   maidsCount?: number | null;
   totalDuration?: number | null;
+  bedroomsQuantity?: number | null;
+  bathroomsQuantity?: number | null;
   entryMethod?: string | null;
   specialInstructions?: string | null;
   floorTypes?: string | null;
@@ -753,9 +762,17 @@ export class AdminService {
     return this.http.post(`${this.apiUrl}/upload-gift-card-background`, formData);
   }
 
-  getAssignedCleanersWithIds(orderId: number): Observable<{id: number, name: string}[]> {
-    return this.http.get<{id: number, name: string}[]>(`${this.apiUrl}/orders/${orderId}/assigned-cleaners-with-ids`);
-  } 
+  getAssignedCleanersWithIds(orderId: number): Observable<AssignedCleanerAdmin[]> {
+    return this.http.get<AssignedCleanerAdmin[]>(`${this.apiUrl}/orders/${orderId}/assigned-cleaners-with-ids`);
+  }
+
+  /** Sends assignment emails only to cleaners who have not been emailed yet for this order. */
+  sendCleanerAssignmentMails(orderId: number): Observable<{ emailsSent: number; message: string }> {
+    return this.http.post<{ emailsSent: number; message: string }>(
+      `${this.apiUrl}/orders/${orderId}/send-cleaner-assignment-mails`,
+      {}
+    );
+  }
   
   getAssignedCleaners(orderId: number): Observable<string[]> {
     return this.http.get<string[]>(`${this.apiUrl}/orders/${orderId}/assigned-cleaners`);
@@ -823,6 +840,28 @@ export class AdminService {
     return this.http.post<{ message: string }>(
       `${this.apiUrl}/orders/${orderId}/mark-viewed`, {}
     );
+  }
+
+  // Blocked Time Slots (Scheduling)
+  getBlockedTimeSlots(from?: string, to?: string): Observable<any[]> {
+    let url = `${this.apiUrl}/blocked-time-slots`;
+    const params: string[] = [];
+    if (from) params.push(`from=${from}`);
+    if (to) params.push(`to=${to}`);
+    if (params.length) url += '?' + params.join('&');
+    return this.http.get<any[]>(url);
+  }
+
+  createBlockedTimeSlot(dto: { date: string; isFullDay: boolean; blockedHours?: string; reason?: string }): Observable<any> {
+    return this.http.post(`${this.apiUrl}/blocked-time-slots`, dto);
+  }
+
+  updateBlockedTimeSlot(id: number, dto: { date: string; isFullDay: boolean; blockedHours?: string; reason?: string }): Observable<any> {
+    return this.http.put(`${this.apiUrl}/blocked-time-slots/${id}`, dto);
+  }
+
+  deleteBlockedTimeSlot(id: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/blocked-time-slots/${id}`);
   }
 
   refreshTokenIfNeeded(): Observable<any> {

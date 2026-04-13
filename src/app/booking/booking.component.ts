@@ -3,7 +3,7 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { HttpClientModule } from '@angular/common/http';
-import { BookingService, ServiceType, Service, ExtraService, Subscription, BookingCalculation } from '../services/booking.service';
+import { BookingService, ServiceType, Service, ExtraService, Subscription, BookingCalculation, BlockedTimeSlot } from '../services/booking.service';
 import { AuthService } from '../services/auth.service';
 import { AuthModalService } from '../services/auth-modal.service';
 import { ProfileService } from '../services/profile.service';
@@ -58,6 +58,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   customAmount: FormControl = new FormControl('', [Validators.required, Validators.min(0.01)]);
   customCleaners: FormControl = new FormControl(1, [Validators.required, Validators.min(1), Validators.max(10)]);
   customDuration: FormControl = new FormControl(60, [Validators.required, Validators.min(60), Validators.max(480)]);
+  bedroomsQuantityControl: FormControl = new FormControl(0, [Validators.required, Validators.min(0), Validators.max(10)]);
+  bathroomsQuantityControl: FormControl = new FormControl(1, [Validators.required, Validators.min(0), Validators.max(10)]);
 
   // Service Type Form Control
   serviceTypeControl: FormControl = new FormControl('', [Validators.required]);
@@ -292,6 +294,11 @@ export class BookingComponent implements OnInit, OnDestroy {
   isLoadingOrders = false;
   reorderingOrderId: number | null = null;
 
+  // Blocked time slots (scheduling restrictions for non-admin users)
+  blockedTimeSlots: BlockedTimeSlot[] = [];
+  blockedFullDays: Set<string> = new Set();     // YYYY-MM-DD strings
+  blockedHoursMap: Map<string, Set<string>> = new Map(); // date -> set of "HH:mm"
+
   // Admin functionality
   isAdmin = false;
   isSuperAdmin = false;
@@ -481,6 +488,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.checkAdminStatus();
         const runLoaders = () => {
           this.loadInitialData();
+          this.loadBlockedTimeSlots();
           this.setupFormListeners();
           this.loadSpecialOffers();
           this.loadOrders();
@@ -625,6 +633,8 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (savedData.cleaningType) formValues.cleaningType = savedData.cleaningType;
     if (savedData.smsConsent !== undefined) formValues.smsConsent = savedData.smsConsent;
     if (savedData.cancellationConsent !== undefined) formValues.cancellationConsent = savedData.cancellationConsent;
+    if (savedData.bedroomsQuantity !== undefined) this.bedroomsQuantityControl.setValue(savedData.bedroomsQuantity);
+    if (savedData.bathroomsQuantity !== undefined) this.bathroomsQuantityControl.setValue(savedData.bathroomsQuantity);
   
     this.bookingForm.patchValue(formValues);
     
@@ -637,7 +647,9 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.savedCustomPricingData = {
       customAmount: savedData.customAmount,
       customCleaners: savedData.customCleaners,
-      customDuration: savedData.customDuration
+      customDuration: savedData.customDuration,
+      bedroomsQuantity: savedData.bedroomsQuantity,
+      bathroomsQuantity: savedData.bathroomsQuantity
     };
     
     this.savedPollData = savedData.pollAnswers;
@@ -998,6 +1010,8 @@ export class BookingComponent implements OnInit, OnDestroy {
       customAmount: this.showCustomPricing ? this.customAmount.value : undefined,
       customCleaners: this.showCustomPricing ? this.customCleaners.value : undefined,
       customDuration: this.showCustomPricing ? this.customDuration.value : undefined,
+      bedroomsQuantity: this.getSelectedBedroomsQuantity(),
+      bathroomsQuantity: this.getSelectedBathroomsQuantity(),
       
       // Poll Data
       pollAnswers: this.showPollForm ? this.pollAnswers : undefined,
@@ -1113,10 +1127,38 @@ export class BookingComponent implements OnInit, OnDestroy {
   private ensureValidServiceTimeForSelectedDate(): void {
     const slots = this.getAvailableTimeSlots();
     const current = this.serviceTime.value;
+    const blockedHours = this.getBlockedHoursForSelectedDate();
+    const blockedSet = new Set(blockedHours);
 
-    if (slots.length > 0 && (!current || !slots.includes(current))) {
-      this.serviceTime.setValue(slots[0]);
+    // If current time is available and not blocked, keep it
+    if (current && slots.includes(current) && !blockedSet.has(current)) {
+      return;
     }
+
+    // Find the closest available non-blocked slot to the current time
+    const availableSlots = slots.filter(slot => !blockedSet.has(slot));
+    if (availableSlots.length > 0) {
+      if (current) {
+        // Pick the closest available slot to the previously selected time
+        let closest = availableSlots[0];
+        let minDiff = Math.abs(this.timeToMinutes(availableSlots[0]) - this.timeToMinutes(current));
+        for (const slot of availableSlots) {
+          const diff = Math.abs(this.timeToMinutes(slot) - this.timeToMinutes(current));
+          if (diff < minDiff) {
+            minDiff = diff;
+            closest = slot;
+          }
+        }
+        this.serviceTime.setValue(closest);
+      } else {
+        this.serviceTime.setValue(availableSlots[0]);
+      }
+    }
+  }
+
+  private timeToMinutes(time: string): number {
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + m;
   }
 
   onApartmentSelect(event: any) {
@@ -1488,6 +1530,8 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.customAmount.setValue(this.savedCustomPricingData.customAmount || serviceType.basePrice);
         this.customCleaners.setValue(this.savedCustomPricingData.customCleaners || 1);
         this.customDuration.patchValue(this.savedCustomPricingData.customDuration || 60);
+        this.bedroomsQuantityControl.setValue(this.savedCustomPricingData.bedroomsQuantity ?? 0);
+        this.bathroomsQuantityControl.setValue(this.savedCustomPricingData.bathroomsQuantity ?? 1);
         
         // Clear saved data after restoration
         this.savedCustomPricingData = null;
@@ -1497,6 +1541,8 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.customCleaners.setValue(1);
         // Always set duration to 60 (1 hour) as default for custom pricing
         this.customDuration.patchValue(60);
+        this.bedroomsQuantityControl.setValue(0);
+        this.bathroomsQuantityControl.setValue(1);
       }
 
       // Force Angular to detect changes for the duration dropdown
@@ -1617,6 +1663,10 @@ export class BookingComponent implements OnInit, OnDestroy {
         if (sqftService) {
           sqftService.quantity = this.getSquareFeetForBedrooms(bedroomsQuantity);
         }
+        this.syncStandaloneBedroomBathroomFromServices();
+        const persisted = this.formPersistenceService.getFormData();
+        if (persisted?.bedroomsQuantity !== undefined) this.bedroomsQuantityControl.setValue(persisted.bedroomsQuantity);
+        if (persisted?.bathroomsQuantity !== undefined) this.bathroomsQuantityControl.setValue(persisted.bathroomsQuantity);
       }
       
       this.selectedExtraServices = [];
@@ -1786,8 +1836,10 @@ export class BookingComponent implements OnInit, OnDestroy {
           const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
           const day = String(tomorrow.getDate()).padStart(2, '0');
           const formattedDate = `${year}-${month}-${day}`;
-          
+
           this.serviceDate.setValue(formattedDate);
+          // Pick the nearest available time for the new date
+          setTimeout(() => this.ensureValidServiceTimeForSelectedDate(), 100);
         }
       }
     } else {
@@ -2064,21 +2116,28 @@ export class BookingComponent implements OnInit, OnDestroy {
   private updateDateRestrictions() {
     if (this.isSameDaySelected) {
       const today = this.getNowInNewYork();
-      
+
       // Format date properly for HTML date input (YYYY-MM-DD)
       const year = today.getFullYear();
       const month = String(today.getMonth() + 1).padStart(2, '0');
       const day = String(today.getDate()).padStart(2, '0');
       const formattedDate = `${year}-${month}-${day}`;
-      
+
+      // Always set date to today when same-day is selected,
+      // even if fully booked — so user sees the "fully booked" warning
       this.serviceDate.setValue(formattedDate);
-      
-      // Update time to earliest available time for same day service
+
+      // Update time to earliest available non-blocked time for same day service
       setTimeout(() => {
         const availableSlots = this.getAvailableTimeSlots();
-        if (availableSlots.length > 0) {
-          const earliestTime = availableSlots[0];
-          this.serviceTime.setValue(earliestTime);
+        const blockedHours = this.getBlockedHoursForSelectedDate();
+        const blockedSet = new Set(blockedHours);
+        // Find first available slot that is not blocked
+        const firstAvailable = availableSlots.find(slot => !blockedSet.has(slot));
+        if (firstAvailable) {
+          this.serviceTime.setValue(firstAvailable);
+        } else if (availableSlots.length > 0) {
+          this.serviceTime.setValue(availableSlots[0]);
         }
       }, 100); // Small delay to ensure date change is processed first
     }
@@ -2541,6 +2600,50 @@ export class BookingComponent implements OnInit, OnDestroy {
     return this.selectedServices.some(s => s.service.serviceRelationType === 'cleaner');
   }
 
+  hasBedroomsService(): boolean {
+    return this.selectedServices.some(s => s.service.serviceKey === 'bedrooms');
+  }
+
+  hasBathroomsService(): boolean {
+    return this.selectedServices.some(s => s.service.serviceKey === 'bathrooms');
+  }
+
+  shouldShowStandaloneBedroomBathroom(): boolean {
+    if (!this.selectedServiceType || this.showPollForm || this.showCustomPricing) return false;
+    const hasCleaner = this.selectedServices.some(s => s.service.serviceRelationType === 'cleaner');
+    const hasHours = this.selectedServices.some(s => s.service.serviceRelationType === 'hours');
+    return hasCleaner && hasHours && !this.hasBedroomsService() && !this.hasBathroomsService();
+  }
+
+  private syncStandaloneBedroomBathroomFromServices(): void {
+    const bedrooms = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    const bathrooms = this.selectedServices.find(s => s.service.serviceKey === 'bathrooms');
+    if (bedrooms) this.bedroomsQuantityControl.setValue(bedrooms.quantity, { emitEvent: false });
+    if (bathrooms) this.bathroomsQuantityControl.setValue(bathrooms.quantity, { emitEvent: false });
+  }
+
+  getSelectedBedroomsQuantity(): number | undefined {
+    if (this.showPollForm) return undefined;
+    if (this.showCustomPricing || this.shouldShowStandaloneBedroomBathroom()) {
+      return Number(this.bedroomsQuantityControl.value);
+    }
+    const bedrooms = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    return bedrooms ? bedrooms.quantity : undefined;
+  }
+
+  getSelectedBathroomsQuantity(): number | undefined {
+    if (this.showPollForm) return undefined;
+    if (this.showCustomPricing || this.shouldShowStandaloneBedroomBathroom()) {
+      return Number(this.bathroomsQuantityControl.value);
+    }
+    const bathrooms = this.selectedServices.find(s => s.service.serviceKey === 'bathrooms');
+    return bathrooms ? bathrooms.quantity : undefined;
+  }
+
+  onStandaloneQuantityChange(): void {
+    this.saveFormData();
+  }
+
   // Get cleaner price per hour based on cleaning type
   getCleanerPricePerHour(): number {
     // Get the actual cleaner service cost from the selected services
@@ -2807,6 +2910,8 @@ export class BookingComponent implements OnInit, OnDestroy {
       customAmount: this.showCustomPricing ? parseFloat(this.customAmount.value) : undefined,
       customCleaners: this.showCustomPricing ? parseInt(this.customCleaners.value) : undefined,
       customDuration: this.showCustomPricing ? parseInt(this.customDuration.value) : undefined,
+      bedroomsQuantity: this.getSelectedBedroomsQuantity(),
+      bathroomsQuantity: this.getSelectedBathroomsQuantity(),
       smsConsent: formValue.smsConsent,
       cancellationConsent: formValue.cancellationConsent,
       uploadedPhotos: this.preparePhotosForSubmission(),
@@ -4253,6 +4358,117 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.pollAnswers[questionId] = selected.join(', ');
   }
 
+  loadBlockedTimeSlots() {
+    this.bookingService.getBlockedTimeSlots().pipe(takeUntil(this.destroy$)).subscribe({
+      next: (slots) => {
+        this.blockedTimeSlots = slots;
+        this.blockedFullDays = new Set<string>();
+        this.blockedHoursMap = new Map<string, Set<string>>();
+        for (const slot of slots) {
+          if (slot.isFullDay) {
+            this.blockedFullDays.add(slot.date);
+          } else if (slot.blockedHours) {
+            this.blockedHoursMap.set(slot.date, new Set(slot.blockedHours.split(',')));
+          }
+        }
+        // After loading blocked slots, adjust default date/time if currently on a blocked slot
+        this.adjustDefaultDateIfBlocked();
+      }
+    });
+  }
+
+  /** If the current default date is fully blocked, advance to the next available date.
+   *  Also ensure the selected time is not blocked. */
+  private adjustDefaultDateIfBlocked() {
+    if (this.isAdminMode) return;
+    const currentDate = this.serviceDate.value;
+    if (!currentDate) return;
+
+    let dateStr = typeof currentDate === 'string' ? currentDate.split('T')[0] : currentDate;
+
+    // If current date is fully blocked, find the next available date (up to 60 days out)
+    if (this.blockedFullDays.has(dateStr)) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const date = new Date(y, m - 1, d);
+      for (let i = 0; i < 60; i++) {
+        date.setDate(date.getDate() + 1);
+        const nextStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        if (!this.blockedFullDays.has(nextStr)) {
+          dateStr = nextStr;
+          this.serviceDate.setValue(nextStr);
+          break;
+        }
+      }
+    }
+
+    // If selected time is blocked on this date, pick the first non-blocked time
+    const blockedHours = this.getBlockedHoursForDate(dateStr);
+    if (blockedHours.size > 0 && this.serviceTime.value && blockedHours.has(this.serviceTime.value)) {
+      const availableSlots = this.getAvailableTimeSlots();
+      const firstAvailable = availableSlots.find(slot => !blockedHours.has(slot));
+      if (firstAvailable) {
+        this.serviceTime.setValue(firstAvailable);
+      }
+    }
+  }
+
+  /** Get the blocked-slot reason for a given date (if any). */
+  getBlockedReasonForDate(dateStr: string): string | null {
+    const slot = this.blockedTimeSlots.find(s => s.date === dateStr);
+    return slot?.reason || null;
+  }
+
+  /** Returns list of fully blocked date strings (YYYY-MM-DD) for the date-selector. */
+  getBlockedDates(): string[] {
+    if (this.isAdminMode) return [];
+    return Array.from(this.blockedFullDays);
+  }
+
+  /** Returns list of partially blocked date strings (YYYY-MM-DD) for the date-selector. */
+  getPartiallyBlockedDates(): string[] {
+    if (this.isAdminMode) return [];
+    return Array.from(this.blockedHoursMap.keys());
+  }
+
+  /** Returns set of blocked hours for a specific date (empty if admin mode). */
+  getBlockedHoursForDate(dateStr: string): Set<string> {
+    if (this.isAdminMode) return new Set();
+    return this.blockedHoursMap.get(dateStr) || new Set();
+  }
+
+  /** Returns blocked hours array for the currently selected date (for time-selector input). */
+  getBlockedHoursForSelectedDate(): string[] {
+    if (this.isAdminMode) return [];
+    const dateStr = this.serviceDate.value;
+    if (!dateStr) return [];
+    const cleanDate = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
+    // If the date is fully blocked, all hours are blocked
+    if (this.blockedFullDays.has(cleanDate)) {
+      return [
+        '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+        '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+        '16:00', '16:30', '17:00', '17:30', '18:00'
+      ];
+    }
+    return Array.from(this.getBlockedHoursForDate(cleanDate));
+  }
+
+  /** Check if the currently selected date + time is blocked. */
+  isSelectedDateTimeBlocked(): boolean {
+    if (this.isAdminMode) return false;
+    const dateStr = this.serviceDate.value;
+    if (!dateStr) return false;
+    const cleanDate = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
+    // Fully blocked day
+    if (this.blockedFullDays.has(cleanDate)) return true;
+    // Partially blocked - check the specific time
+    const blockedHours = this.blockedHoursMap.get(cleanDate);
+    if (blockedHours && this.serviceTime.value) {
+      return blockedHours.has(this.serviceTime.value);
+    }
+    return false;
+  }
+
   getAvailableTimeSlots(): string[] {
     const selectedDate = this.serviceDate.value;
     if (!selectedDate) return [];
@@ -4624,6 +4840,20 @@ export class BookingComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** Returns true when same-day service is selected but today has no available (non-blocked) time slots. */
+  isSameDayFullyBooked(): boolean {
+    if (!this.isSameDaySelected) return false;
+    const dateStr = this.serviceDate.value;
+    if (!dateStr) return false;
+    const cleanDate = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
+    // Fully blocked day
+    if (this.blockedFullDays.has(cleanDate)) return true;
+    // Check if all available time slots are blocked
+    const slots = this.getAvailableTimeSlots();
+    const blockedSet = new Set(this.getBlockedHoursForSelectedDate());
+    return slots.length === 0 || slots.every(slot => blockedSet.has(slot));
+  }
+
   /**
    * Get the earliest available time for same day service
    * Returns the time that gives cleaners at least 4 hours to prepare
@@ -4803,7 +5033,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   // Validation methods for each step
   isStep1Valid(): boolean {
     if (!this.selectedServiceType) return false;
-    
+
     if (this.showPollForm) {
       // For step 1, only check poll questions
       // Contact info, address, and consent will be checked on step 3
@@ -4814,16 +5044,26 @@ export class BookingComponent implements OnInit, OnDestroy {
       }
       return true;
     }
-    
+
     if (this.showCustomPricing) {
-      return this.serviceTypeControl.valid && 
+      return this.serviceTypeControl.valid &&
              this.customAmount.valid &&
              this.customCleaners.valid &&
              this.customDuration.valid;
     }
-    
+
+    // Block continue if same-day service is selected but today is fully booked
+    if (this.isSameDaySelected && this.isSameDayFullyBooked()) {
+      return false;
+    }
+
+    // Block continue if selected date/time is blocked (for non-admin users)
+    if (this.isSelectedDateTimeBlocked()) {
+      return false;
+    }
+
     // For regular booking, check service type and cleaning type
-    return this.serviceTypeControl.valid && 
+    return this.serviceTypeControl.valid &&
            this.cleaningType.value !== null;
   }
 
@@ -4835,6 +5075,9 @@ export class BookingComponent implements OnInit, OnDestroy {
       return this.contactFirstName.valid && this.contactPhone.valid;
     }
     
+    // Block continue if selected date/time is blocked (for non-admin users)
+    if (this.isSelectedDateTimeBlocked()) return false;
+
     return this.selectedSubscription !== null &&
            this.serviceDate.valid &&
            this.serviceTime.valid &&

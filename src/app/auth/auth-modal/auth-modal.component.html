@@ -224,17 +224,6 @@
             </button>
           </div>
 
-          <div class="password-requirements">
-            <small class="requirement-header">Password must contain:</small>
-            <ul class="requirements-list">
-              <li [class.met]="hasMinLength()">At least 8 characters</li>
-              <li [class.met]="hasUppercase()">At least one uppercase letter</li>
-              <li [class.met]="hasLowercase()">At least one lowercase letter</li>
-              <li [class.met]="hasNumber()">At least one number</li>
-              <li [class.met]="hasLatinOnly()">Latin letters, numbers, and common keyboard symbols (e.g. ! &#64; # $ %)</li>
-            </ul>
-          </div>
-
           <div class="error-message" *ngIf="registerForm.get('password')?.invalid && registerForm.get('password')?.touched">
             <span *ngFor="let error of getPasswordErrors()">{{ error }}<br></span>
           </div>
@@ -258,6 +247,17 @@
             <span *ngIf="registerForm.get('confirmPassword')?.errors?.['required']">Confirm password is required</span>
             <span *ngIf="registerForm.get('confirmPassword')?.errors?.['passwordMismatch']">Passwords do not match</span>
           </div>
+        </div>
+
+        <div class="form-group">
+          <label for="modalReferralCode">Referral code (optional)</label>
+          <input
+            type="text"
+            id="modalReferralCode"
+            formControlName="referralCode"
+            placeholder="e.g. DREAM-XXXXX"
+            style="text-transform: uppercase;"
+            maxlength="11">
         </div>
 
         <button type="submit" class="submit-btn" [disabled]="registerForm.invalid || isLoading">

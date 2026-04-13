@@ -149,10 +149,17 @@
 
     <div class="reset-feedback success" *ngIf="resetMessage">{{ resetMessage }}</div>
     <div class="reset-feedback error" *ngIf="resetError">{{ resetError }}</div>
+    <div class="reset-feedback" *ngIf="undoAvailable && !resetLoading && !undoLoading">
+      Undo available for latest {{ undoScope === 'all' ? 'all-clients' : 'specific-client' }} reset.
+      <span *ngIf="undoCreatedAt"> Snapshot: {{ undoCreatedAt | date:'short' }}</span>
+    </div>
 
     <div class="reset-modal-actions">
       <button class="reset-confirm-btn" (click)="confirmReset()" [disabled]="resetLoading">
         {{ resetLoading ? 'Clearing...' : 'Clear' }}
+      </button>
+      <button class="reset-cancel-btn" (click)="undoLastReset()" [disabled]="undoLoading || !undoAvailable">
+        {{ undoLoading ? 'Restoring...' : 'Undo Last Reset' }}
       </button>
       <button class="reset-cancel-btn" (click)="closeResetModal()">Cancel</button>
     </div>

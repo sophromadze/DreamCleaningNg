@@ -926,6 +926,41 @@
       }
     }
 
+    .action-btn.send-assignment-mail {
+      background-color: #2563eb;
+      color: #fff;
+      border: 1px solid #1d4ed8;
+      padding: 0.5rem 1.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+      transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+
+      &:hover:not(:disabled) {
+        background-color: #1d4ed8;
+        border-color: #1e40af;
+        box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+      }
+
+      &:active:not(:disabled) {
+        background-color: #1e40af;
+        border-color: #1e3a8a;
+        box-shadow: none;
+      }
+
+      &:disabled {
+        opacity: 1 !important;
+        cursor: not-allowed;
+        background-color: #64748b;
+        border-color: #475569;
+        color: #f1f5f9;
+        box-shadow: none;
+      }
+    }
+
     .action-btn.edit-btn {
       background: #ffc107;
       color: #212529;
@@ -1838,15 +1873,30 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   padding: 12px 16px;
   background: white;
   border-radius: 4px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
+.cleaner-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
 .cleaner-name {
   font-weight: 500;
   color: #333;
+}
+
+.cleaner-mail-pending {
+  font-size: 11px;
+  font-weight: 600;
+  color: #856404;
 }
 
 .remove-cleaner-btn {
@@ -2143,6 +2193,37 @@
     .no-cleaners-message {
       background: var(--surface) !important;
       color: var(--text-muted) !important;
+    }
+    .cleaner-mail-pending {
+      color: #fbbf24 !important;
+    }
+  }
+
+  .detail-actions {
+    border-top-color: var(--border-color);
+
+    .action-btn.send-assignment-mail {
+      background-color: #3b82f6 !important;
+      color: #fff !important;
+      border: 1px solid #2563eb !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+
+      &:hover:not(:disabled) {
+        background-color: #2563eb !important;
+        border-color: #1d4ed8 !important;
+      }
+
+      &:active:not(:disabled) {
+        background-color: #1d4ed8 !important;
+      }
+
+      &:disabled {
+        background-color: #64748b !important;
+        border-color: #475569 !important;
+        color: #f8fafc !important;
+        opacity: 1 !important;
+        box-shadow: none;
+      }
     }
   }
 

@@ -200,6 +200,8 @@
                         <div class="edit-row"><label>Service Time (HH:mm)</label><input type="text" [(ngModel)]="editOrderForm.serviceTime" placeholder="14:30"></div>
                         <div class="edit-row"><label>Maids</label><input type="number" [(ngModel)]="editOrderForm.maidsCount" (ngModelChange)="onEditMaidsChange()" title="Auto from duration (1 per 6h); you can override"></div>
                         <div class="edit-row"><label>Duration (min)</label><input type="number" [(ngModel)]="editOrderForm.totalDuration" (ngModelChange)="onEditDurationChange()" min="60" placeholder="min"> <span class="duration-hint">{{ formatEditDuration(editOrderForm.totalDuration ?? 0) }}</span></div>
+                        <div class="edit-row" *ngIf="editOrderForm.bedroomsQuantity != null || editOrderForm.bathroomsQuantity != null"><label>Bedrooms (read-only)</label><input type="text" [value]="(editOrderForm.bedroomsQuantity ?? 0) === 0 ? 'Studio' : (editOrderForm.bedroomsQuantity ?? 'N/A')" readonly></div>
+                        <div class="edit-row" *ngIf="editOrderForm.bedroomsQuantity != null || editOrderForm.bathroomsQuantity != null"><label>Bathrooms (read-only)</label><input type="text" [value]="editOrderForm.bathroomsQuantity ?? 'N/A'" readonly></div>
                         <div class="edit-row"><label>Entry</label><input [(ngModel)]="editOrderForm.entryMethod"></div>
                         <div class="edit-row"><label>{{ isCustomServiceType(selectedOrder) ? 'Description' : 'Instructions' }}</label><textarea [(ngModel)]="editOrderForm.specialInstructions" rows="2"></textarea></div>
                         <div class="edit-row">
@@ -218,11 +220,11 @@
                         <div class="edit-row"><label>Company Tips</label><input type="number" step="1" [(ngModel)]="editOrderForm.companyDevelopmentTips" (ngModelChange)="recalculateEditPricing()"></div>
                         <div class="edit-row"><label>Discount (promo/special)</label><input type="number" step="1" [(ngModel)]="editOrderForm.discountAmount" (ngModelChange)="recalculateEditPricing()"></div>
                         <div class="edit-row"><label>Subscription Discount</label><input type="number" step="1" [(ngModel)]="editOrderForm.subscriptionDiscountAmount" (ngModelChange)="recalculateEditPricing()"></div>
-                        <div class="edit-row edit-row--readonly-discount" *ngIf="(selectedOrder?.pointsRedeemed || 0) > 0">
+                        <div class="edit-row edit-row--readonly-discount" *ngIf="(selectedOrder.pointsRedeemed || 0) > 0">
                           <label>Bubble Points ({{selectedOrder.pointsRedeemed}} pts)</label>
                           <input type="number" [value]="selectedOrder.pointsRedeemedDiscount || 0" readonly>
                         </div>
-                        <div class="edit-row edit-row--readonly-discount" *ngIf="(selectedOrder?.rewardBalanceUsed || 0) > 0">
+                        <div class="edit-row edit-row--readonly-discount" *ngIf="(selectedOrder.rewardBalanceUsed || 0) > 0">
                           <label>Reward Balance</label>
                           <input type="number" [value]="selectedOrder.rewardBalanceUsed || 0" readonly>
                         </div>
@@ -317,6 +319,8 @@
                           {{formatDuration(selectedOrder.totalDuration / (selectedOrder.maidsCount || 1))}}
                         </ng-template>
                       </p>
+                      <p *ngIf="selectedOrder.bedroomsQuantity != null || selectedOrder.bathroomsQuantity != null"><strong>Bedrooms:</strong> {{ (selectedOrder.bedroomsQuantity ?? 0) === 0 ? 'Studio' : (selectedOrder.bedroomsQuantity ?? 'N/A') }}</p>
+                      <p *ngIf="selectedOrder.bedroomsQuantity != null || selectedOrder.bathroomsQuantity != null"><strong>Bathrooms:</strong> {{ selectedOrder.bathroomsQuantity ?? 'N/A' }}</p>
                       <p><strong>Cleaners Count:</strong> {{selectedOrder.maidsCount}}</p>
                       <p><strong>Cleaner Hourly Rate:</strong> ${{selectedOrder.cleanerHourlyRate.toFixed(2)}}/hr</p>
                       <p *ngIf="isSuperAdmin"><strong>Cleaners Total Salary:</strong> ${{getDisplayCleanerTotalSalary().toFixed(2)}}</p>
@@ -564,7 +568,10 @@
                            class="cleaners-list">
                         <div *ngFor="let cleaner of getAssignedCleanersWithIds(selectedOrder.id)" 
                              class="cleaner-item">
-                          <span class="cleaner-name">{{ cleaner.name }}</span>
+                          <div class="cleaner-item-main">
+                            <span class="cleaner-name">{{ cleaner.name }}</span>
+                            <span *ngIf="!cleaner.assignmentNotificationSentAt" class="cleaner-mail-pending" title="Assignment email not sent yet">Pending email</span>
+                          </div>
                           <button class="remove-cleaner-btn" 
                                   (click)="removeCleanerFromOrder(selectedOrder.id, cleaner.id, cleaner.name)"
                                   [disabled]="loadingStates.removingCleaner"
@@ -592,6 +599,13 @@
 
                   <!-- Action Buttons in Details View -->
                   <div class="detail-actions" *ngIf="!editingOrder">
+                    <button *ngIf="getAssignedCleanersWithIds(selectedOrder.id).length > 0 && userPermissions.permissions.canView"
+                            type="button"
+                            class="action-btn send-assignment-mail"
+                            (click)="sendCleanerAssignmentMailsForOrder(selectedOrder.id)"
+                            [disabled]="loadingStates.sendAssignmentMails || getPendingAssignmentEmailCleaners(selectedOrder.id).length === 0">
+                      {{ loadingStates.sendAssignmentMails ? 'Sending…' : (getPendingAssignmentEmailCleaners(selectedOrder.id).length > 0 ? 'Send assignment email (' + getPendingAssignmentEmailCleaners(selectedOrder.id).length + ' pending)' : 'All cleaners notified') }}
+                    </button>
                     <button class="action-btn assign-cleaners" 
                             (click)="openCleanerAssignmentModal(selectedOrder.id)"
                             [disabled]="loadingStates.assigningCleaners"

@@ -19,12 +19,27 @@
         <div class="referral-hero__hint">
           Both of you get a reward — your friend gets bonus points when they sign up, and you earn a reward balance when they complete their first cleaning.
         </div>
-        <div class="referral-code">
-          <span class="referral-code__text">{{ summary.referralCode }}</span>
-          <button class="referral-code__copy" (click)="copyReferralLink()">
-            {{ copySuccess ? '✓ Copied!' : 'Copy Link' }}
-          </button>
-          <button class="referral-code__share" (click)="shareReferralLink()">Share</button>
+        <div class="referral-share-rows">
+          <div class="referral-row referral-row--link">
+            <span class="referral-row__label">Link:</span>
+            <span class="referral-row__value referral-row__value--url" [title]="getReferralShareUrl()">{{ getReferralShareUrl() }}</span>
+            <div class="referral-row__btns">
+              <button type="button" class="referral-code__copy" (click)="copyReferralLink()">
+                {{ copyFeedback === 'link' ? '✓ Copied!' : 'Copy' }}
+              </button>
+              <button type="button" class="referral-code__share" (click)="shareReferralLink()">Share</button>
+            </div>
+          </div>
+          <div class="referral-row referral-row--code">
+            <span class="referral-row__label">Code:</span>
+            <span class="referral-row__value referral-row__value--mono">{{ summary.referralCode }}</span>
+            <div class="referral-row__btns">
+              <button type="button" class="referral-code__copy referral-code__copy--secondary" (click)="copyReferralCode()">
+                {{ copyFeedback === 'code' ? '✓ Copied!' : 'Copy' }}
+              </button>
+              <button type="button" class="referral-code__share" (click)="shareReferralCode()">Share</button>
+            </div>
+          </div>
         </div>
       </div>
       <!-- Decorative bubbles -->
@@ -248,7 +263,7 @@
           <p>Share your referral link and both of you benefit:</p>
           <ul class="guide-list">
             <li *ngIf="summary.guide.referralNewUserBonusEnabled && summary.guide.referralNewUserBonusPoints > 0">
-              Your friend gets the normal <strong>welcome bonus</strong> when they create an account, plus an extra <strong>{{ summary.guide.referralNewUserBonusPoints | number }} pts</strong> for signing up with your link.
+              Your friend gets the normal <strong>welcome bonus</strong> when they create an account, plus an extra <strong>{{ summary.guide.referralNewUserBonusPoints | number }} pts</strong> for signing up with your link or entering your code during registration.
             </li>
             <li>
               You earn a <strong>${{ summary.guide.referralOrderCreditAmount | number:'1.0-0' }} reward balance</strong> once your friend completes their first cleaning — apply manually on your future bookings.

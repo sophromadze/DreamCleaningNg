@@ -216,6 +216,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
     return this.currentUser?.role === 'SuperAdmin' || this.currentUser?.role === 'Admin';
   }
 
+  get isInternalUser(): boolean {
+    const role = this.currentUser?.role;
+    return role === 'SuperAdmin' || role === 'Admin' || role === 'Moderator' || role === 'Cleaner';
+  }
+
   private startNyTimeClock(): void {
     if (!this.isBrowser) return;
     this.updateNyTime();

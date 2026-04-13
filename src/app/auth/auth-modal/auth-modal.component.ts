@@ -74,8 +74,9 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       lastName: ['', [Validators.required]],
       email: ['', [Validators.required, Validators.email]],
       phone: [''],
-      password: ['', [Validators.required, Validators.minLength(8)]],
-      confirmPassword: ['', [Validators.required]]
+      password: ['', [Validators.required, passwordValidator()]],
+      confirmPassword: ['', [Validators.required]],
+      referralCode: ['']
     });
 
     this.registerForm.get('confirmPassword')?.setValidators([
@@ -100,31 +101,6 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     return [];
   }
 
-  hasMinLength(): boolean {
-    const pw = this.registerForm.get('password')?.value;
-    return pw ? pw.length >= 8 : false;
-  }
-
-  hasUppercase(): boolean {
-    const pw = this.registerForm.get('password')?.value;
-    return pw ? /[A-Z]/.test(pw) : false;
-  }
-
-  hasLowercase(): boolean {
-    const pw = this.registerForm.get('password')?.value;
-    return pw ? /[a-z]/.test(pw) : false;
-  }
-
-  hasNumber(): boolean {
-    const pw = this.registerForm.get('password')?.value;
-    return pw ? /\d/.test(pw) : false;
-  }
-
-  hasLatinOnly(): boolean {
-    const pw = this.registerForm.get('password')?.value;
-    return pw ? /^[\x20-\x7E]+$/.test(pw) : false;
-  }
-
   ngOnInit() {
     const modalSub = this.authModalService.isOpen$.subscribe(isOpen => {
       this.showModal = isOpen;
@@ -132,6 +108,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
         this.resetLoginState();
         const initialMode = this.authModalService.getInitialMode();
         this.isLoginMode = initialMode === 'login';
+        this.patchReferralFromStorage();
       }
     });
 
@@ -139,6 +116,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       if (this.showModal) {
         this.isLoginMode = mode === 'login';
         this.resetLoginState();
+        this.patchReferralFromStorage();
       }
     });
 
@@ -175,6 +153,18 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     this.emailForm.reset();
     this.passwordForm.reset();
     this.otpForm.reset();
+  }
+
+  private patchReferralFromStorage(): void {
+    if (!this.isBrowser || this.isLoginMode) return;
+    try {
+      const saved = localStorage.getItem('dreamcleaning_referral');
+      if (saved) {
+        this.registerForm.patchValue({ referralCode: saved.toUpperCase() });
+      }
+    } catch {
+      /* ignore */
+    }
   }
 
   /** If we're on the login page, go to main after login; otherwise use returnUrl or stay. */
@@ -240,6 +230,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   toggleMode() {
     this.isLoginMode = !this.isLoginMode;
     this.resetLoginState();
+    this.patchReferralFromStorage();
   }
 
   goBackToEmail() {
@@ -393,7 +384,12 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       if (firstName) this.registerForm.get('firstName')?.setValue(this.capitalizeName(firstName));
       if (lastName) this.registerForm.get('lastName')?.setValue(this.capitalizeName(lastName));
 
-      this.authService.register(this.registerForm.value).subscribe({
+      const formValue = { ...this.registerForm.value };
+      if (formValue.referralCode) {
+        formValue.referralCode = formValue.referralCode.toUpperCase().trim();
+      }
+
+      this.authService.register(formValue).subscribe({
         next: (response) => {
           this.isLoading = false;
           if (response.requiresEmailVerification) {
@@ -424,6 +420,9 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       });
     } else {
       this.isLoading = false;
+      Object.keys(this.registerForm.controls).forEach(key => {
+        this.registerForm.get(key)?.markAsTouched();
+      });
     }
   }
 }

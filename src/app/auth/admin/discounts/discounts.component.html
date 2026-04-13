@@ -1,0 +1,14 @@
+<div class="discounts-host">
+  <div class="sub-tabs">
+    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab === 'promo-codes'" (click)="setSubTab('promo-codes')">Promos</button>
+    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab === 'special-offers'" (click)="setSubTab('special-offers')">Special Offers</button>
+    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab === 'subscriptions'" (click)="setSubTab('subscriptions')">Subs</button>
+    <button type="button" class="sub-tab-btn" [class.active]="activeSubTab === 'gift-cards'" (click)="setSubTab('gift-cards')">Gift Cards</button>
+  </div>
+  <div class="sub-content">
+    <app-promo-codes *ngIf="activeSubTab === 'promo-codes'"></app-promo-codes>
+    <app-special-offers *ngIf="activeSubTab === 'special-offers'"></app-special-offers>
+    <app-subscriptions *ngIf="activeSubTab === 'subscriptions'"></app-subscriptions>
+    <app-admin-gift-cards *ngIf="activeSubTab === 'gift-cards'"></app-admin-gift-cards>
+  </div>
+</div>

@@ -39,12 +39,15 @@
       </div>
       
       <div class="calendar-days">
-        <div 
-          *ngFor="let day of calendarDays" 
+        <div
+          *ngFor="let day of calendarDays"
           class="calendar-day"
           [class.current-month]="day.isCurrentMonth"
           [class.selected]="day.isSelected"
           [class.disabled]="day.isDisabled"
+          [class.blocked]="day.isBlocked"
+          [class.partially-blocked]="day.isPartiallyBlocked"
+          [attr.title]="day.isBlocked ? 'Unavailable' : day.isPartiallyBlocked ? 'Limited availability' : null"
           (click)="selectDate(day.date); $event.stopPropagation()">
           {{ day.date.getDate() }}
         </div>

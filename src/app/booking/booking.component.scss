@@ -420,6 +420,18 @@
     font-family: 'Poppins', sans-serif;
     font-weight: 400;
   }
+
+  .blocked-date-warning {
+    background-color: #fee2e2;
+    color: #991b1b;
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    margin-top: 0.4rem;
+    font-size: 0.85rem;
+    text-align: center;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 500;
+  }
   
     .booking-grid {
     display: grid;
@@ -7043,6 +7055,11 @@
 // Custom pricing form: spacing for Service Amount, Number of Cleaners, Duration headers
 .custom-pricing-form .form-group {
   margin-top: 0.5rem;
+}
+
+.custom-pricing-form .custom-pricing-bed-bath-services {
+  margin-top: 0.5rem;
+  width: 100%;
 }
 
 // Custom pricing input group styles

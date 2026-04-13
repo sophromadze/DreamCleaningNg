@@ -104,6 +104,14 @@ export interface BookingData {
   subTotal: number;
 }
 
+export interface BlockedTimeSlot {
+  id: number;
+  date: string;       // YYYY-MM-DD
+  isFullDay: boolean;
+  blockedHours: string | null;  // comma-separated "08:00,08:30,..."
+  reason: string | null;
+}
+
 export interface BookingCalculation {
   subTotal: number;
   tax: number;
@@ -207,6 +215,15 @@ export class BookingService {
   getAvailableTimeSlots(date: Date, serviceTypeId: number): Observable<string[]> {
     const dateStr = date.toISOString().split('T')[0];
     return this.http.get<string[]>(`${this.apiUrl}/booking/available-times?date=${dateStr}&serviceTypeId=${serviceTypeId}`);
+  }
+
+  getBlockedTimeSlots(from?: string, to?: string): Observable<BlockedTimeSlot[]> {
+    let url = `${this.apiUrl}/booking/blocked-time-slots`;
+    const params: string[] = [];
+    if (from) params.push(`from=${from}`);
+    if (to) params.push(`to=${to}`);
+    if (params.length) url += '?' + params.join('&');
+    return this.http.get<BlockedTimeSlot[]>(url);
   }
 
   getUserSubscription(): Observable<any> {

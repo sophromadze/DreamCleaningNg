@@ -13,12 +13,14 @@ export class DateSelectorComponent implements OnInit, OnChanges {
   @Input() value: string = '';
   @Input() minDate: string = '';
   @Input() isSameDaySelected: boolean = false;
+  @Input() blockedDates: string[] = [];          // YYYY-MM-DD strings of fully blocked days
+  @Input() partiallyBlockedDates: string[] = []; // YYYY-MM-DD strings of partially blocked days
   @Output() valueChange = new EventEmitter<string>();
 
   isDropdownOpen = false;
   currentMonth: Date = new Date();
   selectedDate: Date | null = null;
-  calendarDays: Array<{ date: Date; isCurrentMonth: boolean; isSelected: boolean; isDisabled: boolean }> = [];
+  calendarDays: Array<{ date: Date; isCurrentMonth: boolean; isSelected: boolean; isDisabled: boolean; isBlocked: boolean; isPartiallyBlocked: boolean }> = [];
 
   ngOnInit() {
     this.updateFromValue();
@@ -41,6 +43,10 @@ export class DateSelectorComponent implements OnInit, OnChanges {
     // If value changes, update from the new value
     else if (changes['value']) {
       this.updateFromValue();
+      this.generateCalendar();
+    }
+    // If blocked dates change, regenerate calendar
+    if (changes['blockedDates'] || changes['partiallyBlockedDates']) {
       this.generateCalendar();
     }
   }
@@ -103,12 +109,17 @@ export class DateSelectorComponent implements OnInit, OnChanges {
         currentDate.getMonth() === this.selectedDate.getMonth() &&
         currentDate.getDate() === this.selectedDate.getDate() : false;
       const isDisabled = this.isDateDisabled(currentDate);
-      
+      const dateStr = this.toDateString(currentDate);
+      const isBlocked = this.blockedDates.includes(dateStr);
+      const isPartiallyBlocked = !isBlocked && this.partiallyBlockedDates.includes(dateStr);
+
       this.calendarDays.push({
         date: new Date(currentDate),
         isCurrentMonth,
         isSelected,
-        isDisabled
+        isDisabled: isDisabled || isBlocked,
+        isBlocked,
+        isPartiallyBlocked
       });
       
       currentDate.setDate(currentDate.getDate() + 1);
@@ -172,6 +183,13 @@ export class DateSelectorComponent implements OnInit, OnChanges {
 
   getDisplayDate(): string {
     return this.formatDate(this.value);
+  }
+
+  private toDateString(date: Date): string {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
 
   getMonthYearString(): string {

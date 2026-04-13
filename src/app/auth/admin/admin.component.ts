@@ -5,14 +5,12 @@ import { AdminService, UserPermissions } from '../../services/admin.service';
 import { MaintenanceModeService, MaintenanceModeStatus, ToggleMaintenanceModeRequest } from '../../services/maintenance-mode.service';
 import { LiveChatService } from '../../services/live-chat.service';
 import { OrdersComponent } from './orders/orders.component';
-import { PromoCodesComponent } from './promo-codes/promo-codes.component';
-import { SubscriptionsComponent } from './subscriptions/subscriptions.component';
 import { UserManagementComponent } from './user-management/user-management.component';
 import { BookingServicesComponent } from './booking-services/booking-services.component';
-import { AdminGiftCardsComponent } from './admin-gift-cards/admin-gift-cards.component';
 import { AuditHistoryComponent } from './audit-history/audit-history.component';
-import { SpecialOffersComponent } from './special-offers/special-offers.component';
 import { CommunicationsComponent } from './communications/communications.component';
+import { DiscountsComponent } from './discounts/discounts.component';
+import { SchedulingComponent } from './scheduling/scheduling.component';
 
 @Component({
   selector: 'app-admin',
@@ -20,14 +18,12 @@ import { CommunicationsComponent } from './communications/communications.compone
   imports: [
     CommonModule,
     OrdersComponent,
-    PromoCodesComponent,
-    SubscriptionsComponent,
     UserManagementComponent,
     BookingServicesComponent,
-    AdminGiftCardsComponent,
     AuditHistoryComponent,
-    SpecialOffersComponent,
-    CommunicationsComponent
+    CommunicationsComponent,
+    DiscountsComponent,
+    SchedulingComponent
   ],
   templateUrl: './admin.component.html',
   styleUrls: ['./admin.component.scss']
@@ -49,6 +45,7 @@ export class AdminComponent implements OnInit {
 
   // UI State
   activeTab: string = 'orders';
+  selectedDiscountSubTab: 'promo-codes' | 'special-offers' | 'subscriptions' | 'gift-cards' = 'promo-codes';
   pendingOrderId: number | null = null;
   errorMessage = '';
   successMessage = '';
@@ -82,6 +79,15 @@ export class AdminComponent implements OnInit {
       let savedTab = sessionStorage.getItem('adminActiveTab');
       if (savedTab === 'mails' || savedTab === 'sms') {
         savedTab = 'mails-sms';
+      }
+      if (
+        savedTab === 'promo-codes' ||
+        savedTab === 'special-offers' ||
+        savedTab === 'subscriptions' ||
+        savedTab === 'gift-cards'
+      ) {
+        this.selectedDiscountSubTab = 'promo-codes';
+        savedTab = 'discounts';
       }
       if (savedTab) {
         this.activeTab = savedTab;
@@ -220,6 +226,9 @@ export class AdminComponent implements OnInit {
 
   setActiveTab(tab: string) {
     this.activeTab = tab;
+    if (tab === 'discounts') {
+      this.selectedDiscountSubTab = 'promo-codes';
+    }
     sessionStorage.setItem('adminActiveTab', tab);
   }
 }

@@ -4,7 +4,7 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormArray, FormControl, Validators } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { OrderService, Order, UpdateOrder } from '../../../services/order.service';
-import { BookingService, ServiceType, Service, ExtraService, Subscription } from '../../../services/booking.service';
+import { BookingService, ServiceType, Service, ExtraService, Subscription, BlockedTimeSlot } from '../../../services/booking.service';
 import { BubbleRewardsService } from '../../../services/bubble-rewards.service';
 import { LocationService } from '../../../services/location.service';
 import { AuthService } from '../../../services/auth.service';
@@ -55,6 +55,12 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   showPaymentModal = false;
   isSameDaySelected = false;
   
+  // Blocked time slots (scheduling restrictions)
+  blockedTimeSlots: BlockedTimeSlot[] = [];
+  blockedFullDays: Set<string> = new Set();
+  blockedHoursMap: Map<string, Set<string>> = new Map();
+  isUserAdmin = false;
+
   // Entry methods
   entryMethods = [
     'I will be home',
@@ -197,9 +203,18 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       error: () => {}
     });
 
+    // Check admin status
+    const user = this.authService.currentUserValue;
+    this.isUserAdmin = user?.role === 'Admin' || user?.role === 'SuperAdmin' || user?.role === 'Moderator';
+
+    // Load blocked time slots for non-admin users
+    if (!this.isUserAdmin) {
+      this.loadBlockedTimeSlots();
+    }
+
     // Load location data
     this.loadLocationData();
-    
+
     // Load order data
     this.route.params.subscribe(params => {
       const orderId = +params['id'];
@@ -1066,7 +1081,9 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       calculatedTax: this.newTax,
       calculatedTotal: this.newTotal,
       discountAmount: this.appliedDiscountAmount,
-      subscriptionDiscountAmount: this.appliedSubscriptionDiscountAmount
+      subscriptionDiscountAmount: this.appliedSubscriptionDiscountAmount,
+      bedroomsQuantity: this.order?.bedroomsQuantity,
+      bathroomsQuantity: this.order?.bathroomsQuantity
     };
   }
 
@@ -1456,18 +1473,59 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     return Math.round(service.timeDuration * durationMultiplier);
   }
 
+  loadBlockedTimeSlots() {
+    this.bookingService.getBlockedTimeSlots().subscribe({
+      next: (slots) => {
+        this.blockedTimeSlots = slots;
+        this.blockedFullDays = new Set<string>();
+        this.blockedHoursMap = new Map<string, Set<string>>();
+        for (const slot of slots) {
+          if (slot.isFullDay) {
+            this.blockedFullDays.add(slot.date);
+          } else if (slot.blockedHours) {
+            this.blockedHoursMap.set(slot.date, new Set(slot.blockedHours.split(',')));
+          }
+        }
+      }
+    });
+  }
+
+  getBlockedDates(): string[] {
+    if (this.isUserAdmin) return [];
+    return Array.from(this.blockedFullDays);
+  }
+
+  getPartiallyBlockedDates(): string[] {
+    if (this.isUserAdmin) return [];
+    return Array.from(this.blockedHoursMap.keys());
+  }
+
   getAvailableTimeSlots(): string[] {
     const selectedDate = this.orderForm.get('serviceDate')?.value;
     if (!selectedDate) return [];
 
     // Time slots from 8:00 AM to 6:00 PM (30-minute intervals) for all days
-    const timeSlots = [
+    return [
       '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
       '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
       '16:00', '16:30', '17:00', '17:30', '18:00'
     ];
+  }
 
-    return timeSlots;
+  getBlockedHoursForSelectedDate(): string[] {
+    if (this.isUserAdmin) return [];
+    const dateStr = this.orderForm.get('serviceDate')?.value;
+    if (!dateStr) return [];
+    const cleanDate = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
+    if (this.blockedFullDays.has(cleanDate)) {
+      return [
+        '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+        '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
+        '16:00', '16:30', '17:00', '17:30', '18:00'
+      ];
+    }
+    const blockedHours = this.blockedHoursMap.get(cleanDate);
+    return blockedHours ? Array.from(blockedHours) : [];
   }
 
   formatTimeSlot(timeSlot: string): string {

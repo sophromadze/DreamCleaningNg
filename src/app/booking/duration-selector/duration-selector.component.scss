@@ -33,7 +33,7 @@
 .selector-container {
   position: relative;
   border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
+  border-radius: 58px;
   background: white;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -67,7 +67,7 @@
   background: white;
   border: 1px solid #d1d5db;
   border-top: none;
-  border-radius: 0 0 0.5rem 0.5rem;
+  border-radius: 0 0 58px 58px;
   max-height: 200px;
   overflow-y: auto;
   z-index: 10;
@@ -138,6 +138,17 @@
 
   .selector-group {
     width: 100%;
+  }
+}
+
+// Match booking form controls: pill radius on large screens, tighter corners on small (see booking.component.scss .form-group)
+@media (max-width: 534px) {
+  .selector-container {
+    border-radius: 3px;
+  }
+
+  .selector-options {
+    border-radius: 0 0 3px 3px;
   }
 }
 

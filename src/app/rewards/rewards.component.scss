@@ -141,12 +141,18 @@
   &--d { width: 14px; height: 14px; top: 55px; right: 72px;  animation-delay: 1.8s, 0.5s; animation-duration: 3.1s, 6s; }
 }
 
-// ── Referral Code bar ─────────────────────────────────────────────────────────
+// ── Referral link + code (separate copy actions) ──────────────────────────────
 
-.referral-code {
+.referral-share-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.referral-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -154,43 +160,79 @@
   padding: 10px 14px;
   backdrop-filter: blur(6px);
 
-  &__text {
-    font-size: 15px;
+  &__btns {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  &__label {
+    flex: 0 0 auto;
+    font-size: 11px;
     font-weight: 700;
-    font-family: monospace;
-    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  &__value {
     flex: 1;
-    word-break: break-all;
-    letter-spacing: 0.5px;
-  }
-
-  &__copy,
-  &__share {
-    padding: 6px 14px;
-    border-radius: 8px;
-    font-size: 12px;
-    font-weight: 700;
-    cursor: pointer;
-    font-family: inherit;
-    transition: background 0.2s, color 0.2s;
-    border: none;
-    white-space: nowrap;
-  }
-
-  &__copy {
-    background: #fff;
-    color: #0b3085;
-
-    &:hover { background: #dff0ff; }
-  }
-
-  &__share {
-    background: rgba(255, 255, 255, 0.18);
+    min-width: 0;
+    font-size: 14px;
+    font-weight: 600;
     color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.3);
+    word-break: break-all;
 
-    &:hover { background: rgba(255, 255, 255, 0.28); }
+    &--mono {
+      font-family: monospace;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    &--url {
+      font-size: 12px;
+      font-weight: 500;
+      opacity: 0.95;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      display: block;
+    }
   }
+}
+
+.referral-code__copy,
+.referral-code__share {
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.2s, color 0.2s;
+  border: none;
+  white-space: nowrap;
+}
+
+.referral-code__copy {
+  background: #fff;
+  color: #0b3085;
+
+  &:hover { background: #dff0ff; }
+
+  &--secondary {
+    background: rgba(255, 255, 255, 0.92);
+  }
+}
+
+.referral-code__share {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+
+  &:hover { background: rgba(255, 255, 255, 0.28); }
 }
 
 // Referral empty

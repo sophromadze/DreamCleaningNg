@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto } from '../../../services/admin.service';
+import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin } from '../../../services/admin.service';
 import { OrderService, Order, OrderList } from '../../../services/order.service';
 import { CleanerService, AvailableCleaner } from '../../../services/cleaner.service';
 import { BookingService, ServiceType, ExtraService, Service } from '../../../services/booking.service';
@@ -24,11 +24,6 @@ export interface AdminOrderList extends OrderList {
   companyDevelopmentTips: number;
   cancellationReason?: string;
   isLateCancellation?: boolean;
-}
-
-interface AssignedCleaner {
-  id: number;
-  name: string;
 }
 
 @Component({
@@ -117,7 +112,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   selectedCleaners: number[] = [];
   tipsForCleaner = '';
   assigningOrderId: number | null = null;
-  assignedCleanersCache: Map<number, AssignedCleaner[]> = new Map();
+  assignedCleanersCache: Map<number, AssignedCleanerAdmin[]> = new Map();
   /** Tracks which orders have had their cleaners loaded (to distinguish "loading" from "not assigned") */
   cleanersLoadedSet: Set<number> = new Set();
   cleanerHourlySalary: number = 20; // Default hourly rate shown in assign modal
@@ -127,7 +122,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     orderDetails: false,
     assignedCleaners: false,
     assigningCleaners: false,
-    removingCleaner: false
+    removingCleaner: false,
+    sendAssignmentMails: false
   };
 
   orderUpdateHistory: OrderUpdateHistory[] = [];
@@ -601,7 +597,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         this.adminService.getAssignedCleanersWithIds(order.id).pipe(
           catchError((error) => {
             console.warn(`Failed to load cleaners for order ${order.id}:`, error);
-            return of([] as AssignedCleaner[]);
+            return of([] as AssignedCleanerAdmin[]);
           })
         )
       );
@@ -1058,7 +1054,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       this.cleanerHourlySalary
     ).subscribe({
       next: (response) => {
-        this.successMessage = 'Cleaners assigned successfully! They will receive email notifications.';
+        this.successMessage = 'Cleaners assigned successfully. Click “Send assignment email” when you are ready to notify them.';
         this.closeCleanerModal();
 
         // Refresh order details to reflect updated hourly rate and salary
@@ -1081,7 +1077,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
                 const cleaner = this.availableCleaners.find(c => c.id === cleanerId);
                 return {
                   id: cleanerId,
-                  name: cleaner ? `${cleaner.firstName} ${cleaner.lastName}` : ''
+                  name: cleaner ? `${cleaner.firstName} ${cleaner.lastName}` : '',
+                  assignmentNotificationSentAt: null as string | null
                 };
               }).filter(cleaner => cleaner.name !== '');
               
@@ -1137,8 +1134,44 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return cleaners.map(c => c.name);
   }
 
-  getAssignedCleanersWithIds(orderId: number): AssignedCleaner[] {
+  getAssignedCleanersWithIds(orderId: number): AssignedCleanerAdmin[] {
     return this.assignedCleanersCache.get(orderId) || [];
+  }
+
+  /** Cleaners on this order who have not yet received the admin-triggered assignment email. */
+  getPendingAssignmentEmailCleaners(orderId: number): AssignedCleanerAdmin[] {
+    return this.getAssignedCleanersWithIds(orderId).filter(
+      c => c.assignmentNotificationSentAt == null || c.assignmentNotificationSentAt === ''
+    );
+  }
+
+  sendCleanerAssignmentMailsForOrder(orderId: number) {
+    if (this.getPendingAssignmentEmailCleaners(orderId).length === 0) {
+      this.successMessage = 'All assigned cleaners already received the assignment email.';
+      this.clearMessagesAfterDelay();
+      return;
+    }
+
+    this.loadingStates.sendAssignmentMails = true;
+    this.errorMessage = '';
+
+    this.adminService.sendCleanerAssignmentMails(orderId).subscribe({
+      next: (result) => {
+        this.successMessage = result.message || `Sent to ${result.emailsSent} cleaner(s).`;
+        this.adminService.getAssignedCleanersWithIds(orderId).subscribe({
+          next: (list) => this.assignedCleanersCache.set(orderId, list),
+          error: () => { /* cache refresh optional */ }
+        });
+        this.clearMessagesAfterDelay();
+      },
+      error: (err) => {
+        console.error('Error sending assignment emails:', err);
+        this.errorMessage = err.error?.message || 'Failed to send assignment emails.';
+      },
+      complete: () => {
+        this.loadingStates.sendAssignmentMails = false;
+      }
+    });
   }
 
   updateOrderStatus(order: AdminOrderList, newStatus: string) {
@@ -1793,6 +1826,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       serviceTime: timeStr || null,
       maidsCount: this.selectedOrder.maidsCount,
       totalDuration: this.selectedOrder.totalDuration,
+      bedroomsQuantity: this.selectedOrder.bedroomsQuantity ?? null,
+      bathroomsQuantity: this.selectedOrder.bathroomsQuantity ?? null,
       entryMethod: this.selectedOrder.entryMethod ?? null,
       specialInstructions: this.selectedOrder.specialInstructions ?? null,
       floorTypes: this.selectedOrder.floorTypes ?? null,
@@ -2448,6 +2483,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       serviceTime: this.editOrderForm.serviceTime ?? undefined,
       maidsCount: this.editOrderForm.maidsCount ?? undefined,
       totalDuration: persistedTotalDuration ?? undefined,
+      bedroomsQuantity: this.editOrderForm.bedroomsQuantity ?? undefined,
+      bathroomsQuantity: this.editOrderForm.bathroomsQuantity ?? undefined,
       entryMethod: this.editOrderForm.entryMethod ?? undefined,
       specialInstructions: this.editOrderForm.specialInstructions ?? undefined,
       floorTypes: this.editOrderForm.floorTypes ?? undefined,

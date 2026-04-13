@@ -139,6 +139,12 @@ export interface RewardsStats {
   completedReferrals: number;
 }
 
+export interface ResetUndoStatus {
+  available: boolean;
+  createdAt?: string;
+  scope?: 'all' | 'specific';
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -239,5 +245,13 @@ export class BubbleRewardsService {
 
   resetBubblePoints(userId?: number): Observable<any> {
     return this.http.post(`${this.apiUrl}/admin/rewards/reset`, { userId: userId ?? null });
+  }
+
+  getResetUndoStatus(): Observable<ResetUndoStatus> {
+    return this.http.get<ResetUndoStatus>(`${this.apiUrl}/admin/rewards/reset/undo-status`);
+  }
+
+  undoLastBubbleReset(): Observable<any> {
+    return this.http.post(`${this.apiUrl}/admin/rewards/reset/undo`, {});
   }
 }

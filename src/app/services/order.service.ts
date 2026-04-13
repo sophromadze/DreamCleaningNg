@@ -73,6 +73,8 @@ export interface Order {
   zipCode: string;
   totalDuration: number;
   maidsCount: number;
+  bedroomsQuantity?: number;
+  bathroomsQuantity?: number;
   isPaid: boolean;
   paidAt?: Date;
   /** Sum of unpaid additional payments created by order updates (e.g. admin increased total). */
@@ -140,6 +142,8 @@ export interface UpdateOrder {
   companyDevelopmentTips: number;
   maidsCount: number;
   totalDuration: number;
+  bedroomsQuantity?: number;
+  bathroomsQuantity?: number;
   calculatedSubTotal: number;
   calculatedTax: number;
   calculatedTotal: number;

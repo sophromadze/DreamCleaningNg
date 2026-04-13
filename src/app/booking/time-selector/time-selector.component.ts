@@ -11,6 +11,7 @@ import { FormsModule } from '@angular/forms';
 export class TimeSelectorComponent implements OnInit, OnChanges {
   @Input() value: string = '08:00';
   @Input() availableTimeSlots: string[] = [];
+  @Input() blockedHours: string[] = [];  // Hours to show as "Busy" (disabled but visible)
   @Output() valueChange = new EventEmitter<string>();
 
   selectedHour: number = 8;
@@ -137,6 +138,40 @@ export class TimeSelectorComponent implements OnInit, OnChanges {
     
     // For all other hours, allow both 00 and 30 minutes
     return [0, 30];
+  }
+
+  isHourBlocked(hour: number): boolean {
+    // Check if both :00 and :30 for this hour are blocked
+    const h = hour.toString().padStart(2, '0');
+    const slot00 = `${h}:00`;
+    const slot30 = `${h}:30`;
+    // For hour 18, only :00 exists
+    if (hour === 18) {
+      return this.blockedHours.includes(slot00);
+    }
+    return this.blockedHours.includes(slot00) && this.blockedHours.includes(slot30);
+  }
+
+  isMinuteBlocked(minute: number): boolean {
+    const h = this.selectedHour.toString().padStart(2, '0');
+    const m = minute.toString().padStart(2, '0');
+    return this.blockedHours.includes(`${h}:${m}`);
+  }
+
+  selectHourIfNotBlocked(hour: number, event: Event) {
+    if (this.isHourBlocked(hour)) {
+      event.stopPropagation();
+      return; // Don't allow selection of fully blocked hours
+    }
+    this.selectHour(hour, event);
+  }
+
+  selectMinuteIfNotBlocked(minute: number, event: Event) {
+    if (this.isMinuteBlocked(minute)) {
+      event.stopPropagation();
+      return;
+    }
+    this.selectMinute(minute, event);
   }
 
   getDisplayTime(): string {

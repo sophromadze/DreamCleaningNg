@@ -19,6 +19,11 @@
         <!-- Services -->
         <section class="section" *ngIf="serviceType">
           <h2>Services</h2>
+          <div class="section-hint" *ngIf="order.bedroomsQuantity !== undefined || order.bathroomsQuantity !== undefined">
+            Bedrooms/Bathrooms are informational for this order and read-only.
+            Bedrooms: {{ (order.bedroomsQuantity ?? 0) === 0 ? 'Studio' : (order.bedroomsQuantity ?? 'N/A') }},
+            Bathrooms: {{ order.bathroomsQuantity ?? 'N/A' }}.
+          </div>
           
           <!-- Office Cleaning Pricing Text -->
           <div class="service-pricing-info" *ngIf="hasCleanerServices()">
@@ -180,18 +185,21 @@
           <div class="date-time-selection">
             <div class="form-group">
               <label>Service Date <span class="required">*</span></label>
-              <app-date-selector 
-                [value]="orderForm.get('serviceDate')?.value" 
+              <app-date-selector
+                [value]="orderForm.get('serviceDate')?.value"
                 [minDate]="minDate"
                 [isSameDaySelected]="false"
+                [blockedDates]="getBlockedDates()"
+                [partiallyBlockedDates]="getPartiallyBlockedDates()"
                 (valueChange)="onDateChange($event)">
               </app-date-selector>
             </div>
             <div class="form-group">
               <label>Service Time <span class="required">*</span></label>
-              <app-time-selector 
-                [value]="orderForm.get('serviceTime')?.value" 
+              <app-time-selector
+                [value]="orderForm.get('serviceTime')?.value"
                 [availableTimeSlots]="getAvailableTimeSlots()"
+                [blockedHours]="getBlockedHoursForSelectedDate()"
                 (valueChange)="onTimeChange($event)">
               </app-time-selector>
             </div>

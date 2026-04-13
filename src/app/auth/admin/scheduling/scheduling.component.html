@@ -1,0 +1,113 @@
+<div class="scheduling-section">
+  <div class="section-header">
+    <h2>Scheduling - Block Dates &amp; Hours</h2>
+    <button class="btn btn-primary" (click)="openAddForm()" *ngIf="!showForm">
+      + Block Date / Hours
+    </button>
+  </div>
+
+  <p class="section-description">
+    Block specific dates or hours so customers cannot book during those times.
+    Admins can still book on blocked dates when using Admin Mode.
+  </p>
+
+  <!-- Messages -->
+  <div class="error-message" *ngIf="errorMessage">{{ errorMessage }}</div>
+  <div class="success-message" *ngIf="successMessage">{{ successMessage }}</div>
+
+  <!-- Add/Edit Form -->
+  <div class="form-section" *ngIf="showForm">
+    <h3>{{ editingSlot ? 'Edit Block' : 'New Block' }}</h3>
+
+    <div class="form-group">
+      <label>Date</label>
+      <input type="date" [(ngModel)]="formDate" [min]="formDate || ''" />
+    </div>
+
+    <div class="form-group">
+      <label class="checkbox-label">
+        <input type="checkbox" [(ngModel)]="formIsFullDay" />
+        Block Entire Day
+      </label>
+    </div>
+
+    <div class="hours-selection" *ngIf="!formIsFullDay">
+      <label>Select hours to block:</label>
+      <div class="hours-actions">
+        <button class="btn btn-sm" (click)="selectAllHours()">Select All</button>
+        <button class="btn btn-sm" (click)="clearAllHours()">Clear All</button>
+      </div>
+      <div class="hours-grid">
+        <label
+          *ngFor="let hour of allTimeSlots"
+          class="hour-chip"
+          [class.selected]="formSelectedHours.has(hour)">
+          <input
+            type="checkbox"
+            [checked]="formSelectedHours.has(hour)"
+            (change)="toggleHour(hour)"
+            hidden />
+          {{ formatTime(hour) }}
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Reason (optional, shown to customers)</label>
+      <input
+        type="text"
+        [(ngModel)]="formReason"
+        placeholder="e.g. We are fully booked" />
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-primary" (click)="save()">
+        {{ editingSlot ? 'Update' : 'Save' }}
+      </button>
+      <button class="btn btn-secondary" (click)="cancelForm()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" *ngIf="isLoading">Loading...</div>
+
+  <!-- Blocked Slots Table -->
+  <div class="table-wrapper" *ngIf="!isLoading && blockedSlots.length > 0">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Blocked Hours</th>
+          <th>Reason</th>
+          <th>Created By</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let slot of blockedSlots" [class.past]="isPastDate(slot.date)">
+          <td>{{ formatDate(slot.date) }}</td>
+          <td>
+            <span class="badge" [class.badge-danger]="slot.isFullDay" [class.badge-warning]="!slot.isFullDay">
+              {{ slot.isFullDay ? 'Full Day' : 'Partial' }}
+            </span>
+          </td>
+          <td class="blocked-hours-cell">{{ getBlockedHoursList(slot) }}</td>
+          <td>{{ slot.reason || '-' }}</td>
+          <td>{{ slot.createdBy }}</td>
+          <td class="actions-cell">
+            <div class="actions-buttons">
+              <button class="btn btn-sm btn-edit" (click)="openEditForm(slot)">Edit</button>
+              <button class="btn btn-sm btn-danger" (click)="deleteSlot(slot)">Delete</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="!isLoading && blockedSlots.length === 0">
+    <p>No blocked dates or hours configured. All time slots are available for booking.</p>
+  </div>
+</div>

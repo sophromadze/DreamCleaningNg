@@ -13,12 +13,14 @@
             </svg>
           </div>
           <div class="selector-options" *ngIf="isHoursDropdownOpen">
-            <div 
-              *ngFor="let hour of hours" 
+            <div
+              *ngFor="let hour of hours"
               class="selector-option"
               [class.selected]="hour === selectedHour"
-              (click)="selectHour(hour, $event)">
+              [class.blocked]="isHourBlocked(hour)"
+              (click)="selectHourIfNotBlocked(hour, $event)">
               {{ formatHour(hour) }}
+              <span class="busy-label" *ngIf="isHourBlocked(hour)">Busy</span>
             </div>
           </div>
         </div>
@@ -38,16 +40,18 @@
             </svg>
           </div>
           <div class="selector-options" *ngIf="isMinutesDropdownOpen">
-            <div 
-              *ngFor="let minute of getAvailableMinutes()" 
+            <div
+              *ngFor="let minute of getAvailableMinutes()"
               class="selector-option"
               [class.selected]="minute === selectedMinute"
-              (click)="selectMinute(minute, $event)">
+              [class.blocked]="isMinuteBlocked(minute)"
+              (click)="selectMinuteIfNotBlocked(minute, $event)">
               {{ formatMinute(minute) }}
+              <span class="busy-label" *ngIf="isMinuteBlocked(minute)">Busy</span>
             </div>
           </div>
         </div>
       </div>
     </div>
   </div>
-</div> 
+</div>

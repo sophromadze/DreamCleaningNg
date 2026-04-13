@@ -36,36 +36,24 @@
       Users
     </button>
     <button class="tab-btn" 
-            [class.active]="activeTab === 'promo-codes'"
-            (click)="setActiveTab('promo-codes')"
-            *ngIf="userPermissions?.permissions?.canView">
-      Promos
-    </button>
-    <button class="tab-btn" 
-            [class.active]="activeTab === 'special-offers'"
-            (click)="setActiveTab('special-offers')"
-            *ngIf="userPermissions?.permissions?.canView">
-      Special Offers
-    </button>
-    <button class="tab-btn" 
             [class.active]="activeTab === 'booking-services'"
             (click)="setActiveTab('booking-services')"
             *ngIf="userPermissions?.permissions?.canView">
       Services
     </button>
     <button class="tab-btn" 
-            [class.active]="activeTab === 'subscriptions'"
-            (click)="setActiveTab('subscriptions')"
+            [class.active]="activeTab === 'discounts'"
+            (click)="setActiveTab('discounts')"
             *ngIf="userPermissions?.permissions?.canView">
-      Subs
+      Discounts
     </button>
-    <button class="tab-btn" 
-            [class.active]="activeTab === 'gift-cards'"
-            (click)="setActiveTab('gift-cards')"
+    <button class="tab-btn"
+            [class.active]="activeTab === 'scheduling'"
+            (click)="setActiveTab('scheduling')"
             *ngIf="userPermissions?.permissions?.canView">
-      Gift Cards
+      Scheduling
     </button>
-    <button class="tab-btn" 
+    <button class="tab-btn"
             [class.active]="activeTab === 'audit-history'"
             (click)="setActiveTab('audit-history')"
             *ngIf="userPermissions?.permissions?.canView">
@@ -92,11 +80,9 @@
     <ng-container [ngSwitch]="activeTab">
       <app-orders *ngSwitchCase="'orders'" [openOrderId]="pendingOrderId"></app-orders>
       <app-user-management *ngSwitchCase="'users'"></app-user-management>
-      <app-promo-codes *ngSwitchCase="'promo-codes'"></app-promo-codes>
-      <app-special-offers *ngSwitchCase="'special-offers'"></app-special-offers>
       <app-booking-services *ngSwitchCase="'booking-services'"></app-booking-services>
-      <app-subscriptions *ngSwitchCase="'subscriptions'"></app-subscriptions>
-      <app-admin-gift-cards *ngSwitchCase="'gift-cards'"></app-admin-gift-cards>
+      <app-discounts *ngSwitchCase="'discounts'" [initialSubTab]="selectedDiscountSubTab"></app-discounts>
+      <app-scheduling *ngSwitchCase="'scheduling'"></app-scheduling>
       <app-audit-history *ngSwitchCase="'audit-history'"></app-audit-history>
       <app-communications *ngSwitchCase="'mails-sms'"></app-communications>
     </ng-container>

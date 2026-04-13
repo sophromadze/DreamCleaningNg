@@ -263,7 +263,7 @@ export const routes: Routes = [
   },
   {
     path: 'admin/rewards',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, adminGuard],
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, superAdminGuard],
     loadComponent: () => import('./auth/admin/rewards/admin-rewards.component').then(m => m.AdminRewardsComponent)
   },
 

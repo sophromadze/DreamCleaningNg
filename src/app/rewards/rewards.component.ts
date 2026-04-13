@@ -28,7 +28,8 @@ export class RewardsComponent implements OnInit {
   referrals: Referral[] = [];
   referralsLoading = false;
 
-  copySuccess = false;
+  /** Which control just copied: 'link' | 'code' — for button feedback */
+  copyFeedback: 'link' | 'code' | null = null;
   isBrowser: boolean;
 
   constructor(
@@ -75,24 +76,60 @@ export class RewardsComponent implements OnInit {
     });
   }
 
+  /** Full invite URL; uses API value when it is absolute, otherwise current origin (fixes local dev). */
+  getReferralShareUrl(): string {
+    const code = this.summary?.referralCode?.trim();
+    if (!code) return '';
+    const fromApi = this.summary?.shareUrl?.trim() ?? '';
+    if (/^https?:\/\//i.test(fromApi)) {
+      return fromApi;
+    }
+    if (this.isBrowser && typeof window !== 'undefined') {
+      return `${window.location.origin}/?ref=${encodeURIComponent(code)}`;
+    }
+    return fromApi;
+  }
+
   copyReferralLink(): void {
-    if (!this.summary?.shareUrl) return;
-    navigator.clipboard.writeText(this.summary.shareUrl).then(() => {
-      this.copySuccess = true;
-      setTimeout(() => this.copySuccess = false, 2000);
+    const url = this.getReferralShareUrl();
+    if (!url) return;
+    navigator.clipboard.writeText(url).then(() => {
+      this.copyFeedback = 'link';
+      setTimeout(() => (this.copyFeedback = null), 2000);
+    });
+  }
+
+  copyReferralCode(): void {
+    const code = this.summary?.referralCode;
+    if (!code) return;
+    navigator.clipboard.writeText(code).then(() => {
+      this.copyFeedback = 'code';
+      setTimeout(() => (this.copyFeedback = null), 2000);
     });
   }
 
   shareReferralLink(): void {
     if (!this.summary) return;
+    const url = this.getReferralShareUrl();
+    if (!url) return;
     if (navigator.share) {
       navigator.share({
         title: 'Dream Cleaning — Bubble Rewards',
         text: 'Get a bonus when you book your first cleaning with Dream Cleaning!',
-        url: this.summary.shareUrl
+        url
       });
     } else {
       this.copyReferralLink();
+    }
+  }
+
+  shareReferralCode(): void {
+    const code = this.summary?.referralCode;
+    if (!code) return;
+    if (navigator.share) {
+      navigator.share({ text: code });
+    } else {
+      this.copyReferralCode();
     }
   }
 

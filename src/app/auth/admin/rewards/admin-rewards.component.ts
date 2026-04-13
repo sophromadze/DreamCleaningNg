@@ -43,6 +43,10 @@ export class AdminRewardsComponent implements OnInit {
   resetLoading = false;
   resetMessage = '';
   resetError = '';
+  undoAvailable = false;
+  undoLoading = false;
+  undoCreatedAt = '';
+  undoScope: 'all' | 'specific' | '' = '';
 
   constructor(
     private bubbleRewardsService: BubbleRewardsService,
@@ -167,6 +171,7 @@ export class AdminRewardsComponent implements OnInit {
         }
       });
     }
+    this.loadUndoStatus();
   }
 
   closeResetModal(): void {
@@ -192,6 +197,13 @@ export class AdminRewardsComponent implements OnInit {
       this.resetError = 'Please select a user.';
       return;
     }
+    const confirmationMessage = this.resetTarget === 'all'
+      ? 'Are you sure you want to clear Bubble Points for ALL clients? This cannot be undone.'
+      : 'Are you sure you want to clear Bubble Points for this client? This cannot be undone.';
+    const isConfirmed = window.confirm(confirmationMessage);
+    if (!isConfirmed) {
+      return;
+    }
     this.resetLoading = true;
     this.resetMessage = '';
     this.resetError = '';
@@ -201,10 +213,47 @@ export class AdminRewardsComponent implements OnInit {
         this.resetLoading = false;
         this.resetMessage = res.message ?? 'Done.';
         this.resetError = '';
+        this.loadUndoStatus();
       },
       error: (err) => {
         this.resetLoading = false;
         this.resetError = err?.error?.message ?? 'Failed to reset points.';
+      }
+    });
+  }
+
+  loadUndoStatus(): void {
+    this.bubbleRewardsService.getResetUndoStatus().subscribe({
+      next: (status) => {
+        this.undoAvailable = !!status.available;
+        this.undoCreatedAt = status.createdAt ?? '';
+        this.undoScope = status.scope ?? '';
+      },
+      error: () => {
+        this.undoAvailable = false;
+        this.undoCreatedAt = '';
+        this.undoScope = '';
+      }
+    });
+  }
+
+  undoLastReset(): void {
+    if (this.undoLoading || !this.undoAvailable) return;
+    const confirmed = window.confirm('Are you sure you want to undo the latest Bubble Points reset? This will overwrite current Bubble Points data.');
+    if (!confirmed) return;
+
+    this.undoLoading = true;
+    this.resetError = '';
+    this.resetMessage = '';
+    this.bubbleRewardsService.undoLastBubbleReset().subscribe({
+      next: (res: any) => {
+        this.undoLoading = false;
+        this.resetMessage = res?.message ?? 'Latest reset has been restored.';
+        this.loadUndoStatus();
+      },
+      error: (err) => {
+        this.undoLoading = false;
+        this.resetError = err?.error?.message ?? 'Failed to undo reset.';
       }
     });
   }
