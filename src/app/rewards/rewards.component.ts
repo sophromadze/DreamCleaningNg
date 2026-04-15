@@ -1,6 +1,7 @@
 import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
+import { ShimmerDirective } from '../shared/directives/shimmer.directive';
 import {
   BubbleRewardsService,
   RewardsSummary,
@@ -12,7 +13,7 @@ import {
 @Component({
   selector: 'app-rewards',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, ShimmerDirective],
   templateUrl: './rewards.component.html',
   styleUrl: './rewards.component.scss'
 })

@@ -572,12 +572,20 @@
                             <span class="cleaner-name">{{ cleaner.name }}</span>
                             <span *ngIf="!cleaner.assignmentNotificationSentAt" class="cleaner-mail-pending" title="Assignment email not sent yet">Pending email</span>
                           </div>
+                          <div class="cleaner-item-actions">
+                            <button class="resend-cleaner-mail-btn"
+                                    (click)="resendCleanerAssignmentMail(selectedOrder.id, cleaner)"
+                                    [disabled]="loadingStates.removingCleaner || isResendingCleanerAssignmentMail(selectedOrder.id, cleaner.id)"
+                                    [title]="cleaner.assignmentNotificationSentAt ? 'Resend assignment email' : 'Send assignment email now'">
+                              {{ isResendingCleanerAssignmentMail(selectedOrder.id, cleaner.id) ? 'Sending...' : (cleaner.assignmentNotificationSentAt ? 'Resend email' : 'Send email') }}
+                            </button>
                           <button class="remove-cleaner-btn" 
                                   (click)="removeCleanerFromOrder(selectedOrder.id, cleaner.id, cleaner.name)"
                                   [disabled]="loadingStates.removingCleaner"
                                   title="Remove cleaner from this order">
                             {{ loadingStates.removingCleaner ? 'Removing...' : 'Remove' }}
                           </button>
+                          </div>
                         </div>
                       </div>
                       

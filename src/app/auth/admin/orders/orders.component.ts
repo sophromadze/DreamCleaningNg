@@ -125,6 +125,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     removingCleaner: false,
     sendAssignmentMails: false
   };
+  private resendingCleanerEmailKeys = new Set<string>();
 
   orderUpdateHistory: OrderUpdateHistory[] = [];
   loadingUpdateHistory = false;
@@ -1170,6 +1171,42 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       complete: () => {
         this.loadingStates.sendAssignmentMails = false;
+      }
+    });
+  }
+
+  private getCleanerResendKey(orderId: number, cleanerId: number): string {
+    return `${orderId}:${cleanerId}`;
+  }
+
+  isResendingCleanerAssignmentMail(orderId: number, cleanerId: number): boolean {
+    return this.resendingCleanerEmailKeys.has(this.getCleanerResendKey(orderId, cleanerId));
+  }
+
+  resendCleanerAssignmentMail(orderId: number, cleaner: AssignedCleanerAdmin) {
+    const key = this.getCleanerResendKey(orderId, cleaner.id);
+    if (this.resendingCleanerEmailKeys.has(key)) {
+      return;
+    }
+
+    this.resendingCleanerEmailKeys.add(key);
+    this.errorMessage = '';
+
+    this.adminService.resendCleanerAssignmentMail(orderId, cleaner.id).subscribe({
+      next: (result) => {
+        this.successMessage = result.message || `Assignment email sent to ${cleaner.name}.`;
+        this.adminService.getAssignedCleanersWithIds(orderId).subscribe({
+          next: (list) => this.assignedCleanersCache.set(orderId, list),
+          error: () => { /* optional cache refresh */ }
+        });
+        this.clearMessagesAfterDelay();
+      },
+      error: (err) => {
+        console.error('Error resending cleaner assignment email:', err);
+        this.errorMessage = err.error?.message || 'Failed to resend assignment email.';
+      },
+      complete: () => {
+        this.resendingCleanerEmailKeys.delete(key);
       }
     });
   }

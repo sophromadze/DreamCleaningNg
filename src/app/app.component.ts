@@ -23,6 +23,8 @@ function isProtectedRoute(url: string): boolean {
   const path = (url || '').split('?')[0];
   return path === '/profile' ||
     path.startsWith('/profile/') ||
+    path === '/rewards' ||
+    path.startsWith('/rewards/') ||
     path === '/admin' ||
     path.startsWith('/change-password') ||
     path.startsWith('/change-email') ||

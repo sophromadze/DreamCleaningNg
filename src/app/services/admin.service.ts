@@ -773,6 +773,14 @@ export class AdminService {
       {}
     );
   }
+
+  /** Re-sends assignment email for one cleaner and restarts reminder flow only for that cleaner. */
+  resendCleanerAssignmentMail(orderId: number, cleanerId: number): Observable<{ emailsSent: number; message: string }> {
+    return this.http.post<{ emailsSent: number; message: string }>(
+      `${this.apiUrl}/orders/${orderId}/cleaners/${cleanerId}/resend-assignment-mail`,
+      {}
+    );
+  }
   
   getAssignedCleaners(orderId: number): Observable<string[]> {
     return this.http.get<string[]>(`${this.apiUrl}/orders/${orderId}/assigned-cleaners`);

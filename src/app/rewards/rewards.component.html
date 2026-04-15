@@ -1,12 +1,21 @@
 <div class="rewards-page">
 
-  <!-- Loading skeleton -->
+  <!-- Loading skeleton (same shimmer style as profile) -->
   <div *ngIf="summaryLoading" class="rewards-skeleton">
-    <div class="skeleton-hero"></div>
-    <div class="skeleton-row">
-      <div class="skeleton-card"></div>
-      <div class="skeleton-card"></div>
-      <div class="skeleton-card"></div>
+    <div class="rewards-skeleton-section">
+      <div class="rewards-shimmer-hero" [shimmer]="true"></div>
+    </div>
+    <div class="rewards-skeleton-section">
+      <h2 class="section-title">Your Rewards</h2>
+      <div class="rewards-skeleton-row">
+        <div class="rewards-shimmer-card" [shimmer]="true"></div>
+        <div class="rewards-shimmer-card" [shimmer]="true"></div>
+        <div class="rewards-shimmer-card" [shimmer]="true"></div>
+      </div>
+    </div>
+    <div class="rewards-skeleton-section">
+      <h2 class="section-title">Points History</h2>
+      <div class="rewards-shimmer-history" [shimmer]="true"></div>
     </div>
   </div>
 
