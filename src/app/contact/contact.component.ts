@@ -1,11 +1,17 @@
-import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 import { environment } from '../../environments/environment';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
+
+declare global {
+  interface Window {
+    gtag?: (...args: any[]) => void;
+  }
+}
 
 @Component({
   selector: 'app-contact',
@@ -25,7 +31,8 @@ export class ContactComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private http: HttpClient,
-    private authService: AuthService
+    private authService: AuthService,
+    @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.contactForm = this.fb.group({
       fullName: ['', [Validators.required]],
@@ -101,6 +108,19 @@ export class ContactComponent implements OnInit {
             this.isSubmitting = false;
             this.showSuccess = true;
             this.showError = false;
+
+            if (isPlatformBrowser(this.platformId) && typeof window.gtag === 'function') {
+              try {
+                window.gtag('event', 'contact_form_submit', {
+                  event_category: 'lead',
+                  event_label: 'contact_page_form',
+                  value: 15,
+                  currency: 'USD'
+                });
+              } catch {
+                // Silent fail
+              }
+            }
             
             // Reset form but keep user info if logged in
             if (this.currentUser) {

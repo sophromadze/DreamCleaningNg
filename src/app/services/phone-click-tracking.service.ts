@@ -50,10 +50,6 @@ export class PhoneClickTrackingService {
           event_label: 'website_phone_call',
           value: 20
         });
-        // Also send Google Ads conversion (replace PHONE_CLICK_LABEL when creating conversion in Google Ads)
-        window.gtag('event', 'conversion', {
-          send_to: 'AW-16660459036/PHONE_CLICK_LABEL'
-        });
       }
     } catch {
       // Ignore tracking errors

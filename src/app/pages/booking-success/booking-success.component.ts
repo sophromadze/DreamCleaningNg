@@ -5,6 +5,12 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { OrderService, Order } from '../../services/order.service';
 import { AuthService } from '../../services/auth.service';
 
+declare global {
+  interface Window {
+    gtag?: (...args: any[]) => void;
+  }
+}
+
 @Component({
   selector: 'app-booking-success',
   standalone: true,
@@ -68,6 +74,7 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
             this.isDeepCleaning = !!deepCleaning || !!superDeepCleaning;
             this.isCustomServiceType = this.isCustomServiceTypeOrder(order);
             this.suppliesLoaded = true;
+            this.trackPurchaseConversion(order);
           },
           error: () => {
             this.suppliesLoaded = true; // fall back to default checklist
@@ -163,5 +170,65 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
     const hasCustomServiceMarker = services.some(s => Number(s?.serviceId) === 0);
     const hasNoRegularServices = services.length === 0 || (services.length === 1 && Number(services[0]?.serviceId) === 0);
     return hasCustomServiceMarker || hasNoRegularServices;
+  }
+
+  /**
+   * Fire Google Ads / GA4 purchase conversion with Enhanced Conversions user data.
+   * Enhanced Conversions: gtag hashes email/phone client-side (SHA-256) and sends
+   * to Google, enabling attribution for users whose cookies expired or were blocked.
+   * Deduplicates via sessionStorage using orderId as key.
+   */
+  private trackPurchaseConversion(order: Order): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    if (typeof window.gtag !== 'function') return;
+    if (!order || !order.id) return;
+
+    const dedupeKey = `booking_conversion_fired_${order.id}`;
+    if (sessionStorage.getItem(dedupeKey)) return;
+
+    try {
+      // Enhanced Conversions: provide identity signals for cross-device matching.
+      // gtag will hash these client-side before sending.
+      const userData: any = {};
+
+      if (order.contactEmail) {
+        userData.email = String(order.contactEmail).trim().toLowerCase();
+      }
+
+      if (order.contactPhone) {
+        // Normalize to E.164 (assume US). Strip all non-digits first.
+        const digits = String(order.contactPhone).replace(/\D/g, '');
+        if (digits.length === 10) {
+          userData.phone_number = `+1${digits}`;
+        } else if (digits.length === 11 && digits.startsWith('1')) {
+          userData.phone_number = `+${digits}`;
+        }
+      }
+
+      if (order.contactFirstName || order.contactLastName) {
+        userData.address = {
+          first_name: String(order.contactFirstName || '').trim().toLowerCase(),
+          last_name: String(order.contactLastName || '').trim().toLowerCase()
+        };
+      }
+
+      if (Object.keys(userData).length > 0) {
+        window.gtag('set', 'user_data', userData);
+      }
+
+      // Fire the purchase event. transaction_id prevents Google from counting
+      // the same order twice if the user refreshes the page (also guarded above).
+      window.gtag('event', 'purchase', {
+        transaction_id: String(order.id),
+        value: Number(order.total) || 0,
+        currency: 'USD',
+        event_category: 'ecommerce',
+        event_label: 'booking_completed'
+      });
+
+      sessionStorage.setItem(dedupeKey, '1');
+    } catch {
+      // Silent fail — never break UI over tracking
+    }
   }
 }
