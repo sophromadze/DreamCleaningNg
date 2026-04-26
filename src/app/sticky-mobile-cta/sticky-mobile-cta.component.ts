@@ -45,7 +45,7 @@ export class StickyMobileCtaComponent {
     const isMobile = narrowScreen || this.isTouchDevice();
     // Use location.pathname so we match the address bar (router.url can lack leading slash or lag)
     const path = window.location.pathname || '/';
-    const hideOnRoutes = ['/booking', '/booking-confirmation', '/booking-success', '/order', '/admin', '/cleaner/cabinet'];
+    const hideOnRoutes = ['/booking', '/booking-confirmation', '/booking-success', '/order', '/admin', '/cleaner/cabinet', '/cleaners-dashboard'];
     const isOnExcludedRoute = hideOnRoutes.some(route =>
       path === route || path.startsWith(route + '/')
     );

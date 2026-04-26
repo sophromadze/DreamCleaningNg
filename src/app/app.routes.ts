@@ -5,13 +5,11 @@ import { noAuthGuard } from './guards/no-auth.guard';
 import { adminGuard } from './guards/admin.guard';
 import { maintenanceGuard } from './guards/maintenance.guard';
 import { clientOnlyGuard } from './guards/client-only.guard';
-import { cleanerGuard } from './guards/cleaner.guard';
 import { realEmailGuard } from './guards/real-email.guard';
 import { bookingSuccessGuard } from './guards/booking-success.guard';
 import { superAdminGuard } from './guards/super-admin.guard';
 import { passwordSetupGuard } from './guards/password-setup.guard';
 import { pendingVerificationGuard } from './guards/pending-verification.guard';
-import { CleanerCabinetComponent } from './auth/cleaner-cabinet/cleaner-cabinet.component';
 
 export const routes: Routes = [
   {
@@ -326,9 +324,12 @@ export const routes: Routes = [
     loadComponent: () => import('./auth/reset-password/reset-password.component').then(m => m.ResetPasswordComponent)
   },
   {
-    path: 'cleaner/cabinet',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, cleanerGuard],
-    loadComponent: () => import('./auth/cleaner-cabinet/cleaner-cabinet.component').then(m => m.CleanerCabinetComponent)
+    path: 'cleaners-dashboard',
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, adminGuard],
+    loadComponent: () => import('./cleaners-dashboard/cleaners-dashboard.component').then(m => m.CleanersDashboardComponent),
+    data: {
+      title: 'Cleaners Dashboard | Dream Cleaning'
+    }
   },
   {
     path: 'change-email',

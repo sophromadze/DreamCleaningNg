@@ -12,12 +12,11 @@ export const maintenanceGuard: CanActivateFn = (route, state) => {
   
   const currentUser = authService.currentUserValue;
   
-  // Allow access for SuperAdmin, Admin, Moderator, and Cleaner roles
-  if (currentUser && 
-      (currentUser.role === 'SuperAdmin' || 
-       currentUser.role === 'Admin' || 
-       currentUser.role === 'Moderator' ||
-       currentUser.role === 'Cleaner')) {
+  // Allow access for SuperAdmin, Admin, and Moderator roles
+  if (currentUser &&
+      (currentUser.role === 'SuperAdmin' ||
+       currentUser.role === 'Admin' ||
+       currentUser.role === 'Moderator')) {
     return true;
   }
   

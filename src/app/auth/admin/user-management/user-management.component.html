@@ -40,7 +40,6 @@
         <option value="SuperAdmin">SAdmin</option>
         <option value="Admin">Admin</option>
         <option value="Moderator">Moderator</option>
-        <option value="Cleaner">Cleaner</option>
         <option value="Customer">Customer</option>
       </select>
     </div>
@@ -86,7 +85,6 @@
                       [class.superadmin]="user.role === 'SuperAdmin'"
                       [class.admin]="user.role === 'Admin'"
                       [class.moderator]="user.role === 'Moderator'"
-                      [class.cleaner]="user.role === 'Cleaner'"
                       [class.customer]="user.role === 'Customer'"
                       (click)="toggleRoleDropdown(user.id)"
                       [attr.title]="getRoleButtonTooltip(user)">
@@ -96,8 +94,6 @@
                   <div class="dropdown-menu" *ngIf="roleDropdownUserId === user.id">
                     <a class="dropdown-item" [class.disabled]="!canChangeUserRole(user, 'Customer')"
                        (click)="canChangeUserRole(user, 'Customer') && updateUserRole(user, 'Customer')">Customer</a>
-                    <a class="dropdown-item" [class.disabled]="!canChangeUserRole(user, 'Cleaner')"
-                       (click)="canChangeUserRole(user, 'Cleaner') && updateUserRole(user, 'Cleaner')">Cleaner</a>
                     <a class="dropdown-item" [class.disabled]="!canChangeUserRole(user, 'Moderator')"
                        (click)="canChangeUserRole(user, 'Moderator') && updateUserRole(user, 'Moderator')">Moderator</a>
                     <a class="dropdown-item" [class.disabled]="!canChangeUserRole(user, 'Admin')"
@@ -111,7 +107,6 @@
                       [class.superadmin]="user.role === 'SuperAdmin'"
                       [class.admin]="user.role === 'Admin'"
                       [class.moderator]="user.role === 'Moderator'"
-                      [class.cleaner]="user.role === 'Cleaner'"
                       [class.customer]="user.role === 'Customer'">{{ displayRole(user.role) }}</span>
               </td>
               <td>{{ user.authProvider || 'Local' }}</td>
@@ -215,7 +210,6 @@
                           <label>Role</label>
                           <select [(ngModel)]="editUserForm.role">
                             <option value="Customer">Customer</option>
-                            <option value="Cleaner">Cleaner</option>
                             <option value="Moderator">Moderator</option>
                             <option value="Admin">Admin</option>
                             <option value="SuperAdmin">SAdmin</option>
@@ -308,11 +302,10 @@
                         <p><strong>Email:</strong> {{ selectedUser.email }}</p>
                         <p><strong>Phone:</strong> {{ selectedUser.phone || 'Not provided' }}</p>
                         <p><strong>Role:</strong> 
-                          <span class="role-badge" 
+                          <span class="role-badge"
                                 [class.superadmin]="selectedUser.role === 'SuperAdmin'"
                                 [class.admin]="selectedUser.role === 'Admin'"
                                 [class.moderator]="selectedUser.role === 'Moderator'"
-                                [class.cleaner]="selectedUser.role === 'Cleaner'"
                                 [class.customer]="selectedUser.role === 'Customer'">{{ displayRole(selectedUser.role) }}
                           </span>
                         </p>

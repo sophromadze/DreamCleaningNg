@@ -67,7 +67,7 @@ export class ContinueBookingComponent implements OnInit, OnDestroy {
     this.destroy$.complete();
   }
 
-  private readonly hideOnRoutes = ['/booking', '/booking-confirmation', '/booking-success', '/order', '/admin', '/cleaner/cabinet'];
+  private readonly hideOnRoutes = ['/booking', '/booking-confirmation', '/booking-success', '/order', '/admin', '/cleaner/cabinet', '/cleaners-dashboard'];
 
   private checkCurrentRoute() {
     this.isOnBookingPage = this.router.url.includes('/booking');

@@ -193,7 +193,6 @@
                            [class.role-superadmin]="currentUser?.role === 'SuperAdmin'"
                            [class.role-admin]="currentUser?.role === 'Admin'"
                            [class.role-moderator]="currentUser?.role === 'Moderator'"
-                           [class.role-cleaner]="currentUser?.role === 'Cleaner'"
                            [class.role-customer]="currentUser?.role === 'Customer'">
                       {{ displayRole(currentUser?.role) }}
                     </small>
@@ -211,10 +210,10 @@
                   </button>
                 </div>
                 <a routerLink="/profile" (click)="closeAllMenus(); $event.stopPropagation()">Profile</a>
-                <a routerLink="/cleaner/cabinet" 
+                <a routerLink="/cleaners-dashboard"
                    (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="currentUser?.role === 'Cleaner' || currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'">
-                  Cleaners Cabinet
+                   *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'">
+                  Cleaners
                 </a>
                 <a routerLink="/profile/orders" (click)="closeAllMenus(); $event.stopPropagation()" class="orders-menu-item">
                   My Orders

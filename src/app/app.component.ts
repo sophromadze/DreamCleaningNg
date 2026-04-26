@@ -31,6 +31,7 @@ function isProtectedRoute(url: string): boolean {
     path.startsWith('/booking-confirmation') ||
     path.startsWith('/booking-success') ||
     path.startsWith('/cleaner/cabinet') ||
+    path.startsWith('/cleaners-dashboard') ||
     path.startsWith('/order/') ||
     path === '/verify-email';
 }
@@ -39,7 +40,8 @@ function isChatHiddenRoute(url: string): boolean {
   const path = (url || '').split('?')[0];
   return path === '/admin' ||
     path.startsWith('/admin/') ||
-    path.startsWith('/cleaner/cabinet');
+    path.startsWith('/cleaner/cabinet') ||
+    path.startsWith('/cleaners-dashboard');
 }
 
 function isSocialStickyHiddenRoute(url: string): boolean {
@@ -47,6 +49,7 @@ function isSocialStickyHiddenRoute(url: string): boolean {
   return path === '/admin' ||
     path.startsWith('/admin/') ||
     path.startsWith('/cleaner/cabinet') ||
+    path.startsWith('/cleaners-dashboard') ||
     path === '/booking' ||
     path.startsWith('/booking/');
 }

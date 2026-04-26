@@ -1,0 +1,439 @@
+<div class="cleaners-dashboard">
+  <header class="dashboard-header">
+    <div class="title-block">
+      <h1>Cleaner Dashboard</h1>
+    </div>
+    <div class="header-actions">
+      <div class="search-box">
+        <input
+          type="text"
+          [(ngModel)]="searchTerm"
+          (ngModelChange)="onSearchChange()"
+          placeholder="Search cleaners..."
+          aria-label="Search cleaners" />
+      </div>
+      <label class="inactive-toggle">
+        <input type="checkbox" [(ngModel)]="includeInactive" (ngModelChange)="onToggleInactive()" />
+        Show inactive
+      </label>
+      <button type="button" class="btn-primary" (click)="openCreate()">+ Add Cleaner</button>
+    </div>
+  </header>
+
+  <div *ngIf="errorMessage" class="error-banner" role="alert">
+    {{ errorMessage }}
+    <button type="button" (click)="errorMessage = ''">&times;</button>
+  </div>
+
+  <section class="dashboard-body">
+    <div class="cards-column">
+      <div *ngIf="loading && cleaners.length === 0" class="loading-state">Loading cleaners…</div>
+      <div *ngIf="!loading && cleaners.length === 0" class="empty-state">No cleaners found.</div>
+
+      <article
+        *ngFor="let cleaner of cleaners; trackBy: trackCleaner"
+        class="cleaner-card"
+        [class.inactive]="!cleaner.isActive"
+        [class.selected]="selectedDetail?.id === cleaner.id"
+        (click)="openDetail(cleaner)">
+        <div class="avatar">
+          <img *ngIf="cleaner.photoUrl" [src]="cleaner.photoUrl" [alt]="cleaner.firstName + ' ' + cleaner.lastName" />
+          <span *ngIf="!cleaner.photoUrl" class="avatar-initials">
+            {{ (cleaner.firstName.charAt(0) || '') + (cleaner.lastName.charAt(0) || '') }}
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="card-top-row">
+            <div class="name-group">
+              <h3 class="name">{{ cleaner.firstName }} {{ cleaner.lastName }}</h3>
+              <span [class]="rankingClass(cleaner.ranking)">{{ rankingLabel(cleaner.ranking) }}</span>
+            </div>
+            <a
+              *ngIf="cleaner.phone"
+              class="call-btn"
+              [href]="telHref(cleaner.phone)"
+              (click)="$event.stopPropagation()"
+              ><span class="phone-icon" aria-hidden="true">📞</span>{{ cleaner.phone }}</a
+            >
+          </div>
+          <div class="card-meta">
+            <span *ngIf="cleaner.availability" class="meta-item">{{ formatAvailability(cleaner.availability) }}</span>
+          </div>
+          <div class="card-bottom-row">
+            <div class="card-status-note">
+              <div class="card-tags">
+                <span *ngIf="cleaner.alreadyWorkedWithUs" class="tag tag-active">Active</span>
+                <span *ngIf="!cleaner.alreadyWorkedWithUs" class="tag tag-reserve">Reserve</span>
+                <span *ngIf="isNewCleaner(cleaner)" class="tag tag-beginner">New</span>
+              </div>
+              <span *ngIf="cleaner.mainNote" class="mini-main-note">📌 {{ cleaner.mainNote }}</span>
+            </div>
+            <span *ngIf="cleaner.location" class="meta-item location">{{ cleaner.location }}</span>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <aside class="detail-column" *ngIf="selectedDetail || loadingDetail">
+      <div *ngIf="loadingDetail" class="loading-state">Loading details…</div>
+
+      <ng-container *ngIf="selectedDetail && !loadingDetail">
+        <div class="detail-header">
+          <div class="avatar lg">
+            <img *ngIf="selectedDetail.photoUrl" [src]="selectedDetail.photoUrl" alt="cleaner photo" />
+            <span *ngIf="!selectedDetail.photoUrl" class="avatar-initials">
+              {{ (selectedDetail.firstName.charAt(0) || '') + (selectedDetail.lastName.charAt(0) || '') }}
+            </span>
+          </div>
+          <div class="detail-name-block">
+            <div class="name-line">
+              <h2>{{ selectedDetail.firstName }} {{ selectedDetail.lastName }}</h2>
+              <span [class]="rankingClass(selectedDetail.ranking)">{{ rankingLabel(selectedDetail.ranking) }}</span>
+            </div>
+            <a *ngIf="selectedDetail.phone" class="detail-phone" [href]="telHref(selectedDetail.phone)">
+              <span class="phone-icon" aria-hidden="true">📞</span>{{ selectedDetail.phone }}
+            </a>
+          </div>
+          <div class="detail-actions">
+            <button type="button" class="btn-secondary" (click)="openEdit(selectedDetail)">Edit</button>
+            <button type="button" class="btn-danger" (click)="deleteCleaner(selectedDetail)">Delete</button>
+            <button type="button" class="btn-close" (click)="closeDetail()" aria-label="Close">&times;</button>
+          </div>
+        </div>
+
+        <div class="pinned-note-row" *ngIf="selectedDetail.mainNote || selectedDetail.location">
+          <div *ngIf="selectedDetail.mainNote" class="pinned-note">
+            <strong>📌</strong>
+            <span class="note-text-inline">{{ selectedDetail.mainNote }}</span>
+          </div>
+          <div *ngIf="selectedDetail.location" class="note-location">
+            <span class="location-label">Location</span>
+            <span class="location-value">{{ selectedDetail.location }}</span>
+          </div>
+        </div>
+
+        <div class="info-grid">
+          <div><label>ID</label><span class="info-id">#{{ selectedDetail.id }}</span></div>
+          <div *ngIf="selectedDetail.age != null"><label>Age</label><span>{{ selectedDetail.age }}</span></div>
+          <div *ngIf="selectedDetail.email"><label>Email</label><span>{{ selectedDetail.email }}</span></div>
+          <div><label>Jobs Completed</label><span>{{ jobsCompletedCount }}</span></div>
+          <div *ngIf="selectedDetail.nationality"><label>Nationality</label><span>{{ selectedDetail.nationality }}</span></div>
+          <div *ngIf="selectedDetail.experience"><label>Experience</label><span>{{ selectedDetail.experience }}</span></div>
+          <div *ngIf="selectedDetail.ranking === 'Restricted' || selectedDetail.ranking === 3">
+            <label>Restriction reason</label>
+            <span>{{ selectedDetail.restrictedReason || '—' }}</span>
+          </div>
+        </div>
+
+        <div *ngIf="selectedDetail.allergies || selectedDetail.restrictions" class="warnings">
+          <div *ngIf="selectedDetail.allergies"><strong>⚠ Allergies:</strong> {{ selectedDetail.allergies }}</div>
+          <div *ngIf="selectedDetail.restrictions"><strong>⚠ Restrictions:</strong> {{ selectedDetail.restrictions }}</div>
+        </div>
+
+        <section class="orders-section">
+          <div class="jobs-header">
+            <h3>Jobs Completed</h3>
+            <div class="jobs-stats">
+              <span class="stat-pill" [class.has-issues]="issuesCount > 0">Issues: {{ issuesCount }}</span>
+              <span *ngIf="lastCompletedJobDate" class="stat-pill">Last Job: {{ lastCompletedJobDate | date:'MMM d' }}</span>
+            </div>
+          </div>
+
+          <ul class="completed-jobs">
+            <li *ngFor="let order of completedOrders; trackBy: trackOrder" class="completed-row">
+              <a
+                class="job-order-id"
+                [routerLink]="['/admin']"
+                [queryParams]="{ orderId: order.orderId }"
+                (click)="$event.stopPropagation()">#{{ order.orderId }}</a>
+              <span class="check-icon">✓</span>
+              <span class="job-date">{{ order.serviceDate | date:'MMM d' }}</span>
+              <span class="job-sep">–</span>
+              <span class="job-service">{{ order.serviceTypeName || 'Cleaning' }}</span>
+              <span *ngIf="order.serviceCity" class="job-location">– {{ order.serviceCity }}</span>
+              <span class="job-status-label">Completed</span>
+
+              <div class="perf-selector" role="group" aria-label="Performance">
+                <ng-container *ngIf="performanceOptionForOrder(order.orderId) as opt; else addNote">
+                  <button
+                    type="button"
+                    class="perf-btn active"
+                    [attr.data-category]="opt.value.toLowerCase()"
+                    (click)="openPerformanceModal(order.orderId)"
+                    [title]="'Edit ' + opt.label">
+                    <span class="perf-icon">{{ opt.icon }}</span>
+                    <span class="perf-label">{{ opt.label }}</span>
+                  </button>
+                </ng-container>
+                <ng-template #addNote>
+                  <button
+                    type="button"
+                    class="perf-btn perf-btn-add"
+                    (click)="openPerformanceModal(order.orderId)"
+                    title="Add performance note">
+                    <span class="perf-icon">✎</span>
+                    <span class="perf-label">Note</span>
+                  </button>
+                </ng-template>
+              </div>
+            </li>
+            <li *ngIf="completedOrders.length === 0" class="empty-state">No completed jobs yet.</li>
+          </ul>
+
+          <div *ngIf="upcomingOrders.length > 0" class="upcoming-section">
+            <h4>Upcoming / Active ({{ upcomingOrders.length }})</h4>
+            <ul class="upcoming-list">
+              <li *ngFor="let order of upcomingOrders; trackBy: trackOrder" class="upcoming-row">
+                <a [routerLink]="['/admin']" [queryParams]="{ orderId: order.orderId }">#{{ order.orderId }}</a>
+                <span class="job-date-time">
+                  {{ order.serviceDate | date:'MMM d, y' }} · {{ formatServiceTime(order.serviceTime) }}
+                </span>
+                <span>{{ order.serviceTypeName || '—' }}</span>
+                <span class="status">{{ order.status }}</span>
+                <span class="mail-state">
+                  <ng-container *ngIf="order.assignmentNotificationSentAt; else pending">✉ Sent</ng-container>
+                  <ng-template #pending>⏳ Pending email</ng-template>
+                </span>
+              </li>
+            </ul>
+          </div>
+        </section>
+      </ng-container>
+    </aside>
+  </section>
+</div>
+
+<div *ngIf="formOpen" class="modal-overlay" (click)="closeForm()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <header class="modal-header">
+      <h2>{{ formMode === 'create' ? 'Add Cleaner' : 'Edit Cleaner' }}</h2>
+      <button type="button" class="btn-close" (click)="closeForm()">&times;</button>
+    </header>
+
+    <form class="modal-body" (submit)="$event.preventDefault(); saveForm()">
+      <div class="form-grid">
+        <label class="full">
+          <span>First name <em>*</em></span>
+          <input type="text" [(ngModel)]="formModel.firstName" name="firstName" required maxlength="50" />
+        </label>
+
+        <label class="full">
+          <span>Last name <em>*</em></span>
+          <input type="text" [(ngModel)]="formModel.lastName" name="lastName" required maxlength="50" />
+        </label>
+
+        <label>
+          <span>Age</span>
+          <input type="number" [(ngModel)]="formModel.age" name="age" min="16" max="99" />
+        </label>
+
+        <label>
+          <span>Nationality</span>
+          <input type="text" [(ngModel)]="formModel.nationality" name="nationality" maxlength="100" />
+        </label>
+
+        <label>
+          <span>Phone</span>
+          <input type="text" [(ngModel)]="formModel.phone" name="phone" maxlength="20" />
+        </label>
+
+        <label>
+          <span>Email</span>
+          <input type="email" [(ngModel)]="formModel.email" name="email" maxlength="100" />
+        </label>
+
+        <label class="full">
+          <span>Location</span>
+          <input type="text" [(ngModel)]="formModel.location" name="location" maxlength="300" />
+        </label>
+
+        <div class="full availability-block">
+          <span class="field-label">Availability (days &amp; hours)</span>
+          <div class="availability-grid">
+            <div class="day-row" *ngFor="let day of dayOrder">
+              <label class="day-toggle">
+                <input
+                  type="checkbox"
+                  [checked]="availabilityDays[day].enabled"
+                  (change)="toggleDay(day)"
+                  [name]="'day-' + day" />
+                <span>{{ dayLabel[day] }}</span>
+              </label>
+              <div class="day-times" [class.disabled]="!availabilityDays[day].enabled">
+                <input
+                  type="time"
+                  [(ngModel)]="availabilityDays[day].from"
+                  [name]="'from-' + day"
+                  [disabled]="!availabilityDays[day].enabled" />
+                <span class="sep">–</span>
+                <input
+                  type="time"
+                  [(ngModel)]="availabilityDays[day].to"
+                  [name]="'to-' + day"
+                  [disabled]="!availabilityDays[day].enabled" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <label>
+          <span>Ranking</span>
+          <select [(ngModel)]="formModel.ranking" name="ranking">
+            <option *ngFor="let opt of rankingOptions" [value]="opt.value">{{ opt.label }}</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Experience</span>
+          <select [(ngModel)]="formModel.experience" name="experience">
+            <option *ngFor="let opt of experienceOptions" [value]="opt.value">{{ opt.label }}</option>
+          </select>
+        </label>
+
+        <label>
+          <span>Document type</span>
+          <select [(ngModel)]="formModel.documentType" name="documentType">
+            <option *ngFor="let opt of documentTypeOptions" [ngValue]="opt.value || null">{{ opt.label }}</option>
+          </select>
+        </label>
+
+        <div class="full file-row">
+          <div class="file-field">
+            <span class="field-label">Document image</span>
+            <div class="file-preview-row">
+              <div class="file-thumb" *ngIf="formDocumentPreview">
+                <img [src]="formDocumentPreview" alt="document preview" />
+              </div>
+              <label class="file-button">
+                <input type="file" accept="image/*" (change)="onFormDocumentSelected($event)" />
+                <span>{{ formDocumentPreview ? 'Change document' : 'Upload document' }}</span>
+              </label>
+              <button *ngIf="formDocumentFile || formDocumentPreview" type="button" class="btn-link danger" (click)="clearFormDocument()">
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div class="file-field">
+            <span class="field-label">Profile photo</span>
+            <div class="file-preview-row">
+              <div class="file-thumb" *ngIf="formPhotoPreview">
+                <img [src]="formPhotoPreview" alt="photo preview" />
+              </div>
+              <label class="file-button">
+                <input type="file" accept="image/*" (change)="onFormPhotoSelected($event)" />
+                <span>{{ formPhotoPreview ? 'Change photo' : 'Upload photo' }}</span>
+              </label>
+              <button *ngIf="formPhotoFile || formPhotoPreview" type="button" class="btn-link danger" (click)="clearFormPhoto()">
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <label class="checkbox">
+          <input type="checkbox" [(ngModel)]="formModel.alreadyWorkedWithUs" name="alreadyWorkedWithUs" />
+          <span>Already worked with us (not reserve)</span>
+        </label>
+
+        <label *ngIf="formMode === 'edit'" class="checkbox">
+          <input type="checkbox" [(ngModel)]="formModel.isActive" name="isActive" />
+          <span>Active</span>
+        </label>
+
+        <label class="full" *ngIf="formModel.ranking === 'Restricted'">
+          <span>Restriction reason</span>
+          <input type="text" [(ngModel)]="formModel.restrictedReason" name="restrictedReason" maxlength="500" />
+        </label>
+
+        <label class="full">
+          <span>Allergies (e.g. cats, dogs)</span>
+          <input type="text" [(ngModel)]="formModel.allergies" name="allergies" maxlength="1000" />
+        </label>
+
+        <label class="full">
+          <span>Restrictions (e.g. won't do heavy condition)</span>
+          <input type="text" [(ngModel)]="formModel.restrictions" name="restrictions" maxlength="1000" />
+        </label>
+
+        <label class="full">
+          <span>Main note (pinned summary)</span>
+          <textarea [(ngModel)]="formModel.mainNote" name="mainNote" rows="3" maxlength="2000"></textarea>
+        </label>
+      </div>
+
+      <div *ngIf="formError" class="error-banner inline">{{ formError }}</div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" (click)="closeForm()">Cancel</button>
+        <button type="submit" class="btn-primary" [disabled]="formSaving">
+          {{ formSaving ? 'Saving…' : (formMode === 'create' ? 'Create' : 'Save') }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div *ngIf="performanceModalOpen && performanceModal" class="modal-overlay" (click)="closePerformanceModal()">
+  <div class="modal perf-modal" (click)="$event.stopPropagation()">
+    <header class="modal-header">
+      <h2>Performance — Order #{{ performanceModal.orderId }}</h2>
+      <button type="button" class="btn-close" (click)="closePerformanceModal()" aria-label="Close">&times;</button>
+    </header>
+
+    <div class="perf-modal-body">
+      <div class="perf-field">
+        <label class="perf-field-label">Performance</label>
+        <div class="perf-choice-row" role="radiogroup">
+          <button
+            *ngFor="let opt of performanceOptions"
+            type="button"
+            class="perf-choice"
+            [attr.data-category]="opt.value.toLowerCase()"
+            [class.active]="performanceModal.performance === opt.value"
+            (click)="performanceModal.performance = opt.value">
+            <span class="perf-icon">{{ opt.icon }}</span>
+            <span class="perf-label">{{ opt.label }}</span>
+          </button>
+          <button
+            type="button"
+            class="perf-choice perf-choice-clear"
+            [class.active]="performanceModal.performance === ''"
+            (click)="performanceModal.performance = ''">
+            None
+          </button>
+        </div>
+      </div>
+
+      <div class="perf-field">
+        <label class="perf-field-label" for="perf-note">Note (optional)</label>
+        <textarea
+          id="perf-note"
+          [(ngModel)]="performanceModal.text"
+          rows="4"
+          maxlength="4000"
+          placeholder="Add context for this job…"></textarea>
+      </div>
+
+      <div class="perf-field perf-order-field">
+        <label class="perf-field-label">Order</label>
+        <span class="perf-order-readonly">#{{ performanceModal.orderId }}</span>
+      </div>
+
+      <div *ngIf="performanceModal.error" class="error-banner inline">{{ performanceModal.error }}</div>
+    </div>
+
+    <div class="modal-footer">
+      <button
+        *ngIf="performanceModal.existingNoteId"
+        type="button"
+        class="btn-danger"
+        (click)="clearPerformance()"
+        [disabled]="performanceModal.saving">Clear</button>
+      <button type="button" class="btn-secondary" (click)="closePerformanceModal()" [disabled]="performanceModal.saving">Cancel</button>
+      <button type="button" class="btn-primary" (click)="savePerformance()" [disabled]="performanceModal.saving">
+        {{ performanceModal.saving ? 'Saving…' : 'Save' }}
+      </button>
+    </div>
+  </div>
+</div>

@@ -733,9 +733,9 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
       return value ? 'Yes' : 'No';
     }
     
-    // Handle Role enum (0 = Customer, 1 = Moderator, 2 = Admin, 3 = SuperAdmin)
+    // Handle Role enum (0 = Customer, 1 = SuperAdmin, 2 = Admin, 3 = Moderator)
     if (fieldName === 'Role' && typeof value === 'number') {
-      const roles = ['Customer', 'SAdmin', 'Admin', 'Moderator', 'Cleaner'];
+      const roles = ['Customer', 'SAdmin', 'Admin', 'Moderator'];
       return roles[value] || value.toString();
     }
   

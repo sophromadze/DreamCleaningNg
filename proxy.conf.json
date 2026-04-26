@@ -24,5 +24,17 @@
       "secure": false,
       "changeOrigin": true,
       "logLevel": "debug"
+    },
+    "/cleaners/photos": {
+      "target": "http://localhost:5107",
+      "secure": false,
+      "changeOrigin": true,
+      "logLevel": "debug"
+    },
+    "/cleaners/documents": {
+      "target": "http://localhost:5107",
+      "secure": false,
+      "changeOrigin": true,
+      "logLevel": "debug"
     }
   }

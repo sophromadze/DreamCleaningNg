@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
-const ROLES = ['Customer', 'Cleaner', 'Admin', 'SuperAdmin', 'Moderator'] as const;
+const ROLES = ['Customer', 'Admin', 'SuperAdmin', 'Moderator'] as const;
 export type MailRole = typeof ROLES[number];
 
 export interface ScheduledMailDto {
