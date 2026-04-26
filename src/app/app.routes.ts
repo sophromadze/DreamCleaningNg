@@ -66,14 +66,6 @@ export const routes: Routes = [
     }
   },
   {
-    path: 'services/residential-cleaning/general',
-    loadComponent: () => import('./service-page/services/residential-cleaning/general-cleaning/general-cleaning.component').then(m => m.GeneralCleaningComponent),
-    data: {
-      title: 'General Cleaning Service NYC | Dream Cleaning',
-      description: "General cleaning service in NYC — systematic room-by-room cleaning, dusting, vacuuming, mopping. Brooklyn, Manhattan & Queens. Book Dream Cleaning online."
-    }
-  },
-  {
     path: 'services/deep-cleaning',
     loadComponent: () => import('./service-page/services/deep-cleaning/deep-cleaning.component').then(m => m.DeepCleaningComponent),
     data: {

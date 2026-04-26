@@ -49,14 +49,6 @@
     <priority>0.7</priority>
   </url>
 
-  <!-- General Cleaning Service -->
-  <url>
-    <loc>https://dreamcleaningnearme.com/services/residential-cleaning/general</loc>
-    <lastmod>2026-03-22T10:00:00+00:00</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.7</priority>
-  </url>
-
   <!-- Deep Cleaning Service -->
   <url>
     <loc>https://dreamcleaningnearme.com/services/deep-cleaning</loc>

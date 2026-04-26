@@ -1,5 +1,5 @@
 .bathroom-cleaning-page {
-  background: var(--surface);
+  // background: var(--surface);
 
   .container {
     max-width: 1400px;
@@ -68,6 +68,7 @@
 
   .main-description {
     margin-bottom: 30px;
+    text-align: center;
 
     h2 {
       font-size: 1.8rem;

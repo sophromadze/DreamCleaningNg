@@ -79,6 +79,16 @@
         margin-bottom: 17px;
       }
 
+      ul {
+        margin: 0;
+        padding-left: 20px;
+
+        li {
+          margin-bottom: 8px;
+          color: var(--text-primary);
+        }
+      }
+
       .important-note {
         background: var(--soft-yellow);
         border: 1px solid var(--soft-yellow-text);
@@ -262,6 +272,13 @@
             line-height: 1.4;
           }
         }
+      }
+
+      p {
+        margin-top: 15px;
+        color: var(--text-primary);
+        font-size: 1rem;
+        line-height: 1.6;
       }
     }
 

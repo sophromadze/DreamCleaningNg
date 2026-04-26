@@ -1690,6 +1690,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     if (serviceName.includes('office')) return `/images/office${suffix}.png`;
     if (serviceName.includes('couches')) return `/images/couches${suffix}.png`;
     if (serviceName.includes('chandelier')) return `/images/chandelier${suffix}.png`;
+    if (serviceName.includes('ceiling fan')) return `/images/ceiling_fan${suffix}.png`;
     
     // Default image for unknown services
     return `/images/default_icon${suffix}.png`;
