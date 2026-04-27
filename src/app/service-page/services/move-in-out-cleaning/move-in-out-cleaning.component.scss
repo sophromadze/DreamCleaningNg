@@ -57,10 +57,22 @@
   .content-section {
     .intro-text {
       margin-bottom: 25px;
+
+      .section-title {
+        color: var(--primary-text);
+        font-size: 1.8rem;
+        margin-bottom: 20px;
+        font-weight: 600;
+      }
       
       p {
         font-size: 1.1rem;
         margin-bottom: 17px;
+      }
+
+      ul {
+        padding-left: 20px;
+        margin: 0 0 17px;
       }
     }
 

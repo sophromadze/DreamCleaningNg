@@ -1466,7 +1466,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
     // Special handling for studio apartment (bedrooms = 0)
     if (service.serviceKey === 'bedrooms' && this.getServiceQuantity(service) === 0) {
-      return Math.round(30 * durationMultiplier); // 20 minutes base for studio, adjusted by cleaning type
+      return Math.round(20 * durationMultiplier); // 20 minutes base for studio (matches booking + backend)
     }
 
     // Apply multiplier to service duration

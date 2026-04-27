@@ -115,6 +115,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   assignedCleanersCache: Map<number, AssignedCleanerAdmin[]> = new Map();
   /** Tracks which orders have had their cleaners loaded (to distinguish "loading" from "not assigned") */
   cleanersLoadedSet: Set<number> = new Set();
+  /** Cached resolved residential variant for list rows (without opening details). */
+  residentialVariantCache: Map<number, 'Deep' | 'Regular'> = new Map();
   cleanerHourlySalary: number = 20; // Default hourly rate shown in assign modal
 
   loadingStates = {
@@ -522,12 +524,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadingStates.orders = true;
     this.assignedCleanersCache.clear();
     this.cleanersLoadedSet.clear();
+    this.residentialVariantCache.clear();
     this.clearMessages();
 
     if (this.userRole && this.userRole !== 'Customer') {
       this.adminService.getAllOrders().subscribe({
         next: (orders) => {
           this.orders = orders as AdminOrderList[];
+          this.preloadResidentialVariants();
           this.preloadAssignedCleaners();
           this.orderReminderService.initialize(this.orders);
           if (this.isSuperAdmin) {
@@ -558,6 +562,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       this.orderService.getUserOrders().subscribe({
         next: (orders) => {
           this.orders = orders as AdminOrderList[];
+          this.preloadResidentialVariants();
         },
         error: (error) => {
           console.error('Error loading orders:', error);
@@ -623,6 +628,42 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           } else {
             // All batches done
             this.loadingStates.assignedCleaners = false;
+          }
+        }
+      });
+    };
+
+    loadBatch(0);
+  }
+
+  /** Preload Deep/Regular variant for residential rows from order details API. */
+  private preloadResidentialVariants() {
+    const residentialOrders = this.orders.filter(order => this.isResidentialServiceType(order.serviceTypeName));
+    if (residentialOrders.length === 0) return;
+
+    const batchSize = 10;
+
+    const loadBatch = (startIndex: number) => {
+      const batch = residentialOrders.slice(startIndex, startIndex + batchSize);
+      if (batch.length === 0) return;
+
+      const requests = batch.map(order =>
+        this.adminService.getOrderDetails(order.id).pipe(catchError(() => of(null)))
+      );
+
+      forkJoin(requests).subscribe({
+        next: (detailsList) => {
+          detailsList.forEach((details, index) => {
+            const orderId = batch[index].id;
+            const isDeep = this.resolveIsDeepResidential(batch[index] as any, details as any);
+            this.residentialVariantCache.set(orderId, isDeep ? 'Deep' : 'Regular');
+          });
+          this.cdr.detectChanges();
+        },
+        complete: () => {
+          const nextIndex = startIndex + batchSize;
+          if (nextIndex < residentialOrders.length) {
+            setTimeout(() => loadBatch(nextIndex), 80);
           }
         }
       });
@@ -970,11 +1011,6 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Calculate estimated total salary for display in modal */
   getEstimatedTotalSalary(): number {
     if (!this.selectedOrder) return 0;
-    if (this.isCustomModeOrder()) {
-      const perCleaner = this.roundToQuarter(Number(this.selectedOrder.totalDuration) || 0);
-      const maids = Number(this.selectedOrder.maidsCount) || 1;
-      return Math.round(perCleaner / 60 * maids * this.cleanerHourlySalary * 100) / 100;
-    }
     const roundedPerCleaner = this.getPerCleanerRoundedDuration(
       this.selectedOrder.totalDuration,
       this.selectedOrder.maidsCount,
@@ -984,19 +1020,24 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /** Display value for the "Cleaners Total Salary" row in the details view.
-   *  For Custom Pricing mode orders the stored TotalDuration is per-cleaner, so the salary
-   *  must be computed as perCleaner * maids * rate. We compute on-the-fly to repair existing
-   *  orders whose stored cleanerTotalSalary was written by the legacy (broken) formula. */
+   *  ALWAYS computed on-the-fly from current TotalDuration × MaidsCount × HourlyRate so the
+   *  number matches what the user sees for Duration/Cleaners on the page, even when the stored
+   *  cleanerTotalSalary is stale (e.g. an older edit added Extra Minutes without recalculating).
+   *  Only cleaner-hours orders (Office Cleaning) store TotalDuration as per-cleaner; everything
+   *  else (including Custom Pricing) stores TotalDuration as TOTAL across all maids and we divide. */
   getDisplayCleanerTotalSalary(): number {
     const order = this.selectedOrder;
     if (!order) return 0;
-    if (this.isCustomModeOrder()) {
-      const perCleaner = Number(order.totalDuration) || 0;
-      const maids = Number(order.maidsCount) || 1;
-      const rate = Number(order.cleanerHourlyRate) || 0;
-      return Math.round(perCleaner / 60 * maids * rate * 100) / 100;
-    }
-    return Number(order.cleanerTotalSalary) || 0;
+    const totalDuration = Number(order.totalDuration) || 0;
+    const maids = Number(order.maidsCount) || 1;
+    const rate = Number(order.cleanerHourlyRate) || 0;
+    if (rate <= 0 || maids <= 0 || totalDuration <= 0) return 0;
+    const hasCleaners = order.hasCleanersService;
+    const perCleaner = hasCleaners
+      ? totalDuration
+      : (maids > 1 ? totalDuration / maids : totalDuration);
+    const roundedPerCleaner = this.roundToQuarter(perCleaner);
+    return Math.round(roundedPerCleaner / 60 * maids * rate * 100) / 100;
   }
 
   /** Recalculate cleaner total salary in edit form when hourly rate changes */
@@ -1004,13 +1045,6 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const rate = Number(this.editOrderForm.cleanerHourlyRate) || 0;
     const totalDuration = Number(this.editOrderForm.totalDuration) || 0;
     const maidsCount = Number(this.editOrderForm.maidsCount) || 1;
-    // Custom pricing: DB and booking store per-cleaner clock duration (same as customDuration on book flow).
-    // Do not divide by maids here — that was only valid when the form incorrectly held total man-minutes.
-    if (this.isCustomModeOrder()) {
-      const roundedPerCleaner = this.roundToQuarter(totalDuration);
-      this.editOrderForm.cleanerTotalSalary = Math.round(roundedPerCleaner / 60 * maidsCount * rate * 100) / 100;
-      return;
-    }
     const hasCleanersService = this.selectedOrder?.hasCleanersService ?? false;
     const roundedPerCleaner = this.getPerCleanerRoundedDuration(totalDuration, maidsCount, hasCleanersService);
     this.editOrderForm.cleanerTotalSalary = Math.round(roundedPerCleaner / 60 * maidsCount * rate * 100) / 100;
@@ -1338,23 +1372,23 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       
       filtered = filtered.filter(order => {
-        const orderDate = new Date(order.orderDate);
-        const orderDateOnly = new Date(orderDate.getFullYear(), orderDate.getMonth(), orderDate.getDate());
+        const serviceDateOnly = this.getServiceDateOnly(order.serviceDate);
+        if (!serviceDateOnly) return false;
         
         switch (this.dateFilter) {
           case 'today':
-            return orderDateOnly >= today;
+            return serviceDateOnly >= today;
           case 'week':
             // Get start of current week (Sunday)
             const startOfWeek = new Date(today);
             const dayOfWeek = startOfWeek.getDay(); // 0 = Sunday, 1 = Monday, etc.
             startOfWeek.setDate(startOfWeek.getDate() - dayOfWeek);
             startOfWeek.setHours(0, 0, 0, 0);
-            return orderDateOnly >= startOfWeek;
+            return serviceDateOnly >= startOfWeek;
           case 'month':
             // Get start of current month (1st day)
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            return orderDateOnly >= startOfMonth;
+            return serviceDateOnly >= startOfMonth;
           default:
             return true;
         }
@@ -1377,8 +1411,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
             if (cmp === 0) cmp = (a.serviceTime || '').localeCompare(b.serviceTime || '');
             break;
           }
-          case 'orderDate':
-            cmp = new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime();
+          case 'serviceType':
+            cmp = this.getServiceTypeDisplay(a).localeCompare(this.getServiceTypeDisplay(b));
             break;
           case 'total':
             cmp = this.getOrderTotalWithoutTips(a) - this.getOrderTotalWithoutTips(b);
@@ -1440,6 +1474,102 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // Utility methods
   formatDate(date: Date | string): string {
     return new Date(date).toLocaleDateString();
+  }
+
+  private getServiceDateOnly(serviceDate: Date | string | null | undefined): Date | null {
+    if (!serviceDate) return null;
+    const date = new Date(serviceDate);
+    if (isNaN(date.getTime())) return null;
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+
+  getServiceTypeDisplay(order: AdminOrderList): string {
+    const normalize = (value: string | null | undefined): string =>
+      (value || '').toLowerCase().trim().replace(/[_\s]+/g, '-');
+
+    const serviceTypeRaw = normalize(order.serviceTypeName);
+    const selectedOrderForRow = (this.selectedOrder && this.selectedOrder.id === order.id)
+      ? (this.selectedOrder as any)
+      : null;
+    const orderAny = order as any;
+    const cleaningTypeRaw = normalize(orderAny?.cleaningType);
+
+    const isResidential = this.isResidentialServiceType(order.serviceTypeName);
+    if (isResidential) {
+      const cachedVariant = this.residentialVariantCache.get(order.id);
+      if (cachedVariant) return cachedVariant;
+
+      const extras: any[] =
+        (Array.isArray(orderAny?.extraServices) ? orderAny.extraServices : [])
+          .concat(Array.isArray(selectedOrderForRow?.extraServices) ? selectedOrderForRow.extraServices : []);
+      const services: any[] =
+        (Array.isArray(orderAny?.services) ? orderAny.services : [])
+          .concat(Array.isArray(selectedOrderForRow?.services) ? selectedOrderForRow.services : []);
+
+      const isDeep = this.resolveIsDeepResidential(
+        { ...orderAny, extraServices: extras, services, cleaningType: cleaningTypeRaw },
+        selectedOrderForRow
+      );
+
+      return isDeep
+        ? 'Deep'
+        : 'Regular';
+    }
+
+    return this.formatServiceTypeLabel(order.serviceTypeName);
+  }
+
+  private formatServiceTypeLabel(serviceTypeName: string | null | undefined): string {
+    if (!serviceTypeName) return 'N/A';
+
+    let normalized = serviceTypeName
+      .toLowerCase()
+      .trim()
+      .replace(/[_-]+/g, ' ')
+      .replace(/\bcleaning\b/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Keep "in/out" formatting for move in/out service labels.
+    normalized = normalized.replace(/\bin out\b/g, 'in/out');
+    normalized = normalized.replace(/\bheavy conditional\b/g, 'heavy');
+    normalized = normalized.replace(/\bpre arranged\b/g, 'arranged');
+
+    if (!normalized) return 'N/A';
+
+    return normalized.replace(/\b\w+\b/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
+  }
+
+  private isResidentialServiceType(serviceTypeName: string | null | undefined): boolean {
+    const normalized = (serviceTypeName || '').toLowerCase().trim().replace(/[_\s]+/g, '-');
+    return normalized === 'residential-cleaning' || normalized === 'residentialcleaning';
+  }
+
+  private resolveIsDeepResidential(orderLike: any, detailsLike?: any): boolean {
+    const normalize = (value: string | null | undefined): string =>
+      (value || '').toLowerCase().trim().replace(/[_\s]+/g, '-');
+
+    const cleaningTypeRaw = normalize(orderLike?.cleaningType || detailsLike?.cleaningType);
+    if (cleaningTypeRaw === 'deep' || cleaningTypeRaw === 'deep-cleaning') return true;
+
+    const extras = []
+      .concat(Array.isArray(orderLike?.extraServices) ? orderLike.extraServices : [])
+      .concat(Array.isArray(detailsLike?.extraServices) ? detailsLike.extraServices : []);
+    const services = []
+      .concat(Array.isArray(orderLike?.services) ? orderLike.services : [])
+      .concat(Array.isArray(detailsLike?.services) ? detailsLike.services : []);
+
+    const hasDeepFromExtras = extras.some((extra: any) => {
+      const name = normalize(extra?.extraServiceName || extra?.name);
+      return name.includes('deep-cleaning') && !name.includes('super-deep');
+    });
+
+    if (hasDeepFromExtras) return true;
+
+    return services.some((service: any) => {
+      const name = normalize(service?.serviceName || service?.name);
+      return name.includes('deep-cleaning') && !name.includes('super-deep');
+    });
   }
 
   formatTime(time: string): string {
@@ -1580,17 +1710,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   hasCleanersService(): boolean {
     if (!this.selectedOrder) return false;
+    // Only true for service types with an explicit Cleaners + Hours row (e.g. Office Cleaning),
+    // because for those TotalDuration is already per-cleaner. Custom Pricing now stores
+    // TotalDuration as TOTAL across all maids (matching non-custom convention), so the perMaid
+    // template branch handles its display correctly via TotalDuration / MaidsCount.
     if (this.selectedOrder.hasCleanersService) return true;
-    // Custom Pricing service types also store totalDuration as per-cleaner hours (not divided across maids).
-    // These orders carry no service rows but still have an explicit cleaner count.
-    const stId = this.selectedOrder.serviceTypeId;
-    if (stId != null) {
-      const st = this.serviceTypesCache.find(s => s.id === stId);
-      if (st?.isCustom) return true;
-    }
-    if ((this.selectedOrder.services?.length ?? 0) === 0 && (this.selectedOrder.maidsCount ?? 0) >= 1) {
-      return true;
-    }
     return this.selectedOrder.services?.some(s => s.serviceName && s.serviceName.toLowerCase().includes('cleaner')) ?? false;
   }
 
@@ -1645,7 +1769,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   getEditServiceDurationMin(s: { quantity: number }, index: number): number {
     const def = this.getEditServiceDefinition(index);
     if (!def) return 0;
-    if (def.serviceKey === 'bedrooms' && (Number(s.quantity) || 0) === 0) return 30; // studio
+    if (def.serviceKey === 'bedrooms' && (Number(s.quantity) || 0) === 0) return 20; // studio (matches booking + backend)
     return def.timeDuration * (Number(s.quantity) || 0);
   }
 
@@ -1653,7 +1777,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   getEditServiceDurationMinDisplay(s: { quantity: number }, index: number): number {
     const def = this.getEditServiceDefinition(index);
     if (!def) return 0;
-    if (def.serviceKey === 'bedrooms' && (Number(s.quantity) || 0) === 0) return 30;
+    if (def.serviceKey === 'bedrooms' && (Number(s.quantity) || 0) === 0) return 20;
     const q = Number(s.quantity) || 0;
     if ((def.timeDuration === 0 || def.serviceKey === 'cleaners' || def.serviceKey === 'hours') && q > 0) {
       return Number(this.editOrderForm?.totalDuration) || 0;
@@ -1762,6 +1886,19 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   formatEditDuration(minutes: number): string {
     return DurationUtils.formatDurationRounded(Number(minutes) || 0);
+  }
+
+  /** Hint text shown next to the "Duration (min)" input in the edit form: always per-cleaner.
+   *  Stored TotalDuration is total work for non-custom & custom; admin sees the per-cleaner value
+   *  here so it matches what's displayed on the order details page and what the customer saw. */
+  getEditDurationHintText(): string {
+    const totalDuration = Number(this.editOrderForm?.totalDuration ?? 0) || 0;
+    const maidsCount = Number(this.editOrderForm?.maidsCount ?? 1) || 1;
+    const hasCleaners = this.selectedOrder?.hasCleanersService ?? false;
+    const perCleaner = hasCleaners
+      ? totalDuration
+      : (maidsCount > 1 ? totalDuration / maidsCount : totalDuration);
+    return DurationUtils.formatDurationRounded(perCleaner);
   }
 
   private readonly floorTypeDisplayNames: { [key: string]: string } = {
@@ -1910,7 +2047,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /**
    * For Custom Pricing mode orders, the DB stores totalDuration as per-cleaner minutes (same as booking).
-   * Keep that value in the edit form so changing maids does not rescale duration or skew salary rounding.
+   * Custom Pricing now stores TotalDuration as TOTAL across all maids (matching non-custom);
+   * still recompute salary on open so any stale stored cleanerTotalSalary is corrected on display.
    */
   private applyCustomModeDurationOnOpen(): void {
     if (!this.editingOrder || !this.selectedOrder) return;
@@ -2033,6 +2171,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.editOrderForm.subTotal = Math.round(sum * 100) / 100;
     this.recalculateEditPricing();
     this.recalcEditDurationAndMaids();
+    // Salary depends on duration/maids/rate; refresh after duration recalc so adding/removing
+    // extras (e.g. Extra Minutes) keeps cleanerTotalSalary in sync with the new totalDuration.
+    this.recalcCleanerTotalSalary();
   }
 
   /** Find the index of the Cleaners row (relation, key, or name fallback). Returns -1 if not present. */
@@ -2146,7 +2287,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onEditDurationChange(): void {
     if (this.isCustomModeOrder()) {
-      // Per-cleaner duration; maids unchanged unless admin edits them.
+      // Custom mode: admin manages maids manually (don't auto-derive from "1 maid per 6h" rule).
+      // Just refresh the salary based on the new TOTAL duration the admin entered.
       this.recalcCleanerTotalSalary();
       return;
     }

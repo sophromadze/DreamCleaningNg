@@ -63,8 +63,9 @@
           </div>
           <div class="info-row">
             <span class="label">Duration:</span>
-            <span class="value" *ngIf="!isCustomServiceType()">{{ formatDuration(getServiceDuration()) }}</span>
-            <span class="value" *ngIf="isCustomServiceType()">{{ formatDuration(order.totalDuration) }}</span>
+            <!-- getServiceDuration() returns per-cleaner duration for both custom and non-custom orders
+                 (it falls back to TotalDuration / MaidsCount when no cleaner-row service is present). -->
+            <span class="value">{{ formatDuration(getServiceDuration()) }}</span>
           </div>
           <div class="info-row">
             <span class="label">Cleaning frequency:</span>

@@ -2901,7 +2901,12 @@ export class BookingComponent implements OnInit, OnDestroy {
       tax: this.calculation.tax,
       total: this.calculation.total,
       calculation: this.calculation, // Add the full calculation object
-      totalDuration: this.showCustomPricing ? Math.max(parseInt(this.customDuration.value), 60) : this.actualTotalDuration,
+      // For custom pricing, store TotalDuration as TOTAL cleaner-minutes (per-cleaner duration × cleaners),
+      // matching the convention used by non-custom orders. Booking summary still shows per-cleaner via
+      // calculation.totalDuration / formatDuration which appends "per maid".
+      totalDuration: this.showCustomPricing
+        ? Math.max(parseInt(this.customDuration.value) * (parseInt(this.customCleaners.value) || 1), 60)
+        : this.actualTotalDuration,
       hasActiveSubscription: this.hasActiveSubscription,
       userSubscriptionId: this.userSubscription?.subscriptionId,
       giftCardCode: this.giftCardApplied && this.isGiftCard ? this.promoCode.value : null,

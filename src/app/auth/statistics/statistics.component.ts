@@ -5,7 +5,7 @@ import { AdminService, OrderStatistics, DailyStatistics } from '../../services/a
 import { forkJoin } from 'rxjs';
 import Chart from 'chart.js/auto';
 
-type QuickFilter = 'all' | 'today' | 'week' | 'month';
+type QuickFilter = 'all' | 'today' | 'week' | 'month' | 'year';
 type ChartGrouping = 'days' | 'weeks' | 'months';
 
 interface ChartDataPoint {
@@ -38,10 +38,10 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   revenueChart: Chart | null = null;
   isBrowser: boolean;
 
-  activeQuickFilter: QuickFilter = 'month';
+  activeQuickFilter: QuickFilter = 'year';
   customFrom = '';
   customTo = '';
-  chartGrouping: ChartGrouping = 'days';
+  chartGrouping: ChartGrouping = 'months';
 
   constructor(
     private adminService: AdminService,
@@ -64,6 +64,15 @@ export class StatisticsComponent implements OnInit, OnDestroy {
     this.activeQuickFilter = filter;
     this.customFrom = '';
     this.customTo = '';
+    // Pick a sensible default grouping for the new range so the chart isn't pegged to "days"
+    // when looking at a year (which makes the bars unreadable).
+    if (filter === 'year' || filter === 'all') {
+      this.chartGrouping = 'months';
+    } else if (filter === 'month') {
+      this.chartGrouping = 'weeks';
+    } else {
+      this.chartGrouping = 'days';
+    }
     this.loadData();
   }
 
@@ -76,7 +85,8 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   clearCustomRange(): void {
     this.customFrom = '';
     this.customTo = '';
-    this.activeQuickFilter = 'month';
+    this.activeQuickFilter = 'year';
+    this.chartGrouping = 'months';
     this.loadData();
   }
 
@@ -128,6 +138,10 @@ export class StatisticsComponent implements OnInit, OnDestroy {
       case 'month': {
         const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         return { from: this.formatDate(startOfMonth), to: this.formatDate(now) };
+      }
+      case 'year': {
+        const startOfYear = new Date(now.getFullYear(), 0, 1);
+        return { from: this.formatDate(startOfYear), to: this.formatDate(now) };
       }
       case 'all':
       default:

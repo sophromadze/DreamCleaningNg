@@ -95,7 +95,7 @@
               <th class="sortable" (click)="setSort('id')">ID <span *ngIf="sortColumn === 'id'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
               <th class="sortable" (click)="setSort('email')">Email <span *ngIf="sortColumn === 'email'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
               <th class="sortable" (click)="setSort('serviceDate')">Service Date <span *ngIf="sortColumn === 'serviceDate'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
-              <th class="sortable" (click)="setSort('orderDate')">Order Date <span *ngIf="sortColumn === 'orderDate'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
+              <th class="sortable" (click)="setSort('serviceType')">Service Type <span *ngIf="sortColumn === 'serviceType'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
               <th class="sortable" (click)="setSort('total')">Total <span *ngIf="sortColumn === 'total'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
               <th class="sortable" (click)="setSort('status')">Status <span *ngIf="sortColumn === 'status'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
               <th class="sortable" (click)="setSort('cleaners')">Cleaners <span *ngIf="sortColumn === 'cleaners'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
@@ -115,7 +115,7 @@
               </td>
               <td>{{getCustomerEmail(order.id)}}</td>
               <td>{{formatDateTime(order.serviceDate, order.serviceTime)}}</td>
-              <td>{{formatDateTime(order.orderDate)}}</td>
+              <td>{{getServiceTypeDisplay(order)}}</td>
               <td class="amount">$ {{formatCurrency(getOrderTotalWithoutTips(order))}}</td>
               <td>
                 <span class="status-badge" [ngClass]="getStatusClass(order.status)">
@@ -199,7 +199,7 @@
                         <div class="edit-row"><label>Service Date</label><input type="date" [(ngModel)]="editOrderForm.serviceDate"></div>
                         <div class="edit-row"><label>Service Time (HH:mm)</label><input type="text" [(ngModel)]="editOrderForm.serviceTime" placeholder="14:30"></div>
                         <div class="edit-row"><label>Maids</label><input type="number" [(ngModel)]="editOrderForm.maidsCount" (ngModelChange)="onEditMaidsChange()" title="Auto from duration (1 per 6h); you can override"></div>
-                        <div class="edit-row"><label>Duration (min)</label><input type="number" [(ngModel)]="editOrderForm.totalDuration" (ngModelChange)="onEditDurationChange()" min="60" placeholder="min"> <span class="duration-hint">{{ formatEditDuration(editOrderForm.totalDuration ?? 0) }}</span></div>
+                        <div class="edit-row"><label>Duration (min)</label><input type="number" [(ngModel)]="editOrderForm.totalDuration" (ngModelChange)="onEditDurationChange()" min="60" placeholder="min"> <span class="duration-hint">{{ getEditDurationHintText() }} per maid</span></div>
                         <div class="edit-row" *ngIf="editOrderForm.bedroomsQuantity != null || editOrderForm.bathroomsQuantity != null"><label>Bedrooms (read-only)</label><input type="text" [value]="(editOrderForm.bedroomsQuantity ?? 0) === 0 ? 'Studio' : (editOrderForm.bedroomsQuantity ?? 'N/A')" readonly></div>
                         <div class="edit-row" *ngIf="editOrderForm.bedroomsQuantity != null || editOrderForm.bathroomsQuantity != null"><label>Bathrooms (read-only)</label><input type="text" [value]="editOrderForm.bathroomsQuantity ?? 'N/A'" readonly></div>
                         <div class="edit-row"><label>Entry</label><input [(ngModel)]="editOrderForm.entryMethod"></div>
@@ -310,7 +310,8 @@
                     <div class="detail-section">
                       <h5>Service Details</h5>
                       <p><strong>Service Type:</strong> {{selectedOrder.serviceTypeName}}</p>
-                      <p><strong>Service Time:</strong> {{formatDateTime((selectedOrder.serviceDate || '1970-01-01'), selectedOrder.serviceTime)}}</p>
+                      <p><strong>Service Date:</strong> {{formatDateTime((selectedOrder.serviceDate || '1970-01-01'), selectedOrder.serviceTime)}}</p>
+                      <p><strong>Booked On:</strong> {{formatDateTime(selectedOrder.orderDate)}}</p>
                       <p><strong>Duration:</strong>
                         <ng-container *ngIf="hasCleanersService(); else perMaid">
                           {{formatDuration(selectedOrder.totalDuration)}}
