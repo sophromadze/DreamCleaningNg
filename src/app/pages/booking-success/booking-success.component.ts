@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { OrderService, Order } from '../../services/order.service';
 import { AuthService } from '../../services/auth.service';
+import { BubbleRewardsService } from '../../services/bubble-rewards.service';
 
 declare global {
   interface Window {
@@ -26,6 +27,10 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
   isCustomServiceType = false;
   suppliesLoaded = false;
 
+  // Bubble points earn preview
+  bubblePointsEnabled = false;
+  estimatedPoints = 0;
+
   // OTP verification step
   step: 'success' | 'verify-otp' = 'success';
   otpCode = '';
@@ -41,6 +46,7 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
     private router: Router,
     private orderService: OrderService,
     private authService: AuthService,
+    private bubbleRewardsService: BubbleRewardsService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
@@ -74,6 +80,7 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
             this.isDeepCleaning = !!deepCleaning || !!superDeepCleaning;
             this.isCustomServiceType = this.isCustomServiceTypeOrder(order);
             this.suppliesLoaded = true;
+            this.loadEstimatedPoints(order);
             this.trackPurchaseConversion(order);
           },
           error: () => {
@@ -163,6 +170,23 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
         this.resendCooldown = 0;
       }
     }, 1000);
+  }
+
+  private loadEstimatedPoints(order: Order): void {
+    this.bubbleRewardsService.getSummary().subscribe({
+      next: (summary) => {
+        if (!summary?.pointsSystemEnabled) return;
+        const pointsPerDollar = summary.guide?.pointsPerDollar ?? 0;
+        if (pointsPerDollar <= 0) return;
+        const base = (order.total ?? 0) - (order.tax ?? 0) - (order.tips ?? 0) - (order.companyDevelopmentTips ?? 0);
+        const points = Math.floor(Math.max(0, base) * pointsPerDollar);
+        if (points > 0) {
+          this.bubblePointsEnabled = true;
+          this.estimatedPoints = points;
+        }
+      },
+      error: () => {}
+    });
   }
 
   private isCustomServiceTypeOrder(order: Order): boolean {

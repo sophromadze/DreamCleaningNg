@@ -87,6 +87,56 @@ h1 {
   }
 }
 
+.bubble-reward-card {
+  margin: 0.5rem auto 1rem auto;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  background: rgba(0, 123, 255, 0.08);
+  border: 1px solid rgba(0, 123, 255, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 520px;
+}
+
+.bubble-reward-message {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  line-height: 1.45;
+  text-align: center;
+
+  strong {
+    color: var(--primary-color, #007bff);
+    font-weight: 700;
+  }
+}
+
+.bubble-reward-info-btn {
+  display: inline-block;
+  padding: 0.3rem 0.85rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--primary-color, #007bff);
+  background: transparent;
+  border: 1px solid var(--primary-color, #007bff);
+  border-radius: 999px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+
+  &:hover {
+    background: var(--primary-color, #007bff);
+    color: #fff;
+    text-decoration: none;
+  }
+}
+
+:host-context([data-theme="dark"]) .bubble-reward-card {
+  background: rgba(0, 123, 255, 0.15);
+}
+
 .view-order-btn {
   display: inline-block;
   padding: 0.65rem 1.25rem;
@@ -225,5 +275,20 @@ h1 {
   .view-order-btn {
     padding: 0.6rem 1rem;
     font-size: 0.95rem;
+  }
+
+  .bubble-reward-card {
+    padding: 0.7rem 0.75rem;
+    margin: 0.4rem auto 0.85rem auto;
+    max-width: 100%;
+  }
+
+  .bubble-reward-message {
+    font-size: 0.9rem;
+  }
+
+  .bubble-reward-info-btn {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.75rem;
   }
 }
