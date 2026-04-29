@@ -11,6 +11,7 @@ import { AuthModalService } from '../services/auth-modal.service';
 import { BookingService, ServiceType, Service } from '../services/booking.service';
 import { FormPersistenceService } from '../services/form-persistence.service';
 import { ShimmerDirective } from '../shared/directives/shimmer.directive';
+import { SERVICE_PRICING } from '../shared/service-pricing.data';
 import { Subscription } from 'rxjs';
 
 interface ExtendedReview extends Review {
@@ -56,6 +57,9 @@ export class MainComponent implements OnInit, OnDestroy {
 
   // Start true so card shows full shimmer skeleton immediately on refresh until service types load
   isLoadingServiceTypes = true;
+
+  /** Marketing-copy prices (centralized in shared/service-pricing.data.ts). */
+  readonly pricing = SERVICE_PRICING;
 
   constructor(
     private googlePlacesService: GooglePlacesService,

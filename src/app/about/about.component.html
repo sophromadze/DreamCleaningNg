@@ -39,7 +39,7 @@
             </svg>
           </div>
           <h3>Standard Residential Cleaning</h3>
-          <p>Weekly, biweekly, or monthly maintenance starting from $110.</p>
+          <p>Weekly, biweekly, or monthly maintenance starting from ${{ pricing.residentialFrom }}.</p>
         </div>
 
         <div class="value-card">
@@ -51,7 +51,7 @@
             </svg>
           </div>
           <h3>Deep Cleaning</h3>
-          <p>Thorough top-to-bottom restoration starting from $190, recommended every 3-6 months.</p>
+          <p>A detailed, top-to-bottom cleaning solution starting from ${{ pricing.deepFrom }} — designed for homes that need more than routine maintenance, targeting stubborn buildup, kitchen grease, hidden dust, baseboards, and hard-to-reach areas. Recommended every 3-6 months.</p>
         </div>
 
         <div class="value-card">
@@ -62,7 +62,7 @@
             </svg>
           </div>
           <h3>Move In/Out Cleaning</h3>
-          <p>Comprehensive transition cleaning starting from $200, designed to meet lease requirements.</p>
+          <p>Comprehensive transition cleaning starting from ${{ pricing.moveInOutFrom }}, designed to meet lease requirements.</p>
         </div>
 
         <div class="value-card">
@@ -85,8 +85,21 @@
               <line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
           </div>
-          <h3>Heavy Condition & Filthy Cleaning</h3>
-          <p>Professional restoration of severely neglected spaces at $55/hour per cleaner.</p>
+          <h3>Heavy Condition Cleaning</h3>
+          <p>Intensive restoration for severely neglected spaces with significant buildup at ${{ pricing.heavyConditionPerHour }}/hour per cleaner.</p>
+        </div>
+
+        <div class="value-card">
+          <div class="value-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          <h3>Filthy Cleaning</h3>
+          <p>Our most intensive service for extreme situations — hoarding, years of neglect — at ${{ pricing.filthyPerHour }}/hour per cleaner with a 2-cleaner minimum.</p>
         </div>
       </div>
       <p>All services include background-checked cleaners, professional-grade equipment, and a 100% satisfaction guarantee.</p>

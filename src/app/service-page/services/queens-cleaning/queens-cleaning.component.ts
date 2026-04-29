@@ -4,6 +4,7 @@ import { RouterModule } from '@angular/router';
 import { GooglePlacesService } from '../../../services/google-reviews.service';
 import { ServiceAreaMapComponent } from '../../../service-area-map/service-area-map.component';
 import { QUEENS_ZIPS } from '../../../data/zip-code-data';
+import { SERVICE_PRICING } from '../../../shared/service-pricing.data';
 import { environment } from '../../../../environments/environment';
 
 @Component({
@@ -19,6 +20,7 @@ export class QueensCleaningComponent implements OnInit, OnDestroy {
   queensZips = Object.keys(QUEENS_ZIPS);
   queensMapCenter: [number, number] = [40.72, -73.8365];
   queensZoom = 11;
+  readonly pricing = SERVICE_PRICING;
   private schemaElement: HTMLScriptElement | null = null;
 
   constructor(
@@ -47,7 +49,7 @@ export class QueensCleaningComponent implements OnInit, OnDestroy {
       '@context': 'https://schema.org',
       '@type': 'LocalBusiness',
       'name': 'Dream Cleaning - Queens',
-      'description': 'Dream Cleaning provides professional cleaning services across 58 ZIP codes in Queens, New York — including Astoria, Long Island City, Forest Hills, Flushing, Jamaica, and Rego Park. Standard cleaning from $110, deep cleaning from $190.',
+      'description': `Dream Cleaning provides professional cleaning services across 58 ZIP codes in Queens, New York — including Astoria, Long Island City, Forest Hills, Flushing, Jamaica, and Rego Park. Standard cleaning from $${SERVICE_PRICING.residentialFrom}, deep cleaning from $${SERVICE_PRICING.deepFrom}.`,
       'url': 'https://dreamcleaningnearme.com/services/queens-cleaning',
       'telephone': '+1-929-930-1525',
       'dateModified': '2026-03-22',

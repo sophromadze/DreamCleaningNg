@@ -170,9 +170,11 @@
           <label for="phone">Phone Number (Optional)</label>
           <input
             type="tel"
+            inputmode="numeric"
             id="phone"
             formControlName="phone"
-            placeholder="Enter your phone number">
+            (input)="onPhoneInput($event)"
+            placeholder="10-digit number">
         </div>
 
         <div class="form-group">

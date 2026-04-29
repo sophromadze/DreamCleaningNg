@@ -708,14 +708,25 @@
                 </div>
               </section>
               
-              <!-- Cleaning Type Selection: show section while loading (shimmer on refresh) or when service type has Deep Cleaning -->
-              <ng-container *ngIf="loading.serviceTypes || (selectedServiceType && (canSelectDeepCleaning || loading.cleaningTypes))">
+              <!-- Cleaning Type + what's included: loading shimmer, or Residential with deep-cleaning option -->
+              <ng-container *ngIf="loading.serviceTypes || loading.cleaningTypes || (selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning)">
+                <div
+                  class="cleaning-type-cta-banner"
+                  *ngIf="!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning"
+                  role="note">
+                  <i class="fas fa-star cleaning-type-cta-banner__star" aria-hidden="true"></i>
+                  <div class="cleaning-type-cta-banner__body">
+                    <p class="cleaning-type-cta-banner__lead">
+                      <strong>Not sure which to choose?</strong> Most first-time customers choose Deep Cleaning for the best results.
+                    </p>
+                  </div>
+                </div>
                 <label>Cleaning Type <span class="required">*</span></label>
                 <div class="cleaning-type-selection">
                   <!-- Shimmer when loading service types or cleaning types (visible on page refresh) -->
                   <div *ngIf="loading.serviceTypes || loading.cleaningTypes" class="cleaning-type-buttons" [shimmer]="true"></div>
                   <!-- Real buttons when loaded and this service type has deep cleaning -->
-                  <div *ngIf="!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && canSelectDeepCleaning" class="cleaning-type-buttons">
+                  <div *ngIf="!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning" class="cleaning-type-buttons">
                     <button 
                       type="button"
                       class="cleaning-type-btn"
@@ -735,24 +746,14 @@
                     <div *ngIf="cleaningType.errors?.['required']">Cleaning type is required</div>
                   </div>
                 </div>
+                <app-cleaning-type-details-expandable
+                  *ngIf="!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning"
+                  [cleaningType]="cleaningType.value === 'deep' ? 'deep' : 'normal'">
+                </app-cleaning-type-details-expandable>
               </ng-container>
 
-              <!-- Cleaning Type Descriptions -->
-              <!-- <div class="cleaning-type-info" *ngIf="selectedServiceType">
-                <!-- Regular Cleaning Description -->
-                <!-- <div class="cleaning-info-card" *ngIf="cleaningType.value === 'normal'">
-                  <h4>General surface cleaning and tidying for a well-maintained home.</h4>
-                </div> -->
+              <app-move-in-out-checklist *ngIf="!loading.serviceTypes && isMoveInOutCleaningServiceType()"></app-move-in-out-checklist>
 
-                <!-- Deep Cleaning Description -->
-                <!-- <div class="cleaning-info-card" *ngIf="cleaningType.value === 'deep'">
-                  <h4>What to Expect</h4>
-                  <p>Our deep cleaning package includes detailed attention to areas like baseboards and the interior of your fridge.</p>
-                  <p>If you need oven scrubbing, window, or wall washing, make sure to add them from the Extras section.</p>
-                  <p><strong>For larger apartments or heavily used kitchens, please allow extra time for cabinet and wall care to ensure top-quality results.</strong></p>
-                </div> -->
-              <!-- </div> -->
-              
               <div class="extra-services-header-container">
                 <h2 class="extra-services-header">Extra Services</h2>
                 <div class="extra-services-toggle" *ngIf="hasMoreExtraServices()">
@@ -1156,7 +1157,7 @@
                 </div>
               </div>
               <div class="form-group">
-                <input type="tel" [formControl]="contactPhone" placeholder="Phone *" id="contactPhonePollStep2">
+                <input type="tel" inputmode="numeric" [formControl]="contactPhone" (input)="onContactPhoneInput($event)" placeholder="Phone *" id="contactPhonePollStep2">
                 <div class="error-message" *ngIf="contactPhone.invalid && contactPhone.touched">
                   <div *ngIf="contactPhone.errors?.['required']">Phone number is required</div>
                   <div *ngIf="contactPhone.errors?.['pattern']">Please enter a valid 10-digit phone number</div>
@@ -1205,7 +1206,7 @@
                 </div>
               </div>
               <div class="form-group">
-                <input type="tel" [formControl]="contactPhone" placeholder="Phone *" id="contactPhone">
+                <input type="tel" inputmode="numeric" [formControl]="contactPhone" (input)="onContactPhoneInput($event)" placeholder="Phone *" id="contactPhone">
                 <div class="error-message" *ngIf="contactPhone.invalid && contactPhone.touched">
                   <div *ngIf="contactPhone.errors?.['required']">Phone number is required</div>
                   <div *ngIf="contactPhone.errors?.['pattern']">Please enter a valid 10-digit phone number</div>

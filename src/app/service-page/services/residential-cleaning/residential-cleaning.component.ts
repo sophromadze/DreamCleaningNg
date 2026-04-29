@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { SERVICE_PRICING } from '../../../shared/service-pricing.data';
 
 @Component({
   selector: 'app-residential-cleaning',
@@ -10,6 +11,7 @@ import { RouterModule } from '@angular/router';
   styleUrl: './residential-cleaning.component.scss'
 })
 export class ResidentialCleaningComponent implements OnInit, OnDestroy {
+  readonly pricing = SERVICE_PRICING;
   private schemaElement: HTMLScriptElement | null = null;
 
   constructor(@Inject(DOCUMENT) private document: Document) {}
@@ -29,7 +31,7 @@ export class ResidentialCleaningComponent implements OnInit, OnDestroy {
       '@context': 'https://schema.org',
       '@type': 'Service',
       'name': 'Residential Cleaning Service in NYC',
-      'description': "Dream Cleaning's standard residential cleaning service keeps NYC apartments and homes consistently fresh with weekly, biweekly, or monthly maintenance, starting from $110.",
+      'description': `Dream Cleaning's standard residential cleaning service keeps NYC apartments and homes consistently fresh with weekly, biweekly, or monthly maintenance, starting from $${SERVICE_PRICING.residentialFrom}.`,
       'dateModified': '2026-03-22',
       'provider': {
         '@type': 'LocalBusiness',
@@ -40,8 +42,8 @@ export class ResidentialCleaningComponent implements OnInit, OnDestroy {
       'serviceType': 'Residential Cleaning',
       'offers': {
         '@type': 'AggregateOffer',
-        'lowPrice': '110',
-        'highPrice': '380',
+        'lowPrice': String(SERVICE_PRICING.residentialFrom),
+        'highPrice': String(SERVICE_PRICING.residentialHigh),
         'priceCurrency': 'USD'
       }
     };

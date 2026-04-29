@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
+import { SERVICE_PRICING } from '../shared/service-pricing.data';
 
 @Component({
   selector: 'app-about',
@@ -11,6 +12,8 @@ import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
   styleUrl: './about.component.scss'
 })
 export class AboutComponent {
+  readonly pricing = SERVICE_PRICING;
+
   constructor(private router: Router) {}
 
   navigateToBooking() {

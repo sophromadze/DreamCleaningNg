@@ -184,7 +184,7 @@
                         <div class="edit-row"><label>First Name</label><input [(ngModel)]="editOrderForm.contactFirstName"></div>
                         <div class="edit-row"><label>Last Name</label><input [(ngModel)]="editOrderForm.contactLastName"></div>
                         <div class="edit-row"><label>Email</label><input type="email" [(ngModel)]="editOrderForm.contactEmail"></div>
-                        <div class="edit-row"><label>Phone</label><input [(ngModel)]="editOrderForm.contactPhone"></div>
+                        <div class="edit-row"><label>Phone</label><input type="tel" inputmode="numeric" [(ngModel)]="editOrderForm.contactPhone" (input)="onEditOrderPhoneInput($event)" placeholder="10-digit number"></div>
                       </div>
                       <div class="edit-group">
                         <h6>Address</h6>
@@ -725,9 +725,21 @@
     
     <div class="modal-body">
       <div class="cleaners-list">
-        <h4>Available Cleaners</h4>
+        <div class="available-cleaners-header">
+          <h4>Available Cleaners</h4>
+          <input type="search"
+                 class="cleaner-assignment-search"
+                 [(ngModel)]="cleanerAssignmentSearchQuery"
+                 placeholder="Search by name or email…"
+                 (click)="$event.stopPropagation()"
+                 aria-label="Search available cleaners by name or email">
+        </div>
+        <p *ngIf="availableCleaners.length > 0 && availableCleanersFiltered.length === 0"
+           class="cleaner-search-empty">
+          No cleaners match your search.
+        </p>
         <div class="cleaner-grid">
-          <div *ngFor="let cleaner of availableCleaners" 
+          <div *ngFor="let cleaner of availableCleanersFiltered" 
                class="cleaner-card"
                [class.selected]="isCleanerSelected(cleaner.id)"
                [class.unavailable]="!cleaner.isAvailable"

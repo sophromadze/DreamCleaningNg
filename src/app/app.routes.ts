@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { MainComponent } from './main/main.component';
+import { SERVICE_PRICING } from './shared/service-pricing.data';
 import { authGuard } from './guards/auth.guard';
 import { noAuthGuard } from './guards/no-auth.guard';
 import { adminGuard } from './guards/admin.guard';
@@ -21,7 +22,7 @@ export const routes: Routes = [
     component: MainComponent,
     data: {
       title: 'Dream Cleaning - Professional Cleaning Services Near Me | NYC',
-      description: "Dream Cleaning is a 5.0-star rated cleaning service in NYC serving Brooklyn, Manhattan & Queens. Standard cleaning from $110, deep cleaning from $190. 100+ Google reviews. Book online in 2 minutes."
+      description: `Dream Cleaning is a 5.0-star rated cleaning service in NYC serving Brooklyn, Manhattan & Queens. Standard cleaning from $${SERVICE_PRICING.residentialFrom}, deep cleaning from $${SERVICE_PRICING.deepFrom}. 100+ Google reviews. Book online in 2 minutes.`
     }
   },
   {
@@ -46,7 +47,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/residential-cleaning/residential-cleaning.component').then(m => m.ResidentialCleaningComponent),
     data: {
       title: 'Residential Cleaning Service NYC | Dream Cleaning',
-      description: "Standard residential cleaning in NYC by Dream Cleaning. Starting from $110. Weekly, biweekly, monthly plans. Brooklyn, Manhattan & Queens. 5.0-star rated."
+      description: `Standard residential cleaning in NYC by Dream Cleaning. Starting from $${SERVICE_PRICING.residentialFrom}. Weekly, biweekly, monthly plans. Brooklyn, Manhattan & Queens. 5.0-star rated.`
     }
   },
   {
@@ -70,7 +71,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/deep-cleaning/deep-cleaning.component').then(m => m.DeepCleaningComponent),
     data: {
       title: 'Deep Cleaning Service NYC | Dream Cleaning',
-      description: "Deep cleaning services in NYC by Dream Cleaning. Starting from $190. Baseboards, inside appliances, behind furniture. Brooklyn, Manhattan & Queens. 5.0-star rated."
+      description: `Deep cleaning services in NYC by Dream Cleaning. Starting from $${SERVICE_PRICING.deepFrom}. Baseboards, inside appliances, behind furniture. Brooklyn, Manhattan & Queens. 5.0-star rated.`
     }
   },
   {
@@ -94,7 +95,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/move-in-out-cleaning/move-in-out-cleaning.component').then(m => m.MoveInOutCleaningComponent),
     data: {
       title: 'Move In/Out Cleaning Service NYC | Dream Cleaning',
-      description: "Move in/out cleaning in NYC by Dream Cleaning. Starting from $200. Cabinet interiors, appliance cleaning, wall spot cleaning. Brooklyn, Manhattan & Queens. 5.0-star rated."
+      description: `Move in/out cleaning in NYC by Dream Cleaning. Starting from $${SERVICE_PRICING.moveInOutFrom}. Cabinet interiors, appliance cleaning, wall spot cleaning. Brooklyn, Manhattan & Queens. 5.0-star rated.`
     }
   },
   {
@@ -102,7 +103,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/heavy-condition-cleaning/heavy-condition-cleaning.component').then(m => m.HeavyConditionCleaningComponent),
     data: {
       title: 'Heavy Condition Cleaning NYC | Dream Cleaning',
-      description: "Heavy condition cleaning in NYC — $55/hour per cleaner. For homes not cleaned in 6+ months. Wall washing, cabinet interiors, professional restoration. Brooklyn, Manhattan & Queens."
+      description: `Heavy condition cleaning in NYC — $${SERVICE_PRICING.heavyConditionPerHour}/hour per cleaner. For homes not cleaned in 6+ months. Wall washing, cabinet interiors, professional restoration. Brooklyn, Manhattan & Queens.`
     }
   },
   {
@@ -134,7 +135,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/brooklyn-cleaning/brooklyn-cleaning.component').then(m => m.BrooklynCleaningComponent),
     data: {
       title: 'Cleaning Service in Brooklyn NY | Dream Cleaning',
-      description: "Professional cleaning service in Brooklyn NY — 38 ZIP codes covered. Standard from $110, deep from $190. 5.0-star Google rating, 100+ reviews. Book Dream Cleaning online."
+      description: `Professional cleaning service in Brooklyn NY — 38 ZIP codes covered. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. 5.0-star Google rating, 100+ reviews. Book Dream Cleaning online.`
     }
   },
   {
@@ -142,7 +143,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/manhattan-cleaning/manhattan-cleaning.component').then(m => m.ManhattanCleaningComponent),
     data: {
       title: 'Cleaning Service in Manhattan NY | Dream Cleaning',
-      description: "Professional cleaning service in Manhattan NY — 24 ZIP codes covered. Standard from $110, deep from $190. 5.0-star Google rating, 100+ reviews. Book Dream Cleaning online."
+      description: `Professional cleaning service in Manhattan NY — 24 ZIP codes covered. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. 5.0-star Google rating, 100+ reviews. Book Dream Cleaning online.`
     }
   },
   {
@@ -150,7 +151,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/queens-cleaning/queens-cleaning.component').then(m => m.QueensCleaningComponent),
     data: {
       title: 'Cleaning Service in Queens NY | Dream Cleaning',
-      description: "Professional cleaning service in Queens NY — 58 ZIP codes covered. Standard from $110, deep from $190. 5.0-star Google rating, 100+ reviews. Book Dream Cleaning online."
+      description: `Professional cleaning service in Queens NY — 58 ZIP codes covered. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. 5.0-star Google rating, 100+ reviews. Book Dream Cleaning online.`
     }
   },
   {
@@ -159,7 +160,7 @@ export const routes: Routes = [
     canActivate: [maintenanceGuard],
     data: {
       title: 'Book Cleaning Service | Dream Cleaning NYC',
-      description: "Book professional cleaning in NYC online in under 2 minutes. Standard cleaning from $110, deep cleaning from $190. Instant estimates. Dream Cleaning — Brooklyn, Manhattan & Queens."
+      description: `Book professional cleaning in NYC online in under 2 minutes. Standard cleaning from $${SERVICE_PRICING.residentialFrom}, deep cleaning from $${SERVICE_PRICING.deepFrom}. Instant estimates. Dream Cleaning — Brooklyn, Manhattan & Queens.`
     }
   },
   {
@@ -185,7 +186,7 @@ export const routes: Routes = [
     canActivate: [maintenanceGuard],
     data: {
       title: 'FAQ | Dream Cleaning NYC',
-      description: "Frequently asked questions about Dream Cleaning NYC — pricing (from $110), service areas (120 ZIP codes), booking process, what's included, satisfaction guarantee, and more."
+      description: `Frequently asked questions about Dream Cleaning NYC — pricing (from $${SERVICE_PRICING.residentialFrom}), service areas (120 ZIP codes), booking process, what's included, satisfaction guarantee, and more.`
     }
   },
   {
@@ -339,7 +340,7 @@ export const routes: Routes = [
     canActivate: [maintenanceGuard],
     data: {
       title: 'Free Quote | Dream Cleaning NYC',
-      description: "Get a free cleaning quote from Dream Cleaning. Professional cleaning services in Brooklyn, Manhattan & Queens. Standard from $110, deep from $190. No obligation."
+      description: `Get a free cleaning quote from Dream Cleaning. Professional cleaning services in Brooklyn, Manhattan & Queens. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. No obligation.`
     }
   },
   {

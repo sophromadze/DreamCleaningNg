@@ -4,6 +4,7 @@ import { RouterModule } from '@angular/router';
 import { GooglePlacesService } from '../../../services/google-reviews.service';
 import { ServiceAreaMapComponent } from '../../../service-area-map/service-area-map.component';
 import { BROOKLYN_ZIPS } from '../../../data/zip-code-data';
+import { SERVICE_PRICING } from '../../../shared/service-pricing.data';
 import { environment } from '../../../../environments/environment';
 
 @Component({
@@ -19,6 +20,7 @@ export class BrooklynCleaningComponent implements OnInit, OnDestroy {
   brooklynZips = Object.keys(BROOKLYN_ZIPS);
   brooklynMapCenter: [number, number] = [40.6502, -73.9496];
   brooklynZoom = 11;
+  readonly pricing = SERVICE_PRICING;
   private schemaElement: HTMLScriptElement | null = null;
 
   constructor(
@@ -47,7 +49,7 @@ export class BrooklynCleaningComponent implements OnInit, OnDestroy {
       '@context': 'https://schema.org',
       '@type': 'LocalBusiness',
       'name': 'Dream Cleaning - Brooklyn',
-      'description': 'Dream Cleaning provides professional cleaning services across 38 ZIP codes in Brooklyn, New York — including Park Slope, Williamsburg, DUMBO, Brooklyn Heights, Bay Ridge, Sunset Park, and Bushwick. Standard cleaning from $110, deep cleaning from $190.',
+      'description': `Dream Cleaning provides professional cleaning services across 38 ZIP codes in Brooklyn, New York — including Park Slope, Williamsburg, DUMBO, Brooklyn Heights, Bay Ridge, Sunset Park, and Bushwick. Standard cleaning from $${SERVICE_PRICING.residentialFrom}, deep cleaning from $${SERVICE_PRICING.deepFrom}.`,
       'url': 'https://dreamcleaningnearme.com/services/brooklyn-cleaning',
       'telephone': '+1-929-930-1525',
       'dateModified': '2026-03-22',

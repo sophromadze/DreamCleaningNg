@@ -4,6 +4,7 @@ import { RouterModule } from '@angular/router';
 import { GooglePlacesService } from '../../../services/google-reviews.service';
 import { ServiceAreaMapComponent } from '../../../service-area-map/service-area-map.component';
 import { MANHATTAN_ZIPS } from '../../../data/zip-code-data';
+import { SERVICE_PRICING } from '../../../shared/service-pricing.data';
 import { environment } from '../../../../environments/environment';
 
 @Component({
@@ -19,6 +20,7 @@ export class ManhattanCleaningComponent implements OnInit, OnDestroy {
   manhattanZips = Object.keys(MANHATTAN_ZIPS);
   manhattanMapCenter: [number, number] = [40.738, -73.9855];
   manhattanZoom = 12;
+  readonly pricing = SERVICE_PRICING;
   private schemaElement: HTMLScriptElement | null = null;
 
   constructor(
@@ -47,7 +49,7 @@ export class ManhattanCleaningComponent implements OnInit, OnDestroy {
       '@context': 'https://schema.org',
       '@type': 'LocalBusiness',
       'name': 'Dream Cleaning - Manhattan',
-      'description': 'Dream Cleaning provides professional cleaning services across 24 ZIP codes in Manhattan, New York — including Midtown, Chelsea, Lower East Side, Upper West Side, Financial District, and SoHo. Standard cleaning from $110, deep cleaning from $190.',
+      'description': `Dream Cleaning provides professional cleaning services across 24 ZIP codes in Manhattan, New York — including Midtown, Chelsea, Lower East Side, Upper West Side, Financial District, and SoHo. Standard cleaning from $${SERVICE_PRICING.residentialFrom}, deep cleaning from $${SERVICE_PRICING.deepFrom}.`,
       'url': 'https://dreamcleaningnearme.com/services/manhattan-cleaning',
       'telephone': '+1-929-930-1525',
       'dateModified': '2026-03-22',

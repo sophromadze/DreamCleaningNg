@@ -1,0 +1,54 @@
+<div class="cleaning-type-details-expandable">
+  <button
+    type="button"
+    class="cleaning-type-details-toggle"
+    (click)="toggle()"
+    [attr.aria-expanded]="expanded">
+    <span>{{ toggleButtonLabel }}</span>
+    <i class="fas fa-chevron-down" [class.rotated]="expanded" aria-hidden="true"></i>
+  </button>
+
+  <div
+    *ngIf="expanded"
+    class="cleaning-type-details-panel"
+    role="region"
+    [attr.aria-label]="cleaningType === 'deep' ? 'Deep cleaning checklist' : 'Regular cleaning checklist'">
+    <h3 class="checklist-block-title">{{ panelTitle }}</h3>
+
+    <div class="checklist-area-card" *ngFor="let section of activeChecklist">
+      <h4 class="checklist-area-card__title">{{ section.heading }}</h4>
+      <div class="checklist-area-card__grid">
+        <div class="checklist-area-card__cell" *ngFor="let row of section.rows">
+          <span
+            class="checklist-area-row__icon"
+            [class.checklist-area-row__icon--yes]="row.included"
+            [class.checklist-area-row__icon--no]="!row.included"
+            aria-hidden="true">
+            <i class="fas" [ngClass]="row.included ? 'fa-check' : 'fa-times'"></i>
+          </span>
+          <span class="checklist-area-row__label">{{ row.label }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="not-included-footer">
+      <h4 class="not-included-footer__title">{{ notIncludedFooterTitle }}</h4>
+      <div class="not-included-footer__grid">
+        <div class="not-included-footer__cell" *ngFor="let item of activeNotIncludedFooter">
+          <span class="not-included-footer__x" aria-hidden="true"><i class="fas fa-times"></i></span>
+          <span>{{ item }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cleaning-type-details-panel__close-wrap">
+      <button
+        type="button"
+        class="cleaning-type-details-close"
+        (click)="toggle()"
+        aria-label="Close details">
+        <i class="fas fa-chevron-up" aria-hidden="true"></i>
+      </button>
+    </div>
+  </div>
+</div>

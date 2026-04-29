@@ -11,6 +11,13 @@
         Your booking has been confirmed. Order #{{ orderId }}
       </p>
 
+      <div *ngIf="bubblePointsEnabled && estimatedPoints > 0" class="bubble-reward-card">
+        <p class="bubble-reward-message">
+          Congrats! You'll earn <strong>{{ estimatedPoints | number }}</strong> Bubble points once your cleaning is complete &mdash; ready to use on a future booking.
+        </p>
+        <a class="bubble-reward-info-btn" routerLink="/rewards">More info</a>
+      </div>
+
       <ng-container *ngIf="suppliesLoaded">
         <div *ngIf="hasCleaningSupplies && !isCustomServiceType; else noSuppliesTemplate">
           <p class="redirect-info">Please provide the following items:</p>
@@ -41,12 +48,7 @@
         </ng-template>
       </ng-container>
 
-      <div *ngIf="bubblePointsEnabled && estimatedPoints > 0" class="bubble-reward-card">
-        <p class="bubble-reward-message">
-          Congrats! You'll earn <strong>{{ estimatedPoints | number }}</strong> Bubble points once your cleaning is complete &mdash; ready to use on a future booking.
-        </p>
-        <a class="bubble-reward-info-btn" routerLink="/rewards">More info</a>
-      </div>
+      
 
       <div *ngIf="otpError" class="otp-error">{{ otpError }}</div>
 

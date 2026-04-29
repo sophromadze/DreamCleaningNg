@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { SERVICE_PRICING } from '../../../shared/service-pricing.data';
 
 @Component({
   selector: 'app-custom-cleaning',
@@ -10,6 +11,7 @@ import { RouterModule } from '@angular/router';
   styleUrl: './custom-cleaning.component.scss'
 })
 export class CustomCleaningComponent implements OnInit, OnDestroy {
+  readonly pricing = SERVICE_PRICING;
   private schemaElement: HTMLScriptElement | null = null;
 
   constructor(@Inject(DOCUMENT) private document: Document) {}

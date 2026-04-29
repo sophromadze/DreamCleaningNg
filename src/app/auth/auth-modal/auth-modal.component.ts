@@ -6,6 +6,7 @@ import { HttpClientModule } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { AuthModalService } from '../../services/auth-modal.service';
 import { passwordValidator } from '../../utils/password-validator';
+import { normalizePhone10, sanitizePhoneInput } from '../../utils/phone.utils';
 import { GoogleSigninWrapperComponent } from '../login/google-signin-wrapper.component';
 import { AppleSigninButtonComponent } from '../login/apple-signin-button.component';
 import { Subscription } from 'rxjs';
@@ -275,6 +276,15 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
   }
 
+  onPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const cleaned = sanitizePhoneInput(input.value);
+    if (input.value !== cleaned) {
+      input.value = cleaned;
+    }
+    this.registerForm.get('phone')?.setValue(cleaned, { emitEvent: false });
+  }
+
   onNameBlur(fieldName: 'firstName' | 'lastName') {
     const control = this.registerForm.get(fieldName);
     if (control && control.value) {
@@ -388,6 +398,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       if (formValue.referralCode) {
         formValue.referralCode = formValue.referralCode.toUpperCase().trim();
       }
+      formValue.phone = normalizePhone10(formValue.phone) ?? '';
 
       this.authService.register(formValue).subscribe({
         next: (response) => {

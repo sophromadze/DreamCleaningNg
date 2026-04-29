@@ -6,6 +6,7 @@ import { OrderService, OrderList } from '../../../services/order.service';
 import { Apartment, CreateApartment } from '../../../services/profile.service';
 import { BubbleRewardsService } from '../../../services/bubble-rewards.service';
 import { environment } from '../../../../environments/environment';
+import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
 
 @Component({
   selector: 'app-user-management',
@@ -911,13 +912,31 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     window.open('/admin?orderId=' + orderId, '_blank');
   }
 
+  onEditPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const cleaned = sanitizePhoneInput(input.value);
+    if (input.value !== cleaned) {
+      input.value = cleaned;
+    }
+    this.editUserForm.phone = cleaned || null;
+  }
+
+  onRegisterPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const cleaned = sanitizePhoneInput(input.value);
+    if (input.value !== cleaned) {
+      input.value = cleaned;
+    }
+    this.registerForm.phone = cleaned;
+  }
+
   startEditUser(): void {
     if (!this.selectedUser || !this.isSuperAdmin) return;
     this.editUserForm = {
       firstName: this.selectedUser.firstName,
       lastName: this.selectedUser.lastName,
       email: this.selectedUser.email,
-      phone: this.selectedUser.phone ?? null,
+      phone: normalizePhone10(this.selectedUser.phone),
       role: this.selectedUser.role,
       isActive: this.selectedUser.isActive,
       firstTimeOrder: this.selectedUser.firstTimeOrder,
@@ -937,6 +956,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   saveUserEdit(): void {
     if (!this.selectedUser || !this.isSuperAdmin || this.savingUser) return;
+    this.editUserForm.phone = normalizePhone10(this.editUserForm.phone);
     this.savingUser = true;
     this.errorMessage = '';
     this.successMessage = '';
@@ -1191,7 +1211,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       firstName: f.firstName.trim(),
       lastName: f.lastName.trim(),
       email: f.email.trim(),
-      phone: f.phone?.trim() || undefined
+      phone: normalizePhone10(f.phone) || undefined
     }).subscribe({
       next: (res: any) => {
         const name = `${res.firstName || this.registerForm.firstName} ${res.lastName || this.registerForm.lastName}`;

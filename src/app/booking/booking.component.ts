@@ -23,7 +23,10 @@ import { AdminService, UserAdmin } from '../services/admin.service';
 import { ShimmerDirective } from '../shared/directives/shimmer.directive';
 import { GoogleMapsLoaderService } from '../services/google-maps-loader.service';
 import { FloorTypeSelectorComponent, FloorTypeSelection } from '../shared/components/floor-type-selector/floor-type-selector.component';
+import { CleaningTypeDetailsExpandableComponent } from '../shared/components/cleaning-type-details-expandable/cleaning-type-details-expandable.component';
+import { MoveInOutChecklistComponent } from '../shared/components/move-in-out-checklist/move-in-out-checklist.component';
 import { BubbleRewardsService, RedemptionOption } from '../services/bubble-rewards.service';
+import { normalizePhone10, sanitizePhoneInput } from '../utils/phone.utils';
 
 interface SelectedService {
   service: Service;
@@ -39,7 +42,7 @@ interface SelectedExtraService {
 @Component({
   selector: 'app-booking',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule, RouterModule, DurationSelectorComponent, TimeSelectorComponent, DateSelectorComponent, ShimmerDirective, FloorTypeSelectorComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule, RouterModule, DurationSelectorComponent, TimeSelectorComponent, DateSelectorComponent, ShimmerDirective, FloorTypeSelectorComponent, CleaningTypeDetailsExpandableComponent, MoveInOutChecklistComponent],
   providers: [BookingService],
   templateUrl: './booking.component.html',
   styleUrl: './booking.component.scss'
@@ -2965,8 +2968,8 @@ export class BookingComponent implements OnInit, OnDestroy {
 
     // If the user changed their phone number during booking, update their profile
     if (this.currentUser && formValue.contactPhone) {
-      const currentPhone = (this.currentUser.phone || '').replace(/\D/g, '').slice(0, 10);
-      const newPhone = formValue.contactPhone.replace(/\D/g, '').slice(0, 10);
+      const currentPhone = normalizePhone10(this.currentUser.phone) ?? '';
+      const newPhone = normalizePhone10(formValue.contactPhone) ?? '';
       if (newPhone && newPhone !== currentPhone) {
         this.profileService.updateProfile({
           firstName: this.currentUser.firstName,
@@ -3973,6 +3976,15 @@ export class BookingComponent implements OnInit, OnDestroy {
   get contactLastName() { return this.bookingForm.get('contactLastName') as FormControl; }
   get contactEmail() { return this.bookingForm.get('contactEmail') as FormControl; }
   get contactPhone() { return this.bookingForm.get('contactPhone') as FormControl; }
+
+  onContactPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const cleaned = sanitizePhoneInput(input.value);
+    if (input.value !== cleaned) {
+      input.value = cleaned;
+    }
+    this.contactPhone.setValue(cleaned, { emitEvent: false });
+  }
   get useApartmentAddress() { return this.bookingForm.get('useApartmentAddress') as FormControl; }
   get selectedApartmentId() { return this.bookingForm.get('selectedApartmentId') as FormControl; }
   get serviceAddress() { return this.bookingForm.get('serviceAddress') as FormControl; }
@@ -4257,6 +4269,19 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   get canSelectDeepCleaning(): boolean {
     return !!this.getActiveDeepCleaningExtraService();
+  }
+
+  /** Show move in/out checklist when this service type is selected (name from API). */
+  isMoveInOutCleaningServiceType(): boolean {
+    const name = this.selectedServiceType?.name?.toLowerCase().trim() ?? '';
+    if (!name.includes('move')) return false;
+    return name.includes('in') && name.includes('out');
+  }
+
+  /** Cleaning-type + what's-included UI only for Residential Cleaning (name from API). */
+  isResidentialCleaningServiceType(): boolean {
+    const name = this.selectedServiceType?.name?.toLowerCase().trim() ?? '';
+    return name.includes('residential') && name.includes('cleaning');
   }
 
   private normalizeCleaningTypeForSelectedServiceType(): void {

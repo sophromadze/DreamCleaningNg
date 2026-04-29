@@ -229,12 +229,21 @@
 
         <label>
           <span>Nationality</span>
-          <input type="text" [(ngModel)]="formModel.nationality" name="nationality" maxlength="100" />
+          <select [(ngModel)]="formModel.nationality" name="nationality">
+            <option [ngValue]="null">—</option>
+            <option *ngFor="let opt of nationalityOptions" [value]="opt.value">{{ opt.label }}</option>
+          </select>
         </label>
 
         <label>
           <span>Phone</span>
-          <input type="text" [(ngModel)]="formModel.phone" name="phone" maxlength="20" />
+          <input
+            type="tel"
+            inputmode="numeric"
+            [(ngModel)]="formModel.phone"
+            (input)="onPhoneInput($event)"
+            name="phone"
+            placeholder="10-digit number" />
         </label>
 
         <label>

@@ -16,6 +16,7 @@ import {
   CleanerNote
 } from '../services/cleaner-management.service';
 import { compressImage } from '../utils/image-compression';
+import { normalizePhone10, sanitizePhoneInput, telHrefUS } from '../utils/phone.utils';
 
 type ModalMode = 'create' | 'edit';
 
@@ -132,6 +133,13 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     { value: 'None', label: 'None' }
   ];
 
+  readonly nationalityOptions: { value: string; label: string }[] = [
+    { value: 'Georgian', label: 'Georgian' },
+    { value: 'English', label: 'English' },
+    { value: 'Spanish', label: 'Spanish' },
+    { value: 'Russian', label: 'Russian' }
+  ];
+
   readonly documentTypeOptions: { value: CleanerDocumentType | ''; label: string }[] = [
     { value: '', label: '—' },
     { value: 'IdCard', label: 'ID Card' },
@@ -241,7 +249,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       lastName: detail.lastName,
       age: detail.age ?? null,
       experience: this.normalizeExperience(detail.experience),
-      phone: detail.phone ?? null,
+      phone: normalizePhone10(detail.phone),
       email: detail.email ?? null,
       location: detail.location ?? null,
       availability: detail.availability ?? null,
@@ -540,9 +548,16 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   }
 
   telHref(phone: string | null | undefined): string {
-    if (!phone) return 'tel:';
-    const cleaned = phone.replace(/[^+\d]/g, '');
-    return cleaned.startsWith('+') ? `tel:${cleaned}` : `tel:+${cleaned}`;
+    return telHrefUS(phone);
+  }
+
+  onPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const cleaned = sanitizePhoneInput(input.value);
+    if (input.value !== cleaned) {
+      input.value = cleaned;
+    }
+    this.formModel.phone = cleaned || null;
   }
 
   formatServiceTime(value: string | null | undefined): string {
@@ -719,7 +734,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       location: null,
       availability: null,
       alreadyWorkedWithUs: false,
-      nationality: null,
+      nationality: 'Georgian',
       ranking: 'Standard',
       restrictedReason: null,
       allergies: null,
@@ -781,7 +796,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       lastName: this.formModel.lastName.trim(),
       age: this.formModel.age ?? null,
       experience: this.normalizeExperience(this.formModel.experience),
-      phone: this.nullIfBlank(this.formModel.phone),
+      phone: normalizePhone10(this.formModel.phone),
       email: this.nullIfBlank(this.formModel.email),
       location: this.nullIfBlank(this.formModel.location),
       availability: this.serializeAvailability(),

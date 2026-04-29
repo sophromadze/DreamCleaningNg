@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser, DOCUMENT } from '@angular/common';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
+import { SERVICE_PRICING } from '../shared/service-pricing.data';
 
 @Component({
   selector: 'app-faq',
@@ -11,6 +12,7 @@ import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
 })
 export class FaqComponent implements OnInit, OnDestroy {
   openItems: Set<number> = new Set();
+  readonly pricing = SERVICE_PRICING;
   private schemaElement: HTMLScriptElement | null = null;
 
   constructor(
@@ -78,7 +80,7 @@ export class FaqComponent implements OnInit, OnDestroy {
           'name': "What's the difference between deep cleaning and heavy condition cleaning?",
           'acceptedAnswer': {
             '@type': 'Answer',
-            'text': 'Deep cleaning includes baseboards, hard-to-reach areas, and dusting above head level. Heavy condition cleaning goes further with wall washing, cabinet interiors, under sinks, and more — designed for homes that haven\'t been cleaned in 6+ months or have significant buildup. Heavy condition cleaning is $55 per hour per cleaner.'
+            'text': `Deep cleaning includes baseboards, hard-to-reach areas, and dusting above head level. Heavy condition cleaning goes further with wall washing, cabinet interiors, under sinks, and more — designed for homes that haven't been cleaned in 6+ months or have significant buildup. Heavy condition cleaning is $${SERVICE_PRICING.heavyConditionPerHour} per hour per cleaner.`
           }
         },
         {
@@ -86,7 +88,7 @@ export class FaqComponent implements OnInit, OnDestroy {
           'name': "What's included in Move-In/Move-Out cleaning?",
           'acceptedAnswer': {
             '@type': 'Answer',
-            'text': 'Move in/out cleaning includes baseboards, outside kitchen cabinets, fridge interior, light wall spot cleaning, and oven and dishwasher cleaning (can be added if not selected). Starting from $200.'
+            'text': `Move in/out cleaning includes baseboards, outside kitchen cabinets, fridge interior, light wall spot cleaning, and oven and dishwasher cleaning (can be added if not selected). Starting from $${SERVICE_PRICING.moveInOutFrom}.`
           }
         },
         {
@@ -158,7 +160,7 @@ export class FaqComponent implements OnInit, OnDestroy {
           'name': 'How much does apartment cleaning cost in NYC?',
           'acceptedAnswer': {
             '@type': 'Answer',
-            'text': "Dream Cleaning's standard residential cleaning starts from $110, deep cleaning from $190, and move in/out cleaning from $200. Pricing depends on home size, condition, and selected services."
+            'text': `Dream Cleaning's standard residential cleaning starts from $${SERVICE_PRICING.residentialFrom}, deep cleaning from $${SERVICE_PRICING.deepFrom}, and move in/out cleaning from $${SERVICE_PRICING.moveInOutFrom}. Pricing depends on home size, condition, and selected services.`
           }
         },
         {

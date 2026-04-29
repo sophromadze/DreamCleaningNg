@@ -4,7 +4,7 @@
     <div class="container">
       <h1>Home Cleaning Services in Manhattan, Brooklyn & Queens</h1>
       <p class="main-description">
-        Dream Cleaning offers a full range of professional residential and commercial cleaning services across Manhattan, Brooklyn, and Queens — from standard weekly maintenance (starting from $110) to comprehensive deep cleaning (from $190), move in/out cleaning (from $200), office cleaning, and specialized services for neglected or post-construction spaces. All services include background-checked, insured cleaners, professional-grade equipment, and a 100% satisfaction guarantee. Book online in under 2 minutes or call (929) 930-1525.
+        Dream Cleaning offers a full range of professional residential and commercial cleaning services across Manhattan, Brooklyn, and Queens — from standard weekly maintenance (starting from ${{ pricing.residentialFrom }}) to comprehensive deep cleaning (from ${{ pricing.deepFrom }}), move in/out cleaning (from ${{ pricing.moveInOutFrom }}), office cleaning, and specialized services for neglected or post-construction spaces. All services include background-checked, insured cleaners, professional-grade equipment, and a 100% satisfaction guarantee. Book online in under 2 minutes or call (929) 930-1525.
       </p>
       <button class="btn btn-danger book-now-btn" routerLink="/booking">Book Now</button>
     </div>
@@ -87,7 +87,7 @@
           <div class="service-content">
             <h3>Heavy Condition Cleaning</h3>
             <p>
-              Restore neglected spaces to livable conditions with our specialized heavy condition cleaning service. Designed for homes that haven't been cleaned for more than 6 months, this intensive service goes beyond regular cleaning to tackle thick grease buildup, stubborn stains, and accumulated clutter. Our specially trained professionals work with discretion and understanding, using industrial-grade equipment to transform extremely neglected spaces back into comfortable homes. $55 per hour per cleaner.
+              Restore neglected spaces to livable conditions with our specialized heavy condition cleaning service. Designed for homes that haven't been cleaned for more than 6 months, this intensive service goes beyond regular cleaning to tackle thick grease buildup, stubborn stains, and accumulated clutter. Our specially trained professionals work with discretion and understanding, using industrial-grade equipment to transform extremely neglected spaces back into comfortable homes. ${{ pricing.heavyConditionPerHour }} per hour per cleaner.
             </p>
             <button class="btn btn-primary read-more-btn" routerLink="/services/heavy-condition-cleaning">Read More</button>
           </div>

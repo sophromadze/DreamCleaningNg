@@ -13,6 +13,7 @@ import { DateSelectorComponent } from '../../../booking/date-selector/date-selec
 import { TimeSelectorComponent } from '../../../booking/time-selector/time-selector.component';
 import { StripeService } from '../../../services/stripe.service';
 import { FloorTypeSelectorComponent, FloorTypeSelection } from '../../../shared/components/floor-type-selector/floor-type-selector.component';
+import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
 
 interface SelectedService {
   service: Service;
@@ -1061,7 +1062,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       contactFirstName: formValue.contactFirstName,
       contactLastName: formValue.contactLastName,
       contactEmail: formValue.contactEmail,
-      contactPhone: formValue.contactPhone,
+      contactPhone: normalizePhone10(formValue.contactPhone) ?? formValue.contactPhone,
       serviceAddress: formValue.serviceAddress,
       aptSuite: formValue.aptSuite || '',
       city: formValue.city,
@@ -1201,6 +1202,15 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     // Clean up Stripe elements when component is destroyed
     this.stripeService.destroyCardElement();
+  }
+
+  onPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const cleaned = sanitizePhoneInput(input.value);
+    if (input.value !== cleaned) {
+      input.value = cleaned;
+    }
+    this.orderForm.patchValue({ contactPhone: cleaned }, { emitEvent: false });
   }
 
   onSubmit() {
@@ -1345,7 +1355,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     return {
       name: `${formValue.contactFirstName} ${formValue.contactLastName}`,
       email: formValue.contactEmail,
-      phone: formValue.contactPhone,
+      phone: normalizePhone10(formValue.contactPhone) ?? formValue.contactPhone,
       address: {
         line1: formValue.serviceAddress,
         line2: formValue.aptSuite || '',

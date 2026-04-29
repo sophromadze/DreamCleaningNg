@@ -12,6 +12,7 @@ import { NewOrderNotificationService } from '../../../services/new-order-notific
 import { BubbleRewardsService } from '../../../services/bubble-rewards.service';
 import { forkJoin, of } from 'rxjs';
 import { catchError, finalize } from 'rxjs/operators';
+import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
 
 // Extended interface for admin orders with additional properties
 export interface AdminOrderList extends OrderList {
@@ -109,6 +110,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // New properties for cleaner assignment
   showCleanerModal = false;
   availableCleaners: AvailableCleaner[] = [];
+  /** Filters the assign-cleaners modal list by name or email (client-side). */
+  cleanerAssignmentSearchQuery = '';
   selectedCleaners: number[] = [];
   tipsForCleaner = '';
   assigningOrderId: number | null = null;
@@ -951,6 +954,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.assigningOrderId = orderId;
     this.selectedCleaners = [];
     this.tipsForCleaner = '';
+    this.cleanerAssignmentSearchQuery = '';
 
     // Set hourly rate from order data if available, otherwise use default based on cleaning type
     const order = this.orders.find(o => o.id === orderId);
@@ -978,7 +982,21 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selectedCleaners = [];
     this.tipsForCleaner = '';
     this.availableCleaners = [];
+    this.cleanerAssignmentSearchQuery = '';
     this.cleanerHourlySalary = 20;
+  }
+
+  /** Cleaners shown in the assign modal after applying the name/email search. */
+  get availableCleanersFiltered(): AvailableCleaner[] {
+    const q = this.cleanerAssignmentSearchQuery.trim().toLowerCase();
+    if (!q) {
+      return this.availableCleaners;
+    }
+    return this.availableCleaners.filter((c) => {
+      const name = `${c.firstName ?? ''} ${c.lastName ?? ''}`.toLowerCase().trim();
+      const email = (c.email ?? '').toLowerCase();
+      return name.includes(q) || email.includes(q);
+    });
   }
 
   /** Get default hourly rate based on whether order has deep cleaning extra service */
@@ -1990,7 +2008,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       contactFirstName: this.selectedOrder.contactFirstName,
       contactLastName: this.selectedOrder.contactLastName,
       contactEmail: this.selectedOrder.contactEmail,
-      contactPhone: this.selectedOrder.contactPhone,
+      contactPhone: normalizePhone10(this.selectedOrder.contactPhone) ?? this.selectedOrder.contactPhone,
       serviceAddress: this.selectedOrder.serviceAddress,
       aptSuite: this.selectedOrder.aptSuite ?? null,
       city: this.selectedOrder.city,
@@ -2641,6 +2659,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return changes;
   }
 
+  onEditOrderPhoneInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const cleaned = sanitizePhoneInput(input.value);
+    if (input.value !== cleaned) {
+      input.value = cleaned;
+    }
+    this.editOrderForm.contactPhone = cleaned;
+  }
+
   saveOrderEdit(): void {
     if (!this.selectedOrder || !this.canEditOrder || this.savingOrder) return;
     this.savingOrder = true;
@@ -2652,7 +2679,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       contactFirstName: this.editOrderForm.contactFirstName ?? undefined,
       contactLastName: this.editOrderForm.contactLastName ?? undefined,
       contactEmail: this.editOrderForm.contactEmail ?? undefined,
-      contactPhone: this.editOrderForm.contactPhone ?? undefined,
+      contactPhone: normalizePhone10(this.editOrderForm.contactPhone) ?? undefined,
       serviceAddress: this.editOrderForm.serviceAddress ?? undefined,
       aptSuite: this.editOrderForm.aptSuite ?? undefined,
       city: this.editOrderForm.city ?? undefined,
