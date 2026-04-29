@@ -209,11 +209,6 @@
                   </button>
                 </div>
                 <a routerLink="/profile" (click)="closeAllMenus(); $event.stopPropagation()">Profile</a>
-                <a routerLink="/cleaners-dashboard"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'">
-                  Cleaners
-                </a>
                 <a routerLink="/profile/orders" (click)="closeAllMenus(); $event.stopPropagation()" class="orders-menu-item">
                   My Orders
                   <span class="unpaid-orders-menu-indicator" *ngIf="hasUnpaidOrders"></span>
@@ -225,6 +220,11 @@
                    class="admin-panel-menu-item">
                   Admin Panel
                   <span class="new-order-menu-indicator" *ngIf="hasUnviewedNewOrders"></span>
+                </a>
+                <a routerLink="/cleaners-dashboard"
+                   (click)="closeAllMenus(); $event.stopPropagation()"
+                   *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'">
+                  Cleaners
                 </a>
                 <a routerLink="/admin/tasks"
                    (click)="closeAllMenus(); $event.stopPropagation()"

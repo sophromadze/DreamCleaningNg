@@ -130,6 +130,71 @@
           <div *ngIf="selectedDetail.restrictions"><strong>⚠ Restrictions:</strong> {{ selectedDetail.restrictions }}</div>
         </div>
 
+        <section class="notes-section cleaner-notes-section">
+          <div class="section-header">
+            <div class="section-title-row">
+              <h3>Cleaner Notes</h3>
+              <span class="notes-count" *ngIf="generalNotes.length > 0">{{ generalNotes.length }}</span>
+            </div>
+            <div class="section-header-actions">
+              <button
+                type="button"
+                class="btn-secondary btn-add-note"
+                (click)="openAddNoteModal()">
+                Add Note
+              </button>
+            </div>
+          </div>
+          <div class="notes-scroll" *ngIf="generalNotes.length > 0">
+            <ul class="notes-list">
+              <li *ngFor="let note of generalNotes; trackBy: trackNote" class="note-item">
+                <div class="note-meta">
+                  <span *ngIf="note.adminDisplayName" class="note-author">{{ note.adminDisplayName }}</span>
+                  <span class="note-date">{{ note.createdAt | date:'MMM d, y h:mm a' }}</span>
+                  <div class="note-actions">
+                    <button
+                      *ngIf="editingNoteId !== note.id"
+                      type="button"
+                      class="btn-link"
+                      (click)="startEditNote(note)">Edit</button>
+                    <button
+                      *ngIf="editingNoteId !== note.id"
+                      type="button"
+                      class="btn-link danger"
+                      (click)="deleteNote(note.id)">Delete</button>
+                  </div>
+                </div>
+
+                <ng-container *ngIf="editingNoteId === note.id; else readNote">
+                  <textarea
+                    class="note-edit-textarea"
+                    [(ngModel)]="editingNoteText"
+                    [name]="'editNote-' + note.id"
+                    rows="3"
+                    maxlength="4000"></textarea>
+                  <div class="note-edit-actions">
+                    <button
+                      type="button"
+                      class="btn-secondary"
+                      (click)="cancelEditNote()"
+                      [disabled]="savingNoteEdit">Cancel</button>
+                    <button
+                      type="button"
+                      class="btn-primary"
+                      (click)="saveEditNote()"
+                      [disabled]="savingNoteEdit || !editingNoteText.trim()">
+                      {{ savingNoteEdit ? 'Saving…' : 'Save' }}
+                    </button>
+                  </div>
+                </ng-container>
+                <ng-template #readNote>
+                  <p class="note-text">{{ note.text }}</p>
+                </ng-template>
+              </li>
+            </ul>
+          </div>
+        </section>
+
         <section class="orders-section">
           <div class="jobs-header">
             <h3>Jobs Completed</h3>
@@ -201,6 +266,34 @@
       </ng-container>
     </aside>
   </section>
+</div>
+
+<div *ngIf="addNoteModalOpen" class="modal-overlay" (click)="closeAddNoteModal()">
+  <div class="modal note-modal" (click)="$event.stopPropagation()">
+    <header class="modal-header">
+      <h2>Add Cleaner Note</h2>
+      <button type="button" class="btn-close" (click)="closeAddNoteModal()" aria-label="Close">&times;</button>
+    </header>
+
+    <div class="perf-modal-body">
+      <div class="perf-field">
+        <label class="perf-field-label" for="cleaner-note-text">Note</label>
+        <textarea
+          id="cleaner-note-text"
+          [(ngModel)]="newNote.text"
+          rows="5"
+          maxlength="2000"
+          placeholder="Add a note about this cleaner…"></textarea>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" (click)="closeAddNoteModal()" [disabled]="addingNote">Cancel</button>
+      <button type="button" class="btn-primary" (click)="saveAddNoteFromModal()" [disabled]="addingNote || !newNote.text.trim()">
+        {{ addingNote ? 'Saving…' : 'Save Note' }}
+      </button>
+    </div>
+  </div>
 </div>
 
 <div *ngIf="formOpen" class="modal-overlay" (click)="closeForm()">

@@ -143,6 +143,10 @@ export class CleanerManagementService {
     return this.http.post<CleanerNote>(`${this.apiUrl}/${cleanerId}/notes`, payload);
   }
 
+  updateNote(noteId: number, payload: { text: string }): Observable<CleanerNote> {
+    return this.http.put<CleanerNote>(`${this.apiUrl}/notes/${noteId}`, payload);
+  }
+
   deleteNote(noteId: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/notes/${noteId}`);
   }

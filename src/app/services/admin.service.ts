@@ -145,6 +145,68 @@ export interface UserAdmin {
   adminNotes?: string | null;
   /** True if user has an active connection (on site). */
   isOnline?: boolean;
+
+  // ── Customer-care snapshot fields populated by the backend list endpoint ──
+  /** Service date of the user's most recent non-cancelled order. */
+  lastCleaningDate?: string | Date | null;
+  /** Service type name of the user's most recent non-cancelled order. */
+  lastCleaningServiceType?: string | null;
+  lastBedrooms?: number | null;
+  lastBathrooms?: number | null;
+  /** Most recent follow-up note content (preview) for the table. */
+  lastFollowUpNote?: string | null;
+  /** Most recent follow-up note's "next offer" suggestion (preview) for the table. */
+  nextOfferHint?: string | null;
+  /** Total number of non-cancelled orders this user has placed. */
+  totalOrdersCount?: number;
+}
+
+// ── Customer-care notes & photos ──
+
+export interface UserNote {
+  id: number;
+  userId: number;
+  type: 'General' | 'FollowUp';
+  content: string;
+  nextOffer?: string | null;
+  createdByAdminId?: number | null;
+  createdByAdminName?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+}
+
+export interface CreateUserNoteDto {
+  type: 'General' | 'FollowUp';
+  content: string;
+  nextOffer?: string | null;
+}
+
+export interface UpdateUserNoteDto {
+  content: string;
+  nextOffer?: string | null;
+}
+
+export interface UserCleaningPhoto {
+  id: number;
+  userId: number;
+  orderId?: number | null;
+  photoUrl: string;
+  sizeBytes: number;
+  uploadedByAdminName?: string | null;
+  caption?: string | null;
+  createdAt: string;
+}
+
+export interface UserCleaningPhotosByOrder {
+  orderId?: number | null;
+  orderServiceDate?: string | null;
+  orderServiceTypeName?: string | null;
+  photos: UserCleaningPhoto[];
+}
+
+export interface UserCleaningPhotoUploadResult {
+  photo: UserCleaningPhoto;
+  prunedCount: number;
 }
 
 /** SuperAdmin-only: full user update. All changes are audit-logged. */
@@ -712,6 +774,86 @@ export class AdminService {
   // Get user's special offers (admin endpoint)
   getUserSpecialOffers(userId: number): Observable<UserSpecialOffer[]> {
     return this.http.get<UserSpecialOffer[]>(`${this.apiUrl}/users/${userId}/special-offers`);
+  }
+
+  // ── Customer-care: notes (multi-row, type=General|FollowUp) ──
+
+  getUserCareNotes(userId: number, type?: 'General' | 'FollowUp'): Observable<UserNote[]> {
+    let params = new HttpParams();
+    if (type) params = params.set('type', type);
+    return this.http.get<UserNote[]>(`${this.apiUrl}/user-care/users/${userId}/notes`, { params });
+  }
+
+  createUserCareNote(userId: number, dto: CreateUserNoteDto): Observable<UserNote> {
+    return this.http.post<UserNote>(`${this.apiUrl}/user-care/users/${userId}/notes`, dto);
+  }
+
+  updateUserCareNote(noteId: number, dto: UpdateUserNoteDto): Observable<UserNote> {
+    return this.http.put<UserNote>(`${this.apiUrl}/user-care/notes/${noteId}`, dto);
+  }
+
+  deleteUserCareNote(noteId: number): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/user-care/notes/${noteId}`);
+  }
+
+  // ── Customer-care: cleaning photos (admin-only, last 2 orders kept) ──
+
+  getUserCleaningPhotos(userId: number): Observable<UserCleaningPhotosByOrder[]> {
+    return this.http.get<UserCleaningPhotosByOrder[]>(`${this.apiUrl}/user-care/users/${userId}/cleaning-photos`);
+  }
+
+  uploadUserCleaningPhoto(userId: number, file: File, orderId?: number, caption?: string): Observable<UserCleaningPhotoUploadResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    let params = new HttpParams();
+    if (orderId != null) params = params.set('orderId', orderId.toString());
+    if (caption) params = params.set('caption', caption);
+    return this.http.post<UserCleaningPhotoUploadResult>(
+      `${this.apiUrl}/user-care/users/${userId}/cleaning-photos`,
+      formData,
+      { params }
+    );
+  }
+
+  deleteUserCleaningPhoto(photoId: number): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/user-care/cleaning-photos/${photoId}`);
+  }
+
+  // ── Customer-care: communications log (backed by ClientInteractions) ──
+
+  getUserCommunications(userId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/user-care/users/${userId}/communications`);
+  }
+
+  createUserCommunication(
+    userId: number,
+    dto: { type: string; notes?: string; status?: string; clientName?: string }
+  ): Observable<any> {
+    return this.http.post<any>(`${this.apiUrl}/user-care/users/${userId}/communications`, {
+      // Backend requires clientName; pass a placeholder if caller didn't supply one,
+      // the controller overrides it with the actual user name on save.
+      clientName: (dto.clientName && dto.clientName.trim()) || '—',
+      type: dto.type,
+      notes: dto.notes,
+      status: dto.status || 'Pending'
+    });
+  }
+
+  updateUserCommunication(
+    id: number,
+    dto: { type?: string; notes?: string | null; status?: string }
+  ): Observable<any> {
+    return this.http.put<any>(`${this.apiUrl}/user-care/communications/${id}`, dto);
+  }
+
+  deleteUserCommunication(id: number): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/user-care/communications/${id}`);
+  }
+
+  // ── Customer-care: tasks linked to a user ──
+
+  getUserTasks(userId: number): Observable<any[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/user-care/users/${userId}/tasks`);
   }
 
   // Get detailed user information (optional - combines profile, orders, and apartments)

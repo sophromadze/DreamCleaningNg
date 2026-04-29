@@ -100,6 +100,11 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
 
   newNote: CreateCleanerNotePayload = { text: '', orderId: null, orderPerformance: null };
   addingNote = false;
+  addNoteModalOpen = false;
+
+  editingNoteId: number | null = null;
+  editingNoteText = '';
+  savingNoteEdit = false;
 
   performanceModalOpen = false;
   performanceModal: {
@@ -226,6 +231,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   closeDetail(): void {
     this.selectedDetail = null;
     this.newNote = { text: '', orderId: null, orderPerformance: null };
+    this.cancelEditNote();
   }
 
   openCreate(): void {
@@ -470,12 +476,27 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
         }
         this.newNote = { text: '', orderId: null, orderPerformance: null };
         this.addingNote = false;
+        this.addNoteModalOpen = false;
       },
       error: err => {
         this.addingNote = false;
         this.errorMessage = this.extractError(err) || 'Failed to add note';
       }
     });
+  }
+
+  openAddNoteModal(): void {
+    this.newNote = { text: '', orderId: null, orderPerformance: null };
+    this.addNoteModalOpen = true;
+  }
+
+  closeAddNoteModal(): void {
+    if (this.addingNote) return;
+    this.addNoteModalOpen = false;
+  }
+
+  saveAddNoteFromModal(): void {
+    this.addNote();
   }
 
   deleteNote(noteId: number): void {
@@ -487,9 +508,46 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
         if (this.selectedDetail) {
           this.selectedDetail.notes = this.selectedDetail.notes.filter(n => n.id !== noteId);
         }
+        if (this.editingNoteId === noteId) {
+          this.cancelEditNote();
+        }
       },
       error: err => {
         this.errorMessage = this.extractError(err) || 'Failed to delete note';
+      }
+    });
+  }
+
+  startEditNote(note: CleanerNote): void {
+    this.editingNoteId = note.id;
+    this.editingNoteText = note.text;
+  }
+
+  cancelEditNote(): void {
+    this.editingNoteId = null;
+    this.editingNoteText = '';
+    this.savingNoteEdit = false;
+  }
+
+  saveEditNote(): void {
+    if (this.editingNoteId == null) return;
+    const text = (this.editingNoteText || '').trim();
+    if (!text) return;
+
+    this.savingNoteEdit = true;
+    const noteId = this.editingNoteId;
+    this.cleanerService.updateNote(noteId, { text }).subscribe({
+      next: updated => {
+        if (this.selectedDetail) {
+          this.selectedDetail.notes = this.selectedDetail.notes.map(n =>
+            n.id === noteId ? { ...n, ...updated } : n
+          );
+        }
+        this.cancelEditNote();
+      },
+      error: err => {
+        this.savingNoteEdit = false;
+        this.errorMessage = this.extractError(err) || 'Failed to update note';
       }
     });
   }
@@ -602,6 +660,13 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   get issuesCount(): number {
     if (!this.selectedDetail) return 0;
     return this.selectedDetail.notes.filter(n => this.performanceCategory(n.orderPerformance) === 'issue').length;
+  }
+
+  get generalNotes(): CleanerNote[] {
+    if (!this.selectedDetail) return [];
+    return this.selectedDetail.notes
+      .filter(n => !n.orderId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   performanceCategory(value: string | null | undefined): 'praise' | 'issue' | 'warning' | null {
