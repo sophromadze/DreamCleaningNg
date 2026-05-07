@@ -38,7 +38,12 @@
   <link rel="alternate" hreflang="x-default" href="https://dreamcleaningnearme.com/" />
   
   <!-- Primary SEO Meta Tags -->
-  <meta name="description" content="Dream Cleaning is a 5.0-star rated cleaning service in NYC serving Brooklyn, Manhattan & Queens. Standard cleaning from $110, deep cleaning from $190. 100+ Google reviews. Book online in 2 minutes."/>
+  <!--
+    Default meta description (fallback). Per-route descriptions in
+    src/app/app.routes.ts override this on SSR via SERVICE_PRICING — keep this
+    one price-free so it can never go stale.
+  -->
+  <meta name="description" content="Dream Cleaning is a 5.0-star rated cleaning service in NYC serving Brooklyn, Manhattan & Queens. 100+ Google reviews. Book online in 2 minutes."/>
   <meta name="keywords" content="Dream Cleaning NYC, professional cleaning services New York, house cleaning Manhattan, apartment cleaning Brooklyn, office cleaning Queens, eco-friendly cleaning, pet-safe cleaning, move-in cleaning, move-out cleaning, cleaning service near me"/>
   <meta name="author" content="Nika Sophromadze" />
   <meta name="robots" content="index, follow" />
@@ -166,7 +171,7 @@
                 "itemOffered": {
                   "@type": "Service",
                   "name": "Standard Residential Cleaning",
-                  "description": "Regular home cleaning including dusting, vacuuming, mopping, bathroom and kitchen sanitization. Starting from $110."
+                  "description": "Regular home cleaning including dusting, vacuuming, mopping, bathroom and kitchen sanitization."
                 }
               },
               {
@@ -174,7 +179,7 @@
                 "itemOffered": {
                   "@type": "Service",
                   "name": "Deep Cleaning",
-                  "description": "Comprehensive top-to-bottom cleaning covering baseboards, inside appliances, behind furniture, and hard-to-reach areas. Starting from $190."
+                  "description": "Comprehensive top-to-bottom cleaning covering baseboards, inside appliances, behind furniture, and hard-to-reach areas."
                 }
               },
               {
@@ -182,7 +187,7 @@
                 "itemOffered": {
                   "@type": "Service",
                   "name": "Move In/Out Cleaning",
-                  "description": "Complete cleaning for transitions — cabinet interiors, appliance cleaning, wall spot cleaning, scuff mark removal. Starting from $200."
+                  "description": "Complete cleaning for transitions — cabinet interiors, appliance cleaning, wall spot cleaning, scuff mark removal."
                 }
               },
               {
@@ -198,7 +203,7 @@
                 "itemOffered": {
                   "@type": "Service",
                   "name": "Heavy Condition Cleaning",
-                  "description": "Intensive restoration for severely neglected spaces. $55 per hour per cleaner."
+                  "description": "Intensive hourly restoration for severely neglected spaces."
                 }
               },
               {

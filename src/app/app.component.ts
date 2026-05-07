@@ -130,24 +130,10 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    if (!this.isBrowser) {
-      return;
-    }
-
-    // Capture referral code from URL ?ref=DREAM-XXXXX and store in localStorage
-    this.captureReferralCode();
-
-    this.subscriptions.add(
-      this.router.events.pipe(
-        filter((e): e is NavigationEnd => e instanceof NavigationEnd),
-        map(() => this.getInitialPath())
-      ).subscribe((path) => {
-        this._path = path;
-        this.cdr.detectChanges();
-      })
-    );
-
-    // Update meta description and title from route data
+    // Meta/title/canonical must run on SSR too — otherwise Google sees the
+    // generic defaults from index.html instead of the route-specific copy
+    // (with current SERVICE_PRICING values). Router events fire during the
+    // initial SSR render.
     this.subscriptions.add(
       this.router.events.pipe(
         filter((e): e is NavigationEnd => e instanceof NavigationEnd),
@@ -165,6 +151,23 @@ export class AppComponent implements OnInit, OnDestroy {
           this.metaService.updateTag({ name: 'description', content: data['description'] });
         }
         this.updateCanonicalUrl();
+      })
+    );
+
+    if (!this.isBrowser) {
+      return;
+    }
+
+    // Capture referral code from URL ?ref=DREAM-XXXXX and store in localStorage
+    this.captureReferralCode();
+
+    this.subscriptions.add(
+      this.router.events.pipe(
+        filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+        map(() => this.getInitialPath())
+      ).subscribe((path) => {
+        this._path = path;
+        this.cdr.detectChanges();
       })
     );
 

@@ -365,7 +365,7 @@
               <h6>House Photos</h6>
               <div class="overview-photo-grid">
                 <div *ngFor="let p of overviewPhotoThumbs" class="overview-photo-thumb">
-                  <img [src]="resolvePhotoUrl(p.photoUrl)"
+                  <img [src]="resolvePhotoUrl(p)"
                        [alt]="p.caption || 'Cleaning photo'"
                        (click)="openLightbox(p)">
                 </div>
@@ -568,7 +568,7 @@
             </div>
             <div class="photo-grid">
               <div *ngFor="let p of group.photos" class="photo-thumb">
-                <img [src]="resolvePhotoUrl(p.photoUrl)"
+                <img [src]="resolvePhotoUrl(p)"
                      [alt]="p.caption || 'Cleaning photo'"
                      (click)="openLightbox(p)">
                 <button class="thumb-remove" (click)="removePhoto(p)" title="Remove">×</button>
@@ -822,7 +822,7 @@
 
 <!-- ──────────────  LIGHTBOX  ────────────── -->
 <div class="lightbox" *ngIf="lightboxPhoto" (click)="closeLightbox()">
-  <img [src]="resolvePhotoUrl(lightboxPhoto.photoUrl)" [alt]="lightboxPhoto.caption || 'Cleaning photo'">
+  <img [src]="resolvePhotoUrl(lightboxPhoto)" [alt]="lightboxPhoto.caption || 'Cleaning photo'">
   <button class="lightbox-close" (click)="closeLightbox()">✕</button>
 </div>
 

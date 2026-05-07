@@ -832,12 +832,20 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   /**
-   * Photo URLs are stored as root-relative paths like "/user-cleaning-photos/...".
-   * The dev-server proxy maps that prefix to the backend (proxy.conf.json),
-   * and in production the backend serves it directly. Same pattern as cleaner photos.
+   * Resolve the displayable image URL for a cleaning photo. We route through the
+   * /api endpoint by photo id so it works in dev (Angular proxy) and prod (same
+   * origin via /api) without needing a server-side alias for the upload directory.
+   * Accepts either a UserCleaningPhoto object or a raw string (legacy callers).
    */
-  resolvePhotoUrl(url: string | undefined | null): string {
-    return url || '';
+  resolvePhotoUrl(photoOrUrl: UserCleaningPhoto | string | number | undefined | null): string {
+    if (!photoOrUrl) return '';
+    if (typeof photoOrUrl === 'number') {
+      return `${environment.apiUrl}/admin/user-care/cleaning-photos/${photoOrUrl}/raw`;
+    }
+    if (typeof photoOrUrl === 'object' && 'id' in photoOrUrl && photoOrUrl.id) {
+      return `${environment.apiUrl}/admin/user-care/cleaning-photos/${photoOrUrl.id}/raw`;
+    }
+    return typeof photoOrUrl === 'string' ? photoOrUrl : '';
   }
 
   // ── Communications ──

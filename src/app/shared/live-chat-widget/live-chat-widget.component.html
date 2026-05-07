@@ -49,6 +49,8 @@
     <div class="pre-chat-form__greeting">Hi there! 👋</div>
     <div class="pre-chat-form__subtitle">How can we help you today?</div>
     <input
+      id="chat-visitor-name"
+      name="chat-visitor-name"
       class="pre-chat-form__input"
       type="text"
       placeholder="Your name (optional)"
@@ -133,12 +135,16 @@
       </button>
       <input
         #fileInput
+        id="chat-file-upload"
+        name="chat-file-upload"
         type="file"
         accept="image/*"
         class="file-input-hidden"
         (change)="onFileSelected($event)"
       />
       <textarea
+        id="chat-message"
+        name="chat-message"
         class="message-input"
         placeholder="Type a message..."
         [(ngModel)]="messageText"

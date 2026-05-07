@@ -79,6 +79,8 @@
                           <span class="slider-quantity">{{ selected.quantity }}</span>
                           <input
                             type="range"
+                            [id]="'service-range-' + selected.service.serviceKey"
+                            [attr.name]="'service-range-' + selected.service.serviceKey"
                             [attr.aria-label]="selected.service.name + ' square footage'"
                             [(ngModel)]="selected.quantity"
                             [ngModelOptions]="{standalone: true}"
