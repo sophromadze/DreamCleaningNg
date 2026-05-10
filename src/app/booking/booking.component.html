@@ -2,10 +2,10 @@
   <div class="booking-content">
     <div class="booking-header">
       <h1>Book Your Cleaning Service</h1>
-      
+
       <!-- Admin/Moderator Mode Toggle -->
       <div class="admin-mode-toggle" *ngIf="isAdmin">
-        <button 
+        <button
           type="button"
           class="admin-toggle-btn"
           [class.active]="isAdminMode"
@@ -20,7 +20,12 @@
         </button>
       </div>
     </div>
-    
+
+    <p class="booking-subtitle" *ngIf="!isAdminMode">
+      <i class="fas fa-bolt booking-subtitle__icon" aria-hidden="true"></i>
+      <span>Just 3 quick steps · most customers finish in under 2 minutes</span>
+    </p>
+
     <!-- Admin User Selector -->
     <div class="admin-user-selector" *ngIf="isAdminMode">
       <div class="user-selector-header">
@@ -84,7 +89,57 @@
       {{ errorMessage }}
     </div>
 
-    <div class="booking-grid" 
+    <!-- Step progress indicator (decorative; visualises currentStep) -->
+    <div class="booking-progress-stepper" *ngIf="!showPollForm" [attr.data-current-step]="currentStep">
+      <div class="booking-progress-stepper__step"
+           [class.is-active]="currentStep === 1"
+           [class.is-complete]="currentStep > 1">
+        <div class="booking-progress-stepper__bubble" aria-hidden="true">
+          <i *ngIf="currentStep > 1" class="fas fa-check"></i>
+          <span *ngIf="currentStep <= 1">1</span>
+        </div>
+        <span class="booking-progress-stepper__label">Configure</span>
+      </div>
+      <div class="booking-progress-stepper__line" [class.is-complete]="currentStep > 1" aria-hidden="true"></div>
+      <div class="booking-progress-stepper__step"
+           [class.is-active]="currentStep === 2"
+           [class.is-complete]="currentStep > 2">
+        <div class="booking-progress-stepper__bubble" aria-hidden="true">
+          <i *ngIf="currentStep > 2" class="fas fa-check"></i>
+          <span *ngIf="currentStep <= 2">2</span>
+        </div>
+        <span class="booking-progress-stepper__label">Schedule</span>
+      </div>
+      <div class="booking-progress-stepper__line" [class.is-complete]="currentStep > 2" aria-hidden="true"></div>
+      <div class="booking-progress-stepper__step" [class.is-active]="currentStep === 3">
+        <div class="booking-progress-stepper__bubble" aria-hidden="true">
+          <span>3</span>
+        </div>
+        <span class="booking-progress-stepper__label">Confirm</span>
+      </div>
+    </div>
+
+    <!-- Trust strip (decorative reassurance) -->
+    <div class="booking-trust-strip" *ngIf="!isAdminMode">
+      <div class="booking-trust-strip__item">
+        <i class="fas fa-shield-alt booking-trust-strip__icon booking-trust-strip__icon--green" aria-hidden="true"></i>
+        <span>Fully insured &amp; bonded</span>
+      </div>
+      <div class="booking-trust-strip__item">
+        <i class="fas fa-star booking-trust-strip__icon booking-trust-strip__icon--amber" aria-hidden="true"></i>
+        <span>5.0 on Google</span>
+      </div>
+      <div class="booking-trust-strip__item">
+        <i class="fas fa-bolt booking-trust-strip__icon booking-trust-strip__icon--blue" aria-hidden="true"></i>
+        <span>Same-day available</span>
+      </div>
+      <div class="booking-trust-strip__item">
+        <i class="fas fa-lock booking-trust-strip__icon booking-trust-strip__icon--blue" aria-hidden="true"></i>
+        <span>Secure payment via Stripe</span>
+      </div>
+    </div>
+
+    <div class="booking-grid"
          [class.full-width]="showPollForm"
          [class.has-summary]="!showPollForm"
          [class.step-3-active]="currentStep === 3 && !showPollForm">
@@ -714,50 +769,12 @@
                 </div>
               </div>
 
-              <!-- Date & Time -->
-              <section class="booking-section">
-                <h2>When would you like us to come?</h2>
-                <div class="date-time-selection">
-                  <div class="form-group">
-                    <label>Service Date <span class="required">*</span></label>
-                    <div class="date-time-field" [shimmer]="loading.availableDates">
-                      <app-date-selector
-                        [value]="serviceDate.value"
-                        [minDate]="getMinDateString()"
-                        [isSameDaySelected]="isSameDaySelected"
-                        [blockedDates]="getBlockedDates()"
-                        [partiallyBlockedDates]="getPartiallyBlockedDates()"
-                        (valueChange)="onDateSelectorChange($event)">
-                      </app-date-selector>
-                      <div class="error-message" *ngIf="serviceDate.invalid && serviceDate.touched">
-                        <div *ngIf="serviceDate.errors?.['required']">Service date is required</div>
-                      </div>
-                      <div class="blocked-date-warning" *ngIf="isSelectedDateTimeBlocked()">
-                        {{ getBlockedReasonForDate(serviceDate.value) || 'We are too busy on this date/time. Please select a different date or time.' }}
-                      </div>
-                    </div>
-                  </div>
-                  <div class="form-group">
-                    <label>Service Time <span class="required">*</span></label>
-                    <div class="date-time-field date-time-field--time">
-                      <div *ngIf="loading.timeSlots" class="time-shimmer-fields">
-                        <div class="time-field-shimmer" [shimmer]="true"></div>
-                        <div class="time-field-shimmer" [shimmer]="true"></div>
-                      </div>
-                      <app-time-selector
-                        *ngIf="!loading.timeSlots"
-                        [value]="serviceTime.value"
-                        [availableTimeSlots]="getAvailableTimeSlots()"
-                        [blockedHours]="getBlockedHoursForSelectedDate()"
-                        (valueChange)="onTimeChange($event)">
-                      </app-time-selector>
-                      <div class="error-message" *ngIf="serviceTime.invalid && serviceTime.touched">
-                        <div *ngIf="serviceTime.errors?.['required']">Service time is required</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
+              <!-- Floor Type (Optional) — moved from step 2, sits right above Extra Services -->
+              <app-floor-type-selector
+                [selectedTypes]="floorTypes"
+                [otherText]="floorTypeOther"
+                (selectionChange)="onFloorTypeSelectionChange($event)">
+              </app-floor-type-selector>
 
               <div class="extra-services-header-container">
                 <h2 class="extra-services-header">Extra Services</h2>
@@ -868,6 +885,53 @@
           
           <!-- Common sections for both regular and custom pricing (hidden only for poll) -->
           <ng-container *ngIf="selectedServiceType && !showPollForm">
+            <!-- Date & Time (moved to top of step 2 — was previously in step 1).
+                 Hidden for custom pricing because that flow asks for date/time
+                 inline in step 1 already, on the same FormControls. -->
+            <section class="booking-section" *ngIf="!showCustomPricing">
+              <h2>When would you like us to come?</h2>
+              <div class="date-time-selection">
+                <div class="form-group">
+                  <label>Service Date <span class="required">*</span></label>
+                  <div class="date-time-field" [shimmer]="loading.availableDates">
+                    <app-date-selector
+                      [value]="serviceDate.value"
+                      [minDate]="getMinDateString()"
+                      [isSameDaySelected]="isSameDaySelected"
+                      [blockedDates]="getBlockedDates()"
+                      [partiallyBlockedDates]="getPartiallyBlockedDates()"
+                      (valueChange)="onDateSelectorChange($event)">
+                    </app-date-selector>
+                    <div class="error-message" *ngIf="serviceDate.invalid && serviceDate.touched">
+                      <div *ngIf="serviceDate.errors?.['required']">Service date is required</div>
+                    </div>
+                    <div class="blocked-date-warning" *ngIf="isSelectedDateTimeBlocked()">
+                      {{ getBlockedReasonForDate(serviceDate.value) || 'We are too busy on this date/time. Please select a different date or time.' }}
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Service Time <span class="required">*</span></label>
+                  <div class="date-time-field date-time-field--time">
+                    <div *ngIf="loading.timeSlots" class="time-shimmer-fields">
+                      <div class="time-field-shimmer" [shimmer]="true"></div>
+                      <div class="time-field-shimmer" [shimmer]="true"></div>
+                    </div>
+                    <app-time-selector
+                      *ngIf="!loading.timeSlots"
+                      [value]="serviceTime.value"
+                      [availableTimeSlots]="getAvailableTimeSlots()"
+                      [blockedHours]="getBlockedHoursForSelectedDate()"
+                      (valueChange)="onTimeChange($event)">
+                    </app-time-selector>
+                    <div class="error-message" *ngIf="serviceTime.invalid && serviceTime.touched">
+                      <div *ngIf="serviceTime.errors?.['required']">Service time is required</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
             <!-- Step 6: Subscription -->
             <section class="booking-section">
               <h2>How often would you like us to clean?</h2>
@@ -975,13 +1039,6 @@
                         class="custom-entry-input">
               </div>
             </section>
-
-            <!-- Floor Type (Optional) -->
-            <app-floor-type-selector
-              [selectedTypes]="floorTypes"
-              [otherText]="floorTypeOther"
-              (selectionChange)="onFloorTypeSelectionChange($event)">
-            </app-floor-type-selector>
 
             <!-- Step 9: Discounts -->
             <section class="booking-section">
@@ -1324,40 +1381,59 @@
             </div>
           </section>
 
-          <!-- Bubble Reward Balance -->
-          <section class="booking-section bubble-points-form-section" *ngIf="currentUser && userBubbleCredits > 0 && !showPollForm">
-            <div class="bubble-rewards-panel">
-              <h2>Reward balance</h2>
-              <p class="bubble-points-form-hint">You have <strong><span class="bubble-dollar">${{ userBubbleCredits.toFixed(2) }}</span></strong> in reward balance from referrals and bonuses.</p>
-              <button class="points-form-btn credits-toggle-btn"
-                      [class.selected]="useCredits"
-                      (click)="useCredits = !useCredits; calculateTotal()"
-                      type="button">
-                <span class="pts-num">
-                  <ng-container *ngIf="useCredits">Remove <strong><span class="bubble-dollar">${{ userBubbleCredits.toFixed(2) }}</span></strong></ng-container>
-                  <ng-container *ngIf="!useCredits">Apply <span class="bubble-dollar">${{ userBubbleCredits.toFixed(2) }}</span> reward balance</ng-container>
-                </span>
-              </button>
-            </div>
-          </section>
-
-          <!-- Bubble Points Redemption -->
-          <section class="booking-section bubble-points-form-section" *ngIf="currentUser && bubblePointsOptions.length > 0 && !showPollForm">
-            <div class="bubble-rewards-panel">
-              <h2>Bubble points</h2>
-              <p class="bubble-points-form-hint">You have <strong class="bubble-pts-total">{{ userBubblePoints | number }}</strong> pts — select an option to apply a discount:</p>
-              <div class="bubble-points-form-options">
-                <button *ngFor="let opt of bubblePointsOptions"
-                        class="points-form-btn"
-                        [class.selected]="selectedPointsToRedeem === opt.points"
-                        [class.unavailable]="!opt.available"
-                        [disabled]="!opt.available"
-                        (click)="selectPointsToRedeem(opt.points)"
+          <!-- Combined Rewards (Reward balance + Bubble points) — compact two-row panel.
+               Replaces the two previous standalone panels so the rewards block
+               doesn't dominate vertical space when both are present. -->
+          <section class="booking-section bubble-points-form-section bubble-rewards-combined"
+                   *ngIf="currentUser && (userBubbleCredits > 0 || bubblePointsOptions.length > 0) && !showPollForm">
+            <h2>Your rewards</h2>
+            <div class="bubble-rewards-stack">
+              <!-- Reward balance row -->
+              <div class="bubble-reward-row" *ngIf="userBubbleCredits > 0">
+                <div class="bubble-reward-row__info">
+                  <i class="fas fa-piggy-bank bubble-reward-row__icon" aria-hidden="true"></i>
+                  <div class="bubble-reward-row__text">
+                    <span class="bubble-reward-row__title">Reward balance</span>
+                    <span class="bubble-reward-row__sub">
+                      <span class="bubble-dollar">${{ userBubbleCredits.toFixed(2) }}</span> from referrals &amp; bonuses
+                    </span>
+                  </div>
+                </div>
+                <button class="bubble-reward-row__btn credits-toggle-btn"
+                        [class.selected]="useCredits"
+                        (click)="useCredits = !useCredits; calculateTotal()"
                         type="button">
-                  <span class="pts-num">{{ opt.points | number }} pts</span>
-                  <span class="pts-arrow">→</span>
-                  <span class="pts-val"><span class="bubble-dollar">${{ opt.dollarValue | number:'1.0-0' }}</span> off</span>
+                  <span class="pts-num">
+                    <ng-container *ngIf="useCredits">Remove</ng-container>
+                    <ng-container *ngIf="!useCredits">Apply <span class="bubble-dollar">${{ userBubbleCredits.toFixed(2) }}</span></ng-container>
+                  </span>
                 </button>
+              </div>
+
+              <!-- Bubble points row -->
+              <div class="bubble-reward-row bubble-reward-row--points" *ngIf="bubblePointsOptions.length > 0">
+                <div class="bubble-reward-row__info">
+                  <i class="fas fa-coins bubble-reward-row__icon" aria-hidden="true"></i>
+                  <div class="bubble-reward-row__text">
+                    <span class="bubble-reward-row__title">Bubble points</span>
+                    <span class="bubble-reward-row__sub">
+                      <strong class="bubble-pts-total">{{ userBubblePoints | number }}</strong> pts available
+                    </span>
+                  </div>
+                </div>
+                <div class="bubble-points-form-options">
+                  <button *ngFor="let opt of bubblePointsOptions"
+                          class="points-form-btn"
+                          [class.selected]="selectedPointsToRedeem === opt.points"
+                          [class.unavailable]="!opt.available"
+                          [disabled]="!opt.available"
+                          (click)="selectPointsToRedeem(opt.points)"
+                          type="button">
+                    <span class="pts-num">{{ opt.points | number }} pts</span>
+                    <span class="pts-arrow">→</span>
+                    <span class="pts-val"><span class="bubble-dollar">${{ opt.dollarValue | number:'1.0-0' }}</span> off</span>
+                  </button>
+                </div>
               </div>
             </div>
           </section>
@@ -1497,8 +1573,36 @@
           <!-- Mobile Booking Summary - Only visible on Step 3 in the flow -->
           <div class="mobile-booking-summary" *ngIf="!showPollForm">
             <div class="summary-card-mobile">
-              
-              
+
+              <!-- Promo / Gift Card code (mobile-only; replaces the standalone section at this step) -->
+              <div class="promo-code-section">
+                <div class="promo-code">
+                  <div class="promo-input">
+                    <input
+                      type="text"
+                      [value]="promoCode.value"
+                      (input)="onPromoCodeInput($event)"
+                      placeholder="Promo/Gift card code">
+                    <button
+                      (click)="applyPromoCode()"
+                      [disabled]="isPromoCodeDisabled()"
+                      type="button">
+                      Apply
+                    </button>
+                    <button
+                      class="remove-btn"
+                      (click)="removePromoCode()"
+                      *ngIf="promoCodeApplied || giftCardApplied"
+                      type="button">
+                      Remove
+                    </button>
+                  </div>
+                  <p class="promo-note" *ngIf="specialOfferApplied">
+                    <i class="fas fa-info-circle"></i> Remove special offer to use a promo code
+                  </p>
+                </div>
+              </div>
+
               <div class="summary-details" *ngIf="selectedServiceType">
                 <div class="summary-item">
                   <span>Service Type:</span>
@@ -1827,8 +1931,15 @@
 <!-- Card always visible when not in poll form; only dynamic values shimmer -->
 <div class="booking-summary" *ngIf="!showPollForm">
   <div class="summary-card" [class.collapsed]="isSummaryCollapsed">
-    <h3>Booking Summary</h3>
-    
+    <h3><i class="fas fa-receipt summary-card__title-icon" aria-hidden="true"></i> Booking Summary</h3>
+
+    <!-- "You're saving" banner — only shown when any discount is applied -->
+    <div class="summary-savings-banner"
+         *ngIf="!isSummaryCollapsed && (subscriptionDiscountAmount > 0 || promoOrFirstTimeDiscountAmount > 0 || giftCardApplied || (selectedPointsToRedeem || 0) > 0 || useCredits)">
+      <i class="fas fa-tag summary-savings-banner__icon" aria-hidden="true"></i>
+      <span>You're saving on this booking</span>
+    </div>
+
     <!-- Promo Code Section - static input, no shimmer on section -->
     <div class="promo-code-section" [class.hidden]="isSummaryCollapsed">
       <div class="promo-code">
@@ -2003,8 +2114,24 @@
         <span [shimmer]="loading.pricing" class="summary-value">${{ nextOrderTotal.toFixed(2) }}</span>
       </div>
     </div>
+
+    <!-- Trust footer — reassurance row of 3 guarantees, hides when summary collapsed -->
+    <ul class="summary-trust-footer" [class.hidden]="isSummaryCollapsed">
+      <li class="summary-trust-footer__item">
+        <i class="fas fa-shield-alt summary-trust-footer__icon summary-trust-footer__icon--green" aria-hidden="true"></i>
+        <span>100% satisfaction guarantee</span>
+      </li>
+      <li class="summary-trust-footer__item">
+        <i class="fas fa-undo summary-trust-footer__icon summary-trust-footer__icon--blue" aria-hidden="true"></i>
+        <span>Free reschedule up to 24h before</span>
+      </li>
+      <li class="summary-trust-footer__item">
+        <i class="fas fa-lock summary-trust-footer__icon summary-trust-footer__icon--blue" aria-hidden="true"></i>
+        <span>Secure checkout via Stripe</span>
+      </li>
+    </ul>
   </div>
-  
+
 </div>
 
 

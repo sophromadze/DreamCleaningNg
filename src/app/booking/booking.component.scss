@@ -1245,12 +1245,11 @@
       max-width: 100%;
     }
 
-    // Hide promo code section on desktop when on step 3 (it's in booking summary)
-    @media (min-width: 1201px) {
-      .booking-grid.step-3-active & {
-        &:has(.promo-code-input-section) {
-          display: none;
-        }
+    // Hide standalone promo code section on step 3 — it now lives inside both
+    // the desktop summary card (right rail) and the mobile summary card.
+    .booking-grid.step-3-active & {
+      &:has(.promo-code-input-section) {
+        display: none;
       }
     }
     
@@ -8223,5 +8222,467 @@
       background-color: var(--surface-elevated);
       color: var(--text-primary);
     }
+  }
+}
+
+/* =============================================================
+   MODERN UX UPGRADES — stepper, trust strip, summary polish
+   These rules belong with the hero shell above and rely on the
+   same token system (radii, surfaces, shadows, semantic colors).
+============================================================= */
+
+/* ---- Subtitle under H1 ------------------------------------- */
+/* Shrink-fit pill, centred under the H1 via auto margins on a
+   block-level flex container with width: max-content. */
+.booking-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: -1rem auto 1.5rem;
+  padding: 0.5rem 1rem;
+  width: max-content;
+  max-width: calc(100% - 2rem);
+  background: var(--surface-glass);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: var(--fw-semibold);
+  text-align: center;
+
+  &__icon {
+    color: var(--primary-color);
+    font-size: 0.875rem;
+  }
+
+  @media (max-width: 463px) {
+    margin: -0.5rem auto 1rem;
+    font-size: 0.8125rem;
+    padding: 0.4375rem 0.875rem;
+  }
+}
+
+/* ---- Step progress stepper --------------------------------- */
+.booking-progress-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0 auto 1.25rem;
+  padding: 1rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  box-shadow: 0 4px 16px var(--shadow-color);
+  max-width: 580px;
+
+  @media (max-width: 580px) {
+    border-radius: var(--radius-xl);
+    padding: 0.75rem 0.875rem;
+    gap: 0.375rem;
+  }
+
+  &__step {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+
+    @media (max-width: 580px) {
+      gap: 0.375rem;
+    }
+  }
+
+  &__bubble {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--fw-black);
+    font-size: 0.875rem;
+    background: var(--surface-subtle);
+    color: var(--text-muted);
+    border: 2px solid var(--border-color);
+    transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+
+    @media (max-width: 580px) {
+      width: 1.75rem;
+      height: 1.75rem;
+      font-size: 0.8125rem;
+    }
+  }
+
+  &__label {
+    font-size: 0.875rem;
+    font-weight: var(--fw-extrabold);
+    color: var(--text-muted);
+    transition: color 0.25s ease;
+    white-space: nowrap;
+
+    @media (max-width: 580px) {
+      font-size: 0.75rem;
+    }
+  }
+
+  &__line {
+    flex: 1 1 auto;
+    height: 2px;
+    min-width: 1.5rem;
+    background: var(--border-color);
+    border-radius: 2px;
+    transition: background 0.4s ease;
+
+    &.is-complete {
+      background: var(--fresh-green);
+    }
+  }
+
+  &__step.is-active {
+    .booking-progress-stepper__bubble {
+      background: var(--btn-primary);
+      color: #fff;
+      border-color: transparent;
+      box-shadow: var(--btn-primary-shadow);
+      transform: scale(1.05);
+    }
+    .booking-progress-stepper__label {
+      color: var(--primary-text);
+    }
+  }
+
+  &__step.is-complete {
+    .booking-progress-stepper__bubble {
+      background: var(--fresh-green);
+      color: #fff;
+      border-color: transparent;
+    }
+    .booking-progress-stepper__label {
+      color: var(--text-secondary);
+    }
+  }
+}
+
+/* ---- Trust strip ------------------------------------------- */
+.booking-trust-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem 1.25rem;
+  margin: 0 auto 1.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-glass);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  max-width: 920px;
+
+  @media (max-width: 768px) {
+    border-radius: var(--radius-lg);
+    padding: 0.625rem 0.75rem;
+    gap: 0.5rem 0.875rem;
+  }
+
+  &__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: var(--fw-bold);
+    color: var(--text-secondary);
+
+    @media (max-width: 463px) {
+      font-size: 0.75rem;
+      gap: 0.375rem;
+    }
+  }
+
+  &__icon {
+    font-size: 0.95rem;
+    flex-shrink: 0;
+
+    &--green { color: var(--fresh-green); }
+    &--amber { color: var(--star-color); }
+    &--blue  { color: var(--primary-color); }
+  }
+}
+
+/* ---- Summary card title icon ------------------------------- */
+.summary-card__title-icon {
+  color: var(--primary-color);
+  margin-right: 0.5rem;
+  font-size: 0.95em;
+}
+
+/* ---- "You're saving" banner inside summary ----------------- */
+.summary-savings-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.875rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-md);
+  background: var(--mint-fresh);
+  border: 1px solid var(--mint-fresh-border);
+  color: var(--fresh-green);
+  font-size: 0.875rem;
+  font-weight: var(--fw-extrabold);
+  letter-spacing: -0.005em;
+
+  &__icon {
+    font-size: 0.95rem;
+    flex-shrink: 0;
+  }
+}
+
+/* ---- Summary trust footer (3 guarantees at bottom) --------- */
+.summary-trust-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
+  list-style: none;
+  margin: 0.875rem 0 0;
+  padding: 0.875rem 0 0;
+  border-top: 1px dashed var(--border-color);
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8125rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+    line-height: 1.4;
+  }
+
+  &__icon {
+    font-size: 0.9rem;
+    flex-shrink: 0;
+
+    &--green { color: var(--fresh-green); }
+    &--blue  { color: var(--primary-color); }
+  }
+
+  &.hidden {
+    display: none;
+  }
+}
+
+/* ---- Polished total section -------------------------------- */
+.booking-summary .summary-card .total-section {
+  margin-top: 0.875rem;
+  padding: 0.875rem 1rem;
+  background: linear-gradient(135deg, var(--soft-blue) 0%, var(--mint-fresh) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+
+  .total {
+    font-size: 1.5rem;
+    font-weight: var(--fw-black);
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+
+    .summary-value {
+      color: var(--fresh-green);
+    }
+
+    @media (max-width: 768px) {
+      font-size: 1.35rem;
+    }
+
+    @media (max-width: 463px) {
+      font-size: 1.2rem;
+    }
+  }
+}
+
+/* Mobile inline summary echoes the same total treatment */
+.mobile-booking-summary .summary-card-mobile .total-section {
+  margin-top: 0.875rem;
+  padding: 0.75rem 0.875rem;
+  background: linear-gradient(135deg, var(--soft-blue) 0%, var(--mint-fresh) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  .total {
+    font-weight: var(--fw-black);
+    .summary-value { color: var(--fresh-green); }
+  }
+}
+
+/* ---- Section H2 with leading accent dot -------------------- */
+/* Existing h2 is `display: flex; gap: 0.5rem`, so the pseudo-element
+   becomes a flex child and the parent's gap supplies its spacing. */
+.booking-form .booking-section > h2:not(.extra-services-header)::before {
+  content: "";
+  flex: 0 0 0.5rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--btn-primary);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+/* Discount lines in the breakdown — green emphasis for savings */
+.booking-summary .summary-card .price-breakdown .price-item .discount,
+.mobile-booking-summary .summary-card-mobile .price-breakdown .price-item .discount {
+  color: var(--fresh-green);
+  font-weight: var(--fw-extrabold);
+}
+
+/* Dark-mode tuning for new elements */
+:host-context([data-theme="dark"]) {
+  .booking-progress-stepper {
+    background: var(--surface);
+    border-color: var(--border-color);
+  }
+
+  .booking-trust-strip {
+    background: var(--surface-glass);
+    border-color: var(--border-color);
+  }
+
+  .summary-savings-banner {
+    background: rgba(34, 197, 94, 0.12);
+    border-color: rgba(34, 197, 94, 0.30);
+    color: var(--fresh-green);
+  }
+
+  .booking-summary .summary-card .total-section,
+  .mobile-booking-summary .summary-card-mobile .total-section {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.18) 0%, rgba(34, 197, 94, 0.18) 100%);
+    border-color: var(--border-color);
+  }
+
+  .summary-trust-footer {
+    border-top-color: var(--border-color);
+  }
+}
+
+/* ---- Combined rewards panel (compact) -----------------------
+   When the user has reward balance and/or bubble points to spend,
+   they live as compact rows inside a single bordered card so the
+   rewards block doesn't dominate vertical space. */
+.bubble-rewards-combined {
+  .bubble-rewards-stack {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+  }
+
+  .bubble-reward-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.875rem 1.125rem;
+
+    & + .bubble-reward-row {
+      border-top: 1px solid var(--border-color);
+    }
+
+    @media (max-width: 580px) {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.625rem;
+      padding: 0.75rem 0.875rem;
+    }
+  }
+
+  .bubble-reward-row__info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .bubble-reward-row__icon {
+    font-size: 1.125rem;
+    color: var(--primary-color);
+    flex-shrink: 0;
+    width: 1.5rem;
+    text-align: center;
+  }
+
+  .bubble-reward-row__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    line-height: 1.3;
+  }
+
+  .bubble-reward-row__title {
+    font-size: 0.9375rem;
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+  }
+
+  .bubble-reward-row__sub {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+  }
+
+  /* The single Apply/Remove button on the reward-balance row.
+     Override the legacy .credits-toggle-btn full-width sizing. */
+  .bubble-reward-row__btn {
+    flex-shrink: 0;
+    width: auto;
+    max-width: none;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.2;
+    border-radius: var(--radius-pill);
+
+    @media (max-width: 580px) {
+      width: 100%;
+    }
+  }
+
+  /* Points pills: right-aligned, slightly tighter than legacy.
+     On narrow screens they stretch and split into a 3-up row. */
+  .bubble-reward-row--points .bubble-points-form-options {
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.375rem;
+    margin: 0;
+
+    @media (max-width: 580px) {
+      justify-content: stretch;
+      width: 100%;
+    }
+  }
+
+  .bubble-reward-row--points .points-form-btn {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.8125rem;
+    gap: 0.25rem;
+
+    @media (max-width: 580px) {
+      flex: 1 1 calc(33.333% - 0.25rem);
+      min-width: 0;
+      padding: 0.4rem 0.5rem;
+    }
+  }
+
+  /* Section heading sits tight against the card */
+  > h2 {
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Dark mode parity for the combined rewards stack */
+:host-context([data-theme="dark"]) {
+  .bubble-rewards-combined .bubble-rewards-stack {
+    background: var(--surface-elevated);
+    border-color: var(--border-color);
+  }
+
+  .bubble-rewards-combined .bubble-reward-row + .bubble-reward-row {
+    border-top-color: var(--border-color);
   }
 }
