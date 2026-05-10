@@ -231,7 +231,7 @@
         </div>
       </div>
       <div class="detail-header__actions">
-        <button class="action-btn small" *ngIf="isSuperAdmin && !editingUser" (click)="startEditUser()">Edit</button>
+        <button class="action-btn small" *ngIf="canEditUserDetails(selectedUser) && !editingUser" (click)="startEditUser()">Edit</button>
         <button class="action-btn small ghost" (click)="closeDetailPanel()" aria-label="Close">✕</button>
       </div>
     </div>
@@ -263,8 +263,8 @@
       </div>
     </div>
 
-    <!-- Edit form (SuperAdmin only) -->
-    <div *ngIf="editingUser && isSuperAdmin" class="edit-form-wrap">
+    <!-- Edit form (Admin / SuperAdmin) -->
+    <div *ngIf="editingUser && canEditUserDetails(selectedUser)" class="edit-form-wrap">
       <h5>Edit User <span class="hint">— all changes are recorded in Audit logs</span></h5>
       <div class="edit-grid">
         <label><span>First Name</span><input type="text" [(ngModel)]="editUserForm.firstName"></label>
@@ -277,7 +277,7 @@
             <option value="Customer">Customer</option>
             <option value="Moderator">Moderator</option>
             <option value="Admin">Admin</option>
-            <option value="SuperAdmin">SAdmin</option>
+            <option value="SuperAdmin" *ngIf="isSuperAdmin">SAdmin</option>
           </select>
         </label>
         <label class="check"><input type="checkbox" [(ngModel)]="editUserForm.isActive"> Active</label>
@@ -300,16 +300,93 @@
           <div *ngIf="userRewardsSummary.bubbleCredits > 0"><span>Reward Balance</span><strong>${{ userRewardsSummary.bubbleCredits | number:'1.2-2' }}</strong></div>
           <div *ngIf="userRewardsSummary.streakCount > 1"><span>Streak</span><strong>{{ userRewardsSummary.streakCount }}</strong></div>
         </div>
-        <p *ngIf="userRewardsSummary.referredByName" class="muted hint-line">
-          Referred by: <strong>{{ userRewardsSummary.referredByName }}</strong>
-          <button *ngIf="isSuperAdmin" class="action-btn small ghost inline" [disabled]="removingReferredBy" (click)="removeReferredBy()">×</button>
-        </p>
         <div *ngIf="isSuperAdmin" class="rewards-adjust">
           <input type="number" [(ngModel)]="adjustPointsAmount" min="0" placeholder="New total" class="small-input">
           <input type="text" [(ngModel)]="adjustPointsDesc" placeholder="Reason (optional)" class="small-input flex">
           <button class="action-btn primary small" (click)="savePointsAdjustment()" [disabled]="savingPoints">{{ savingPoints ? '…' : 'Adjust' }}</button>
         </div>
         <div *ngIf="pointsSaveMessage" class="muted">{{ pointsSaveMessage }}</div>
+      </div>
+
+      <div class="info-card referrals-card" *ngIf="userRewardsSummary?.pointsSystemEnabled">
+        <h6>Referrals</h6>
+
+        <div class="referral-block">
+          <div class="referral-block__label">Referred by</div>
+          <div class="referral-block__value" *ngIf="userRewardsSummary?.referredByName; else noReferrer">
+            <strong>{{ userRewardsSummary.referredByName }}</strong>
+            <button *ngIf="isSuperAdmin"
+                    class="action-btn small ghost inline"
+                    [disabled]="removingReferredBy"
+                    (click)="removeReferredBy()"
+                    title="Remove referrer">×</button>
+          </div>
+          <ng-template #noReferrer>
+            <div class="referral-block__value muted">No referrer set.</div>
+          </ng-template>
+
+          <div *ngIf="isSuperAdmin" class="referral-form">
+            <div class="referral-search">
+              <input type="email"
+                     [(ngModel)]="newReferrerEmail"
+                     (ngModelChange)="searchReferrers($event)"
+                     placeholder="{{ userRewardsSummary?.referredByName ? 'Change referrer (email)' : 'Set referrer (email)' }}"
+                     class="small-input flex">
+              <ul *ngIf="newReferrerSearchResults.length > 0" class="suggest-list">
+                <li *ngFor="let s of newReferrerSearchResults" (click)="selectReferrerSuggestion(s.email)">
+                  <strong>{{ s.email }}</strong> <span class="muted">— {{ s.name }}</span>
+                </li>
+              </ul>
+            </div>
+            <button class="action-btn primary small"
+                    (click)="setReferredBy()"
+                    [disabled]="settingReferredBy || !newReferrerEmail.trim()">
+              {{ settingReferredBy ? '…' : (userRewardsSummary?.referredByName ? 'Change' : 'Set') }}
+            </button>
+          </div>
+        </div>
+
+        <div class="referral-block">
+          <div class="referral-block__label">
+            Referrals ({{ userRewardsSummary?.referrals?.length || 0 }})
+          </div>
+          <ul class="referral-list" *ngIf="userRewardsSummary?.referrals?.length > 0">
+            <li *ngFor="let r of userRewardsSummary.referrals">
+              <div class="referral-list__main">
+                <strong>{{ r.referredUserEmail }}</strong>
+                <span class="muted"> — {{ r.referredUserName }}</span>
+              </div>
+              <button *ngIf="isSuperAdmin"
+                      class="action-btn small ghost inline"
+                      [disabled]="removingReferralId === r.id"
+                      (click)="removeReferredUser(r.id)"
+                      title="Remove this referral">×</button>
+            </li>
+          </ul>
+          <div *ngIf="!userRewardsSummary?.referrals?.length" class="muted">No referrals yet.</div>
+
+          <div *ngIf="isSuperAdmin" class="referral-form">
+            <div class="referral-search">
+              <input type="email"
+                     [(ngModel)]="newReferralEmail"
+                     (ngModelChange)="searchReferrals($event)"
+                     placeholder="Add referred user (email)"
+                     class="small-input flex">
+              <ul *ngIf="newReferralSearchResults.length > 0" class="suggest-list">
+                <li *ngFor="let s of newReferralSearchResults" (click)="selectReferralSuggestion(s.email)">
+                  <strong>{{ s.email }}</strong> <span class="muted">— {{ s.name }}</span>
+                </li>
+              </ul>
+            </div>
+            <button class="action-btn primary small"
+                    (click)="addReferredUser()"
+                    [disabled]="addingReferral || !newReferralEmail.trim()">
+              {{ addingReferral ? '…' : 'Add' }}
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="referralActionMessage" class="muted">{{ referralActionMessage }}</div>
       </div>
     </div>
 
@@ -473,30 +550,30 @@
                     {{ apt.city }}, {{ apt.state }} {{ apt.postalCode }}
                     <span *ngIf="apt.specialInstructions"><br><em>{{ apt.specialInstructions }}</em></span>
                   </div>
-                  <div class="row-actions" *ngIf="isSuperAdmin">
+                  <div class="row-actions" *ngIf="canEditUserDetails(selectedUser)">
                     <button class="action-btn small ghost" (click)="startEditAddress(apt)" [disabled]="savingAddress">Edit</button>
                     <button class="action-btn small danger" (click)="deleteAddress(apt, $event)" [disabled]="savingAddress">Delete</button>
                   </div>
                 </div>
-                <div *ngIf="editingAddressId === apt.id" class="address-edit">
+                <div *ngIf="editingAddressId === apt.id && editAddressDraft" class="address-edit">
                   <div class="edit-grid compact">
-                    <label><span>Name</span><input type="text" [(ngModel)]="apt.name"></label>
-                    <label><span>Address</span><input type="text" [(ngModel)]="apt.address"></label>
-                    <label><span>Apt/Suite</span><input type="text" [(ngModel)]="apt.aptSuite"></label>
-                    <label><span>City</span><input type="text" [(ngModel)]="apt.city"></label>
-                    <label><span>State</span><input type="text" [(ngModel)]="apt.state"></label>
-                    <label><span>Postal Code</span><input type="text" [(ngModel)]="apt.postalCode" maxlength="5"></label>
-                    <label class="full-row"><span>Special instructions</span><input type="text" [(ngModel)]="apt.specialInstructions" maxlength="2000"></label>
+                    <label><span>Name</span><input type="text" [(ngModel)]="editAddressDraft.name"></label>
+                    <label><span>Address</span><input type="text" [(ngModel)]="editAddressDraft.address"></label>
+                    <label><span>Apt/Suite</span><input type="text" [(ngModel)]="editAddressDraft.aptSuite"></label>
+                    <label><span>City</span><input type="text" [(ngModel)]="editAddressDraft.city"></label>
+                    <label><span>State</span><input type="text" [(ngModel)]="editAddressDraft.state"></label>
+                    <label><span>Postal Code</span><input type="text" [(ngModel)]="editAddressDraft.postalCode" maxlength="5"></label>
+                    <label class="full-row"><span>Special instructions</span><input type="text" [(ngModel)]="editAddressDraft.specialInstructions" maxlength="2000"></label>
                   </div>
                   <div class="edit-actions">
-                    <button class="action-btn primary small" (click)="saveEditAddress(apt)" [disabled]="savingAddress">{{ savingAddress ? 'Saving…' : 'Save' }}</button>
+                    <button class="action-btn primary small" (click)="saveEditAddress()" [disabled]="savingAddress">{{ savingAddress ? 'Saving…' : 'Save' }}</button>
                     <button class="action-btn small ghost" (click)="cancelEditAddress()" [disabled]="savingAddress">Cancel</button>
                   </div>
                 </div>
               </div>
               <p *ngIf="!selectedUser.apartments?.length" class="muted">No saved addresses.</p>
             </div>
-            <button *ngIf="isSuperAdmin && !showAddAddress"
+            <button *ngIf="canEditUserDetails(selectedUser) && !showAddAddress"
                     class="action-btn small ghost add-row"
                     (click)="openAddAddress()">+ Add address</button>
             <div *ngIf="showAddAddress" class="address-edit">

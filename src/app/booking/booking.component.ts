@@ -2614,6 +2614,7 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   shouldShowStandaloneBedroomBathroom(): boolean {
     if (!this.selectedServiceType || this.showPollForm || this.showCustomPricing) return false;
+    if (this.isOfficeCleaningServiceType()) return false;
     const hasCleaner = this.selectedServices.some(s => s.service.serviceRelationType === 'cleaner');
     const hasHours = this.selectedServices.some(s => s.service.serviceRelationType === 'hours');
     return hasCleaner && hasHours && !this.hasBedroomsService() && !this.hasBathroomsService();
@@ -4283,6 +4284,12 @@ export class BookingComponent implements OnInit, OnDestroy {
   isResidentialCleaningServiceType(): boolean {
     const name = this.selectedServiceType?.name?.toLowerCase().trim() ?? '';
     return name.includes('residential') && name.includes('cleaning');
+  }
+
+  /** Offices don't have bedrooms/bathrooms — suppress the standalone inputs for this service type. */
+  isOfficeCleaningServiceType(): boolean {
+    const name = this.selectedServiceType?.name?.toLowerCase().trim() ?? '';
+    return name.includes('office');
   }
 
   private normalizeCleaningTypeForSelectedServiceType(): void {

@@ -91,8 +91,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   savingUser = false;
   togglingCommsUserId: number | null = null;
 
-  // Address editing (SuperAdmin)
+  // Address editing (Admin/SuperAdmin)
   editingAddressId: number | null = null;
+  editAddressDraft: Apartment | null = null;
   showAddAddress = false;
   newAddress: CreateApartment = { name: '', address: '', city: '', state: '', postalCode: '' };
   savingAddress = false;
@@ -112,6 +113,11 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   referralActionMessage = '';
   removingReferralId: number | null = null;
   removingReferredBy = false;
+
+  // Set/correct "referred by" (SuperAdmin)
+  newReferrerEmail = '';
+  newReferrerSearchResults: { id: number; email: string; name: string }[] = [];
+  settingReferredBy = false;
 
   // ── Customer-care: notes ──
   generalNotes: UserNote[] = [];
@@ -613,6 +619,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.adjustPointsDesc = '';
     this.newReferralEmail = '';
     this.newReferralSearchResults = [];
+    this.newReferrerEmail = '';
+    this.newReferrerSearchResults = [];
     this.referralActionMessage = '';
     this.bubbleRewardsService.getAdminUserSummary(userId).subscribe({
       next: (s) => {
@@ -1160,6 +1168,19 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     return this.currentUserRole === 'SuperAdmin';
   }
 
+  /** True for Admin or SuperAdmin — both can open the user edit form. */
+  get canEditUsers(): boolean {
+    return this.currentUserRole === 'SuperAdmin' || this.currentUserRole === 'Admin';
+  }
+
+  /** True if current admin is allowed to edit this specific target user. Admins cannot edit SuperAdmin users. */
+  canEditUserDetails(user: any): boolean {
+    if (!user) return false;
+    if (this.currentUserRole === 'SuperAdmin') return true;
+    if (this.currentUserRole === 'Admin' && user.role !== 'SuperAdmin') return true;
+    return false;
+  }
+
   /** Returns true if the user is an internal staff role (badge shown). */
   isStaffRole(role: string | undefined | null): boolean {
     return role === 'Admin' || role === 'SuperAdmin' || role === 'Moderator';
@@ -1279,6 +1300,40 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     });
   }
 
+  searchReferrers(query: string): void {
+    if (!this.selectedUser || query.length < 2) { this.newReferrerSearchResults = []; return; }
+    this.bubbleRewardsService.searchEligibleReferrers(this.selectedUser.id, query).subscribe({
+      next: (r) => this.newReferrerSearchResults = r,
+      error: () => this.newReferrerSearchResults = []
+    });
+  }
+
+  selectReferrerSuggestion(email: string): void {
+    this.newReferrerEmail = email;
+    this.newReferrerSearchResults = [];
+  }
+
+  setReferredBy(): void {
+    if (!this.selectedUser || !this.isSuperAdmin || this.settingReferredBy || !this.newReferrerEmail.trim()) return;
+    this.settingReferredBy = true;
+    this.referralActionMessage = '';
+    this.bubbleRewardsService.setReferredBy(this.selectedUser.id, this.newReferrerEmail.trim()).subscribe({
+      next: () => {
+        this.settingReferredBy = false;
+        this.newReferrerEmail = '';
+        this.newReferrerSearchResults = [];
+        this.referralActionMessage = 'Referrer set.';
+        this.loadUserRewards(this.selectedUser!.id);
+        setTimeout(() => this.referralActionMessage = '', 3000);
+      },
+      error: (err) => {
+        this.settingReferredBy = false;
+        this.referralActionMessage = err?.error?.message ?? 'Failed to set referrer.';
+        setTimeout(() => this.referralActionMessage = '', 4000);
+      }
+    });
+  }
+
   openOrderInAdmin(orderId: number): void {
     window.open('/admin?orderId=' + orderId, '_blank');
   }
@@ -1305,7 +1360,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   startEditUser(): void {
-    if (!this.selectedUser || !this.isSuperAdmin) return;
+    if (!this.selectedUser || !this.canEditUserDetails(this.selectedUser)) return;
     this.editUserForm = {
       firstName: this.selectedUser.firstName,
       lastName: this.selectedUser.lastName,
@@ -1324,12 +1379,18 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   cancelEditUser(): void {
     this.editingUser = false;
     this.editingAddressId = null;
+    this.editAddressDraft = null;
     this.showAddAddress = false;
     this.newAddress = { name: '', address: '', city: '', state: '', postalCode: '' };
   }
 
   saveUserEdit(): void {
-    if (!this.selectedUser || !this.isSuperAdmin || this.savingUser) return;
+    if (!this.selectedUser || !this.canEditUserDetails(this.selectedUser) || this.savingUser) return;
+    if (!this.isSuperAdmin && this.editUserForm.role === 'SuperAdmin') {
+      this.errorMessage = 'Admins cannot assign SuperAdmin role.';
+      setTimeout(() => { this.errorMessage = ''; }, 5000);
+      return;
+    }
     this.editUserForm.phone = normalizePhone10(this.editUserForm.phone);
     this.savingUser = true;
     this.errorMessage = '';
@@ -1384,26 +1445,31 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     });
   }
 
-  // ── Address (apartment) editing (SuperAdmin) ──
+  // ── Address (apartment) editing (Admin/SuperAdmin) ──
   startEditAddress(apartment: Apartment): void {
+    if (!this.selectedUser || !this.canEditUserDetails(this.selectedUser)) return;
     this.editingAddressId = apartment.id;
+    this.editAddressDraft = { ...apartment };
     this.showAddAddress = false;
   }
 
   cancelEditAddress(): void {
     this.editingAddressId = null;
+    this.editAddressDraft = null;
   }
 
-  saveEditAddress(apartment: Apartment): void {
-    if (!this.selectedUser || this.savingAddress) return;
+  saveEditAddress(): void {
+    if (!this.selectedUser || !this.editAddressDraft || this.savingAddress) return;
+    const draft = this.editAddressDraft;
     this.savingAddress = true;
     this.errorMessage = '';
-    this.adminService.updateUserApartment(this.selectedUser.id, apartment.id, { ...apartment }).subscribe({
+    this.adminService.updateUserApartment(this.selectedUser.id, draft.id, { ...draft }).subscribe({
       next: (updated) => {
-        const idx = this.selectedUser!.apartments?.findIndex(a => a.id === apartment.id) ?? -1;
+        const idx = this.selectedUser!.apartments?.findIndex(a => a.id === draft.id) ?? -1;
         if (idx !== -1 && this.selectedUser!.apartments)
           this.selectedUser!.apartments[idx] = updated;
         this.editingAddressId = null;
+        this.editAddressDraft = null;
         this.successMessage = 'Address updated.';
         setTimeout(() => { this.successMessage = ''; }, 3000);
       },
@@ -1419,6 +1485,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.showAddAddress = true;
     this.newAddress = { name: '', address: '', city: '', state: '', postalCode: '' };
     this.editingAddressId = null;
+    this.editAddressDraft = null;
   }
 
   cancelAddAddress(): void {
@@ -1427,7 +1494,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   addNewAddress(): void {
-    if (!this.selectedUser || this.savingAddress) return;
+    if (!this.selectedUser || !this.canEditUserDetails(this.selectedUser) || this.savingAddress) return;
     if (!this.newAddress.name?.trim() || !this.newAddress.address?.trim() || !this.newAddress.city?.trim() ||
         !this.newAddress.state?.trim() || !this.newAddress.postalCode?.trim()) {
       this.errorMessage = 'Name, address, city, state and postal code are required.';
@@ -1455,7 +1522,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   deleteAddress(apartment: Apartment, event?: Event): void {
     if (event) event.stopPropagation();
-    if (!this.selectedUser || this.savingAddress) return;
+    if (!this.selectedUser || !this.canEditUserDetails(this.selectedUser) || this.savingAddress) return;
     if (!confirm(`Delete address "${apartment.name}"?`)) return;
     this.savingAddress = true;
     this.errorMessage = '';
@@ -1463,7 +1530,10 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       next: () => {
         if (this.selectedUser!.apartments)
           this.selectedUser!.apartments = this.selectedUser!.apartments.filter(a => a.id !== apartment.id);
-        if (this.editingAddressId === apartment.id) this.editingAddressId = null;
+        if (this.editingAddressId === apartment.id) {
+          this.editingAddressId = null;
+          this.editAddressDraft = null;
+        }
         this.successMessage = 'Address deleted.';
         setTimeout(() => { this.successMessage = ''; }, 3000);
       },

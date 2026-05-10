@@ -229,6 +229,14 @@ export class BubbleRewardsService {
     return this.http.delete(`${this.apiUrl}/admin/rewards/users/${userId}/referred-by`);
   }
 
+  setReferredBy(userId: number, email: string): Observable<any> {
+    return this.http.post(`${this.apiUrl}/admin/rewards/users/${userId}/referred-by`, { email });
+  }
+
+  searchEligibleReferrers(userId: number, query: string): Observable<EligibleReferral[]> {
+    return this.http.get<EligibleReferral[]>(`${this.apiUrl}/admin/rewards/users/${userId}/eligible-referrers?query=${encodeURIComponent(query)}`);
+  }
+
   addReferredUser(userId: number, email: string): Observable<any> {
     return this.http.post(`${this.apiUrl}/admin/rewards/users/${userId}/referrals`, { email });
   }

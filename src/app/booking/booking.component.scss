@@ -5618,7 +5618,7 @@
       left: -5%;
       width: 200px;
       height: 200px;
-      background: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.15);
       border-radius: 50%;
     }
     
@@ -5641,7 +5641,7 @@
       margin: 0;
       font-size: 14px;
       line-height: 1.5;
-      color: #333;
+      color: var(--soft-yellow-text);
       text-align: left;
       position: relative;
       font-family: 'Poppins', sans-serif;
@@ -5649,7 +5649,7 @@
     }
 
     .note-label {
-      color: var(--primary-color);
+      color: var(--soft-yellow-text);
       font-weight: 600;
       position: relative;
       font-family: 'Poppins', sans-serif;
@@ -8022,5 +8022,206 @@
     color: var(--primary-color, #007bff);
     font-weight: 600;
     margin-left: 0.2rem;
+  }
+}
+
+/* =============================================================
+   MODERN HERO SHELL — booking page surface upgrade
+   Mirrors the home-page hero: ambient gradient + dual glows,
+   white-surface cards on a generous radius, deeper elevation.
+   Appended last so it overrides the legacy hardcoded greys above.
+============================================================= */
+
+.booking-container {
+  background: var(--hero-bg);
+  position: relative;
+  /* `clip` (not `hidden`) so the ambient glows are clipped without creating
+     a scroll container — `overflow: hidden` here would break the sticky
+     .booking-summary, which is the same reason the legacy comments above
+     forbid overflow-x: hidden on this element. */
+  overflow: clip;
+  isolation: isolate;
+}
+
+/* Ambient glows — sit behind everything via z-index: 0 + content lifted to 1 */
+.booking-container::before,
+.booking-container::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.booking-container::before {
+  top: -140px;
+  right: -120px;
+  width: 540px;
+  height: 540px;
+  background: var(--hero-glow-blue);
+}
+
+.booking-container::after {
+  bottom: -180px;
+  left: -140px;
+  width: 480px;
+  height: 480px;
+  background: var(--hero-glow-green);
+}
+
+.booking-container > .booking-content {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 768px) {
+  .booking-container::before {
+    width: 320px;
+    height: 320px;
+    top: -80px;
+    right: -80px;
+  }
+  .booking-container::after {
+    width: 280px;
+    height: 280px;
+    bottom: -100px;
+    left: -80px;
+  }
+}
+
+.booking-content > .booking-header > h1,
+.booking-content > h1 {
+  font-weight: var(--fw-black);
+  font-size: clamp(1.85rem, 4vw, 2.75rem);
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+}
+
+.booking-form {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-2xl);
+  box-shadow: 0 10px 40px var(--shadow-color);
+}
+
+@media (max-width: 463px) {
+  .booking-form {
+    border-radius: var(--radius-xl);
+  }
+}
+
+@media (max-width: 420px) {
+  .booking-form {
+    border-radius: var(--radius-lg);
+  }
+}
+
+.booking-summary .summary-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-2xl);
+  box-shadow: 0 10px 40px var(--shadow-color);
+}
+
+/* Mobile/tablet: keep the legacy soft-blue tint (intentional emphasis when
+   the summary is sticky on small screens), only modernize the radius.
+   The background/border are restated here because our base rule above has
+   higher specificity than the legacy `.summary-card` rule and would
+   otherwise wipe out the mobile emphasis. */
+@media (max-width: 1200px) {
+  .booking-summary .summary-card {
+    background-color: var(--soft-blue);
+    border-color: var(--primary-color);
+    border-radius: var(--radius-xl);
+  }
+}
+
+@media (max-width: 768px) {
+  .booking-summary .summary-card {
+    border-radius: var(--radius-lg);
+  }
+}
+
+.mobile-booking-summary .summary-card-mobile {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 8px 24px var(--shadow-color);
+}
+
+.booking-form .booking-section > h2 {
+  font-weight: var(--fw-extrabold);
+  letter-spacing: -0.01em;
+}
+
+.booking-form .booking-section > h2.large-header {
+  font-weight: var(--fw-black);
+}
+
+.step-navigation {
+  .next-btn,
+  .book-btn {
+    background: var(--btn-primary);
+    border: none;
+    color: #fff;
+    font-weight: var(--fw-extrabold);
+    box-shadow: var(--btn-primary-shadow);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+
+    &:hover:not(:disabled):not(.disabled) {
+      background: var(--btn-primary-hover);
+      border: none;
+      transform: translateY(-2px);
+      box-shadow: var(--btn-primary-shadow-hover);
+    }
+
+    &:active:not(:disabled):not(.disabled) {
+      transform: translateY(0);
+    }
+  }
+
+  .book-now-btn {
+    box-shadow: var(--btn-secondary-shadow) !important;
+
+    &:hover:not(:disabled):not(.disabled) {
+      box-shadow: var(--btn-secondary-shadow-hover) !important;
+    }
+  }
+
+  .back-btn {
+    background-color: var(--surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px var(--shadow-color);
+    transition: transform 0.2s ease, box-shadow 0.2s ease,
+      background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+
+    &:hover:not(:disabled) {
+      background-color: var(--surface-elevated);
+      border-color: var(--primary-color);
+      color: var(--text-primary);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px var(--shadow-color);
+    }
+  }
+}
+
+:host-context([data-theme="dark"]) {
+  .booking-form,
+  .booking-summary .summary-card,
+  .mobile-booking-summary .summary-card-mobile {
+    box-shadow: 0 10px 40px var(--shadow-color);
+  }
+
+  .step-navigation .back-btn {
+    background-color: var(--surface);
+    color: var(--text-secondary);
+    border-color: var(--border-color);
+
+    &:hover:not(:disabled) {
+      background-color: var(--surface-elevated);
+      color: var(--text-primary);
+    }
   }
 }

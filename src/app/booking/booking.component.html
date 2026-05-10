@@ -499,6 +499,52 @@
 
           <!-- Regular Booking Sections - show during load (shimmer) or when service type selected -->
           <ng-container *ngIf="loading.serviceTypes || (selectedServiceType && !showPollForm && !showCustomPricing)">
+            <!-- Cleaning Type + what's included: loading shimmer, or Residential with deep-cleaning option -->
+            <ng-container *ngIf="loading.serviceTypes || loading.cleaningTypes || (selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning)">
+              <div
+                class="cleaning-type-cta-banner"
+                *ngIf="!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning"
+                role="note">
+                <i class="fas fa-star cleaning-type-cta-banner__star" aria-hidden="true"></i>
+                <div class="cleaning-type-cta-banner__body">
+                  <p class="cleaning-type-cta-banner__lead">
+                    <strong>Not sure which to choose?</strong> Most first-time customers choose Deep Cleaning for the best results.
+                  </p>
+                </div>
+              </div>
+              <label>Cleaning Type <span class="required">*</span></label>
+              <div class="cleaning-type-selection">
+                <!-- Shimmer when loading service types or cleaning types (visible on page refresh) -->
+                <div *ngIf="loading.serviceTypes || loading.cleaningTypes" class="cleaning-type-buttons" [shimmer]="true"></div>
+                <!-- Real buttons when loaded and this service type has deep cleaning -->
+                <div *ngIf="!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning" class="cleaning-type-buttons">
+                  <button
+                    type="button"
+                    class="cleaning-type-btn"
+                    [class.selected]="cleaningType.value === 'normal'"
+                    (click)="selectCleaningType('normal')">
+                    Regular Cleaning
+                  </button>
+                  <button
+                    type="button"
+                    class="cleaning-type-btn"
+                    [class.selected]="cleaningType.value === 'deep'"
+                    (click)="selectCleaningType('deep')">
+                    Deep Cleaning
+                  </button>
+                </div>
+                <div class="error-message" *ngIf="!loading.serviceTypes && !loading.cleaningTypes && cleaningType.invalid && cleaningType.touched">
+                  <div *ngIf="cleaningType.errors?.['required']">Cleaning type is required</div>
+                </div>
+              </div>
+              <app-cleaning-type-details-expandable
+                *ngIf="!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning"
+                [cleaningType]="cleaningType.value === 'deep' ? 'deep' : 'normal'">
+              </app-cleaning-type-details-expandable>
+            </ng-container>
+
+            <app-move-in-out-checklist *ngIf="!loading.serviceTypes && isMoveInOutCleaningServiceType()"></app-move-in-out-checklist>
+
             <!-- Step 4: Services (Bedrooms / Bathrooms / SqFt) -->
             <section class="booking-section">
               <div class="services">
@@ -712,52 +758,6 @@
                   </div>
                 </div>
               </section>
-              
-              <!-- Cleaning Type + what's included: loading shimmer, or Residential with deep-cleaning option -->
-              <ng-container *ngIf="loading.serviceTypes || loading.cleaningTypes || (selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning)">
-                <div
-                  class="cleaning-type-cta-banner"
-                  *ngIf="!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning"
-                  role="note">
-                  <i class="fas fa-star cleaning-type-cta-banner__star" aria-hidden="true"></i>
-                  <div class="cleaning-type-cta-banner__body">
-                    <p class="cleaning-type-cta-banner__lead">
-                      <strong>Not sure which to choose?</strong> Most first-time customers choose Deep Cleaning for the best results.
-                    </p>
-                  </div>
-                </div>
-                <label>Cleaning Type <span class="required">*</span></label>
-                <div class="cleaning-type-selection">
-                  <!-- Shimmer when loading service types or cleaning types (visible on page refresh) -->
-                  <div *ngIf="loading.serviceTypes || loading.cleaningTypes" class="cleaning-type-buttons" [shimmer]="true"></div>
-                  <!-- Real buttons when loaded and this service type has deep cleaning -->
-                  <div *ngIf="!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning" class="cleaning-type-buttons">
-                    <button 
-                      type="button"
-                      class="cleaning-type-btn"
-                      [class.selected]="cleaningType.value === 'normal'"
-                      (click)="selectCleaningType('normal')">
-                      Regular Cleaning
-                    </button>
-                    <button 
-                      type="button"
-                      class="cleaning-type-btn"
-                      [class.selected]="cleaningType.value === 'deep'"
-                      (click)="selectCleaningType('deep')">
-                      Deep Cleaning
-                    </button>
-                  </div>
-                  <div class="error-message" *ngIf="!loading.serviceTypes && !loading.cleaningTypes && cleaningType.invalid && cleaningType.touched">
-                    <div *ngIf="cleaningType.errors?.['required']">Cleaning type is required</div>
-                  </div>
-                </div>
-                <app-cleaning-type-details-expandable
-                  *ngIf="!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning"
-                  [cleaningType]="cleaningType.value === 'deep' ? 'deep' : 'normal'">
-                </app-cleaning-type-details-expandable>
-              </ng-container>
-
-              <app-move-in-out-checklist *ngIf="!loading.serviceTypes && isMoveInOutCleaningServiceType()"></app-move-in-out-checklist>
 
               <div class="extra-services-header-container">
                 <h2 class="extra-services-header">Extra Services</h2>

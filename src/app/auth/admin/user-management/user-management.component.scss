@@ -1621,6 +1621,102 @@ $app-header-height-mobile: 60px;
   }
 }
 
+// Referrals section
+.referrals-card {
+  .referral-block + .referral-block {
+    margin-top: 1rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .referral-block__label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    margin-bottom: 0.35rem;
+  }
+
+  .referral-block__value {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    &.muted {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    strong { font-weight: 600; }
+  }
+
+  .referral-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 0.5rem;
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.4rem 0;
+
+      & + li { border-top: 1px solid var(--border-color); }
+
+      .referral-list__main { flex: 1; min-width: 0; font-size: 0.85rem; }
+    }
+  }
+
+  .referral-form {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+    align-items: flex-start;
+
+    .referral-search {
+      flex: 1;
+      position: relative;
+
+      .small-input {
+        width: 100%;
+        padding: 0.4rem 0.55rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 5px;
+        font-size: 0.8rem;
+      }
+    }
+
+    .suggest-list {
+      position: absolute;
+      top: calc(100% + 2px);
+      left: 0;
+      right: 0;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      background: var(--surface-elevated);
+      border: 1px solid var(--border-color);
+      border-radius: 5px;
+      box-shadow: 0 4px 12px var(--shadow-color);
+      max-height: 220px;
+      overflow-y: auto;
+      z-index: 10;
+
+      li {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.78rem;
+        cursor: pointer;
+        color: var(--text-primary);
+
+        &:hover { background: var(--page-bg); }
+        & + li { border-top: 1px solid var(--border-color); }
+      }
+    }
+  }
+}
+
 // Small / muted text variants used inside cards
 .small { font-size: 0.7rem; }
 
