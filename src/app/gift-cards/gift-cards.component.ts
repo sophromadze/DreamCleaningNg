@@ -62,10 +62,6 @@ export class GiftCardsComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    // Preload the main image as fallback, but let loadGiftCardBackground handle the actual image
-    if (this.isBrowser) {
-      this.preloadMainImage();
-    }
     this.loadCurrentUser();
     this.prefillUserData();
     this.loadGiftCardBackground();
@@ -260,18 +256,6 @@ export class GiftCardsComponent implements OnInit, OnDestroy {
 
   getGiftCardBackground(): string {
     return this.giftCardBackgroundPath;
-  }
-
-  private preloadMainImage() {
-    // Only execute in browser environment
-    if (!this.isBrowser) return;
-    
-    // Create a link element to preload the main image as fallback
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'image';
-    link.href = '/images/mainImage.webp';
-    document.head.appendChild(link);
   }
 
   private createPreloadLink(imagePath: string) {

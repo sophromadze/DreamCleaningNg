@@ -1,0 +1,168 @@
+<div class="ba-admin">
+
+  <header class="ba-admin__header">
+    <div>
+      <h2>Before &amp; After Gallery</h2>
+      <p class="ba-admin__sub">These pairs render in the homepage "See the difference" section. Hidden when nothing is active.</p>
+    </div>
+    <button type="button" class="btn-primary" (click)="openCreate()" *ngIf="!showCreateForm">
+      + Add new pair
+    </button>
+  </header>
+
+  <div class="error-message" *ngIf="errorMessage">{{ errorMessage }}</div>
+  <div class="success-message" *ngIf="successMessage">{{ successMessage }}</div>
+
+  <!-- Create form -->
+  <section class="ba-admin__create" *ngIf="showCreateForm">
+    <h3>New before/after pair</h3>
+
+    <div class="ba-admin__create-grid">
+      <label class="ba-admin__field">
+        <span>Title <em>*</em></span>
+        <input type="text" maxlength="120"
+               [(ngModel)]="createForm.title"
+               name="title"
+               placeholder="e.g. Kitchen Reset">
+      </label>
+
+      <label class="ba-admin__field">
+        <span>Subtitle</span>
+        <input type="text" maxlength="255"
+               [(ngModel)]="createForm.subtitle"
+               name="subtitle"
+               placeholder="Before → After kitchen deep cleaning">
+      </label>
+
+      <label class="ba-admin__field">
+        <span>"View more results" link</span>
+        <input type="text" maxlength="500"
+               [(ngModel)]="createForm.linkUrl"
+               name="linkUrl"
+               placeholder="/services/residential-cleaning/kitchen">
+      </label>
+
+      <label class="ba-admin__field ba-admin__field--small">
+        <span>Display order</span>
+        <input type="number" min="0"
+               [(ngModel)]="createForm.displayOrder"
+               name="displayOrder"
+               placeholder="0">
+      </label>
+    </div>
+
+    <div class="ba-admin__create-files">
+      <div class="ba-admin__file-slot">
+        <label class="ba-admin__file-label">Before photo <em>*</em></label>
+        <div class="ba-admin__dropzone" [class.has-preview]="createForm.beforePreview">
+          <img *ngIf="createForm.beforePreview" [src]="createForm.beforePreview" alt="Before preview">
+          <span *ngIf="!createForm.beforePreview">Click to choose…</span>
+          <input type="file" accept="image/*" (change)="onBeforeFileChange($event)">
+        </div>
+      </div>
+
+      <div class="ba-admin__file-slot">
+        <label class="ba-admin__file-label">After photo <em>*</em></label>
+        <div class="ba-admin__dropzone" [class.has-preview]="createForm.afterPreview">
+          <img *ngIf="createForm.afterPreview" [src]="createForm.afterPreview" alt="After preview">
+          <span *ngIf="!createForm.afterPreview">Click to choose…</span>
+          <input type="file" accept="image/*" (change)="onAfterFileChange($event)">
+        </div>
+      </div>
+    </div>
+
+    <div class="ba-admin__actions">
+      <button type="button" class="btn-secondary" (click)="submitCreate()" [disabled]="isSubmitting">
+        {{ isSubmitting ? 'Uploading…' : 'Save pair' }}
+      </button>
+      <button type="button" class="ba-admin__cancel" (click)="cancelCreate()" [disabled]="isSubmitting">
+        Cancel
+      </button>
+    </div>
+  </section>
+
+  <!-- List -->
+  <section class="ba-admin__list">
+    <p class="ba-admin__loading" *ngIf="isLoading">Loading…</p>
+
+    <p class="ba-admin__empty" *ngIf="!isLoading && photos.length === 0">
+      No before/after pairs yet. Add the first one with the button above.
+    </p>
+
+    <article class="ba-admin__card"
+             *ngFor="let p of photos; trackBy: trackById"
+             [class.is-inactive]="!p.isActive">
+
+      <div class="ba-admin__card-media">
+        <div class="ba-admin__media-side">
+          <img [src]="p.beforePhotoUrl" [alt]="p.title + ' — before'" loading="lazy">
+          <span class="ba-admin__media-tag ba-admin__media-tag--before">Before</span>
+          <label class="ba-admin__media-replace">
+            Replace
+            <input type="file" accept="image/*" (change)="replaceImage(p, 'before', $event)">
+          </label>
+        </div>
+        <div class="ba-admin__media-side">
+          <img [src]="p.afterPhotoUrl" [alt]="p.title + ' — after'" loading="lazy">
+          <span class="ba-admin__media-tag ba-admin__media-tag--after">After</span>
+          <label class="ba-admin__media-replace">
+            Replace
+            <input type="file" accept="image/*" (change)="replaceImage(p, 'after', $event)">
+          </label>
+        </div>
+      </div>
+
+      <!-- View mode -->
+      <div class="ba-admin__card-body" *ngIf="editing?.id !== p.id">
+        <div class="ba-admin__card-row">
+          <h3>{{ p.title }}</h3>
+          <span class="ba-admin__chip" [class.ba-admin__chip--off]="!p.isActive">
+            {{ p.isActive ? 'Active' : 'Hidden' }}
+          </span>
+        </div>
+        <p class="ba-admin__sub" *ngIf="p.subtitle">{{ p.subtitle }}</p>
+        <p class="ba-admin__meta">
+          Order: {{ p.displayOrder }}<span *ngIf="p.linkUrl"> · Link: {{ p.linkUrl }}</span>
+        </p>
+        <div class="ba-admin__card-actions">
+          <button type="button" class="btn-link" (click)="startEdit(p)">Edit</button>
+          <button type="button" class="btn-link" (click)="toggleActive(p)">
+            {{ p.isActive ? 'Hide' : 'Show' }}
+          </button>
+          <button type="button" class="btn-link btn-link--danger" (click)="delete(p)">Delete</button>
+        </div>
+      </div>
+
+      <!-- Edit mode -->
+      <div class="ba-admin__card-body" *ngIf="editing?.id === p.id">
+        <label class="ba-admin__field">
+          <span>Title</span>
+          <input type="text" maxlength="120" [(ngModel)]="editing!.title" name="editTitle">
+        </label>
+        <label class="ba-admin__field">
+          <span>Subtitle</span>
+          <input type="text" maxlength="255" [(ngModel)]="editing!.subtitle" name="editSubtitle">
+        </label>
+        <label class="ba-admin__field">
+          <span>Link</span>
+          <input type="text" maxlength="500" [(ngModel)]="editing!.linkUrl" name="editLinkUrl">
+        </label>
+        <div class="ba-admin__inline-row">
+          <label class="ba-admin__field ba-admin__field--small">
+            <span>Order</span>
+            <input type="number" min="0" [(ngModel)]="editing!.displayOrder" name="editDisplayOrder">
+          </label>
+          <label class="ba-admin__checkbox">
+            <input type="checkbox" [(ngModel)]="editing!.isActive" name="editIsActive">
+            Active
+          </label>
+        </div>
+        <div class="ba-admin__card-actions">
+          <button type="button" class="btn-secondary" (click)="saveEdit()">Save</button>
+          <button type="button" class="ba-admin__cancel" (click)="cancelEdit()">Cancel</button>
+        </div>
+      </div>
+    </article>
+  </section>
+
+</div>

@@ -204,6 +204,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   }> = [];
   maxPhotos = 12;
   maxFileSize = 15 * 1024 * 1024; // 15MB per photo
+  readonly specialInstructionsMaxLength = 2000;
   acceptedFormats = 'image/jpeg,image/jpg,image/png,image/webp,image/gif,image/bmp,image/heic,image/heif';
   isUploadingPhoto = false;
   photoUploadError = '';
@@ -344,7 +345,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       serviceTime: ['', Validators.required],
       entryMethod: ['I will be home', Validators.required],
       customEntryMethod: [''],
-      specialInstructions: [''],
+      specialInstructions: ['', Validators.maxLength(2000)],
       contactFirstName: ['', Validators.required],
       contactLastName: ['', Validators.required],
       contactEmail: ['', [Validators.required, Validators.email]],

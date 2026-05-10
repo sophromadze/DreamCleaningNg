@@ -486,7 +486,7 @@
                     <label><span>City</span><input type="text" [(ngModel)]="apt.city"></label>
                     <label><span>State</span><input type="text" [(ngModel)]="apt.state"></label>
                     <label><span>Postal Code</span><input type="text" [(ngModel)]="apt.postalCode" maxlength="5"></label>
-                    <label class="full-row"><span>Special instructions</span><input type="text" [(ngModel)]="apt.specialInstructions"></label>
+                    <label class="full-row"><span>Special instructions</span><input type="text" [(ngModel)]="apt.specialInstructions" maxlength="2000"></label>
                   </div>
                   <div class="edit-actions">
                     <button class="action-btn primary small" (click)="saveEditAddress(apt)" [disabled]="savingAddress">{{ savingAddress ? 'Saving…' : 'Save' }}</button>
@@ -507,7 +507,7 @@
                 <label><span>City</span><input type="text" [(ngModel)]="newAddress.city"></label>
                 <label><span>State</span><input type="text" [(ngModel)]="newAddress.state"></label>
                 <label><span>Postal Code</span><input type="text" [(ngModel)]="newAddress.postalCode" maxlength="5"></label>
-                <label class="full-row"><span>Special instructions</span><input type="text" [(ngModel)]="newAddress.specialInstructions"></label>
+                <label class="full-row"><span>Special instructions</span><input type="text" [(ngModel)]="newAddress.specialInstructions" maxlength="2000"></label>
               </div>
               <div class="edit-actions">
                 <button class="action-btn primary small" (click)="addNewAddress()" [disabled]="savingAddress">{{ savingAddress ? 'Saving…' : 'Add' }}</button>

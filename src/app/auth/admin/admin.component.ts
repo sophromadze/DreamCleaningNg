@@ -11,6 +11,7 @@ import { AuditHistoryComponent } from './audit-history/audit-history.component';
 import { CommunicationsComponent } from './communications/communications.component';
 import { DiscountsComponent } from './discounts/discounts.component';
 import { SchedulingComponent } from './scheduling/scheduling.component';
+import { BeforeAfterPhotosComponent } from './before-after-photos/before-after-photos.component';
 
 @Component({
   selector: 'app-admin',
@@ -23,7 +24,8 @@ import { SchedulingComponent } from './scheduling/scheduling.component';
     AuditHistoryComponent,
     CommunicationsComponent,
     DiscountsComponent,
-    SchedulingComponent
+    SchedulingComponent,
+    BeforeAfterPhotosComponent
   ],
   templateUrl: './admin.component.html',
   styleUrls: ['./admin.component.scss']

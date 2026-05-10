@@ -446,9 +446,14 @@
                 <textarea
                   [formControl]="specialInstructions"
                   rows="4"
+                  [maxlength]="specialInstructionsMaxLength"
                   placeholder="e.g., deep clean kitchen + bathrooms, focus on grout, fridge interior, etc."
                   class="custom-cleaning-description"
                   style="border-radius: 20px;"></textarea>
+                <small class="char-counter"
+                       [class.char-counter--limit]="(specialInstructions.value?.length || 0) >= specialInstructionsMaxLength">
+                  {{ specialInstructions.value?.length || 0 }} / {{ specialInstructionsMaxLength }} characters
+                </small>
               </div>
 
               <div class="form-group">
@@ -1038,9 +1043,14 @@
               <h2>Special Instructions (Optional)</h2>
               <div class="form-group">
                 <textarea [formControl]="specialInstructions"
-                          rows="4" 
-                          placeholder="Any special instructions or requests regarding your cleaning..." 
+                          rows="4"
+                          [maxlength]="specialInstructionsMaxLength"
+                          placeholder="Any special instructions or requests regarding your cleaning..."
                           style="border-radius: 20px;"></textarea>
+                <small class="char-counter"
+                       [class.char-counter--limit]="(specialInstructions.value?.length || 0) >= specialInstructionsMaxLength">
+                  {{ specialInstructions.value?.length || 0 }} / {{ specialInstructionsMaxLength }} characters
+                </small>
               </div>
             </section>
           </ng-container>

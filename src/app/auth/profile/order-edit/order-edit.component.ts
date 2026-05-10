@@ -50,6 +50,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   // UI state
   isLoading = true;
   isSaving = false;
+  readonly specialInstructionsMaxLength = 2000;
   errorMessage = '';
   successMessage = '';
   additionalAmount = 0;
@@ -163,7 +164,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       serviceTime: ['', Validators.required],
       entryMethod: ['', Validators.required],
       customEntryMethod: [''],
-      specialInstructions: [''],
+      specialInstructions: ['', Validators.maxLength(2000)],
       contactFirstName: ['', Validators.required],
       contactLastName: ['', Validators.required],
       contactEmail: ['', [Validators.required, Validators.email]],

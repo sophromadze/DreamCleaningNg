@@ -106,16 +106,16 @@ import { ThemeService } from '../../services/theme.service';
       opacity: 0.8;
     }
     :host-context([data-theme="dark"]) .custom-google-btn {
-      background: #202124;
-      color: #fff;
-      border-color: rgba(255, 255, 255, 0.15);
+      background: var(--surface);
+      color: var(--text-primary);
+      border-color: var(--border-color);
     }
     :host-context([data-theme="dark"]) .custom-google-btn:hover:not(:disabled) {
-      background: #303134;
+      background: var(--page-bg);
       border-color: rgba(255, 255, 255, 0.25);
     }
     :host-context([data-theme="dark"]) .custom-google-btn:active:not(:disabled) {
-      background: #3c4043;
+      background: var(--page-bg);
     }
     .google-icon {
       width: 24px;

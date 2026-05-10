@@ -63,17 +63,17 @@ declare const AppleID: any;
       height: 24px;
     }
     :host-context([data-theme="dark"]) .apple-signin-btn {
-      background: #202124;
-      color: #fff;
-      border-color: rgba(255, 255, 255, 0.15);
+      background: var(--surface);
+      color: var(--text-primary);
+      border-color: var(--border-color);
     }
     :host-context([data-theme="dark"]) .apple-signin-btn:hover:not(:disabled) {
-      background: #303134;
+      background: var(--page-bg);
       border-color: rgba(255, 255, 255, 0.25);
-      color: #fff;
+      color: var(--text-primary);
     }
     :host-context([data-theme="dark"]) .apple-icon {
-      color: #fff;
+      color: var(--text-primary);
     }
   `]
 })

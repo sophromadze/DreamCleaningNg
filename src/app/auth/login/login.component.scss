@@ -427,9 +427,9 @@
   }
   .submit-btn {
     &:disabled {
-      background-color: #3a3a3a;
-      color: #888;
-      border: 1px solid #4a4a4a;
+      background-color: var(--surface);
+      color: var(--text-muted);
+      border: 1px solid var(--border-color);
     }
   }
   .auth-footer {

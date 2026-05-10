@@ -8,7 +8,8 @@ import { GooglePlacesService, Review } from '../services/google-reviews.service'
 import { SpecialOfferService, PublicSpecialOffer, UserSpecialOffer } from '../services/special-offer.service';
 import { AuthService } from '../services/auth.service';
 import { AuthModalService } from '../services/auth-modal.service';
-import { BookingService, ServiceType, Service } from '../services/booking.service';
+import { BookingService, ServiceType, Service, BlockedTimeSlot } from '../services/booking.service';
+import { BeforeAfterPhotoService } from '../services/before-after-photo.service';
 import { FormPersistenceService } from '../services/form-persistence.service';
 import { ShimmerDirective } from '../shared/directives/shimmer.directive';
 import { SERVICE_PRICING } from '../shared/service-pricing.data';
@@ -16,6 +17,17 @@ import { Subscription } from 'rxjs';
 
 interface ExtendedReview extends Review {
   isExpanded?: boolean;
+}
+
+/** Public-facing before/after photo card — populated from BeforeAfterPhotosController. */
+export interface BeforeAfterPhoto {
+  id: number;
+  title: string;
+  subtitle?: string | null;
+  beforePhotoUrl: string;
+  afterPhotoUrl: string;
+  linkUrl?: string | null;
+  displayOrder: number;
 }
 
 @Component({
@@ -61,6 +73,82 @@ export class MainComponent implements OnInit, OnDestroy {
   /** Marketing-copy prices (centralized in shared/service-pricing.data.ts). */
   readonly pricing = SERVICE_PRICING;
 
+  /** Index of the currently visible review in the testimonial slider. */
+  currentReviewIndex: number = 0;
+  private reviewSliderTimer: any = null;
+  private reviewSliderPaused: boolean = false;
+  private static readonly REVIEW_SLIDER_INTERVAL_MS = 6000;
+
+  /** Photos rendered in the "See the difference" gallery. Empty until the
+   *  admin uploads pairs in Admin → Before & After. */
+  beforeAfterPhotos: BeforeAfterPhoto[] = [];
+
+  // ============================================================================
+  // DEV-ONLY PREVIEW DATA — never reaches production builds.
+  //
+  // Wrapped in `!environment.production` checks so production builds always go
+  // through the real Google Reviews backend endpoint (cached, IP-restricted).
+  // These exist purely so the testimonial slider has something to render while
+  // working on the homepage locally — the Google API rejects calls from any
+  // non-hosting IP, so dev would otherwise see an empty slider.
+  // ============================================================================
+  private static readonly DEV_PREVIEW_REVIEWS: ExtendedReview[] = [
+    {
+      authorName: '[Dev Preview] Sample Reviewer A',
+      profilePhotoUrl: '',
+      rating: 5,
+      text: '[Local dev placeholder] Booking flow felt clean and quick. Replace with the real Google review text once production data is verified.',
+      time: new Date('2026-04-15')
+    },
+    {
+      authorName: '[Dev Preview] Sample Reviewer B',
+      profilePhotoUrl: '',
+      rating: 5,
+      text: '[Local dev placeholder] Use this slot to validate slider auto-advance and dot navigation. Hidden in production via the !environment.production gate.',
+      time: new Date('2026-04-02')
+    },
+    {
+      authorName: '[Dev Preview] Sample Reviewer C',
+      profilePhotoUrl: '',
+      rating: 5,
+      text: '[Local dev placeholder] Long-text variant: this string is here to confirm the 5-line clamp keeps the testimonial card from blowing out the surrounding grid layout when a reviewer writes a longer comment.',
+      time: new Date('2026-03-20')
+    }
+  ];
+
+  /** Hero "Next available" pill — populated from /api/booking/blocked-time-slots,
+   *  respects admin-blocked dates and whole-day/per-hour blocks. */
+  nextAvailableLabel: string = '';
+
+  /** "X bookings completed this week" — deterministic per day, grows through the week.
+   *  Same number all day; flips at midnight (and at noon on Mondays). */
+  bookingsThisWeek: number = 0;
+
+  /** All-time cleanings counter — baseline + daily deltas accumulated across every
+   *  past week. Weekly resets in `bookingsThisWeek` are absorbed by adding only
+   *  day-over-day differences (Tue=14, Wed=26 ⇒ adds 12, not 26). Carries across
+   *  weeks so it never restarts on Monday. */
+  overallJobs: number = 0;
+  /** Anchor for the all-time counter. Today (Sat 2026-05-09) starts at 723; every
+   *  subsequent day adds that day's delta over the prior day. Deliberately
+   *  baked into source so the number is consistent across visitors. */
+  private static readonly OVERALL_JOBS_BASELINE = 723;
+  private static readonly OVERALL_JOBS_BASELINE_YEAR = 2026;
+  private static readonly OVERALL_JOBS_BASELINE_MONTH = 4; // May (0-indexed)
+  private static readonly OVERALL_JOBS_BASELINE_DAY = 9;
+
+  /** Standard booking schedule (mirrors backend BookingController.GetAvailableTimeSlots). */
+  private static readonly TIME_SLOTS_WEEKDAY: string[] = [
+    '08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30',
+    '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30',
+    '16:00','16:30','17:00','17:30','18:00'
+  ];
+  private static readonly TIME_SLOTS_WEEKEND: string[] = [
+    '09:30','10:00','10:30','11:00','11:30',
+    '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30',
+    '16:00','16:30','17:00','17:30','18:00'
+  ];
+
   constructor(
     private googlePlacesService: GooglePlacesService,
     private specialOfferService: SpecialOfferService,
@@ -69,6 +157,7 @@ export class MainComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private bookingService: BookingService,
     private formPersistenceService: FormPersistenceService,
+    private beforeAfterPhotoService: BeforeAfterPhotoService,
     private router: Router,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
@@ -76,26 +165,42 @@ export class MainComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    // Preload the main hero image for this component only in browser
-    if (this.isBrowser) {
-      this.preloadMainImage();
-    }
     this.loadReviews();
     this.loadSpecialOffers();
     this.checkAuthStatus();
     this.loadServiceTypes();
+    // Deterministic-per-day counter (safe on SSR — pure date math, no API).
+    this.bookingsThisWeek = this.computeBookingsThisWeek();
+    this.overallJobs = this.computeOverallJobs();
+    // Fetch admin-blocked slots and pick the next free date+time.
+    this.loadNextAvailableSlot();
+    // Fetch admin-uploaded before/after photos.
+    this.loadBeforeAfterPhotos();
   }
 
   ngOnDestroy() {
     this.subscription.unsubscribe();
-    // Clean up any preload links created by this component only in browser
-    if (this.isBrowser) {
-      const mainImagePreloadLinks = document.querySelectorAll('link[rel="preload"][data-main-image="true"]');
-      mainImagePreloadLinks.forEach(link => link.remove());
+    if (this.reviewSliderTimer) {
+      clearInterval(this.reviewSliderTimer);
+      this.reviewSliderTimer = null;
     }
   }
 
   private loadReviews() {
+    // Local dev preview only — see DEV_PREVIEW_REVIEWS comment above.
+    // The `!environment.production` gate guarantees this branch is never
+    // taken in production builds, so the placeholder copy below stays out
+    // of the live site. To remove dev previews entirely, delete the array
+    // and this `if` block.
+    if (!environment.production) {
+      this.reviews = MainComponent.DEV_PREVIEW_REVIEWS.map(r => ({ ...r, isExpanded: false }));
+      this.totalReviews = this.reviews.length;
+      this.overallRating = 5;
+      this.startReviewSlider();
+      return;
+    }
+
+    // Production path: cached Google Reviews backend endpoint (7-day IMemoryCache).
     if (!this.showGoogleReviews) return;
     this.subscription.add(
       this.googlePlacesService.getReviews().subscribe({
@@ -106,9 +211,58 @@ export class MainComponent implements OnInit, OnDestroy {
           }));
           this.overallRating = data.overallRating;
           this.totalReviews = data.totalReviews;
+          this.startReviewSlider();
         },
         error: (error) => {
           console.error('Error loading reviews:', error);
+        }
+      })
+    );
+  }
+
+  // ---------- Testimonial slider ----------
+  private startReviewSlider() {
+    if (!this.isBrowser) return;
+    if (this.reviewSliderTimer) clearInterval(this.reviewSliderTimer);
+    if (this.reviews.length <= 1) return;
+    this.reviewSliderTimer = setInterval(() => {
+      if (this.reviewSliderPaused || this.reviews.length === 0) return;
+      this.currentReviewIndex = (this.currentReviewIndex + 1) % this.reviews.length;
+      this.cdr.detectChanges();
+    }, MainComponent.REVIEW_SLIDER_INTERVAL_MS);
+  }
+
+  goToReview(index: number) {
+    if (index < 0 || index >= this.reviews.length) return;
+    this.currentReviewIndex = index;
+    // Reset the auto-advance window so the user gets a full interval to read
+    // the slide they just clicked into.
+    this.startReviewSlider();
+  }
+
+  pauseReviewSlider()  { this.reviewSliderPaused = true; }
+  resumeReviewSlider() { this.reviewSliderPaused = false; }
+
+  // ---------- Before/After photos ----------
+  private loadBeforeAfterPhotos() {
+    if (!this.isBrowser) return;
+    this.subscription.add(
+      this.beforeAfterPhotoService.getPublic().subscribe({
+        next: (photos) => {
+          this.beforeAfterPhotos = (photos || []).map(p => ({
+            id: p.id,
+            title: p.title,
+            subtitle: p.subtitle,
+            beforePhotoUrl: p.beforePhotoUrl,
+            afterPhotoUrl: p.afterPhotoUrl,
+            linkUrl: p.linkUrl,
+            displayOrder: p.displayOrder
+          }));
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          // Endpoint not available yet (backend not deployed) — section just stays hidden.
+          this.beforeAfterPhotos = [];
         }
       })
     );
@@ -162,20 +316,6 @@ export class MainComponent implements OnInit, OnDestroy {
     );
   }
 
-  private preloadMainImage() {
-    // Only execute in browser environment
-    if (!this.isBrowser) return;
-    
-    // Create a link element to preload the main image
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'image';
-    link.href = '/images/mainImage.webp';
-    link.fetchPriority = 'high';
-    link.setAttribute('data-main-image', 'true'); // Mark it for easy removal
-    document.head.appendChild(link);
-  }
-
   getDisplayOffers(): PublicSpecialOffer[] {
     if (this.isLoggedIn) {
       // For logged users, show only their available offers
@@ -198,6 +338,204 @@ export class MainComponent implements OnInit, OnDestroy {
       // Open login modal if not logged in
       this.authModalService.open('login', '/booking');
     }
+  }
+
+  /** Mirrors booking.component.ts:getNowInNewYork — keeps day-of-week / hour
+   *  semantics anchored to NY business hours regardless of the visitor's TZ. */
+  private getNowInNewYork(): Date {
+    const nowUtc = new Date();
+    const nyString = nowUtc.toLocaleString('en-US', { timeZone: 'America/New_York' });
+    return new Date(nyString);
+  }
+
+  // ---------- Next-available slot (admin-block aware) ----------
+  /**
+   * Fetches the next ~14 days of admin block records and picks the first
+   * future date+time that is not blocked, mirroring the booking flow's
+   * earliest = tomorrow rule and the weekend 09:30 start.
+   */
+  private loadNextAvailableSlot() {
+    if (!this.isBrowser) return;
+
+    const now = this.getNowInNewYork();
+    const fromDate = new Date(now);
+    fromDate.setDate(fromDate.getDate() + 1); // earliest is tomorrow (matches booking page)
+    const toDate = new Date(now);
+    toDate.setDate(toDate.getDate() + 14);    // look 2 weeks ahead — plenty in practice
+
+    const fmt = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    this.subscription.add(
+      this.bookingService.getBlockedTimeSlots(fmt(fromDate), fmt(toDate)).subscribe({
+        next: (blocked) => {
+          this.nextAvailableLabel = this.findFirstAvailableSlot(fromDate, blocked);
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          // Backend unreachable — fall back to a sensible default so the panel still has copy.
+          this.nextAvailableLabel = this.formatSlotLabel(fromDate, '10:00');
+        }
+      })
+    );
+  }
+
+  private findFirstAvailableSlot(start: Date, blocked: BlockedTimeSlot[]): string {
+    // Index blocks by date string for O(1) lookup.
+    const blocksByDate = new Map<string, BlockedTimeSlot>();
+    for (const b of blocked) {
+      blocksByDate.set(b.date, b);
+    }
+
+    const cursor = new Date(start);
+    cursor.setHours(0, 0, 0, 0);
+
+    // Iterate up to 14 days; if everything's blocked we silently leave the label empty.
+    for (let i = 0; i < 14; i++) {
+      const dateKey = (() => {
+        const y = cursor.getFullYear();
+        const m = String(cursor.getMonth() + 1).padStart(2, '0');
+        const d = String(cursor.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      })();
+
+      const block = blocksByDate.get(dateKey);
+      if (!block || !block.isFullDay) {
+        // Day is bookable. Now find earliest non-blocked time.
+        const isWeekend = cursor.getDay() === 0 || cursor.getDay() === 6;
+        const slots = isWeekend
+          ? MainComponent.TIME_SLOTS_WEEKEND
+          : MainComponent.TIME_SLOTS_WEEKDAY;
+
+        const blockedHours = new Set<string>(
+          (block?.blockedHours ?? '').split(',').map(s => s.trim()).filter(Boolean)
+        );
+        const firstFree = slots.find(t => !blockedHours.has(t));
+        if (firstFree) {
+          return this.formatSlotLabel(cursor, firstFree);
+        }
+      }
+
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return '';
+  }
+
+  private formatSlotLabel(date: Date, time24: string): string {
+    // "Tomorrow 10:00 AM" if the date is exactly tomorrow, else "Mon, Mar 4 at 9:30 AM".
+    const tomorrow = this.getNowInNewYork();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    const target = new Date(date);
+    target.setHours(0, 0, 0, 0);
+
+    const [hh, mm] = time24.split(':').map(Number);
+    const period = hh >= 12 ? 'PM' : 'AM';
+    const hour12 = ((hh + 11) % 12) + 1;
+    const timeLabel = `${hour12}:${String(mm).padStart(2, '0')} ${period}`;
+
+    if (target.getTime() === tomorrow.getTime()) {
+      return `Tomorrow ${timeLabel}`;
+    }
+    const dayLabel = target.toLocaleDateString('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric'
+    });
+    return `${dayLabel} at ${timeLabel}`;
+  }
+
+  // ---------- Bookings counter (deterministic per day) ----------
+  /**
+   * Returns a number representing "bookings completed this week" that:
+   *   – is 0 on Monday before noon (NY local time)
+   *   – jumps to 2–6 on Monday afternoon
+   *   – grows through the week (Sun reaches ~36–44)
+   *   – stays the same all day (deterministic seed = year + day-of-year)
+   *
+   * `forDate` lets the all-time counter replay past days (treated as post-noon
+   * so Monday's AM/PM split resolves to the settled PM value).
+   */
+  private computeBookingsThisWeek(forDate?: Date): number {
+    const now = forDate ?? this.getNowInNewYork();
+    const dow = now.getDay();   // 0 = Sun, 1 = Mon, … 6 = Sat
+    // Past days have already settled — treat them as post-noon so Monday's
+    // AM/PM split returns the PM (non-zero) value.
+    const hour = forDate ? 12 : now.getHours();
+
+    // Per-day [min, max] ranges. Monday is split: AM = 0, PM = 2–6.
+    let range: [number, number];
+    if (dow === 1 && hour < 12) range = [0, 0];
+    else if (dow === 1)         range = [2, 6];
+    else if (dow === 2)         range = [6, 12];
+    else if (dow === 3)         range = [12, 18];
+    else if (dow === 4)         range = [18, 24];
+    else if (dow === 5)         range = [24, 30];
+    else if (dow === 6)         range = [30, 38];
+    else /* Sunday */           range = [36, 44];
+
+    if (range[0] === range[1]) return range[0];
+
+    // Seed = (year * 1000) + day-of-year, plus +0.5 for Monday PM so AM/PM differ.
+    const start = new Date(now.getFullYear(), 0, 0);
+    const dayOfYear = Math.floor((now.getTime() - start.getTime()) / 86_400_000);
+    const seed = now.getFullYear() * 1000 + dayOfYear + (dow === 1 && hour >= 12 ? 0.5 : 0);
+    const r = MainComponent.seededRandom(seed);
+    return range[0] + Math.floor(r * (range[1] - range[0] + 1));
+  }
+
+  /**
+   * All-time cleanings = baseline + sum of every past day's delta over the prior
+   * day. Monday is treated as "fresh start" — its delta is the day's own value
+   * (since the prior Sunday's value belongs to the previous, already-summed
+   * week). This makes the counter grow continuously across week boundaries
+   * without ever resetting.
+   */
+  private computeOverallJobs(): number {
+    const now = this.getNowInNewYork();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const baseline = new Date(
+      MainComponent.OVERALL_JOBS_BASELINE_YEAR,
+      MainComponent.OVERALL_JOBS_BASELINE_MONTH,
+      MainComponent.OVERALL_JOBS_BASELINE_DAY
+    );
+
+    if (today.getTime() <= baseline.getTime()) {
+      return MainComponent.OVERALL_JOBS_BASELINE;
+    }
+
+    let total = MainComponent.OVERALL_JOBS_BASELINE;
+    const cursor = new Date(baseline);
+    cursor.setDate(cursor.getDate() + 1);
+
+    while (cursor.getTime() <= today.getTime()) {
+      total += this.computeDailyDelta(cursor);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+
+    return total;
+  }
+
+  /** Day-over-day completed-bookings delta. On Monday the week resets, so the
+   *  delta is just that Monday's value (it doesn't subtract Sunday's). */
+  private computeDailyDelta(date: Date): number {
+    const todayValue = this.computeBookingsThisWeek(date);
+    if (date.getDay() === 1) {
+      return todayValue;
+    }
+    const yesterday = new Date(date);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayValue = this.computeBookingsThisWeek(yesterday);
+    return Math.max(0, todayValue - yesterdayValue);
+  }
+
+  /** Deterministic 0..1 hash from a numeric seed (Mulberry-style). Pure, no Math.random(). */
+  private static seededRandom(seed: number): number {
+    let t = (seed * 9301 + 49297) % 233280;
+    return (t / 233280 + 1) % 1; // ensure 0..1 range
   }
 
   // Booking form methods

@@ -203,7 +203,18 @@
                         <div class="edit-row" *ngIf="editOrderForm.bedroomsQuantity != null || editOrderForm.bathroomsQuantity != null"><label>Bedrooms (read-only)</label><input type="text" [value]="(editOrderForm.bedroomsQuantity ?? 0) === 0 ? 'Studio' : (editOrderForm.bedroomsQuantity ?? 'N/A')" readonly></div>
                         <div class="edit-row" *ngIf="editOrderForm.bedroomsQuantity != null || editOrderForm.bathroomsQuantity != null"><label>Bathrooms (read-only)</label><input type="text" [value]="editOrderForm.bathroomsQuantity ?? 'N/A'" readonly></div>
                         <div class="edit-row"><label>Entry</label><input [(ngModel)]="editOrderForm.entryMethod"></div>
-                        <div class="edit-row"><label>{{ isCustomServiceType(selectedOrder) ? 'Description' : 'Instructions' }}</label><textarea [(ngModel)]="editOrderForm.specialInstructions" rows="2"></textarea></div>
+                        <div class="edit-row">
+                          <label>{{ isCustomServiceType(selectedOrder) ? 'Description' : 'Instructions' }}</label>
+                          <div>
+                            <textarea [(ngModel)]="editOrderForm.specialInstructions"
+                                      rows="2"
+                                      [maxlength]="specialInstructionsMaxLength"></textarea>
+                            <small class="char-counter"
+                                   [class.char-counter--limit]="(editOrderForm.specialInstructions?.length || 0) >= specialInstructionsMaxLength">
+                              {{ editOrderForm.specialInstructions?.length || 0 }} / {{ specialInstructionsMaxLength }} characters
+                            </small>
+                          </div>
+                        </div>
                         <div class="edit-row">
                           <app-floor-type-selector
                             [selectedTypes]="editFloorTypes"

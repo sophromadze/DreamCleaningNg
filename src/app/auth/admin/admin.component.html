@@ -59,11 +59,17 @@
             *ngIf="userPermissions?.permissions?.canView">
       Audits
     </button>
-    <button class="tab-btn" 
+    <button class="tab-btn"
             [class.active]="activeTab === 'mails-sms'"
             (click)="setActiveTab('mails-sms')"
             *ngIf="userPermissions?.permissions?.canView">
       Mails &amp; SMS
+    </button>
+    <button class="tab-btn"
+            [class.active]="activeTab === 'before-after'"
+            (click)="setActiveTab('before-after')"
+            *ngIf="userPermissions?.permissions?.canView">
+      Before &amp; After
     </button>
   </div>
 
@@ -85,6 +91,7 @@
       <app-scheduling *ngSwitchCase="'scheduling'"></app-scheduling>
       <app-audit-history *ngSwitchCase="'audit-history'"></app-audit-history>
       <app-communications *ngSwitchCase="'mails-sms'"></app-communications>
+      <app-before-after-photos *ngSwitchCase="'before-after'"></app-before-after-photos>
     </ng-container>
   </div>
 </div>

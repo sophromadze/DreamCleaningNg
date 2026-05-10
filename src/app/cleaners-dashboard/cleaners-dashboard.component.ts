@@ -116,6 +116,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     error: string;
   } | null = null;
 
+  imageViewer: { src: string; alt: string; title: string } | null = null;
+
   readonly performanceOptions: { value: 'Praise' | 'Issue' | 'Warning'; label: string; icon: string }[] = [
     { value: 'Praise', label: 'Praise', icon: '✓' },
     { value: 'Issue', label: 'Issue', icon: '●' },
@@ -732,6 +734,15 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   closePerformanceModal(): void {
     this.performanceModalOpen = false;
     this.performanceModal = null;
+  }
+
+  openImageViewer(src: string | null | undefined, title: string, alt: string): void {
+    if (!src) return;
+    this.imageViewer = { src, alt, title };
+  }
+
+  closeImageViewer(): void {
+    this.imageViewer = null;
   }
 
   savePerformance(): void {

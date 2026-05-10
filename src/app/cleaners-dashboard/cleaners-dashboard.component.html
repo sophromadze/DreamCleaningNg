@@ -79,7 +79,15 @@
 
       <ng-container *ngIf="selectedDetail && !loadingDetail">
         <div class="detail-header">
-          <div class="avatar lg">
+          <div
+            class="avatar lg"
+            [class.clickable]="!!selectedDetail.photoUrl"
+            (click)="openImageViewer(selectedDetail.photoUrl, selectedDetail.firstName + ' ' + selectedDetail.lastName, 'cleaner photo')"
+            [attr.role]="selectedDetail.photoUrl ? 'button' : null"
+            [attr.tabindex]="selectedDetail.photoUrl ? 0 : null"
+            [attr.aria-label]="selectedDetail.photoUrl ? 'View profile photo' : null"
+            (keydown.enter)="openImageViewer(selectedDetail.photoUrl, selectedDetail.firstName + ' ' + selectedDetail.lastName, 'cleaner photo')"
+            (keydown.space)="$event.preventDefault(); openImageViewer(selectedDetail.photoUrl, selectedDetail.firstName + ' ' + selectedDetail.lastName, 'cleaner photo')">
             <img *ngIf="selectedDetail.photoUrl" [src]="selectedDetail.photoUrl" alt="cleaner photo" />
             <span *ngIf="!selectedDetail.photoUrl" class="avatar-initials">
               {{ (selectedDetail.firstName.charAt(0) || '') + (selectedDetail.lastName.charAt(0) || '') }}
@@ -90,9 +98,20 @@
               <h2>{{ selectedDetail.firstName }} {{ selectedDetail.lastName }}</h2>
               <span [class]="rankingClass(selectedDetail.ranking)">{{ rankingLabel(selectedDetail.ranking) }}</span>
             </div>
-            <a *ngIf="selectedDetail.phone" class="detail-phone" [href]="telHref(selectedDetail.phone)">
-              <span class="phone-icon" aria-hidden="true">📞</span>{{ selectedDetail.phone }}
-            </a>
+            <div class="contact-line">
+              <a *ngIf="selectedDetail.phone" class="detail-phone" [href]="telHref(selectedDetail.phone)">
+                <span class="phone-icon" aria-hidden="true">📞</span>{{ selectedDetail.phone }}
+              </a>
+              <button
+                *ngIf="selectedDetail.documentUrl"
+                type="button"
+                class="detail-document-btn"
+                (click)="openImageViewer(selectedDetail.documentUrl, (selectedDetail.firstName + ' ' + selectedDetail.lastName + ' — ' + (documentTypeLabel(selectedDetail.documentType) || 'Document')), 'cleaner document')"
+                [attr.aria-label]="'View ' + (documentTypeLabel(selectedDetail.documentType) || 'document')">
+                <span class="doc-icon" aria-hidden="true">📄</span>
+                <span class="doc-label">{{ documentTypeLabel(selectedDetail.documentType) || 'Document' }}</span>
+              </button>
+            </div>
           </div>
           <div class="detail-actions">
             <button type="button" class="btn-secondary" (click)="openEdit(selectedDetail)">Edit</button>
@@ -538,4 +557,12 @@
       </button>
     </div>
   </div>
+</div>
+
+<div *ngIf="imageViewer" class="image-viewer-overlay" (click)="closeImageViewer()">
+  <button type="button" class="image-viewer-close" (click)="closeImageViewer()" aria-label="Close">&times;</button>
+  <figure class="image-viewer-figure" (click)="$event.stopPropagation()">
+    <img [src]="imageViewer.src" [alt]="imageViewer.alt" />
+    <figcaption *ngIf="imageViewer.title">{{ imageViewer.title }}</figcaption>
+  </figure>
 </div>

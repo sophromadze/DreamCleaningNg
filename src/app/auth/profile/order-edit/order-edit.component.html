@@ -290,7 +290,14 @@
         <section class="section">
           <h2>Special Instructions (Optional)</h2>
           <div class="form-group">
-            <textarea formControlName="specialInstructions" rows="4" style="border-radius: 20px;"></textarea>
+            <textarea formControlName="specialInstructions"
+                      rows="4"
+                      [maxlength]="specialInstructionsMaxLength"
+                      style="border-radius: 20px;"></textarea>
+            <small class="char-counter"
+                   [class.char-counter--limit]="(orderForm.get('specialInstructions')?.value?.length || 0) >= specialInstructionsMaxLength">
+              {{ orderForm.get('specialInstructions')?.value?.length || 0 }} / {{ specialInstructionsMaxLength }} characters
+            </small>
           </div>
         </section>
   

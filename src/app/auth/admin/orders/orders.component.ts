@@ -45,7 +45,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   viewingOrderId: number | null = null;
 
   Math = Math;
-  
+  readonly specialInstructionsMaxLength = 2000;
+
   // Sticky header management
   private scrollListener?: () => void;
   private horizontalScrollListener?: () => void;

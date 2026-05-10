@@ -1,98 +1,294 @@
 /* You can add global styles to this file, and also import other style files */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@1,400;1,500;1,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@1,400;1,500;1,600&display=swap');
 @import '@fortawesome/fontawesome-free/css/all.css';
 
 /* Color Variables */
 :root {
-  --main-hero-image: url('/images/mainImage.webp');
-  
-  /* Theme: day (light) – page backgrounds and text */
-  --page-bg: #f5f5f5;
-  --text-primary: #1a1a1a;
-  --text-secondary: #444;
-  --text-muted: #666;
-  --text-color: #1a1a1a;
+  --main-hero-image: url('/images/cabinet-cleaning-in-nyc.webp');
+
+  /* ==============================================================
+     Theme: day (light) – page backgrounds and text
+     -- OLD defaults (pre-redesign), kept for reference --
+       --page-bg: #f5f5f5;
+       --text-primary: #1a1a1a;
+       --text-secondary: #444;
+       --text-muted: #666;
+       --text-color: #1a1a1a;
+       --surface: #ffffff;
+       --surface-elevated: #ffffff;
+       --surface-overlay: rgba(255, 255, 255, 0.85);
+       --border-color: rgba(0, 0, 0, 0.1);
+       --shadow-color: rgba(0, 0, 0, 0.1);
+       --shimmer-bg: #e3effd;
+       --footer-bg: #0056b3;
+       --footer-text: #fff;
+       --footer-text-muted: #b3d9ff;
+     -- NEW defaults (homepage redesign — Tailwind-aligned slate palette) --
+     ============================================================== */
+  --page-bg: #f8fafc;            /* slate-50, was #f5f5f5 */
+  --text-primary: #020617;       /* slate-950, was #1a1a1a */
+  --text-secondary: #334155;     /* slate-700, was #444 */
+  --text-muted: #64748b;         /* slate-500, was #666 */
+  --text-color: #020617;         /* legacy alias of --text-primary */
   --surface: #ffffff;
   --surface-elevated: #ffffff;
-  --surface-overlay: rgba(255, 255, 255, 0.85);
-  --border-color: rgba(0, 0, 0, 0.1);
-  --shadow-color: rgba(0, 0, 0, 0.1);
+  --surface-overlay: rgba(255, 255, 255, 0.90);
+  --border-color: rgba(15, 23, 42, 0.08);   /* slate-900 @ 8% */
+  --shadow-color: rgba(15, 23, 42, 0.10);
   --shimmer-bg: #e3effd;
-  --footer-bg: #0056b3;
+  --footer-bg: #0f172a;          /* slate-900, was #0056b3 — darker, modern */
   --footer-text: #fff;
-  --footer-text-muted: #b3d9ff;
-  
-  /* New color palette */
-  --primary-color: #007bff;
-  --soft-lavender: #9ea8df;
-  --mint-fresh: #e6f4f1;
-  --soft-blue: #e3f2fd;
-  --soft-red: #f4e6e6;
-  --soft-yellow: #eee8a9;
-  --soft-yellow-text: #856404;
-  --bright-red: #ff6b6b;
-  --fresh-green: #28a745;
-  --mint-fresh-border: #beddd7;
-  --primary-color-hover: #0056b3;
-  --primary-text: #0056b3;
-  --active-nav-link: #0056b3;
-  --soft-lavender-background: linear-gradient(135deg, #9ea8df 0%, #b8c0e6 100%);
-  --soft-lavender-background-light: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
-  --soft-yellow-background: linear-gradient(135deg, #eee8a9 0%, #f5f3d8 100%);
-  
-  /* Button gradient colors (unchanged for both themes) */
-  --btn-primary: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-  --btn-primary-hover: linear-gradient(135deg, #339cff 0%, #1a82ff 100%);
-  --btn-secondary: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
-  --btn-secondary-hover: linear-gradient(135deg, #48d164 0%, #34ce57 100%);
-  --btn-danger: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
-  --btn-danger-hover: linear-gradient(135deg, #ff8787 0%, #ff7979 100%);
-  
-  /* Button shadow colors */
-  --btn-primary-shadow: 0 4px 5px rgba(0, 123, 255, 0.3);
-  --btn-primary-shadow-hover: 0 8px 15px rgba(0, 123, 255, 0.4);
-  --btn-secondary-shadow: 0 4px 5px rgba(40, 167, 69, 0.3);
-  --btn-secondary-shadow-hover: 0 8px 15px rgba(40, 167, 69, 0.4);
-  --btn-danger-shadow: 0 4px 5px rgba(255, 107, 107, 0.3);
-  --btn-danger-shadow-hover: 0 8px 15px rgba(255, 107, 107, 0.4);
-  --btn-quote: #4a5599;
-  --btn-quote-hover: #6b77bd;
-  --btn-quote-shadow: 0 4px 5px rgba(107, 119, 189, 0.3);
-  --btn-quote-shadow-hover: 0 8px 15px rgba(107, 119, 189, 0.4);
+  --footer-text-muted: #94a3b8;  /* slate-400, was #b3d9ff */
+
+  /* ==============================================================
+     Brand / accent palette
+     -- OLD defaults --
+       --primary-color: #007bff;
+       --primary-color-hover: #0056b3;
+       --primary-text: #0056b3;
+       --active-nav-link: #0056b3;
+       --fresh-green: #28a745;
+       --bright-red: #ff6b6b;
+       --soft-blue: #e3f2fd;
+       --mint-fresh: #e6f4f1;
+       --soft-red: #f4e6e6;
+       --soft-yellow: #eee8a9;
+       --soft-yellow-text: #856404;
+       --mint-fresh-border: #beddd7;
+       --soft-lavender: #9ea8df;
+     -- INTERIM (homepage redesign v1, used emerald family for green tokens):
+        --fresh-green: #10b981;            (emerald-500)
+        --mint-fresh: #d1fae5;             (emerald-100)
+        --mint-fresh-border: #a7f3d0;      (emerald-200)
+     -- INTERIM v2 (switched to Tailwind v3 hex green family but used green-600
+        which read as too dark on light surfaces):
+        --fresh-green: #16a34a;            (green-600)
+     -- NEW defaults (Tailwind v4 oklch — wider P3 gamut, more vivid greens
+        on modern displays. Hex fallback below for browsers without oklch
+        support, then @supports block overrides with the actual oklch values
+        the React mockup ships with). --
+     ============================================================== */
+  --primary-color: #2563eb;          /* blue-600, was #007bff */
+  --primary-color-hover: #1d4ed8;    /* blue-700, was #0056b3 */
+  --primary-text: #1d4ed8;           /* blue-700, was #0056b3 */
+  --active-nav-link: #2563eb;        /* blue-600, was #0056b3 */
+  --fresh-green: #22c55e;            /* green-500 sRGB fallback (oklch override below) */
+  --bright-red: #ef4444;             /* red-500, was #ff6b6b */
+  --soft-blue: #dbeafe;              /* blue-100, was #e3f2fd */
+  --mint-fresh: #dcfce7;             /* green-100 sRGB fallback */
+  --soft-red: #fee2e2;               /* red-100, was #f4e6e6 */
+  --soft-yellow: #fef3c7;            /* amber-100, was #eee8a9 */
+  --soft-yellow-text: #92400e;       /* amber-800, was #856404 */
+  --mint-fresh-border: #bbf7d0;      /* green-200 sRGB fallback */
+  --soft-lavender: #a5b4fc;          /* indigo-300, was #9ea8df */
+  --soft-lavender-background: linear-gradient(135deg, #a5b4fc 0%, #c7d2fe 100%);
+  --soft-lavender-background-light: linear-gradient(135deg, #f8f9ff 0%, #eef2ff 100%);
+  --soft-yellow-background: linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%);
+
+  /* ==============================================================
+     Button gradients (theme-stable)
+     -- OLD defaults --
+       --btn-primary: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+       --btn-primary-hover: linear-gradient(135deg, #339cff 0%, #1a82ff 100%);
+       --btn-secondary: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+       --btn-secondary-hover: linear-gradient(135deg, #48d164 0%, #34ce57 100%);
+       --btn-danger: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
+       --btn-danger-hover: linear-gradient(135deg, #ff8787 0%, #ff7979 100%);
+     -- INTERIM (homepage redesign v1, --btn-secondary used emerald #10b981 -> #059669):
+        --btn-secondary: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        --btn-secondary-hover: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+        --btn-secondary-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+        --btn-secondary-shadow-hover: 0 10px 25px rgba(16, 185, 129, 0.35);
+     -- NEW defaults
+        primary  : Tailwind blue-600 → blue-700
+        secondary: Tailwind green-500 → green-600 (matches React mockup `bg-green-500`
+                   and `shadow-green-500/40`; brighter, more saturated than emerald)
+     ============================================================== */
+  --btn-primary: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  --btn-primary-hover: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  --btn-secondary: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);          /* green-500 → green-600 */
+  --btn-secondary-hover: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);    /* green-400 → green-500 */
+  --btn-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  --btn-danger-hover: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+
+  /* Button shadow colors
+     -- OLD --
+       --btn-primary-shadow: 0 4px 5px rgba(0, 123, 255, 0.3);
+       --btn-primary-shadow-hover: 0 8px 15px rgba(0, 123, 255, 0.4);
+       --btn-secondary-shadow: 0 4px 5px rgba(40, 167, 69, 0.3);
+       --btn-secondary-shadow-hover: 0 8px 15px rgba(40, 167, 69, 0.4);
+       --btn-danger-shadow: 0 4px 5px rgba(255, 107, 107, 0.3);
+       --btn-danger-shadow-hover: 0 8px 15px rgba(255, 107, 107, 0.4);
+     -- NEW (rgba of new brand colors) --
+   */
+  --btn-primary-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  --btn-primary-shadow-hover: 0 10px 25px rgba(37, 99, 235, 0.35);
+  --btn-secondary-shadow: 0 4px 12px rgba(34, 197, 94, 0.30);                  /* green-500 @ 30% */
+  --btn-secondary-shadow-hover: 0 12px 28px rgba(34, 197, 94, 0.40);           /* matches React shadow-green-500/40 */
+  --btn-danger-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+  --btn-danger-shadow-hover: 0 10px 25px rgba(239, 68, 68, 0.35);
+
+  /* Quote button (separate conversion path, indigo) */
+  --btn-quote: #4f46e5;              /* indigo-600, was #4a5599 */
+  --btn-quote-hover: #6366f1;        /* indigo-500, was #6b77bd */
+  --btn-quote-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  --btn-quote-shadow-hover: 0 10px 25px rgba(79, 70, 229, 0.35);
 
   /* Day mode: address autocomplete field has no border */
   --address-field-border: none;
+
+  /* ==============================================================
+     NEW tokens introduced for the homepage redesign
+     ============================================================== */
+  /* Hero section background (day) — soft slate→blue→green wash */
+  --hero-bg: linear-gradient(135deg, #ffffff 0%, #eff6ff 50%, #f0fdf4 100%);
+  /* Hero glow accents (day) — green-500 family, was emerald (#10b981) */
+  --hero-glow-blue: rgba(59, 130, 246, 0.18);
+  --hero-glow-green: rgba(34, 197, 94, 0.18);
+
+  /* Glass surface (translucent panel inside hero card / image overlays) */
+  --surface-glass: rgba(255, 255, 255, 0.85);
+  --surface-glass-strong: rgba(255, 255, 255, 0.92);
+  --surface-glass-border: rgba(255, 255, 255, 0.55);
+
+  /* Subtle surface tint on neutral backgrounds (used for inset boxes) */
+  --surface-subtle: #f1f5f9;         /* slate-100 */
+  --surface-subtle-ring: rgba(15, 23, 42, 0.06);
+
+  /* Warning / "almost full" — warm orange */
+  --warning-orange: #f97316;         /* orange-500 */
+  --warning-orange-text: #c2410c;    /* orange-700 — paired foreground on light bg */
+  --warning-orange-bg: #ffedd5;      /* orange-100 */
+  --warning-orange-border: rgba(249, 115, 22, 0.30);
+
+  /* Star color (for review ratings) */
+  --star-color: #facc15;             /* yellow-400, was hardcoded #ffd700 in many places */
+
+  /* Dark image-overlay scrims (theme-stable — used over full-color hero photos
+     where the image itself stays the same in both themes). Slate-950 base. */
+  --overlay-dark-soft: rgba(2, 6, 23, 0.20);
+  --overlay-dark: rgba(2, 6, 23, 0.35);
+  --overlay-dark-strong: rgba(2, 6, 23, 0.75);
+  --shadow-photo: 0 12px 30px rgba(2, 6, 23, 0.35);
+
+  /* Before/After placeholder backgrounds (used until real photos drop in).
+     Theme-stable: same look in day and night because the cards represent media. */
+  --gradient-photo-after: linear-gradient(135deg, rgba(37, 99, 235, 0.30) 0%, rgba(34, 197, 94, 0.30) 100%);
+  --surface-photo-empty: var(--surface-subtle);
+
+  /* Border-radius scale (rounded → very rounded for new design) */
+  --radius-sm: 0.5rem;     /* 8px */
+  --radius-md: 0.75rem;    /* 12px */
+  --radius-lg: 1rem;       /* 16px */
+  --radius-xl: 1.5rem;     /* 24px */
+  --radius-2xl: 2rem;      /* 32px — main card radius */
+  --radius-3xl: 2.5rem;    /* 40px — extra-large hero/CTA card radius */
+  --radius-pill: 9999px;
+
+  /* Typography weights (heavier scale to match new design's "font-black" feel) */
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --fw-extrabold: 800;
+  --fw-black: 900;
 }
 
-/* Night (dark) theme – opposite backgrounds and text */
+/* Night (dark) theme – opposite backgrounds and text
+   -- OLD defaults (pre-redesign) --
+     --page-bg: #1a1a1a;
+     --text-primary: #f0f0f0;
+     --text-secondary: #d8d8d8;
+     --text-muted: #b0b0b0;
+     --text-color: #f0f0f0;
+     --surface: #383838;
+     --surface-elevated: #454545;
+     --surface-overlay: rgba(56, 56, 56, 0.95);
+     --border-color: rgba(255, 255, 255, 0.15);
+     --shadow-color: rgba(0, 0, 0, 0.4);
+     --shimmer-bg: #2a3548;
+     --footer-bg: #1e2a3a;
+     --footer-text-muted: #a0c4e8;
+     --soft-blue: #1a2744;
+     --mint-fresh: #1e332e;
+     --soft-red: #2a1f1f;
+     --primary-text: #66b3ff;
+     --active-nav-link: #66b3ff;
+   -- NEW defaults (deeper slate base, matches React mockup #0f1115) --
+*/
 [data-theme="dark"] {
-  --page-bg: #1a1a1a;
-  --text-primary: #f0f0f0;
-  --text-secondary: #d8d8d8;
-  --text-muted: #b0b0b0;
-  --text-color: #f0f0f0;
-  /* Lighter gray for cards so they stand out from page background */
-  --surface: #383838;
-  --surface-elevated: #454545;
-  --surface-overlay: rgba(56, 56, 56, 0.95);
-  --border-color: rgba(255, 255, 255, 0.15);
-  --shadow-color: rgba(0, 0, 0, 0.4);
-  --shimmer-bg: #2a3548;
-  --footer-bg: #1e2a3a;
-  --footer-text: #f0f0f0;
-  --footer-text-muted: #a0c4e8;
-  /* Section backgrounds that are light in day mode → dark in night mode */
-  --soft-blue: #1a2744;
-  --mint-fresh: #1e332e;
-  --soft-red: #2a1f1f;
-  --soft-lavender-background: linear-gradient(135deg, #2a2a3a 0%, #252535 100%);
-  --soft-lavender-background-light: linear-gradient(135deg, #2a2a3a 0%, #252535 100%);
+  --page-bg: #0f1115;                 /* near-black slate, was #1a1a1a */
+  --text-primary: #f8fafc;            /* slate-50, was #f0f0f0 */
+  --text-secondary: #e2e8f0;          /* slate-200, was #d8d8d8 */
+  --text-muted: #94a3b8;              /* slate-400, was #b0b0b0 */
+  --text-color: #f8fafc;
+  --surface: #1e293b;                 /* slate-800, was #383838 */
+  --surface-elevated: #334155;        /* slate-700, was #454545 */
+  --surface-overlay: rgba(30, 41, 59, 0.95);
+  --border-color: rgba(255, 255, 255, 0.10);
+  --shadow-color: rgba(0, 0, 0, 0.50);
+  --shimmer-bg: #1e293b;
+  --footer-bg: #020617;               /* slate-950, was #1e2a3a */
+  --footer-text: #f8fafc;
+  --footer-text-muted: #94a3b8;       /* slate-400 */
 
-  --primary-text: #66b3ff;
-  --active-nav-link: #66b3ff;
+  /* Section backgrounds that are light in day mode → dark in night mode.
+     Mint-fresh switched from emerald-tinted to pure green-tinted to match the
+     React mockup's bg-green-500/15 callouts. */
+  --soft-blue: #0c1e3a;
+  --mint-fresh: #0a2a18;              /* dark green wash, was emerald-tint #0f2922 */
+  --soft-red: #2a1518;
+  --soft-yellow: #2a2208;             /* darker amber wash */
+  --soft-yellow-text: #fcd34d;        /* readable amber on dark */
+  --soft-lavender-background: linear-gradient(135deg, #1e1e2e 0%, #1a1a2e 100%);
+  --soft-lavender-background-light: linear-gradient(135deg, #1e1e2e 0%, #1a1a2e 100%);
+  --soft-yellow-background: linear-gradient(135deg, #2a2208 0%, #1a1505 100%);
+
+  --primary-text: #60a5fa;            /* blue-400, was #66b3ff */
+  --active-nav-link: #60a5fa;
+  --bright-red: #f87171;              /* red-400 — better contrast on dark */
+  --fresh-green: #4ade80;             /* green-400 sRGB fallback (oklch override below) */
+  --mint-fresh-border: rgba(34, 197, 94, 0.25); /* translucent green-500 fallback */
 
   /* Dark mode: address autocomplete field has border */
   --address-field-border: 1px solid var(--border-color);
+
+  /* New homepage tokens — dark variants */
+  --hero-bg: linear-gradient(135deg, #111827 0%, #0f1115 45%, #0a1a2f 100%);
+  --hero-glow-blue: rgba(59, 130, 246, 0.32);
+  --hero-glow-green: rgba(34, 197, 94, 0.18);     /* was rgba(16,185,129) emerald */
+
+  --surface-glass: rgba(255, 255, 255, 0.08);
+  --surface-glass-strong: rgba(15, 23, 42, 0.75);
+  --surface-glass-border: rgba(255, 255, 255, 0.10);
+
+  --surface-subtle: rgba(255, 255, 255, 0.05);
+  --surface-subtle-ring: rgba(255, 255, 255, 0.08);
+
+  --warning-orange-text: #fdba74;     /* orange-300 — readable on dark */
+  --warning-orange-bg: rgba(249, 115, 22, 0.15);
+  --warning-orange-border: rgba(249, 115, 22, 0.35);
+}
+
+/* ==============================================================
+   Tailwind v4 oklch greens — modern browsers (Chrome 111+, Firefox
+   113+, Safari 15.4+) get the wider P3 gamut, more vivid family
+   the React mockup ships with. Older browsers stay on the hex
+   fallbacks declared above.
+   ============================================================== */
+@supports (color: oklch(0% 0 0)) {
+  :root {
+    --fresh-green: oklch(72.3% 0.219 149.579);     /* green-500 */
+    --mint-fresh: oklch(96.2% 0.044 156.743);      /* green-100 */
+    --mint-fresh-border: oklch(92.5% 0.084 155.995); /* green-200 */
+  }
+
+  [data-theme="dark"] {
+    --fresh-green: oklch(79.2% 0.209 151.711);     /* green-400 — vivid on dark */
+    /* Translucent green-500 wash so success/badge surfaces breathe over the
+       dark page-bg the same way React's bg-green-500/10 does. */
+    --mint-fresh: oklch(72.3% 0.219 149.579 / 0.12);
+    --mint-fresh-border: oklch(72.3% 0.219 149.579 / 0.30);
+  }
 }
 
 /* Admin: Special Offers edit/create form — force dark container (avoids encapsulation override) */
@@ -302,6 +498,20 @@ textarea::placeholder {
 }
 .section-bg-alt {
   background: var(--page-bg) !important;
+}
+
+/* Inline character counter shown beneath capped textareas (e.g., special instructions). */
+.char-counter {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  text-align: right;
+
+  &--limit {
+    color: var(--bright-red);
+    font-weight: 600;
+  }
 }
 
 /* Google Sign-in Button Styling */
