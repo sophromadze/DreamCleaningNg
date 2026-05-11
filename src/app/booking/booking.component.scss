@@ -3179,7 +3179,7 @@
         height: auto;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         margin-bottom: 8px;
-        animation: fadeInOut 5s ease-in-out;
+        animation: fadeInOut 3s ease-in-out;
         display: block !important; // Force display
       }
       
@@ -3207,7 +3207,7 @@
         border-top-color: rgba(0, 0, 0, 0.9);
         z-index: 1000;
         margin-bottom: 3px;
-        animation: fadeInOut 5s ease-in-out;
+        animation: fadeInOut 3s ease-in-out;
       }
     }
   
@@ -3744,7 +3744,7 @@
         height: auto;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         margin-bottom: 8px;
-        animation: fadeInOut 5s ease-in-out;
+        animation: fadeInOut 3s ease-in-out;
         display: block !important; // Force display
       }
       
@@ -3770,7 +3770,7 @@
         border-top-color: rgba(0, 0, 0, 0.9);
         z-index: 1000;
         margin-bottom: 3px;
-        animation: fadeInOut 5s ease-in-out;
+        animation: fadeInOut 3s ease-in-out;
       }
     }
   }
@@ -7956,6 +7956,7 @@
   font-size: 1rem;
   font-weight: 500;
   border: none;
+  cursor: pointer;
 
   &:not(.selected) {
     background: var(--primary-color);
@@ -8684,5 +8685,1481 @@
 
   .bubble-rewards-combined .bubble-reward-row + .bubble-reward-row {
     border-top-color: var(--border-color);
+  }
+}
+
+/* =============================================================
+   FORM CONTROL MODERNIZATION — section-level redesign
+   - Rich Cleaning Type cards (icon + sub-text + check + badge)
+   - Service items (bedrooms/bathrooms/sqft) modern rows
+   - Subscription & special-offer cards with gradient-border feel
+   - Extra service cards with corner check + lift
+   - Unified dropdown pattern (service type + entry method)
+   - Tips chips with $ + pill polish
+   - Inputs (contact, address, promo, custom amount) consistent style
+   - Consent boxes as soft cards
+   - Photo upload as drag-drop zone
+============================================================= */
+
+/* ---- Cleaning Type rich cards ------------------------------ */
+/* Neutralize legacy pill wrapper that boxed the buttons */
+.booking-form .cleaning-type-selection {
+  background: transparent !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}
+
+.booking-form .cleaning-type-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.booking-form .cleaning-type-btn {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.875rem;
+  text-align: left;
+  padding: 1rem 1.125rem !important;
+  border: 2px solid var(--border-color) !important;
+  border-radius: var(--radius-xl) !important;
+  background: var(--surface) !important;
+  color: var(--text-primary) !important;
+  cursor: pointer;
+  font-weight: var(--fw-semibold);
+  transition: transform 0.2s ease, box-shadow 0.2s ease,
+    border-color 0.2s ease, background 0.2s ease;
+
+  &:hover:not(.selected) {
+    border-color: var(--primary-color) !important;
+    background: var(--surface-elevated) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px var(--shadow-color);
+  }
+
+  &.selected {
+    border-color: var(--primary-color) !important;
+    background: linear-gradient(135deg,
+      var(--soft-blue) 0%,
+      var(--surface) 100%) !important;
+    color: var(--text-primary) !important;
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.15);
+
+    .cleaning-type-btn__icon {
+      color: var(--primary-color);
+      background: rgba(37, 99, 235, 0.12);
+    }
+
+    .cleaning-type-btn__check {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  &__icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    background: var(--surface-subtle);
+    color: var(--text-secondary);
+    font-size: 1.125rem;
+    transition: background 0.2s ease, color 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+  }
+
+  &__title {
+    font-size: 0.9375rem;
+    font-weight: var(--fw-extrabold);
+    color: var(--text-primary);
+    line-height: 1.2;
+  }
+
+  &__sub {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    line-height: 1.3;
+    font-weight: var(--fw-medium);
+  }
+
+  &__check {
+    color: var(--fresh-green);
+    font-size: 1.25rem;
+    opacity: 0;
+    transform: scale(0.6);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  &__badge {
+    position: absolute;
+    top: -0.5rem;
+    right: 0.875rem;
+    padding: 0.1875rem 0.5rem;
+    background: var(--btn-secondary);
+    color: #fff;
+    font-size: 0.625rem;
+    font-weight: var(--fw-black);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border-radius: var(--radius-pill);
+    box-shadow: var(--btn-secondary-shadow);
+  }
+
+  &--featured {
+    border-color: var(--btn-secondary) !important;
+  }
+}
+
+/* ---- Service items (bedrooms / bathrooms / sqft) -----------
+   surface-elevated so dark-mode rows stand out from the form card.
+   The flex container is set to `align-items: stretch` so all three
+   items on the same row share the height of the tallest one — the
+   Sq.ft slider no longer looks squat next to the stepper pills. */
+.booking-form .services {
+  align-items: stretch !important;
+}
+
+.booking-form .services .service-item {
+  background: var(--surface-elevated) !important;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg) !important;
+  padding: 0.75rem 1rem !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  /* Keep inner content centred vertically when the item stretches */
+  align-items: center;
+
+  &:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px var(--shadow-color);
+  }
+
+  > label {
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+  }
+}
+
+/* Quantity stepper polish — bigger touch targets, pill */
+.booking-form .quantity-control .control-buttons {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  padding: 0.25rem;
+
+  button {
+    width: 1.875rem;
+    height: 1.875rem;
+    border-radius: 50%;
+    color: var(--primary-color);
+    transition: background 0.15s ease, transform 0.15s ease;
+
+    &:hover:not(:disabled) {
+      background: var(--soft-blue);
+      transform: scale(1.08);
+    }
+
+    &:disabled {
+      color: var(--text-muted);
+      opacity: 0.4;
+    }
+  }
+
+  span {
+    min-width: 2.25rem;
+    text-align: center;
+    font-weight: var(--fw-extrabold);
+    color: var(--text-primary);
+  }
+}
+
+/* SqFt slider container — responsive so the slider can't escape
+   its service-item card on narrow viewports. `min-width: 0` allows
+   the flex child to shrink below its intrinsic content width. */
+.booking-form .services .service-item .slider-container {
+  width: 220px;
+  max-width: 100%;
+  min-width: 0;
+  gap: 0.625rem;
+  box-sizing: border-box;
+
+  @media (max-width: 768px) {
+    /* Stretch to fill the remaining space inside the full-width card */
+    flex: 1 1 auto;
+    width: auto;
+  }
+
+  .slider-quantity {
+    background: var(--soft-blue);
+    color: var(--primary-color);
+    padding: 0.25rem 0.625rem;
+    border-radius: var(--radius-pill);
+    font-weight: var(--fw-extrabold);
+    font-size: 0.8125rem;
+    min-width: 50px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+
+  input[type="range"] {
+    accent-color: var(--primary-color);
+    height: 4px;
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+/* ---- Subscription cards ------------------------------------ */
+.booking-form .subscription-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.booking-form .subscription-card {
+  position: relative;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 1.125rem 0.875rem !important;
+  background: var(--surface) !important;
+  border: 2px solid var(--border-color) !important;
+  border-radius: var(--radius-xl) !important;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  text-align: center;
+  min-height: 96px;
+
+  &:hover:not(.selected) {
+    border-color: var(--primary-color) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 18px var(--shadow-color);
+  }
+
+  &.selected {
+    border-color: var(--primary-color) !important;
+    background: linear-gradient(135deg,
+      var(--soft-blue) 0%,
+      var(--surface) 100%) !important;
+    box-shadow: 0 8px 22px rgba(37, 99, 235, 0.18);
+
+    h4 {
+      color: var(--text-primary) !important;
+    }
+  }
+
+  h4 {
+    font-size: 0.95rem !important;
+    font-weight: var(--fw-extrabold) !important;
+    color: var(--text-primary) !important;
+    margin: 0 !important;
+    line-height: 1.2;
+  }
+
+  /* Big bold green discount tag */
+  .discount {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.625rem !important;
+    background: var(--mint-fresh) !important;
+    color: var(--fresh-green) !important;
+    font-size: 0.75rem !important;
+    font-weight: var(--fw-black) !important;
+    border-radius: var(--radius-pill) !important;
+    letter-spacing: 0.01em;
+    border: none !important;
+
+    &::before {
+      content: "\f02b"; /* fa-tag */
+      font-family: "Font Awesome 6 Free";
+      font-weight: 900;
+      font-size: 0.7rem;
+    }
+
+    /* The legacy speech-bubble tail (::after) used a purple
+       `#867BE9` border colour — recolour it to match the new
+       green badge so the whole element reads as one tone. */
+    &::after {
+      border-bottom-color: var(--mint-fresh) !important;
+    }
+  }
+}
+
+/* ---- Special offer cards ----------------------------------- */
+.special-offers-section {
+  .special-offer-card {
+    background: var(--surface) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-xl) !important;
+    padding: 0.875rem 1.125rem !important;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+
+    &:hover {
+      border-color: var(--primary-color) !important;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px var(--shadow-color);
+      background: var(--surface) !important;
+    }
+
+    &.applied {
+      background: var(--mint-fresh) !important;
+      border-color: var(--mint-fresh-border) !important;
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.12) !important;
+    }
+
+    .offer-badge-icon {
+      color: var(--primary-color);
+    }
+
+    .apply-btn {
+      background: var(--btn-primary);
+      color: #fff;
+      border: none;
+      padding: 0.4375rem 0.875rem;
+      border-radius: var(--radius-pill);
+      font-weight: var(--fw-extrabold);
+      font-size: 0.8125rem;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.15s ease;
+      box-shadow: var(--btn-primary-shadow);
+
+      &:hover {
+        background: var(--btn-primary-hover);
+        transform: translateY(-1px);
+      }
+    }
+
+    .remove-btn {
+      background: var(--btn-danger);
+      color: #fff;
+      border: none;
+      padding: 0.4375rem 0.875rem;
+      border-radius: var(--radius-pill);
+      font-weight: var(--fw-extrabold);
+      font-size: 0.8125rem;
+      cursor: pointer;
+      box-shadow: var(--btn-danger-shadow);
+
+      &:hover { background: var(--btn-danger-hover); }
+    }
+  }
+}
+
+/* ---- Unified dropdown pattern (service type + entry method) - */
+.booking-form .service-type-dropdown .dropdown-toggle,
+.booking-form .entry-method-dropdown .dropdown-toggle {
+  width: 100%;
+  padding: 0.875rem 1rem !important;
+  border: 1.5px solid var(--border-color) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--surface) !important;
+  color: var(--text-primary) !important;
+  font-weight: var(--fw-semibold);
+  font-size: 0.9375rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: var(--primary-color) !important;
+  }
+
+  &:focus,
+  &:focus-visible {
+    outline: none;
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  }
+
+  i {
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+  }
+}
+
+.booking-form .service-type-dropdown .dropdown-menu,
+.booking-form .entry-method-dropdown .dropdown-menu {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 32px var(--shadow-color);
+  overflow: hidden;
+  margin-top: 0.375rem;
+
+  .dropdown-item {
+    padding: 0.75rem 1rem;
+    color: var(--text-primary);
+    font-weight: var(--fw-medium);
+    transition: background 0.15s ease;
+
+    &:hover {
+      background: var(--soft-blue);
+      color: var(--primary-color);
+    }
+  }
+}
+
+/* Custom entry method input */
+.booking-form .custom-entry-input {
+  margin-top: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  width: 100%;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  }
+}
+
+/* ---- Form inputs (contact + address + custom amount) ------- */
+.booking-form .form-grid .form-group input,
+.booking-form .form-grid .form-group select,
+.booking-form .form-grid .form-group textarea,
+.booking-form .address-options .saved-address-container select,
+.booking-form .custom-pricing-form .amount-input,
+.booking-form .promo-code-input-section .promo-code-group input,
+.booking-form .tips-input-container .tip-custom-input .tip-input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  }
+}
+
+/* Two-column form grid where space allows */
+.booking-form .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.875rem;
+
+  @media (max-width: 540px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Tips section (chips) ---------------------------------- */
+.booking-form .tips-input-container {
+  .tip-dropdown-toggle {
+    padding: 0.75rem 1rem;
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-weight: var(--fw-extrabold);
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+
+    &:hover { border-color: var(--primary-color); }
+
+    .dropdown-arrow {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+    }
+  }
+
+  .tip-dropdown-menu {
+    background: var(--surface-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    box-shadow: 0 12px 32px var(--shadow-color);
+    margin-top: 0.375rem;
+    padding: 0.25rem;
+
+    .tip-dropdown-item {
+      padding: 0.625rem 0.875rem;
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-weight: var(--fw-bold);
+      transition: background 0.15s ease, color 0.15s ease;
+
+      &:hover { background: var(--soft-blue); color: var(--primary-color); }
+      &.selected {
+        background: var(--btn-primary);
+        color: #fff;
+      }
+    }
+  }
+}
+
+/* ---- Promo code input states ------------------------------- */
+.booking-form .promo-code-input-section {
+  .promo-code-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: stretch;
+
+    input {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .apply-promo-btn {
+      padding: 0.75rem 1.25rem;
+      background: var(--btn-primary);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-md);
+      font-weight: var(--fw-extrabold);
+      font-size: 0.9375rem;
+      cursor: pointer;
+      transition: background 0.15s ease, transform 0.15s ease;
+      box-shadow: var(--btn-primary-shadow);
+      white-space: nowrap;
+
+      &:hover:not(:disabled) {
+        background: var(--btn-primary-hover);
+        transform: translateY(-1px);
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .remove-promo-btn {
+    margin-top: 0.625rem;
+    padding: 0.5rem 1rem;
+    background: var(--btn-danger);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-md);
+    font-weight: var(--fw-bold);
+    font-size: 0.8125rem;
+    cursor: pointer;
+    box-shadow: var(--btn-danger-shadow);
+
+    &:hover { background: var(--btn-danger-hover); }
+  }
+}
+
+/* ---- Consent checkboxes (SMS + Cancellation) --------------- */
+.sms-consent-section,
+.cancellation-consent-section {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 0.875rem 1rem;
+  margin-bottom: 0.75rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:has(input:checked) {
+    border-color: var(--mint-fresh-border);
+    background: var(--mint-fresh);
+  }
+
+  .checkbox-group {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .form-checkbox {
+    width: 1.25rem;
+    height: 1.25rem;
+    flex-shrink: 0;
+    accent-color: var(--primary-color);
+    margin-top: 0.125rem;
+    cursor: pointer;
+  }
+
+  .checkbox-label {
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    cursor: pointer;
+
+    a {
+      color: var(--primary-color);
+      font-weight: var(--fw-bold);
+      text-decoration: none;
+
+      &:hover { text-decoration: underline; }
+    }
+  }
+}
+
+/* ---- Photo upload area as drag-drop zone ------------------- */
+.photo-upload-section {
+  background: var(--surface);
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 1.25rem;
+  transition: border-color 0.2s ease, background 0.2s ease;
+
+  &:hover {
+    border-color: var(--primary-color);
+    background: var(--surface-elevated);
+  }
+
+  .upload-options .upload-button label,
+  .upload-options .upload-button > input + label,
+  .upload-options label[for] {
+    background: var(--surface-elevated);
+    border: 1.5px solid var(--border-color);
+    border-radius: var(--radius-md);
+    transition: border-color 0.15s ease, background 0.15s ease;
+
+    &:hover {
+      border-color: var(--primary-color);
+      background: var(--soft-blue);
+    }
+  }
+}
+
+/* ---- Partnership Overview (compare card) ------------------- */
+.booking-form .partnership-overview {
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+
+  > h3 {
+    font-weight: var(--fw-extrabold);
+    margin: 0 0 0.875rem;
+    color: var(--text-primary);
+  }
+
+  .partnership-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+
+  .partnership-side {
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 1rem 0.75rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.625rem;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+
+    &:hover {
+      border-color: var(--primary-color);
+      transform: translateY(-2px);
+    }
+
+    h4 {
+      font-size: 0.875rem;
+      font-weight: var(--fw-extrabold);
+      color: var(--text-primary);
+      margin: 0;
+    }
+
+    .partnership-icon {
+      font-size: 1.875rem;
+      color: var(--primary-color);
+    }
+  }
+}
+
+/* ---- Active subscription notice (info banner) -------------- */
+.booking-form .active-subscription-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.625rem 0.875rem;
+  background: var(--soft-blue);
+  border: 1px solid rgba(37, 99, 235, 0.20);
+  border-radius: var(--radius-md);
+  color: var(--primary-text);
+  font-size: 0.875rem;
+  font-weight: var(--fw-semibold);
+  margin-bottom: 0.875rem;
+
+  i { color: var(--primary-color); flex-shrink: 0; }
+}
+
+/* ---- Payment note (Step 3) --------------------------------- */
+.booking-form .payment-note {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 0.875rem 1rem;
+  margin-top: 0.75rem;
+
+  p {
+    margin: 0;
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    color: var(--text-secondary);
+  }
+
+  .note-label {
+    font-weight: var(--fw-extrabold);
+    color: var(--primary-color);
+    margin-right: 0.25rem;
+  }
+}
+
+/* ---- Dark-mode parity for new form-control styles ---------- */
+:host-context([data-theme="dark"]) {
+  .booking-form .cleaning-type-btn {
+    background: var(--surface-elevated) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-primary) !important;
+
+    &:hover:not(.selected) {
+      background: var(--surface) !important;
+    }
+
+    &.selected {
+      background: linear-gradient(135deg,
+        rgba(37, 99, 235, 0.18) 0%,
+        var(--surface-elevated) 100%) !important;
+    }
+
+    &__icon {
+      background: var(--surface);
+    }
+  }
+
+  .booking-form .subscription-card {
+    background: var(--surface-elevated) !important;
+
+    &.selected {
+      background: linear-gradient(135deg,
+        rgba(37, 99, 235, 0.18) 0%,
+        var(--surface-elevated) 100%) !important;
+    }
+
+    /* Save X% pill — more solid green wash + thin ring so it pops
+       against the dark form card surface in night mode. */
+    .discount {
+      background: rgba(34, 197, 94, 0.28) !important;
+      border: 1px solid rgba(34, 197, 94, 0.45) !important;
+      color: #4ade80 !important;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35) !important;
+
+      &::after {
+        border-bottom-color: rgba(34, 197, 94, 0.45) !important;
+      }
+    }
+  }
+
+  .special-offers-section .special-offer-card {
+    background: var(--surface-elevated) !important;
+
+    &.applied {
+      background: rgba(34, 197, 94, 0.12) !important;
+    }
+  }
+
+  .booking-form .services .service-item {
+    background: var(--surface-elevated) !important;
+    border-color: var(--border-color);
+  }
+
+  .sms-consent-section,
+  .cancellation-consent-section {
+    background: var(--surface-elevated);
+    border-color: var(--border-color);
+
+    &:has(input:checked) {
+      background: rgba(34, 197, 94, 0.12);
+      border-color: rgba(34, 197, 94, 0.30);
+    }
+  }
+
+  .photo-upload-section {
+    background: var(--surface-elevated);
+
+    &:hover { background: var(--surface); }
+  }
+
+  .booking-form .partnership-overview {
+    background: var(--surface-elevated);
+
+    .partnership-side {
+      background: var(--surface);
+    }
+  }
+}
+
+/* ---- Extra Service cards ----------------------------------- */
+/* The card retains its image-driven layout, square aspect, and
+   tooltip behaviour — we only modernize surface & feedback. */
+.booking-form .extra-services .extra-service-card {
+  background: var(--surface-elevated) !important;
+  border: 2px solid var(--border-color) !important;
+  border-radius: var(--radius-xl) !important;
+  transition: transform 0.2s ease, border-color 0.2s ease,
+    box-shadow 0.2s ease, background 0.2s ease !important;
+
+  &:hover:not(.disabled):not(.selected) {
+    transform: translateY(-3px);
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 8px 22px var(--shadow-color) !important;
+    background: var(--surface) !important;
+  }
+
+  &.selected {
+    background: linear-gradient(135deg,
+      var(--mint-fresh) 0%,
+      var(--surface-elevated) 100%) !important;
+    border-color: var(--fresh-green) !important;
+    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.18) !important;
+    /* Check badge now lives on ::before — see Round 3 below.
+       ::after is intentionally left untouched so the legacy
+       `[data-tooltip]:hover::after` keeps showing tooltips. */
+  }
+
+  .extra-info h4 {
+    font-weight: var(--fw-extrabold) !important;
+    color: var(--text-primary) !important;
+    font-size: 0.875rem !important;
+  }
+}
+
+/* Extra service card disabled state in dark mode */
+:host-context([data-theme="dark"]) {
+  .booking-form .extra-services .extra-service-card {
+    background: var(--surface) !important;
+
+    &.selected {
+      background: linear-gradient(135deg,
+        rgba(34, 197, 94, 0.18) 0%,
+        var(--surface-elevated) 100%) !important;
+    }
+
+    &.disabled {
+      background: var(--surface-subtle) !important;
+    }
+  }
+}
+
+/* =============================================================
+   ROUND 2 — feedback fixes
+   - Extra service cards: drop legacy 4-color pastel pattern,
+     swap corner badge to ::before so the tooltip ::after works,
+     add hover blue-plus / red-x states.
+   - Service-type dropdown menu: cap height + scroll inside.
+   - Subscription "Most popular" badge.
+   - Tips: visible input + clean menu, fits 5 presets.
+   - Compact partnership accordion at end of step 3.
+============================================================= */
+
+/* ---- Extra service card: neutralize pastel theme ----------- */
+/* Override the legacy `:nth-child(4n+...)` colored backgrounds
+   on the wrapper, the icon img border, the controls panel and
+   the stepper buttons. Uniform surface + green-on-selected. */
+.booking-form .extra-services .extra-service-wrapper {
+  /* Reset the colored ring CSS adds around the icon when selected */
+  .extra-service-card.selected .extra-icon img {
+    border: none !important;
+  }
+
+  /* Quantity / hours panel — identical look for both kinds.
+     The legacy CSS already groups `.quantity-control, .hours-control`
+     under the same rules; we restate dimensions here so both pills
+     render at exactly the same width regardless of value text.
+     We also neutralize the Round-1 `.quantity-control .control-buttons`
+     background, which was giving the quantity pill a second inner
+     surface that the hours pill didn't have. */
+  .extra-controls {
+    background: transparent !important;
+    border-radius: var(--radius-pill) !important;
+
+    .quantity-control,
+    .hours-control {
+      .control-buttons {
+        gap: 0.375rem;
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+
+        button {
+          width: 28px !important;
+          height: 28px !important;
+          color: var(--primary-color) !important;
+          background: var(--surface-subtle) !important;
+          border: none !important;
+          transition: background 0.15s ease, color 0.15s ease !important;
+          transform: none !important;
+
+          &:hover:not(:disabled) {
+            background: var(--soft-blue) !important;
+            color: var(--primary-color) !important;
+            border-color: transparent !important;
+            transform: none !important;
+          }
+        }
+
+        span {
+          min-width: 42px !important;
+          text-align: center;
+          color: var(--text-primary) !important;
+          font-weight: var(--fw-extrabold);
+          padding: 3px;
+        }
+      }
+    }
+  }
+
+  /* When the card is SELECTED, the panel below adopts a green wash */
+  &:has(.extra-service-card.selected) .extra-controls {
+    background: var(--mint-fresh) !important;
+    border: 1px solid var(--mint-fresh-border) !important;
+
+    .quantity-control,
+    .hours-control {
+      .control-buttons {
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+
+        button {
+          background: rgba(255, 255, 255, 0.6) !important;
+          color: var(--fresh-green) !important;
+
+          &:hover:not(:disabled) {
+            background: rgba(34, 197, 94, 0.15) !important;
+            color: var(--fresh-green) !important;
+            transform: none !important;
+          }
+        }
+
+        span {
+          color: var(--fresh-green) !important;
+        }
+      }
+    }
+  }
+}
+
+/* Single corner indicator on every extra-service card — same slot,
+   colour & icon swap by state. ::after stays free for tooltips, so
+   selected cards can still show their data-tooltip on hover.
+   Every state restates dimensions + font-size with !important so the
+   different FontAwesome glyph metrics (+, ✓, ✕) can't visually grow
+   the badge across hover/selected transitions. */
+
+%extra-card-badge-geometry {
+  position: absolute !important;
+  top: 0.5rem !important;
+  right: 0.5rem !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+  min-width: 1.5rem !important;
+  min-height: 1.5rem !important;
+  max-width: 1.5rem !important;
+  max-height: 1.5rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 50% !important;
+  font-family: "Font Awesome 6 Free" !important;
+  font-weight: 900 !important;
+  font-size: 0.625rem !important;
+  line-height: 1 !important;
+  color: #fff !important;
+  z-index: 2 !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  transform: none !important;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.booking-form .extra-services .extra-service-card {
+  &::before {
+    @extend %extra-card-badge-geometry;
+    content: "\f067"; /* fa-plus */
+    background: var(--primary-color) !important;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+  }
+
+  &:hover:not(.selected):not(.disabled)::before {
+    @extend %extra-card-badge-geometry;
+    content: "\f067";
+    background: var(--primary-color) !important;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+  }
+
+  &.disabled::before {
+    display: none !important;
+  }
+
+  &.selected::before {
+    @extend %extra-card-badge-geometry;
+    content: "\f00c"; /* fa-check */
+    background: var(--fresh-green) !important;
+    box-shadow: 0 2px 6px rgba(34, 197, 94, 0.35);
+  }
+
+  &.selected:hover::before {
+    @extend %extra-card-badge-geometry;
+    content: "\f00d"; /* fa-times */
+    background: var(--bright-red) !important;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.40);
+  }
+}
+
+/* Border colours: blue default → green hover → green selected → red selected-hover */
+.booking-form .extra-services .extra-service-card {
+  border-color: var(--primary-color) !important;
+
+  &:hover:not(.selected):not(.disabled) {
+    border-color: var(--fresh-green) !important;
+  }
+
+  &.selected {
+    border-color: var(--fresh-green) !important;
+  }
+
+  &.selected:hover {
+    border-color: var(--bright-red) !important;
+  }
+}
+
+/* Tooltip styling parity with the new card surface */
+.booking-form .extra-services .extra-service-card[data-tooltip]:hover::after {
+  background: rgba(2, 6, 23, 0.92) !important;
+  color: #fff !important;
+  border-radius: var(--radius-md) !important;
+  font-size: 0.75rem !important;
+  font-weight: var(--fw-medium) !important;
+  padding: 0.5rem 0.75rem !important;
+  max-width: 220px !important;
+  white-space: normal !important;
+  z-index: 1000 !important;
+}
+
+/* The hovered card creates its own stacking context above the
+   floor-type-section (which has z-index: 3) so the tooltip — even
+   when expanding upward — is never obscured by the chips above.
+   On touch devices `:hover` doesn't fire reliably, so we also lift
+   the card whenever its mobile tooltip class is set. */
+.booking-form .extra-services .extra-service-card:hover,
+.booking-form .extra-services .extra-service-card.mobile-tooltip-visible {
+  z-index: 10;
+}
+
+/* Tooltip ::after — never capture taps. Otherwise tapping the
+   tooltip area bubbles to the card and silently toggles selection. */
+.booking-form .extra-services .extra-service-card[data-tooltip]:hover::after,
+.booking-form .extra-services .extra-service-card.mobile-tooltip-visible[data-tooltip]::after,
+.booking-form .extra-services .extra-service-card[data-tooltip]:hover::before,
+.booking-form .extra-services .extra-service-card.mobile-tooltip-visible[data-tooltip]::before {
+  pointer-events: none !important;
+}
+
+/* ---- Service Type dropdown: scrollable menu ----------------
+   The list has 7 service types currently — give the menu enough
+   height to show them all, with scroll only if needed. */
+.booking-form .service-type-dropdown .dropdown-menu,
+.booking-form .entry-method-dropdown .dropdown-menu {
+  max-height: 420px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+
+  &::-webkit-scrollbar { width: 6px; }
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+  }
+}
+
+/* Most Popular pill: pinned to the BOTTOM-centre of the card so it
+   never overlaps the `.discount` speech-bubble at top-right. */
+.booking-form .subscription-card__badge {
+  position: absolute;
+  top: auto;
+  bottom: -0.6rem;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  padding: 0.1875rem 0.5rem;
+  background: var(--btn-secondary);
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: var(--fw-black);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--btn-secondary-shadow);
+  white-space: nowrap;
+  z-index: 2;
+}
+
+/* ---- Tips section: visible input + clean dropdown ---------- */
+.booking-form .tips-input-container {
+  display: flex;
+  gap: 0.625rem;
+  align-items: stretch;
+
+  @media (max-width: 480px) {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .tip-dropdown {
+    flex-shrink: 0;
+    min-width: 130px;
+
+    @media (max-width: 480px) {
+      width: 100%;
+    }
+
+    .tip-dropdown-toggle {
+      padding: 0.75rem 1rem !important;
+      border: 1.5px solid var(--border-color) !important;
+      border-radius: var(--radius-md) !important;
+      background: var(--surface) !important;
+      color: var(--text-primary) !important;
+      font-weight: var(--fw-extrabold);
+      width: 100%;
+      min-width: 0;
+      gap: 0.5rem;
+
+      &:hover { border-color: var(--primary-color) !important; }
+
+      .dropdown-arrow {
+        color: var(--text-muted);
+        font-size: 0.65rem;
+      }
+    }
+
+    .tip-dropdown-menu {
+      background: var(--surface-elevated) !important;
+      border: 1px solid var(--border-color) !important;
+      border-radius: var(--radius-md) !important;
+      box-shadow: 0 12px 32px var(--shadow-color) !important;
+      margin-top: 0.375rem !important;
+      padding: 0.25rem !important;
+      overflow: hidden;
+
+      .tip-dropdown-item {
+        padding: 0.5rem 0.75rem !important;
+        border-radius: var(--radius-sm) !important;
+        color: var(--text-primary) !important;
+        font-weight: var(--fw-bold);
+        background: transparent !important;
+        border: none !important;
+        transition: background 0.15s ease, color 0.15s ease;
+
+        &:hover {
+          background: var(--soft-blue) !important;
+          color: var(--primary-color) !important;
+        }
+
+        &.selected {
+          background: var(--btn-primary) !important;
+          color: #fff !important;
+        }
+
+        /* Reset legacy radii that came from compounded selectors */
+        &:first-child,
+        &:last-child {
+          border-radius: var(--radius-sm) !important;
+        }
+
+        &:not(:last-child) { border-bottom: none !important; }
+      }
+    }
+  }
+
+  .tip-custom-input {
+    flex: 1;
+    min-width: 0;
+
+    .tip-input {
+      width: 100%;
+      padding: 0.75rem 1rem !important;
+      border: 1.5px solid var(--border-color) !important;
+      border-radius: var(--radius-md) !important;
+      background: var(--surface) !important;
+      color: var(--text-primary) !important;
+      font-size: 0.9375rem;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+      &::placeholder { color: var(--text-muted); }
+
+      &:focus {
+        outline: none;
+        border-color: var(--primary-color) !important;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+      }
+    }
+  }
+}
+
+/* ---- Compact Partnership Accordion (end of step 3) --------- */
+.partnership-accordion {
+  margin-top: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+
+  &__toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--text-primary);
+    text-align: left;
+    transition: background 0.15s ease;
+
+    &:hover { background: var(--surface-subtle); }
+  }
+
+  &__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: var(--fw-extrabold);
+    color: var(--text-primary);
+  }
+
+  &__icon {
+    color: var(--primary-color);
+    font-size: 0.95rem;
+  }
+
+  &__chevron {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    transition: transform 0.25s ease;
+  }
+
+  &__toggle.is-open &__chevron,
+  &__toggle.is-open .partnership-accordion__chevron {
+    transform: rotate(180deg);
+    color: var(--primary-color);
+  }
+
+  &__body {
+    padding: 0 1rem 1rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.8125rem;
+    line-height: 1.55;
+    color: var(--text-secondary);
+    animation: partnership-accordion-fade 0.25s ease both;
+
+    p { margin: 0.5rem 0; }
+    p strong { color: var(--text-primary); font-weight: var(--fw-extrabold); }
+
+    ul {
+      margin: 0.25rem 0 0.625rem;
+      padding-left: 1.25rem;
+    }
+
+    li {
+      margin-bottom: 0.125rem;
+    }
+
+    h4 {
+      margin: 0.875rem 0 0.375rem;
+      font-size: 0.875rem;
+      font-weight: var(--fw-extrabold);
+      color: var(--text-primary);
+    }
+  }
+}
+
+@keyframes partnership-accordion-fade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Dark-mode parity for round 2 elements */
+:host-context([data-theme="dark"]) {
+  .booking-form .tips-input-container .tip-dropdown .tip-dropdown-toggle,
+  .booking-form .tips-input-container .tip-custom-input .tip-input {
+    background: var(--surface-elevated) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+
+    &::placeholder { color: var(--text-muted); }
+  }
+
+  .booking-form .tips-input-container .tip-dropdown .tip-dropdown-menu {
+    background: var(--surface-elevated) !important;
+    border-color: var(--border-color) !important;
+  }
+
+  .booking-form .tips-input-container .tip-dropdown .tip-dropdown-menu .tip-dropdown-item {
+    color: var(--text-primary) !important;
+
+    &:hover {
+      background: rgba(37, 99, 235, 0.18) !important;
+    }
+  }
+
+  .partnership-accordion {
+    background: var(--surface-elevated);
+    border-color: var(--border-color);
+
+    &__toggle:hover { background: var(--surface); }
+    &__body { border-top-color: var(--border-color); }
+  }
+
+  /* Extra service tooltip in dark mode keeps strong contrast */
+  .booking-form .extra-services .extra-service-card[data-tooltip]:hover::after {
+    background: rgba(15, 23, 42, 0.96) !important;
+    color: #fff !important;
+  }
+}
+
+/* ---- Extra services horizontal scrollbar — theme-aware --------
+   .extra-services-container has `overflow-y: hidden`, which forces
+   the horizontal axis to `auto` and renders a scrollbar when the
+   row of cards overflows. Use design tokens so dark mode no longer
+   shows a white-on-dark default scrollbar. */
+.booking-form .extra-services-container {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+
+  &::-webkit-scrollbar {
+    height: 8px;
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+    background-clip: padding-box;
+  }
+}
+
+:host-context([data-theme="dark"]) {
+  .booking-form .extra-services-container {
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.15);
+      background-clip: padding-box;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.30);
+      background-clip: padding-box;
+    }
+  }
+}
+
+/* ---- Touch-device sticky-hover guard for Extra Services ---------
+   On phones/tablets `:hover` doesn't auto-clear after a tap, which
+   leaves selected cards stuck in the "click-to-remove" hover state
+   (red border + ✕ badge) until the user taps elsewhere. Inside
+   `(hover: none)` we neutralize every hover-only modifier so taps
+   just toggle selection — no sticky red ✕, no sticky lift, and no
+   sticky tooltip. The `.mobile-tooltip-visible` class is what shows
+   tooltips on mobile (handled by the component on tap). */
+@media (hover: none) {
+  .booking-form .extra-services .extra-service-card {
+    &:hover {
+      z-index: auto;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    &:hover:not(.selected):not(.disabled) {
+      border-color: var(--primary-color) !important;
+      background: var(--surface-elevated) !important;
+      box-shadow: none !important;
+    }
+
+    &.selected:hover {
+      border-color: var(--fresh-green) !important;
+    }
+
+    /* Selected card hover keeps the green ✓ instead of swapping to ✕ */
+    &.selected:hover::before {
+      content: "\f00c" !important;
+      background: var(--fresh-green) !important;
+      box-shadow: 0 2px 6px rgba(34, 197, 94, 0.35) !important;
+    }
+
+    /* Suppress the desktop hover tooltip ONLY when the mobile tooltip
+       class isn't set. Otherwise tapping a card triggers a brief
+       :hover state that would race with the mobile-tooltip-visible
+       rule and leave the badge empty. */
+    &[data-tooltip]:hover:not(.mobile-tooltip-visible)::after {
+      content: none !important;
+    }
   }
 }

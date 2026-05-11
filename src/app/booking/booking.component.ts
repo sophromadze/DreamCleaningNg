@@ -1826,10 +1826,12 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (index > -1) {
       // Remove if already selected
       this.selectedExtraServices.splice(index, 1);
-      
-      // Clear mobile tooltip for this service immediately
-      this.clearMobileTooltip(extraService.id);
-      
+
+      // On mobile, briefly re-show this service's tooltip so a deselect
+      // tap still reveals the description (matches desktop hover behaviour).
+      this.clearAllMobileTooltips();
+      this.showMobileTooltip(extraService.id);
+
       if (extraService.isSameDayService) {
         this.isSameDaySelected = false;
         // Only set date to tomorrow if this is a manual uncheck (not from date selection)
@@ -1888,11 +1890,11 @@ export class BookingComponent implements OnInit, OnDestroy {
     
     // Set tooltip state to visible
     this.mobileTooltipStates[extraServiceId] = true;
-    
-    // Set timeout to hide tooltip after 5 seconds
+
+    // Set timeout to hide tooltip after 3 seconds
     this.mobileTooltipTimeouts[extraServiceId] = setTimeout(() => {
       this.clearMobileTooltip(extraServiceId);
-    }, 5000);
+    }, 3000);
   }
 
   clearMobileTooltip(extraServiceId: number) {

@@ -260,4 +260,100 @@
       color: #f87171;
     }
   }
-} 
+}
+
+/* =============================================================
+   MODERN OVERLAY — token-based, replaces hardcoded greys
+============================================================= */
+
+.date-selector-container {
+  border: 1.5px solid var(--border-color) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--surface) !important;
+  padding: 0.75rem 1rem !important;
+  min-height: 48px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+
+  &:hover {
+    border-color: var(--primary-color) !important;
+  }
+
+  &:focus-within {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+  }
+}
+
+.date-display {
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+  font-size: 0.9375rem;
+}
+
+.calendar-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+
+  .date-selector-container:hover & { color: var(--primary-color); }
+  .date-selector-container:focus-within & { color: var(--primary-color); }
+}
+
+.calendar-dropdown {
+  background: var(--surface-elevated) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: 0 12px 32px var(--shadow-color) !important;
+}
+
+.calendar-header {
+  border-bottom-color: var(--border-color) !important;
+}
+
+.month-year {
+  color: var(--text-primary);
+  font-weight: var(--fw-extrabold);
+}
+
+.weekday {
+  color: var(--text-muted);
+}
+
+.nav-button {
+  color: var(--text-muted);
+  border-radius: var(--radius-md);
+
+  &:hover {
+    background: var(--soft-blue) !important;
+    color: var(--primary-color) !important;
+  }
+}
+
+.calendar-day {
+  color: var(--text-muted);
+  border-radius: var(--radius-md);
+
+  &.current-month { color: var(--text-primary); }
+
+  &:hover:not(.disabled):not(.blocked) {
+    background: var(--soft-blue) !important;
+    color: var(--primary-color) !important;
+  }
+
+  &.selected {
+    background: var(--btn-primary) !important;
+    color: #fff !important;
+    font-weight: var(--fw-extrabold);
+    box-shadow: var(--btn-primary-shadow);
+
+    &:hover { color: #fff !important; }
+  }
+
+  &.blocked {
+    background: var(--soft-red) !important;
+    color: var(--bright-red) !important;
+  }
+
+  &.partially-blocked::after {
+    background: var(--warning-orange);
+  }
+}

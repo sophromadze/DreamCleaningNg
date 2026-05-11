@@ -192,4 +192,81 @@
       color: #f87171;
     }
   }
-} 
+
+/* =============================================================
+   MODERN OVERLAY — token-based, replaces hardcoded greys.
+   Sits inside :host-context([data-theme="dark"]) closing brace
+   below; the rules below are at the file root via the closing }
+   on the next line.
+============================================================= */
+}
+
+.selector-container {
+  border: 1.5px solid var(--border-color) !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--surface) !important;
+  padding: 0.75rem 1rem !important;
+  min-height: 48px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+
+  &:hover {
+    border-color: var(--primary-color) !important;
+  }
+
+  &:focus-within {
+    border-color: var(--primary-color) !important;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15) !important;
+  }
+}
+
+.selector-display {
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+  font-size: 0.9375rem;
+}
+
+.selector-arrow {
+  color: var(--text-muted);
+  transition: transform 0.2s ease, color 0.2s ease;
+
+  .selector-container:hover & { color: var(--primary-color); }
+  .selector-container:focus-within & { color: var(--primary-color); }
+}
+
+.selector-options {
+  background: var(--surface-elevated) !important;
+  border: 1px solid var(--border-color) !important;
+  border-top: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-md) !important;
+  margin-top: 0.375rem;
+  box-shadow: 0 12px 32px var(--shadow-color) !important;
+  scrollbar-color: var(--border-color) transparent !important;
+
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+  }
+}
+
+.selector-option {
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.625rem 1rem;
+  font-weight: var(--fw-medium);
+
+  &:last-child { border-bottom: none; }
+
+  &:hover {
+    background: var(--soft-blue) !important;
+    color: var(--primary-color) !important;
+  }
+
+  &.selected {
+    background: var(--btn-primary) !important;
+    color: #fff !important;
+    font-weight: var(--fw-extrabold);
+  }
+
+  &.blocked {
+    .busy-label { color: var(--bright-red); }
+  }
+}

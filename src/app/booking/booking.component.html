@@ -578,14 +578,25 @@
                     class="cleaning-type-btn"
                     [class.selected]="cleaningType.value === 'normal'"
                     (click)="selectCleaningType('normal')">
-                    Regular Cleaning
+                    <i class="fas fa-broom cleaning-type-btn__icon" aria-hidden="true"></i>
+                    <span class="cleaning-type-btn__body">
+                      <span class="cleaning-type-btn__title">Regular Cleaning</span>
+                      <span class="cleaning-type-btn__sub">Standard maintenance clean</span>
+                    </span>
+                    <i class="fas fa-check-circle cleaning-type-btn__check" aria-hidden="true"></i>
                   </button>
                   <button
                     type="button"
-                    class="cleaning-type-btn"
+                    class="cleaning-type-btn cleaning-type-btn--featured"
                     [class.selected]="cleaningType.value === 'deep'"
                     (click)="selectCleaningType('deep')">
-                    Deep Cleaning
+                    <span class="cleaning-type-btn__badge">Most popular</span>
+                    <i class="fas fa-spray-can-sparkles cleaning-type-btn__icon" aria-hidden="true"></i>
+                    <span class="cleaning-type-btn__body">
+                      <span class="cleaning-type-btn__title">Deep Cleaning</span>
+                      <span class="cleaning-type-btn__sub">Recommended for first-timers</span>
+                    </span>
+                    <i class="fas fa-check-circle cleaning-type-btn__check" aria-hidden="true"></i>
                   </button>
                 </div>
                 <div class="error-message" *ngIf="!loading.serviceTypes && !loading.cleaningTypes && cleaningType.invalid && cleaningType.touched">
@@ -693,82 +704,6 @@
 
             <!-- Step 5: Extra Services -->
             <section class="booking-section">
-              <!-- Partnership Overview Section -->
-              <div class="partnership-overview" *ngIf="loading.serviceTypes || selectedServiceType">
-                <h3>Partnership Overview</h3>
-                
-                <div class="partnership-content">
-                  <div class="partnership-side">
-                    <h4>What We Bring</h4>
-                    <div class="partnership-image-wrap" [shimmer]="loading.partnership" (click)="toggleExtraInfoExpansion()" role="button" tabindex="0" (keydown.enter)="toggleExtraInfoExpansion()" (keydown.space)="toggleExtraInfoExpansion(); $event.preventDefault()" [attr.aria-expanded]="isExtraInfoExpanded" aria-label="Toggle more info about partnership">
-                      <i class="fas fa-spray-can-sparkles partnership-icon" aria-hidden="true"></i>
-                    </div>
-                  </div>
-                  <div class="partnership-side">
-                    <h4>What You Provide</h4>
-                    <div class="partnership-image-wrap" [shimmer]="loading.partnership" (click)="toggleExtraInfoExpansion()" role="button" tabindex="0" (keydown.enter)="toggleExtraInfoExpansion()" (keydown.space)="toggleExtraInfoExpansion(); $event.preventDefault()" [attr.aria-expanded]="isExtraInfoExpanded" aria-label="Toggle more info about partnership">
-                      <i class="fas fa-house-user partnership-icon" aria-hidden="true"></i>
-                    </div>
-                  </div>
-                </div>
-                
-                <div class="partnership-more-info-btn-wrap">
-                  <button class="partnership-more-info-btn" [shimmer]="loading.partnership" (click)="toggleExtraInfoExpansion()">
-                    <span>Click for More Info</span>
-                    <i class="fas fa-chevron-down" [class.rotated]="isExtraInfoExpanded"></i>
-                  </button>
-                </div>
-                
-                <div class="expandable-content" [class.collapsed]="!isExtraInfoExpanded" [class.expanded]="isExtraInfoExpanded">
-                  <div class="general-info">
-                    <p><strong>Standard Cleaning</strong></p>
-                    <p><strong>If you add Cleaning Supplies, we'll bring:</strong></p>
-                    <ul>
-                      <li>Zep (or similar) liquids: Green Liquid, Floor Liquid</li>
-                      <li>Windex</li>
-                      <li>Cleaning cloths</li>
-                      <li>Sponge</li>
-                      <li>Mop</li>
-                    </ul>
-
-                    <p><strong>Deep Cleaning</strong></p>
-                    <p><strong>If you add Cleaning Supplies, we'll bring:</strong></p>
-                    <ul>
-                      <li>Zep (or similar) liquids: Green Liquid, Floor Liquid, Oven Cleaner Liquid</li>
-                      <li>Windex</li>
-                      <li>Cleaning cloths</li>
-                      <li>Sponge</li>
-                      <li>Mop</li>
-                    </ul>
-
-                    <p><strong>If you skip this option, please have the above items ready for our team.</strong></p>
-
-                    <p><strong>Always required (you provide):</strong></p>
-                    <ul>
-                      <li>Paper towels</li>
-                      <li>Garbage bags</li>
-                      <li>Broom or vacuum cleaner</li>
-                    </ul>
-                  </div>
-                  
-                  <div class="additional-reminders">
-                    <h4>Additional Reminders</h4>
-                    <p><strong>Time Matters</strong><br>
-                    Our cleaning time is based on the number of hours booked.<br>
-                    If your home hasn't been cleaned in a while or needs extra attention, we recommend booking more hours or requesting a walk-through estimate.</p>
-                  </div>
-                  
-                  <div class="restrictions-info">
-                    <h4>We will not be able to do the following:</h4>
-                    <ul>
-                      <li>Moving Heavy Furniture and Appliances</li>
-                      <li>Exterior Window Cleaning</li>
-                      <li>Pet Waste</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-
               <!-- Floor Type (Optional) — moved from step 2, sits right above Extra Services -->
               <app-floor-type-selector
                 [selectedTypes]="floorTypes"
@@ -946,8 +881,10 @@
                      [class.selected]="selectedSubscription?.id === subscription.id"
                      [class.user-subscription]="hasActiveSubscription && userSubscription?.subscriptionId === subscription.id"
                      [class.mobile-tooltip-visible]="isMobileTooltipVisible(subscription.id)"
+                     [class.subscription-card--popular]="subscription.name === 'Monthly'"
                      (click)="selectSubscription(subscription)"
                      [attr.data-tooltip]="getSubscriptionTooltip(subscription)">
+                  <span class="subscription-card__badge" *ngIf="subscription.name === 'Monthly'">Most popular</span>
                   <h4>{{ subscription.name }}</h4>
                   <div class="discount" *ngIf="subscription.discountPercentage > 0">
                     Save {{ subscription.discountPercentage }}%
@@ -1454,35 +1391,35 @@
                       <span class="dropdown-arrow">▼</span>
                     </button>
                     <div class="tip-dropdown-menu" *ngIf="tipDropdownOpen">
-                      <button type="button" 
+                      <button type="button"
                               class="tip-dropdown-item"
                               [class.selected]="tips.value === 0"
                               (click)="selectTipPreset(0)">
                         $0
                       </button>
-                      <button type="button" 
+                      <button type="button"
                               class="tip-dropdown-item"
                               [class.selected]="tips.value === 10"
                               (click)="selectTipPreset(10)">
                         $10
                       </button>
-                      <button type="button" 
-                              class="tip-dropdown-item"
-                              [class.selected]="tips.value === 15"
-                              (click)="selectTipPreset(15)">
-                        $15
-                      </button>
-                      <button type="button" 
-                              class="tip-dropdown-item"
-                              [class.selected]="tips.value === 20"
-                              (click)="selectTipPreset(20)">
-                        $20
-                      </button>
-                      <button type="button" 
+                      <button type="button"
                               class="tip-dropdown-item"
                               [class.selected]="tips.value === 25"
                               (click)="selectTipPreset(25)">
                         $25
+                      </button>
+                      <button type="button"
+                              class="tip-dropdown-item"
+                              [class.selected]="tips.value === 50"
+                              (click)="selectTipPreset(50)">
+                        $50
+                      </button>
+                      <button type="button"
+                              class="tip-dropdown-item"
+                              [class.selected]="tips.value === 100"
+                              (click)="selectTipPreset(100)">
+                        $100
                       </button>
                     </div>
                   </div>
@@ -1790,20 +1727,86 @@
           
           <!-- Part 3 Navigation -->
           <div class="step-buttons-container" *ngIf="currentStep === 3">
-            <button 
-              type="button" 
-              class="back-btn" 
+            <button
+              type="button"
+              class="back-btn"
               (click)="previousStep()">
               Back
             </button>
-            <button 
+            <button
               type="button"
-              class="book-now-btn" 
+              class="book-now-btn"
               [disabled]="isLoading"
               [class.disabled]="!isFormValid() || isLoading"
               (click)="onSubmit()">
               {{ isLoading ? 'Processing...' : (showPollForm ? 'Send for Quote' : 'Book Now') }}
             </button>
+          </div>
+        </div>
+
+        <!-- Partnership Overview — compact accordion shown only on step 3,
+             below the Book Now button. Reuses the existing toggleExtraInfoExpansion()
+             handler and isExtraInfoExpanded state. -->
+        <div class="partnership-accordion"
+             *ngIf="currentStep === 3 && !showPollForm && selectedServiceType">
+          <button type="button"
+                  class="partnership-accordion__toggle"
+                  [class.is-open]="isExtraInfoExpanded"
+                  [attr.aria-expanded]="isExtraInfoExpanded"
+                  (click)="toggleExtraInfoExpansion()">
+            <span class="partnership-accordion__title">
+              <i class="fas fa-info-circle partnership-accordion__icon" aria-hidden="true"></i>
+              <span>What's included &amp; what to have ready</span>
+            </span>
+            <i class="fas fa-chevron-down partnership-accordion__chevron" aria-hidden="true"></i>
+          </button>
+          <div class="partnership-accordion__body" *ngIf="isExtraInfoExpanded">
+            <div class="general-info">
+              <p><strong>Standard Cleaning</strong></p>
+              <p><strong>If you add Cleaning Supplies, we'll bring:</strong></p>
+              <ul>
+                <li>Zep (or similar) liquids: Green Liquid, Floor Liquid</li>
+                <li>Windex</li>
+                <li>Cleaning cloths</li>
+                <li>Sponge</li>
+                <li>Mop</li>
+              </ul>
+
+              <p><strong>Deep Cleaning</strong></p>
+              <p><strong>If you add Cleaning Supplies, we'll bring:</strong></p>
+              <ul>
+                <li>Zep (or similar) liquids: Green Liquid, Floor Liquid, Oven Cleaner Liquid</li>
+                <li>Windex</li>
+                <li>Cleaning cloths</li>
+                <li>Sponge</li>
+                <li>Mop</li>
+              </ul>
+
+              <p><strong>If you skip this option, please have the above items ready for our team.</strong></p>
+
+              <p><strong>Always required (you provide):</strong></p>
+              <ul>
+                <li>Paper towels</li>
+                <li>Garbage bags</li>
+                <li>Broom or vacuum cleaner</li>
+              </ul>
+            </div>
+
+            <div class="additional-reminders">
+              <h4>Additional Reminders</h4>
+              <p><strong>Time Matters</strong><br>
+              Our cleaning time is based on the number of hours booked.<br>
+              If your home hasn't been cleaned in a while or needs extra attention, we recommend booking more hours or requesting a walk-through estimate.</p>
+            </div>
+
+            <div class="restrictions-info">
+              <h4>We will not be able to do the following:</h4>
+              <ul>
+                <li>Moving Heavy Furniture and Appliances</li>
+                <li>Exterior Window Cleaning</li>
+                <li>Pet Waste</li>
+              </ul>
+            </div>
           </div>
         </div>
 
