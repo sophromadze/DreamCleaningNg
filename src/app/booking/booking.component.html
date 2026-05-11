@@ -258,22 +258,31 @@
               <div class="form-group">
                 <label>Service Type <span class="required">*</span></label>
                 <div class="service-type-dropdown" [shimmer]="loading.serviceTypes">
-                  <button 
+                  <button
                     type="button"
                     class="dropdown-toggle"
                     [class.pulsate-soft-red]="!selectedServiceType && (serviceTypeControl.touched || serviceTypeControl.invalid || formSubmitted)"
                     (click)="toggleServiceTypeDropdown()"
                     [disabled]="isLoading">
-                    <span>{{ selectedServiceType ? selectedServiceType.name : 'Select a service type' }}</span>
-                    <i class="fas fa-chevron-down"></i>
+                    <span class="dropdown-toggle__label">
+                      <i class="fas dropdown-toggle__icon"
+                         [ngClass]="getServiceTypeIcon(selectedServiceType?.name)"
+                         aria-hidden="true"></i>
+                      <span>{{ selectedServiceType ? selectedServiceType.name : 'Select a service type' }}</span>
+                    </span>
+                    <i class="fas fa-chevron-down dropdown-toggle__chevron"></i>
                   </button>
                   <div class="dropdown-menu" *ngIf="serviceTypeDropdownOpen">
-                    <button 
-                      *ngFor="let type of visibleServiceTypes" 
+                    <button
+                      *ngFor="let type of visibleServiceTypes"
                       type="button"
                       class="dropdown-item"
+                      [class.is-active]="selectedServiceType?.id === type.id"
                       (click)="selectServiceType(type)">
-                      {{ type.name }}
+                      <i class="fas dropdown-item__icon"
+                         [ngClass]="getServiceTypeIcon(type.name)"
+                         aria-hidden="true"></i>
+                      <span>{{ type.name }}</span>
                     </button>
                   </div>
                 </div>

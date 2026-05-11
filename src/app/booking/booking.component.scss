@@ -8711,12 +8711,11 @@
 
 .booking-form .cleaning-type-buttons {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* Auto-fit: cards need at least 270px before wrapping side-by-side.
+     If the form column is narrower than 2 × 270px + gap, the second
+     card drops to a new row instead of squeezing its text. */
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
   gap: 0.75rem;
-
-  @media (max-width: 480px) {
-    grid-template-columns: 1fr;
-  }
 }
 
 .booking-form .cleaning-type-btn {
@@ -9083,6 +9082,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.625rem;
   cursor: pointer;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
@@ -9103,6 +9103,37 @@
   }
 }
 
+/* Service-type toggle: leading icon avatar + name */
+.booking-form .service-type-dropdown .dropdown-toggle__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.booking-form .service-type-dropdown .dropdown-toggle__icon {
+  width: 1.875rem;
+  height: 1.875rem;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--soft-blue);
+  color: var(--primary-color) !important;
+  font-size: 0.85rem;
+}
+
+.booking-form .service-type-dropdown .dropdown-toggle__chevron {
+  color: var(--text-muted) !important;
+  flex-shrink: 0;
+  font-size: 0.75rem;
+}
+
 .booking-form .service-type-dropdown .dropdown-menu,
 .booking-form .entry-method-dropdown .dropdown-menu {
   background: var(--surface-elevated);
@@ -9111,18 +9142,55 @@
   box-shadow: 0 12px 32px var(--shadow-color);
   overflow: hidden;
   margin-top: 0.375rem;
+  padding: 0.25rem;
 
   .dropdown-item {
-    padding: 0.75rem 1rem;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: var(--radius-sm);
     color: var(--text-primary);
-    font-weight: var(--fw-medium);
-    transition: background 0.15s ease;
+    font-weight: var(--fw-semibold);
+    transition: background 0.15s ease, color 0.15s ease;
+    border: none;
+    background: transparent;
 
     &:hover {
       background: var(--soft-blue);
       color: var(--primary-color);
+
+      .dropdown-item__icon {
+        background: rgba(37, 99, 235, 0.18);
+      }
+    }
+
+    &.is-active {
+      background: var(--soft-blue);
+      color: var(--primary-color);
+
+      .dropdown-item__icon {
+        background: var(--btn-primary);
+        color: #fff;
+      }
     }
   }
+}
+
+/* Service-type dropdown item: leading icon avatar */
+.booking-form .service-type-dropdown .dropdown-item__icon {
+  width: 1.875rem;
+  height: 1.875rem;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--surface-subtle);
+  color: var(--primary-color);
+  font-size: 0.85rem;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 /* Custom entry method input */

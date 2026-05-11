@@ -1508,6 +1508,23 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.serviceTypeDropdownOpen = !this.serviceTypeDropdownOpen;
   }
 
+  /** Maps a service-type name to a FontAwesome 6 Free Solid icon class.
+   *  Used purely for presentation in the service-type dropdown — does not
+   *  influence selection logic or persisted data. */
+  getServiceTypeIcon(name: string | null | undefined): string {
+    if (!name) return 'fa-broom';
+    const key = name.toLowerCase();
+    if (key.includes('residential')) return 'fa-house';
+    if (key.includes('move')) return 'fa-truck-moving';
+    if (key.includes('office')) return 'fa-building';
+    if (key.includes('custom')) return 'fa-sliders';
+    if (key.includes('heavy')) return 'fa-shield-halved';
+    if (key.includes('filthy')) return 'fa-spray-can-sparkles';
+    if (key.includes('construction')) return 'fa-helmet-safety';
+    if (key.includes('pre-arranged') || key.includes('prearranged')) return 'fa-calendar-check';
+    return 'fa-broom';
+  }
+
   /** @param skipSave When true, do not persist to storage (e.g. when restoring from main page). Caller should save after restoring. */
   selectServiceType(serviceType: ServiceType, skipSave?: boolean) {
     // Don't show shimmer when restoring saved data on step 2/3 — shimmers are already off there

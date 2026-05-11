@@ -33,16 +33,25 @@
                 class="dropdown-toggle"
                 [class.error]="serviceTypeControl.invalid && serviceTypeControl.touched"
                 (click)="toggleServiceTypeDropdown()">
-                <span>{{ selectedServiceType ? selectedServiceType.name : 'Select a service type' }}</span>
-                <i class="fas fa-chevron-down"></i>
+                <span class="dropdown-toggle__label">
+                  <i class="fas dropdown-toggle__icon"
+                     [ngClass]="getServiceTypeIcon(selectedServiceType?.name)"
+                     aria-hidden="true"></i>
+                  <span>{{ selectedServiceType ? selectedServiceType.name : 'Select a service type' }}</span>
+                </span>
+                <i class="fas fa-chevron-down dropdown-toggle__chevron"></i>
               </button>
               <div class="dropdown-menu" *ngIf="serviceTypeDropdownOpen">
                 <button
                   *ngFor="let type of serviceTypes"
                   type="button"
                   class="dropdown-item"
+                  [class.is-active]="selectedServiceType?.id === type.id"
                   (click)="selectServiceType(type)">
-                  {{ type.name }}
+                  <i class="fas dropdown-item__icon"
+                     [ngClass]="getServiceTypeIcon(type.name)"
+                     aria-hidden="true"></i>
+                  <span>{{ type.name }}</span>
                 </button>
               </div>
             </div>
@@ -108,14 +117,25 @@
                 class="cleaning-type-btn"
                 [class.selected]="cleaningTypeControl.value === 'normal'"
                 (click)="selectCleaningType('normal')">
-                Regular Cleaning
+                <i class="fas fa-broom cleaning-type-btn__icon" aria-hidden="true"></i>
+                <span class="cleaning-type-btn__body">
+                  <span class="cleaning-type-btn__title">Regular Cleaning</span>
+                  <span class="cleaning-type-btn__sub">Standard maintenance clean</span>
+                </span>
+                <i class="fas fa-check-circle cleaning-type-btn__check" aria-hidden="true"></i>
               </button>
               <button
                 type="button"
-                class="cleaning-type-btn"
+                class="cleaning-type-btn cleaning-type-btn--featured"
                 [class.selected]="cleaningTypeControl.value === 'deep'"
                 (click)="selectCleaningType('deep')">
-                Deep Cleaning
+                <span class="cleaning-type-btn__badge">Most popular</span>
+                <i class="fas fa-spray-can-sparkles cleaning-type-btn__icon" aria-hidden="true"></i>
+                <span class="cleaning-type-btn__body">
+                  <span class="cleaning-type-btn__title">Deep Cleaning</span>
+                  <span class="cleaning-type-btn__sub">Recommended for first-timers</span>
+                </span>
+                <i class="fas fa-check-circle cleaning-type-btn__check" aria-hidden="true"></i>
               </button>
             </div>
             <div class="error-message" *ngIf="!isLoadingServiceTypes && cleaningTypeControl.invalid && cleaningTypeControl.touched">
@@ -152,9 +172,9 @@
           </button>
 
           <ul class="trust-mini-list">
-            <li>No hidden fees</li>
-            <li>Secure payment</li>
-            <li>Easy reschedule</li>
+            <li><i class="fas fa-check-circle trust-mini-list__icon trust-mini-list__icon--green" aria-hidden="true"></i> No hidden fees</li>
+            <li><i class="fas fa-lock trust-mini-list__icon trust-mini-list__icon--blue" aria-hidden="true"></i> Secure payment</li>
+            <li><i class="fas fa-calendar-check trust-mini-list__icon trust-mini-list__icon--blue" aria-hidden="true"></i> Easy reschedule</li>
           </ul>
 
         </form>
