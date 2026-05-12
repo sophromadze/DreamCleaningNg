@@ -1,4 +1,13 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectorRef } from '@angular/core';
+import {
+  Component,
+  OnInit,
+  OnDestroy,
+  Inject,
+  PLATFORM_ID,
+  ChangeDetectorRef,
+  ViewChild,
+  ElementRef
+} from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { HttpClientModule } from '@angular/common/http';
@@ -83,6 +92,34 @@ export class MainComponent implements OnInit, OnDestroy {
    *  admin uploads pairs in Admin → Before & After. */
   beforeAfterPhotos: BeforeAfterPhoto[] = [];
 
+  /** Padded to at least 3 items so the 3-across track math is stable. */
+  beforeAfterBasePhotos: BeforeAfterPhoto[] = [];
+  /** Triple of {@link beforeAfterBasePhotos} for seamless infinite scrolling. */
+  beforeAfterCarouselSlides: BeforeAfterPhoto[] = [];
+  /** Length of {@link beforeAfterBasePhotos}. */
+  beforeAfterBaseLength = 0;
+  /** Index in {@link beforeAfterCarouselSlides} of the leftmost visible slide (middle copy at init). */
+  beforeAfterOffset = 0;
+  beforeAfterTranslatePx = 0;
+  beforeAfterStepPx = 0;
+  beforeAfterSkipTransition = false;
+  /** How many before/after cards fit across — driven by window width (see breakpoints below). */
+  beforeAfterVisibleCount: 1 | 2 | 3 = 3;
+
+  @ViewChild('beforeAfterViewport') beforeAfterViewport?: ElementRef<HTMLElement>;
+
+  private beforeAfterViewDisposed = false;
+  private beforeAfterLayoutRaf = 0;
+  private beforeAfterResizeObserver: ResizeObserver | null = null;
+  private beforeAfterAutoplayTimer: ReturnType<typeof setInterval> | null = null;
+  private beforeAfterRecenterTimer: ReturnType<typeof setTimeout> | null = null;
+  private beforeAfterMotionOk = true;
+  private static readonly BEFORE_AFTER_AUTO_MS = 5000;
+  private static readonly BEFORE_AFTER_TRANSITION_MS = 320;
+  /** Match carousel columns to window width (not the inner viewport — container is narrower). */
+  private static readonly BEFORE_AFTER_WIN_WIDE = 1200;
+  private static readonly BEFORE_AFTER_WIN_NARROW = 768;
+
   // ============================================================================
   // DEV-ONLY PREVIEW DATA — never reaches production builds.
   //
@@ -149,6 +186,9 @@ export class MainComponent implements OnInit, OnDestroy {
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
+    if (this.isBrowser && typeof matchMedia !== 'undefined') {
+      this.beforeAfterMotionOk = !matchMedia('(prefers-reduced-motion: reduce)').matches;
+    }
   }
 
   ngOnInit() {
@@ -170,6 +210,7 @@ export class MainComponent implements OnInit, OnDestroy {
       clearInterval(this.reviewSliderTimer);
       this.reviewSliderTimer = null;
     }
+    this.disposeBeforeAfterCarouselView();
   }
 
   private loadReviews() {
@@ -244,14 +285,250 @@ export class MainComponent implements OnInit, OnDestroy {
             linkUrl: p.linkUrl,
             displayOrder: p.displayOrder
           }));
+          this.rebuildBeforeAfterCarousel();
           this.cdr.detectChanges();
+          setTimeout(() => {
+            this.updateBeforeAfterLayoutMetrics();
+            this.attachBeforeAfterResizeObserver();
+            this.startBeforeAfterAutoplay();
+          }, 0);
         },
         error: () => {
           // Endpoint not available yet (backend not deployed) — section just stays hidden.
           this.beforeAfterPhotos = [];
+          this.rebuildBeforeAfterCarousel();
+          this.teardownBeforeAfterCarousel();
+          this.cdr.detectChanges();
         }
       })
     );
+  }
+
+  trackBeforeAfterSlideIndex(index: number): number {
+    return index;
+  }
+
+  onBeforeAfterPrev(): void {
+    this.restartBeforeAfterAutoplay();
+    this.advanceBeforeAfter(-1);
+  }
+
+  onBeforeAfterNext(): void {
+    this.restartBeforeAfterAutoplay();
+    this.advanceBeforeAfter(1);
+  }
+
+  private rebuildBeforeAfterCarousel(): void {
+    this.teardownBeforeAfterCarouselTimersOnly();
+    const src = this.beforeAfterPhotos;
+    if (src.length === 0) {
+      this.beforeAfterBasePhotos = [];
+      this.beforeAfterCarouselSlides = [];
+      this.beforeAfterBaseLength = 0;
+      this.beforeAfterOffset = 0;
+      this.beforeAfterTranslatePx = 0;
+      this.beforeAfterStepPx = 0;
+      return;
+    }
+    const base = this.buildBeforeAfterBase(src);
+    this.beforeAfterBasePhotos = base;
+    this.beforeAfterBaseLength = base.length;
+    this.beforeAfterStepPx = 0;
+    this.beforeAfterCarouselSlides = [...base, ...base, ...base];
+    this.beforeAfterOffset = this.beforeAfterBaseLength;
+    this.beforeAfterSkipTransition = true;
+    this.syncBeforeAfterTranslate();
+  }
+
+  private buildBeforeAfterBase(photos: BeforeAfterPhoto[]): BeforeAfterPhoto[] {
+    const base = [...photos];
+    let i = 0;
+    while (base.length < 3) {
+      base.push(photos[i % photos.length]);
+      i++;
+    }
+    return base;
+  }
+
+  private attachBeforeAfterResizeObserver(): void {
+    if (!this.isBrowser) return;
+    const el = this.beforeAfterViewport?.nativeElement;
+    if (!el || this.beforeAfterCarouselSlides.length === 0) return;
+    this.beforeAfterResizeObserver?.disconnect();
+    this.beforeAfterResizeObserver = new ResizeObserver(() => {
+      this.scheduleBeforeAfterLayoutFromResize();
+    });
+    this.beforeAfterResizeObserver.observe(el);
+  }
+
+  /** Batches ResizeObserver + layout reads to the next frame to avoid re-entrant CD / SES issues. */
+  private scheduleBeforeAfterLayoutFromResize(): void {
+    if (!this.isBrowser || this.beforeAfterViewDisposed) return;
+    if (this.beforeAfterLayoutRaf !== 0) {
+      cancelAnimationFrame(this.beforeAfterLayoutRaf);
+    }
+    this.beforeAfterLayoutRaf = requestAnimationFrame(() => {
+      this.beforeAfterLayoutRaf = 0;
+      if (this.beforeAfterViewDisposed) return;
+      this.updateBeforeAfterLayoutMetrics();
+      this.cdr.detectChanges();
+    });
+  }
+
+  private resolveBeforeAfterVisibleCount(windowWidth: number): 1 | 2 | 3 {
+    if (windowWidth <= MainComponent.BEFORE_AFTER_WIN_NARROW) return 1;
+    if (windowWidth <= MainComponent.BEFORE_AFTER_WIN_WIDE) return 2;
+    return 3;
+  }
+
+  private updateBeforeAfterLayoutMetrics(): void {
+    if (this.beforeAfterViewDisposed) return;
+    const vp = this.beforeAfterViewport?.nativeElement;
+    if (!vp || this.beforeAfterCarouselSlides.length === 0) return;
+    const track = vp.querySelector('.before-after-carousel__track') as HTMLElement | null;
+    if (!track) return;
+
+    const gapStr = getComputedStyle(track).gap || '0px';
+    let gapPx = parseFloat(gapStr);
+    if (!Number.isFinite(gapPx)) gapPx = 0;
+
+    const vpStyle = getComputedStyle(vp);
+    const vpPadH =
+      (parseFloat(vpStyle.paddingLeft) || 0) + (parseFloat(vpStyle.paddingRight) || 0);
+    const vpContentW = Math.max(0, vp.clientWidth - vpPadH);
+    if (vp.clientWidth <= 0 || vpContentW <= 0) return;
+
+    const layoutW =
+      this.isBrowser && typeof window !== 'undefined' ? window.innerWidth : vpContentW;
+    const nextVisible = this.resolveBeforeAfterVisibleCount(layoutW);
+    const visibleChanged = nextVisible !== this.beforeAfterVisibleCount;
+    this.beforeAfterVisibleCount = nextVisible;
+
+    const gapsBetween = Math.max(0, this.beforeAfterVisibleCount - 1);
+    const slideW = Math.max(
+      1,
+      (vpContentW - gapsBetween * gapPx) / this.beforeAfterVisibleCount
+    );
+    vp.style.setProperty('--ba-slide-w', `${slideW}px`);
+
+    const nextStep = slideW + gapPx;
+    if (!Number.isFinite(nextStep) || nextStep <= 0) return;
+
+    const stepChanged = Math.abs(nextStep - this.beforeAfterStepPx) > 0.25;
+    if (stepChanged || visibleChanged) {
+      this.beforeAfterStepPx = nextStep;
+      this.beforeAfterSkipTransition = true;
+      this.syncBeforeAfterTranslate();
+      requestAnimationFrame(() => {
+        if (this.beforeAfterViewDisposed) return;
+        this.beforeAfterSkipTransition = false;
+        this.cdr.detectChanges();
+      });
+    } else {
+      this.beforeAfterStepPx = nextStep;
+      this.syncBeforeAfterTranslate();
+    }
+  }
+
+  private syncBeforeAfterTranslate(): void {
+    const t = this.beforeAfterOffset * this.beforeAfterStepPx;
+    this.beforeAfterTranslatePx = Number.isFinite(t) ? t : 0;
+  }
+
+  private advanceBeforeAfter(delta: 1 | -1): void {
+    if (!this.isBrowser || this.beforeAfterBaseLength === 0) return;
+    if (this.beforeAfterStepPx <= 0) {
+      this.updateBeforeAfterLayoutMetrics();
+    }
+    if (this.beforeAfterStepPx <= 0) return;
+
+    this.beforeAfterSkipTransition = false;
+    const m = this.beforeAfterBaseLength;
+    this.beforeAfterOffset += delta;
+    this.syncBeforeAfterTranslate();
+    this.cdr.detectChanges();
+
+    if (delta > 0 && this.beforeAfterOffset >= 2 * m) {
+      this.scheduleBeforeAfterRecenter(() => {
+        this.beforeAfterSkipTransition = true;
+        this.beforeAfterOffset = m;
+        this.syncBeforeAfterTranslate();
+        requestAnimationFrame(() => {
+          this.beforeAfterSkipTransition = false;
+          this.cdr.detectChanges();
+        });
+      });
+    } else if (delta < 0 && this.beforeAfterOffset < m) {
+      this.scheduleBeforeAfterRecenter(() => {
+        this.beforeAfterSkipTransition = true;
+        this.beforeAfterOffset = 2 * m - 1;
+        this.syncBeforeAfterTranslate();
+        requestAnimationFrame(() => {
+          this.beforeAfterSkipTransition = false;
+          this.cdr.detectChanges();
+        });
+      });
+    }
+  }
+
+  private scheduleBeforeAfterRecenter(cb: () => void): void {
+    if (this.beforeAfterRecenterTimer) {
+      clearTimeout(this.beforeAfterRecenterTimer);
+      this.beforeAfterRecenterTimer = null;
+    }
+    this.beforeAfterRecenterTimer = setTimeout(() => {
+      this.beforeAfterRecenterTimer = null;
+      cb();
+      this.cdr.detectChanges();
+    }, MainComponent.BEFORE_AFTER_TRANSITION_MS);
+  }
+
+  private startBeforeAfterAutoplay(): void {
+    this.stopBeforeAfterAutoplay();
+    if (!this.isBrowser || !this.beforeAfterMotionOk) return;
+    if (this.beforeAfterBaseLength === 0) return;
+    this.beforeAfterAutoplayTimer = setInterval(() => {
+      this.advanceBeforeAfter(1);
+      this.cdr.detectChanges();
+    }, MainComponent.BEFORE_AFTER_AUTO_MS);
+  }
+
+  private restartBeforeAfterAutoplay(): void {
+    this.startBeforeAfterAutoplay();
+  }
+
+  private stopBeforeAfterAutoplay(): void {
+    if (this.beforeAfterAutoplayTimer) {
+      clearInterval(this.beforeAfterAutoplayTimer);
+      this.beforeAfterAutoplayTimer = null;
+    }
+  }
+
+  private teardownBeforeAfterCarouselTimersOnly(): void {
+    this.stopBeforeAfterAutoplay();
+    if (this.beforeAfterRecenterTimer) {
+      clearTimeout(this.beforeAfterRecenterTimer);
+      this.beforeAfterRecenterTimer = null;
+    }
+  }
+
+  private cancelBeforeAfterLayoutRaf(): void {
+    if (this.beforeAfterLayoutRaf !== 0) {
+      cancelAnimationFrame(this.beforeAfterLayoutRaf);
+      this.beforeAfterLayoutRaf = 0;
+    }
+  }
+
+  private teardownBeforeAfterCarousel(): void {
+    this.cancelBeforeAfterLayoutRaf();
+    this.teardownBeforeAfterCarouselTimersOnly();
+    this.beforeAfterResizeObserver?.disconnect();
+    this.beforeAfterResizeObserver = null;
+  }
+
+  private disposeBeforeAfterCarouselView(): void {
+    this.beforeAfterViewDisposed = true;
+    this.teardownBeforeAfterCarousel();
   }
 
   private loadSpecialOffers() {

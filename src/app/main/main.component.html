@@ -341,7 +341,7 @@
             </article>
 
             <article class="testimonial-stats">
-              <h3 class="testimonial-stats__title">Used by 400+ NYC residents</h3>
+              <h3 class="testimonial-stats__title">Used by thousands of NYC residents</h3>
               <ul class="testimonial-stats__list">
                 <li>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>
@@ -373,13 +373,6 @@
   <section class="before-after-section" *ngIf="beforeAfterPhotos.length > 0">
     <div class="container-narrow">
       <div class="section-header section-header--center">
-        <span class="badge badge--info">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="9"/>
-            <path d="m8 12 2.5 2.5L16 9"/>
-          </svg>
-          Real before &amp; after examples
-        </span>
         <h2 class="section-title-h2">See the difference</h2>
         <p class="section-subtitle">Real apartment and bathroom transformations from our NYC team<svg class="verified-icon" viewBox="0 0 24 24" fill="currentColor" aria-label="Verified" role="img">
             <path d="M12 1.5 14.51 4.4l3.79-.78.86 3.78 3.34 1.92-1.78 3.43 1.16 3.69-3.6 1.45-1.4 3.6-3.78-.79L12 22.5l-2.51-2.9-3.78.79-1.4-3.6-3.6-1.45 1.16-3.69-1.78-3.43 3.34-1.92.86-3.78 3.79.78L12 1.5Z"/>
@@ -387,24 +380,57 @@
           </svg></p>
       </div>
 
-      <div class="before-after-grid">
-        <article class="before-after-card" *ngFor="let p of beforeAfterPhotos">
-          <div class="before-after-card__media">
-            <img class="before-after-card__half before-after-card__half--before"
-                 [src]="p.beforePhotoUrl"
-                 [alt]="p.title + ' — before'"
-                 loading="lazy">
-            <img class="before-after-card__half before-after-card__half--after"
-                 [src]="p.afterPhotoUrl"
-                 [alt]="p.title + ' — after'"
-                 loading="lazy">
+      <div class="before-after-carousel">
+        <div class="before-after-carousel__stage">
+          <div #beforeAfterViewport class="before-after-carousel__viewport">
+            <div class="before-after-carousel__track"
+                 [class.before-after-carousel__track--no-transition]="beforeAfterSkipTransition"
+                 [class.before-after-carousel__track--measuring]="beforeAfterStepPx <= 0"
+                 [style.transform]="'translate3d(' + (-beforeAfterTranslatePx) + 'px,0,0)'">
+              <div class="before-after-carousel__slide"
+                   *ngFor="let p of beforeAfterCarouselSlides; let i = index; trackBy: trackBeforeAfterSlideIndex">
+                <article class="before-after-card">
+                  <div class="before-after-card__surface">
+                    <div class="before-after-card__media">
+                      <img class="before-after-card__half before-after-card__half--before"
+                           [src]="p.beforePhotoUrl"
+                           [alt]="p.title + ' — before'"
+                           loading="lazy">
+                      <img class="before-after-card__half before-after-card__half--after"
+                           [src]="p.afterPhotoUrl"
+                           [alt]="p.title + ' — after'"
+                           loading="lazy">
+                    </div>
+                    <div class="before-after-card__body">
+                      <h3>{{ p.title }}</h3>
+                      <p *ngIf="p.subtitle">{{ p.subtitle }}</p>
+                      <a *ngIf="p.linkUrl" [routerLink]="p.linkUrl" class="link-pill">View more results</a>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </div>
           </div>
-          <div class="before-after-card__body">
-            <h3>{{ p.title }}</h3>
-            <p *ngIf="p.subtitle">{{ p.subtitle }}</p>
-            <a *ngIf="p.linkUrl" [routerLink]="p.linkUrl" class="link-pill">View more results</a>
+
+          <div class="before-after-carousel__controls" role="group" aria-label="Before and after gallery navigation">
+            <button type="button"
+                    class="before-after-carousel__nav before-after-carousel__nav--prev"
+                    (click)="onBeforeAfterPrev()"
+                    aria-label="Show previous before and after photos">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m15 18-6-6 6-6"/>
+              </svg>
+            </button>
+            <button type="button"
+                    class="before-after-carousel__nav before-after-carousel__nav--next"
+                    (click)="onBeforeAfterNext()"
+                    aria-label="Show next before and after photos">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="m9 18 6-6-6-6"/>
+              </svg>
+            </button>
           </div>
-        </article>
+        </div>
       </div>
     </div>
   </section>
@@ -447,7 +473,7 @@
           <p>Best for weekly, biweekly, or monthly maintenance. Dusting, vacuuming, kitchen and bathroom sanitization.</p>
           <div class="service-pick-card__footer">
             <span class="service-pick-card__price">from ${{ pricing.residentialFrom }}</span>
-            <a routerLink="/services/residential-cleaning" class="link-pill">View checklist</a>
+            <a routerLink="/cleaning-checklist" fragment="regular" class="link-pill">View checklist</a>
           </div>
         </article>
 
@@ -460,7 +486,7 @@
           <p>Detailed top-to-bottom clean: baseboards, buildup, inside appliances, hidden dust, hard-to-reach areas.</p>
           <div class="service-pick-card__footer">
             <span class="service-pick-card__price">from ${{ pricing.deepFrom }}</span>
-            <a routerLink="/services/deep-cleaning" class="link-pill">View checklist</a>
+            <a routerLink="/cleaning-checklist" fragment="deep" class="link-pill">View checklist</a>
           </div>
         </article>
 
@@ -473,7 +499,7 @@
           <p>For empty or nearly empty apartments before moving in or out. Cabinets, appliances, walls.</p>
           <div class="service-pick-card__footer">
             <span class="service-pick-card__price">from ${{ pricing.moveInOutFrom }}</span>
-            <a routerLink="/services/move-in-out-cleaning" class="link-pill">View checklist</a>
+            <a routerLink="/cleaning-checklist" fragment="move-in-out" class="link-pill">View checklist</a>
           </div>
         </article>
       </div>

@@ -1,0 +1,141 @@
+<main class="cleaning-checklist-page">
+  <section id="regular" class="comparison-section" aria-labelledby="comparison-title">
+    <div class="container-narrow">
+      <div class="section-header">
+        <h1 id="comparison-title">Your Property,<span>Our Priority.</span></h1>
+        <p>Explore our cleaning services by room.</p>
+      </div>
+
+      <div class="room-tabs" role="tablist" aria-label="Cleaning rooms">
+        <button
+          *ngFor="let section of comparisonSections; trackBy: trackComparisonSection"
+          type="button"
+          role="tab"
+          class="room-tab"
+          [class.room-tab--active]="section.key === activeRoom"
+          [attr.aria-selected]="section.key === activeRoom"
+          (click)="selectRoom(section.key)">
+          <i class="fas" [ngClass]="section.icon" aria-hidden="true"></i>
+          {{ section.label }}
+        </button>
+      </div>
+
+      <div class="comparison-card">
+        <div class="comparison-card__table-wrap">
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th scope="col">{{ activeSection.heading }}</th>
+                <th scope="col">Standard Cleaning</th>
+                <th scope="col">Deep Cleaning</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let row of activeSection.rows">
+                <td class="cell-task">{{ row.task }}</td>
+                <td class="cell-status" data-label="Standard">
+                  <span class="status-icon status-icon--yes" *ngIf="row.standard; else standardNo">
+                    <i class="fas fa-check" aria-hidden="true"></i>
+                    <span class="sr-only">Included</span>
+                  </span>
+                  <ng-template #standardNo>
+                    <span class="status-icon status-icon--no">
+                      <i class="fas fa-times" aria-hidden="true"></i>
+                      <span class="sr-only">Not included</span>
+                    </span>
+                  </ng-template>
+                </td>
+                <td class="cell-status" data-label="Deep">
+                  <span class="status-icon status-icon--yes" *ngIf="row.deep; else deepNo">
+                    <i class="fas fa-check" aria-hidden="true"></i>
+                    <span class="sr-only">Included</span>
+                  </span>
+                  <ng-template #deepNo>
+                    <span class="status-icon status-icon--no">
+                      <i class="fas fa-times" aria-hidden="true"></i>
+                      <span class="sr-only">Not included</span>
+                    </span>
+                  </ng-template>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="move-in-out" class="move-out-section" aria-labelledby="move-out-title">
+    <div class="container-narrow">
+      <div class="section-header">
+        <p class="eyebrow">Move-in / move-out cleaning checklist</p>
+        <h2 id="move-out-title">Built for empty or nearly empty apartments.</h2>
+        <p>Use this checklist when preparing a rental, new apartment, condo, brownstone, or home for a smooth transition.</p>
+      </div>
+
+      <div class="move-out-layout">
+        <div class="move-out-checklist">
+          <article
+            class="move-out-card"
+            *ngFor="let section of moveOutSections; trackBy: trackMoveOutSection">
+            <h3>{{ section.heading }}</h3>
+            <ul>
+              <li *ngFor="let row of section.rows">
+                <span class="status-icon status-icon--yes" aria-hidden="true">
+                  <i class="fas fa-check"></i>
+                </span>
+                <span>
+                  {{ row.task }}
+                  <em *ngIf="row.note">{{ row.note }}</em>
+                </span>
+              </li>
+            </ul>
+          </article>
+        </div>
+
+        <aside class="checklist-side-panel" aria-label="Move-in move-out requirements">
+          <div class="info-panel info-panel--warning">
+            <h3>Important requirements</h3>
+            <ul>
+              <li *ngFor="let item of importantRequirements; trackBy: trackByText">
+                <i class="fas fa-circle-info" aria-hidden="true"></i>
+                {{ item }}
+              </li>
+            </ul>
+          </div>
+
+          <div class="info-panel info-panel--danger">
+            <h3>What's not included</h3>
+            <ul>
+              <li *ngFor="let item of notIncluded; trackBy: trackByText">
+                <i class="fas fa-ban" aria-hidden="true"></i>
+                {{ item }}
+              </li>
+            </ul>
+          </div>
+        </aside>
+      </div>
+
+      <div class="extras-card">
+        <div>
+          <p class="eyebrow">Extra services</p>
+          <h3>Available add-ons</h3>
+        </div>
+        <ul>
+          <li *ngFor="let item of extras; trackBy: trackByText">
+            <i class="fas fa-plus" aria-hidden="true"></i>
+            {{ item }}
+          </li>
+        </ul>
+      </div>
+
+      <div class="checklist-cta">
+        <div>
+          <h2>Ready to book the right cleaning?</h2>
+          <p>Choose your service online and see available times with transparent pricing.</p>
+        </div>
+        <a routerLink="/booking" class="btn-cta-primary">Book Now</a>
+      </div>
+    </div>
+  </section>
+</main>

@@ -41,6 +41,14 @@ export const routes: Routes = [
       description: "Dream Cleaning's professional cleaning services in NYC — standard cleaning, deep cleaning, move in/out, office cleaning, post-construction & more. Brooklyn, Manhattan & Queens. Book online."
     }
   },
+  {
+    path: 'cleaning-checklist',
+    loadComponent: () => import('./cleaning-checklist/cleaning-checklist.component').then(m => m.CleaningChecklistComponent),
+    data: {
+      title: 'Cleaning Checklist | Standard, Deep & Move In/Out | Dream Cleaning',
+      description: `Compare Dream Cleaning's standard, deep, and move in/out cleaning checklists by room. Kitchen, bathroom, bedroom, living areas, exclusions, requirements, and add-ons.`
+    }
+  },
   // Service routes
   {
     path: 'services/residential-cleaning',
