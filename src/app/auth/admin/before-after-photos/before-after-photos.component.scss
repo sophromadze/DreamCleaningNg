@@ -1,6 +1,9 @@
 /* All colors via shared design tokens — see styles.scss */
 
-:host { display: block; }
+:host {
+  display: block;
+  margin-top: 1rem;
+}
 
 .ba-admin {
   display: flex;
