@@ -143,6 +143,15 @@
             </div>
           </div>
 
+          <!-- CTA -->
+          <div *ngIf="isLoadingServiceTypes" class="shimmer-btn" [shimmer]="true"></div>
+          <button *ngIf="!isLoadingServiceTypes" type="submit" class="btn-cta-secondary btn-cta-secondary--full">
+            See Exact Times &amp; Price
+            <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m9 18 6-6-6-6"/>
+            </svg>
+          </button>
+
           <!-- Starting estimate -->
           <div class="estimate-row" *ngIf="isLoadingServiceTypes || selectedServiceType">
             <span class="estimate-row__label">Starting estimate</span>
@@ -158,18 +167,8 @@
             </svg>
             <div class="next-available__text">
               <p class="next-available__title">Next available: {{ nextAvailableLabel }}</p>
-              <p class="next-available__sub">See exact price and available time slots before booking.</p>
             </div>
           </div>
-
-          <!-- CTA -->
-          <div *ngIf="isLoadingServiceTypes" class="shimmer-btn" [shimmer]="true"></div>
-          <button *ngIf="!isLoadingServiceTypes" type="submit" class="btn-cta-secondary btn-cta-secondary--full">
-            See Available Times &amp; Price
-            <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="m9 18 6-6-6-6"/>
-            </svg>
-          </button>
 
           <ul class="trust-mini-list">
             <li><i class="fas fa-check-circle trust-mini-list__icon trust-mini-list__icon--green" aria-hidden="true"></i> No hidden fees</li>
@@ -241,11 +240,6 @@
           <div class="hero-stat hero-stat--bookings" *ngIf="bookingsThisWeek > 0">
             <p class="hero-stat__title">{{ bookingsThisWeek }} bookings</p>
             <p class="hero-stat__sub">completed this week</p>
-          </div>
-
-          <div class="hero-stat hero-stat--overall" *ngIf="overallJobs > 0">
-            <p class="hero-stat__title">{{ overallJobs }} cleanings</p>
-            <p class="hero-stat__sub">completed all-time</p>
           </div>
 
           <div class="hero-trust-bar">

@@ -124,19 +124,6 @@ export class MainComponent implements OnInit, OnDestroy {
    *  Same number all day; flips at midnight (and at noon on Mondays). */
   bookingsThisWeek: number = 0;
 
-  /** All-time cleanings counter — baseline + daily deltas accumulated across every
-   *  past week. Weekly resets in `bookingsThisWeek` are absorbed by adding only
-   *  day-over-day differences (Tue=14, Wed=26 ⇒ adds 12, not 26). Carries across
-   *  weeks so it never restarts on Monday. */
-  overallJobs: number = 0;
-  /** Anchor for the all-time counter. Today (Sat 2026-05-09) starts at 723; every
-   *  subsequent day adds that day's delta over the prior day. Deliberately
-   *  baked into source so the number is consistent across visitors. */
-  private static readonly OVERALL_JOBS_BASELINE = 723;
-  private static readonly OVERALL_JOBS_BASELINE_YEAR = 2026;
-  private static readonly OVERALL_JOBS_BASELINE_MONTH = 4; // May (0-indexed)
-  private static readonly OVERALL_JOBS_BASELINE_DAY = 9;
-
   /** Standard booking schedule (mirrors backend BookingController.GetAvailableTimeSlots). */
   private static readonly TIME_SLOTS_WEEKDAY: string[] = [
     '08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30',
@@ -171,7 +158,6 @@ export class MainComponent implements OnInit, OnDestroy {
     this.loadServiceTypes();
     // Deterministic-per-day counter (safe on SSR — pure date math, no API).
     this.bookingsThisWeek = this.computeBookingsThisWeek();
-    this.overallJobs = this.computeOverallJobs();
     // Fetch admin-blocked slots and pick the next free date+time.
     this.loadNextAvailableSlot();
     // Fetch admin-uploaded before/after photos.
@@ -485,51 +471,6 @@ export class MainComponent implements OnInit, OnDestroy {
     const seed = now.getFullYear() * 1000 + dayOfYear + (dow === 1 && hour >= 12 ? 0.5 : 0);
     const r = MainComponent.seededRandom(seed);
     return range[0] + Math.floor(r * (range[1] - range[0] + 1));
-  }
-
-  /**
-   * All-time cleanings = baseline + sum of every past day's delta over the prior
-   * day. Monday is treated as "fresh start" — its delta is the day's own value
-   * (since the prior Sunday's value belongs to the previous, already-summed
-   * week). This makes the counter grow continuously across week boundaries
-   * without ever resetting.
-   */
-  private computeOverallJobs(): number {
-    const now = this.getNowInNewYork();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const baseline = new Date(
-      MainComponent.OVERALL_JOBS_BASELINE_YEAR,
-      MainComponent.OVERALL_JOBS_BASELINE_MONTH,
-      MainComponent.OVERALL_JOBS_BASELINE_DAY
-    );
-
-    if (today.getTime() <= baseline.getTime()) {
-      return MainComponent.OVERALL_JOBS_BASELINE;
-    }
-
-    let total = MainComponent.OVERALL_JOBS_BASELINE;
-    const cursor = new Date(baseline);
-    cursor.setDate(cursor.getDate() + 1);
-
-    while (cursor.getTime() <= today.getTime()) {
-      total += this.computeDailyDelta(cursor);
-      cursor.setDate(cursor.getDate() + 1);
-    }
-
-    return total;
-  }
-
-  /** Day-over-day completed-bookings delta. On Monday the week resets, so the
-   *  delta is just that Monday's value (it doesn't subtract Sunday's). */
-  private computeDailyDelta(date: Date): number {
-    const todayValue = this.computeBookingsThisWeek(date);
-    if (date.getDay() === 1) {
-      return todayValue;
-    }
-    const yesterday = new Date(date);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayValue = this.computeBookingsThisWeek(yesterday);
-    return Math.max(0, todayValue - yesterdayValue);
   }
 
   /** Deterministic 0..1 hash from a numeric seed (Mulberry-style). Pure, no Math.random(). */

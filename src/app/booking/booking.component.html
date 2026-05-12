@@ -21,11 +21,6 @@
       </div>
     </div>
 
-    <p class="booking-subtitle" *ngIf="!isAdminMode">
-      <i class="fas fa-bolt booking-subtitle__icon" aria-hidden="true"></i>
-      <span>Just 3 quick steps · most customers finish in under 2 minutes</span>
-    </p>
-
     <!-- Admin User Selector -->
     <div class="admin-user-selector" *ngIf="isAdminMode">
       <div class="user-selector-header">
@@ -89,72 +84,15 @@
       {{ errorMessage }}
     </div>
 
-    <!-- Step progress indicator (decorative; visualises currentStep) -->
-    <div class="booking-progress-stepper" *ngIf="!showPollForm" [attr.data-current-step]="currentStep">
-      <div class="booking-progress-stepper__step"
-           [class.is-active]="currentStep === 1"
-           [class.is-complete]="currentStep > 1">
-        <div class="booking-progress-stepper__bubble" aria-hidden="true">
-          <i *ngIf="currentStep > 1" class="fas fa-check"></i>
-          <span *ngIf="currentStep <= 1">1</span>
-        </div>
-        <span class="booking-progress-stepper__label">Configure</span>
-      </div>
-      <div class="booking-progress-stepper__line" [class.is-complete]="currentStep > 1" aria-hidden="true"></div>
-      <div class="booking-progress-stepper__step"
-           [class.is-active]="currentStep === 2"
-           [class.is-complete]="currentStep > 2">
-        <div class="booking-progress-stepper__bubble" aria-hidden="true">
-          <i *ngIf="currentStep > 2" class="fas fa-check"></i>
-          <span *ngIf="currentStep <= 2">2</span>
-        </div>
-        <span class="booking-progress-stepper__label">Schedule</span>
-      </div>
-      <div class="booking-progress-stepper__line" [class.is-complete]="currentStep > 2" aria-hidden="true"></div>
-      <div class="booking-progress-stepper__step" [class.is-active]="currentStep === 3">
-        <div class="booking-progress-stepper__bubble" aria-hidden="true">
-          <span>3</span>
-        </div>
-        <span class="booking-progress-stepper__label">Confirm</span>
-      </div>
-    </div>
-
-    <!-- Trust strip (decorative reassurance) -->
-    <div class="booking-trust-strip" *ngIf="!isAdminMode">
-      <div class="booking-trust-strip__item">
-        <i class="fas fa-shield-alt booking-trust-strip__icon booking-trust-strip__icon--green" aria-hidden="true"></i>
-        <span>Fully insured &amp; bonded</span>
-      </div>
-      <div class="booking-trust-strip__item">
-        <i class="fas fa-star booking-trust-strip__icon booking-trust-strip__icon--amber" aria-hidden="true"></i>
-        <span>5.0 on Google</span>
-      </div>
-      <div class="booking-trust-strip__item">
-        <i class="fas fa-bolt booking-trust-strip__icon booking-trust-strip__icon--blue" aria-hidden="true"></i>
-        <span>Same-day available</span>
-      </div>
-      <div class="booking-trust-strip__item">
-        <i class="fas fa-lock booking-trust-strip__icon booking-trust-strip__icon--blue" aria-hidden="true"></i>
-        <span>Secure payment via Stripe</span>
-      </div>
-    </div>
-
     <div class="booking-grid"
          [class.full-width]="showPollForm"
          [class.has-summary]="!showPollForm"
          [class.step-3-active]="currentStep === 3 && !showPollForm">
       <!-- Left Side - Service Selection -->
       <div class="booking-form">
-        <!-- <div class="clear-form-section" *ngIf="formPersistenceService.hasSavedData() && selectedServiceType">
-          <button class="clear-all-btn" (click)="clearAllFormData()">
-            Reset
-          </button>
-        </div> -->
-        
-        <!-- PART 1: Service Selection and Configuration -->
-        <div class="form-step" [class.active]="currentStep === 1" [class.hidden]="currentStep !== 1">
+        <div class="booking-form-top" *ngIf="!showPollForm && currentStep === 1">
           <!-- Reorder Section - only when loaded and user has previous orders (no shimmer; guests and users without orders don't see it) -->
-          <div class="reorder-section" *ngIf="!loading.previousOrders && previousOrders.length > 0">
+          <div class="reorder-section" *ngIf="!loading.previousOrders && previousOrders.length > 0 && currentStep === 1">
             <button 
               type="button"
               class="reorder-btn"
@@ -201,7 +139,41 @@
               </div>
             </div>
           </div>
-          
+
+          <!-- Step progress indicator (decorative; visualises currentStep) -->
+          <div class="booking-progress-stepper booking-progress-stepper--compact" [attr.data-current-step]="currentStep">
+            <div class="booking-progress-stepper__step"
+                [class.is-active]="true">
+              <div class="booking-progress-stepper__bubble" aria-hidden="true">
+                <span>1</span>
+              </div>
+              <span class="booking-progress-stepper__label">Configure</span>
+            </div>
+            <div class="booking-progress-stepper__line" aria-hidden="true"></div>
+            <div class="booking-progress-stepper__step">
+              <div class="booking-progress-stepper__bubble" aria-hidden="true">
+                <span>2</span>
+              </div>
+              <span class="booking-progress-stepper__label">Schedule</span>
+            </div>
+            <div class="booking-progress-stepper__line" aria-hidden="true"></div>
+            <div class="booking-progress-stepper__step">
+              <div class="booking-progress-stepper__bubble" aria-hidden="true">
+                <span>3</span>
+              </div>
+              <span class="booking-progress-stepper__label">Confirm</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- <div class="clear-form-section" *ngIf="formPersistenceService.hasSavedData() && selectedServiceType">
+          <button class="clear-all-btn" (click)="clearAllFormData()">
+            Reset
+          </button>
+        </div> -->
+        
+        <!-- PART 1: Service Selection and Configuration -->
+        <div class="form-step" [class.active]="currentStep === 1" [class.hidden]="currentStep !== 1">
           <!-- Your offers: one shimmer while loading, then section with content. Hidden for poll service types (no payment). -->
           <div *ngIf="loading.promoBanner && !showPollForm" class="special-offers-loading-shimmer" [shimmer]="true"></div>
           <section class="special-offers-section" *ngIf="!loading.promoBanner && userSpecialOffers.length > 0 && !showPollForm">
@@ -822,9 +794,42 @@
 
         <!-- PART 2: Subscription and Scheduling -->
         <div class="form-step" [class.active]="currentStep === 2" [class.hidden]="currentStep !== 2">
-          <!-- Top-left chevron for Part 2 -->
-          <div class="top-left-chevron" (click)="previousStep()">
-            <span class="chevron-left">‹</span>
+          <div class="step-top-nav">
+            <!-- Top-left chevron for Part 2 -->
+            <button type="button" class="top-left-chevron" (click)="previousStep()" aria-label="Go back to previous step">
+              <span class="chevron-left">‹</span>
+            </button>
+
+            <div class="booking-progress-stepper booking-progress-stepper--compact booking-progress-stepper--inline"
+                 *ngIf="!showPollForm"
+                 [attr.data-current-step]="currentStep">
+              <div class="booking-progress-stepper__step"
+                  [class.is-active]="currentStep === 1"
+                  [class.is-complete]="currentStep > 1">
+                <div class="booking-progress-stepper__bubble" aria-hidden="true">
+                  <i *ngIf="currentStep > 1" class="fas fa-check"></i>
+                  <span *ngIf="currentStep <= 1">1</span>
+                </div>
+                <span class="booking-progress-stepper__label">Configure</span>
+              </div>
+              <div class="booking-progress-stepper__line" [class.is-complete]="currentStep > 1" aria-hidden="true"></div>
+              <div class="booking-progress-stepper__step"
+                  [class.is-active]="currentStep === 2"
+                  [class.is-complete]="currentStep > 2">
+                <div class="booking-progress-stepper__bubble" aria-hidden="true">
+                  <i *ngIf="currentStep > 2" class="fas fa-check"></i>
+                  <span *ngIf="currentStep <= 2">2</span>
+                </div>
+                <span class="booking-progress-stepper__label">Schedule</span>
+              </div>
+              <div class="booking-progress-stepper__line" [class.is-complete]="currentStep > 2" aria-hidden="true"></div>
+              <div class="booking-progress-stepper__step" [class.is-active]="currentStep === 3">
+                <div class="booking-progress-stepper__bubble" aria-hidden="true">
+                  <span>3</span>
+                </div>
+                <span class="booking-progress-stepper__label">Confirm</span>
+              </div>
+            </div>
           </div>
           
           <!-- Common sections for both regular and custom pricing (hidden only for poll) -->
@@ -1186,9 +1191,42 @@
 
         <!-- PART 3: Contact Information and Final Details -->
         <div class="form-step step-3" *ngIf="!showPollForm" [class.active]="currentStep === 3" [class.hidden]="currentStep !== 3">
-          <!-- Top-left chevron for Part 3 -->
-          <div class="top-left-chevron" (click)="previousStep()">
-            <span class="chevron-left">‹</span>
+          <div class="step-top-nav">
+            <!-- Top-left chevron for Part 3 -->
+            <button type="button" class="top-left-chevron" (click)="previousStep()" aria-label="Go back to previous step">
+              <span class="chevron-left">‹</span>
+            </button>
+
+            <div class="booking-progress-stepper booking-progress-stepper--compact booking-progress-stepper--inline"
+                 *ngIf="!showPollForm"
+                 [attr.data-current-step]="currentStep">
+              <div class="booking-progress-stepper__step"
+                  [class.is-active]="currentStep === 1"
+                  [class.is-complete]="currentStep > 1">
+                <div class="booking-progress-stepper__bubble" aria-hidden="true">
+                  <i *ngIf="currentStep > 1" class="fas fa-check"></i>
+                  <span *ngIf="currentStep <= 1">1</span>
+                </div>
+                <span class="booking-progress-stepper__label">Configure</span>
+              </div>
+              <div class="booking-progress-stepper__line" [class.is-complete]="currentStep > 1" aria-hidden="true"></div>
+              <div class="booking-progress-stepper__step"
+                  [class.is-active]="currentStep === 2"
+                  [class.is-complete]="currentStep > 2">
+                <div class="booking-progress-stepper__bubble" aria-hidden="true">
+                  <i *ngIf="currentStep > 2" class="fas fa-check"></i>
+                  <span *ngIf="currentStep <= 2">2</span>
+                </div>
+                <span class="booking-progress-stepper__label">Schedule</span>
+              </div>
+              <div class="booking-progress-stepper__line" [class.is-complete]="currentStep > 2" aria-hidden="true"></div>
+              <div class="booking-progress-stepper__step" [class.is-active]="currentStep === 3">
+                <div class="booking-progress-stepper__bubble" aria-hidden="true">
+                  <span>3</span>
+                </div>
+                <span class="booking-progress-stepper__label">Confirm</span>
+              </div>
+            </div>
           </div>
 
           <!-- Contact Information - Moved to bottom -->
@@ -1937,6 +1975,7 @@
         <div class="payment-note" *ngIf="selectedServiceType && currentStep === 3">
           <p><span class="note-label">Please note:</span> We accept credit or debit cards, and all online payments are securely processed through Stripe. When you book with Dream Cleaning, you can rest assured that your transaction is safe and protected. By ordering our services and providing your credit card details, you consent to us charging your card for the service fee.</p>
         </div>
+
       </div>
 
       <!-- Right Side - Booking Summary (Fixed) -->
@@ -2144,12 +2183,30 @@
     </ul>
   </div>
 
+  </div>
+</div>
+
+<!-- Trust strip (decorative reassurance) -->
+<div class="booking-trust-strip" *ngIf="!isAdminMode">
+  <div class="booking-trust-strip__item">
+    <i class="fas fa-shield-alt booking-trust-strip__icon booking-trust-strip__icon--green" aria-hidden="true"></i>
+    <span>Fully insured &amp; bonded</span>
+  </div>
+  <div class="booking-trust-strip__item">
+    <i class="fas fa-star booking-trust-strip__icon booking-trust-strip__icon--amber" aria-hidden="true"></i>
+    <span>5.0 on Google</span>
+  </div>
+  <div class="booking-trust-strip__item">
+    <i class="fas fa-bolt booking-trust-strip__icon booking-trust-strip__icon--blue" aria-hidden="true"></i>
+    <span>Same-day available</span>
+  </div>
+  <div class="booking-trust-strip__item">
+    <i class="fas fa-lock booking-trust-strip__icon booking-trust-strip__icon--blue" aria-hidden="true"></i>
+    <span>Secure payment via Stripe</span>
+  </div>
 </div>
 
 
     </div>
   </div>
   
-
-
-</div>

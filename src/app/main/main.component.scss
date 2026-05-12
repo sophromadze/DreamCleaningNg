@@ -783,7 +783,6 @@
     height: 1.25rem;
     color: var(--fresh-green);
     flex-shrink: 0;
-    margin-top: 2px;
     /* Live dot — small green pulse anchored to the calendar icon */
     position: relative;
 
@@ -815,13 +814,6 @@
     margin: 0;
     line-height: 1.3;
   }
-
-  &__sub {
-    font-size: 0.8125rem;
-    color: var(--text-secondary);
-    margin: 0;
-    line-height: 1.4;
-  }
 }
 
 @keyframes nextAvailablePulse {
@@ -849,11 +841,15 @@
   }
 }
 
-/* Trust mini-list — chip row with coloured leading icons */
+/* Trust mini-list — chip row with coloured leading icons.
+   Font + icon sized to keep each label on a single line within the
+   narrow booking-form-card column. */
 .trust-mini-list {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.5rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.375rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -862,15 +858,16 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.375rem;
+    gap: 0.3125rem;
     text-align: center;
-    padding: 0.5rem 0.625rem;
+    padding: 0.4375rem 0.5rem;
     background: var(--surface-subtle);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    font-size: 0.75rem;
+    font-size: 0.6875rem;
     font-weight: var(--fw-bold);
     color: var(--text-secondary);
+    white-space: nowrap;
     transition: background 0.15s ease, border-color 0.15s ease;
 
     &:hover {
@@ -880,7 +877,7 @@
   }
 
   &__icon {
-    font-size: 0.8125rem;
+    font-size: 0.6875rem;
     flex-shrink: 0;
 
     &--green { color: var(--fresh-green); }
@@ -1064,7 +1061,7 @@
   background: var(--surface-glass-strong);
   border: 1px solid var(--surface-glass-border);
   border-radius: var(--radius-lg);
-  backdrop-filter: blur(14px);
+  backdrop-filter: blur(3px);
   box-shadow: var(--shadow-photo);
   min-width: 135px;
 
@@ -1090,15 +1087,6 @@
       color: var(--fresh-green);
     }
   }
-
-  &--overall {
-    top: 1rem;
-    right: 1rem;
-
-    .hero-stat__title {
-      color: var(--primary-color);
-    }
-  }
 }
 
 .hero-trust-bar {
@@ -1109,6 +1097,9 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.875rem;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
 
   @media (max-width: 640px) {
     grid-template-columns: 1fr;
@@ -1117,11 +1108,12 @@
 
   &__item {
     padding: 0.8125rem 0.9375rem;
-    background: var(--surface-glass-strong);
+    background: var(--surface-glass-soft);
     border: 1px solid var(--surface-glass-border);
     border-radius: var(--radius-xl);
-    backdrop-filter: blur(14px);
+    backdrop-filter: blur(3px);
     box-shadow: var(--shadow-photo);
+    width: 165px;
 
     .rating-stars {
       display: inline-flex;
@@ -1181,6 +1173,175 @@
 
     > * {
       width: 100%;
+    }
+  }
+}
+
+/* =============================================================
+   Compact viewport heights
+   Scales the side-by-side hero down so everything stays visible
+   on shorter desktop screens (e.g. 1366×768 laptops or docked
+   windows). Mobile/tablet stacked layout (≤1024px) is unaffected
+   since the hero scrolls naturally there.
+============================================================= */
+@media (max-height: 830px) and (min-width: 1025px) {
+  .hero-section {
+    padding: 0.625rem 20px 1.75rem;
+  }
+
+  .booking-form-card {
+    padding: 1rem;
+    top: 0.75rem;
+
+    &__header { margin-bottom: 0.375rem; }
+    &__step { font-size: 0.75rem; }
+    &__title { font-size: 1rem; }
+  }
+
+  .booking-form {
+    min-height: 0;
+    gap: 0.5rem;
+  }
+
+  .form-section {
+    gap: 0.375rem;
+
+    .section-title { font-size: 0.75rem; }
+  }
+
+  .service-type-dropdown {
+    .dropdown-toggle {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+    }
+
+    .dropdown-toggle__icon,
+    .dropdown-item__icon {
+      width: 1.625rem;
+      height: 1.625rem;
+      font-size: 0.75rem;
+    }
+  }
+
+  .service-item {
+    padding: 0.375rem 0.875rem;
+
+    label { font-size: 0.875rem; }
+  }
+
+  .quantity-control .control-buttons {
+    padding: 0.1875rem;
+
+    button { width: 1.5rem; height: 1.5rem; }
+
+    .quantity-value { font-size: 0.8125rem; min-width: 48px; }
+  }
+
+  .cleaning-type-buttons {
+    gap: 0.5rem;
+
+    .cleaning-type-btn {
+      padding: 0.5rem 0.75rem;
+
+      &__icon { width: 1.875rem; height: 1.875rem; font-size: 0.875rem; }
+      &__title { font-size: 0.8125rem; }
+      &__sub { font-size: 0.625rem; }
+    }
+  }
+
+  .estimate-row {
+    padding: 0.5rem 0.875rem;
+
+    &__label { font-size: 0.75rem; }
+    &__price { font-size: 1.25rem; }
+  }
+
+  .next-available {
+    padding: 0.5rem 0.75rem;
+
+    &__title { font-size: 0.875rem; }
+  }
+
+  .btn-cta-secondary--full {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9375rem;
+  }
+
+  .trust-mini-list li {
+    padding: 0.375rem 0.5rem;
+    font-size: 0.625rem;
+  }
+
+  .hero-content {
+    gap: 0.5rem;
+  }
+
+  .hero-content__badge {
+    padding: 0.3125rem 0.75rem;
+    font-size: 0.6875rem;
+  }
+
+  .hero-title {
+    font-size: clamp(1.5rem, 3.4vw, 2.4rem);
+  }
+
+  .hero-subtitle {
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+
+  .hero-locations {
+    gap: 0.5rem;
+
+    .location-pill {
+      padding: 0.4375rem 0.875rem;
+      font-size: 0.8125rem;
+
+      svg { width: 0.875rem; height: 0.875rem; }
+    }
+  }
+
+  .hero-cta-row {
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+
+  .btn-cta-primary,
+  .btn-cta-secondary,
+  .btn-cta-quote {
+    padding: 0.625rem 1.25rem;
+    font-size: 0.875rem;
+
+    svg { width: 1rem; height: 1rem; }
+  }
+
+  .hero-image-card {
+    min-height: 320px;
+  }
+
+  .hero-stat {
+    padding: 0.4375rem 0.6875rem;
+    min-width: auto;
+
+    &__title { font-size: 0.6875rem; }
+    &__sub { font-size: 0.625rem; }
+  }
+
+  .hero-trust-bar {
+    bottom: 0.625rem;
+    left: 0.625rem;
+    right: 0.625rem;
+    gap: 0.5rem;
+
+    &__item { padding: 0.5rem 0.625rem; }
+    &__title { font-size: 0.75rem; }
+    &__sub { font-size: 0.5625rem; }
+
+    .trust-icon { width: 1.125rem; height: 1.125rem; margin-bottom: 0.125rem; }
+
+    .rating-stars {
+      margin-bottom: 0.125rem;
+      svg { width: 0.75rem; height: 0.75rem; }
     }
   }
 }

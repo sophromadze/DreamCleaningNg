@@ -3974,7 +3974,7 @@
   .reorder-btn {
     background: var(--btn-secondary);
     color: white;
-    padding: 0.6rem 1.2rem;
+    padding: 0.45rem 0.9rem;
     border-radius: 58px;
     border: none;
     cursor: pointer;
@@ -3987,7 +3987,7 @@
     transition: all 0.3s ease;
     box-shadow: var(--btn-secondary-shadow);
     font-family: 'Poppins', sans-serif;
-    min-height: 44px;
+    min-height: 36px;
 
     i {
       font-size: 0.9rem;
@@ -4005,9 +4005,9 @@
 
     @media (max-width: 768px) {
       width: 100%;
-      padding: 14px 24px;
-      font-size: 0.9rem;
-      min-height: 48px;
+      padding: 0.55rem 0.9rem;
+      font-size: 0.8rem;
+      min-height: 38px;
 
       i {
         font-size: 0.9rem;
@@ -4236,6 +4236,65 @@
     font-size: 1.05rem;
     font-weight: 700;
     font-family: 'Poppins', sans-serif;
+  }
+}
+
+.booking-form-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  flex-wrap: wrap;
+
+  .reorder-section {
+    margin-bottom: 0;
+    width: auto;
+    justify-content: flex-start;
+    flex: 0 0 auto;
+  }
+
+  .reorder-btn {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.9rem;
+
+    i {
+      font-size: 0.9rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    align-items: stretch;
+
+    .reorder-section {
+      width: 100%;
+    }
+
+    .reorder-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+.step-top-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+
+  .booking-progress-stepper--inline {
+    margin: 0;
+    flex: 1 1 auto;
+  }
+
+  @media (max-width: 768px) {
+    align-items: stretch;
+    gap: 0.5rem;
+
+    .booking-progress-stepper--inline {
+      min-width: 0;
+    }
   }
 }
 
@@ -7330,36 +7389,35 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  background-color: white;
-  border: 2px solid #e0e0e0;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-color);
   border-radius: 50%;
-  width: 48px;
-  height: 48px;
-  margin-bottom: 1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: 0;
+  box-shadow: 0 2px 8px var(--shadow-color);
   transition: all 0.3s ease;
   
   &:hover {
-    background-color: #f8f9fa;
-    border-color: #d0d0d0;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    background: var(--surface);
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px var(--shadow-color);
     transform: translateY(-1px);
   }
   
   .chevron-left {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     font-weight: bold;
-    color: #6c757d;
+    color: var(--text-secondary);
     line-height: 1;
   }
   
   @media (max-width: 768px) {
-    width: 44px;
-    height: 44px;
-    margin-bottom: 0.75rem;
+    width: 2.5rem;
+    height: 2.5rem;
     
     .chevron-left {
-      font-size: 1.6rem;
+      font-size: 1.35rem;
     }
   }
 }
@@ -8366,13 +8424,63 @@
   }
 }
 
+.booking-progress-stepper--compact {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  max-width: none;
+  width: auto;
+  flex: 1 1 380px;
+  gap: 0.25rem;
+
+  .booking-progress-stepper__step {
+    gap: 0.25rem;
+  }
+
+  .booking-progress-stepper__bubble {
+    width: 1.5rem;
+    height: 1.5rem;
+    font-size: 1rem;
+  }
+
+  .booking-progress-stepper__label {
+    font-size: 1rem;
+  }
+
+  .booking-progress-stepper__line {
+    min-width: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
+    padding: 0.5rem;
+  }
+}
+
+:host-context([data-theme="dark"]) {
+  .top-left-chevron {
+    background: var(--surface-elevated);
+    border-color: var(--border-color);
+    box-shadow: 0 2px 10px var(--shadow-color);
+
+    .chevron-left {
+      color: var(--text-primary);
+    }
+
+    &:hover {
+      background: var(--surface);
+      border-color: var(--primary-color);
+      box-shadow: 0 4px 14px var(--shadow-color);
+    }
+  }
+}
+
 /* ---- Trust strip ------------------------------------------- */
 .booking-trust-strip {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 0.5rem 1.25rem;
-  margin: 0 auto 1.5rem;
+  margin: 1.25rem auto 0;
   padding: 0.625rem 1rem;
   border-radius: var(--radius-pill);
   background: var(--surface-glass);
@@ -9010,28 +9118,126 @@
 
 /* ---- Special offer cards ----------------------------------- */
 .special-offers-section {
+  /* Heading: leading star icon in a brand-gradient chip.
+     Use solid colour tokens here — `var(--btn-secondary)` is itself
+     a `linear-gradient(...)`, so nesting it inside another gradient
+     produces invalid CSS and the chip won't render. */
+  .special-offers-heading {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: var(--fw-black) !important;
+    letter-spacing: -0.01em;
+
+    &::before {
+      content: "\f005"; /* fa-star — celebratory accent */
+      font-family: "Font Awesome 6 Free";
+      font-weight: 900;
+      width: 1.75rem;
+      height: 1.75rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--fresh-green) 0%, var(--primary-color) 100%);
+      color: #fff;
+      font-size: 0.8rem;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+      flex-shrink: 0;
+    }
+  }
+
   .special-offer-card {
-    background: var(--surface) !important;
-    border: 1px solid var(--border-color) !important;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg,
+      var(--soft-blue) 0%,
+      var(--mint-fresh) 100%) !important;
+    border: 1px solid var(--mint-fresh-border) !important;
     border-radius: var(--radius-xl) !important;
-    padding: 0.875rem 1.125rem !important;
-    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    padding: 1rem 1.125rem !important;
+    box-shadow: 0 4px 16px rgba(37, 99, 235, 0.08) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+    /* Decorative glow blob in the upper-right corner */
+    &::before {
+      content: "";
+      position: absolute;
+      top: -40%;
+      right: -10%;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(34, 197, 94, 0.18) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Keep content above the decorative glow */
+    > * {
+      position: relative;
+      z-index: 1;
+    }
 
     &:hover {
       border-color: var(--primary-color) !important;
-      transform: translateY(-2px);
-      box-shadow: 0 6px 18px var(--shadow-color);
-      background: var(--surface) !important;
+      box-shadow: 0 10px 28px rgba(37, 99, 235, 0.15) !important;
     }
 
     &.applied {
-      background: var(--mint-fresh) !important;
-      border-color: var(--mint-fresh-border) !important;
-      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.12) !important;
+      background: linear-gradient(135deg,
+        var(--mint-fresh) 0%,
+        rgba(34, 197, 94, 0.15) 100%) !important;
+      border-color: var(--fresh-green) !important;
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.18),
+                  0 8px 22px rgba(34, 197, 94, 0.20) !important;
+    }
+
+    /* Tag icon → coloured chip */
+    .offer-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
     }
 
     .offer-badge-icon {
-      color: var(--primary-color);
+      width: 1.875rem;
+      height: 1.875rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--btn-primary) !important;
+      color: #fff !important;
+      font-size: 0.8rem !important;
+      box-shadow: 0 3px 8px rgba(37, 99, 235, 0.30);
+      flex-shrink: 0;
+    }
+
+    .offer-badge h4,
+    .offer-content h4 {
+      font-weight: var(--fw-black) !important;
+      letter-spacing: 0.02em;
+      font-size: 1.05rem !important;
+      color: var(--text-primary) !important;
+    }
+
+    .offer-description {
+      color: var(--text-secondary) !important;
+      font-weight: var(--fw-semibold);
+    }
+
+    .offer-expiry,
+    .offer-minimum {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.125rem 0.5rem;
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: var(--radius-pill);
+      font-size: 0.7rem !important;
+      font-weight: var(--fw-bold);
+      color: var(--text-secondary) !important;
     }
 
     .apply-btn {
@@ -9565,10 +9771,29 @@
   }
 
   .special-offers-section .special-offer-card {
-    background: var(--surface-elevated) !important;
+    /* Dark-mode gradient: brand-blue wash → emerald wash so the card
+       still reads as festive but with night-mode contrast. */
+    background: linear-gradient(135deg,
+      rgba(37, 99, 235, 0.18) 0%,
+      rgba(34, 197, 94, 0.15) 100%) !important;
+    border-color: rgba(34, 197, 94, 0.35) !important;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.30) !important;
+
+    &::before {
+      background: radial-gradient(circle, rgba(34, 197, 94, 0.22) 0%, transparent 70%);
+    }
 
     &.applied {
-      background: rgba(34, 197, 94, 0.12) !important;
+      background: linear-gradient(135deg,
+        rgba(34, 197, 94, 0.22) 0%,
+        rgba(34, 197, 94, 0.12) 100%) !important;
+      border-color: var(--fresh-green) !important;
+    }
+
+    .offer-expiry,
+    .offer-minimum {
+      background: rgba(255, 255, 255, 0.08) !important;
+      color: var(--text-secondary) !important;
     }
   }
 
@@ -9671,6 +9896,25 @@
    on the wrapper, the icon img border, the controls panel and
    the stepper buttons. Uniform surface + green-on-selected. */
 .booking-form .extra-services .extra-service-wrapper {
+  .extra-service-card .extra-header .extra-icon {
+    background: var(--surface) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 50% !important;
+    box-shadow: 0 2px 8px var(--shadow-color) !important;
+    padding: 0;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+  }
+
+  &:has(.extra-service-card.selected) .extra-service-card .extra-header .extra-icon {
+    background: #fff !important;
+    border-color: var(--mint-fresh-border) !important;
+  }
+
   /* Reset the colored ring CSS adds around the icon when selected */
   .extra-service-card.selected .extra-icon img {
     border: none !important;
@@ -9699,16 +9943,16 @@
         button {
           width: 28px !important;
           height: 28px !important;
-          color: var(--primary-color) !important;
-          background: var(--surface-subtle) !important;
+          color: var(--fresh-green) !important;
+          background: rgba(34, 197, 94, 0.28) !important;
           border: none !important;
+          box-shadow: 0 1px 4px var(--shadow-color) !important;
           transition: background 0.15s ease, color 0.15s ease !important;
           transform: none !important;
 
           &:hover:not(:disabled) {
-            background: var(--soft-blue) !important;
-            color: var(--primary-color) !important;
-            border-color: transparent !important;
+            background: rgba(34, 197, 94, 0.4) !important;
+            color: #fff !important;
             transform: none !important;
           }
         }
@@ -9750,6 +9994,29 @@
         span {
           color: var(--fresh-green) !important;
         }
+      }
+    }
+  }
+}
+
+:host-context([data-theme="dark"]) {
+  .booking-form .extra-services .extra-service-wrapper {
+    .extra-service-card .extra-header .extra-icon {
+      background: rgba(255, 255, 255, 0.92) !important;
+      border-color: transparent !important;
+      box-shadow: none !important;
+    }
+
+    .extra-controls .quantity-control .control-buttons,
+    .extra-controls .hours-control .control-buttons {
+      button {
+        border-color: transparent !important;
+        box-shadow: none !important;
+      }
+
+      span {
+        background: transparent !important;
+        border-color: transparent !important;
       }
     }
   }
@@ -10147,43 +10414,43 @@
    row of cards overflows. Use design tokens so dark mode no longer
    shows a white-on-dark default scrollbar. */
 .booking-form .extra-services-container {
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-color) transparent;
+  scrollbar-width: auto;
+  scrollbar-color: var(--text-muted) var(--surface-subtle);
 
   &::-webkit-scrollbar {
-    height: 8px;
+    height: 11px;
     background: transparent;
   }
 
   &::-webkit-scrollbar-track {
-    background: transparent;
-    border-radius: 4px;
+    background: var(--surface-subtle);
+    border-radius: 999px;
   }
 
   &::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 4px;
+    background: var(--text-muted);
+    border-radius: 999px;
     border: 2px solid transparent;
     background-clip: padding-box;
   }
 
   &::-webkit-scrollbar-thumb:hover {
-    background: var(--text-muted);
+    background: var(--text-secondary);
     background-clip: padding-box;
   }
 }
 
 :host-context([data-theme="dark"]) {
   .booking-form .extra-services-container {
-    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+    scrollbar-color: rgba(255, 255, 255, 0.35) rgba(255, 255, 255, 0.08);
 
     &::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.35);
       background-clip: padding-box;
     }
 
     &::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.30);
+      background: rgba(255, 255, 255, 0.55);
       background-clip: padding-box;
     }
   }

@@ -149,6 +149,7 @@
   /* Glass surface (translucent panel inside hero card / image overlays) */
   --surface-glass: rgba(255, 255, 255, 0.85);
   --surface-glass-strong: rgba(255, 255, 255, 0.92);
+  --surface-glass-soft: rgba(255, 255, 255, 0.7); /* lighter alpha — used for trust-bar pills floating over hero image */
   --surface-glass-border: rgba(255, 255, 255, 0.55);
 
   /* Subtle surface tint on neutral backgrounds (used for inset boxes) */
@@ -259,6 +260,7 @@
 
   --surface-glass: rgba(255, 255, 255, 0.08);
   --surface-glass-strong: rgba(15, 23, 42, 0.75);
+  --surface-glass-soft: rgba(15, 23, 42, 0.5); /* paired with --surface-glass-soft in :root */
   --surface-glass-border: rgba(255, 255, 255, 0.10);
 
   --surface-subtle: rgba(255, 255, 255, 0.05);
