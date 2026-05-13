@@ -60,6 +60,37 @@
               </tr>
             </tbody>
           </table>
+
+          <div class="mobile-comparison" aria-label="Mobile cleaning checklist comparison">
+            <div class="mobile-comparison__header" aria-hidden="true">
+              <span>Standard</span>
+              <span>Deep</span>
+            </div>
+
+            <div
+              class="mobile-comparison__row"
+              *ngFor="let row of activeSection.rows">
+              <div class="mobile-comparison__task">{{ row.task }}</div>
+              <div class="mobile-comparison__status">
+                <span
+                  class="status-icon"
+                  [class.status-icon--yes]="row.standard"
+                  [class.status-icon--no]="!row.standard">
+                  <i class="fas" [ngClass]="row.standard ? 'fa-check' : 'fa-times'" aria-hidden="true"></i>
+                  <span class="sr-only">{{ row.standard ? 'Included' : 'Not included' }}</span>
+                </span>
+              </div>
+              <div class="mobile-comparison__status">
+                <span
+                  class="status-icon"
+                  [class.status-icon--yes]="row.deep"
+                  [class.status-icon--no]="!row.deep">
+                  <i class="fas" [ngClass]="row.deep ? 'fa-check' : 'fa-times'" aria-hidden="true"></i>
+                  <span class="sr-only">{{ row.deep ? 'Included' : 'Not included' }}</span>
+                </span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
