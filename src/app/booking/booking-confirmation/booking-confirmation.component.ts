@@ -96,11 +96,14 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
       const companyDevelopmentTips = this.bookingData.companyDevelopmentTips || 0;
       const discountAmount = this.bookingData.discountAmount || 0;
       const subscriptionDiscountAmount = this.bookingData.subscriptionDiscountAmount || 0;
+      const loyaltyDiscountAmount = this.bookingData.loyaltyDiscountAmount || 0;
       const giftCardAmountToUse = this.bookingData.giftCardAmountToUse || 0;
-      
-      // Calculate total discount
-      const totalDiscountAmount = discountAmount + subscriptionDiscountAmount;
-      
+
+      // Calculate total discount — fallback only fires when bookingData.total is missing, but
+      // when it does fire it must include loyalty so we don't quietly drop the discount and
+      // overcharge.
+      const totalDiscountAmount = discountAmount + subscriptionDiscountAmount + loyaltyDiscountAmount;
+
       // Calculate tax on DISCOUNTED subtotal
       const discountedSubTotal = subTotal - totalDiscountAmount;
       const tax = Math.round(discountedSubTotal * 0.08875 * 100) / 100;

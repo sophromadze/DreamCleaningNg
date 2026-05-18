@@ -87,6 +87,13 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   /** Recalculated discount amount (from discountRatio * new raw subtotal). */
   appliedDiscountAmount = 0;
   appliedSubscriptionDiscountAmount = 0;
+  /** Loyalty Discount snapshot from the order at load time. Percentage is invariant during
+   *  edits — it locks in the user's % at booking moment, so the only thing that changes when
+   *  subtotal moves is the dollar amount (newSubTotal * pct / 100). */
+  originalLoyaltyDiscountAmount = 0;
+  originalLoyaltyDiscountPercentage = 0;
+  /** Recalculated loyalty amount = round(newSubTotal * originalLoyaltyDiscountPercentage / 100, 2). */
+  appliedLoyaltyDiscountAmount = 0;
   /** Bubble points discount already applied to this order (must be subtracted from new total). */
   originalPointsRedeemedDiscount = 0;
   originalPointsRedeemed = 0;
@@ -304,6 +311,8 @@ export class OrderEditComponent implements OnInit, OnDestroy {
         this.originalTotal = order.total;
         this.originalDiscountAmount = order.discountAmount;
         this.originalSubscriptionDiscountAmount = order.subscriptionDiscountAmount || 0;
+        this.originalLoyaltyDiscountAmount = order.loyaltyDiscountAmount || 0;
+        this.originalLoyaltyDiscountPercentage = order.loyaltyDiscountPercentage || 0;
         this.originalMaidsCount = order.maidsCount;
         this.originalRawSubTotal = order.subTotal;
         this.originalPointsRedeemed = order.pointsRedeemed || 0;
@@ -979,7 +988,17 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       this.appliedSubscriptionDiscountAmount = 0;
       this.appliedDiscountAmount = 0;
     }
-    const discountedSubTotal = rawSubTotal - this.appliedDiscountAmount - this.appliedSubscriptionDiscountAmount;
+
+    // Loyalty discount scales by the LOCKED percentage from the order snapshot (not by ratio,
+    // unlike subscription/promo — the percentage is what's authoritative for this order's
+    // historical record). Falls back to 0 cleanly for orders that never had loyalty.
+    if (this.originalLoyaltyDiscountPercentage > 0) {
+      this.appliedLoyaltyDiscountAmount = Math.round(rawSubTotal * (this.originalLoyaltyDiscountPercentage / 100) * 100) / 100;
+    } else {
+      this.appliedLoyaltyDiscountAmount = 0;
+    }
+
+    const discountedSubTotal = rawSubTotal - this.appliedDiscountAmount - this.appliedSubscriptionDiscountAmount - this.appliedLoyaltyDiscountAmount;
   
     // Make sure we don't go negative
     if (discountedSubTotal < 0) {
@@ -1079,11 +1098,14 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       companyDevelopmentTips: formValue.companyDevelopmentTips || 0,
       totalDuration: this.actualTotalDuration,
       maidsCount: this.calculatedMaidsCount,
-      calculatedSubTotal: this.newSubTotal + this.appliedDiscountAmount + this.appliedSubscriptionDiscountAmount,
+      calculatedSubTotal: this.newSubTotal + this.appliedDiscountAmount + this.appliedSubscriptionDiscountAmount + this.appliedLoyaltyDiscountAmount,
       calculatedTax: this.newTax,
       calculatedTotal: this.newTotal,
       discountAmount: this.appliedDiscountAmount,
       subscriptionDiscountAmount: this.appliedSubscriptionDiscountAmount,
+      // Loyalty Discount: persist the rescaled $ amount so the order snapshot survives the edit.
+      // Backend keeps the original LoyaltyDiscountPercentage untouched (see OrderService.UpdateOrder).
+      loyaltyDiscountAmount: this.appliedLoyaltyDiscountAmount,
       bedroomsQuantity: this.order?.bedroomsQuantity,
       bathroomsQuantity: this.order?.bathroomsQuantity
     };

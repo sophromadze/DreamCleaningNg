@@ -4,8 +4,9 @@ import { PromoCodesComponent } from '../promo-codes/promo-codes.component';
 import { SpecialOffersComponent } from '../special-offers/special-offers.component';
 import { SubscriptionsComponent } from '../subscriptions/subscriptions.component';
 import { AdminGiftCardsComponent } from '../admin-gift-cards/admin-gift-cards.component';
+import { LoyaltyDiscountAdminComponent } from '../loyalty-discount-admin/loyalty-discount-admin.component';
 
-type DiscountSubTab = 'promo-codes' | 'special-offers' | 'subscriptions' | 'gift-cards';
+type DiscountSubTab = 'promo-codes' | 'special-offers' | 'subscriptions' | 'gift-cards' | 'loyalty';
 
 @Component({
   selector: 'app-discounts',
@@ -15,7 +16,8 @@ type DiscountSubTab = 'promo-codes' | 'special-offers' | 'subscriptions' | 'gift
     PromoCodesComponent,
     SpecialOffersComponent,
     SubscriptionsComponent,
-    AdminGiftCardsComponent
+    AdminGiftCardsComponent,
+    LoyaltyDiscountAdminComponent
   ],
   templateUrl: './discounts.component.html',
   styleUrls: ['./discounts.component.scss']
@@ -28,7 +30,8 @@ export class DiscountsComponent {
       tab === 'promo-codes' ||
       tab === 'special-offers' ||
       tab === 'subscriptions' ||
-      tab === 'gift-cards'
+      tab === 'gift-cards' ||
+      tab === 'loyalty'
     ) {
       this.activeSubTab = tab;
     } else {

@@ -11,7 +11,8 @@ import {
   CreateUserNoteDto,
   UpdateUserNoteDto,
   UserCleaningPhotosByOrder,
-  UserCleaningPhoto
+  UserCleaningPhoto,
+  LoyaltyDiscountDto
 } from '../../../services/admin.service';
 import { OrderService, OrderList } from '../../../services/order.service';
 import { Apartment, CreateApartment } from '../../../services/profile.service';
@@ -498,6 +499,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.loadUserOrders(user.id);
     this.loadUserApartments(user.id);
     this.loadUserRewards(user.id);
+    this.loadUserLoyalty(user.id);
     this.loadUserNotes(user.id);
     this.loadCommunications(user.id);
     this.loadUserTasksList(user.id);
@@ -609,6 +611,90 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
         if (this.selectedUser && this.selectedUser.id === userId) {
           this.selectedUser.apartments = [];
         }
+      }
+    });
+  }
+
+  // ── Loyalty Discount (re-engagement) ──
+  // The view always loads the current state. Editing is gated to Admin/SuperAdmin via
+  // canEditUserDetails in the template — Moderator sees the badge but no Edit button.
+  loyaltyDiscount: LoyaltyDiscountDto | null = null;
+  loadingLoyalty = false;
+  editingLoyalty = false;
+  loyaltyForm: { percentage: number } = { percentage: 0 };
+  savingLoyalty = false;
+  loyaltyError = '';
+  loyaltySuccess = '';
+
+  loadUserLoyalty(userId: number): void {
+    this.loadingLoyalty = true;
+    this.loyaltyDiscount = null;
+    this.loyaltyError = '';
+    this.editingLoyalty = false;
+    this.adminService.getUserLoyaltyDiscount(userId).subscribe({
+      next: (dto) => {
+        if (this.selectedUser?.id !== userId) return;
+        this.loyaltyDiscount = dto;
+        this.loyaltyForm = { percentage: dto?.percentage ?? 0 };
+        this.loadingLoyalty = false;
+      },
+      error: () => { this.loadingLoyalty = false; }
+    });
+  }
+
+  startEditLoyaltyDiscount(): void {
+    this.loyaltyForm = { percentage: this.loyaltyDiscount?.percentage ?? 0 };
+    this.loyaltyError = '';
+    this.loyaltySuccess = '';
+    this.editingLoyalty = true;
+  }
+
+  cancelEditLoyalty(): void {
+    this.editingLoyalty = false;
+    this.loyaltyError = '';
+  }
+
+  saveLoyaltyDiscount(): void {
+    if (!this.selectedUser || this.savingLoyalty) return;
+    const userId = this.selectedUser.id;
+    this.savingLoyalty = true;
+    this.loyaltyError = '';
+    this.loyaltySuccess = '';
+    this.adminService.setUserLoyaltyDiscount(userId, this.loyaltyForm.percentage).subscribe({
+      next: (dto) => {
+        if (this.selectedUser?.id !== userId) { this.savingLoyalty = false; return; }
+        this.loyaltyDiscount = dto;
+        this.editingLoyalty = false;
+        this.savingLoyalty = false;
+        this.loyaltySuccess = 'Loyalty discount updated.';
+        setTimeout(() => { this.loyaltySuccess = ''; }, 4000);
+      },
+      error: (err) => {
+        this.loyaltyError = err?.error?.message || 'Failed to update loyalty discount.';
+        this.savingLoyalty = false;
+      }
+    });
+  }
+
+  clearLoyaltyDiscount(): void {
+    if (!this.selectedUser || this.savingLoyalty) return;
+    const userId = this.selectedUser.id;
+    this.savingLoyalty = true;
+    this.loyaltyError = '';
+    this.loyaltySuccess = '';
+    this.adminService.clearUserLoyaltyDiscount(userId).subscribe({
+      next: (dto) => {
+        if (this.selectedUser?.id !== userId) { this.savingLoyalty = false; return; }
+        this.loyaltyDiscount = dto;
+        this.loyaltyForm = { percentage: 0 };
+        this.editingLoyalty = false;
+        this.savingLoyalty = false;
+        this.loyaltySuccess = 'Loyalty discount cleared.';
+        setTimeout(() => { this.loyaltySuccess = ''; }, 4000);
+      },
+      error: (err) => {
+        this.loyaltyError = err?.error?.message || 'Failed to clear loyalty discount.';
+        this.savingLoyalty = false;
       }
     });
   }

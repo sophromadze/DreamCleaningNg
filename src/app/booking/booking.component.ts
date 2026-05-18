@@ -218,6 +218,14 @@ export class BookingComponent implements OnInit, OnDestroy {
   subscriptionDiscountAmount = 0;
   promoOrFirstTimeDiscountAmount = 0;
 
+  // Loyalty Discount (re-engagement). Source-of-truth percentage lives on the user's account;
+  // we fetch it once per user-context change (self login OR admin target switch). The booking
+  // page never tells the customer WHY they have it — spec section 2.6 framing rules.
+  loyaltyDiscountPercentage = 0;
+  // Computed each calculateTotal() pass after stacking. Zero when subscription/promo/special
+  // beats it.
+  loyaltyDiscountAmount = 0;
+
   // Gift card specific properties
   giftCardApplied = false;
   giftCardBalance = 0;
@@ -817,6 +825,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         if (this.errorMessage === 'Failed to load subscriptions') this.errorMessage = '';
         if (this.isAdminMode && this.selectedTargetUser) {
           this.loadUserSubscription(this.selectedTargetUser.id);
+          this.loadLoyaltyDiscount(this.selectedTargetUser.id);
           return;
         }
         if (this.hasActiveSubscription && this.userSubscription) {
@@ -895,6 +904,9 @@ export class BookingComponent implements OnInit, OnDestroy {
         
         // Load user subscription after loading user data
         this.loadUserSubscription();
+        // Same trigger fans out to the loyalty discount loader — both are user-context state
+        // that needs to refresh whenever the booking page sees a new effective user.
+        this.loadLoyaltyDiscount();
       }
     });
   }
@@ -1812,10 +1824,41 @@ export class BookingComponent implements OnInit, OnDestroy {
   decrementServiceQuantity(service: Service) {
     const selectedService = this.selectedServices.find(s => s.service.id === service.id);
     if (selectedService) {
-      const minValue = service.minValue || 0;
+      const minValue = this.getServiceMinValue(service);
       const stepValue = service.stepValue || 1;
       const newQuantity = Math.max(selectedService.quantity - stepValue, minValue);
       this.updateServiceQuantity(service, newQuantity);
+    }
+  }
+
+  // Effective minimum quantity for a service. The hourly cleaning service has its base
+  // minValue bumped to 2.5h whenever the 'Extra Cleaners' extra service is active — the
+  // shop's rule is that an Extra-Cleaners booking is always at least 2h30m of work.
+  getServiceMinValue(service: Service): number {
+    const baseMin = service.minValue || 0;
+    if (service.serviceRelationType === 'hours' && this.hasExtraCleanersSelected()) {
+      return Math.max(baseMin, 2.5);
+    }
+    return baseMin;
+  }
+
+  hasExtraCleanersSelected(): boolean {
+    return this.selectedExtraServices.some(
+      s => s.extraService.name === 'Extra Cleaners' && s.extraService.hasQuantity
+    );
+  }
+
+  // Auto-bump the hours service up to the Extra-Cleaners minimum (2.5h) when the user
+  // toggles Extra Cleaners on while hours sits below it. Without this, the +/- control
+  // would simply be disabled at a too-low value and the user couldn't tell why.
+  private enforceHoursMinForExtraCleaners() {
+    const hoursSelected = this.selectedServices.find(
+      s => s.service.serviceRelationType === 'hours'
+    );
+    if (!hoursSelected) return;
+    const min = this.getServiceMinValue(hoursSelected.service);
+    if (hoursSelected.quantity < min) {
+      this.updateServiceQuantity(hoursSelected.service, min);
     }
   }
 
@@ -1883,16 +1926,19 @@ export class BookingComponent implements OnInit, OnDestroy {
         quantity: 1,
         hours: extraService.hasHours ? 0.5 : 0
       });
-      
+
       // Show mobile tooltip for this service
       this.showMobileTooltip(extraService.id);
-      
+
       if (extraService.isSameDayService) {
         this.isSameDaySelected = true;
         this.updateDateRestrictions();
       }
     }
-    
+
+    // Extra Cleaners forces the hourly cleaning service to a 2.5h minimum.
+    this.enforceHoursMinForExtraCleaners();
+
     this.calculateTotal();
     this.saveFormData();
   }
@@ -2088,7 +2134,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     // Clear any previous error
     this.errorMessage = '';
 
-    this.bookingService.validatePromoCode(code).subscribe({
+    this.bookingService.validatePromoCode(code, this.calculation.subTotal).subscribe({
       next: (validation) => {
         if (validation.isValid) {
           // Ensure the promo code value is preserved in the FormControl
@@ -2265,10 +2311,17 @@ export class BookingComponent implements OnInit, OnDestroy {
           this.promoOrFirstTimeDiscountAmount = this.promoDiscount;
         }
       }
-    
-      // Total discount is the sum of both
-      const totalDiscountAmount = this.subscriptionDiscountAmount + this.promoOrFirstTimeDiscountAmount;    
-    
+
+      // Loyalty Discount stacking — mutates subscription/promo in place per the rules.
+      // See applyLoyaltyStacking for the full algorithm.
+      this.applyLoyaltyStacking(subTotal);
+
+      // Total discount is the sum of all three slots (loyalty + subscription + promo). After
+      // stacking at most two of these are non-zero: either {subscription, promo} (when subscription
+      // beats loyalty) or {loyalty} alone (when loyalty beats both subscription and promo) or
+      // {subscription} alone or {promo} alone.
+      const totalDiscountAmount = this.subscriptionDiscountAmount + this.promoOrFirstTimeDiscountAmount + this.loyaltyDiscountAmount;
+
       // Calculate tax on discounted subtotal
       const discountedSubTotal = subTotal - totalDiscountAmount;
       const tax = Math.round(discountedSubTotal * this.salesTaxRate * 100) / 100;
@@ -2463,11 +2516,21 @@ export class BookingComponent implements OnInit, OnDestroy {
       displayDuration = Math.ceil(actualTotalDuration / this.calculatedMaidsCount);
     }
     
-    // Ensure display duration never goes below 1 hour (60 minutes)
-    displayDuration = Math.max(displayDuration, 60);
+    // Per-maid minimum: 1h normally, 2h30m when Extra Cleaners is added. The shop's rule is
+    // that an Extra-Cleaners booking is always at least 2.5h of work per cleaner — this is the
+    // bedroom/bathroom-based equivalent of the cleaner-hours service's 2.5h floor (which is
+    // already enforced by getServiceMinValue + the +/- control). Both paths land at the same
+    // floor so customers can't slip past it by switching service types.
+    const perMaidMinMinutes = this.hasExtraCleanersSelected() ? 150 : 60;
+    displayDuration = Math.max(displayDuration, perMaidMinMinutes);
 
-    // Store the actual total duration for backend - ensure minimum 1 hour
-    this.actualTotalDuration = Math.max(actualTotalDuration, 60);
+    // actualTotalDuration semantics differ between service types: for cleaner-hours it's already
+    // per-cleaner (no division ever happens), for everything else it's total work across all
+    // maids. Apply the floor accordingly so cleaner-salary math doesn't collapse.
+    const totalMinMinutes = hasCleanerService
+      ? perMaidMinMinutes
+      : perMaidMinMinutes * Math.max(1, this.calculatedMaidsCount);
+    this.actualTotalDuration = Math.max(actualTotalDuration, totalMinMinutes);
 
     // Add deep cleaning fee AFTER discounts are calculated
     subTotal += deepCleaningFee;
@@ -2514,8 +2577,14 @@ export class BookingComponent implements OnInit, OnDestroy {
       }
     }
 
-    // Total discount is the sum of both
-    const totalDiscountAmount = this.subscriptionDiscountAmount + this.promoOrFirstTimeDiscountAmount;    
+    // Loyalty Discount stacking — same gate as the custom-pricing branch above. See
+    // applyLoyaltyStacking for the algorithm; mutates the three discount slots in place so
+    // the totalDiscountAmount sum below picks up whatever survived.
+    this.applyLoyaltyStacking(subTotal);
+
+    // Total discount is the sum of all three slots (loyalty + subscription + promo) — after
+    // stacking, at most two are non-zero, see applyLoyaltyStacking comments.
+    const totalDiscountAmount = this.subscriptionDiscountAmount + this.promoOrFirstTimeDiscountAmount + this.loyaltyDiscountAmount;
 
     // Calculate tax on discounted subtotal
     const discountedSubTotal = subTotal - totalDiscountAmount;
@@ -2920,6 +2989,10 @@ export class BookingComponent implements OnInit, OnDestroy {
       maidsCount: this.showCustomPricing ? parseInt(this.customCleaners.value) : this.calculatedMaidsCount,
       discountAmount: this.promoOrFirstTimeDiscountAmount,
       subscriptionDiscountAmount: shouldApplySubscriptionDiscount ? this.subscriptionDiscountAmount : 0,
+      // Loyalty Discount the frontend computed for the breakdown preview. Backend re-evaluates
+      // from the target user's actual LoyaltyDiscountPercentage and re-runs the stacking gate —
+      // this field is sent so the request body is complete, but never trusted server-side.
+      loyaltyDiscountAmount: this.loyaltyDiscountAmount,
       subTotal: this.calculation.subTotal,
       // ADD THESE FIELDS TO FIX THE ISSUE:
       tax: this.calculation.tax,
@@ -3448,6 +3521,8 @@ export class BookingComponent implements OnInit, OnDestroy {
 
       // Reload admin's subscription when admin mode is turned off
       this.loadUserSubscription();
+      // Reload loyalty for the admin's own account now that there's no target user.
+      this.loadLoyaltyDiscount();
 
       // Reload admin's own previous orders
       this.previousOrders = [];
@@ -3527,6 +3602,9 @@ export class BookingComponent implements OnInit, OnDestroy {
 
     // Load the selected user's subscription (not admin's subscription)
     this.loadUserSubscription(user.id);
+    // And the selected user's loyalty discount — must mirror the subscription pattern so the
+    // admin's own loyalty never leaks onto a customer order.
+    this.loadLoyaltyDiscount(user.id);
 
     // Load the selected user's special offers
     this.loadSpecialOffers();
@@ -3623,7 +3701,9 @@ export class BookingComponent implements OnInit, OnDestroy {
     
     // Reload admin's subscription (not the selected user's)
     this.loadUserSubscription();
-    
+    // Same for loyalty: clear back to the admin's own account.
+    this.loadLoyaltyDiscount();
+
     // Reload special offers (will load admin's offers now that selectedTargetUser is null)
     this.loadSpecialOffers();
 
@@ -4147,7 +4227,80 @@ export class BookingComponent implements OnInit, OnDestroy {
       }
     });
   }
-  
+
+  // Stacking gate (spec section 2.4) — kept in sync with backend
+  // LoyaltyDiscountService.ResolveStacking so frontend preview matches what the server persists.
+  //
+  // Rule:
+  //   Round 1: loyalty vs subscription — higher wins, zero the loser. Both are subTotal-pct-based
+  //            so dollar comparison ≡ percentage comparison.
+  //   Round 2: round-1 winner vs promo/special/first-time — higher wins, zero the loser.
+  //   Subscription that survived round 1 continues to stack with promo as before.
+  //   Gift card, bubble points, reward balance: stack normally — untouched here.
+  //
+  // Mutates this.loyaltyDiscountAmount + this.subscriptionDiscountAmount +
+  // this.promoOrFirstTimeDiscountAmount in place so existing callers' totalDiscountAmount sum
+  // continues to work without any rewiring downstream.
+  private applyLoyaltyStacking(subTotal: number): void {
+    this.loyaltyDiscountAmount = 0;
+    if (this.loyaltyDiscountPercentage <= 0 || subTotal <= 0) return;
+
+    let loyaltyCandidate = Math.round(subTotal * (this.loyaltyDiscountPercentage / 100) * 100) / 100;
+    if (loyaltyCandidate <= 0) return;
+
+    // Round 1: loyalty vs subscription. Tie → subscription wins (preserves existing user
+    // expectation that an actively-paid subscription shows up).
+    if (loyaltyCandidate > this.subscriptionDiscountAmount) {
+      this.subscriptionDiscountAmount = 0;
+    } else {
+      loyaltyCandidate = 0;
+    }
+
+    // Round 2: round-1 winner vs promo/special/first-time. If subscription won round 1,
+    // loyalty is already zero and promo continues stacking with subscription.
+    if (loyaltyCandidate > 0) {
+      if (loyaltyCandidate > this.promoOrFirstTimeDiscountAmount) {
+        this.promoOrFirstTimeDiscountAmount = 0;
+      } else {
+        loyaltyCandidate = 0;
+      }
+    }
+
+    this.loyaltyDiscountAmount = loyaltyCandidate;
+  }
+
+  // Load the user's current loyalty discount percentage. In admin mode this MUST read from
+  // the target customer's account (not the logged-in admin's) — spec 4.5 step 7 / case 13.
+  // Self-mode uses the profile endpoint, which now exposes loyaltyDiscountPercentage.
+  // Errors are swallowed (set to 0) so a flaky lookup doesn't block the booking page.
+  private loadLoyaltyDiscount(userId?: number) {
+    const before = this.loyaltyDiscountPercentage;
+    const resetAndRecalc = (pct: number) => {
+      this.loyaltyDiscountPercentage = pct || 0;
+      if (this.loyaltyDiscountPercentage !== before) {
+        this.calculateTotal();
+      }
+    };
+
+    if (userId && this.isAdminMode) {
+      this.adminService.getUserLoyaltyDiscount(userId).subscribe({
+        next: (dto) => resetAndRecalc(dto?.percentage ?? 0),
+        error: () => resetAndRecalc(0),
+      });
+      return;
+    }
+
+    if (!this.authService.isLoggedIn()) {
+      resetAndRecalc(0);
+      return;
+    }
+
+    this.profileService.getProfile().subscribe({
+      next: (profile: any) => resetAndRecalc(profile?.loyaltyDiscountPercentage ?? 0),
+      error: () => resetAndRecalc(0),
+    });
+  }
+
   private updateSelectedSubscription() {
     if (this.userSubscription && this.subscriptions) {
       const matchingSubscription = this.subscriptions.find(s => s.id === this.userSubscription.subscriptionId);

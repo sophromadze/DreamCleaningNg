@@ -1,0 +1,234 @@
+// Loyalty Discount admin tab. Visually aligned with subscriptions/promo-codes —
+// same `.action-btn` palette and `info-card` density, no new component-level
+// hardcoded colors (everything routes through theme tokens or the existing
+// audit-badge palette).
+
+.loyalty-discount-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel {
+  background: var(--surface);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px var(--shadow-color);
+  padding: 16px;
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+
+    h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      color: var(--text-primary);
+    }
+  }
+
+  .empty { padding: 24px 0; }
+}
+
+.error-message {
+  background: var(--soft-red);
+  color: var(--bright-red);
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.success-message {
+  background: var(--mint-fresh);
+  color: var(--fresh-green);
+  border: 1px solid var(--mint-fresh-border);
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  &.center { text-align: center; }
+  &.hint { margin-top: 6px; font-size: 0.8rem; }
+}
+
+// ── Settings form ────────────────────────────────────────────────────────────
+.settings-form {
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .form-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    input[type="number"] {
+      padding: 6px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--surface);
+      color: var(--text-primary);
+      font-size: 0.95rem;
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+
+    &--toggle {
+      margin-bottom: 12px;
+    }
+  }
+
+  .switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+
+    input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--primary-color);
+    }
+
+    .switch-track { display: none; }   // checkbox + label is enough; no custom track yet
+    .switch-label {
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+}
+
+// ── Audit table ──────────────────────────────────────────────────────────────
+.audit-table-wrap {
+  overflow-x: auto;
+}
+
+.audit-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  thead th {
+    text-align: left;
+    padding: 8px 10px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  tbody td {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    color: var(--text-primary);
+  }
+
+  tbody tr:hover {
+    background: var(--surface-subtle);
+  }
+}
+
+.action-badge {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-block;
+
+  // Match the existing audit-history palette so admins recognise the colors.
+  &.action-create   { background: var(--mint-fresh); color: var(--fresh-green); }
+  &.action-update   { background: var(--soft-blue);  color: var(--primary-color); }
+  &.action-cleared  { background: var(--surface-subtle); color: var(--text-muted); }
+  &.action-used     { background: var(--warning-orange-bg); color: var(--warning-orange-text); }
+  &.action-reversed { background: var(--soft-red);   color: var(--bright-red); }
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+
+  .page-btn {
+    padding: 5px 12px;
+    border: 1px solid var(--border-color);
+    background: var(--surface);
+    color: var(--text-primary);
+    cursor: pointer;
+    border-radius: 4px;
+
+    &:hover:not(:disabled) {
+      background: var(--btn-primary);
+      color: #fff;
+      border-color: transparent;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .page-label {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+}
+
+.action-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+
+  &.primary {
+    background: var(--btn-primary);
+    color: #fff;
+    box-shadow: var(--btn-primary-shadow);
+
+    &:hover:not(:disabled) {
+      background: var(--btn-primary-hover);
+      box-shadow: var(--btn-primary-shadow-hover);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+
+  &.ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+
+    &:hover { background: var(--surface-subtle); }
+  }
+}

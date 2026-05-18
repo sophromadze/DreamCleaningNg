@@ -19,15 +19,26 @@
           {{ section.label }}
         </button>
       </div>
+    </div>
 
-      <div class="comparison-card">
-        <div class="comparison-card__table-wrap">
+    <div class="comparison-hero comparison-hero--bleed">
+      <div class="comparison-hero__side comparison-hero__side--left" aria-hidden="true">
+        <img
+          src="/images/cleaning-checklist-left.png"
+          alt=""
+          loading="lazy"
+          decoding="async"
+          class="comparison-hero__side-img" />
+      </div>
+      <div class="comparison-hero__center container-narrow">
+        <div class="comparison-card">
+            <div class="comparison-card__table-wrap">
           <table class="comparison-table">
             <thead>
               <tr>
                 <th scope="col">{{ activeSection.heading }}</th>
-                <th scope="col">Standard Cleaning</th>
-                <th scope="col">Deep Cleaning</th>
+                <th scope="col">Standard<br />Cleaning</th>
+                <th scope="col">Deep<br />Cleaning</th>
               </tr>
             </thead>
             <tbody>
@@ -62,8 +73,9 @@
           </table>
 
           <div class="mobile-comparison" aria-label="Mobile cleaning checklist comparison">
-            <div class="mobile-comparison__header" aria-hidden="true">
+            <div class="mobile-comparison__header">
               <span>Standard</span>
+              <span class="mobile-comparison__header-center">{{ activeSection.label }}</span>
               <span>Deep</span>
             </div>
 
@@ -90,8 +102,17 @@
                 </span>
               </div>
             </div>
+            </div>
           </div>
         </div>
+      </div>
+      <div class="comparison-hero__side comparison-hero__side--right" aria-hidden="true">
+        <img
+          src="/images/cleaning-checklist-right.png"
+          alt=""
+          loading="lazy"
+          decoding="async"
+          class="comparison-hero__side-img" />
       </div>
     </div>
   </section>

@@ -430,14 +430,20 @@
           <div class="price-breakdown" [class.hidden]="isSummaryCollapsed">
             <div class="price-item">
               <span>Subtotal:</span>
-              <span>${{ (newSubTotal + appliedDiscountAmount + appliedSubscriptionDiscountAmount).toFixed(2) }}</span>
+              <span>${{ (newSubTotal + appliedDiscountAmount + appliedSubscriptionDiscountAmount + appliedLoyaltyDiscountAmount).toFixed(2) }}</span>
             </div>
-            
+
             <div class="price-item" *ngIf="appliedSubscriptionDiscountAmount > 0">
               <span>Plan discount:</span>
               <span class="discount">-${{ appliedSubscriptionDiscountAmount.toFixed(2) }}</span>
             </div>
-            
+
+            <!-- Loyalty Discount in user edit breakdown — generic label, no inactivity copy. -->
+            <div class="price-item" *ngIf="appliedLoyaltyDiscountAmount > 0">
+              <span>Loyalty Discount:</span>
+              <span class="discount">-${{ appliedLoyaltyDiscountAmount.toFixed(2) }}</span>
+            </div>
+
             <div class="price-item" *ngIf="appliedDiscountAmount > 0">
               <span>Discount:</span>
               <span class="discount">-${{ appliedDiscountAmount.toFixed(2) }}</span>

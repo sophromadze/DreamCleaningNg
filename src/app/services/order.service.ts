@@ -49,6 +49,10 @@ export interface Order {
   total: number;
   discountAmount: number;
   subscriptionDiscountAmount?: number;
+  /** Loyalty Discount snapshot from the order (Phase 6). Always present on a Phase 6+ order;
+   *  optional only for backward compat with older clients. */
+  loyaltyDiscountAmount?: number;
+  loyaltyDiscountPercentage?: number;
   promoCode?: string;
   giftCardCode?: string;
   giftCardAmountUsed?: number;
@@ -150,6 +154,9 @@ export interface UpdateOrder {
   /** Recalculated discount (from ratio) so backend can persist when subtotal changes. */
   discountAmount?: number;
   subscriptionDiscountAmount?: number;
+  /** Recalculated loyalty discount = newSubTotal * lockedPercentage / 100. The order's
+   *  LoyaltyDiscountPercentage snapshot stays fixed across edits; only this $ amount moves. */
+  loyaltyDiscountAmount?: number;
 }
 
 export interface CancelOrder {

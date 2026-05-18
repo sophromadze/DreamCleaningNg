@@ -71,7 +71,8 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     { value: 'ExtraService', label: 'Extra Services' },
     { value: 'Subscription', label: 'Subscriptions' },
     { value: 'PromoCode', label: 'Promo Codes' },
-    { value: 'GiftCard', label: 'Gift Cards' }
+    { value: 'GiftCard', label: 'Gift Cards' },
+    { value: 'UserLoyaltyDiscount', label: 'Loyalty Discount' }
   ];
 
   constructor(private adminService: AdminService) {}
@@ -665,7 +666,31 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
       case 'removed': return 'action-removed';
       case 'pointsadded': return 'action-points-added';
       case 'pointsdeducted': return 'action-points-deducted';
+      // Loyalty Discount (Phase 7). Reuse existing palette so badges look consistent —
+      // activations/sets share Create's green, upgrades share Update's blue, cleared uses
+      // points-deducted yellow (neutral "no longer in effect"), used/reversed use Delete red.
+      case 'loyaltyautoactivated':
+      case 'loyaltymanualset':      return 'action-create';
+      case 'loyaltyautoupgraded':   return 'action-update';
+      case 'loyaltymanualcleared':  return 'action-points-deducted';
+      case 'loyaltyused':           return 'action-removed';
+      case 'loyaltyreversed':       return 'action-delete';
       default: return '';
+    }
+  }
+
+  // Friendly label for the audit-row action badge. Existing actions (Create/Update/Delete/
+  // Assigned/Removed/PointsAdded/PointsDeducted) are short enough to display verbatim; only
+  // the Loyalty* set gets translated. Keeps existing rows visually unchanged.
+  getActionDisplayLabel(action: string): string {
+    switch (action) {
+      case 'LoyaltyAutoActivated':  return 'Auto-activated';
+      case 'LoyaltyAutoUpgraded':   return 'Auto-upgraded';
+      case 'LoyaltyManualSet':      return 'Manually set';
+      case 'LoyaltyManualCleared':  return 'Cleared';
+      case 'LoyaltyUsed':           return 'Used on order';
+      case 'LoyaltyReversed':       return 'Restored';
+      default:                      return action;
     }
   }
 
@@ -916,7 +941,8 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
       'Subscription': 'Subscription',
       'PromoCode': 'Promo Code',
       'Apartment': 'Address',
-      'BubblePointsAdjustment': 'Bubble Points'
+      'BubblePointsAdjustment': 'Bubble Points',
+      'UserLoyaltyDiscount': 'Loyalty Discount'
     };
 
     return typeMap[entityType] || entityType;
@@ -964,6 +990,97 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     } else {
       this.viewingLogId = logId;
     }
+  }
+
+  // Entity types we won't try to undo client-side — must match the server-side block list in
+  // AuditService.UndoBlockedEntityTypes. Mirrored here so the button is hidden rather than
+  // showing-then-failing.
+  private readonly undoBlockedEntityTypes = new Set([
+    'AuditLog', 'BubblePointsAdjustment', 'CleanerAssignment', 'OrderServicesUpdate',
+    'PaymentHistory', 'WebhookEvent',
+    'NotificationLog', 'ScheduledMail', 'ScheduledSms',
+    'OrderUpdateHistory',
+  ]);
+
+  canUndoRedo(log: AuditLog): boolean {
+    if (!log.entityType) return false;
+    if (this.undoBlockedEntityTypes.has(log.entityType)) return false;
+    if (['Create', 'Update', 'Delete'].includes(log.action)) return true;
+    // Loyalty Discount actions don't use the generic Create/Update/Delete vocabulary, but
+    // the server has a dedicated undo path that re-applies the OldValues snapshot. See
+    // AuditService.UndoAsync for the dispatch.
+    return [
+      'LoyaltyAutoActivated', 'LoyaltyAutoUpgraded', 'LoyaltyManualSet',
+      'LoyaltyManualCleared', 'LoyaltyUsed', 'LoyaltyReversed',
+    ].includes(log.action);
+  }
+
+  // Display helper for the UserLoyaltyDiscount details panel. Pulls a single field out of the
+  // parsed old/new JSON bundle and formats it cleanly for the UI. Percentage gets a "%" suffix,
+  // booleans become Yes/No, dates render in locale form, nulls become "—".
+  getLoyaltyValue(values: any, field: string): string {
+    if (!values || values[field] === undefined || values[field] === null) return '—';
+    const v = values[field];
+    if (field === 'Percentage') {
+      const n = Number(v);
+      return Number.isFinite(n) ? `${n}%` : String(v);
+    }
+    if (field === 'IsManualOverride' || typeof v === 'boolean') {
+      return v ? 'Yes' : 'No';
+    }
+    if (field === 'ActivatedAt' || field === 'LastUsedAt') {
+      const d = new Date(v);
+      return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleString();
+    }
+    return String(v);
+  }
+
+  isLogUndone(log: AuditLog): boolean {
+    return !!log.undoneAt;
+  }
+
+  // Pending state per row keeps two undo buttons in different rows independent.
+  undoingLogIds = new Set<number>();
+  successMessage = '';
+
+  undoLog(log: AuditLog, event?: Event) {
+    event?.stopPropagation();
+    if (this.undoingLogIds.has(log.id)) return;
+    this.undoingLogIds.add(log.id);
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.adminService.undoAuditLog(log.id).subscribe({
+      next: () => {
+        log.undoneAt = new Date();
+        this.successMessage = `Change #${log.id} undone.`;
+        setTimeout(() => { this.successMessage = ''; }, 4000);
+      },
+      error: (err) => {
+        this.errorMessage = err.error?.message || 'Failed to undo change.';
+        setTimeout(() => { this.errorMessage = ''; }, 5000);
+      },
+      complete: () => { this.undoingLogIds.delete(log.id); }
+    });
+  }
+
+  redoLog(log: AuditLog, event?: Event) {
+    event?.stopPropagation();
+    if (this.undoingLogIds.has(log.id)) return;
+    this.undoingLogIds.add(log.id);
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.adminService.redoAuditLog(log.id).subscribe({
+      next: () => {
+        log.undoneAt = null;
+        this.successMessage = `Change #${log.id} redone.`;
+        setTimeout(() => { this.successMessage = ''; }, 4000);
+      },
+      error: (err) => {
+        this.errorMessage = err.error?.message || 'Failed to redo change.';
+        setTimeout(() => { this.errorMessage = ''; }, 5000);
+      },
+      complete: () => { this.undoingLogIds.delete(log.id); }
+    });
   }
 
   getVisiblePages(): number[] {

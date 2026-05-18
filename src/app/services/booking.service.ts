@@ -151,8 +151,12 @@ export class BookingService {
     return this.http.get<Subscription[]>(`${this.apiUrl}/booking/subscriptions`);
   }
   
-  validatePromoCode(code: string): Observable<PromoCodeValidationDto> {
-    return this.http.post<PromoCodeValidationDto>(`${this.apiUrl}/booking/validate-promo`, { code });
+  validatePromoCode(code: string, subTotal?: number): Observable<PromoCodeValidationDto> {
+    const body: { code: string; subTotal?: number } = { code };
+    if (subTotal !== undefined && subTotal !== null) {
+      body.subTotal = subTotal;
+    }
+    return this.http.post<PromoCodeValidationDto>(`${this.apiUrl}/booking/validate-promo`, body);
   }
 
   // Method to apply gift card during booking

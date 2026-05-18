@@ -23,6 +23,12 @@ export interface Profile {
   canReceiveMessages?: boolean;
   /** When true, user has a password set. When false, show "Set password" instead of "Change password". */
   hasPassword?: boolean;
+  /** Current Loyalty Discount percentage on the user's account (0 if none). Drives the
+   *  booking-page auto-apply and the profile-page "you have a special discount" badge.
+   *  Never expose the WHY — see spec section 2.6. */
+  loyaltyDiscountPercentage?: number;
+  /** Computed server-side: true iff loyaltyDiscountPercentage > 0. */
+  hasLoyaltyDiscount?: boolean;
 }
 
 export interface Apartment {

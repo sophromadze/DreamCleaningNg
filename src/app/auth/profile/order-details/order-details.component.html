@@ -192,7 +192,14 @@
             <span>Plan discount ({{ order.subscriptionName }}):</span>
             <span class="discount">-${{ order.subscriptionDiscountAmount.toFixed(2) }}</span>
           </div>
-          
+
+          <!-- Loyalty Discount — user-facing label only. Never mention inactivity / win-back
+               / the trigger reason (spec section 2.6). -->
+          <div class="price-row" *ngIf="order.loyaltyDiscountAmount && order.loyaltyDiscountAmount > 0">
+            <span>Loyalty Discount:</span>
+            <span class="discount">-${{ order.loyaltyDiscountAmount.toFixed(2) }}</span>
+          </div>
+
           <!-- Special Offer Discount -->
           <div class="price-row" *ngIf="order.specialOfferName && order.discountAmount > 0">
             <span>{{ order.specialOfferName }}:</span>

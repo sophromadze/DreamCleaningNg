@@ -41,6 +41,10 @@
     <button class="close-btn" (click)="clearMessages()">×</button>
   </div>
 
+  <div class="success-message" *ngIf="successMessage">
+    {{ successMessage }}
+  </div>
+
   <div class="audit-logs" *ngIf="filteredLogs.length > 0">
     <div class="data-table">
       <div class="table-wrapper" #tableWrapper>
@@ -53,6 +57,7 @@
               <th>Entity ID</th>
               <th>Changed By</th>
               <th>Date</th>
+              <th>Undo / Redo</th>
             </tr>
           </thead>
           <tbody>
@@ -61,18 +66,38 @@
               <td>#{{ log.id }}</td>
               <td>
                 <span class="action-badge" [ngClass]="getActionClass(log.action)">
-                  {{ log.action }}
+                  {{ getActionDisplayLabel(log.action) }}
+                  <span *ngIf="isLogUndone(log)" class="undone-tag" title="This change has been reverted">· undone</span>
                 </span>
               </td>
               <td>{{ getEntityTypeDisplayName(log.entityType) }}</td>
               <td>E{{ log.entityId }}</td>
               <td>{{ log.changedByEmail || log.changedBy || 'System' }}</td>
               <td>{{ formatDate(log.createdAt) }}</td>
+              <td>
+                <ng-container *ngIf="canUndoRedo(log); else noUndoCell">
+                  <button *ngIf="!isLogUndone(log)" type="button" class="action-btn secondary"
+                          (click)="undoLog(log, $event)"
+                          [disabled]="undoingLogIds.has(log.id)"
+                          title="Revert this change in the database (does not refund payments or recall emails)">
+                    {{ undoingLogIds.has(log.id) ? '...' : 'Undo' }}
+                  </button>
+                  <button *ngIf="isLogUndone(log)" type="button" class="action-btn primary"
+                          (click)="redoLog(log, $event)"
+                          [disabled]="undoingLogIds.has(log.id)"
+                          title="Re-apply this change">
+                    {{ undoingLogIds.has(log.id) ? '...' : 'Redo' }}
+                  </button>
+                </ng-container>
+                <ng-template #noUndoCell>
+                  <span class="undo-na" title="Audit-only or side-effect entity">—</span>
+                </ng-template>
+              </td>
             </tr>
-            
+
             <!-- ENHANCED: Details row with special handling for cleaner assignments -->
             <tr *ngIf="viewingLogId === log.id" class="details-row">
-              <td colspan="6">
+              <td colspan="7">
                 <div class="log-details">
                   
                   <!-- Special view for BubblePointsAdjustment logs -->
@@ -110,8 +135,51 @@
                     </ng-container>
                   </div>
 
+                  <!-- Special view for Loyalty Discount logs. Loyalty actions are LoyaltyAuto*/
+                       Manual*/Used/Reversed — none match the generic 'Update'/'Create'/'Delete'
+                       gates the standard view uses, so without this block the details panel is
+                       empty. Reads the old/new Percentage/IsManualOverride/Activated/LastUsed
+                       JSON from the audit row directly. -->
+                  <div *ngIf="log.entityType === 'UserLoyaltyDiscount'" class="cleaner-assignment-details">
+                    <h4>{{ getActionDisplayLabel(log.action) }}</h4>
+                    <div class="detail-item">
+                      <strong>User ID:</strong> #{{ log.entityId }}
+                    </div>
+                    <div class="detail-item">
+                      <strong>Discount:</strong>
+                      <span>{{ getLoyaltyValue(log.oldValues, 'Percentage') }}</span>
+                      <span class="arrow"> → </span>
+                      <span class="new-value">{{ getLoyaltyValue(log.newValues, 'Percentage') }}</span>
+                    </div>
+                    <div class="detail-item"
+                         *ngIf="getLoyaltyValue(log.oldValues, 'IsManualOverride') !== getLoyaltyValue(log.newValues, 'IsManualOverride')">
+                      <strong>Manual override:</strong>
+                      <span>{{ getLoyaltyValue(log.oldValues, 'IsManualOverride') }}</span>
+                      <span class="arrow"> → </span>
+                      <span class="new-value">{{ getLoyaltyValue(log.newValues, 'IsManualOverride') }}</span>
+                    </div>
+                    <div class="detail-item"
+                         *ngIf="getLoyaltyValue(log.oldValues, 'ActivatedAt') !== getLoyaltyValue(log.newValues, 'ActivatedAt')">
+                      <strong>Activated at:</strong>
+                      <span>{{ getLoyaltyValue(log.oldValues, 'ActivatedAt') }}</span>
+                      <span class="arrow"> → </span>
+                      <span class="new-value">{{ getLoyaltyValue(log.newValues, 'ActivatedAt') }}</span>
+                    </div>
+                    <div class="detail-item"
+                         *ngIf="getLoyaltyValue(log.oldValues, 'LastUsedAt') !== getLoyaltyValue(log.newValues, 'LastUsedAt')">
+                      <strong>Last used at:</strong>
+                      <span>{{ getLoyaltyValue(log.oldValues, 'LastUsedAt') }}</span>
+                      <span class="arrow"> → </span>
+                      <span class="new-value">{{ getLoyaltyValue(log.newValues, 'LastUsedAt') }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <strong>Changed by:</strong>
+                      {{ log.changedByEmail || log.changedBy || 'System' }}
+                    </div>
+                  </div>
+
                   <!-- Standard view for other entity types (only when not a merged log) -->
-                  <div *ngIf="log.entityType !== 'CleanerAssignment' && !log.hasServiceChanges">
+                  <div *ngIf="log.entityType !== 'CleanerAssignment' && log.entityType !== 'UserLoyaltyDiscount' && !log.hasServiceChanges">
                     <!-- REMOVED: The "Updated:" label as requested -->
                     
                     <!-- Show changed fields for updates -->

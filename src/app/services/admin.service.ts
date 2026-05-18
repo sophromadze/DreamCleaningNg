@@ -57,6 +57,7 @@ export interface AuditLog {
   oldValues?: any;
   newValues?: any;
   changedFields?: string[] | null;
+  undoneAt?: Date | null;
 }
 
 export interface UserPermissions {
@@ -253,6 +254,9 @@ export interface SuperAdminUpdateOrderDto {
   total?: number | null;
   discountAmount?: number | null;
   subscriptionDiscountAmount?: number | null;
+  /** Loyalty Discount amount rescaled when subTotal changes during an admin edit.
+   *  Backend keeps the original LoyaltyDiscountPercentage snapshot untouched. */
+  loyaltyDiscountAmount?: number | null;
   cleanerHourlyRate?: number | null;
   cleanerTotalSalary?: number | null;
   services?: { orderServiceId: number; quantity: number; cost: number }[] | null;
@@ -426,6 +430,7 @@ export interface OrderUpdateHistory {
   isPaid: boolean;
   paidAt: Date | null;
   updateNotes: string | null;
+  updatedPaymentNotificationSentAt: Date | null;
 }
 
 export interface UserProfile {
@@ -466,6 +471,26 @@ export interface CreatePollQuestion {
   isRequired: boolean;
   displayOrder: number;
   serviceTypeId: number;
+}
+
+// Loyalty Discount (re-engagement system) — admin-facing shapes. Matches the backend
+// LoyaltyDiscountDto / LoyaltyDiscountSettingsDto contracts from Phase 3.
+export interface LoyaltyDiscountDto {
+  percentage: number;
+  isManualOverride: boolean;
+  activatedAt: string | null;
+  lastUsedAt: string | null;
+  status: 'None' | 'Auto' | 'Manual' | 'Used';
+}
+
+export interface LoyaltyDiscountSettingsDto {
+  loyaltyDiscountEnabled: boolean;
+  loyaltyDay60Percentage: number;
+  loyaltyDay90Percentage: number;
+  daysUntilFirstReminder: number;
+  daysUntilDiscountActivation: number;
+  daysUntilDiscountUpgrade: number;
+  minDaysFromLastUseBeforeReActivation: number;
 }
 
 @Injectable({
@@ -887,6 +912,14 @@ export class AdminService {
   getRecentAuditLogs(days: number = 7): Observable<AuditLog[]> {
     return this.http.get<AuditLog[]>(`${this.apiUrl}/audit-logs?days=${days}`);
   }
+
+  undoAuditLog(id: number): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiUrl}/audit-logs/${id}/undo`, {});
+  }
+
+  redoAuditLog(id: number): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiUrl}/audit-logs/${id}/redo`, {});
+  }
   
   // Get user's complete update history
   getUserCompleteHistory(userId: number): Observable<AuditLog[]> {
@@ -954,6 +987,10 @@ export class AdminService {
     return this.http.post<{ message: string }>(`${this.apiUrl}/orders/${orderId}/send-payment-reminder`, {});
   }
 
+  sendUpdatedPayment(orderId: number): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.apiUrl}/orders/${orderId}/send-updated-payment`, {});
+  }
+
   getOrderStatistics(from?: string, to?: string): Observable<OrderStatistics> {
     let params = new HttpParams();
     if (from) params = params.set('from', from);
@@ -1017,5 +1054,33 @@ export class AdminService {
   refreshTokenIfNeeded(): Observable<any> {
     // This will trigger the auth interceptor to refresh the token if needed
     return this.http.get(`${environment.apiUrl}/auth/current-user`);
+  }
+
+  // ─── Loyalty Discount ──────────────────────────────────────────────────────────────
+  // User-scoped endpoints (View for read, Update for write — Moderator can read only).
+  // Used by the booking page admin-on-behalf flow (Phase 6) and the upcoming Account
+  // section in user-details (Phase 7).
+
+  getUserLoyaltyDiscount(userId: number): Observable<LoyaltyDiscountDto> {
+    return this.http.get<LoyaltyDiscountDto>(`${this.apiUrl}/users/${userId}/loyalty-discount`);
+  }
+
+  setUserLoyaltyDiscount(userId: number, percentage: number): Observable<LoyaltyDiscountDto> {
+    return this.http.put<LoyaltyDiscountDto>(
+      `${this.apiUrl}/users/${userId}/loyalty-discount`,
+      { percentage }
+    );
+  }
+
+  clearUserLoyaltyDiscount(userId: number): Observable<LoyaltyDiscountDto> {
+    return this.http.delete<LoyaltyDiscountDto>(`${this.apiUrl}/users/${userId}/loyalty-discount`);
+  }
+
+  getLoyaltyDiscountSettings(): Observable<LoyaltyDiscountSettingsDto> {
+    return this.http.get<LoyaltyDiscountSettingsDto>(`${this.apiUrl}/loyalty-discount-settings`);
+  }
+
+  updateLoyaltyDiscountSettings(settings: LoyaltyDiscountSettingsDto): Observable<LoyaltyDiscountSettingsDto> {
+    return this.http.put<LoyaltyDiscountSettingsDto>(`${this.apiUrl}/loyalty-discount-settings`, settings);
   }
 }

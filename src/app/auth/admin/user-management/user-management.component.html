@@ -529,6 +529,81 @@
             </div>
           </div>
 
+          <!-- Loyalty Discount: read-only display + Edit/Clear gated to Admin/SuperAdmin.
+               Moderator sees the percentage + status but no edit/clear actions.
+               Phase 7 user-details section (spec 5.3). -->
+          <div class="info-card">
+            <h6>Loyalty Discount</h6>
+
+            <div class="muted" *ngIf="loadingLoyalty">Loading…</div>
+
+            <div *ngIf="!loadingLoyalty && !editingLoyalty">
+              <div class="info-grid">
+                <div>
+                  <span>Discount</span>
+                  <strong *ngIf="loyaltyDiscount && loyaltyDiscount.percentage > 0">{{ loyaltyDiscount.percentage }}%</strong>
+                  <strong *ngIf="!loyaltyDiscount || loyaltyDiscount.percentage === 0">None</strong>
+                </div>
+                <div *ngIf="loyaltyDiscount">
+                  <span>Status</span>
+                  <strong [ngSwitch]="loyaltyDiscount.status">
+                    <span *ngSwitchCase="'Auto'">Auto</span>
+                    <span *ngSwitchCase="'Manual'">Manual (admin set)</span>
+                    <span *ngSwitchCase="'Used'">Recently used</span>
+                    <span *ngSwitchDefault>None</span>
+                  </strong>
+                </div>
+                <div *ngIf="loyaltyDiscount?.activatedAt">
+                  <span>Activated</span>
+                  <strong>{{ formatShortDate(loyaltyDiscount!.activatedAt) }}</strong>
+                </div>
+                <div *ngIf="loyaltyDiscount?.lastUsedAt">
+                  <span>Last used</span>
+                  <strong>{{ formatShortDate(loyaltyDiscount!.lastUsedAt) }}</strong>
+                </div>
+              </div>
+
+              <div class="loyalty-actions" *ngIf="canEditUserDetails(selectedUser)">
+                <button class="action-btn small primary" (click)="startEditLoyaltyDiscount()">
+                  {{ loyaltyDiscount && loyaltyDiscount.percentage > 0 ? 'Edit' : 'Set' }}
+                </button>
+                <button class="action-btn small ghost"
+                        *ngIf="loyaltyDiscount && loyaltyDiscount.percentage > 0"
+                        (click)="clearLoyaltyDiscount()"
+                        [disabled]="savingLoyalty">
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            <div *ngIf="!loadingLoyalty && editingLoyalty">
+              <div class="loyalty-edit">
+                <label>
+                  Percentage
+                  <input type="number" min="0" max="100" step="0.5"
+                         [(ngModel)]="loyaltyForm.percentage"
+                         class="small-input">
+                </label>
+                <div class="loyalty-edit__actions">
+                  <button class="action-btn small primary"
+                          (click)="saveLoyaltyDiscount()"
+                          [disabled]="savingLoyalty">
+                    {{ savingLoyalty ? '…' : 'Save' }}
+                  </button>
+                  <button class="action-btn small ghost"
+                          (click)="cancelEditLoyalty()"
+                          [disabled]="savingLoyalty">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+              <p class="muted hint">Setting to 0 clears the discount and re-enables auto management.</p>
+            </div>
+
+            <div class="error-message" *ngIf="loyaltyError">{{ loyaltyError }}</div>
+            <div class="success-message" *ngIf="loyaltySuccess">{{ loyaltySuccess }}</div>
+          </div>
+
           <div class="info-card" *ngIf="$any(selectedUser).lastCleaningDate">
             <h6>Last service snapshot</h6>
             <div class="info-grid">

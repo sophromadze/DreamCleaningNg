@@ -450,8 +450,12 @@ export class MainComponent implements OnInit, OnDestroy {
 
     if (delta > 0 && this.beforeAfterOffset >= 2 * m) {
       this.scheduleBeforeAfterRecenter(() => {
+        // Preserve overshoot: rapid clicks/auto-ticks during the recenter timer can leave
+        // offset at 2m+k. Snapping to a hardcoded `m` would rewind the visible content by
+        // k positions (offset 2m+k shows the same slides as m+k, but resetting to m shows
+        // m). Subtracting one base length keeps the visual position stable.
         this.beforeAfterSkipTransition = true;
-        this.beforeAfterOffset = m;
+        this.beforeAfterOffset = this.beforeAfterOffset - m;
         this.syncBeforeAfterTranslate();
         requestAnimationFrame(() => {
           this.beforeAfterSkipTransition = false;
@@ -460,8 +464,10 @@ export class MainComponent implements OnInit, OnDestroy {
       });
     } else if (delta < 0 && this.beforeAfterOffset < m) {
       this.scheduleBeforeAfterRecenter(() => {
+        // Symmetric overshoot preservation for the back-button path: offset m-1-k maps to
+        // 2m-1-k (same content), not the hardcoded 2m-1.
         this.beforeAfterSkipTransition = true;
-        this.beforeAfterOffset = 2 * m - 1;
+        this.beforeAfterOffset = this.beforeAfterOffset + m;
         this.syncBeforeAfterTranslate();
         requestAnimationFrame(() => {
           this.beforeAfterSkipTransition = false;

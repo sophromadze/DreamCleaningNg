@@ -8,7 +8,16 @@
   
     <div *ngIf="errorMessage" class="error-message">{{ errorMessage }}</div>
     <div *ngIf="successMessage" class="success-message">{{ successMessage }}</div>
-  
+
+    <!-- Loyalty Discount badge (spec 5.8). Generic copy only — never mentions percentage,
+         never mentions the trigger reason. Gate is hasLoyaltyDiscount (server-side true iff
+         the percentage is > 0), so the badge disappears the instant the discount is consumed
+         or cleared. -->
+    <div *ngIf="!isLoading && profile?.hasLoyaltyDiscount" class="loyalty-badge">
+      <span class="loyalty-badge__icon" aria-hidden="true">✨</span>
+      <span class="loyalty-badge__text">You have a special discount on your account</span>
+    </div>
+
     <!-- Loading skeleton: labels visible, shimmer for backend data -->
     <div *ngIf="isLoading" class="profile-content profile-content-skeleton">
       <div class="section">

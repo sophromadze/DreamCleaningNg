@@ -1,0 +1,121 @@
+<div class="loyalty-discount-admin">
+  <!-- ── Panel A: Global Settings ───────────────────────────────────────────────
+       Hidden from Moderator (spec 2.9 / 5.2). Admin + SuperAdmin see + edit. -->
+  <section class="panel" *ngIf="canEdit">
+    <div class="panel-header">
+      <h2>Loyalty Discount Settings</h2>
+      <button *ngIf="!loadingSettings" type="button" class="action-btn ghost" (click)="loadSettings()">Refresh</button>
+    </div>
+
+    <div class="error-message" *ngIf="settingsError">{{ settingsError }}</div>
+    <div class="success-message" *ngIf="settingsSuccess">{{ settingsSuccess }}</div>
+
+    <div class="muted" *ngIf="loadingSettings">Loading…</div>
+
+    <form *ngIf="!loadingSettings" class="settings-form" (ngSubmit)="saveSettings()">
+      <!-- Master switch -->
+      <div class="form-row form-row--toggle">
+        <label class="switch">
+          <input type="checkbox" [(ngModel)]="settings.loyaltyDiscountEnabled" name="loyaltyDiscountEnabled">
+          <span class="switch-track" aria-hidden="true"></span>
+          <span class="switch-label">Loyalty discount system enabled</span>
+        </label>
+        <p class="muted hint">When off, the background worker skips its cycle. Existing user discounts are preserved untouched.</p>
+      </div>
+
+      <!-- Percentage thresholds -->
+      <div class="form-grid">
+        <div class="form-row">
+          <label for="day60Pct">Day 60 percentage (%)</label>
+          <input id="day60Pct" type="number" min="0" max="100" step="0.5"
+                 [(ngModel)]="settings.loyaltyDay60Percentage" name="loyaltyDay60Percentage"
+                >
+        </div>
+        <div class="form-row">
+          <label for="day90Pct">Day 90 percentage (%)</label>
+          <input id="day90Pct" type="number" min="0" max="100" step="0.5"
+                 [(ngModel)]="settings.loyaltyDay90Percentage" name="loyaltyDay90Percentage"
+                >
+        </div>
+        <div class="form-row">
+          <label for="day30">Days until first reminder</label>
+          <input id="day30" type="number" min="1" step="1"
+                 [(ngModel)]="settings.daysUntilFirstReminder" name="daysUntilFirstReminder"
+                >
+        </div>
+        <div class="form-row">
+          <label for="day60">Days until discount activation</label>
+          <input id="day60" type="number" min="1" step="1"
+                 [(ngModel)]="settings.daysUntilDiscountActivation" name="daysUntilDiscountActivation"
+                >
+        </div>
+        <div class="form-row">
+          <label for="day90">Days until discount upgrade</label>
+          <input id="day90" type="number" min="1" step="1"
+                 [(ngModel)]="settings.daysUntilDiscountUpgrade" name="daysUntilDiscountUpgrade"
+                >
+        </div>
+        <div class="form-row">
+          <label for="cooldown">Cooldown after use (days)</label>
+          <input id="cooldown" type="number" min="0" step="1"
+                 [(ngModel)]="settings.minDaysFromLastUseBeforeReActivation" name="minDaysFromLastUseBeforeReActivation"
+                >
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="action-btn primary" [disabled]="savingSettings">
+          {{ savingSettings ? 'Saving…' : 'Save Settings' }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- ── Panel B: Recent Activity (read-only) ─────────────────────────────────── -->
+  <section class="panel">
+    <div class="panel-header">
+      <h2>Recent Activity (last 30 days)</h2>
+      <button *ngIf="!loadingAudit" type="button" class="action-btn ghost" (click)="loadAudit()">Refresh</button>
+    </div>
+
+    <div class="error-message" *ngIf="auditError">{{ auditError }}</div>
+    <div class="muted" *ngIf="loadingAudit">Loading…</div>
+
+    <div *ngIf="!loadingAudit && auditLogs.length === 0" class="muted center empty">
+      No loyalty-discount activity in the last 30 days.
+    </div>
+
+    <div class="audit-table-wrap" *ngIf="!loadingAudit && auditLogs.length > 0">
+      <table class="audit-table">
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>User</th>
+            <th>Action</th>
+            <th>Old → New %</th>
+            <th>Changed By</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let log of pagedLogs">
+            <td>{{ formatWhen(log.createdAt) }}</td>
+            <td>#{{ log.entityId }}</td>
+            <td>
+              <span class="action-badge" [ngClass]="getActionClass(log.action)">
+                {{ getActionLabel(log.action) }}
+              </span>
+            </td>
+            <td>{{ getOldPercentage(log) }} → {{ getNewPercentage(log) }}</td>
+            <td>{{ log.changedByEmail || log.changedBy || 'System' }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="pagination" *ngIf="totalPages > 1">
+        <button class="page-btn" (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1">Prev</button>
+        <span class="page-label">Page {{ currentPage }} of {{ totalPages }}</span>
+        <button class="page-btn" (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages">Next</button>
+      </div>
+    </div>
+  </section>
+</div>

@@ -2163,3 +2163,51 @@ $app-header-height-mobile: 60px;
     }
   }
 }
+
+// ── Loyalty Discount info card (Phase 7) ──
+// Inline messages aren't wrapped in .messages so we restate the look here using
+// theme tokens. Same visual language as Phase 7 audit-tab badges.
+.loyalty-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.loyalty-edit {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 6px;
+  }
+}
+
+.info-card > .error-message {
+  background: var(--soft-red);
+  color: var(--bright-red);
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-top: 8px;
+  font-size: 0.85rem;
+}
+
+.info-card > .success-message {
+  background: var(--mint-fresh);
+  color: var(--fresh-green);
+  border: 1px solid var(--mint-fresh-border);
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-top: 8px;
+  font-size: 0.85rem;
+}

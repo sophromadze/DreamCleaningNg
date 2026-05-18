@@ -604,8 +604,8 @@
                   <div class="service-input" *ngIf="selected.service.inputType === 'dropdown'" [shimmer]="loading.serviceDetails">
                     <div class="quantity-control">
                       <div class="control-buttons">
-                        <button (click)="decrementServiceQuantity(selected.service)" 
-                                [disabled]="selected.quantity <= (selected.service.minValue || 0)">
+                        <button (click)="decrementServiceQuantity(selected.service)"
+                                [disabled]="selected.quantity <= getServiceMinValue(selected.service)">
                           <svg width="12" height="2" viewBox="0 0 12 2" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <line x1="1" y1="1" x2="11" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                           </svg>
@@ -1642,7 +1642,14 @@
                   <span>Plan discount ({{ userSubscription?.discountPercentage }}%):</span>
                   <span class="discount">-${{ subscriptionDiscountAmount.toFixed(2) }}</span>
                 </div>
-                
+
+                <!-- Loyalty Discount (auto-applied; no input required). User-facing label only —
+                     never mentions inactivity, win-back, or the trigger reason. Spec section 2.6. -->
+                <div class="price-item" *ngIf="loyaltyDiscountAmount > 0">
+                  <span>Loyalty Discount ({{ loyaltyDiscountPercentage }}%):</span>
+                  <span class="discount">-${{ loyaltyDiscountAmount.toFixed(2) }}</span>
+                </div>
+
                 <!-- Show promo/first-time/special offer discount if active -->
                 <div class="price-item" *ngIf="promoOrFirstTimeDiscountAmount > 0">
                   <span>
@@ -1986,7 +1993,7 @@
 
     <!-- "You're saving" banner — only shown when any discount is applied -->
     <div class="summary-savings-banner"
-         *ngIf="!isSummaryCollapsed && (subscriptionDiscountAmount > 0 || promoOrFirstTimeDiscountAmount > 0 || giftCardApplied || (selectedPointsToRedeem || 0) > 0 || useCredits)">
+         *ngIf="!isSummaryCollapsed && (subscriptionDiscountAmount > 0 || promoOrFirstTimeDiscountAmount > 0 || loyaltyDiscountAmount > 0 || giftCardApplied || (selectedPointsToRedeem || 0) > 0 || useCredits)">
       <i class="fas fa-tag summary-savings-banner__icon" aria-hidden="true"></i>
       <span>You're saving on this booking</span>
     </div>
@@ -2073,7 +2080,13 @@
         <span>Plan discount ({{ userSubscription?.discountPercentage }}%):</span>
         <span class="discount" [shimmer]="loading.pricing">-${{ subscriptionDiscountAmount.toFixed(2) }}</span>
       </div>
-      
+
+      <!-- Loyalty Discount (collapsible summary mirror). Same label, same generic copy. -->
+      <div class="price-item" *ngIf="loyaltyDiscountAmount > 0">
+        <span>Loyalty Discount ({{ loyaltyDiscountPercentage }}%):</span>
+        <span class="discount" [shimmer]="loading.pricing">-${{ loyaltyDiscountAmount.toFixed(2) }}</span>
+      </div>
+
       <!-- Show promo/first-time/special offer discount if active -->
       <div class="price-item" *ngIf="promoOrFirstTimeDiscountAmount > 0">
         <span>

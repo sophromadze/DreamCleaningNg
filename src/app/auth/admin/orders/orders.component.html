@@ -231,6 +231,14 @@
                         <div class="edit-row"><label>Company Tips</label><input type="number" step="1" [(ngModel)]="editOrderForm.companyDevelopmentTips" (ngModelChange)="recalculateEditPricing()"></div>
                         <div class="edit-row"><label>Discount (promo/special)</label><input type="number" step="1" [(ngModel)]="editOrderForm.discountAmount" (ngModelChange)="recalculateEditPricing()"></div>
                         <div class="edit-row"><label>Subscription Discount</label><input type="number" step="1" [(ngModel)]="editOrderForm.subscriptionDiscountAmount" (ngModelChange)="recalculateEditPricing()"></div>
+                        <!-- Loyalty Discount in admin edit: read-only display because the $ amount
+                             is mechanically derived from the locked percentage × current subtotal.
+                             To change the underlying percentage admin uses the Account section on
+                             the user's detail page (Phase 7), not this per-order form. -->
+                        <div class="edit-row edit-row--readonly-discount" *ngIf="editOrderFormOriginalLoyaltyPercentage > 0">
+                          <label>Loyalty Discount ({{editOrderFormOriginalLoyaltyPercentage}}%)</label>
+                          <input type="number" [value]="editOrderForm.loyaltyDiscountAmount || 0" readonly>
+                        </div>
                         <div class="edit-row edit-row--readonly-discount" *ngIf="(selectedOrder.pointsRedeemed || 0) > 0">
                           <label>Bubble Points ({{selectedOrder.pointsRedeemed}} pts)</label>
                           <input type="number" [value]="selectedOrder.pointsRedeemedDiscount || 0" readonly>
@@ -409,6 +417,13 @@
                           <span class="discount">-${{formatCurrency(selectedOrder.subscriptionDiscountAmount)}}</span>
                         </p>
 
+                        <!-- Loyalty Discount — show alongside other admin breakdown rows so the
+                             admin can see what was applied on this order. -->
+                        <p *ngIf="selectedOrder.loyaltyDiscountAmount && selectedOrder.loyaltyDiscountAmount > 0">
+                          <strong>Loyalty Discount ({{selectedOrder.loyaltyDiscountPercentage}}%):</strong>
+                          <span class="discount">-${{formatCurrency(selectedOrder.loyaltyDiscountAmount)}}</span>
+                        </p>
+
                         <!-- Special Offer Discount -->
                         <p *ngIf="selectedOrder.specialOfferName && selectedOrder.discountAmount > 0">
                           <strong>{{selectedOrder.specialOfferName}}:</strong>
@@ -477,8 +492,16 @@
                           </span>
                         </div>
                         <div class="remind-unpaid-row" *ngIf="selectedOrder.isPaid && selectedOrder.status !== 'Cancelled' && getUnpaidAdditionalAmount() > 0.01">
-                          <button type="button" class="action-btn primary remind-btn" 
-                                  (click)="sendPaymentReminder()" 
+                          <button type="button" class="action-btn primary remind-btn"
+                                  *ngIf="hasUnnotifiedAdditionalPayment()"
+                                  (click)="sendUpdatedPayment()"
+                                  [disabled]="sendingUpdatedPayment"
+                                  title="Send the first email and SMS about this order update to the customer">
+                            {{ sendingUpdatedPayment ? 'Sending...' : 'Send updated payment' }}
+                          </button>
+                          <button type="button" class="action-btn primary remind-btn"
+                                  *ngIf="!hasUnnotifiedAdditionalPayment()"
+                                  (click)="sendPaymentReminder()"
                                   [disabled]="sendingReminder"
                                   title="Send email and SMS reminder to the customer about the unpaid amount">
                             {{ sendingReminder ? 'Sending...' : 'Send payment reminder' }}

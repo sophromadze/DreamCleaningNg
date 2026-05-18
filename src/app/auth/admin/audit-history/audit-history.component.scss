@@ -480,6 +480,59 @@
         background: #5a6268;
       }
     }
+
+    // Used by the Undo/Redo column. Match the site-wide gradient buttons so they read as real
+    // CTAs in both day and night themes (the base .action-btn has color:white with no bg, which
+    // renders gray-on-gray inside the table).
+    &.primary {
+      background: var(--btn-primary);
+      box-shadow: var(--btn-primary-shadow);
+
+      &:hover:not(:disabled) {
+        background: var(--btn-primary-hover);
+        box-shadow: var(--btn-primary-shadow-hover);
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+
+    &.secondary {
+      background: var(--btn-secondary);
+      box-shadow: var(--btn-secondary-shadow);
+
+      &:hover:not(:disabled) {
+        background: var(--btn-secondary-hover);
+        box-shadow: var(--btn-secondary-shadow-hover);
+      }
+
+      &:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .undo-na {
+    color: var(--text-muted);
+  }
+
+  .undone-tag {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 400;
+    margin-left: 4px;
+  }
+
+  .success-message {
+    background: var(--mint-fresh);
+    color: var(--fresh-green);
+    border: 1px solid var(--mint-fresh-border);
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-bottom: 10px;
   }
 
   // Pagination

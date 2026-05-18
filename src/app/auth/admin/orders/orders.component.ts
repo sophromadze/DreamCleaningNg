@@ -155,6 +155,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   editOrderFormOriginalSubTotal = 0;
   editOrderFormOriginalDiscount = 0;
   editOrderFormOriginalSubscriptionDiscount = 0;
+  // Loyalty Discount: amount is the snapshot at booking time, percentage is the locked
+  // multiplier we re-apply on subtotal edits (subscription/promo use a ratio because they
+  // can be flat-dollar; loyalty is always %-based per spec section 4.5).
+  editOrderFormOriginalLoyaltyDiscount = 0;
+  editOrderFormOriginalLoyaltyPercentage = 0;
   editOrderFormPrevServiceQuantities: number[] = [];
   editOrderFormPrevExtraQuantities: number[] = [];
   editOrderFormPrevExtraHours: number[] = [];
@@ -886,6 +891,40 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         setTimeout(() => { this.errorMessage = ''; }, 5000);
       },
       complete: () => { this.sendingReminder = false; }
+    });
+  }
+
+  // True when the customer has not yet been told about the current outstanding additional amount.
+  // The admin panel uses this to show "Send Updated Payment" (first send) instead of the regular
+  // "Send Payment Reminder" button.
+  hasUnnotifiedAdditionalPayment(): boolean {
+    if (!this.orderUpdateHistory?.length) return false;
+    return this.orderUpdateHistory.some(
+      u => !u.isPaid && (u.additionalAmount || 0) > 0.01 && !u.updatedPaymentNotificationSentAt
+    );
+  }
+
+  sendingUpdatedPayment = false;
+  sendUpdatedPayment(): void {
+    if (!this.selectedOrder || this.sendingUpdatedPayment) return;
+    const orderId = this.selectedOrder.id;
+    this.sendingUpdatedPayment = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.adminService.sendUpdatedPayment(orderId).subscribe({
+      next: (res) => {
+        this.successMessage = res?.message || 'Updated-payment notification sent.';
+        setTimeout(() => { this.successMessage = ''; }, 5000);
+        // Refresh history so the button switches to "Send Payment Reminder".
+        this.adminService.getOrderUpdateHistory(orderId).subscribe({
+          next: (history) => { this.orderUpdateHistory = history; }
+        });
+      },
+      error: (err) => {
+        this.errorMessage = err.error?.message || 'Failed to send updated-payment notification.';
+        setTimeout(() => { this.errorMessage = ''; }, 5000);
+      },
+      complete: () => { this.sendingUpdatedPayment = false; }
     });
   }
 
@@ -2034,6 +2073,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       total: this.selectedOrder.total,
       discountAmount: this.selectedOrder.discountAmount,
       subscriptionDiscountAmount: (this.selectedOrder as any).subscriptionDiscountAmount ?? 0,
+      loyaltyDiscountAmount: this.selectedOrder.loyaltyDiscountAmount ?? 0,
       cleanerHourlyRate: this.selectedOrder.cleanerHourlyRate ?? 20,
       cleanerTotalSalary: this.selectedOrder.cleanerTotalSalary ?? 0,
       services: this.selectedOrder.services?.map(s => ({ orderServiceId: s.id, quantity: s.quantity, cost: s.cost })) ?? null,
@@ -2053,6 +2093,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.editOrderFormOriginalSubTotal = this.selectedOrder.subTotal;
     this.editOrderFormOriginalDiscount = this.selectedOrder.discountAmount;
     this.editOrderFormOriginalSubscriptionDiscount = (this.selectedOrder as any).subscriptionDiscountAmount ?? 0;
+    this.editOrderFormOriginalLoyaltyDiscount = this.selectedOrder.loyaltyDiscountAmount ?? 0;
+    this.editOrderFormOriginalLoyaltyPercentage = this.selectedOrder.loyaltyDiscountPercentage ?? 0;
     this.editOrderFormPrevServiceQuantities = (this.editOrderForm.services ?? []).map(s => s.quantity);
     this.editOrderFormPrevExtraQuantities = (this.editOrderForm.extraServices ?? []).map(e => e.quantity);
     this.editOrderFormPrevExtraHours = (this.editOrderForm.extraServices ?? []).map(e => e.hours);
@@ -2148,17 +2190,25 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     let subTotal = Number(this.editOrderForm.subTotal ?? 0) || 0;
     let discountAmount = Number(this.editOrderForm.discountAmount ?? 0) || 0;
     let subscriptionDiscountAmount = Number(this.editOrderForm.subscriptionDiscountAmount ?? 0) || 0;
+    let loyaltyDiscountAmount = Number(this.editOrderForm.loyaltyDiscountAmount ?? 0) || 0;
 
     if (this.editOrderFormOriginalSubTotal > 0 && subTotal !== this.editOrderFormOriginalSubTotal) {
       const ratioDiscount = this.editOrderFormOriginalDiscount / this.editOrderFormOriginalSubTotal;
       const ratioSub = this.editOrderFormOriginalSubscriptionDiscount / this.editOrderFormOriginalSubTotal;
       discountAmount = Math.round(subTotal * ratioDiscount * 100) / 100;
       subscriptionDiscountAmount = Math.round(subTotal * ratioSub * 100) / 100;
+      // Loyalty scales by the locked percentage snapshot (newSubTotal * pct / 100), not by
+      // a ratio of the previous amount. This preserves the "this order had 10% loyalty"
+      // historical truth even after admin edits the subtotal.
+      if (this.editOrderFormOriginalLoyaltyPercentage > 0) {
+        loyaltyDiscountAmount = Math.round(subTotal * (this.editOrderFormOriginalLoyaltyPercentage / 100) * 100) / 100;
+      }
       this.editOrderForm.discountAmount = discountAmount;
       this.editOrderForm.subscriptionDiscountAmount = subscriptionDiscountAmount;
+      this.editOrderForm.loyaltyDiscountAmount = loyaltyDiscountAmount;
     }
 
-    let discountedSubTotal = subTotal - discountAmount - subscriptionDiscountAmount;
+    let discountedSubTotal = subTotal - discountAmount - subscriptionDiscountAmount - loyaltyDiscountAmount;
     if (discountedSubTotal < 0) discountedSubTotal = 0;
 
     const tax = Math.round(discountedSubTotal * this.salesTaxRate * 100) / 100;
@@ -2705,6 +2755,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       total: this.editOrderForm.total ?? undefined,
       discountAmount: this.editOrderForm.discountAmount ?? undefined,
       subscriptionDiscountAmount: this.editOrderForm.subscriptionDiscountAmount ?? undefined,
+      // Loyalty Discount: persist the rescaled $ amount. Backend leaves the original
+      // LoyaltyDiscountPercentage untouched per SuperAdminFullUpdateOrder comment.
+      loyaltyDiscountAmount: this.editOrderForm.loyaltyDiscountAmount ?? undefined,
       cleanerHourlyRate: this.editOrderForm.cleanerHourlyRate ?? undefined,
       cleanerTotalSalary: this.editOrderForm.cleanerTotalSalary ?? undefined,
       services: this.editOrderForm.services ?? undefined,
