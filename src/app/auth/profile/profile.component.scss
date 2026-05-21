@@ -1215,29 +1215,3 @@
   }
 }
 
-// ── Loyalty Discount badge (Phase 8) ────────────────────────────────────────
-// Small, subtle, warm. Uses the soft-lavender token so the badge reads as a
-// gentle accent rather than a state callout (it isn't success/warning/error).
-.loyalty-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin: 8px 0 16px;
-  padding: 8px 14px;
-  border-radius: var(--radius-pill, 9999px);
-  background: var(--soft-lavender-background-light);
-  color: var(--primary-text);
-  border: 1px solid var(--border-color);
-  font-size: 0.9rem;
-  font-weight: 500;
-
-  &__icon {
-    font-size: 1rem;
-    line-height: 1;
-  }
-
-  &__text {
-    line-height: 1.3;
-  }
-}
-

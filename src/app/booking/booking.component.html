@@ -1,4 +1,5 @@
 <div class="booking-container">
+  <div class="booking-container__glow" aria-hidden="true"></div>
   <div class="booking-content">
     <div class="booking-header">
       <h1>Book Your Cleaning Service</h1>
@@ -70,16 +71,51 @@
       </div>
       
       <div class="selected-user-info" *ngIf="selectedTargetUser">
-        <div class="selected-user-card">
-          <i class="fas fa-user-check"></i>
-          <div class="selected-user-details">
-            <strong>{{ selectedTargetUser.firstName }} {{ selectedTargetUser.lastName }}</strong>
-            <span>{{ selectedTargetUser.email }}</span>
+        <div class="selected-user-panel">
+          <div class="selected-user-card">
+            <i class="fas fa-user-check"></i>
+            <div class="selected-user-details">
+              <strong>{{ selectedTargetUser.firstName }} {{ selectedTargetUser.lastName }}</strong>
+              <span>{{ selectedTargetUser.email }}</span>
+            </div>
+          </div>
+
+          <div class="payment-method-section">
+            <h4 class="payment-method-heading">Payment Method</h4>
+            <p class="payment-method-hint">
+              Select how the customer will pay. <strong>Normal</strong> sends them a Pay Now link;
+              manual methods send a formal booking confirmation only.
+            </p>
+
+            <div class="payment-method-options">
+              <label *ngFor="let opt of paymentMethodOptions" class="radio-row">
+                <input type="radio" name="paymentMethod"
+                       [(ngModel)]="adminPaymentMethod"
+                       [value]="opt.value">
+                <span>{{ opt.label }}</span>
+              </label>
+            </div>
+
+            <ng-container *ngIf="adminPaymentMethod !== 'Normal'">
+              <div class="field">
+                <label>Reference (Zelle ID, check #, etc.)</label>
+                <input type="text"
+                       [(ngModel)]="adminPaymentReference"
+                       placeholder="e.g. ZE-2026-04829"
+                       maxlength="255">
+              </div>
+              <div class="field">
+                <label>Notes (optional)</label>
+                <textarea [(ngModel)]="adminPaymentNotes"
+                          rows="2"
+                          maxlength="1000"></textarea>
+              </div>
+            </ng-container>
           </div>
         </div>
       </div>
     </div>
-    
+
     <div class="error-message" *ngIf="errorMessage">
       {{ errorMessage }}
     </div>

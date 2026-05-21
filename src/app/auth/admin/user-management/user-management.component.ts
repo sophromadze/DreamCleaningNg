@@ -66,6 +66,26 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   isRegistering = false;
   registerModalError = '';
 
+  // ── Export (SuperAdmin-only) ──
+  showExportModal = false;
+  exporting = false;
+  exportError = '';
+  /** Column keys must match the backend ExportUsers endpoint. */
+  exportColumns: Array<{ key: string; label: string; selected: boolean }> = [
+    { key: 'userId',          label: 'ID',                    selected: true },
+    { key: 'fullName',        label: 'Full Name',             selected: true },
+    { key: 'phone',           label: 'Phone',                 selected: true },
+    { key: 'email',           label: 'Email',                 selected: true },
+    { key: 'lastServiceType', label: 'Service Type',          selected: true },
+    { key: 'lastServiceAt',   label: 'Date & Time',           selected: true },
+    { key: 'lastAddress',     label: 'Address',               selected: true },
+    { key: 'lastBorough',     label: 'Borough',               selected: true },
+    { key: 'lastZip',         label: 'Zip',                   selected: true },
+    { key: 'lastBedsBaths',   label: 'Rooms',                 selected: true },
+    { key: 'lastSquareFeet',  label: 'Sq.Ft',                 selected: true },
+    { key: 'totalSpent',      label: 'Total Spent',           selected: true }
+  ];
+
   // Sticky header management
   private scrollListener?: () => void;
   private horizontalScrollListener?: () => void;
@@ -1719,6 +1739,73 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
         }
       },
       complete: () => { this.isRegistering = false; }
+    });
+  }
+
+  openExportModal(): void {
+    if (!this.isSuperAdmin) return;
+    // Reset to all-checked every time per requirement: "show me all that things already checked".
+    this.exportColumns.forEach(c => c.selected = true);
+    this.exportError = '';
+    this.showExportModal = true;
+  }
+
+  closeExportModal(): void {
+    if (this.exporting) return;
+    this.showExportModal = false;
+    this.exportError = '';
+  }
+
+  toggleExportColumn(key: string): void {
+    const col = this.exportColumns.find(c => c.key === key);
+    if (col) col.selected = !col.selected;
+  }
+
+  get hasAnyExportColumnSelected(): boolean {
+    return this.exportColumns.some(c => c.selected);
+  }
+
+  runExport(): void {
+    if (!this.isSuperAdmin || this.exporting) return;
+    const selected = this.exportColumns.filter(c => c.selected).map(c => c.key);
+    if (selected.length === 0) {
+      this.exportError = 'Select at least one column to export.';
+      return;
+    }
+    this.exporting = true;
+    this.exportError = '';
+    this.adminService.exportUsers(selected).subscribe({
+      next: (res) => {
+        const blob = res.body;
+        if (!blob) {
+          this.exportError = 'Export returned an empty file.';
+          this.exporting = false;
+          return;
+        }
+        // Try to honor the server-provided filename, fall back to a timestamped default.
+        let filename = `users-export-${new Date().toISOString().slice(0,10)}.xlsx`;
+        const disposition = res.headers.get('Content-Disposition');
+        if (disposition) {
+          const match = /filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i.exec(disposition);
+          if (match && match[1]) filename = decodeURIComponent(match[1]);
+        }
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.exporting = false;
+        this.showExportModal = false;
+        this.successMessage = 'Export downloaded.';
+        setTimeout(() => { this.successMessage = ''; }, 3000);
+      },
+      error: (err) => {
+        this.exporting = false;
+        this.exportError = err?.error?.message || err?.message || 'Failed to export users.';
+      }
     });
   }
 

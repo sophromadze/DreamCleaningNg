@@ -8,6 +8,9 @@
       <button class="action-btn register-customer" *ngIf="canCreate" (click)="openRegisterModal()">
         + Register Customer
       </button>
+      <button class="action-btn export-users" *ngIf="isSuperAdmin" (click)="openExportModal()">
+        Export
+      </button>
       <button class="action-btn refresh"
               (click)="loadUsers()"
               [disabled]="loadingUsers">
@@ -1008,6 +1011,39 @@
       <button type="button" class="action-btn ghost" (click)="closeRegisterModal()" [disabled]="isRegistering">Cancel</button>
       <button type="button" class="action-btn primary" (click)="registerUser()" [disabled]="isRegistering">
         {{ isRegistering ? 'Registering…' : 'Register' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────  EXPORT USERS MODAL  ────────────── -->
+<div class="register-modal-overlay" *ngIf="showExportModal" (click)="closeExportModal()">
+  <div class="register-modal-content export-modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3 class="modal-title">Export Users</h3>
+      <button type="button" class="modal-close" (click)="closeExportModal()" aria-label="Close" [disabled]="exporting">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="export-modal-hint">Pick which columns to include. All columns are selected by default — uncheck any you don't want.</p>
+      <div class="register-modal-error" *ngIf="exportError">{{ exportError }}</div>
+      <ul class="export-column-list">
+        <li *ngFor="let col of exportColumns">
+          <label>
+            <input type="checkbox"
+                   [checked]="col.selected"
+                   (change)="toggleExportColumn(col.key)"
+                   [disabled]="exporting">
+            <span>{{ col.label }}</span>
+          </label>
+        </li>
+      </ul>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="action-btn ghost" (click)="closeExportModal()" [disabled]="exporting">Cancel</button>
+      <button type="button" class="action-btn primary"
+              (click)="runExport()"
+              [disabled]="exporting || !hasAnyExportColumnSelected">
+        {{ exporting ? 'Exporting…' : 'Export' }}
       </button>
     </div>
   </div>

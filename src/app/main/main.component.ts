@@ -735,16 +735,18 @@ export class MainComponent implements OnInit, OnDestroy {
     // AM/PM split returns the PM (non-zero) value.
     const hour = forDate ? 12 : now.getHours();
 
-    // Per-day [min, max] ranges. Monday is split: AM = 0, PM = 2–6.
+    // Per-day [min, max] ranges. Monday is split: AM = 0, PM = 6–18. All bands are 3×
+    // the original values to scale the social-proof number shown on the hero stat +
+    // testimonial badge. Monday AM stays 0 because the week's count genuinely starts there.
     let range: [number, number];
     if (dow === 1 && hour < 12) range = [0, 0];
-    else if (dow === 1)         range = [2, 6];
-    else if (dow === 2)         range = [6, 12];
-    else if (dow === 3)         range = [12, 18];
-    else if (dow === 4)         range = [18, 24];
-    else if (dow === 5)         range = [24, 30];
-    else if (dow === 6)         range = [30, 38];
-    else /* Sunday */           range = [36, 44];
+    else if (dow === 1)         range = [6, 18];
+    else if (dow === 2)         range = [18, 36];
+    else if (dow === 3)         range = [36, 54];
+    else if (dow === 4)         range = [54, 72];
+    else if (dow === 5)         range = [72, 90];
+    else if (dow === 6)         range = [90, 114];
+    else /* Sunday */           range = [108, 132];
 
     if (range[0] === range[1]) return range[0];
 

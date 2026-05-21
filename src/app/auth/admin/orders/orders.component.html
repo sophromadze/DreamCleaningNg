@@ -82,6 +82,17 @@
         <option value="week">This Week</option>
         <option value="month">This Month</option>
       </select>
+
+      <!-- Phase 1: Payment Method filter. Filters by how the order was paid, independent of
+           Status (so admin can see e.g. all Active Zelle orders or all Done Cash orders). -->
+      <select [(ngModel)]="paymentMethodFilter" class="filter-select">
+        <option value="all">All Methods</option>
+        <option value="Normal">Normal (Stripe)</option>
+        <option value="Cash">Cash</option>
+        <option value="Zelle">Zelle</option>
+        <option value="Check">Check</option>
+        <option value="Other">Other</option>
+      </select>
     </div>
   </div>
 
@@ -118,8 +129,10 @@
               <td>{{getServiceTypeDisplay(order)}}</td>
               <td class="amount">$ {{formatCurrency(getOrderTotalWithoutTips(order))}}</td>
               <td>
+                <!-- Phase 1: shows "DoneM" suffix for orders marked Done with a non-Stripe
+                     payment method. Reuses the existing status-done class for color. -->
                 <span class="status-badge" [ngClass]="getStatusClass(order.status)">
-                  {{order.status}}
+                  {{ getStatusDisplayLabel(order) }}
                 </span>
               </td>
               <!-- Assigned Cleaners Column -->
@@ -142,8 +155,10 @@
                 </div>
               </td>
               <td class="actions" *ngIf="userPermissions.permissions.canUpdate">
-                <button *ngIf="userPermissions.permissions.canUpdate && order.status.toLowerCase() === 'active'" 
-                        class="action-btn complete" 
+                <!-- Phase 1: Done button now also visible on Pending orders so admins can
+                     mark a Pending order as Done in one step when a manual payment came in. -->
+                <button *ngIf="userPermissions.permissions.canUpdate && (order.status.toLowerCase() === 'active' || order.status.toLowerCase() === 'pending')"
+                        class="action-btn complete"
                         (click)="markOrderAsDone(order); $event.stopPropagation()"
                         title="Mark as Done">
                   Done
@@ -467,6 +482,23 @@
                           <strong>🫧 Points earned:</strong>
                           <span class="pts-earned-val">+{{ selectedOrder.pointsEarned | number }} pts</span>
                         </p>
+
+                        <!-- Phase 1: payment-method line. "Paid by Website" for Stripe orders
+                             (PaymentMethod = Normal); "Paid by Cash/Zelle/Check/Other" with
+                             reference inline for manual payments. -->
+                        <p class="payment-method-line">
+                          <strong>Payment:</strong>
+                          <span [ngSwitch]="(selectedOrder.paymentMethod || 'Normal')">
+                            <ng-container *ngSwitchCase="'Normal'">Paid by Website</ng-container>
+                            <ng-container *ngSwitchDefault>
+                              Paid by {{ selectedOrder.paymentMethod }}
+                              <span *ngIf="selectedOrder.paymentReference"> (Ref: {{ selectedOrder.paymentReference }})</span>
+                            </ng-container>
+                          </span>
+                        </p>
+                        <p *ngIf="selectedOrder.paymentNotes" class="payment-notes-line">
+                          <strong>Payment Notes:</strong> {{ selectedOrder.paymentNotes }}
+                        </p>
                       </div>
                     </div>
 
@@ -491,7 +523,7 @@
                             ${{formatCurrency(getTotalAdditionalAmount())}}
                           </span>
                         </div>
-                        <div class="remind-unpaid-row" *ngIf="selectedOrder.isPaid && selectedOrder.status !== 'Cancelled' && getUnpaidAdditionalAmount() > 0.01">
+                        <div class="remind-unpaid-row" *ngIf="shouldShowPaymentReminderRow()">
                           <button type="button" class="action-btn primary remind-btn"
                                   *ngIf="hasUnnotifiedAdditionalPayment()"
                                   (click)="sendUpdatedPayment()"
@@ -841,6 +873,39 @@
       <button class="close-btn" (click)="closeDoneModal()">&times;</button>
     </div>
     <div class="modal-body">
+      <!-- Phase 1: Payment method block. Pre-filled from the order's current PaymentMethod
+           when the modal opens — admin can confirm or change if the customer paid via a
+           different channel than the order was created for. -->
+      <div class="payment-method-block">
+        <label class="block-label">Payment Method</label>
+        <div class="payment-method-options">
+          <label *ngFor="let opt of paymentMethodOptions" class="radio-row">
+            <input type="radio" name="donePaymentMethod"
+                   [(ngModel)]="donePaymentMethod"
+                   [value]="opt.value">
+            <span>{{ opt.label }}</span>
+          </label>
+        </div>
+
+        <ng-container *ngIf="donePaymentMethod !== 'Normal'">
+          <div class="field">
+            <label>Reference</label>
+            <input type="text"
+                   [(ngModel)]="donePaymentReference"
+                   placeholder="Zelle ID, check #, etc."
+                   maxlength="255">
+          </div>
+          <div class="field">
+            <label>Notes (optional)</label>
+            <textarea [(ngModel)]="donePaymentNotes"
+                      rows="2"
+                      maxlength="1000"></textarea>
+          </div>
+        </ng-container>
+      </div>
+
+      <hr class="done-modal-divider"/>
+
       <p>Would you like to send a review link to the customer?</p>
       <div class="modal-actions done-modal-actions">
         <button class="btn-success" (click)="confirmDone(true)">Yes, Send Review Link</button>

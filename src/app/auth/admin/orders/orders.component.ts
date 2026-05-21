@@ -8,6 +8,7 @@ import { BookingService, ServiceType, ExtraService, Service } from '../../../ser
 import { DurationUtils } from '../../../utils/duration.utils';
 import { OrderReminderService } from '../../../services/order-reminder.service';
 import { FloorTypeSelectorComponent, FloorTypeSelection } from '../../../shared/components/floor-type-selector/floor-type-selector.component';
+import { PAYMENT_METHOD_OPTIONS, PaymentMethodValue } from '../../../shared/payment-method';
 import { NewOrderNotificationService } from '../../../services/new-order-notification.service';
 import { BubbleRewardsService } from '../../../services/bubble-rewards.service';
 import { forkJoin, of } from 'rxjs';
@@ -102,6 +103,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   showDoneModal = false;
   doneModalOrder: AdminOrderList | null = null;
   sendingReview = false;
+
+  // Phase 1 manual payment tracking — Done modal payment method block.
+  // Pre-filled from the order's current PaymentMethod when the modal opens, so admin can
+  // either accept it (e.g. Pending Zelle order with reference already recorded) or change
+  // if the customer ended up paying differently.
+  paymentMethodOptions = PAYMENT_METHOD_OPTIONS;
+  donePaymentMethod: PaymentMethodValue = 'Normal';
+  donePaymentReference = '';
+  donePaymentNotes = '';
+
+  // Payment Method filter dropdown (Phase 1)
+  paymentMethodFilter: string = 'all';
 
   // Cancel order modal
   showAdminCancelModal = false;
@@ -874,6 +887,24 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.max(0, Math.round((total - paid) * 100) / 100);
   }
 
+  // Gate for the "Send payment reminder" / "Send updated payment" row in the order details
+  // panel. The row only makes sense for Stripe-paid orders with an unpaid additional balance.
+  //
+  // Phase 1 manual payment: when admin marked a Done order with a non-Stripe method (Cash /
+  // Zelle / Check / Other), no further reminders apply — admin recorded the payment in person,
+  // there's nothing to remind. Hide the row in that case.
+  shouldShowPaymentReminderRow(): boolean {
+    const o = this.selectedOrder;
+    if (!o) return false;
+    if (!o.isPaid) return false;
+    if (o.status === 'Cancelled') return false;
+    if (this.getUnpaidAdditionalAmount() <= 0.01) return false;
+    // Done + non-Stripe payment → no reminder. Treat missing paymentMethod as Normal so old
+    // rows without the field still show the button when they would have before Phase 1.
+    if (o.status === 'Done' && (o.paymentMethod || 'Normal') !== 'Normal') return false;
+    return true;
+  }
+
   sendingReminder = false;
   sendPaymentReminder(): void {
     if (!this.selectedOrder || this.sendingReminder) return;
@@ -1303,13 +1334,32 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  updateOrderStatus(order: AdminOrderList, newStatus: string) {
-    this.adminService.updateOrderStatus(order.id, newStatus).subscribe({
+  updateOrderStatus(
+    order: AdminOrderList,
+    newStatus: string,
+    paymentMethod: string | null = null,
+    paymentReference: string | null = null,
+    paymentNotes: string | null = null
+  ) {
+    this.adminService.updateOrderStatus(order.id, newStatus, paymentMethod, paymentReference, paymentNotes).subscribe({
       next: () => {
         order.status = newStatus;
+        // Mirror the payment-method update locally so the DoneM badge + filter pick up the
+        // change without a full list reload. Only mutate when the caller actually passed a
+        // method — null means "preserved server-side", which we should also preserve here.
+        if (paymentMethod !== null && paymentMethod !== undefined) {
+          order.paymentMethod = paymentMethod;
+          order.paymentReference = paymentMethod !== 'Normal' ? paymentReference : null;
+          order.paymentNotes = paymentMethod !== 'Normal' ? paymentNotes : null;
+        }
         // Also update selectedOrder if it's the same order
         if (this.selectedOrder && this.selectedOrder.id === order.id) {
           this.selectedOrder.status = newStatus;
+          if (paymentMethod !== null && paymentMethod !== undefined) {
+            this.selectedOrder.paymentMethod = paymentMethod;
+            this.selectedOrder.paymentReference = paymentMethod !== 'Normal' ? paymentReference : null;
+            this.selectedOrder.paymentNotes = paymentMethod !== 'Normal' ? paymentNotes : null;
+          }
         }
         this.successMessage = `Order #${order.id} status updated to ${newStatus}`;
         this.clearMessagesAfterDelay();
@@ -1323,6 +1373,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   markOrderAsDone(order: AdminOrderList) {
     this.doneModalOrder = order;
+    // Pre-fill the payment-method block from whatever the order already carries. Default is
+    // 'Normal' (Stripe flow) so existing Active orders behave as before; manual-payment orders
+    // (e.g. Pending Zelle from admin booking) come up with the recorded method + reference.
+    this.donePaymentMethod = ((order.paymentMethod as PaymentMethodValue) || 'Normal');
+    this.donePaymentReference = order.paymentReference || '';
+    this.donePaymentNotes = order.paymentNotes || '';
     this.showDoneModal = true;
   }
 
@@ -1335,7 +1391,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.doneModalOrder) return;
     const order = this.doneModalOrder;
 
-    this.updateOrderStatus(order, 'Done');
+    // Phase 1 — pass payment method through so the backend can persist it on the Done
+    // transition. Reference/Notes are sent only for manual methods (Normal ignores them).
+    this.updateOrderStatus(
+      order,
+      'Done',
+      this.donePaymentMethod,
+      this.donePaymentMethod !== 'Normal' ? this.donePaymentReference : null,
+      this.donePaymentMethod !== 'Normal' ? this.donePaymentNotes : null
+    );
 
     if (sendReview) {
       this.sendingReview = true;
@@ -1422,6 +1486,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     // Status filter
     if (this.statusFilter !== 'all') {
       filtered = filtered.filter(order => order.status && order.status.toLowerCase() === this.statusFilter.toLowerCase());
+    }
+
+    // Phase 1: Payment Method filter. Treat missing paymentMethod as 'Normal' so legacy
+    // rows (pre-migration cache) don't disappear when admin filters to "Normal (Stripe)".
+    if (this.paymentMethodFilter !== 'all') {
+      filtered = filtered.filter(o => (o.paymentMethod || 'Normal') === this.paymentMethodFilter);
     }
 
     // Date filter
@@ -1753,6 +1823,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       default:
         return '';
     }
+  }
+
+  // Phase 1: append an "M" to "Done" when the order was paid via a non-Stripe method, so
+  // admins can scan the orders list and see at a glance which Done rows came from manual
+  // payments. CSS class stays `.status-done` either way — only the label text differs.
+  getStatusDisplayLabel(order: AdminOrderList): string {
+    if (order.status?.toLowerCase() === 'done' && order.paymentMethod && order.paymentMethod !== 'Normal') {
+      return 'DoneM';
+    }
+    return order.status;
   }
 
   clearMessages() {

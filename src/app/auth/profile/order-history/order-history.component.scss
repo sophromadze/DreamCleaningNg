@@ -12,7 +12,7 @@
   
     h2 {
       margin: 0;
-      color: #333;
+      color: var(--text-primary);
     }
   
     .new-order-btn {
@@ -85,23 +85,25 @@
   }
   
   .order-card {
-    background: var(--soft-yellow-background);
+    background: var(--soft-blue);
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px var(--shadow-color);
     padding: 1.5rem;
     transition: box-shadow 0.3s;
     position: relative;
     overflow: hidden;
 
-    &::before{
+    &::before {
       content: '';
       position: absolute;
       top: -50%;
       left: -10%;
       width: 400px;
       height: 400px;
-      background: rgba(255, 255, 255, 0.3);
+      background: rgba(255, 255, 255, 0.25);
       border-radius: 50%;
+      pointer-events: none;
     }
   
     &:hover {
@@ -123,12 +125,12 @@
       position: relative;
       h3 {
         margin: 0 0 0.5rem 0;
-        color: #333;
+        color: var(--text-primary);
       }
   
       .order-date {
         margin: 0;
-        color: #666;
+        color: var(--text-secondary);
         font-size: 0.9rem;
       }
     }
@@ -173,12 +175,12 @@
   
       .label {
         font-weight: 600;
-        color: #666;
+        color: var(--text-secondary);
         min-width: 120px;
       }
   
       .value {
-        color: #333;
+        color: var(--text-primary);
   
         &.price {
           font-weight: 600;
@@ -540,6 +542,23 @@
         color: var(--text-secondary);
       }
     }
+  }
+}
+
+// Dark mode: order cards on blue panel — readable text and subtler decoration
+:host-context([data-theme="dark"]) .order-card {
+  &::before {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .order-header .order-info h3,
+  .order-details .detail-row .value {
+    color: var(--text-primary);
+  }
+
+  .order-header .order-info .order-date,
+  .order-details .detail-row .label {
+    color: var(--text-secondary);
   }
 }
 

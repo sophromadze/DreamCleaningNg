@@ -44,6 +44,11 @@ export interface UpdateAdminTask {
   priority?: string;
   status?: string;
   dueDate?: string;
+  /** Explicit clear marker. The DTO can't distinguish "field omitted" from "field set to null"
+   *  on the wire, so when the user removes a previously-set due date we send clearDueDate=true
+   *  and the backend nulls the column. Without this flag the existing HasValue gate would
+   *  silently preserve the old value. */
+  clearDueDate?: boolean;
   clientName?: string;
   clientEmail?: string;
   clientPhone?: string;
@@ -149,6 +154,8 @@ export interface UpdatePersonalAdminTask {
   priority?: string;
   status?: string;
   dueDate?: string;
+  /** See UpdateAdminTask.clearDueDate — same purpose, same wire contract. */
+  clearDueDate?: boolean;
   assignedToAdminId?: number;
   completionNote?: string;
 }

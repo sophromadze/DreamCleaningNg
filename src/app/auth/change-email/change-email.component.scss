@@ -6,15 +6,16 @@
 
   h1 {
     margin-bottom: 2rem;
-    color: #333;
+    color: var(--text-primary);
     text-align: center;
   }
 
   .change-email-content, .verification-content {
-    background: var(--mint-fresh);
+    background: var(--soft-blue);
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 4px var(--shadow-color);
     padding: 2rem;
+    color: var(--text-primary);
   }
 
   .verification-content {
@@ -26,11 +27,11 @@
   }
 
   .current-email-info {
-    background: #f8f9fa;
+    background: var(--surface-subtle);
     padding: 1rem;
     border-radius: 4px;
     margin-bottom: 2rem;
-    border-left: 4px solid #007bff;
+    border-left: 4px solid var(--primary-color);
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
@@ -38,13 +39,13 @@
 
     label {
       font-weight: bold;
-      color: #666;
+      color: var(--text-primary);
       white-space: nowrap;
       flex-shrink: 0;
     }
 
     span {
-      color: #333;
+      color: var(--text-primary);
       word-break: break-all;
       flex: 1 1 200px;
       min-width: 0;
@@ -69,12 +70,12 @@
     border: none;
     padding: 0.25rem;
     cursor: pointer;
-    color: #666;
+    color: var(--text-muted);
     display: flex;
     align-items: center;
     justify-content: center;
     &:hover {
-      color: #333;
+      color: var(--text-primary);
     }
   }
   .icon-eye {
@@ -87,7 +88,7 @@
     label {
       display: block;
       margin-bottom: 0.5rem;
-      color: #666;
+      color: var(--text-primary);
       font-weight: 500;
     }
 
@@ -182,19 +183,21 @@
   .security-notice {
     margin-top: 2rem;
     padding: 1rem;
-    background: var(--soft-yellow);
+    background: var(--soft-blue);
+    border: 1px solid var(--border-color);
+    border-left: 4px solid var(--primary-color);
     border-radius: 4px;
 
     h3 {
       margin: 0 0 0.5rem 0;
-      color: var(--soft-yellow-text);
+      color: var(--text-primary);
       font-size: 1rem;
     }
 
     ul {
       margin: 0;
       padding-left: 1.5rem;
-      color: var(--soft-yellow-text);
+      color: var(--text-secondary);
 
       li {
         margin-bottom: 0.25rem;
@@ -252,7 +255,13 @@
 
     li {
       margin-bottom: 0.5rem;
-      color: #666;
+      color: var(--text-secondary);
+    }
+  }
+
+  .verification-content {
+    p {
+      color: var(--text-secondary);
     }
   }
 

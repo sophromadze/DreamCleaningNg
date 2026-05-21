@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ServiceType, Service, ExtraService, Subscription } from './booking.service';
@@ -715,6 +715,15 @@ export class AdminService {
     return this.http.delete<{ message: string }>(`${this.apiUrl}/users/${userId}`);
   }
 
+  /** SuperAdmin-only: export users list to an .xlsx file. Pass the column keys to include
+   *  (empty array exports all). Returns the raw .xlsx blob for the caller to save. */
+  exportUsers(columns: string[]): Observable<HttpResponse<Blob>> {
+    return this.http.post(`${this.apiUrl}/users/export`, { columns }, {
+      responseType: 'blob',
+      observe: 'response'
+    });
+  }
+
   /** SuperAdmin-only: full order update. All changes are audit-logged. */
   superAdminFullUpdateOrder(orderId: number, dto: SuperAdminUpdateOrderDto): Observable<any> {
     return this.http.put(`${this.apiUrl}/orders/${orderId}/superadmin-full-update`, dto);
@@ -755,8 +764,25 @@ export class AdminService {
     return this.http.get<Order>(`${this.apiUrl}/orders/${orderId}`);
   }
 
-  updateOrderStatus(orderId: number, status: string): Observable<any> {
-    return this.http.put(`${this.apiUrl}/orders/${orderId}/status`, { status });
+  updateOrderStatus(
+    orderId: number,
+    status: string,
+    paymentMethod: string | null = null,
+    paymentReference: string | null = null,
+    paymentNotes: string | null = null
+  ): Observable<any> {
+    // Phase 1 manual payment tracking. paymentMethod/Reference/Notes are admin-supplied via
+    // the Done modal. When omitted, existing order values are preserved server-side (no
+    // clobber). Reference/Notes are sent only for manual methods.
+    const body: any = { status };
+    if (paymentMethod !== null && paymentMethod !== undefined) {
+      body.paymentMethod = paymentMethod;
+      if (paymentMethod !== 'Normal') {
+        body.paymentReference = paymentReference;
+        body.paymentNotes = paymentNotes;
+      }
+    }
+    return this.http.put(`${this.apiUrl}/orders/${orderId}/status`, body);
   }
 
   cancelOrder(orderId: number, reason: string): Observable<any> {

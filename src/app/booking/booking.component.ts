@@ -4,6 +4,7 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormControl, 
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { HttpClientModule } from '@angular/common/http';
 import { BookingService, ServiceType, Service, ExtraService, Subscription, BookingCalculation, BlockedTimeSlot } from '../services/booking.service';
+import { PAYMENT_METHOD_OPTIONS, PaymentMethodValue } from '../shared/payment-method';
 import { AuthService } from '../services/auth.service';
 import { AuthModalService } from '../services/auth-modal.service';
 import { ProfileService } from '../services/profile.service';
@@ -322,6 +323,14 @@ export class BookingComponent implements OnInit, OnDestroy {
   filteredUsers: UserAdmin[] = [];
   showUserSelector = false;
   isLoadingUsers = false;
+
+  // Phase 1 manual payment tracking — admin-only. Reset to defaults whenever admin mode is
+  // toggled off or the target user changes so a previous selection doesn't leak across users.
+  // PAYMENT_METHOD_OPTIONS is imported below.
+  paymentMethodOptions = PAYMENT_METHOD_OPTIONS;
+  adminPaymentMethod: PaymentMethodValue = 'Normal';
+  adminPaymentReference = '';
+  adminPaymentNotes = '';
 
   constructor(
     private fb: FormBuilder,
@@ -2107,6 +2116,29 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.showMobileTooltip(subscription.id);
   }
 
+  // Dollar value the user's loyalty discount would contribute to the current subTotal. Used by
+  // the apply-promo / apply-special-offer pre-flight gate below so we can refuse to apply a
+  // candidate that loyalty would beat anyway (the stacking gate inside calculateTotal would
+  // zero it out — better UX to block up front with a clear message). Returns 0 when no loyalty.
+  private currentLoyaltyDollarValue(): number {
+    if (this.loyaltyDiscountPercentage <= 0) return 0;
+    const sub = this.calculation.subTotal || 0;
+    if (sub <= 0) return 0;
+    return Math.round(sub * (this.loyaltyDiscountPercentage / 100) * 100) / 100;
+  }
+
+  // Compute what a candidate discount would be worth in $ on the current subTotal, matching
+  // the math used by calculateTotal so the pre-flight comparison stays consistent with what
+  // the stacking gate actually does. Gift cards aren't checked here — they stack with loyalty.
+  private candidateDollarValue(value: number, isPercentage: boolean): number {
+    const sub = this.calculation.subTotal || 0;
+    if (sub <= 0) return 0;
+    if (isPercentage) {
+      return Math.round(sub * (value / 100) * 100) / 100;
+    }
+    return Math.min(value, sub);
+  }
+
   applyPromoCode() {
     // Check if the control is disabled
     if (this.promoCode.disabled) {
@@ -2141,7 +2173,7 @@ export class BookingComponent implements OnInit, OnDestroy {
           if (this.promoCode.value !== code) {
             this.promoCode.setValue(code, { emitEvent: false });
           }
-          
+
           if (validation.isGiftCard) {
             // Handle gift card
             this.isGiftCard = true;
@@ -2149,6 +2181,18 @@ export class BookingComponent implements OnInit, OnDestroy {
             this.giftCardBalance = validation.availableBalance || 0;
             this.promoCodeApplied = false; // Gift cards don't use promo system
           } else {
+            // Pre-flight loyalty check (non-gift-card promos only). If the user's existing
+            // loyalty discount is worth more than this promo, refuse to apply and tell them
+            // why — the stacking gate would zero the promo anyway, so this is just clearer UX.
+            const loyaltyDollars = this.currentLoyaltyDollarValue();
+            const promoDollars = this.candidateDollarValue(validation.discountValue, validation.isPercentage);
+            if (loyaltyDollars > promoDollars) {
+              this.errorMessage =
+                `You already have a Loyalty Discount of ${this.loyaltyDiscountPercentage}% on your account — ` +
+                `it's better than this promo code, so they can't be used together.`;
+              return;
+            }
+
             // Your existing promo code logic stays exactly the same
             this.isGiftCard = false;
             this.giftCardApplied = false;
@@ -2156,7 +2200,7 @@ export class BookingComponent implements OnInit, OnDestroy {
             this.promoDiscount = validation.discountValue;
             this.promoIsPercentage = validation.isPercentage;
           }
-          
+
           this.calculateTotal();
         } else {
           this.errorMessage = validation.message || 'Invalid promo code';
@@ -3027,9 +3071,17 @@ export class BookingComponent implements OnInit, OnDestroy {
         : undefined,
     };
 
-    // If admin mode, create booking for target user (unpaid)
+    // If admin mode, create booking for target user (unpaid). Phase 1 manual payment fields
+    // ride along — for Normal they're effectively no-ops, for Cash/Zelle/Check/Other the
+    // backend records the payment and skips the Pay Now reminder.
     if (this.isAdminMode && this.selectedTargetUser) {
-      this.bookingService.createBookingForUser(this.selectedTargetUser.id, bookingData).subscribe({
+      this.bookingService.createBookingForUser(
+        this.selectedTargetUser.id,
+        bookingData,
+        this.adminPaymentMethod,
+        this.adminPaymentMethod !== 'Normal' ? this.adminPaymentReference : null,
+        this.adminPaymentMethod !== 'Normal' ? this.adminPaymentNotes : null
+      ).subscribe({
         next: (response) => {
           this.isLoading = false;
           this.errorMessage = '';
@@ -3045,6 +3097,7 @@ export class BookingComponent implements OnInit, OnDestroy {
           this.selectedTargetUser = null;
           this.userSearchTerm = '';
           this.isAdminMode = false;
+          this.resetAdminPaymentFields();
           
           // Reload page or navigate
           this.router.navigate(['/booking']).then(() => {
@@ -3518,6 +3571,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       
       this.selectedTargetUser = null;
       this.userSearchTerm = '';
+      this.resetAdminPaymentFields();
 
       // Reload admin's subscription when admin mode is turned off
       this.loadUserSubscription();
@@ -3660,9 +3714,19 @@ export class BookingComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Reset Phase 1 admin payment selection back to defaults. Called when admin mode toggles
+  // off, target user changes, or booking submission completes — keeps stale Zelle/Cash values
+  // from leaking onto the next booking.
+  resetAdminPaymentFields(): void {
+    this.adminPaymentMethod = 'Normal';
+    this.adminPaymentReference = '';
+    this.adminPaymentNotes = '';
+  }
+
   clearSelectedUser() {
     this.selectedTargetUser = null;
     this.userSearchTerm = '';
+    this.resetAdminPaymentFields();
     this.filterUsers(); // Refresh the filtered users list
     
     // Restore admin's apartments
@@ -3885,13 +3949,25 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.errorMessage = 'Cannot apply special offer when a promo code is already applied. Please remove the promo code first.';
       return;
     }
-  
+
     // Check if another special offer is already applied
     if (this.specialOfferApplied && this.selectedSpecialOffer?.id !== offer.id) {
       this.errorMessage = 'Only one special offer can be applied at a time. Please remove the current offer first.';
       return;
     }
-  
+
+    // Pre-flight loyalty check. The stacking gate inside calculateTotal would zero this offer
+    // anyway if loyalty beats it — surface that explicitly instead of letting the user click
+    // "Apply" and watch nothing visible change.
+    const loyaltyDollars = this.currentLoyaltyDollarValue();
+    const offerDollars = this.candidateDollarValue(offer.discountValue, offer.isPercentage);
+    if (loyaltyDollars > offerDollars) {
+      this.errorMessage =
+        `You already have a Loyalty Discount of ${this.loyaltyDiscountPercentage}% on your account — ` +
+        `it's better than this offer, so they can't be used together.`;
+      return;
+    }
+
     // Clear any previous error
     this.errorMessage = '';
   

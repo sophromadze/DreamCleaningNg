@@ -137,10 +137,11 @@ export class AdminComponent implements OnInit {
           this.loadMaintenanceStatus();
         }
 
-        // Any admin can toggle chat
-        if (response.role === 'Admin' || response.role === 'SuperAdmin') {
-          this.loadChatStatus();
-        }
+        // Any admin can toggle chat — TEMPORARILY DISABLED. No /api/livechat/status call while
+        // Telegram integration is off; the toggle button is also hidden in the template.
+        // if (response.role === 'Admin' || response.role === 'SuperAdmin') {
+        //   this.loadChatStatus();
+        // }
       },
       error: (error) => {
         console.error('Error loading permissions:', error);

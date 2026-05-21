@@ -31,6 +31,11 @@ export interface OrderList {
   pointsRedeemedDiscount?: number;
   rewardBalanceUsed?: number;
   pointsEarned?: number;
+  /** Phase 1 manual payment tracking — surfaced on the list DTO so the admin orders table
+   *  can render the "DoneM" badge + Payment Method filter without a per-row detail fetch. */
+  paymentMethod?: string;
+  paymentReference?: string | null;
+  paymentNotes?: string | null;
 }
 
 export interface Order {
@@ -53,6 +58,11 @@ export interface Order {
    *  optional only for backward compat with older clients. */
   loyaltyDiscountAmount?: number;
   loyaltyDiscountPercentage?: number;
+  /** Phase 1 manual payment tracking. 'Normal' = Stripe-flow order; otherwise the literal
+   *  value of the backend PaymentMethod enum (Cash/Zelle/Check/Other). */
+  paymentMethod?: string;
+  paymentReference?: string | null;
+  paymentNotes?: string | null;
   promoCode?: string;
   giftCardCode?: string;
   giftCardAmountUsed?: number;

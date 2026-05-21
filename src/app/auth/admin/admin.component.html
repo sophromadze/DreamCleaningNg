@@ -11,6 +11,8 @@
       [disabled]="isTogglingMaintenance">
       {{ maintenanceStatus?.isEnabled ? 'Stop Maintenance' : 'Start Maintenance' }}
     </button>
+    <!-- Live-chat toggle — TEMPORARILY DISABLED. Telegram integration is off; re-enable when bot is back. -->
+    <!--
     <button
       *ngIf="userRole === 'Admin' || userRole === 'SuperAdmin'"
       class="chat-toggle-btn"
@@ -19,6 +21,7 @@
       [disabled]="isTogglingChat">
       {{ chatEnabled ? '💬 Disable Chat' : '💬 Enable Chat' }}
     </button>
+    -->
   </div>
 
   <!-- Tab Navigation -->

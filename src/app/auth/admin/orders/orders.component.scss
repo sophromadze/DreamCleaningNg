@@ -1851,11 +1851,70 @@
 
 /* Done / Review Modal */
 .done-review-modal {
-  max-width: 450px;
+  max-width: 520px;
 
   .modal-body p {
     margin-bottom: 1.5rem;
     font-size: 1rem;
+  }
+
+  // Phase 1: payment-method block at the top of the Done modal. Compact pill radios so it
+  // doesn't dominate the dialog; reference + notes appear inline when a manual method is chosen.
+  .payment-method-block {
+    margin-bottom: 0.5rem;
+
+    .block-label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary, #1a1a1a);
+    }
+
+    .payment-method-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 0.75rem;
+
+      .radio-row {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 10px;
+        background: var(--surface, #ffffff);
+        border: 1px solid var(--border-color, rgba(0,0,0,0.12));
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 0.85rem;
+        color: var(--text-primary, #1a1a1a);
+
+        input[type="radio"] { margin: 0; accent-color: var(--primary-color, #2563eb); }
+      }
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 0.5rem;
+
+      label { font-size: 0.8rem; color: var(--text-secondary, #555); }
+      input[type="text"], textarea {
+        padding: 6px 8px;
+        border: 1px solid var(--border-color, rgba(0,0,0,0.15));
+        border-radius: 4px;
+        background: var(--surface, #ffffff);
+        color: var(--text-primary, #1a1a1a);
+        font-size: 0.9rem;
+      }
+      textarea { resize: vertical; min-height: 48px; }
+    }
+  }
+
+  .done-modal-divider {
+    border: none;
+    border-top: 1px solid var(--border-color, rgba(0,0,0,0.1));
+    margin: 1rem 0;
   }
 }
 

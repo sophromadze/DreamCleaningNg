@@ -13,7 +13,8 @@ import { ContinueBookingComponent } from './continue-booking/continue-booking.co
 import { AuthModalComponent } from './auth/auth-modal/auth-modal.component';
 import { AuthService } from './services/auth.service';
 import { TokenRefreshService } from './services/token-refresh.service';
-import { LiveChatWidgetComponent } from './shared/live-chat-widget/live-chat-widget.component';
+// TEMPORARILY DISABLED — Telegram bot integration is off; widget is commented out in app.component.html.
+// import { LiveChatWidgetComponent } from './shared/live-chat-widget/live-chat-widget.component';
 import { TelClickTrackingDirective } from './directives/tel-click-tracking.directive';
 import { Subscription, combineLatest } from 'rxjs';
 import { filter, map, mergeMap } from 'rxjs/operators';
@@ -67,8 +68,8 @@ function isSocialStickyHiddenRoute(url: string): boolean {
     FloatingActionButtonsComponent,
     StickyMobileCtaComponent,
     ContinueBookingComponent,
-    AuthModalComponent,
-    LiveChatWidgetComponent
+    AuthModalComponent
+    // LiveChatWidgetComponent  // disabled with the widget tag in app.component.html
   ],
   hostDirectives: [TelClickTrackingDirective],
   templateUrl: './app.component.html',

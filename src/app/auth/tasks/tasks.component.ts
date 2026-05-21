@@ -844,6 +844,15 @@ export class TasksComponent implements OnInit, OnDestroy {
 
     if (this.editingTaskId) {
       const update: UpdateAdminTask = { ...this.taskForm };
+      // The HTML date input gives '' (empty string) when cleared. Sending '' to the
+      // backend's DateTime? property fails model binding (400). Normalise to null and
+      // set clearDueDate so the backend actually nulls the column instead of preserving
+      // the old value via its HasValue gate.
+      const due = (update.dueDate ?? '').toString().trim();
+      if (due === '') {
+        update.dueDate = undefined;
+        update.clearDueDate = true;
+      }
       this.taskService.updateTask(this.editingTaskId, update).subscribe({
         next: () => { this.showTaskModal = false; this.loadTasks(); }
       });
@@ -943,6 +952,13 @@ export class TasksComponent implements OnInit, OnDestroy {
         assignedToAdminId: this.personalTaskForm.assignedToAdminId,
         completionNote: this.personalTaskForm.completionNote
       };
+      // Same fix as saveTask() — empty date input means "remove the date" and needs to be
+      // translated into clearDueDate=true so the backend nulls the column.
+      const due = (update.dueDate ?? '').toString().trim();
+      if (due === '') {
+        update.dueDate = undefined;
+        update.clearDueDate = true;
+      }
       this.taskService.updatePersonalTask(this.editingPersonalTaskId, update).subscribe({
         next: () => { this.showPersonalTaskModal = false; this.loadPersonalTasks(); if (this.isSuperAdmin) this.loadAllAdminTasks(); }
       });

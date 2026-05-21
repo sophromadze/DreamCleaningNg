@@ -200,10 +200,25 @@ export class BookingService {
     );
   }
 
-  createBookingForUser(targetUserId: number, bookingData: any): Observable<any> {
+  createBookingForUser(
+    targetUserId: number,
+    bookingData: any,
+    paymentMethod: string = 'Normal',
+    paymentReference: string | null = null,
+    paymentNotes: string | null = null
+  ): Observable<any> {
+    // Phase 1 manual payment tracking. Defaults preserve the existing call shape; older
+    // callers that don't pass these arguments get Normal/null/null which the backend
+    // interprets identically to the pre-Phase-1 behavior (Status=Pending + Stripe reminder).
     return this.http.post<any>(
       `${this.apiUrl}/booking/create-for-user`,
-      { targetUserId, bookingData },
+      {
+        targetUserId,
+        bookingData,
+        paymentMethod,
+        paymentReference: paymentMethod !== 'Normal' ? paymentReference : null,
+        paymentNotes:     paymentMethod !== 'Normal' ? paymentNotes     : null,
+      },
       { headers: this.getAuthHeaders() }
     );
   }

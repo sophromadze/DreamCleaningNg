@@ -317,16 +317,13 @@
       .selected-user-info {
         margin-top: 1rem;
 
-        .selected-user-card {
-          display: flex;
-          align-items: center;
-          gap: 1rem;
-          padding: 1.25rem;
+        .selected-user-panel {
           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
           border-radius: 10px;
           box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
           color: white;
           animation: slideIn 0.3s ease;
+          overflow: hidden;
 
           @keyframes slideIn {
             from {
@@ -338,6 +335,13 @@
               transform: translateY(0);
             }
           }
+        }
+
+        .selected-user-card {
+          display: flex;
+          align-items: center;
+          gap: 1rem;
+          padding: 1rem;
 
           i {
             font-size: 1.5rem;
@@ -349,6 +353,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            flex-shrink: 0;
           }
 
           .selected-user-details {
@@ -356,6 +361,7 @@
             flex-direction: column;
             gap: 0.25rem;
             flex: 1;
+            min-width: 0;
 
             strong {
               font-size: 1.1rem;
@@ -365,6 +371,81 @@
             span {
               font-size: 0.9rem;
               opacity: 0.9;
+            }
+          }
+        }
+
+        .payment-method-section {
+          padding: 1rem 1.25rem 1.25rem;
+          border-top: 1px solid rgba(255, 255, 255, 0.2);
+
+          .payment-method-heading {
+            margin: 0 0 0.35rem 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: inherit;
+          }
+
+          .payment-method-hint {
+            margin: 0 0 0.75rem 0;
+            font-size: 0.85rem;
+            opacity: 0.9;
+            line-height: 1.4;
+          }
+
+          .payment-method-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+
+            .radio-row {
+              display: inline-flex;
+              align-items: center;
+              gap: 6px;
+              padding: 6px 12px;
+              background: rgba(255, 255, 255, 0.15);
+              border: 1px solid rgba(255, 255, 255, 0.25);
+              border-radius: var(--radius-pill, 9999px);
+              cursor: pointer;
+              font-size: 0.875rem;
+              color: inherit;
+
+              input[type="radio"] {
+                margin: 0;
+                accent-color: var(--primary-color, #2563eb);
+              }
+            }
+          }
+
+          .field {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-top: 0.75rem;
+
+            label {
+              font-size: 0.85rem;
+              font-weight: 500;
+              opacity: 0.95;
+            }
+
+            input[type="text"],
+            textarea {
+              padding: 8px 10px;
+              border: 1px solid rgba(255, 255, 255, 0.3);
+              border-radius: var(--radius-sm, 8px);
+              background: rgba(255, 255, 255, 0.12);
+              color: inherit;
+              font-size: 0.9rem;
+
+              &::placeholder {
+                color: rgba(255, 255, 255, 0.55);
+              }
+            }
+
+            textarea {
+              resize: vertical;
+              min-height: 60px;
             }
           }
         }
@@ -404,6 +485,10 @@
               height: 2.5rem;
               font-size: 1.25rem;
             }
+          }
+
+          .payment-method-section {
+            padding: 1rem;
           }
         }
       }
@@ -481,7 +566,12 @@
 
     @media (max-width: 768px) {
       min-width: 0;
-      overflow-x: hidden;
+      /* `overflow-x: hidden` would force overflow-y to auto, trapping the
+         date/time selector popovers inside a scroll container. `clip`
+         allows overflow-y: visible to coexist, so vertical popovers can
+         escape while wide horizontal content is still contained. */
+      overflow-x: clip;
+      overflow-y: visible;
       max-width: 100%;
     }
 
@@ -564,17 +654,49 @@
           }
         }
       }
-      .selected-user-info .selected-user-card {
+      .selected-user-info .selected-user-panel {
         background: var(--surface);
         border: 1px solid var(--border-color);
         color: var(--text-primary);
         box-shadow: 0 4px 15px var(--shadow-color);
-        strong, span {
-          color: var(--text-primary) !important;
+
+        .selected-user-card {
+          strong,
+          span {
+            color: var(--text-primary) !important;
+          }
+
+          i {
+            background: var(--surface-elevated);
+            color: var(--primary-color);
+          }
         }
-        i {
-          background: var(--surface-elevated);
-          color: var(--primary-color);
+
+        .payment-method-section {
+          border-top-color: var(--border-color);
+
+          .payment-method-options .radio-row {
+            background: var(--surface-elevated);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+          }
+
+          .field {
+            label {
+              color: var(--text-secondary);
+            }
+
+            input[type="text"],
+            textarea {
+              background: var(--surface-elevated);
+              color: var(--text-primary);
+              border-color: var(--border-color);
+
+              &::placeholder {
+                color: var(--text-muted);
+              }
+            }
+          }
         }
       }
     }
@@ -8111,26 +8233,35 @@
 .booking-container {
   background: var(--hero-bg);
   position: relative;
-  /* `clip` (not `hidden`) so the ambient glows are clipped without creating
-     a scroll container — `overflow: hidden` here would break the sticky
-     .booking-summary, which is the same reason the legacy comments above
-     forbid overflow-x: hidden on this element. */
+  /* No `overflow: clip` or `isolation: isolate` here — both would trap
+     absolutely-positioned dropdowns (date / time selectors) and the
+     z-index of the cleaning-supplies modal inside this container's
+     stacking context, so the footer would paint over them. The ambient
+     glows are clipped by the dedicated `.booking-container__glow` layer
+     below instead. */
+}
+
+/* Dedicated layer that hosts and clips the ambient glow pseudo-elements
+   without affecting overlays/dropdowns elsewhere in the container. */
+.booking-container__glow {
+  position: absolute;
+  inset: 0;
   overflow: clip;
-  isolation: isolate;
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* Ambient glows — sit behind everything via z-index: 0 + content lifted to 1 */
-.booking-container::before,
-.booking-container::after {
+.booking-container__glow::before,
+.booking-container__glow::after {
   content: "";
   position: absolute;
   border-radius: 50%;
   filter: blur(90px);
   pointer-events: none;
-  z-index: 0;
 }
 
-.booking-container::before {
+.booking-container__glow::before {
   top: -140px;
   right: -120px;
   width: 540px;
@@ -8138,7 +8269,7 @@
   background: var(--hero-glow-blue);
 }
 
-.booking-container::after {
+.booking-container__glow::after {
   bottom: -180px;
   left: -140px;
   width: 480px;
@@ -8152,13 +8283,13 @@
 }
 
 @media (max-width: 768px) {
-  .booking-container::before {
+  .booking-container__glow::before {
     width: 320px;
     height: 320px;
     top: -80px;
     right: -80px;
   }
-  .booking-container::after {
+  .booking-container__glow::after {
     width: 280px;
     height: 280px;
     bottom: -100px;
@@ -10540,3 +10671,4 @@
     }
   }
 }
+
