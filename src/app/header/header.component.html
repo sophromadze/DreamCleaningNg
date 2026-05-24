@@ -250,6 +250,11 @@
                    *ngIf="currentUser?.role === 'SuperAdmin'">
                   Bubble Rewards
                 </a>
+                <a routerLink="/admin/expenses"
+                   (click)="closeAllMenus(); $event.stopPropagation()"
+                   *ngIf="currentUser?.role === 'SuperAdmin'">
+                  Expenses
+                </a>
                 <a (click)="logout(); closeAllMenus(); $event.stopPropagation()">Logout</a>
               </div>
             </div>

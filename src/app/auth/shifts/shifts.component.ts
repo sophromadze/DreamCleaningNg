@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { ShiftService, AdminShift, ShiftAdmin } from '../../services/shift.service';
 import { AuthService } from '../../services/auth.service';
+import { AdminBonusService, AdminBonusSummary, AdminBonusRate } from '../../services/admin-bonus.service';
 
 const FALLBACK_COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e',
@@ -56,19 +57,35 @@ export class ShiftsComponent implements OnInit {
   successMessage = '';
   errorMessage = '';
 
+  // ── Admin bonuses (current visible month) ──
+  bonuses: AdminBonusSummary[] = [];
+  bonusRate: AdminBonusRate | null = null;
+  isLoadingBonuses = false;
+  isSuperAdmin = false;
+  currentUserId: number | null = null;
+  // Rate edit UI (SuperAdmin only).
+  isEditingRate = false;
+  rateEditValue: number = 0;
+  isSavingRate = false;
+
   constructor(
     private shiftService: ShiftService,
-    private authService: AuthService
+    private authService: AuthService,
+    private adminBonusService: AdminBonusService
   ) {}
 
   ngOnInit(): void {
     const user = this.authService.currentUserValue;
     if (user) {
       this.currentUserName = `${user.firstName} ${user.lastName}`;
+      this.isSuperAdmin = user.role === 'SuperAdmin';
+      this.currentUserId = user.id ?? null;
     }
     this.buildCalendar();
     this.loadAdmins();
     this.loadShifts();
+    this.loadBonusRate();
+    this.loadBonuses();
   }
 
   // ════════════════════════════════════════
@@ -107,6 +124,7 @@ export class ShiftsComponent implements OnInit {
     );
     this.buildCalendar();
     this.loadShifts();
+    this.loadBonuses();
     this.selectedDate = null;
   }
 
@@ -118,6 +136,7 @@ export class ShiftsComponent implements OnInit {
     );
     this.buildCalendar();
     this.loadShifts();
+    this.loadBonuses();
     this.selectedDate = null;
   }
 
@@ -126,6 +145,7 @@ export class ShiftsComponent implements OnInit {
     this.today = new Date();
     this.buildCalendar();
     this.loadShifts();
+    this.loadBonuses();
     if (!this.multiSelectMode) {
       this.selectDate(new Date());
     }
@@ -189,6 +209,85 @@ export class ShiftsComponent implements OnInit {
         this.showError('Failed to load shifts');
       }
     });
+  }
+
+  // ════════════════════════════════════════
+  //  Admin bonuses (per visible calendar month)
+  // ════════════════════════════════════════
+
+  loadBonuses(): void {
+    this.isLoadingBonuses = true;
+    const year = this.currentMonth.getFullYear();
+    const month = this.currentMonth.getMonth();
+    // Window = visible month [first..last day] inclusive. Backend treats `to` as inclusive.
+    const from = this.formatYmd(new Date(Date.UTC(year, month, 1)));
+    const to = this.formatYmd(new Date(Date.UTC(year, month + 1, 0)));
+    this.adminBonusService.getBonuses(from, to).subscribe({
+      next: (rows) => {
+        this.bonuses = rows;
+        this.isLoadingBonuses = false;
+      },
+      error: () => {
+        this.isLoadingBonuses = false;
+      }
+    });
+  }
+
+  loadBonusRate(): void {
+    this.adminBonusService.getRate().subscribe({
+      next: (r) => {
+        this.bonusRate = r;
+        this.rateEditValue = r.ratePerOrder;
+      },
+      error: () => {}
+    });
+  }
+
+  getBonusMonthLabel(): string {
+    return this.currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  }
+
+  // SuperAdmin-only rate edit. Backend enforces the role.
+  startEditingRate(): void {
+    if (!this.isSuperAdmin) return;
+    this.isEditingRate = true;
+    this.rateEditValue = this.bonusRate?.ratePerOrder ?? 10;
+  }
+
+  cancelEditingRate(): void {
+    this.isEditingRate = false;
+    this.rateEditValue = this.bonusRate?.ratePerOrder ?? 10;
+  }
+
+  saveRate(): void {
+    if (!this.isSuperAdmin || this.isSavingRate) return;
+    const value = Number(this.rateEditValue);
+    if (!isFinite(value) || value < 0) {
+      this.showError('Rate must be zero or positive');
+      return;
+    }
+    this.isSavingRate = true;
+    this.adminBonusService.setRate(value).subscribe({
+      next: (r) => {
+        this.bonusRate = r;
+        this.rateEditValue = r.ratePerOrder;
+        this.isEditingRate = false;
+        this.isSavingRate = false;
+        this.loadBonuses();
+        this.showSuccess('Bonus rate updated');
+      },
+      error: (err) => {
+        this.isSavingRate = false;
+        this.showError(err.error?.message || 'Failed to update rate');
+      }
+    });
+  }
+
+  private formatYmd(d: Date): string {
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   // ════════════════════════════════════════

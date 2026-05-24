@@ -1,7 +1,41 @@
 <div class="order-details-container">
     <div class="page-header">
       <a routerLink="/profile/orders" class="back-link">← Back to Orders</a>
-      <h1>Order Details</h1>
+      <div class="page-header-row">
+        <h1>Order Details</h1>
+
+        <!-- Top-right pill: who handles this order (admin/superadmin can edit). Pre-formatted "F. LastName" from backend. -->
+        <div *ngIf="!isLoading && order" class="assigned-admin-pill"
+             [class.is-editable]="canEditAssignedAdmin()"
+             [class.is-empty]="!order.assignedAdminId">
+          <button type="button"
+                  class="assigned-admin-trigger"
+                  (click)="toggleAdminEditor()"
+                  [disabled]="!canEditAssignedAdmin() || isSavingAssignedAdmin"
+                  [attr.title]="canEditAssignedAdmin() ? 'Change assigned admin' : null">
+            <span class="assigned-admin-by">By:</span>
+            <span class="assigned-admin-name">{{ assignedAdminLabel() }}</span>
+            <span *ngIf="canEditAssignedAdmin()" class="assigned-admin-caret" aria-hidden="true">▾</span>
+          </button>
+
+          <div *ngIf="showAdminEditor && canEditAssignedAdmin()" class="assigned-admin-menu" role="listbox">
+            <button type="button"
+                    class="assigned-admin-option"
+                    [class.is-selected]="!order.assignedAdminId"
+                    (click)="selectAssignedAdmin(null)">
+              Unassigned
+            </button>
+            <button type="button"
+                    *ngFor="let a of availableAdmins"
+                    class="assigned-admin-option"
+                    [class.is-selected]="order.assignedAdminId === a.id"
+                    (click)="selectAssignedAdmin(a.id)">
+              {{ a.firstName }} {{ a.lastName }}
+            </button>
+            <div *ngIf="availableAdmins.length === 0" class="assigned-admin-empty">No admins available</div>
+          </div>
+        </div>
+      </div>
     </div>
   
     <div *ngIf="isLoading" class="loading">Loading order details...</div>

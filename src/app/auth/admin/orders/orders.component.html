@@ -188,8 +188,44 @@
                 </div>
 
                 <div *ngIf="!loadingStates.orderDetails" class="order-details-content">
-                  <h4>Order Details</h4>
-                  
+                  <div class="order-details-header-row">
+                    <h4>Order Details</h4>
+
+                    <!-- Assigned-admin pill: who handles this order. Admins/SuperAdmins click to reassign.
+                         Backend pre-formats display as "F. LastName". `selectedOrder` is already
+                         narrowed to non-null by the outer *ngIf on the details row. -->
+                    <div class="assigned-admin-pill"
+                         [class.is-empty]="!selectedOrder.assignedAdminId"
+                         (click)="$event.stopPropagation()">
+                      <button type="button"
+                              class="assigned-admin-trigger"
+                              (click)="toggleAssignedAdminEditor()"
+                              [disabled]="isSavingAssignedAdmin"
+                              title="Change assigned admin">
+                        <span class="assigned-admin-by">By:</span>
+                        <span class="assigned-admin-name">{{ assignedAdminLabel() }}</span>
+                        <span class="assigned-admin-caret" aria-hidden="true">▾</span>
+                      </button>
+
+                      <div *ngIf="showAssignedAdminEditor" class="assigned-admin-menu" role="listbox">
+                        <button type="button"
+                                class="assigned-admin-option"
+                                [class.is-selected]="!selectedOrder.assignedAdminId"
+                                (click)="selectAssignedAdminForOrder(null)">
+                          Unassigned
+                        </button>
+                        <button type="button"
+                                *ngFor="let a of availableAdmins"
+                                class="assigned-admin-option"
+                                [class.is-selected]="selectedOrder.assignedAdminId === a.id"
+                                (click)="selectAssignedAdminForOrder(a.id)">
+                          {{ a.firstName }} {{ a.lastName }}
+                        </button>
+                        <div *ngIf="availableAdmins.length === 0" class="assigned-admin-empty">No admins available</div>
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- Order Edit Form (SuperAdmin: direct save; Admin: submit for approval) -->
                   <div *ngIf="editingOrder && canEditOrder" class="superadmin-order-edit">
                     <h5>Edit Order <span *ngIf="isSuperAdmin">— all changes are recorded in Audit logs</span><span *ngIf="!isSuperAdmin">— your changes will be sent to SAdmin for approval</span></h5>

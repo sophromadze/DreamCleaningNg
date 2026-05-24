@@ -1,0 +1,184 @@
+<div class="expenses-container">
+  <div class="page-header">
+    <div class="page-title">
+      <h1>
+        <i class="fas fa-receipt"></i>
+        Company Expenses
+      </h1>
+      <p class="page-subtitle">
+        Every entry here subtracts from Company Revenue in Statistics on its occurrence date.
+      </p>
+    </div>
+
+    <div class="header-stats">
+      <div class="header-stat">
+        <span class="header-stat-label">This month</span>
+        <span class="header-stat-value">$ {{ totalThisMonth() | number:'1.2-2' }}</span>
+      </div>
+      <button class="btn btn-primary" type="button" (click)="openAddForm()" *ngIf="!showForm">
+        <i class="fas fa-plus"></i> Add expense
+      </button>
+    </div>
+  </div>
+
+  <div class="message success" *ngIf="successMessage">
+    <i class="fas fa-check-circle"></i> {{ successMessage }}
+  </div>
+  <div class="message error" *ngIf="error">
+    <i class="fas fa-exclamation-circle"></i> {{ error }}
+  </div>
+
+  <!-- Add / edit form ─────────────────────────────────────────────────────── -->
+  <div class="expense-form-card" *ngIf="showForm">
+    <div class="form-header">
+      <h3>{{ editingId == null ? 'Add new expense' : 'Edit expense #' + editingId }}</h3>
+      <button type="button" class="icon-btn" (click)="closeForm()" title="Close"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="form-grid">
+      <label class="form-field span-2">
+        <span>Name</span>
+        <input type="text" [(ngModel)]="form.name" placeholder="e.g. RingCentral subscription">
+      </label>
+
+      <label class="form-field">
+        <span>Amount ($)</span>
+        <input type="number" min="0" step="0.01" [(ngModel)]="form.amount">
+      </label>
+
+      <label class="form-field">
+        <span>Category</span>
+        <select [ngModel]="form.categoryLabel" (ngModelChange)="onCategoryChange($event)">
+          <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+        </select>
+      </label>
+
+      <label class="form-field">
+        <span>Start date</span>
+        <input type="date" [(ngModel)]="form.startDate">
+      </label>
+
+      <div class="form-field">
+        <span>Type</span>
+        <div class="toggle-group">
+          <button type="button"
+                  class="toggle"
+                  [class.active]="!form.isRecurring"
+                  (click)="onRecurringToggle(false)">One-time</button>
+          <button type="button"
+                  class="toggle"
+                  [class.active]="form.isRecurring"
+                  (click)="onRecurringToggle(true)">Recurring</button>
+        </div>
+      </div>
+
+      <ng-container *ngIf="form.isRecurring">
+        <label class="form-field">
+          <span>Frequency (months)</span>
+          <input type="number" min="1" step="1" [(ngModel)]="form.frequencyMonths">
+        </label>
+
+        <div class="form-field span-2">
+          <span>Quick pick</span>
+          <div class="preset-row">
+            <button type="button"
+                    *ngFor="let p of frequencyPresets"
+                    class="preset-chip"
+                    [class.active]="form.frequencyMonths === p.months"
+                    (click)="pickFrequency(p.months)">
+              {{ p.label }}
+            </button>
+          </div>
+        </div>
+
+        <label class="form-field">
+          <span>End date <small>(optional — leave empty for ongoing)</small></span>
+          <input type="date" [(ngModel)]="form.endDate">
+        </label>
+      </ng-container>
+
+      <label class="form-field span-2">
+        <span>Notes <small>(optional)</small></span>
+        <textarea rows="2" [(ngModel)]="form.notes" placeholder="Anything you want to remember"></textarea>
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-secondary btn-cancel" type="button" (click)="closeForm()" [disabled]="saving">
+        Cancel
+      </button>
+      <button class="btn btn-primary" type="button" (click)="save()" [disabled]="saving">
+        <i class="fas" [class.fa-spinner]="saving" [class.fa-spin]="saving" [class.fa-check]="!saving"></i>
+        {{ saving ? 'Saving…' : (editingId == null ? 'Add expense' : 'Save changes') }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Expenses list ──────────────────────────────────────────────────────── -->
+  <div class="expenses-list" *ngIf="!loading">
+    <div class="empty-state" *ngIf="expenses.length === 0">
+      <i class="fas fa-receipt"></i>
+      <p>No expenses recorded yet. Add your first one above.</p>
+    </div>
+
+    <div class="expenses-table-wrapper" *ngIf="expenses.length > 0">
+    <table class="expenses-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Category</th>
+          <th>Amount</th>
+          <th>Type</th>
+          <th>Start</th>
+          <th>Status</th>
+          <th class="actions-col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <ng-container *ngFor="let row of expenses">
+          <tr [class.is-deleting]="pendingDeleteId === row.id">
+            <td>
+              <div class="row-name">{{ row.name }}</div>
+              <div class="row-notes" *ngIf="row.notes">{{ row.notes }}</div>
+            </td>
+            <td><span class="category-chip" [attr.data-category]="row.categoryName">{{ row.categoryName }}</span></td>
+            <td class="amount">$ {{ row.amount | number:'1.2-2' }}</td>
+            <td>{{ recurrenceLabel(row) }}</td>
+            <td>{{ formatDate(row.startDate) }}</td>
+            <td>
+              <span class="status-text" *ngIf="row.isRecurring">{{ cadenceStatus(row) }}</span>
+              <span class="status-text muted" *ngIf="!row.isRecurring">—</span>
+            </td>
+            <td class="actions-col">
+              <button class="icon-btn" type="button" (click)="openEditForm(row)" title="Edit">
+                <i class="fas fa-pen"></i>
+              </button>
+              <button class="icon-btn danger" type="button" (click)="askDelete(row.id)" title="Delete">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+          <tr *ngIf="pendingDeleteId === row.id" class="confirm-row">
+            <td colspan="7">
+              <div class="confirm-bar">
+                <span><i class="fas fa-exclamation-triangle"></i> Delete <strong>{{ row.name }}</strong>? This removes all of its past and future occurrences from statistics.</span>
+                <div class="confirm-actions">
+                  <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelDelete()" [disabled]="deleting">Cancel</button>
+                  <button class="btn btn-danger btn-sm" type="button" (click)="confirmDelete()" [disabled]="deleting">
+                    <i class="fas" [class.fa-spinner]="deleting" [class.fa-spin]="deleting" [class.fa-trash]="!deleting"></i>
+                    {{ deleting ? 'Deleting…' : 'Delete' }}
+                  </button>
+                </div>
+              </div>
+            </td>
+          </tr>
+        </ng-container>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <div class="loading-state" *ngIf="loading">
+    <i class="fas fa-spinner fa-spin"></i> Loading expenses…
+  </div>
+</div>

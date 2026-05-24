@@ -1,10 +1,12 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { OrderService, Order } from '../../../services/order.service';
 import { BookingService, Service, ExtraService } from '../../../services/booking.service';
 import { DurationUtils } from '../../../utils/duration.utils';
+import { AuthService } from '../../../services/auth.service';
+import { ShiftService, ShiftAdmin } from '../../../services/shift.service';
 
 @Component({
   selector: 'app-order-details',
@@ -23,16 +25,33 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
   isCancelling = false;
   private timeUpdateInterval?: any;
 
+  // Assigned-admin pill state. The pill is visible to everyone who can see the order;
+  // the edit dropdown is only shown to Admin/SuperAdmin (canEditAssignedAdmin()).
+  availableAdmins: ShiftAdmin[] = [];
+  showAdminEditor = false;
+  isSavingAssignedAdmin = false;
+
   constructor(
     private orderService: OrderService,
     private bookingService: BookingService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    private authService: AuthService,
+    private shiftService: ShiftService,
+    private elementRef: ElementRef
   ) {}
 
   ngOnInit() {
     const orderId = this.route.snapshot.params['id'];
     this.loadOrder(orderId);
+
+    if (this.canEditAssignedAdmin()) {
+      this.shiftService.getShiftAdmins().subscribe({
+        next: admins => this.availableAdmins = admins,
+        error: () => { /* dropdown will just show "Unassigned" + the current assignee */ }
+      });
+    }
+
     // Update current time every minute
     this.timeUpdateInterval = setInterval(() => {
       this.now = new Date();
@@ -155,6 +174,66 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
   canCancelOrder(): boolean {
     if (!this.order) return false;
     return this.order.status === 'Active';
+  }
+
+  // ════════════════════════════════════════
+  //  Assigned admin ("By: F. LastName") pill
+  // ════════════════════════════════════════
+
+  /** True for Admin and SuperAdmin — both can change the assignee. */
+  canEditAssignedAdmin(): boolean {
+    const role = this.authService.currentUserValue?.role;
+    return role === 'Admin' || role === 'SuperAdmin';
+  }
+
+  /** Pre-formatted "F. LastName" string from the backend, or 'Unassigned' fallback. */
+  assignedAdminLabel(): string {
+    return this.order?.assignedAdminDisplayName?.trim() || 'Unassigned';
+  }
+
+  toggleAdminEditor(): void {
+    if (!this.canEditAssignedAdmin()) return;
+    this.showAdminEditor = !this.showAdminEditor;
+  }
+
+  closeAdminEditor(): void {
+    this.showAdminEditor = false;
+  }
+
+  selectAssignedAdmin(adminId: number | null): void {
+    if (!this.order || this.isSavingAssignedAdmin) return;
+    if ((this.order.assignedAdminId ?? null) === adminId) {
+      this.showAdminEditor = false;
+      return;
+    }
+
+    this.isSavingAssignedAdmin = true;
+    this.orderService.setAssignedAdmin(this.order.id, adminId).subscribe({
+      next: (result) => {
+        if (!this.order) return;
+        this.order.assignedAdminId = result.adminId ?? null;
+        this.order.assignedAdminFirstName = result.firstName ?? null;
+        this.order.assignedAdminLastName = result.lastName ?? null;
+        this.order.assignedAdminDisplayName = result.displayName ?? null;
+        this.isSavingAssignedAdmin = false;
+        this.showAdminEditor = false;
+      },
+      error: (err) => {
+        this.isSavingAssignedAdmin = false;
+        this.errorMessage = err.error?.message || 'Failed to update assigned admin';
+      }
+    });
+  }
+
+  // Close the dropdown when the user clicks outside the pill area.
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    if (!this.showAdminEditor) return;
+    const host = this.elementRef.nativeElement as HTMLElement;
+    const pill = host.querySelector('.assigned-admin-pill');
+    if (pill && !pill.contains(event.target as Node)) {
+      this.showAdminEditor = false;
+    }
   }
 
   isLateCancellation(): boolean {

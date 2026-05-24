@@ -61,9 +61,84 @@
       <div class="stat-value salary">{{ stats.totalCleanersSalary | currency:'USD' }}</div>
     </div>
 
-    <div class="stat-card highlight">
-      <div class="stat-label">Company Revenue</div>
+    <!-- Company Revenue now shows NET (gross − expenses). Click to expand the full breakdown. -->
+    <div class="stat-card highlight clickable"
+         [class.is-expanded]="revenueBreakdownExpanded"
+         (click)="toggleRevenueBreakdown()"
+         role="button"
+         tabindex="0"
+         (keydown.enter)="toggleRevenueBreakdown()">
+      <div class="stat-label">
+        Company Revenue
+        <i class="fas fa-chevron-down stat-card-caret"></i>
+      </div>
       <div class="stat-value revenue">{{ stats.totalCompanyRevenue | currency:'USD' }}</div>
+      <div class="stat-sub" *ngIf="stats.totalExpenses > 0">
+        after {{ stats.totalExpenses | currency:'USD' }} expenses
+      </div>
+    </div>
+  </div>
+
+  <!-- Company Revenue breakdown — opens when the card is clicked. Walks through the formula
+       with every number labelled, then itemises expenses by category. -->
+  <div class="revenue-breakdown" *ngIf="stats && revenueBreakdownExpanded">
+    <h3 class="breakdown-title">How Company Revenue is calculated</h3>
+
+    <div class="breakdown-formula">
+      <div class="breakdown-line">
+        <span class="breakdown-amount">{{ stats.totalAmount | currency:'USD' }}</span>
+        <span class="breakdown-label">(Subtotal — sum of order subtotals)</span>
+      </div>
+      <div class="breakdown-line subtract">
+        <span class="breakdown-op">−</span>
+        <span class="breakdown-amount">{{ stats.totalTaxes | currency:'USD' }}</span>
+        <span class="breakdown-label">(Taxes)</span>
+      </div>
+      <div class="breakdown-line subtract">
+        <span class="breakdown-op">−</span>
+        <span class="breakdown-amount">{{ stats.totalCleanersSalary | currency:'USD' }}</span>
+        <span class="breakdown-label">(Cleaners Salary)</span>
+      </div>
+      <div class="breakdown-line subtotal">
+        <span class="breakdown-op">=</span>
+        <span class="breakdown-amount">{{ stats.totalCompanyRevenueGross | currency:'USD' }}</span>
+        <span class="breakdown-label">(Gross Company Revenue — before expenses)</span>
+      </div>
+      <div class="breakdown-line subtract">
+        <span class="breakdown-op">−</span>
+        <span class="breakdown-amount">{{ stats.totalExpenses | currency:'USD' }}</span>
+        <span class="breakdown-label">(Company Expenses in window)</span>
+      </div>
+      <div class="breakdown-line total">
+        <span class="breakdown-op">=</span>
+        <span class="breakdown-amount">{{ stats.totalCompanyRevenue | currency:'USD' }}</span>
+        <span class="breakdown-label">(Company Revenue — net)</span>
+      </div>
+    </div>
+
+    <!-- Per-category expense itemisation. Each occurrence is shown with its bill date. -->
+    <div class="breakdown-expenses" *ngIf="stats.expensesBreakdown && stats.expensesBreakdown.byCategory.length > 0">
+      <h4 class="breakdown-section-title">Expenses by category</h4>
+      <div class="expense-category" *ngFor="let cat of stats.expensesBreakdown.byCategory">
+        <div class="expense-category-header">
+          <span class="expense-category-name">{{ cat.categoryName }}</span>
+          <span class="expense-category-total">{{ cat.total | currency:'USD' }}</span>
+        </div>
+        <ul class="expense-items">
+          <li *ngFor="let item of cat.items">
+            <span class="expense-item-date">{{ item.date | date:'mediumDate' }}</span>
+            <span class="expense-item-name">
+              {{ item.name }}
+              <span class="recurring-tag" *ngIf="item.isRecurring" title="Recurring occurrence">↻</span>
+            </span>
+            <span class="expense-item-amount">{{ item.amount | currency:'USD' }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="breakdown-empty" *ngIf="!stats.expensesBreakdown || stats.expensesBreakdown.byCategory.length === 0">
+      No expenses recorded in this window.
     </div>
   </div>
 

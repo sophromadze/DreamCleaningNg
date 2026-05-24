@@ -15,6 +15,10 @@ interface ChartDataPoint {
   taxes: number;
   tips: number;
   cleanersSalary: number;
+  // Expenses falling in this bucket. Daily endpoint attributes each occurrence to its
+  // bill date, so summing across grouped buckets gives the right total.
+  expenses: number;
+  // NET company revenue. Daily endpoint has already subtracted that day's expenses.
   companyRevenue: number;
 }
 
@@ -42,6 +46,9 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   customFrom = '';
   customTo = '';
   chartGrouping: ChartGrouping = 'months';
+
+  // Click-to-expand state for the Company Revenue breakdown panel.
+  revenueBreakdownExpanded = false;
 
   constructor(
     private adminService: AdminService,
@@ -94,6 +101,10 @@ export class StatisticsComponent implements OnInit, OnDestroy {
     this.chartGrouping = grouping;
     this.processChartData();
     this.buildCharts();
+  }
+
+  toggleRevenueBreakdown(): void {
+    this.revenueBreakdownExpanded = !this.revenueBreakdownExpanded;
   }
 
   private loadData(fromOverride?: string, toOverride?: string): void {
@@ -193,6 +204,7 @@ export class StatisticsComponent implements OnInit, OnDestroy {
         taxes: d?.taxes ?? 0,
         tips: d?.tips ?? 0,
         cleanersSalary: d?.cleanersSalary ?? 0,
+        expenses: d?.expenses ?? 0,
         companyRevenue: d?.companyRevenue ?? 0
       });
       current.setDate(current.getDate() + 1);
@@ -223,7 +235,7 @@ export class StatisticsComponent implements OnInit, OnDestroy {
       if (!weeks.has(weekKey)) {
         weeks.set(weekKey, {
           label: this.formatLabel(weekKey, 'weeks'),
-          orders: 0, amount: 0, taxes: 0, tips: 0, cleanersSalary: 0, companyRevenue: 0
+          orders: 0, amount: 0, taxes: 0, tips: 0, cleanersSalary: 0, expenses: 0, companyRevenue: 0
         });
       }
       const w = weeks.get(weekKey)!;
@@ -232,6 +244,7 @@ export class StatisticsComponent implements OnInit, OnDestroy {
       w.taxes += d.taxes;
       w.tips += d.tips;
       w.cleanersSalary += d.cleanersSalary;
+      w.expenses += d.expenses;
       w.companyRevenue += d.companyRevenue;
     }
     return Array.from(weeks.values());
@@ -246,7 +259,7 @@ export class StatisticsComponent implements OnInit, OnDestroy {
       if (!months.has(monthKey)) {
         months.set(monthKey, {
           label: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-          orders: 0, amount: 0, taxes: 0, tips: 0, cleanersSalary: 0, companyRevenue: 0
+          orders: 0, amount: 0, taxes: 0, tips: 0, cleanersSalary: 0, expenses: 0, companyRevenue: 0
         });
       }
       const m = months.get(monthKey)!;
@@ -255,6 +268,7 @@ export class StatisticsComponent implements OnInit, OnDestroy {
       m.taxes += d.taxes;
       m.tips += d.tips;
       m.cleanersSalary += d.cleanersSalary;
+      m.expenses += d.expenses;
       m.companyRevenue += d.companyRevenue;
     }
     return Array.from(months.values());

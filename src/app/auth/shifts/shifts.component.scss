@@ -346,6 +346,170 @@
 
 
 // ════════════════════════════════════════
+//  Admin bonuses panel (current visible month)
+// ════════════════════════════════════════
+
+.bonus-panel {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 1px 3px var(--shadow-color);
+  padding: 1.25rem 1.5rem;
+  margin-top: 1.25rem;
+
+  .bonus-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+
+  .bonus-title-group {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  h2 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.15rem;
+    font-weight: var(--fw-semibold);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    i { color: var(--star-color); }
+  }
+
+  .bonus-month-label {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+
+  .bonus-rate-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+
+    .bonus-rate-label  { color: var(--text-muted); }
+    .bonus-rate-value  { color: var(--text-primary); font-weight: var(--fw-semibold); }
+
+    .bonus-rate-edit-btn {
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0.2rem 0.4rem;
+      border-radius: var(--radius-sm);
+
+      &:hover { color: var(--primary-color); background: var(--surface-subtle); }
+    }
+
+    .bonus-rate-input {
+      width: 5rem;
+      padding: 0.3rem 0.5rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-primary);
+    }
+
+    .bonus-rate-currency { color: var(--text-muted); font-size: 0.85rem; }
+  }
+
+  .bonus-empty,
+  .bonus-loading {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    padding: 0.75rem 0;
+  }
+
+  .bonus-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .bonus-row {
+    display: grid;
+    grid-template-columns: minmax(180px, 2fr) 1fr 1fr 1fr;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.55rem 0.75rem;
+    border-radius: var(--radius-md);
+
+    &:not(.bonus-row-header):hover { background: var(--surface-subtle); }
+
+    &.is-me {
+      background: var(--mint-fresh);
+    }
+  }
+
+  .bonus-row-header {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: var(--fw-semibold);
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 0;
+    padding-bottom: 0.55rem;
+  }
+
+  .bonus-cell-admin {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: var(--text-primary);
+    font-weight: var(--fw-medium);
+  }
+
+  .bonus-admin-dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: var(--radius-pill);
+    flex-shrink: 0;
+  }
+
+  .bonus-me-tag {
+    margin-left: 0.4rem;
+    padding: 0.05rem 0.45rem;
+    font-size: 0.7rem;
+    border-radius: var(--radius-pill);
+    background: var(--fresh-green);
+    color: var(--surface);
+    font-weight: var(--fw-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .bonus-cell-count {
+    color: var(--text-primary);
+    font-weight: var(--fw-semibold);
+
+    .bonus-assigned-hint {
+      margin-left: 0.4rem;
+      color: var(--text-muted);
+      font-weight: var(--fw-medium);
+      font-size: 0.8rem;
+    }
+  }
+
+  .bonus-cell-rate  { color: var(--text-secondary); }
+  .bonus-cell-total {
+    color: var(--primary-text);
+    font-weight: var(--fw-bold);
+  }
+}
+
+
+// ════════════════════════════════════════
 //  Modal Overlay & Panel
 // ════════════════════════════════════════
 

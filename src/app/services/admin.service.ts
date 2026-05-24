@@ -7,13 +7,41 @@ import { Order, OrderList } from './order.service';
 import { Apartment, CreateApartment } from './profile.service';
 import { UserSpecialOffer } from './special-offer.service';
 
+export interface ExpenseBreakdownItem {
+  expenseId: number;
+  name: string;
+  category: number;
+  categoryName: string;
+  date: string;
+  amount: number;
+  isRecurring: boolean;
+}
+
+export interface ExpenseCategoryBreakdown {
+  category: number;
+  categoryName: string;
+  total: number;
+  items: ExpenseBreakdownItem[];
+}
+
+export interface ExpenseBreakdown {
+  total: number;
+  byCategory: ExpenseCategoryBreakdown[];
+}
+
 export interface OrderStatistics {
   totalOrders: number;
   totalAmount: number;
   totalTaxes: number;
   totalTips: number;
   totalCleanersSalary: number;
+  /** Company expenses inside the window (recurring expanded into per-occurrence amounts). */
+  totalExpenses: number;
+  /** Pre-expense revenue. Kept for reference when the breakdown is expanded. */
+  totalCompanyRevenueGross: number;
+  /** NET — gross minus expenses. The headline number. */
   totalCompanyRevenue: number;
+  expensesBreakdown?: ExpenseBreakdown | null;
 }
 
 export interface DailyStatistics {
@@ -23,6 +51,9 @@ export interface DailyStatistics {
   taxes: number;
   tips: number;
   cleanersSalary: number;
+  /** Expenses falling on this day (each occurrence attributed to its bill date). */
+  expenses: number;
+  /** NET revenue for this day. */
   companyRevenue: number;
 }
 

@@ -265,6 +265,11 @@ export const routes: Routes = [
     canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, superAdminGuard],
     loadComponent: () => import('./auth/admin/rewards/admin-rewards.component').then(m => m.AdminRewardsComponent)
   },
+  {
+    path: 'admin/expenses',
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, superAdminGuard],
+    loadComponent: () => import('./auth/admin/expenses/expenses.component').then(m => m.ExpensesComponent)
+  },
 
   {
     path: 'profile/orders',

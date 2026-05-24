@@ -17,6 +17,7 @@ import {
 import { OrderService, OrderList } from '../../../services/order.service';
 import { Apartment, CreateApartment } from '../../../services/profile.service';
 import { BubbleRewardsService } from '../../../services/bubble-rewards.service';
+import { AdminBonusService, AdminBonusSummary } from '../../../services/admin-bonus.service';
 import { environment } from '../../../../environments/environment';
 import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
 
@@ -203,10 +204,16 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   overviewPhotoThumbs: UserCleaningPhoto[] = [];
   overviewRecentOrders: OrderList[] = [];
 
+  // Admin bonus stats — only loaded when the user being viewed has the Admin role.
+  adminBonusAllTime: AdminBonusSummary | null = null;
+  adminBonusThisMonth: AdminBonusSummary | null = null;
+  loadingAdminBonus = false;
+
   constructor(
     private adminService: AdminService,
     private orderService: OrderService,
-    private bubbleRewardsService: BubbleRewardsService
+    private bubbleRewardsService: BubbleRewardsService,
+    private adminBonusService: AdminBonusService
   ) {}
 
   ngOnInit() {
@@ -524,7 +531,39 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.loadCommunications(user.id);
     this.loadUserTasksList(user.id);
     this.loadCleaningPhotos(user.id);
+    this.loadAdminBonusStats(user);
     this.refreshOverviewCollections();
+  }
+
+  // Only fetched for users with the Admin role — the bonus system doesn't apply to others.
+  // SuperAdmins are managers (they don't earn the per-order bonus), so we skip them too.
+  private loadAdminBonusStats(user: UserAdmin): void {
+    this.adminBonusAllTime = null;
+    this.adminBonusThisMonth = null;
+    if (user.role !== 'Admin') return;
+
+    this.loadingAdminBonus = true;
+
+    // Current calendar month (UTC) — same window the shifts panel uses.
+    const now = new Date();
+    const monthFrom = this.toYmd(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)));
+    const monthTo   = this.toYmd(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)));
+
+    this.adminBonusService.getForAdmin(user.id).subscribe({
+      next: s => this.adminBonusAllTime = s,
+      error: () => { /* leave null — UI hides the stat */ }
+    });
+    this.adminBonusService.getForAdmin(user.id, monthFrom, monthTo).subscribe({
+      next: s => { this.adminBonusThisMonth = s; this.loadingAdminBonus = false; },
+      error: () => { this.loadingAdminBonus = false; }
+    });
+  }
+
+  private toYmd(d: Date): string {
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   openUserDetailsTab(user: UserAdmin, tab: DetailTab, event?: Event): void {
@@ -543,6 +582,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.editingUser = false;
     this.userRewardsSummary = null;
     this.lightboxPhoto = null;
+    this.adminBonusAllTime = null;
+    this.adminBonusThisMonth = null;
   }
 
   setDetailTab(tab: DetailTab): void {

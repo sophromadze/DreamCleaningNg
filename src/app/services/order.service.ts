@@ -36,6 +36,12 @@ export interface OrderList {
   paymentMethod?: string;
   paymentReference?: string | null;
   paymentNotes?: string | null;
+  /** Admin currently assigned to this order. Drives the "By: F. LastName" pill and
+   *  admin-bonus payroll. Null = unassigned. */
+  assignedAdminId?: number | null;
+  assignedAdminFirstName?: string | null;
+  assignedAdminLastName?: string | null;
+  assignedAdminDisplayName?: string | null;
 }
 
 export interface Order {
@@ -111,6 +117,11 @@ export interface Order {
   hasCleanersService: boolean;
   cancellationReason?: string;
   isLateCancellation?: boolean;
+  /** Admin currently assigned to this order. */
+  assignedAdminId?: number | null;
+  assignedAdminFirstName?: string | null;
+  assignedAdminLastName?: string | null;
+  assignedAdminDisplayName?: string | null;
 }
 
 export interface OrderService {
@@ -173,6 +184,15 @@ export interface CancelOrder {
   reason: string;
 }
 
+/** Returned by PATCH /api/order/{id}/assigned-admin. `displayName` is pre-formatted
+ *  by the backend as "F. LastName" (e.g. "J. Smith") so all surfaces render identically. */
+export interface AssignedAdminInfo {
+  adminId: number | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  displayName?: string | null;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -187,6 +207,15 @@ export class OrderService {
 
   getOrderById(orderId: number): Observable<Order> {
     return this.http.get<Order>(`${this.apiUrl}/order/${orderId}`);
+  }
+
+  /** Set, change, or clear (adminId = null) the admin assigned to an order.
+   *  Admin/SuperAdmin only — backend enforces. */
+  setAssignedAdmin(orderId: number, adminId: number | null): Observable<AssignedAdminInfo> {
+    return this.http.patch<AssignedAdminInfo>(
+      `${this.apiUrl}/order/${orderId}/assigned-admin`,
+      { adminId }
+    );
   }
 
   updateOrder(orderId: number, updateData: UpdateOrder): Observable<Order> {

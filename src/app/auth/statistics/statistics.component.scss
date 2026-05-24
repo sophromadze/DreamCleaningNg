@@ -226,6 +226,196 @@
   }
 }
 
+// ───── Clickable Company Revenue card + breakdown panel ─────
+
+.stat-card.clickable {
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px var(--shadow-color);
+    border-color: var(--primary-color);
+  }
+
+  .stat-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .stat-card-caret {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    transition: transform 200ms ease;
+  }
+
+  &.is-expanded .stat-card-caret { transform: rotate(180deg); }
+
+  .stat-sub {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+}
+
+.revenue-breakdown {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px var(--shadow-color);
+
+  @media (max-width: 576px) {
+    padding: 1rem;
+  }
+
+  .breakdown-title {
+    margin: 0 0 1rem 0;
+    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: var(--fw-semibold);
+  }
+
+  .breakdown-formula {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 1rem 1.25rem;
+    background: var(--surface-subtle);
+    border-radius: var(--radius-md);
+    font-family: 'JetBrains Mono', 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.95rem;
+  }
+
+  .breakdown-line {
+    display: grid;
+    grid-template-columns: 1.2rem 7rem 1fr;
+    align-items: baseline;
+    gap: 0.5rem;
+    color: var(--text-primary);
+
+    .breakdown-op { color: var(--text-muted); font-weight: var(--fw-bold); }
+    .breakdown-amount { font-weight: var(--fw-semibold); text-align: right; }
+    .breakdown-label { color: var(--text-muted); font-family: inherit; }
+
+    // No operator on the first line — place amount/label in cols 2–3 so they align with other rows
+    &:first-child {
+      .breakdown-amount { grid-column: 2; color: var(--text-primary); }
+      .breakdown-label { grid-column: 3; }
+    }
+
+    &.subtract  .breakdown-amount { color: var(--bright-red); }
+    &.subtotal {
+      padding-top: 0.4rem;
+      border-top: 1px dashed var(--border-color);
+      .breakdown-amount { color: var(--text-primary); }
+    }
+    &.total {
+      padding-top: 0.5rem;
+      margin-top: 0.3rem;
+      border-top: 2px solid var(--border-color);
+      font-weight: var(--fw-bold);
+      .breakdown-amount { color: var(--primary-text); font-size: 1.05rem; }
+      .breakdown-label  { color: var(--text-primary); font-weight: var(--fw-semibold); }
+    }
+  }
+
+  .breakdown-section-title {
+    margin: 1.5rem 0 0.75rem 0;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: var(--fw-semibold);
+  }
+
+  .breakdown-expenses {
+    .expense-category {
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      margin-bottom: 0.6rem;
+    }
+
+    .expense-category-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.55rem 0.9rem;
+      background: var(--surface-subtle);
+      color: var(--text-primary);
+      font-weight: var(--fw-semibold);
+      font-size: 0.9rem;
+    }
+
+    .expense-category-total { color: var(--primary-text); }
+
+    .expense-items {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+
+      li {
+        display: grid;
+        grid-template-columns: minmax(5.5rem, 7.5rem) minmax(0, 1fr) max-content;
+        align-items: center;
+        gap: 0.5rem 0.75rem;
+        padding: 0.5rem 0.9rem;
+        border-top: 1px solid var(--border-color);
+        font-size: 0.88rem;
+
+        &:first-child { border-top: none; }
+
+        @media (max-width: 576px) {
+          grid-template-columns: 1fr max-content;
+          grid-template-rows: auto auto;
+          align-items: start;
+          gap: 0.2rem 0.75rem;
+        }
+      }
+
+      .expense-item-date {
+        color: var(--text-muted);
+        font-size: 0.82rem;
+
+        @media (max-width: 576px) {
+          grid-column: 1;
+          grid-row: 1;
+        }
+      }
+
+      .expense-item-name {
+        color: var(--text-primary);
+        min-width: 0;
+
+        @media (max-width: 576px) {
+          grid-column: 1 / -1;
+          grid-row: 2;
+        }
+      }
+      .recurring-tag { color: var(--text-muted); margin-left: 0.3rem; font-size: 0.9rem; }
+      .expense-item-amount {
+        color: var(--text-primary);
+        font-weight: var(--fw-semibold);
+        white-space: nowrap;
+        justify-self: end;
+
+        @media (max-width: 576px) {
+          grid-row: 1;
+          grid-column: 2;
+        }
+      }
+    }
+  }
+
+  .breakdown-empty {
+    color: var(--text-muted);
+    font-style: italic;
+    text-align: center;
+    padding: 1rem 0;
+  }
+}
+
 // ───── Charts ─────
 
 .chart-section {

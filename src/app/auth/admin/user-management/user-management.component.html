@@ -264,6 +264,28 @@
         <span class="stat-label">Bubble Points</span>
         <span class="stat-value bubble">{{ (userRewardsSummary?.currentPoints ?? 0) | number }}</span>
       </div>
+
+      <!-- Admin bonus stats. Only shown when the viewed user has the Admin role —
+           tracks how many bonus-eligible orders they've been assigned, and what
+           that earns them in the current calendar month. -->
+      <ng-container *ngIf="selectedUser.role === 'Admin' && adminBonusAllTime">
+        <div class="stat">
+          <span class="stat-label">Assigned Orders</span>
+          <span class="stat-value">
+            {{ adminBonusAllTime.assignedCount }}
+            <small *ngIf="adminBonusAllTime.eligibleCount !== adminBonusAllTime.assignedCount" class="muted">
+              ({{ adminBonusAllTime.eligibleCount }} eligible)
+            </small>
+          </span>
+        </div>
+        <div class="stat" *ngIf="adminBonusThisMonth">
+          <span class="stat-label">This Month Bonus</span>
+          <span class="stat-value">
+            {{ adminBonusThisMonth.bonusAmount }} {{ adminBonusThisMonth.currency }}
+            <small class="muted">({{ adminBonusThisMonth.eligibleCount }} × {{ adminBonusThisMonth.ratePerOrder }})</small>
+          </span>
+        </div>
+      </ng-container>
     </div>
 
     <!-- Edit form (Admin / SuperAdmin) -->

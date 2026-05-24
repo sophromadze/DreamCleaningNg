@@ -5031,7 +5031,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (serviceName.includes('folding') || serviceName.includes('folding / organizing')) return 'fas fa-layer-group';
     if (serviceName.includes('laundry')) return 'fas fa-camera-retro';
     if (serviceName.includes('balcony')) return 'fas fa-store';
-    if (serviceName.includes('office')) return 'fas fa-desktop';
+    if (serviceName.includes('cabinet')) return 'fas fa-desktop';
     if (serviceName.includes('couches')) return 'fas fa-couch';
     
     // Default icon for unknown services
@@ -5061,7 +5061,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (serviceName.includes('folding') || serviceName.includes('folding / organizing')) return `/images/folding${suffix}.png`;
     if (serviceName.includes('laundry')) return `/images/laundry${suffix}.png`;
     if (serviceName.includes('balcony')) return `/images/balcony${suffix}.png`;
-    if (serviceName.includes('office')) return `/images/office${suffix}.png`;
+    if (serviceName.includes('cabinet')) return `/images/office${suffix}.png`;
     if (serviceName.includes('couches')) return `/images/couches${suffix}.png`;
     if (serviceName.includes('chandelier')) return `/images/chandelier${suffix}.png`;
     if (serviceName.includes('ceiling fan')) return `/images/ceiling_fan${suffix}.png`;

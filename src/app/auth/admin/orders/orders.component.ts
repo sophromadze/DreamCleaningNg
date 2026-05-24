@@ -14,6 +14,7 @@ import { BubbleRewardsService } from '../../../services/bubble-rewards.service';
 import { forkJoin, of } from 'rxjs';
 import { catchError, finalize } from 'rxjs/operators';
 import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
+import { ShiftService, ShiftAdmin } from '../../../services/shift.service';
 
 // Extended interface for admin orders with additional properties
 export interface AdminOrderList extends OrderList {
@@ -205,6 +206,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   totalAmountWithoutTipsAndTaxes = 0;
   totalDuration = 0;
 
+  // Assigned-admin pill state for the inline order-details expand.
+  availableAdmins: ShiftAdmin[] = [];
+  showAssignedAdminEditor = false;
+  isSavingAssignedAdmin = false;
+
   constructor(
     private adminService: AdminService,
     private orderService: OrderService,
@@ -213,7 +219,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     public orderReminderService: OrderReminderService,
     public newOrderNotificationService: NewOrderNotificationService,
     private bubbleRewardsService: BubbleRewardsService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private shiftService: ShiftService
   ) {}
 
   ngOnInit() {
@@ -224,6 +231,45 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         this.pointsEnabled = s.pointsSystemEnabled ?? false;
       },
       error: () => {}
+    });
+    // Admins-list for the assigned-admin pill dropdown. Same source the shifts page uses.
+    this.shiftService.getShiftAdmins().subscribe({
+      next: a => this.availableAdmins = a,
+      error: () => {}
+    });
+  }
+
+  // Assigned-admin pill helpers (mirror order-details.component but local to this view).
+  assignedAdminLabel(): string {
+    return this.selectedOrder?.assignedAdminDisplayName?.trim() || 'Unassigned';
+  }
+
+  toggleAssignedAdminEditor(): void {
+    this.showAssignedAdminEditor = !this.showAssignedAdminEditor;
+  }
+
+  selectAssignedAdminForOrder(adminId: number | null): void {
+    if (!this.selectedOrder || this.isSavingAssignedAdmin) return;
+    if ((this.selectedOrder.assignedAdminId ?? null) === adminId) {
+      this.showAssignedAdminEditor = false;
+      return;
+    }
+    this.isSavingAssignedAdmin = true;
+    const orderId = this.selectedOrder.id;
+    this.orderService.setAssignedAdmin(orderId, adminId).subscribe({
+      next: (result) => {
+        if (this.selectedOrder && this.selectedOrder.id === orderId) {
+          this.selectedOrder.assignedAdminId = result.adminId ?? null;
+          this.selectedOrder.assignedAdminFirstName = result.firstName ?? null;
+          this.selectedOrder.assignedAdminLastName = result.lastName ?? null;
+          this.selectedOrder.assignedAdminDisplayName = result.displayName ?? null;
+        }
+        this.isSavingAssignedAdmin = false;
+        this.showAssignedAdminEditor = false;
+      },
+      error: () => {
+        this.isSavingAssignedAdmin = false;
+      }
     });
   }
 
