@@ -40,7 +40,8 @@ const RANKING_INDEX: Record<CleanerRanking, number> = {
   Top: 0,
   Standard: 1,
   Beginner: 2,
-  Restricted: 3
+  Restricted: 3,
+  NoExp: 4
 };
 
 const DOCUMENT_TYPE_INDEX: Record<CleanerDocumentType, number> = {
@@ -131,7 +132,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     { value: 'Top', label: 'Best' },
     { value: 'Standard', label: 'Good' },
     { value: 'Beginner', label: 'Normal' },
-    { value: 'Restricted', label: 'Bad' }
+    { value: 'Restricted', label: 'Bad' },
+    { value: 'NoExp', label: 'No-Exp' }
   ];
 
   readonly experienceOptions: { value: CleanerExperience; label: string }[] = [
@@ -567,7 +569,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
 
   normalizeRanking(value: CleanerRanking | number): CleanerRanking {
     if (typeof value === 'number') {
-      return (['Top', 'Standard', 'Beginner', 'Restricted'][value] ?? 'Standard') as CleanerRanking;
+      return (['Top', 'Standard', 'Beginner', 'Restricted', 'NoExp'][value] ?? 'Standard') as CleanerRanking;
     }
     return value ?? 'Standard';
   }

@@ -3,7 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
-export type CleanerRanking = 'Top' | 'Standard' | 'Beginner' | 'Restricted';
+export type CleanerRanking = 'Top' | 'Standard' | 'Beginner' | 'Restricted' | 'NoExp';
 export type CleanerDocumentType = 'IdCard' | 'Passport' | 'DriverLicense';
 
 export interface CleanerListItem {
@@ -173,10 +173,12 @@ export class CleanerManagementService {
       '1': 'Standard',
       '2': 'Beginner',
       '3': 'Restricted',
+      '4': 'NoExp',
       'Top': 'Top',
       'Standard': 'Standard',
       'Beginner': 'Beginner',
-      'Restricted': 'Restricted'
+      'Restricted': 'Restricted',
+      'NoExp': 'NoExp'
     };
     return map[String(ranking)] ?? 'Standard';
   }

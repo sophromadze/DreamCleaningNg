@@ -270,6 +270,13 @@ export class MainComponent implements OnInit, OnDestroy {
   pauseReviewSlider()  { this.reviewSliderPaused = true; }
   resumeReviewSlider() { this.reviewSliderPaused = false; }
 
+  /** Google's CDN occasionally rejects photo requests with referrer attached or returns 403
+   *  for stale profile photos — swap to the Google "G" fallback in those cases by clearing
+   *  the URL so the *ngIf flips to the inline-SVG branch. */
+  onReviewAvatarError(review: ExtendedReview) {
+    review.profilePhotoUrl = '';
+  }
+
   // ---------- Before/After photos ----------
   private loadBeforeAfterPhotos() {
     if (!this.isBrowser) return;

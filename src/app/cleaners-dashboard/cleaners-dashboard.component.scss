@@ -310,6 +310,7 @@
   &.ranking-standard { background: var(--cd-warn-soft); color: var(--cd-warn); }
   &.ranking-beginner { background: var(--cd-surface-subtle); color: var(--cd-text-muted); }
   &.ranking-restricted { background: var(--cd-danger-soft); color: var(--cd-danger); }
+  &.ranking-noexp { background: var(--cd-surface-subtle); color: var(--cd-text-muted); }
 }
 
 .detail-column {

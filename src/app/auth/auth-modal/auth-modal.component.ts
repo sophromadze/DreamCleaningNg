@@ -186,7 +186,10 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.errorMessage = null;
     try {
-      await this.authService.handleGoogleUser(user);
+      // Skip handleAuthResponse's internal navigation — navigateAfterLogin below is the
+      // single source of truth for modal-driven login, and it honors the modal's returnUrl
+      // (or stays put when none is set).
+      await this.authService.handleGoogleUser(user, true);
       this.navigateAfterLogin();
     } catch (error: any) {
       this.isLoading = false;
@@ -198,7 +201,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.errorMessage = null;
     try {
-      await this.authService.handleAppleUser(response);
+      await this.authService.handleAppleUser(response, true);
       this.navigateAfterLogin();
     } catch (error: any) {
       this.isLoading = false;

@@ -2014,6 +2014,29 @@
           </div>
         </div>
 
+        <!-- Guest-user Special Offer Login Required Modal -->
+        <div class="dc-modal-backdrop" *ngIf="showGuestOfferLoginModal" (click)="closeGuestOfferLoginModal()">
+          <div class="dc-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Login required to apply special offer">
+            <div class="dc-modal-header">
+              <h3>Login required</h3>
+              <button type="button" class="dc-modal-close" (click)="closeGuestOfferLoginModal()" aria-label="Close">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <div class="dc-modal-body">
+              <p>If you want to use this special discount, you need to log in to our website.</p>
+            </div>
+            <div class="dc-modal-actions">
+              <button type="button" class="dc-modal-btn dc-modal-btn--primary" (click)="openLoginFromGuestOfferModal()">
+                Log in
+              </button>
+              <button type="button" class="dc-modal-btn dc-modal-btn--secondary" (click)="closeGuestOfferLoginModal()">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Payment Note -->
         <div class="payment-note" *ngIf="selectedServiceType && currentStep === 3">
           <p><span class="note-label">Please note:</span> We accept credit or debit cards, and all online payments are securely processed through Stripe. When you book with Dream Cleaning, you can rest assured that your transaction is safe and protected. By ordering our services and providing your credit card details, you consent to us charging your card for the service fee.</p>

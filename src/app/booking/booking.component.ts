@@ -14,7 +14,7 @@ import { DurationUtils } from '../utils/duration.utils';
 import { SpecialOfferService, UserSpecialOffer, PublicSpecialOffer } from '../services/special-offer.service';
 import { FormPersistenceService, BookingFormData } from '../services/form-persistence.service';
 import { OrderService, OrderList, Order } from '../services/order.service';
-import { Subject, takeUntil, debounceTime, startWith } from 'rxjs';
+import { Subject, takeUntil, debounceTime, startWith, distinctUntilChanged, map, skip } from 'rxjs';
 import { PollService, PollQuestion, PollAnswer, PollSubmission } from '../services/poll.service';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { DurationSelectorComponent } from './duration-selector/duration-selector.component';
@@ -92,7 +92,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   hasFirstTimeDiscountOffer: boolean = false;
   selectedSpecialOffer: UserSpecialOffer | null = null;
   specialOfferApplied = false;
-  
+  showGuestOfferLoginModal = false;
+
   // Form
   bookingForm: FormGroup;
   
@@ -501,6 +502,19 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.entryMethod.setValue('I will be home');
     }
     
+    // Refresh special offers when the user logs in or out so guest "first-time" offers
+    // are replaced with the user's actual personalized offers after login.
+    this.authService.currentUser
+      .pipe(
+        map(u => u?.id || null),
+        distinctUntilChanged(),
+        skip(1),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(() => {
+        this.loadSpecialOffers();
+      });
+
     // Wait for auth service to be initialized before proceeding; run loaders after next render (SSR-safe)
     this.authService.isInitialized$.pipe(
       takeUntil(this.destroy$)
@@ -4003,9 +4017,29 @@ export class BookingComponent implements OnInit, OnDestroy {
     const isThisOfferApplied = this.specialOfferApplied && this.selectedSpecialOffer?.id === offer.id;
     if (isThisOfferApplied) {
       this.removeSpecialOffer();
-    } else {
-      this.applySpecialOffer(offer);
+      return;
     }
+    if (!this.authService.isLoggedIn()) {
+      this.showGuestOfferLoginModal = true;
+      return;
+    }
+    this.applySpecialOffer(offer);
+  }
+
+  closeGuestOfferLoginModal() {
+    this.showGuestOfferLoginModal = false;
+  }
+
+  openLoginFromGuestOfferModal() {
+    this.showGuestOfferLoginModal = false;
+    // navigateAfterLogin in auth-modal reads from BOTH localStorage.returnUrl and
+    // authModalService.getReturnUrl(); set both to the current booking URL so the modal
+    // (including social logins) keeps the user on the booking page after sign-in.
+    const currentUrl = this.router.url || '/booking';
+    if (this.isBrowser) {
+      try { localStorage.setItem('returnUrl', currentUrl); } catch (_) {}
+    }
+    this.authModalService.open('login', currentUrl);
   }
   
   loadPollQuestions(serviceTypeId: number) {

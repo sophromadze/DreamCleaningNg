@@ -394,13 +394,13 @@ export class AuthService {
       }));
   }
 
-  async handleGoogleUser(user: SocialUser): Promise<void> {  
+  async handleGoogleUser(user: SocialUser, skipNavigation = false): Promise<void> {
     if (!user || !user.idToken) {
       throw new Error('No ID token received from Google');
     }
-    
+
     const options = this.useCookieAuth ? { withCredentials: true } : {};
-    
+
     return new Promise((resolve, reject) => {
       const referralCode = this.isBrowser ? (localStorage.getItem('dreamcleaning_referral') || undefined) : undefined;
       this.http.post<AuthResponse>(`${this.apiUrl}/auth/google-login`, {
@@ -413,7 +413,7 @@ export class AuthService {
             // Store social login flag for both cookie and localStorage auth
             localStorage.setItem('isSocialLogin', 'true');
           }
-          this.handleAuthResponse(response);
+          this.handleAuthResponse(response, skipNavigation);
           resolve();
         },
         error: (error) => {
@@ -424,7 +424,7 @@ export class AuthService {
     });
   }
 
-  async handleAppleUser(appleResponse: any): Promise<void> {
+  async handleAppleUser(appleResponse: any, skipNavigation = false): Promise<void> {
     if (!appleResponse || !appleResponse.authorization) {
       throw new Error('Invalid Apple response: missing authorization data');
     }
@@ -434,7 +434,7 @@ export class AuthService {
     }
 
     const options = this.useCookieAuth ? { withCredentials: true } : {};
-    
+
     return new Promise((resolve, reject) => {
       const referralCode = this.isBrowser ? (localStorage.getItem('dreamcleaning_referral') || undefined) : undefined;
       this.http.post<AuthResponse>(`${this.apiUrl}/auth/apple-login`, {
@@ -449,7 +449,7 @@ export class AuthService {
             // Store social login flag for both cookie and localStorage auth
             localStorage.setItem('isSocialLogin', 'true');
           }
-          this.handleAuthResponse(response);
+          this.handleAuthResponse(response, skipNavigation);
           resolve();
         },
         error: (error) => {
@@ -482,7 +482,7 @@ export class AuthService {
     }
   }
 
-  private handleAuthResponse(response: AuthResponse): void {
+  private handleAuthResponse(response: AuthResponse, skipNavigation = false): void {
     if (response.requiresEmailVerification) {
       this.router.navigate(['/auth/verify-email-notice']);
       return;
@@ -513,6 +513,12 @@ export class AuthService {
       localStorage.removeItem('dreamcleaning_referral');
     }
     this.currentUserSubject.next(response.user);
+    // Modal flows (auth-modal) handle navigation themselves via navigateAfterLogin,
+    // which respects authModalService.getReturnUrl() and stays put when no returnUrl is set.
+    // Skipping here prevents the default '/' fallback from stomping the caller's intent.
+    if (skipNavigation) {
+      return;
+    }
     // Use stored returnUrl when set (e.g. booking step 3) so we don't redirect to main when user came from booking
     const returnUrl = this.isBrowser
       ? (localStorage.getItem('returnUrl') || '/')
