@@ -296,19 +296,7 @@
         <label><span>Last Name</span><input type="text" [(ngModel)]="editUserForm.lastName"></label>
         <label><span>Email</span><input type="email" [(ngModel)]="editUserForm.email"></label>
         <label><span>Phone</span><input type="tel" inputmode="numeric" [ngModel]="editUserForm.phone" (input)="onEditPhoneInput($event)" placeholder="10-digit"></label>
-        <label>
-          <span>Role</span>
-          <select [(ngModel)]="editUserForm.role">
-            <option value="Customer">Customer</option>
-            <option value="Moderator">Moderator</option>
-            <option value="Admin">Admin</option>
-            <option value="SuperAdmin" *ngIf="isSuperAdmin">SAdmin</option>
-          </select>
-        </label>
-        <label class="check"><input type="checkbox" [(ngModel)]="editUserForm.isActive"> Active</label>
         <label class="check"><input type="checkbox" [(ngModel)]="editUserForm.firstTimeOrder"> First-time customer</label>
-        <label class="check"><input type="checkbox" [(ngModel)]="editUserForm.canReceiveEmails"> Can receive emails</label>
-        <label class="check"><input type="checkbox" [(ngModel)]="editUserForm.canReceiveMessages"> Can receive messages</label>
       </div>
       <div class="edit-actions">
         <button class="action-btn primary" (click)="saveUserEdit()" [disabled]="savingUser">{{ savingUser ? 'Saving…' : 'Save' }}</button>
@@ -482,7 +470,8 @@
                 <div *ngFor="let order of overviewRecentOrders" class="history-row" (click)="openOrderInAdmin(order.id)">
                   <div class="history-row__main">
                     <span class="history-date">{{ formatShortDate(order.serviceDate) }}</span>
-                    <span class="history-type">{{ getCompactServiceType(order.serviceTypeName, order) }}</span>
+                    <span class="history-type"
+                          [title]="getCompactServiceType(order.serviceTypeName, order)">{{ getCompactServiceType(order.serviceTypeName, order) }}</span>
                   </div>
                   <div class="history-row__meta">
                     <span class="history-amount">{{ formatCurrency(order.total) }}</span>

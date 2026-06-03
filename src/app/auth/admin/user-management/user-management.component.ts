@@ -1523,6 +1523,22 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.editingUser = true;
   }
 
+  private buildUserEditPayload(): SuperAdminUpdateUserDto {
+    const user = this.selectedUser!;
+    return {
+      firstName: this.editUserForm.firstName,
+      lastName: this.editUserForm.lastName,
+      email: this.editUserForm.email,
+      phone: this.editUserForm.phone,
+      firstTimeOrder: this.editUserForm.firstTimeOrder,
+      role: user.role,
+      isActive: user.isActive,
+      canReceiveCommunications: user.canReceiveCommunications !== false,
+      canReceiveEmails: this.userCanReceiveEmails(user),
+      canReceiveMessages: this.userCanReceiveMessages(user)
+    };
+  }
+
   cancelEditUser(): void {
     this.editingUser = false;
     this.editingAddressId = null;
@@ -1533,33 +1549,28 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   saveUserEdit(): void {
     if (!this.selectedUser || !this.canEditUserDetails(this.selectedUser) || this.savingUser) return;
-    if (!this.isSuperAdmin && this.editUserForm.role === 'SuperAdmin') {
-      this.errorMessage = 'Admins cannot assign SuperAdmin role.';
-      setTimeout(() => { this.errorMessage = ''; }, 5000);
-      return;
-    }
     this.editUserForm.phone = normalizePhone10(this.editUserForm.phone);
+    const payload = this.buildUserEditPayload();
     this.savingUser = true;
     this.errorMessage = '';
     this.successMessage = '';
-    this.adminService.superAdminFullUpdateUser(this.selectedUser.id, this.editUserForm).subscribe({
+    this.adminService.superAdminFullUpdateUser(this.selectedUser.id, payload).subscribe({
       next: () => {
         this.successMessage = 'User updated successfully.';
         this.editingUser = false;
-        Object.assign(this.selectedUser!, this.editUserForm);
+        this.selectedUser!.firstName = payload.firstName;
+        this.selectedUser!.lastName = payload.lastName;
+        this.selectedUser!.email = payload.email;
+        this.selectedUser!.phone = payload.phone ?? this.selectedUser!.phone;
+        this.selectedUser!.firstTimeOrder = payload.firstTimeOrder;
         const userIndex = this.users.findIndex(user => user.id === this.selectedUser!.id);
         if (userIndex !== -1) {
           const updatedUser = this.users[userIndex];
-          updatedUser.firstName = this.editUserForm.firstName;
-          updatedUser.lastName = this.editUserForm.lastName;
-          updatedUser.email = this.editUserForm.email;
-          updatedUser.phone = this.editUserForm.phone ?? updatedUser.phone;
-          updatedUser.role = this.editUserForm.role;
-          updatedUser.isActive = this.editUserForm.isActive;
-          updatedUser.firstTimeOrder = this.editUserForm.firstTimeOrder;
-          updatedUser.canReceiveCommunications = this.editUserForm.canReceiveCommunications;
-          updatedUser.canReceiveEmails = this.editUserForm.canReceiveEmails;
-          updatedUser.canReceiveMessages = this.editUserForm.canReceiveMessages;
+          updatedUser.firstName = payload.firstName;
+          updatedUser.lastName = payload.lastName;
+          updatedUser.email = payload.email;
+          updatedUser.phone = payload.phone ?? updatedUser.phone;
+          updatedUser.firstTimeOrder = payload.firstTimeOrder;
         }
         this.loadUsers();
         setTimeout(() => { this.successMessage = ''; }, 5000);

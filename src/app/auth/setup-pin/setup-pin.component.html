@@ -1,0 +1,89 @@
+<div class="pin-setup-page">
+  <div class="pin-setup-card">
+    <div class="pin-setup-header">
+      <i class="fas fa-shield-halved tf-shield"></i>
+      <h1>Set up your security PIN</h1>
+      <p class="pin-setup-subtitle">
+        Your account is staff-level, so we add a second layer of protection.
+        This PIN guards every sign-in from a new device.
+      </p>
+    </div>
+
+    <div class="pin-form">
+      <label class="pin-field">
+        <span>New PIN</span>
+        <div class="pin-input-row">
+          <input [type]="showPin ? 'text' : 'password'"
+                 inputmode="numeric"
+                 autocomplete="new-password"
+                 maxlength="12"
+                 class="pin-input"
+                 [(ngModel)]="pin"
+                 (input)="onDigitInput('pin', $event)"
+                 [disabled]="isSaving"
+                 placeholder="4–12 digits"
+                 autofocus>
+          <button type="button"
+                  class="pin-eye"
+                  (click)="showPin = !showPin"
+                  [attr.aria-label]="showPin ? 'Hide PIN' : 'Show PIN'">
+            <i class="fas" [class.fa-eye]="!showPin" [class.fa-eye-slash]="showPin"></i>
+          </button>
+        </div>
+        <small *ngIf="pin" class="pin-strength" [attr.data-strength]="strengthClass()">
+          {{ strengthLabel() }} — {{ pin.length }} digit{{ pin.length === 1 ? '' : 's' }}
+        </small>
+      </label>
+
+      <label class="pin-field">
+        <span>Confirm PIN</span>
+        <div class="pin-input-row">
+          <input [type]="showConfirm ? 'text' : 'password'"
+                 inputmode="numeric"
+                 autocomplete="new-password"
+                 maxlength="12"
+                 class="pin-input"
+                 [(ngModel)]="confirmPin"
+                 (input)="onDigitInput('confirmPin', $event)"
+                 [disabled]="isSaving"
+                 placeholder="Re-enter the same PIN">
+          <button type="button"
+                  class="pin-eye"
+                  (click)="showConfirm = !showConfirm"
+                  [attr.aria-label]="showConfirm ? 'Hide PIN' : 'Show PIN'">
+            <i class="fas" [class.fa-eye]="!showConfirm" [class.fa-eye-slash]="showConfirm"></i>
+          </button>
+        </div>
+        <small *ngIf="confirmPin && confirmPin !== pin" class="pin-mismatch">
+          PINs don't match yet
+        </small>
+      </label>
+
+      <button type="button"
+              class="btn btn-primary pin-submit"
+              [disabled]="isSaving || !pin || pin !== confirmPin"
+              (click)="save()">
+        <i class="fas" [class.fa-spinner]="isSaving" [class.fa-spin]="isSaving"
+           [class.fa-lock]="!isSaving"></i>
+        {{ isSaving ? 'Saving…' : 'Save PIN and continue' }}
+      </button>
+    </div>
+
+    <div class="pin-message pin-error" *ngIf="error">
+      <i class="fas fa-exclamation-circle"></i> {{ error }}
+    </div>
+    <div class="pin-message pin-notice" *ngIf="notice && !error">
+      <i class="fas fa-check-circle"></i> {{ notice }}
+    </div>
+
+    <div class="pin-footer">
+      <p class="pin-tips">
+        <i class="fas fa-info-circle"></i>
+        Tip: pick a PIN you'll remember but that isn't a common pattern (avoid 0000, 1234, birth years).
+      </p>
+      <button type="button" class="pin-signout" (click)="signOut()">
+        Sign out instead
+      </button>
+    </div>
+  </div>
+</div>

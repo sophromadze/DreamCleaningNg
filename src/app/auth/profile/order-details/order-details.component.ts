@@ -354,6 +354,17 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
     return 'Normal Cleaning';
   }
 
+  /** Deep/super-deep cleaning is shown under Cleaning Type, not as a line item. */
+  private isCleaningTypeExtra(extraServiceName: string): boolean {
+    const name = extraServiceName.toLowerCase();
+    return name.includes('deep cleaning');
+  }
+
+  getDisplayExtraServices() {
+    if (!this.order) return [];
+    return this.order.extraServices.filter(e => !this.isCleaningTypeExtra(e.extraServiceName));
+  }
+
   hasCleanerService(): boolean {
     if (!this.order) return false;
     return this.order.services.some(s => s.serviceName.toLowerCase().includes('cleaner'));

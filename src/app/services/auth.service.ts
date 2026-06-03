@@ -34,6 +34,19 @@ interface AuthResponse {
   requiresEmailVerification?: boolean;
   requiresRealEmail?: boolean;
   requiresPasswordSetup?: boolean;
+  /** When set, the user (staff role) must clear a 2FA challenge before getting a real session. */
+  twoFactor?: TwoFactorChallengeResponse;
+  /** Set on /2fa/verify-pin responses when the user chose to remember the device. */
+  deviceToken?: string;
+  /** Set when staff logged in successfully but has never configured a PIN — frontend forces setup. */
+  requiresPinSetup?: boolean;
+}
+
+export interface TwoFactorChallengeResponse {
+  requiresTwoFactor: true;
+  challengeId: string;
+  hasPin: boolean;
+  maskedEmail: string;
 }
 
 /** When verify-email-code finds an existing account (merge flow). */
@@ -239,27 +252,68 @@ export class AuthService {
 
   login(loginData: LoginData): Observable<AuthResponse> {
     const options = this.useCookieAuth ? { withCredentials: true } : {};
-    
+
     return this.http.post<AuthResponse>(`${this.apiUrl}/auth/login`, loginData, options)
       .pipe(map(response => {
+        // Branch 1: 2FA gate. Backend returned a challenge envelope, no user/token yet.
+        // The login component routes to /2fa-challenge using response.twoFactor.challengeId.
+        if (response.twoFactor) {
+          if (this.isBrowser) {
+            // Stash the pending challenge so a page refresh on the 2FA screen survives.
+            localStorage.setItem('tf_pending_challenge', JSON.stringify(response.twoFactor));
+          }
+          return response;
+        }
+
+        // Branch 2: normal login (customer, or staff with trusted device).
         // Store user details and token based on auth method
         if (!this.useCookieAuth && this.isBrowser) {
           localStorage.setItem('currentUser', JSON.stringify(response.user));
           localStorage.setItem('token', response.token);
           localStorage.setItem('refreshToken', response.refreshToken);
           localStorage.setItem('lastActivity', Date.now().toString());
-          // Preserve returnUrl if it exists for redirect after login
-          const returnUrl = localStorage.getItem('returnUrl');
-          if (returnUrl) {
-            // Keep it for handleAuthResponse or login component to use
-          }
         }
         if (this.useCookieAuth && this.isBrowser) {
           localStorage.setItem('sessionExists', '1');
         }
+        // Branch 2a: staff with no PIN yet — set the flag for pinSetupGuard to pick up.
+        if (this.isBrowser) {
+          if (response.requiresPinSetup) {
+            localStorage.setItem('tf_requires_pin_setup', '1');
+          } else {
+            localStorage.removeItem('tf_requires_pin_setup');
+          }
+        }
         this.currentUserSubject.next(response.user);
         return response;
       }));
+  }
+
+  // Called by the 2FA challenge component after /verify-pin succeeds. Stores the
+  // final JWT/refresh token and the trusted-device token, then mirrors the post-login
+  // state setup `login()` does for the normal branch.
+  applyTwoFactorSuccess(response: {
+    user: UserDto;
+    token: string;
+    refreshToken: string;
+    deviceToken?: string;
+  }): void {
+    if (!this.isBrowser) return;
+    if (!this.useCookieAuth) {
+      localStorage.setItem('currentUser', JSON.stringify(response.user));
+      localStorage.setItem('token', response.token);
+      localStorage.setItem('refreshToken', response.refreshToken);
+      localStorage.setItem('lastActivity', Date.now().toString());
+    } else {
+      localStorage.setItem('sessionExists', '1');
+    }
+    // Drop the pending-challenge cache and remember the device if backend issued a token.
+    localStorage.removeItem('tf_pending_challenge');
+    localStorage.removeItem('tf_requires_pin_setup');
+    if (response.deviceToken) {
+      localStorage.setItem('tf_device_token', response.deviceToken);
+    }
+    this.currentUserSubject.next(response.user);
   }
 
   applyGuestAuth(token: string, refreshToken: string, user: any): void {
@@ -292,13 +346,24 @@ export class AuthService {
     
     return this.http.post<AuthResponse>(`${this.apiUrl}/auth/register`, dataToSend, options)
       .pipe(map(response => {
-        if (response.token && response.refreshToken && !this.useCookieAuth) {
+        if (!this.useCookieAuth && response.token && response.refreshToken) {
           if (this.isBrowser) {
             localStorage.setItem('currentUser', JSON.stringify(response.user));
             localStorage.setItem('token', response.token);
             localStorage.setItem('refreshToken', response.refreshToken);
             localStorage.setItem('lastActivity', Date.now().toString());
             // Referral was processed at registration — clear it
+            localStorage.removeItem('dreamcleaning_referral');
+          }
+          this.currentUserSubject.next(response.user);
+        } else if (this.useCookieAuth && response.user) {
+          // Cookie auth: the backend already set the session cookies (even when email
+          // verification is still pending). Reflect that session client-side so the
+          // pendingVerificationGuard passes and verify-email-notice can read the email.
+          // Without this, production signups landed with no current user and got
+          // redirected to /login instead of the 6-digit code entry.
+          if (this.isBrowser) {
+            localStorage.setItem('sessionExists', '1');
             localStorage.removeItem('dreamcleaning_referral');
           }
           this.currentUserSubject.next(response.user);
@@ -567,6 +632,12 @@ export class AuthService {
       // Always clear social login flag from localStorage for both auth types
       localStorage.removeItem('isSocialLogin');
       localStorage.removeItem('sessionExists');
+
+      // 2FA: clear per-session state (pending challenge + setup-pending flag).
+      // The trusted-device token (`tf_device_token`) PERSISTS across logouts on purpose —
+      // policy is "until manually revoked", so the same device should skip 2FA next login.
+      localStorage.removeItem('tf_pending_challenge');
+      localStorage.removeItem('tf_requires_pin_setup');
 
       if (!this.useCookieAuth) {
         // Clear localStorage data

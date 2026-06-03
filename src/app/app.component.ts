@@ -13,7 +13,7 @@ import { ContinueBookingComponent } from './continue-booking/continue-booking.co
 import { AuthModalComponent } from './auth/auth-modal/auth-modal.component';
 import { AuthService } from './services/auth.service';
 import { TokenRefreshService } from './services/token-refresh.service';
-// TEMPORARILY DISABLED — Telegram bot integration is off; widget is commented out in app.component.html.
+// TEMPORARILY DISABLED â€” Telegram bot integration is off; widget is commented out in app.component.html.
 // import { LiveChatWidgetComponent } from './shared/live-chat-widget/live-chat-widget.component';
 import { TelClickTrackingDirective } from './directives/tel-click-tracking.directive';
 import { Subscription, combineLatest } from 'rxjs';
@@ -116,7 +116,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private updateCanonicalUrl(): void {
     const path = this.router.url.split('?')[0].split('#')[0];
-    const url = 'https://dreamcleaningnearme.com' + (path === '/' ? '/' : path);
+    const url = 'https://dreamcleaningnyc.com' + (path === '/' ? '/' : path);
     let link = this.document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
     if (link) {
       link.setAttribute('href', url);
@@ -131,7 +131,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    // Meta/title/canonical must run on SSR too — otherwise Google sees the
+    // Meta/title/canonical must run on SSR too â€” otherwise Google sees the
     // generic defaults from index.html instead of the route-specific copy
     // (with current SERVICE_PRICING values). Router events fire during the
     // initial SSR render.

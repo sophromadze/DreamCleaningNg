@@ -1,0 +1,113 @@
+<div class="tf-page">
+  <div class="tf-card" *ngIf="challenge">
+    <div class="tf-header">
+      <i class="fas fa-shield-halved tf-shield"></i>
+      <h1>Verify it's you</h1>
+      <p class="tf-subtitle">
+        Extra protection for staff accounts. Two quick steps and you're in.
+      </p>
+    </div>
+
+    <!-- ── Stepper indicator ───────────────────────────────────────────── -->
+    <div class="tf-steps">
+      <div class="tf-step" [class.is-active]="step === 'email'" [class.is-done]="step === 'pin'">
+        <span class="tf-step-bubble">1</span>
+        <span class="tf-step-label">Email code</span>
+      </div>
+      <div class="tf-step-line" [class.is-filled]="step === 'pin'"></div>
+      <div class="tf-step" [class.is-active]="step === 'pin'">
+        <span class="tf-step-bubble">2</span>
+        <span class="tf-step-label">PIN</span>
+      </div>
+    </div>
+
+    <!-- ── Step 1: email code ─────────────────────────────────────────── -->
+    <div *ngIf="step === 'email'" class="tf-step-panel">
+      <p class="tf-hint">
+        We sent a 6-digit code to <strong>{{ challenge.maskedEmail }}</strong>.
+        It expires in 10 minutes.
+      </p>
+
+      <label class="tf-field">
+        <span>Verification code</span>
+        <input type="text"
+               inputmode="numeric"
+               autocomplete="one-time-code"
+               maxlength="10"
+               class="tf-input tf-code"
+               [(ngModel)]="code"
+               (input)="onDigitInput('code', $event)"
+               [disabled]="isVerifying"
+               placeholder="••••••"
+               autofocus>
+      </label>
+
+      <button type="button"
+              class="btn btn-primary tf-submit"
+              [disabled]="isVerifying || !code"
+              (click)="verifyCode()">
+        <i class="fas" [class.fa-spinner]="isVerifying" [class.fa-spin]="isVerifying"
+           [class.fa-arrow-right]="!isVerifying"></i>
+        {{ isVerifying ? 'Verifying…' : 'Continue' }}
+      </button>
+
+      <div class="tf-resend-row">
+        <button type="button"
+                class="tf-link"
+                [disabled]="isResending || resendCooldownSec > 0"
+                (click)="resendCode()">
+          {{ resendCooldownSec > 0
+              ? 'Resend in ' + resendCooldownSec + 's'
+              : (isResending ? 'Sending…' : 'Resend code') }}
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Step 2: PIN ────────────────────────────────────────────────── -->
+    <div *ngIf="step === 'pin'" class="tf-step-panel">
+      <p class="tf-hint">Enter your security PIN to finish signing in.</p>
+
+      <label class="tf-field">
+        <span>PIN</span>
+        <input type="password"
+               inputmode="numeric"
+               autocomplete="off"
+               maxlength="12"
+               class="tf-input tf-code"
+               [(ngModel)]="pin"
+               (input)="onDigitInput('pin', $event)"
+               [disabled]="isVerifying"
+               placeholder="••••"
+               autofocus>
+      </label>
+
+      <label class="tf-remember">
+        <input type="checkbox" [(ngModel)]="rememberDevice">
+        <span>Trust this device — don't ask again next time</span>
+      </label>
+
+      <button type="button"
+              class="btn btn-primary tf-submit"
+              [disabled]="isVerifying || !pin"
+              (click)="verifyPin()">
+        <i class="fas" [class.fa-spinner]="isVerifying" [class.fa-spin]="isVerifying"
+           [class.fa-check]="!isVerifying"></i>
+        {{ isVerifying ? 'Verifying…' : 'Sign in' }}
+      </button>
+    </div>
+
+    <!-- ── Messages ───────────────────────────────────────────────────── -->
+    <div class="tf-message tf-error" *ngIf="error">
+      <i class="fas fa-exclamation-circle"></i> {{ error }}
+    </div>
+    <div class="tf-message tf-notice" *ngIf="notice && !error">
+      <i class="fas fa-info-circle"></i> {{ notice }}
+    </div>
+
+    <div class="tf-footer">
+      <button type="button" class="tf-link tf-cancel" (click)="cancelChallenge()">
+        Cancel and return to login
+      </button>
+    </div>
+  </div>
+</div>

@@ -27,9 +27,9 @@ export class KitchenCleaningComponent implements OnInit, OnDestroy {
       '@context': 'https://schema.org',
       '@type': 'Service',
       'name': 'Kitchen Cleaning Service in NYC',
-      'description': "Dream Cleaning's kitchen cleaning service provides thorough degreasing and sanitization for NYC kitchens — covering stovetops, countertops, sinks, cabinet exteriors, appliance surfaces, and floor mopping.",
+      'description': "Dream Cleaning's kitchen cleaning service provides thorough degreasing and sanitization for NYC kitchens â€” covering stovetops, countertops, sinks, cabinet exteriors, appliance surfaces, and floor mopping.",
       'dateModified': '2026-03-22',
-      'provider': { '@type': 'LocalBusiness', 'name': 'Dream Cleaning', '@id': 'https://dreamcleaningnearme.com/#business' },
+      'provider': { '@type': 'LocalBusiness', 'name': 'Dream Cleaning', '@id': 'https://dreamcleaningnyc.com/#business' },
       'areaServed': { '@type': 'City', 'name': 'New York' },
       'serviceType': 'Kitchen Cleaning'
     };

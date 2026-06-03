@@ -31,7 +31,7 @@ export class HeavyConditionCleaningComponent implements OnInit, OnDestroy {
       'name': 'Heavy Condition Cleaning Service in NYC',
       'description': `Dream Cleaning's heavy condition cleaning service is designed for NYC homes that haven't been cleaned in 6+ months. Priced at $${SERVICE_PRICING.heavyConditionPerHour} per hour per cleaner, this intensive service includes wall washing, cabinet interiors, under sinks, and professional restoration.`,
       'dateModified': '2026-03-22',
-      'provider': { '@type': 'LocalBusiness', 'name': 'Dream Cleaning', '@id': 'https://dreamcleaningnearme.com/#business' },
+      'provider': { '@type': 'LocalBusiness', 'name': 'Dream Cleaning', '@id': 'https://dreamcleaningnyc.com/#business' },
       'areaServed': { '@type': 'City', 'name': 'New York' },
       'serviceType': 'Heavy Condition Cleaning'
     };

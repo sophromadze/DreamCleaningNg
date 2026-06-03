@@ -1,0 +1,225 @@
+// Match the look of other .section blocks in profile.component.scss (rgba white,
+// 8px radius, centred header). Margin-bottom is intentional — this is the last
+// section in the profile so spacing keeps the page from feeling cramped at the foot.
+.td-section {
+  background-color: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 10px 30px 1.5rem 30px;
+  margin-bottom: 1.5rem;
+}
+
+.td-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 1rem;
+
+  h2 {
+    margin: 0 0 10px 0;
+    color: var(--primary-color);
+    font-size: 1.2rem;
+    font-weight: var(--fw-semibold);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    i { color: var(--primary-color); }
+  }
+
+  .td-subtitle {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    text-align: center;
+  }
+}
+
+.td-message {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+
+  &.td-error  { background: var(--soft-red); color: var(--bright-red); }
+  &.td-notice { background: var(--mint-fresh); color: var(--fresh-green); border: 1px solid var(--mint-fresh-border); }
+}
+
+.td-loading, .td-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 1.5rem;
+
+  i { display: block; font-size: 1.6rem; margin-bottom: 0.4rem; color: var(--text-muted); }
+  p { margin: 0; }
+}
+
+.td-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.td-item {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  transition: background-color 120ms ease, border-color 120ms ease;
+
+  &.is-current {
+    border-color: var(--primary-color);
+    background: var(--soft-blue);
+  }
+
+  .td-item-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: var(--radius-pill);
+    background: var(--surface-subtle);
+    color: var(--primary-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+  }
+
+  &.is-current .td-item-icon {
+    background: var(--primary-color);
+    color: white;
+  }
+
+  .td-item-name {
+    color: var(--text-primary);
+    font-weight: var(--fw-semibold);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .td-current-tag {
+    background: var(--primary-color);
+    color: white;
+    font-size: 0.7rem;
+    padding: 0.1rem 0.45rem;
+    border-radius: var(--radius-pill);
+    font-weight: var(--fw-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .td-item-meta {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-top: 0.2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+
+    .dot { opacity: 0.5; }
+  }
+
+  .td-revoke-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 0.4rem 0.7rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 120ms ease;
+
+    &:hover:not(:disabled) {
+      border-color: var(--bright-red);
+      color: var(--bright-red);
+      background: var(--soft-red);
+    }
+
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+  }
+}
+
+.td-confirm {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.75rem 1rem;
+  background: var(--soft-yellow-background);
+  border: 1px solid var(--soft-yellow);
+  border-radius: var(--radius-md);
+  color: var(--soft-yellow-text);
+  font-size: 0.88rem;
+
+  i { margin-right: 0.3rem; }
+
+  .td-confirm-actions { display: inline-flex; gap: 0.4rem; }
+}
+
+.btn-sm { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+.btn-danger {
+  background: var(--btn-danger);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--btn-danger-hover); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+// Dark-mode parity with profile's other `.section` blocks. The day-mode rgba(255,…)
+// fill is intentionally translucent on the profile page's tinted backdrop; in dark
+// mode we use the elevated surface token so the card actually stands off the page.
+:host-context([data-theme="dark"]) {
+  .td-section {
+    background-color: var(--surface-elevated);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 4px var(--shadow-color);
+  }
+
+  .td-item {
+    background: var(--surface);
+    border-color: var(--border-color);
+
+    &.is-current {
+      // soft-blue is light-mode pale; swap to a translucent primary tint that reads on dark.
+      background: rgba(37, 99, 235, 0.18);
+      border-color: var(--primary-color);
+    }
+
+    .td-item-icon { background: var(--surface-subtle); }
+    &.is-current .td-item-icon { background: var(--primary-color); }
+  }
+
+  .td-revoke-btn {
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+
+    &:hover:not(:disabled) {
+      // soft-red is a light pink — in dark mode use a translucent red wash instead.
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--bright-red);
+      border-color: var(--bright-red);
+    }
+  }
+
+  .td-confirm {
+    // soft-yellow-background is light cream; use the warning-orange palette which has
+    // a proper dark-mode token instead.
+    background: var(--warning-orange-bg);
+    border-color: var(--warning-orange-border);
+    color: var(--warning-orange-text);
+  }
+}

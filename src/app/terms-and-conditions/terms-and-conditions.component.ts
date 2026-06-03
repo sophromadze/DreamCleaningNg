@@ -9,8 +9,8 @@ import { CommonModule } from '@angular/common';
   styleUrls: ['./terms-and-conditions.component.scss']
 })
 export class TermsAndConditionsComponent {
-  websiteUrl = 'https://dreamcleaningnearme.com';
-  emailAddress = 'hello@dreamcleaningnearme.com';
+  websiteUrl = 'https://dreamcleaningnyc.com';
+  emailAddress = 'hello@dreamcleaningnyc.com';
   phoneNumber = '929-930-1525';
   effectiveDate = 'February 14, 2026';  
   companyName = 'Dream Cleaning';

@@ -29,7 +29,7 @@ export class PostConstructionCleaningComponent implements OnInit, OnDestroy {
       'name': 'Post Construction Cleaning Service in NYC',
       'description': "Dream Cleaning's post construction cleaning service removes fine construction dust, debris, and residue from every surface in your newly renovated NYC apartment or house.",
       'dateModified': '2026-03-22',
-      'provider': { '@type': 'LocalBusiness', 'name': 'Dream Cleaning', '@id': 'https://dreamcleaningnearme.com/#business' },
+      'provider': { '@type': 'LocalBusiness', 'name': 'Dream Cleaning', '@id': 'https://dreamcleaningnyc.com/#business' },
       'areaServed': { '@type': 'City', 'name': 'New York' },
       'serviceType': 'Post Construction Cleaning'
     };

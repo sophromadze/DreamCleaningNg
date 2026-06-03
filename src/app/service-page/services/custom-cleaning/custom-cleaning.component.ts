@@ -31,12 +31,12 @@ export class CustomCleaningComponent implements OnInit, OnDestroy {
       '@context': 'https://schema.org',
       '@type': 'Service',
       'name': 'Custom Cleaning Service in NYC',
-      'description': "Dream Cleaning's custom cleaning service lets you design your own cleaning plan — choose specific rooms, tasks, and duration to match your exact needs and budget across Brooklyn, Manhattan, and Queens.",
+      'description': "Dream Cleaning's custom cleaning service lets you design your own cleaning plan â€” choose specific rooms, tasks, and duration to match your exact needs and budget across Brooklyn, Manhattan, and Queens.",
       'dateModified': '2026-03-22',
       'provider': {
         '@type': 'LocalBusiness',
         'name': 'Dream Cleaning',
-        '@id': 'https://dreamcleaningnearme.com/#business'
+        '@id': 'https://dreamcleaningnyc.com/#business'
       },
       'areaServed': { '@type': 'City', 'name': 'New York' },
       'serviceType': 'Custom Cleaning'

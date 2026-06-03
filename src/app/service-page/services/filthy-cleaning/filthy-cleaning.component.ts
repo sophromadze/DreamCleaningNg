@@ -29,9 +29,9 @@ export class FilthyCleaningComponent implements OnInit, OnDestroy {
       '@context': 'https://schema.org',
       '@type': 'Service',
       'name': 'Filthy Cleaning Service in NYC',
-      'description': "Dream Cleaning's filthy cleaning service tackles the most extreme cleaning challenges in NYC — including hoarding situations, extended neglect, and severe accumulation of dirt and debris.",
+      'description': "Dream Cleaning's filthy cleaning service tackles the most extreme cleaning challenges in NYC â€” including hoarding situations, extended neglect, and severe accumulation of dirt and debris.",
       'dateModified': '2026-03-22',
-      'provider': { '@type': 'LocalBusiness', 'name': 'Dream Cleaning', '@id': 'https://dreamcleaningnearme.com/#business' },
+      'provider': { '@type': 'LocalBusiness', 'name': 'Dream Cleaning', '@id': 'https://dreamcleaningnyc.com/#business' },
       'areaServed': { '@type': 'City', 'name': 'New York' },
       'serviceType': 'Filthy Cleaning'
     };

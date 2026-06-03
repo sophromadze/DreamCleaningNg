@@ -36,7 +36,7 @@ export class MoveInOutCleaningComponent implements OnInit, OnDestroy {
       'provider': {
         '@type': 'LocalBusiness',
         'name': 'Dream Cleaning',
-        '@id': 'https://dreamcleaningnearme.com/#business'
+        '@id': 'https://dreamcleaningnyc.com/#business'
       },
       'areaServed': {
         '@type': 'City',

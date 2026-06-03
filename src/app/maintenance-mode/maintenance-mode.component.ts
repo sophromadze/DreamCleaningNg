@@ -10,7 +10,7 @@ import { MaintenanceModeService, MaintenanceModeStatus } from '../services/maint
     <div class="maintenance-container">
       <div class="maintenance-content">
         <div class="maintenance-icon">
-          🔧
+          ðŸ”§
         </div>
         <h1>We're Under Maintenance</h1>
         <p class="maintenance-message">
@@ -24,7 +24,7 @@ import { MaintenanceModeService, MaintenanceModeStatus } from '../services/maint
         </div>
         <div class="contact-info">
           <p>If you have an urgent matter, please contact us:</p>
-          <p><strong>Email:</strong> <a href="mailto:hello@dreamcleaningnearme.com">hello&#64;dreamcleaningnearme.com</a></p>
+          <p><strong>Email:</strong> <a href="mailto:hello@dreamcleaningnyc.com">hello&#64;dreamcleaningnyc.com</a></p>
           <p><strong>Phone:</strong> <a href="tel:+9299301525">(929) 930-1525</a></p>
         </div>
       </div>

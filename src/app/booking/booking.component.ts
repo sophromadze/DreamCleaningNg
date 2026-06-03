@@ -72,8 +72,16 @@ export class BookingComponent implements OnInit, OnDestroy {
   serviceTypes: ServiceType[] = [];
   /** Service types to show in the dropdown: Custom only for Admin/SuperAdmin. */
   get visibleServiceTypes(): ServiceType[] {
-    const isAdminOrSuperAdmin = this.authService.currentUserValue?.role === 'Admin' || this.authService.currentUserValue?.role === 'SuperAdmin';
-    return this.serviceTypes.filter(st => !st.isCustom || isAdminOrSuperAdmin);
+    return this.serviceTypes.filter(st => !st.isCustom || this.isAdminOrSuperAdmin);
+  }
+
+  /**
+   * Admin or SuperAdmin (NOT Moderator). These two roles may select the Same Day Service
+   * extra without the 4-hour-notice / time-of-day restrictions that apply to customers.
+   */
+  get isAdminOrSuperAdmin(): boolean {
+    const role = this.authService.currentUserValue?.role;
+    return role === 'Admin' || role === 'SuperAdmin';
   }
   subscriptions: Subscription[] = [];
   currentUser: any = null;
@@ -879,6 +887,10 @@ export class BookingComponent implements OnInit, OnDestroy {
       takeUntil(this.destroy$)
     ).subscribe(user => {
       this.currentUser = user;
+      // Re-evaluate same-day availability once we know the role — Admin/SuperAdmin are exempt
+      // from the time restriction, so the flag must reflect the user even if it was set before
+      // the user resolved during early init.
+      this.checkSameDayServiceAvailability();
       if (user) {
         this.hasFirstTimeDiscount = user.firstTimeOrder;
         if (this.isBrowser) this.loadBubblePointsOptions();
@@ -1899,8 +1911,9 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   toggleExtraService(extraService: ExtraService, skipDateChange: boolean = false) {
     
-    // Prevent selecting same day service if it's not available
-    if (extraService.isSameDayService && !this.isSameDayServiceAvailable) {
+    // Prevent selecting same day service if it's not available.
+    // Admins / SuperAdmins are never blocked (no same-day restrictions for them).
+    if (extraService.isSameDayService && !this.isSameDayServiceAvailable && !this.isAdminOrSuperAdmin) {
       return;
     }
     
@@ -4808,8 +4821,9 @@ export class BookingComponent implements OnInit, OnDestroy {
     // Weekend rule: for Saturday/Sunday, earliest start is 9:30 AM.
     let filteredSlots = timeSlots.filter(timeSlot => timeSlot >= minStartTime);
 
-    // If same day service is selected, filter time slots based on current time
-    if (this.isSameDaySelected) {
+    // If same day service is selected, filter time slots based on current time.
+    // Admins / SuperAdmins skip this filter — they can pick any time for same-day.
+    if (this.isSameDaySelected && !this.isAdminOrSuperAdmin) {
       const today = this.getNowInNewYork();
 
       // Check if selected date is today (in NY time)
@@ -5125,8 +5139,15 @@ export class BookingComponent implements OnInit, OnDestroy {
    * if current time + 4 hours would be after 6:00 PM (18:00)
    */
   private checkSameDayServiceAvailability(): void {
+    // Admins / SuperAdmins bypass the same-day restriction entirely — always available.
+    if (this.isAdminOrSuperAdmin) {
+      this.isSameDayServiceAvailable = true;
+      this.sameDayServiceDisabledReason = '';
+      return;
+    }
+
     const now = this.getNowInNewYork();
-    
+
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     

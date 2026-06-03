@@ -14,18 +14,34 @@ export function authInterceptor(
 ): Observable<HttpEvent<unknown>> {
   const useCookieAuth = environment.useCookieAuth || false;
   const isBrowser = typeof window !== 'undefined';
-  
+
   // Skip auth checks for auth endpoints (don't attach Bearer token to login/register requests)
-  const isAuthEndpoint = req.url.includes('/auth/login') || 
-                        req.url.includes('/auth/register') || 
+  const isAuthEndpoint = req.url.includes('/auth/login') ||
+                        req.url.includes('/auth/register') ||
                         req.url.includes('/auth/refresh-token') ||
                         req.url.includes('/auth/google') ||
                         req.url.includes('/auth/apple-login');
 
   // Skip for SignalR endpoints
-  const isSignalREndpoint = req.url.includes('/userManagementHub') || 
+  const isSignalREndpoint = req.url.includes('/userManagementHub') ||
                            req.url.includes('/negotiate') ||
                            (req.url.includes('?id=') && req.url.includes('access_token='));
+
+  // 2FA: attach the trusted-device token on login requests so the backend can decide
+  // whether to skip the challenge. Safe on all login paths (email/password + OAuth).
+  // The header is harmless on other endpoints but we only add it where it matters.
+  const isLoginRequest = req.url.includes('/auth/login')
+                       || req.url.includes('/auth/google-login')
+                       || req.url.includes('/auth/apple-login')
+                       || req.url.includes('/auth/verify-login-otp');
+  if (isBrowser && isLoginRequest) {
+    try {
+      const deviceToken = localStorage.getItem('tf_device_token');
+      if (deviceToken) {
+        req = req.clone({ setHeaders: { 'X-Device-Token': deviceToken } });
+      }
+    } catch { /* localStorage may be unavailable; non-fatal */ }
+  }
 
   // Handle based on auth method
   if (useCookieAuth) {
@@ -36,7 +52,7 @@ export function authInterceptor(
   } else {
     // For localStorage auth, add bearer token
     let token: string | null = null;
-    
+
     if (isBrowser) {
       try {
         token = localStorage.getItem('token');
@@ -76,16 +92,30 @@ export class AuthInterceptor implements HttpInterceptor {
 
   intercept(request: HttpRequest<any>, next: HttpHandler): Observable<HttpEvent<any>> {
     // Skip auth checks for auth endpoints (don't attach Bearer token to login/register requests)
-    const isAuthEndpoint = request.url.includes('/auth/login') || 
-                          request.url.includes('/auth/register') || 
+    const isAuthEndpoint = request.url.includes('/auth/login') ||
+                          request.url.includes('/auth/register') ||
                           request.url.includes('/auth/refresh-token') ||
                           request.url.includes('/auth/google') ||
                           request.url.includes('/auth/apple-login');
 
     // Skip for SignalR endpoints
-    const isSignalREndpoint = request.url.includes('/userManagementHub') || 
+    const isSignalREndpoint = request.url.includes('/userManagementHub') ||
                              request.url.includes('/negotiate') ||
                              (request.url.includes('?id=') && request.url.includes('access_token='));
+
+    // 2FA: attach trusted-device token on login requests (see authInterceptor above).
+    const isLoginRequest = request.url.includes('/auth/login')
+                         || request.url.includes('/auth/google-login')
+                         || request.url.includes('/auth/apple-login')
+                         || request.url.includes('/auth/verify-login-otp');
+    if (this.isBrowser && isLoginRequest) {
+      try {
+        const deviceToken = localStorage.getItem('tf_device_token');
+        if (deviceToken) {
+          request = request.clone({ setHeaders: { 'X-Device-Token': deviceToken } });
+        }
+      } catch { /* non-fatal */ }
+    }
 
     if (!isAuthEndpoint && !isSignalREndpoint) {
       // Check if user has been inactive for 7 days (only for non-auth/non-SignalR endpoints)

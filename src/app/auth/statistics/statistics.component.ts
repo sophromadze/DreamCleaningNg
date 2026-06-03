@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminService, OrderStatistics, DailyStatistics } from '../../services/admin.service';
+import { AdminService, OrderStatistics, DailyStatistics, MonthlyFinancialRate } from '../../services/admin.service';
 import { forkJoin } from 'rxjs';
 import Chart from 'chart.js/auto';
 
@@ -20,6 +20,12 @@ interface ChartDataPoint {
   expenses: number;
   // NET company revenue. Daily endpoint has already subtracted that day's expenses.
   companyRevenue: number;
+}
+
+interface RateRow extends MonthlyFinancialRate {
+  // Local edit buffer for the USD-per-GEL input.
+  editValue: number;
+  saving: boolean;
 }
 
 @Component({
@@ -49,6 +55,12 @@ export class StatisticsComponent implements OnInit, OnDestroy {
 
   // Click-to-expand state for the Company Revenue breakdown panel.
   revenueBreakdownExpanded = false;
+
+  // Exchange / bonus rates panel (per-month GEL→USD, SuperAdmin-overridable).
+  ratesExpanded = false;
+  rates: RateRow[] = [];
+  ratesLoading = false;
+  ratesError = '';
 
   constructor(
     private adminService: AdminService,
@@ -107,6 +119,70 @@ export class StatisticsComponent implements OnInit, OnDestroy {
     this.revenueBreakdownExpanded = !this.revenueBreakdownExpanded;
   }
 
+  toggleRatesPanel(): void {
+    this.ratesExpanded = !this.ratesExpanded;
+    if (this.ratesExpanded && this.rates.length === 0) {
+      this.loadRates();
+    }
+  }
+
+  /** Load the per-month locked rates for the current date range. */
+  loadRates(): void {
+    this.ratesLoading = true;
+    this.ratesError = '';
+    const { from, to } = this.getDateRange(this.customFrom || undefined, this.customTo || undefined);
+    this.adminService.getFinancialRates(from, to).subscribe({
+      next: (rows) => {
+        this.rates = rows.map(r => ({ ...r, editValue: r.usdPerGel, saving: false }));
+        this.ratesLoading = false;
+      },
+      error: (err) => {
+        this.ratesError = err?.error?.message || 'Failed to load exchange rates.';
+        this.ratesLoading = false;
+      }
+    });
+  }
+
+  /** USD value of a month's bonus rate at its locked FX — handy preview in the table. */
+  bonusRateUsd(r: RateRow): number {
+    return r.adminBonusRatePerOrderGel * (r.editValue || 0);
+  }
+
+  saveRate(r: RateRow): void {
+    if (!r.editValue || r.editValue <= 0) {
+      this.ratesError = 'Rate must be greater than zero.';
+      return;
+    }
+    r.saving = true;
+    this.ratesError = '';
+    this.adminService.setFinancialRate(r.year, r.month, r.editValue).subscribe({
+      next: (updated) => {
+        Object.assign(r, updated, { editValue: updated.usdPerGel, saving: false });
+        // Rate change affects bonus conversion — reload the headline numbers/charts.
+        this.loadData(this.customFrom || undefined, this.customTo || undefined);
+      },
+      error: (err) => {
+        this.ratesError = err?.error?.message || 'Failed to save rate.';
+        r.saving = false;
+      }
+    });
+  }
+
+  refetchRate(r: RateRow): void {
+    r.saving = true;
+    this.ratesError = '';
+    this.adminService.refetchFinancialRate(r.year, r.month).subscribe({
+      next: (updated) => {
+        Object.assign(r, updated, { editValue: updated.usdPerGel, saving: false });
+        this.loadData(this.customFrom || undefined, this.customTo || undefined);
+      },
+      error: (err) => {
+        this.ratesError = err?.error?.message || 'Failed to re-fetch rate.';
+        r.saving = false;
+      }
+    });
+  }
+
   private loadData(fromOverride?: string, toOverride?: string): void {
     this.isLoading = true;
     this.error = '';
@@ -124,6 +200,10 @@ export class StatisticsComponent implements OnInit, OnDestroy {
         this.cdr.detectChanges();
         this.processChartData();
         setTimeout(() => this.buildCharts(), 0);
+        // Keep the rates panel in sync with the visible range when it's open.
+        if (this.ratesExpanded) {
+          this.loadRates();
+        }
       },
       error: (err) => {
         this.error = err?.error?.message || 'Failed to load statistics.';

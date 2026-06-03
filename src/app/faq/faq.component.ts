@@ -80,7 +80,7 @@ export class FaqComponent implements OnInit, OnDestroy {
           'name': "What's the difference between deep cleaning and heavy condition cleaning?",
           'acceptedAnswer': {
             '@type': 'Answer',
-            'text': `Deep cleaning includes baseboards, hard-to-reach areas, and dusting above head level. Heavy condition cleaning goes further with wall washing, cabinet interiors, under sinks, and more — designed for homes that haven't been cleaned in 6+ months or have significant buildup. Heavy condition cleaning is $${SERVICE_PRICING.heavyConditionPerHour} per hour per cleaner.`
+            'text': `Deep cleaning includes baseboards, hard-to-reach areas, and dusting above head level. Heavy condition cleaning goes further with wall washing, cabinet interiors, under sinks, and more â€” designed for homes that haven't been cleaned in 6+ months or have significant buildup. Heavy condition cleaning is $${SERVICE_PRICING.heavyConditionPerHour} per hour per cleaner.`
           }
         },
         {
@@ -128,7 +128,7 @@ export class FaqComponent implements OnInit, OnDestroy {
           'name': "What if I'm not satisfied with the cleaning?",
           'acceptedAnswer': {
             '@type': 'Answer',
-            'text': 'Dream Cleaning offers a 100% satisfaction guarantee. If you\'re not fully happy, let us know within 24 hours and we\'ll return to make it right — no questions asked.'
+            'text': 'Dream Cleaning offers a 100% satisfaction guarantee. If you\'re not fully happy, let us know within 24 hours and we\'ll return to make it right â€” no questions asked.'
           }
         },
         {
@@ -184,7 +184,7 @@ export class FaqComponent implements OnInit, OnDestroy {
           'name': 'How do I book a cleaning service with Dream Cleaning?',
           'acceptedAnswer': {
             '@type': 'Answer',
-            'text': 'Book online at dreamcleaningnearme.com/booking in under 2 minutes — select your home size, cleaning type, preferred date and time, and get an instant estimate. You can also call (929) 930-1525. Payment is processed securely through Stripe after service completion.'
+            'text': 'Book online at dreamcleaningnyc.com/booking in under 2 minutes â€” select your home size, cleaning type, preferred date and time, and get an instant estimate. You can also call (929) 930-1525. Payment is processed securely through Stripe after service completion.'
           }
         },
         {

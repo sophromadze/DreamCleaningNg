@@ -27,8 +27,8 @@ export const serverUrlInterceptor: HttpInterceptorFn = (req, next) => {
     let url = req.url;
 
     // Absolute URL (http or https)
-    if (/https?:\/\/dreamcleaningnearme\.com\/api/.test(url)) {
-      url = url.replace(/https?:\/\/dreamcleaningnearme\.com\/api/, 'http://localhost:5000/api');
+    if (/https?:\/\/dreamcleaningnyc\.com\/api/.test(url)) {
+      url = url.replace(/https?:\/\/dreamcleaningnyc\.com\/api/, 'http://localhost:5000/api');
     }
     // Relative URL
     else if (url.startsWith('/api')) {

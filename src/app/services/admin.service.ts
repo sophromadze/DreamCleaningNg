@@ -42,6 +42,12 @@ export interface OrderStatistics {
   /** NET — gross minus expenses. The headline number. */
   totalCompanyRevenue: number;
   expensesBreakdown?: ExpenseBreakdown | null;
+  /** Stripe processing fees (2.9% + $0.30/order) — already included in totalExpenses. */
+  stripeFees: number;
+  /** Admin bonuses for the window in USD (GEL converted at each month's locked rate). */
+  adminBonusesUsd: number;
+  /** The same admin bonuses in raw GEL, for reference. */
+  adminBonusesGel: number;
 }
 
 export interface DailyStatistics {
@@ -51,10 +57,26 @@ export interface DailyStatistics {
   taxes: number;
   tips: number;
   cleanersSalary: number;
-  /** Expenses falling on this day (each occurrence attributed to its bill date). */
+  /** GRAND total expenses for the day (table + Stripe fees + admin bonuses). */
   expenses: number;
   /** NET revenue for this day. */
   companyRevenue: number;
+  /** Itemised computed expenses (already inside `expenses`). */
+  stripeFees: number;
+  adminBonuses: number;
+}
+
+/** One month's locked GEL→USD rate + frozen bonus rate, for the statistics rates panel. */
+export interface MonthlyFinancialRate {
+  year: number;
+  month: number;
+  monthKey: string;
+  usdPerGel: number;
+  adminBonusRatePerOrderGel: number;
+  fxSource: string;       // 'auto' | 'manual' | 'fallback'
+  isFinalized: boolean;
+  updatedAt: string;
+  updatedByUserName?: string | null;
 }
 
 export interface AdminOrderList {
@@ -1060,6 +1082,30 @@ export class AdminService {
     if (from) params = params.set('from', from);
     if (to) params = params.set('to', to);
     return this.http.get<DailyStatistics[]>(`${this.apiUrl}/statistics/daily`, { params });
+  }
+
+  /** Per-month locked GEL→USD rates (auto-fetched, SuperAdmin-overridable). */
+  getFinancialRates(from?: string, to?: string): Observable<MonthlyFinancialRate[]> {
+    let params = new HttpParams();
+    if (from) params = params.set('from', from);
+    if (to) params = params.set('to', to);
+    return this.http.get<MonthlyFinancialRate[]>(`${this.apiUrl}/statistics/financial-rates`, { params });
+  }
+
+  /** Manually override a month's GEL→USD rate. */
+  setFinancialRate(year: number, month: number, usdPerGel: number): Observable<MonthlyFinancialRate> {
+    return this.http.put<MonthlyFinancialRate>(
+      `${this.apiUrl}/statistics/financial-rates/${year}/${month}`,
+      { usdPerGel }
+    );
+  }
+
+  /** Discard a manual override and re-fetch the auto rate for a month. */
+  refetchFinancialRate(year: number, month: number): Observable<MonthlyFinancialRate> {
+    return this.http.post<MonthlyFinancialRate>(
+      `${this.apiUrl}/statistics/financial-rates/${year}/${month}/refetch`,
+      {}
+    );
   }
 
   // Order Reminder Acknowledgment (cross-admin sync)

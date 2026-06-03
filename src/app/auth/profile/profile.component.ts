@@ -12,11 +12,12 @@ import { Router } from '@angular/router';
 import { SpecialOfferService, UserSpecialOffer } from '../../services/special-offer.service';
 import { ShimmerDirective } from '../../shared/directives/shimmer.directive';
 import { BubbleFieldComponent } from '../../bubble-field/bubble-field.component';
+import { TrustedDevicesComponent } from '../trusted-devices/trusted-devices.component';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ShimmerDirective, BubbleFieldComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ShimmerDirective, BubbleFieldComponent, TrustedDevicesComponent],
   templateUrl: './profile.component.html',
   styleUrls: ['./profile.component.scss']
 })

@@ -498,3 +498,109 @@
     height: 200px;
   }
 }
+
+// ───── Exchange & bonus rates panel ─────
+
+.rates-panel {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  margin-bottom: 1.5rem;
+  box-shadow: 0 1px 3px var(--shadow-color);
+  overflow: hidden;
+
+  .rates-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    padding: 1rem 1.5rem;
+    cursor: pointer;
+    user-select: none;
+
+    &:hover { background: var(--surface-subtle); }
+
+    .rates-title {
+      color: var(--text-primary);
+      font-size: 1.05rem;
+      font-weight: var(--fw-semibold);
+
+      i { margin-left: 0.4rem; color: var(--text-muted); transition: transform 0.2s ease; }
+      i.rotated { transform: rotate(180deg); }
+    }
+
+    .rates-hint { color: var(--text-muted); font-size: 0.85rem; }
+  }
+
+  .rates-body { padding: 0 1.5rem 1.25rem; }
+
+  .rates-loading, .rates-empty { color: var(--text-muted); padding: 0.75rem 0; }
+  .rates-error { color: var(--bright-red); padding: 0.5rem 0; }
+
+  .rates-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+
+    th {
+      text-align: left;
+      color: var(--text-muted);
+      font-weight: var(--fw-medium);
+      padding: 0.5rem 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    td {
+      padding: 0.55rem 0.75rem;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-primary);
+      vertical-align: middle;
+    }
+
+    .rate-month { font-weight: var(--fw-semibold); }
+
+    .rate-input {
+      width: 7rem;
+      padding: 5px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+
+      &:focus { outline: none; border-color: var(--primary-color); }
+    }
+
+    .rate-bonus { color: var(--text-secondary); }
+    .rate-bonus-usd { display: block; color: var(--text-muted); font-size: 0.8rem; }
+
+    .rate-source {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      font-size: 0.75rem;
+      background: var(--surface-subtle);
+      color: var(--text-muted);
+
+      &.manual { background: var(--mint-fresh); color: var(--fresh-green); }
+      &.fallback { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+    }
+
+    .rate-actions { white-space: nowrap; }
+
+    .rate-save, .rate-refetch {
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      border: none;
+      font-size: 0.82rem;
+      font-weight: var(--fw-medium);
+      cursor: pointer;
+
+      &:disabled { opacity: 0.6; cursor: not-allowed; }
+    }
+
+    .rate-save { background: var(--btn-primary); color: #fff; margin-right: 0.4rem; }
+    .rate-refetch { background: var(--surface-subtle); color: var(--text-secondary); }
+  }
+}

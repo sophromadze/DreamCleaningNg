@@ -106,8 +106,20 @@
       </div>
       <div class="breakdown-line subtract">
         <span class="breakdown-op">−</span>
-        <span class="breakdown-amount">{{ stats.totalExpenses | currency:'USD' }}</span>
+        <span class="breakdown-amount">{{ (stats.totalExpenses - stats.stripeFees - stats.adminBonusesUsd) | currency:'USD' }}</span>
         <span class="breakdown-label">(Company Expenses in window)</span>
+      </div>
+      <div class="breakdown-line subtract">
+        <span class="breakdown-op">−</span>
+        <span class="breakdown-amount">{{ stats.stripeFees | currency:'USD' }}</span>
+        <span class="breakdown-label">(Stripe fees — 2.9% + $0.30 per Stripe order)</span>
+      </div>
+      <div class="breakdown-line subtract">
+        <span class="breakdown-op">−</span>
+        <span class="breakdown-amount">{{ stats.adminBonusesUsd | currency:'USD' }}</span>
+        <span class="breakdown-label">
+          (Admin bonuses — converted from {{ stats.adminBonusesGel | number:'1.0-2' }} GEL)
+        </span>
       </div>
       <div class="breakdown-line total">
         <span class="breakdown-op">=</span>
@@ -139,6 +151,61 @@
 
     <div class="breakdown-empty" *ngIf="!stats.expensesBreakdown || stats.expensesBreakdown.byCategory.length === 0">
       No expenses recorded in this window.
+    </div>
+  </div>
+
+  <!-- Exchange & bonus rates (per-month GEL→USD used for admin-bonus conversion) -->
+  <div class="rates-panel" *ngIf="stats && !isLoading">
+    <div class="rates-header" (click)="toggleRatesPanel()" role="button" tabindex="0"
+         (keydown.enter)="toggleRatesPanel()">
+      <span class="rates-title">
+        Exchange &amp; bonus rates (GEL → USD)
+        <i class="fas fa-chevron-down" [class.rotated]="ratesExpanded"></i>
+      </span>
+      <span class="rates-hint">Each month locks its own rate. Auto-fetched; override if needed.</span>
+    </div>
+
+    <div class="rates-body" *ngIf="ratesExpanded">
+      <div class="rates-loading" *ngIf="ratesLoading">Loading rates…</div>
+      <div class="rates-error" *ngIf="ratesError">{{ ratesError }}</div>
+
+      <table class="rates-table" *ngIf="!ratesLoading && rates.length > 0">
+        <thead>
+          <tr>
+            <th>Month</th>
+            <th>USD per 1 GEL</th>
+            <th>Bonus / order</th>
+            <th>Source</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let r of rates">
+            <td class="rate-month">{{ r.monthKey }}</td>
+            <td>
+              <input type="number" step="0.0001" min="0.0001"
+                     [(ngModel)]="r.editValue" [disabled]="r.saving" class="rate-input" />
+            </td>
+            <td class="rate-bonus">
+              {{ r.adminBonusRatePerOrderGel | number:'1.0-2' }} GEL
+              <span class="rate-bonus-usd">≈ {{ bonusRateUsd(r) | currency:'USD' }}</span>
+            </td>
+            <td>
+              <span class="rate-source" [class.manual]="r.fxSource === 'manual'"
+                    [class.fallback]="r.fxSource === 'fallback'">{{ r.fxSource }}</span>
+            </td>
+            <td class="rate-actions">
+              <button class="rate-save" (click)="saveRate(r)" [disabled]="r.saving">Save</button>
+              <button class="rate-refetch" (click)="refetchRate(r)" [disabled]="r.saving"
+                      title="Discard override and re-fetch the auto rate">Re-fetch</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="rates-empty" *ngIf="!ratesLoading && rates.length === 0 && !ratesError">
+        No months in the selected range.
+      </div>
     </div>
   </div>
 

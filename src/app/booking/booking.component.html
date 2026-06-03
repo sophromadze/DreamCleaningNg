@@ -920,6 +920,10 @@
             <!-- Step 6: Subscription -->
             <section class="booking-section">
               <h2>How often would you like us to clean?</h2>
+              <p class="subscription-fee-note">
+                <i class="fas fa-check-circle"></i>
+                No extra fee - a plan just lowers your price. Cancel anytime.
+              </p>
               <div class="active-subscription-notice" *ngIf="hasActiveSubscription && userSubscription">
                 <i class="fas fa-info-circle"></i>
                 <span>Your current plan: {{ userSubscription?.subscriptionName }} 
@@ -1879,6 +1883,7 @@
                 <li>Paper towels</li>
                 <li>Garbage bags</li>
                 <li>Broom or vacuum cleaner</li>
+                <li>Toilet brush</li>
               </ul>
             </div>
 
@@ -1998,6 +2003,7 @@
                   <li><span class="dc-li-dot" aria-hidden="true"></span><span>Paper towels</span></li>
                   <li><span class="dc-li-dot" aria-hidden="true"></span><span>Garbage bags</span></li>
                   <li><span class="dc-li-dot" aria-hidden="true"></span><span>Broom or vacuum cleaner</span></li>
+                  <li><span class="dc-li-dot" aria-hidden="true"></span><span>Toilet brush</span></li>
                 </ul>
               </div>
 

@@ -3668,6 +3668,27 @@
     }
   }
 
+  // Reassurance line under the "How often…" heading: plans are free to choose, no fee.
+  // Higher specificity than the generic subscription-section <p> so it stays small + green.
+  .booking-section:has(.subscription-options) p.subscription-fee-note {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin: 0 0 1rem;
+    font-size: 0.95rem;
+    font-weight: var(--fw-medium);
+    color: var(--fresh-green);
+
+    i {
+      color: var(--fresh-green);
+      font-size: 1rem;
+    }
+
+    @media (max-width: 534px) {
+      font-size: 0.9rem;
+    }
+  }
+
     .subscription-card {
     border-radius: 58px;
     padding: 1.5rem 1rem;

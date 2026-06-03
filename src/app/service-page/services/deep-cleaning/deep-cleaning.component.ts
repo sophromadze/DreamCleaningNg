@@ -31,12 +31,12 @@ export class DeepCleaningComponent implements OnInit, OnDestroy {
       '@context': 'https://schema.org',
       '@type': 'Service',
       'name': 'Deep Cleaning Service in NYC',
-      'description': `Dream Cleaning's deep cleaning service is a detailed, top-to-bottom cleaning solution for apartments, condos, brownstones, and family homes in Brooklyn, Manhattan, Queens, and across NYC — targeting stubborn buildup, kitchen grease, soap scum, hidden dust, baseboards, door frames, light switches, and other hard-to-reach areas often missed during regular cleanings. Starting from $${SERVICE_PRICING.deepFrom}.`,
+      'description': `Dream Cleaning's deep cleaning service is a detailed, top-to-bottom cleaning solution for apartments, condos, brownstones, and family homes in Brooklyn, Manhattan, Queens, and across NYC â€” targeting stubborn buildup, kitchen grease, soap scum, hidden dust, baseboards, door frames, light switches, and other hard-to-reach areas often missed during regular cleanings. Starting from $${SERVICE_PRICING.deepFrom}.`,
       'dateModified': '2026-03-22',
       'provider': {
         '@type': 'LocalBusiness',
         'name': 'Dream Cleaning',
-        '@id': 'https://dreamcleaningnearme.com/#business'
+        '@id': 'https://dreamcleaningnyc.com/#business'
       },
       'areaServed': {
         '@type': 'City',

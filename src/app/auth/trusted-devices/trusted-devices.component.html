@@ -1,0 +1,77 @@
+<section class="td-section" *ngIf="showSection">
+  <div class="td-header">
+    <h2>
+      <i class="fas fa-shield-halved"></i>
+      Trusted Devices
+    </h2>
+    <p class="td-subtitle">
+      Devices you've previously signed in on. Removing one forces 2FA the next time you sign in from it.
+    </p>
+  </div>
+
+  <div class="td-message td-error" *ngIf="error">
+    <i class="fas fa-exclamation-circle"></i> {{ error }}
+  </div>
+  <div class="td-message td-notice" *ngIf="notice">
+    <i class="fas fa-check-circle"></i> {{ notice }}
+  </div>
+
+  <div class="td-loading" *ngIf="loading">
+    <i class="fas fa-spinner fa-spin"></i> Loading devices…
+  </div>
+
+  <div class="td-empty" *ngIf="!loading && devices.length === 0">
+    <i class="fas fa-mobile-screen"></i>
+    <p>No trusted devices yet. Sign in from a device and check "Trust this device" to add one.</p>
+  </div>
+
+  <ul class="td-list" *ngIf="!loading && devices.length > 0">
+    <ng-container *ngFor="let d of devices">
+      <li class="td-item" [class.is-current]="d.isCurrentDevice">
+        <div class="td-item-icon">
+          <i class="fas fa-laptop" *ngIf="!(d.operatingSystem || '').toLowerCase().includes('ios') && !(d.operatingSystem || '').toLowerCase().includes('android')"></i>
+          <i class="fas fa-mobile-screen" *ngIf="(d.operatingSystem || '').toLowerCase().includes('ios') || (d.operatingSystem || '').toLowerCase().includes('android')"></i>
+        </div>
+        <div class="td-item-body">
+          <div class="td-item-name">
+            {{ d.deviceName || 'Unknown device' }}
+            <span class="td-current-tag" *ngIf="d.isCurrentDevice">This device</span>
+          </div>
+          <div class="td-item-meta">
+            <span *ngIf="d.ipAddress" title="IP at last sign-in">IP {{ d.ipAddress }}</span>
+            <span class="dot" *ngIf="d.ipAddress">·</span>
+            <span title="First trusted">Added {{ formatDate(d.createdAt) }}</span>
+            <span class="dot">·</span>
+            <span title="Last sign-in">Last used {{ formatDate(d.lastUsedAt) }}</span>
+          </div>
+        </div>
+        <div class="td-item-actions">
+          <button type="button"
+                  class="td-revoke-btn"
+                  (click)="askRevoke(d.id)"
+                  [disabled]="pendingRevokeId !== null">
+            <i class="fas fa-trash"></i> Remove
+          </button>
+        </div>
+      </li>
+      <li *ngIf="pendingRevokeId === d.id" class="td-confirm">
+        <div>
+          <i class="fas fa-exclamation-triangle"></i>
+          <span *ngIf="d.isCurrentDevice">
+            This is the device you're using now. Remove it anyway? You'll need to clear 2FA on next sign-in.
+          </span>
+          <span *ngIf="!d.isCurrentDevice">
+            Remove <strong>{{ d.deviceName }}</strong>?
+          </span>
+        </div>
+        <div class="td-confirm-actions">
+          <button type="button" class="btn btn-secondary btn-cancel btn-sm" (click)="cancelRevoke()" [disabled]="revoking">Cancel</button>
+          <button type="button" class="btn btn-danger btn-sm" (click)="confirmRevoke()" [disabled]="revoking">
+            <i class="fas" [class.fa-spinner]="revoking" [class.fa-spin]="revoking" [class.fa-trash]="!revoking"></i>
+            {{ revoking ? 'Removing…' : 'Remove' }}
+          </button>
+        </div>
+      </li>
+    </ng-container>
+  </ul>
+</section>

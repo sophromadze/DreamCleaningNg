@@ -265,8 +265,20 @@ export class LoginComponent implements OnInit {
     this.isLoading = true;
 
     this.authService.login({ email: this.checkedEmail, password: this.passwordForm.value.password }).subscribe({
-      next: () => {
+      next: (response: any) => {
         this.isLoading = false;
+        // 2FA gate: backend returned a challenge envelope, no tokens yet. Route to the
+        // 2FA challenge screen which will drive verify-email + verify-pin.
+        if (response?.twoFactor) {
+          this.router.navigate(['/2fa-challenge']);
+          return;
+        }
+        // Staff with no PIN yet — the pinSetupGuard will catch them, but we shortcut
+        // directly so they don't bounce through the home page.
+        if (response?.requiresPinSetup) {
+          this.router.navigate(['/setup-pin']);
+          return;
+        }
         const storedReturnUrl = this.isBrowser ? localStorage.getItem('returnUrl') : null;
         const finalReturnUrl = storedReturnUrl || this.returnUrl || '/';
         if (this.isBrowser && storedReturnUrl) {

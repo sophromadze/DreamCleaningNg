@@ -4,8 +4,8 @@
       <div class="page-header-row">
         <h1>Order Details</h1>
 
-        <!-- Top-right pill: who handles this order (admin/superadmin can edit). Pre-formatted "F. LastName" from backend. -->
-        <div *ngIf="!isLoading && order" class="assigned-admin-pill"
+        <!-- Top-right pill: admin/superadmin only. Pre-formatted "F. LastName" from backend. -->
+        <div *ngIf="!isLoading && order && canEditAssignedAdmin()" class="assigned-admin-pill"
              [class.is-editable]="canEditAssignedAdmin()"
              [class.is-empty]="!order.assignedAdminId">
           <button type="button"
@@ -50,6 +50,7 @@
         <li>Paper towels</li>
         <li>Garbage bags</li>
         <li>Broom or vacuum cleaner</li>
+        <li>Toilet brush</li>
       </ul>
     </div>
 
@@ -58,6 +59,7 @@
         <li>Paper towels</li>
         <li>Garbage bags</li>
         <li>Broom or vacuum cleaner</li>
+        <li>Toilet brush</li>
         <li>
           Zep liquids:
           {{
@@ -115,12 +117,6 @@
       <!-- Service Details -->
       <div class="section">
         <h3>Services</h3>
-        <p *ngIf="order.bedroomsQuantity !== undefined || order.bathroomsQuantity !== undefined">
-          <strong>Bedrooms:</strong> {{ (order.bedroomsQuantity ?? 0) === 0 ? 'Studio' : (order.bedroomsQuantity ?? 'N/A') }}
-          |
-          <strong>Bathrooms:</strong> {{ order.bathroomsQuantity ?? 'N/A' }}
-        </p>
-
         <div class="services-list">
           <div class="service-item" *ngFor="let service of order.services">
             <span class="service-name">{{ service.serviceName }}</span>
@@ -151,8 +147,8 @@
             {{ getCleaningTypeText() }}
           </span>
         </div>
-        <div class="extra-services-list">
-          <div class="extra-service-item" *ngFor="let extra of order.extraServices">
+        <div class="extra-services-list" *ngIf="getDisplayExtraServices().length > 0">
+          <div class="extra-service-item" *ngFor="let extra of getDisplayExtraServices()">
             <span class="service-name">{{ extra.extraServiceName }}</span>
             <span class="service-quantity">
               <ng-container *ngIf="extra.quantity > 0 && extra.hours > 0">

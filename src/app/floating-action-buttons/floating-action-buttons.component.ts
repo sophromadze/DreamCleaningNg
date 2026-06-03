@@ -45,7 +45,7 @@ export class FloatingActionButtonsComponent {
 
   sendEmail() {
     if (this.isBrowser) {
-      window.location.href = 'mailto:hello@dreamcleaningnearme.com';
+      window.location.href = 'mailto:hello@dreamcleaningnyc.com';
     }
   }
 
