@@ -11,9 +11,10 @@ import { FloatingActionButtonsComponent } from './floating-action-buttons/floati
 import { StickyMobileCtaComponent } from './sticky-mobile-cta/sticky-mobile-cta.component';
 import { ContinueBookingComponent } from './continue-booking/continue-booking.component';
 import { AuthModalComponent } from './auth/auth-modal/auth-modal.component';
+import { FirstTimeOfferPopupComponent } from './first-time-offer-popup/first-time-offer-popup.component';
 import { AuthService } from './services/auth.service';
 import { TokenRefreshService } from './services/token-refresh.service';
-// TEMPORARILY DISABLED â€” Telegram bot integration is off; widget is commented out in app.component.html.
+// TEMPORARILY DISABLED — Telegram bot integration is off; widget is commented out in app.component.html.
 // import { LiveChatWidgetComponent } from './shared/live-chat-widget/live-chat-widget.component';
 import { TelClickTrackingDirective } from './directives/tel-click-tracking.directive';
 import { Subscription, combineLatest } from 'rxjs';
@@ -68,7 +69,8 @@ function isSocialStickyHiddenRoute(url: string): boolean {
     FloatingActionButtonsComponent,
     StickyMobileCtaComponent,
     ContinueBookingComponent,
-    AuthModalComponent
+    AuthModalComponent,
+    FirstTimeOfferPopupComponent
     // LiveChatWidgetComponent  // disabled with the widget tag in app.component.html
   ],
   hostDirectives: [TelClickTrackingDirective],
@@ -131,7 +133,7 @@ export class AppComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
-    // Meta/title/canonical must run on SSR too â€” otherwise Google sees the
+    // Meta/title/canonical must run on SSR too — otherwise Google sees the
     // generic defaults from index.html instead of the route-specific copy
     // (with current SERVICE_PRICING values). Router events fire during the
     // initial SSR render.

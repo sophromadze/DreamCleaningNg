@@ -316,6 +316,16 @@ export class AuthService {
     this.currentUserSubject.next(response.user);
   }
 
+  /**
+   * True when the last auth response triggered a 2FA challenge or PIN-setup redirect.
+   * Modal callers use this to avoid stomping that navigation with their own returnUrl logic.
+   */
+  hasPendingTwoFactorOrPinSetup(): boolean {
+    if (!this.isBrowser) return false;
+    return !!localStorage.getItem('tf_pending_challenge')
+      || localStorage.getItem('tf_requires_pin_setup') === '1';
+  }
+
   applyGuestAuth(token: string, refreshToken: string, user: any): void {
     if (this.isBrowser) {
       localStorage.setItem('currentUser', JSON.stringify(user));
@@ -552,6 +562,16 @@ export class AuthService {
       this.router.navigate(['/auth/verify-email-notice']);
       return;
     }
+    // 2FA gate (staff on an untrusted device): the backend returned a challenge envelope
+    // with no user/token. Stash it and route to the challenge screen. This MUST run even
+    // when skipNavigation is set — there's no session to "stay put" on yet.
+    if (response.twoFactor) {
+      if (this.isBrowser) {
+        localStorage.setItem('tf_pending_challenge', JSON.stringify(response.twoFactor));
+      }
+      this.router.navigate(['/2fa-challenge']);
+      return;
+    }
     if (response.requiresRealEmail) {
       const userWithFlag = { ...response.user, requiresRealEmail: true };
       if (!this.useCookieAuth && this.isBrowser) {
@@ -577,7 +597,19 @@ export class AuthService {
       localStorage.setItem('sessionExists', '1');
       localStorage.removeItem('dreamcleaning_referral');
     }
+    // Staff with no PIN yet — flag for pinSetupGuard and send straight to PIN setup.
+    if (this.isBrowser) {
+      if (response.requiresPinSetup) {
+        localStorage.setItem('tf_requires_pin_setup', '1');
+      } else {
+        localStorage.removeItem('tf_requires_pin_setup');
+      }
+    }
     this.currentUserSubject.next(response.user);
+    if (response.requiresPinSetup) {
+      this.router.navigate(['/setup-pin']);
+      return;
+    }
     // Modal flows (auth-modal) handle navigation themselves via navigateAfterLogin,
     // which respects authModalService.getReturnUrl() and stays put when no returnUrl is set.
     // Skipping here prevents the default '/' fallback from stomping the caller's intent.

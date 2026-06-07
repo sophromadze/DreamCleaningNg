@@ -49,7 +49,7 @@ export class BrooklynCleaningComponent implements OnInit, OnDestroy {
       '@context': 'https://schema.org',
       '@type': 'LocalBusiness',
       'name': 'Dream Cleaning - Brooklyn',
-      'description': `Dream Cleaning provides professional cleaning services across 38 ZIP codes in Brooklyn, New York â€” including Park Slope, Williamsburg, DUMBO, Brooklyn Heights, Bay Ridge, Sunset Park, and Bushwick. Standard cleaning from $${SERVICE_PRICING.residentialFrom}, deep cleaning from $${SERVICE_PRICING.deepFrom}.`,
+      'description': `Dream Cleaning provides professional cleaning services across 38 ZIP codes in Brooklyn, New York — including Park Slope, Williamsburg, DUMBO, Brooklyn Heights, Bay Ridge, Sunset Park, and Bushwick. Standard cleaning from $${SERVICE_PRICING.residentialFrom}, deep cleaning from $${SERVICE_PRICING.deepFrom}.`,
       'url': 'https://dreamcleaningnyc.com/services/brooklyn-cleaning',
       'telephone': '+1-929-930-1525',
       'dateModified': '2026-03-22',

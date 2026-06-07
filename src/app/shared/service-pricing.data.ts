@@ -27,7 +27,7 @@ export const SERVICE_PRICING = {
   filthyPerHour: 100,
 
   /** Custom cleaning — hourly. */
-  customPerHour: 45,
+  customPerHour: 50,
 } as const;
 
 export type ServicePricing = typeof SERVICE_PRICING;

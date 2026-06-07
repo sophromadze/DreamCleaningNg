@@ -190,6 +190,11 @@ export class AuthModalComponent implements OnInit, OnDestroy {
       // single source of truth for modal-driven login, and it honors the modal's returnUrl
       // (or stays put when none is set).
       await this.authService.handleGoogleUser(user, true);
+      // If the service routed to a 2FA challenge or PIN setup, don't stomp that navigation.
+      if (this.authService.hasPendingTwoFactorOrPinSetup()) {
+        this.closeModal();
+        return;
+      }
       this.navigateAfterLogin();
     } catch (error: any) {
       this.isLoading = false;
@@ -202,6 +207,10 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     this.errorMessage = null;
     try {
       await this.authService.handleAppleUser(response, true);
+      if (this.authService.hasPendingTwoFactorOrPinSetup()) {
+        this.closeModal();
+        return;
+      }
       this.navigateAfterLogin();
     } catch (error: any) {
       this.isLoading = false;
@@ -344,8 +353,22 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     this.isLoading = true;
 
     this.authService.login({ email: this.checkedEmail, password: this.passwordForm.value.password }).subscribe({
-      next: () => {
+      next: (response: any) => {
         this.isLoading = false;
+        // 2FA gate (staff on an untrusted device): no tokens yet — go to the challenge
+        // screen which drives verify-email + verify-pin. authService.login already
+        // stashed the pending challenge.
+        if (response?.twoFactor) {
+          this.closeModal();
+          this.router.navigate(['/2fa-challenge']);
+          return;
+        }
+        // Staff with no PIN yet — send them straight to PIN setup.
+        if (response?.requiresPinSetup) {
+          this.closeModal();
+          this.router.navigate(['/setup-pin']);
+          return;
+        }
         this.navigateAfterLogin();
       },
       error: (error) => {

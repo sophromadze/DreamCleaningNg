@@ -2,13 +2,13 @@
   <app-bubble-field></app-bubble-field>
   <!-- Help Header Section -->
   <div class="help-header">
-    <h1>Need assistance?</h1>
-    <p class="help-subtitle">Our team is ready to help you.</p>
+    <h1>Need a Cleaning Quote?</h1>
+    <p class="help-subtitle">Call us today</p>
     <p class="phone-number">
       <a href="tel:+19299301525">(929) 930-1525</a>
     </p>
     <p class="help-description">
-      Check out our <a href="/faq" class="faq-link">FAQ</a> for quick answers, or fill out the form below to get in touch with us:
+      or fill out the form below to get a free, no-obligation quote.
     </p>
   </div>
 
@@ -146,7 +146,7 @@
           type="submit" 
           class="submit-btn"
           [disabled]="isSubmitting || quoteForm.invalid">
-          <span *ngIf="!isSubmitting">Send for Quote</span>
+          <span *ngIf="!isSubmitting">Request a Quote</span>
           <span *ngIf="isSubmitting">Sending...</span>
         </button>
       </div>

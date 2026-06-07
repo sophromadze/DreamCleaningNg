@@ -2,9 +2,11 @@
 
   <!-- =========================================================
        HERO SECTION
-       Left: booking form card (functionality preserved)
-       Right: trust badge, headline, location pills, hero image
-              with overlay badges, primary CTAs
+       Left: trust badge, headline, location pills, hero image
+             with overlay badges, primary CTAs
+       Right: booking form card (functionality preserved)
+       (DOM order is booking card then hero content; visual order is
+        swapped via CSS `order` on .hero-grid items.)
   ========================================================== -->
   <section class="hero-section">
     <div class="hero-bg-glow hero-bg-glow--blue" aria-hidden="true"></div>
@@ -12,7 +14,7 @@
 
     <div class="hero-grid">
 
-      <!-- ===== Booking form card (left) ===== -->
+      <!-- ===== Booking form card (right) ===== -->
       <aside class="booking-form-card">
         <header class="booking-form-card__header">
           <div>
@@ -159,17 +161,6 @@
             <span *ngIf="!isLoadingServiceTypes" class="estimate-row__price">from ${{ getEstimatedPrice() }}</span>
           </div>
 
-          <!-- Next available slot (admin-block aware) -->
-          <div class="next-available" *ngIf="nextAvailableLabel">
-            <svg class="next-available__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="3" y="4" width="18" height="18" rx="2"/>
-              <path d="M16 2v4M8 2v4M3 10h18"/>
-            </svg>
-            <div class="next-available__text">
-              <p class="next-available__title">Next available: {{ nextAvailableLabel }}</p>
-            </div>
-          </div>
-
           <ul class="trust-mini-list">
             <li><i class="fas fa-check-circle trust-mini-list__icon trust-mini-list__icon--green" aria-hidden="true"></i> No hidden fees</li>
             <li><i class="fas fa-lock trust-mini-list__icon trust-mini-list__icon--blue" aria-hidden="true"></i> Secure payment</li>
@@ -177,9 +168,14 @@
           </ul>
 
         </form>
+
+        <!-- Need help? Phone shown as a clickable link, not a button -->
+        <p class="booking-form-card__help">
+          Need help? <a href="tel:+19299301525" class="booking-form-card__help-phone">Call now (929) 930-1525</a>
+        </p>
       </aside>
 
-      <!-- ===== Hero content (right) ===== -->
+      <!-- ===== Hero content (left) ===== -->
       <div class="hero-content">
         <div class="hero-content__badge">
           <svg viewBox="0 0 24 24" fill="currentColor" class="star-icon" aria-hidden="true">
@@ -191,6 +187,7 @@
         <h1 class="hero-title">
           Professional Cleaning Services in <span class="hero-title__accent">NYC</span>
         </h1>
+        <p class="hero-slogan">Where dreams feel clean</p>
 
         <div class="hero-locations">
           <a routerLink="/services/manhattan-cleaning" class="location-pill">
@@ -220,39 +217,36 @@
           Trusted home &amp; apartment cleaning in Brooklyn, Manhattan and Queens. Transparent pricing, trained cleaners, and a simple online booking experience.
         </p>
 
-        <!-- Hero CTAs -->
-        <div class="hero-cta-row">
-          <a routerLink="/booking" class="btn-cta-primary">Book Online</a>
-          <a href="tel:+19299301525" class="btn-cta-secondary">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.19 19 19.5 19.5 0 0 1 5 12.81 19.79 19.79 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.12.9.32 1.78.6 2.62a2 2 0 0 1-.45 2.11L8 9.67a16 16 0 0 0 6.33 6.33l1.22-1.22a2 2 0 0 1 2.11-.45c.84.28 1.72.48 2.62.6A2 2 0 0 1 22 16.92Z"/>
-            </svg>
-            (929) 930-1525
-          </a>
-          <a routerLink="/free-quote" class="btn-cta-quote">Get Free Quote</a>
-        </div>
-
         <!-- Hero image card with overlay badges -->
         <div class="hero-image-card">
           <div class="hero-image-card__media" role="img" aria-label="Professional cleaning service in NYC - Dream Cleaning"></div>
           <div class="hero-image-card__overlay" aria-hidden="true"></div>
 
-          <div class="hero-stat hero-stat--bookings" *ngIf="bookingsThisWeek > 0">
-            <p class="hero-stat__title">{{ bookingsThisWeek }} bookings</p>
-            <p class="hero-stat__sub">completed this week</p>
+          <div class="hero-offer-coupon" *ngIf="firstTimeDiscountLabel">
+            <div class="hero-offer-coupon__body">
+              <svg class="hero-offer-coupon__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/>
+                <circle cx="7" cy="7" r="1.6" fill="currentColor"/>
+              </svg>
+              <span class="hero-offer-coupon__copy">
+                <span class="hero-offer-coupon__eyebrow">Welcome Offer</span>
+                <span class="hero-offer-coupon__headline">First cleaning</span>
+              </span>
+            </div>
+            <span class="hero-offer-coupon__perf" aria-hidden="true"></span>
+            <div class="hero-offer-coupon__deal">
+              <span class="hero-offer-coupon__percent">{{ firstTimeDiscountLabel }}</span>
+              <span class="hero-offer-coupon__off">OFF</span>
+            </div>
           </div>
 
           <div class="hero-trust-bar">
             <div class="hero-trust-bar__item">
-              <div class="rating-stars">
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.75 14.86 8.55l6.4.93-4.63 4.51 1.09 6.37L12 17.35 6.28 20.36l1.09-6.37-4.63-4.51 6.4-.93L12 2.75Z"/></svg>
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.75 14.86 8.55l6.4.93-4.63 4.51 1.09 6.37L12 17.35 6.28 20.36l1.09-6.37-4.63-4.51 6.4-.93L12 2.75Z"/></svg>
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.75 14.86 8.55l6.4.93-4.63 4.51 1.09 6.37L12 17.35 6.28 20.36l1.09-6.37-4.63-4.51 6.4-.93L12 2.75Z"/></svg>
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.75 14.86 8.55l6.4.93-4.63 4.51 1.09 6.37L12 17.35 6.28 20.36l1.09-6.37-4.63-4.51 6.4-.93L12 2.75Z"/></svg>
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.75 14.86 8.55l6.4.93-4.63 4.51 1.09 6.37L12 17.35 6.28 20.36l1.09-6.37-4.63-4.51 6.4-.93L12 2.75Z"/></svg>
-              </div>
-              <p class="hero-trust-bar__title">5.0 Rating</p>
-              <p class="hero-trust-bar__sub">Google Reviews</p>
+              <svg class="trust-icon trust-icon--amber" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/>
+              </svg>
+              <p class="hero-trust-bar__title">Same-Day Service</p>
+              <p class="hero-trust-bar__sub">Available on short notice</p>
             </div>
             <div class="hero-trust-bar__item">
               <svg class="trust-icon trust-icon--green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -366,16 +360,14 @@
                         [attr.aria-label]="'Show review ' + (i + 1)"></button>
               </div>
               <a class="testimonial-quote__google-cta"
-                 href="https://g.page/r/CSmN7-QdmiyoEAI/review"
-                 target="_blank"
-                 rel="noopener noreferrer">
+                 routerLink="/reviews">
                 <svg class="google-g-icon" viewBox="0 0 24 24" aria-hidden="true">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
-                <span>Leave a review on Google</span>
+                <span>Read Google Reviews</span>
               </a>
             </article>
 
@@ -399,6 +391,65 @@
           </div>
         </div>
 
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       REWARDS & SAVINGS — referrals, bubble points & discounts.
+       Always visible (including to logged-out visitors) so the
+       loyalty/referral perks aren't hidden behind login. Copy is
+       static so it prerenders for SEO; the first-time % fills in
+       from the API after hydration when available.
+  ========================================================== -->
+  <section class="rewards-savings-section">
+    <div class="container-narrow">
+      <div class="section-header section-header--center">
+        <h2 class="section-title-h2">Cleaning Discounts, Bubble Rewards &amp; Referrals in NYC</h2>
+        <p class="section-subtitle">From first-time and recurring discounts to Bubble Rewards loyalty points and our refer-a-friend program — here's how it pays to keep your NYC home fresh with Dream Cleaning.</p>
+      </div>
+
+      <div class="rewards-grid">
+        <article class="rewards-card rewards-card--discounts">
+          <div class="rewards-card__icon" aria-hidden="true"><i class="fas fa-tags"></i></div>
+          <h3 class="rewards-card__title">First-Time &amp; Recurring Discounts</h3>
+          <p class="rewards-card__desc">
+            New customers save{{ firstTimeDiscountLabel ? ' ' + firstTimeDiscountLabel : '' }} on their very first cleaning. Choose a weekly, bi-weekly, or monthly plan and an automatic discount applies to every visit — the more often we clean, the more you save.
+          </p>
+        </article>
+
+        <article class="rewards-card rewards-card--rewards">
+          <div class="rewards-card__icon" aria-hidden="true"><i class="fas fa-star"></i></div>
+          <h3 class="rewards-card__title">Bubble Rewards</h3>
+          <p class="rewards-card__desc">
+            Earn bubble points on every dollar you spend and redeem them for real money off future cleanings. Climb tiers — Bubble, Super Bubble, Ultra Bubble — to multiply your points, plus bonuses for sign-up, booking streaks, and reviews.
+          </p>
+        </article>
+
+        <article class="rewards-card rewards-card--referral">
+          <div class="rewards-card__icon" aria-hidden="true"><i class="fas fa-user-group"></i></div>
+          <h3 class="rewards-card__title">Refer a Friend</h3>
+          <p class="rewards-card__desc">
+            Share your personal link and you both win — your friend gets bonus points when they sign up, and you earn a reward balance once they complete their first cleaning. There's no limit to how many friends you can refer.
+          </p>
+        </article>
+      </div>
+
+      <p class="rewards-login-note" *ngIf="!isLoggedIn">
+        <i class="fas fa-circle-info" aria-hidden="true"></i>
+        <span>
+          <button type="button" class="rewards-login-link" (click)="openRewardsLogin()">Log in or create an account</button>
+          to track your bubble points, redeem rewards, and get your personal referral link — it's free to join.
+        </span>
+      </p>
+      <p class="rewards-login-note" *ngIf="isLoggedIn">
+        <i class="fas fa-circle-info" aria-hidden="true"></i>
+        <span><a routerLink="/rewards" class="rewards-login-link">View your Bubble Rewards</a> to check your points, redeem them, and share your referral link.</span>
+      </p>
+
+      <div class="rewards-cta">
+        <a routerLink="/pricing-and-discounts" class="btn-cta-primary">See All Prices &amp; Discounts</a>
+        <a routerLink="/booking" class="btn-cta-secondary">Book &amp; Start Saving</a>
       </div>
     </div>
   </section>
@@ -633,29 +684,117 @@
         <p class="section-subtitle">Dream Cleaning offers a full range of professional cleaning services across Manhattan, Brooklyn, and Queens — from standard weekly maintenance (from ${{ pricing.residentialFrom }}) to deep cleaning (from ${{ pricing.deepFrom }}), move in/out cleaning (from ${{ pricing.moveInOutFrom }}), and specialized services. All services include background-checked cleaners, professional equipment, and a 100% satisfaction guarantee.</p>
       </div>
 
-      <div class="services-overview-card">
-        <h3 class="services-overview-card__title">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-          </svg>
-          What We Offer
-        </h3>
+      <h3 class="offer-heading">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+        </svg>
+        What We Offer
+      </h3>
 
-        <p><strong>Residential Cleaning:</strong> Keep your home consistently fresh with weekly, biweekly, or monthly cleaning starting from ${{ pricing.residentialFrom }}. <a routerLink="/services/residential-cleaning" class="read-more-link">Read more about residential cleaning</a></p>
+      <div class="offer-grid">
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/residential-cleaning.webp" alt="Residential cleaning service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Residential Cleaning</h4>
+            <p class="offer-card__desc">Weekly, biweekly, or monthly upkeep to keep your home consistently fresh — from ${{ pricing.residentialFrom }}.</p>
+            <a routerLink="/services/residential-cleaning" class="offer-card__cta">Learn More
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </a>
+          </div>
+        </article>
 
-        <p><strong>Deep Cleaning:</strong> A detailed, top-to-bottom cleaning solution starting from ${{ pricing.deepFrom }}, designed for homes that need more than routine maintenance. We target stubborn buildup, kitchen grease, soap scum, hidden dust, baseboards, door frames, light switches, and other hard-to-reach areas. <a routerLink="/services/deep-cleaning" class="read-more-link">Read more about deep cleaning</a></p>
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/deep-cleaning.webp" alt="Deep cleaning service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Deep Cleaning</h4>
+            <p class="offer-card__desc">Detailed top-to-bottom clean targeting buildup, grease, baseboards, and hidden dust — from ${{ pricing.deepFrom }}.</p>
+            <a routerLink="/services/deep-cleaning" class="offer-card__cta">Learn More
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </a>
+          </div>
+        </article>
 
-        <p><strong>Move In/Out Cleaning:</strong> Comprehensive transition cleaning starting from ${{ pricing.moveInOutFrom }} — cabinet interiors, appliance cleaning, wall spot cleaning, and scuff mark removal to meet lease requirements. <a routerLink="/services/move-in-out-cleaning" class="read-more-link">Read more about move in/out cleaning</a></p>
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/move-in-out-cleaning.webp" alt="Move in/out cleaning service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Move In/Out Cleaning</h4>
+            <p class="offer-card__desc">Transition clean covering cabinet interiors, appliances, and wall spots — from ${{ pricing.moveInOutFrom }}.</p>
+            <a routerLink="/services/move-in-out-cleaning" class="offer-card__cta">Learn More
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </a>
+          </div>
+        </article>
 
-        <p><strong>Office &amp; Commercial Cleaning:</strong> Flexible scheduling around your business hours with daily, weekly, or custom plans. We keep your workplace pristine while minimizing disruption. <a routerLink="/services/office-cleaning" class="read-more-link">Read more about office cleaning</a></p>
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/office-cleaning.webp" alt="Office and commercial cleaning service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Office &amp; Commercial</h4>
+            <p class="offer-card__desc">Flexible commercial cleaning around your business hours — daily, weekly, or custom plans.</p>
+            <a routerLink="/services/office-cleaning" class="offer-card__cta">Learn More
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </a>
+          </div>
+        </article>
 
-        <p><strong>Heavy Condition Cleaning:</strong> Intensive restoration for NYC homes that haven't been cleaned in 6+ months. Priced at ${{ pricing.heavyConditionPerHour }}/hour per cleaner. <a routerLink="/services/heavy-condition-cleaning" class="read-more-link">Read more about heavy condition cleaning</a></p>
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/heavy-codition-cleaning-service-in-nyc.webp" alt="Heavy condition cleaning service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Heavy Condition Cleaning</h4>
+            <p class="offer-card__desc">Intensive restoration for homes not cleaned in 6+ months — ${{ pricing.heavyConditionPerHour }}/hour per cleaner.</p>
+            <a routerLink="/services/heavy-condition-cleaning" class="offer-card__cta">Learn More
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </a>
+          </div>
+        </article>
 
-        <p><strong>Filthy Cleaning:</strong> Our most intensive service for extreme situations. Priced at ${{ pricing.filthyPerHour }}/hour per cleaner with a minimum of 2 cleaners. Photos required for accurate estimate. <a routerLink="/services/filthy-cleaning" class="read-more-link">Read more about filthy cleaning</a></p>
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/filthy-cleaning.webp" alt="Filthy cleaning service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Filthy Cleaning</h4>
+            <p class="offer-card__desc">Our most intensive service for extreme situations — ${{ pricing.filthyPerHour }}/hour per cleaner.</p>
+            <a routerLink="/services/filthy-cleaning" class="offer-card__cta">Learn More
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </a>
+          </div>
+        </article>
 
-        <p><strong>Post Construction Cleaning:</strong> Construction dust, debris, and residue removal from every surface. We make your newly renovated space move-in ready. <a routerLink="/services/post-construction-cleaning" class="read-more-link">Read more about post construction cleaning</a></p>
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/post-construction-cleaning.webp" alt="Post construction cleaning service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Post Construction</h4>
+            <p class="offer-card__desc">Construction dust, debris, and residue removed from every surface — move-in ready.</p>
+            <a routerLink="/services/post-construction-cleaning" class="offer-card__cta">Learn More
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </a>
+          </div>
+        </article>
 
-        <p><strong>Laundry &amp; Dishwashing:</strong> We wash, dry, and fold your laundry using your building's or in-unit machines, and handle all your dishes — no outsourcing, everything is done on-site. <a routerLink="/services/laundry-and-dishwashing" class="read-more-link">Read more about laundry and dishwashing</a></p>
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/laundry-service-nyc.webp" alt="Laundry and dishwashing service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Laundry &amp; Dishwashing</h4>
+            <p class="offer-card__desc">On-site laundry — wash, dry, fold — plus all your dishes handled. Nothing outsourced.</p>
+            <a routerLink="/services/laundry-and-dishwashing" class="offer-card__cta">Learn More
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </a>
+          </div>
+        </article>
       </div>
 
       <div class="included-card">
@@ -729,7 +868,7 @@
           <h2>Ready to book your NYC cleaning?</h2>
           <p>Book online in minutes or call us directly. Professional cleaning across Manhattan, Brooklyn, and Queens — backed by our 100% satisfaction guarantee.</p>
           <div class="final-cta-card__buttons">
-            <a routerLink="/booking" class="btn-cta-primary">Book Your Cleaning</a>
+            <a routerLink="/booking" [queryParams]="{ cleaningType: 'deep' }" class="btn-cta-primary">Book Your Cleaning</a>
             <a href="tel:+19299301525" class="btn-cta-secondary">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.19 19 19.5 19.5 0 0 1 5 12.81 19.79 19.79 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.12.9.32 1.78.6 2.62a2 2 0 0 1-.45 2.11L8 9.67a16 16 0 0 0 6.33 6.33l1.22-1.22a2 2 0 0 1 2.11-.45c.84.28 1.72.48 2.62.6A2 2 0 0 1 22 16.92Z"/>
@@ -743,7 +882,7 @@
           <p class="side-label">Most requested service</p>
           <p class="side-title">Deep Cleaning</p>
           <p class="side-sub">Online booking · transparent pricing · 5.0★ rated</p>
-          <a routerLink="/booking" class="btn-cta-secondary btn-cta-secondary--full">
+          <a routerLink="/booking" [queryParams]="{ cleaningType: 'deep' }" class="btn-cta-secondary btn-cta-secondary--full">
             See Times &amp; Price
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
           </a>

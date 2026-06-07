@@ -17,7 +17,7 @@ import { GooglePlacesService, Review } from '../services/google-reviews.service'
 import { SpecialOfferService, PublicSpecialOffer, UserSpecialOffer } from '../services/special-offer.service';
 import { AuthService } from '../services/auth.service';
 import { AuthModalService } from '../services/auth-modal.service';
-import { BookingService, ServiceType, Service, BlockedTimeSlot } from '../services/booking.service';
+import { BookingService, ServiceType, Service } from '../services/booking.service';
 import { BeforeAfterPhotoService } from '../services/before-after-photo.service';
 import { FormPersistenceService } from '../services/form-persistence.service';
 import { ShimmerDirective } from '../shared/directives/shimmer.directive';
@@ -153,25 +153,9 @@ export class MainComponent implements OnInit, OnDestroy {
     }
   ];
 
-  /** Hero "Next available" pill — populated from /api/booking/blocked-time-slots,
-   *  respects admin-blocked dates and whole-day/per-hour blocks. */
-  nextAvailableLabel: string = '';
-
   /** "X bookings completed this week" — deterministic per day, grows through the week.
    *  Same number all day; flips at midnight (and at noon on Mondays). */
   bookingsThisWeek: number = 0;
-
-  /** Standard booking schedule (mirrors backend BookingController.GetAvailableTimeSlots). */
-  private static readonly TIME_SLOTS_WEEKDAY: string[] = [
-    '08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30',
-    '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30',
-    '16:00','16:30','17:00','17:30','18:00'
-  ];
-  private static readonly TIME_SLOTS_WEEKEND: string[] = [
-    '09:30','10:00','10:30','11:00','11:30',
-    '12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30',
-    '16:00','16:30','17:00','17:30','18:00'
-  ];
 
   constructor(
     private googlePlacesService: GooglePlacesService,
@@ -198,8 +182,6 @@ export class MainComponent implements OnInit, OnDestroy {
     this.loadServiceTypes();
     // Deterministic-per-day counter (safe on SSR — pure date math, no API).
     this.bookingsThisWeek = this.computeBookingsThisWeek();
-    // Fetch admin-blocked slots and pick the next free date+time.
-    this.loadNextAvailableSlot();
     // Fetch admin-uploaded before/after photos.
     this.loadBeforeAfterPhotos();
   }
@@ -595,13 +577,36 @@ export class MainComponent implements OnInit, OnDestroy {
   getDisplayOffers(): PublicSpecialOffer[] {
     if (this.isLoggedIn) {
       // For logged users, show only their available offers
-      return this.specialOffers.filter(offer => 
+      return this.specialOffers.filter(offer =>
         this.userOffers.some(userOffer => userOffer.specialOfferId === offer.id)
       );
     } else {
       // For non-logged users, show all public offers
       return this.specialOffers;
     }
+  }
+
+  /** First-time customer offer from the public special offers (percentage is admin-configurable, never hardcoded). */
+  get firstTimeOffer(): PublicSpecialOffer | undefined {
+    return this.specialOffers?.find(o =>
+      o.requiresFirstTimeCustomer ||
+      o.type === 'FirstTime' ||
+      (o.name?.toLowerCase().includes('first time') ?? false) ||
+      (o.name?.toLowerCase().includes('first-time') ?? false)
+    );
+  }
+
+  /** Display label for the first-time discount, e.g. "10%" or "$20". Empty when no offer is loaded. */
+  get firstTimeDiscountLabel(): string {
+    const offer = this.firstTimeOffer;
+    if (!offer) return '';
+    return offer.isPercentage ? `${offer.discountValue}%` : `$${offer.discountValue}`;
+  }
+
+  /** Opens the login modal (with register toggle) for logged-out visitors who want
+   *  to access Bubble Rewards points and their referral link. Returns them to /rewards. */
+  openRewardsLogin(): void {
+    this.authModalService.open('login', '/rewards');
   }
 
   onOfferClick() {
@@ -622,106 +627,6 @@ export class MainComponent implements OnInit, OnDestroy {
     const nowUtc = new Date();
     const nyString = nowUtc.toLocaleString('en-US', { timeZone: 'America/New_York' });
     return new Date(nyString);
-  }
-
-  // ---------- Next-available slot (admin-block aware) ----------
-  /**
-   * Fetches the next ~14 days of admin block records and picks the first
-   * future date+time that is not blocked, mirroring the booking flow's
-   * earliest = tomorrow rule and the weekend 09:30 start.
-   */
-  private loadNextAvailableSlot() {
-    if (!this.isBrowser) return;
-
-    const now = this.getNowInNewYork();
-    const fromDate = new Date(now);
-    fromDate.setDate(fromDate.getDate() + 1); // earliest is tomorrow (matches booking page)
-    const toDate = new Date(now);
-    toDate.setDate(toDate.getDate() + 14);    // look 2 weeks ahead — plenty in practice
-
-    const fmt = (d: Date) => {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${day}`;
-    };
-
-    this.subscription.add(
-      this.bookingService.getBlockedTimeSlots(fmt(fromDate), fmt(toDate)).subscribe({
-        next: (blocked) => {
-          this.nextAvailableLabel = this.findFirstAvailableSlot(fromDate, blocked);
-          this.cdr.detectChanges();
-        },
-        error: () => {
-          // Backend unreachable — fall back to a sensible default so the panel still has copy.
-          this.nextAvailableLabel = this.formatSlotLabel(fromDate, '10:00');
-        }
-      })
-    );
-  }
-
-  private findFirstAvailableSlot(start: Date, blocked: BlockedTimeSlot[]): string {
-    // Index blocks by date string for O(1) lookup.
-    const blocksByDate = new Map<string, BlockedTimeSlot>();
-    for (const b of blocked) {
-      blocksByDate.set(b.date, b);
-    }
-
-    const cursor = new Date(start);
-    cursor.setHours(0, 0, 0, 0);
-
-    // Iterate up to 14 days; if everything's blocked we silently leave the label empty.
-    for (let i = 0; i < 14; i++) {
-      const dateKey = (() => {
-        const y = cursor.getFullYear();
-        const m = String(cursor.getMonth() + 1).padStart(2, '0');
-        const d = String(cursor.getDate()).padStart(2, '0');
-        return `${y}-${m}-${d}`;
-      })();
-
-      const block = blocksByDate.get(dateKey);
-      if (!block || !block.isFullDay) {
-        // Day is bookable. Now find earliest non-blocked time.
-        const isWeekend = cursor.getDay() === 0 || cursor.getDay() === 6;
-        const slots = isWeekend
-          ? MainComponent.TIME_SLOTS_WEEKEND
-          : MainComponent.TIME_SLOTS_WEEKDAY;
-
-        const blockedHours = new Set<string>(
-          (block?.blockedHours ?? '').split(',').map(s => s.trim()).filter(Boolean)
-        );
-        const firstFree = slots.find(t => !blockedHours.has(t));
-        if (firstFree) {
-          return this.formatSlotLabel(cursor, firstFree);
-        }
-      }
-
-      cursor.setDate(cursor.getDate() + 1);
-    }
-
-    return '';
-  }
-
-  private formatSlotLabel(date: Date, time24: string): string {
-    // "Tomorrow 10:00 AM" if the date is exactly tomorrow, else "Mon, Mar 4 at 9:30 AM".
-    const tomorrow = this.getNowInNewYork();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    tomorrow.setHours(0, 0, 0, 0);
-    const target = new Date(date);
-    target.setHours(0, 0, 0, 0);
-
-    const [hh, mm] = time24.split(':').map(Number);
-    const period = hh >= 12 ? 'PM' : 'AM';
-    const hour12 = ((hh + 11) % 12) + 1;
-    const timeLabel = `${hour12}:${String(mm).padStart(2, '0')} ${period}`;
-
-    if (target.getTime() === tomorrow.getTime()) {
-      return `Tomorrow ${timeLabel}`;
-    }
-    const dayLabel = target.toLocaleDateString('en-US', {
-      weekday: 'short', month: 'short', day: 'numeric'
-    });
-    return `${dayLabel} at ${timeLabel}`;
   }
 
   // ---------- Bookings counter (deterministic per day) ----------

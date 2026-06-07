@@ -1,0 +1,109 @@
+.first-time-popup {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 999;
+  width: 320px;
+  max-width: calc(100vw - 48px);
+  display: flex;
+  gap: 14px;
+  padding: 20px 22px;
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px var(--shadow-color);
+  animation: first-time-popup-in 0.35s ease-out both;
+
+  // Hard mobile guard (the component is desktop-only, but this keeps it hidden
+  // even if the markup renders on a narrow viewport for any reason).
+  @media (max-width: 768px), (hover: none) {
+    display: none;
+  }
+}
+
+@keyframes first-time-popup-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.first-time-popup__close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 15px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: var(--surface-subtle);
+    color: var(--text-primary);
+  }
+}
+
+.first-time-popup__icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--mint-fresh);
+  color: var(--fresh-green);
+  font-size: 22px;
+}
+
+.first-time-popup__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.first-time-popup__badge {
+  display: inline-block;
+  margin-bottom: 4px;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--mint-fresh);
+  color: var(--fresh-green);
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.3px;
+}
+
+.first-time-popup__title {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.first-time-popup__text {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.first-time-popup__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  text-decoration: none;
+  font-size: 14px;
+}

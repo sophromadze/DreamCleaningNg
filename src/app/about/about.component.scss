@@ -131,6 +131,42 @@
   }
 }
 
+.why-we-exist {
+  .story-problems {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 1rem;
+    display: grid;
+    gap: 0.5rem;
+
+    li {
+      position: relative;
+      padding-left: 1.75rem;
+      font-size: 1.1rem;
+      color: var(--text-primary);
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0.55em;
+        width: 8px;
+        height: 8px;
+        background: var(--primary-color);
+        border-radius: 50%;
+      }
+    }
+  }
+}
+
+// "How We Work" reuses the core-values card grid; the icon slot holds a step number.
+.how-we-work .value-icon .step-num {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
 .core-values {
   .values-grid {
     display: grid;
@@ -140,7 +176,7 @@
   }
   
   .value-card {
-    background: var(--mint-fresh);
+    background: var(--soft-blue);
     padding: 1rem;
     border-radius: 16px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);

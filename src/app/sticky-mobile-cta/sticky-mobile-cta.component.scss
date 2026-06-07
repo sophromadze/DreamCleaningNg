@@ -10,69 +10,50 @@
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 999;
-    padding: 10px 12px;
-    gap: 8px;
-    background: var(--surface);
+    z-index: 1002; // above the open hamburger menu (1001) so it stays visible
+    padding: 0;
+    // Elevated surface (one shade lighter than --surface in dark mode) so the bar
+    // reads as a distinct floating element above the page content.
+    background: var(--surface-elevated);
     box-shadow: 0 -4px 12px var(--shadow-color);
     -webkit-tap-highlight-color: transparent;
   }
 
-  .cta-btn {
+  /* Full-width clickable row styled as a text link (no padding / no radius / no button chrome) */
+  .cta-book-full {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
-    padding: 10px 8px;
-    border-radius: 10px;
-    font-weight: 600;
-    font-size: 13px;
+    gap: 8px;
+    min-height: 35px; // tap target without using padding
+    padding: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
     text-decoration: none;
-    color: white;
-    transition: all 0.2s ease;
-    border: none;
-    cursor: pointer;
+    color: var(--primary-text);
     -webkit-tap-highlight-color: transparent;
 
     &:active {
-      transform: scale(0.98);
+      opacity: 0.7;
     }
   }
 
-  .call-btn {
-    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
-    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
-
-    &:hover {
-      background: linear-gradient(135deg, #48d164 0%, #34ce57 100%);
-      box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
-    }
+  .cta-book-main {
+    display: inline-flex;
+    align-items: center;
+    font-weight: var(--fw-semibold);
+    font-size: 15px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 
-  .book-btn {
-    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
-
-    &:hover {
-      background: linear-gradient(135deg, #339cff 0%, #1a82ff 100%);
-      box-shadow: 0 4px 12px rgba(0, 123, 255, 0.4);
-    }
-  }
-
-  .quote-btn {
-    background: var(--btn-quote);
-    box-shadow: var(--btn-quote-shadow);
-
-    &:hover {
-      background: var(--btn-quote-hover);
-      box-shadow: var(--btn-quote-shadow-hover);
-    }
-  }
-
-  .cta-icon {
-    width: 18px;
-    height: 18px;
-    flex-shrink: 0;
+  /* Offer text alongside the link — plain accent text, no chip */
+  .cta-book-offer {
+    font-weight: var(--fw-semibold);
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
   }
 }

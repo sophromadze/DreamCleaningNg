@@ -10,7 +10,7 @@ import { MaintenanceModeService, MaintenanceModeStatus } from '../services/maint
     <div class="maintenance-container">
       <div class="maintenance-content">
         <div class="maintenance-icon">
-          ðŸ”§
+          🔧
         </div>
         <h1>We're Under Maintenance</h1>
         <p class="maintenance-message">

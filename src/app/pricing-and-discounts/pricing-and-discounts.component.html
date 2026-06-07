@@ -1,0 +1,248 @@
+<div class="info-page pricing-page">
+  <section class="hero-section">
+    <div class="container">
+      <h1>Cleaning Prices &amp; Discounts in NYC</h1>
+      <p class="subtitle">Transparent flat-rate &amp; hourly pricing for Brooklyn, Manhattan &amp; Queens — plus every way to save</p>
+    </div>
+  </section>
+
+  <div class="container">
+
+    <!-- ── Intro ─────────────────────────────────────────────── -->
+    <section class="intro">
+      <p>
+        Dream Cleaning believes in <strong>honest, upfront pricing</strong>. Every cleaning starts from a clear flat rate or hourly price — no hidden fees, no surprises. Below you'll find what each of our services costs across <strong>Brooklyn, Manhattan and Queens</strong>, along with every discount and rewards program we offer so you always get the best value.
+      </p>
+      <div class="intro-actions">
+        <a routerLink="/booking" class="btn-primary cta">Get an Instant Estimate</a>
+        <a routerLink="/free-quote" class="btn-quote cta">Request a Free Quote</a>
+      </div>
+    </section>
+
+    <!-- ── Service prices ────────────────────────────────────── -->
+    <section class="section" aria-labelledby="prices-heading">
+      <h2 id="prices-heading" class="section-title">Our Cleaning Prices</h2>
+      <p class="section-lead">
+        Flat-rate services are priced by home size and condition; specialty services are billed by the hour. These are starting prices — your exact total is shown instantly when you book.
+      </p>
+
+      <h3 class="group-title">Flat-Rate Cleanings</h3>
+      <div class="price-grid">
+        <article class="price-card">
+          <h4 class="price-card__name">Standard Cleaning</h4>
+          <div class="price-card__price">from ${{ pricing.residentialFrom }}</div>
+          <p class="price-card__desc">Our everyday maintenance clean — kitchens, bathrooms, bedrooms and living areas dusted, wiped, vacuumed and mopped. Perfect for keeping an already-tidy home consistently fresh.</p>
+        </article>
+        <article class="price-card">
+          <h4 class="price-card__name">Deep Cleaning</h4>
+          <div class="price-card__price">from ${{ pricing.deepFrom }}</div>
+          <p class="price-card__desc">A top-to-bottom reset that reaches baseboards, inside appliances, behind furniture and built-up grime. Ideal for first cleanings or homes that need extra attention.</p>
+        </article>
+        <article class="price-card">
+          <h4 class="price-card__name">Move In / Move Out Cleaning</h4>
+          <div class="price-card__price">from ${{ pricing.moveInOutFrom }}</div>
+          <p class="price-card__desc">A detailed clean for empty homes — cabinet interiors, inside appliances and wall spot-cleaning — so you hand over (or move into) a spotless space.</p>
+        </article>
+      </div>
+
+      <h3 class="group-title">Hourly Services</h3>
+      <div class="price-grid">
+        <article class="price-card price-card--hourly">
+          <h4 class="price-card__name">Custom Cleaning</h4>
+          <div class="price-card__price">${{ pricing.customPerHour }}<span class="price-card__unit">/hour</span></div>
+          <p class="price-card__desc">Build your own clean. Choose exactly the rooms and tasks you want and we work to your priorities for the time you book — flexible and fully tailored to your home.</p>
+        </article>
+        <article class="price-card price-card--hourly">
+          <h4 class="price-card__name">Heavy Condition Cleaning</h4>
+          <div class="price-card__price">${{ pricing.heavyConditionPerHour }}<span class="price-card__unit">/hour per cleaner</span></div>
+          <p class="price-card__desc">For homes that haven't been cleaned in 6+ months. Intensive wall washing, cabinet interiors, under-sink areas and restoration-level work to bring a space back to life.</p>
+        </article>
+        <article class="price-card price-card--hourly">
+          <h4 class="price-card__name">Filthy Cleaning</h4>
+          <div class="price-card__price">${{ pricing.filthyPerHour }}<span class="price-card__unit">/hour per cleaner</span></div>
+          <p class="price-card__desc">Our most intensive service for extreme situations — hoarding cleanups, severe neglect and heavy buildup. Specialized, no-judgment deep restoration cleaning.</p>
+        </article>
+      </div>
+
+      <p class="price-note">
+        <strong>Note:</strong> Heavy condition and filthy cleaning are priced per hour <em>per cleaner</em>, and we often send a team to finish faster. You'll always see a clear estimate before you confirm.
+      </p>
+    </section>
+
+    <!-- ── Discounts & savings ───────────────────────────────── -->
+    <section class="section" aria-labelledby="discounts-heading">
+      <h2 id="discounts-heading" class="section-title">Discounts &amp; Ways to Save</h2>
+      <p class="section-lead">
+        We reward new customers, regulars, loyal fans and anyone who spreads the word. Here's every way to pay less for a cleaner home.
+      </p>
+
+      <div class="discount-grid">
+
+        <!-- First-time -->
+        <article class="discount-card discount-card--first">
+          <div class="discount-card__icon" aria-hidden="true"><i class="fas fa-gift"></i></div>
+          <div class="discount-card__head">
+            <h3 class="discount-card__title">First-Time Customer Discount</h3>
+            <span class="discount-card__badge" *ngIf="firstTimeLabel">{{ firstTimeLabel }} OFF</span>
+          </div>
+          <p class="discount-card__desc">
+            New to Dream Cleaning? Your very first cleaning comes with an exclusive first-time discount{{ firstTimeLabel ? ' of ' + firstTimeLabel : '' }}, applied automatically at checkout. It's the easiest, lowest-risk way to experience our service.
+          </p>
+          <p class="discount-card__benefit"><i class="fas fa-check"></i> Try us risk-free at the best possible price.</p>
+          <a routerLink="/booking" class="discount-card__link">Book your first clean →</a>
+        </article>
+
+        <!-- Recurring -->
+        <article class="discount-card discount-card--recurring">
+          <div class="discount-card__icon" aria-hidden="true"><i class="fas fa-calendar-check"></i></div>
+          <div class="discount-card__head">
+            <h3 class="discount-card__title">Recurring Plan Discounts</h3>
+          </div>
+          <p class="discount-card__desc">
+            The more often we clean, the more you save. Pick a recurring plan when you book and the discount is applied automatically to <strong>every single visit</strong>.
+          </p>
+          <ul class="discount-card__list" *ngIf="recurringPlans.length">
+            <li *ngFor="let plan of recurringPlans">
+              <strong>{{ plan.name }}</strong> — save <strong>{{ plan.label }}</strong> on every cleaning
+            </li>
+          </ul>
+          <p class="discount-card__desc" *ngIf="!recurringPlans.length">
+            Weekly, bi-weekly and monthly plans all include automatic savings — the more frequent your cleanings, the bigger your discount.
+          </p>
+          <p class="discount-card__benefit"><i class="fas fa-check"></i> A consistently fresh home for less, with zero effort to re-book.</p>
+        </article>
+
+        <!-- Bubble Rewards -->
+        <article class="discount-card discount-card--rewards">
+          <div class="discount-card__icon" aria-hidden="true"><i class="fas fa-star"></i></div>
+          <div class="discount-card__head">
+            <h3 class="discount-card__title">Bubble Rewards (Loyalty Points)</h3>
+          </div>
+          <p class="discount-card__desc">
+            Earn <strong>bubble points</strong> on every dollar you spend, then redeem them for real money off future cleanings. As your lifetime spending grows you climb tiers — <strong>Bubble → Super Bubble → Ultra Bubble</strong> — and each tier multiplies the points you earn.
+          </p>
+          <ul class="discount-card__list">
+            <li>Points on every booking, redeemable for dollars off</li>
+            <li>Tier multipliers that grow your earning rate over time</li>
+            <li>Bonus points for welcome sign-up, booking streaks and Google reviews</li>
+          </ul>
+          <p class="discount-card__benefit"><i class="fas fa-check"></i> Every clean you book makes the next one cheaper.</p>
+          <a routerLink="/rewards" class="discount-card__link">Explore Bubble Rewards →</a>
+        </article>
+
+        <!-- Referral -->
+        <article class="discount-card discount-card--referral">
+          <div class="discount-card__icon" aria-hidden="true"><i class="fas fa-user-group"></i></div>
+          <div class="discount-card__head">
+            <h3 class="discount-card__title">Refer a Friend</h3>
+          </div>
+          <p class="discount-card__desc">
+            Share your personal referral link and <strong>you both win</strong>. Your friend gets bonus points when they sign up with your code, and you earn a reward balance once they complete their first cleaning — apply it to your future bookings.
+          </p>
+          <ul class="discount-card__list">
+            <li>Your friend: bonus welcome points on sign-up</li>
+            <li>You: a reward balance after their first completed clean</li>
+            <li>No limit — refer as many friends as you like</li>
+          </ul>
+          <p class="discount-card__benefit"><i class="fas fa-check"></i> Turn word-of-mouth into free cleanings.</p>
+          <a routerLink="/rewards" class="discount-card__link">Get your referral link →</a>
+        </article>
+
+        <!-- Seasonal / event -->
+        <article class="discount-card discount-card--seasonal">
+          <div class="discount-card__icon" aria-hidden="true"><i class="fas fa-tags"></i></div>
+          <div class="discount-card__head">
+            <h3 class="discount-card__title">Seasonal &amp; Holiday Specials</h3>
+          </div>
+          <p class="discount-card__desc">
+            Throughout the year we run limited-time promotions around major events and seasons — think <strong>Black Friday</strong>, <strong>Christmas</strong>, <strong>New Year</strong>, <strong>Thanksgiving</strong> and spring-cleaning season. These are time-limited, so it pays to book while they're live.
+          </p>
+          <ul class="discount-card__list discount-card__list--offers" *ngIf="seasonalOffers.length">
+            <li *ngFor="let offer of seasonalOffers">
+              <span class="offer-pill">{{ offerLabel(offer) }} OFF</span>
+              <strong>{{ offer.name }}</strong>
+              <span *ngIf="offer.description"> — {{ offer.description }}</span>
+            </li>
+          </ul>
+          <p class="discount-card__benefit"><i class="fas fa-check"></i> Big seasonal savings for a deep clean when you need it most.</p>
+        </article>
+
+        <!-- Gift cards (rounds out the value story + internal link) -->
+        <article class="discount-card discount-card--gift">
+          <div class="discount-card__icon" aria-hidden="true"><i class="fas fa-credit-card"></i></div>
+          <div class="discount-card__head">
+            <h3 class="discount-card__title">Gift Cards</h3>
+          </div>
+          <p class="discount-card__desc">
+            Give the gift of a clean home. Dream Cleaning gift cards are bought online instantly and can be applied to any cleaning service across Brooklyn, Manhattan and Queens.
+          </p>
+          <p class="discount-card__benefit"><i class="fas fa-check"></i> A thoughtful, always-useful gift for any occasion.</p>
+          <a routerLink="/gift-cards" class="discount-card__link">Buy a gift card →</a>
+        </article>
+
+      </div>
+
+      <!-- Log-in prompt — Bubble Rewards & referrals need an account -->
+      <div class="login-callout" *ngIf="!isLoggedIn">
+        <div class="login-callout__icon" aria-hidden="true"><i class="fas fa-unlock-keyhole"></i></div>
+        <div class="login-callout__body">
+          <h3 class="login-callout__title">Log in to unlock your rewards</h3>
+          <p class="login-callout__text">
+            Bubble Rewards points, your reward balance and your personal referral link all live in your free account. Log in or sign up to start earning on every cleaning and see the offers available to you.
+          </p>
+        </div>
+        <button type="button" class="btn-primary cta login-callout__btn" (click)="openRewardsLogin()">Log In or Sign Up</button>
+      </div>
+      <div class="login-callout login-callout--member" *ngIf="isLoggedIn">
+        <div class="login-callout__icon" aria-hidden="true"><i class="fas fa-star"></i></div>
+        <div class="login-callout__body">
+          <h3 class="login-callout__title">Your rewards are waiting</h3>
+          <p class="login-callout__text">Check your bubble points, redeem them for money off, and grab your referral link from your rewards dashboard.</p>
+        </div>
+        <a routerLink="/rewards" class="btn-primary cta login-callout__btn">View My Rewards</a>
+      </div>
+    </section>
+
+    <!-- ── Frequently asked questions ────────────────────────── -->
+    <section class="section" aria-labelledby="faq-heading">
+      <h2 id="faq-heading" class="section-title">Pricing &amp; Discounts FAQ</h2>
+      <div class="faq-list">
+        <article class="faq-item">
+          <h3 class="faq-item__q">How much does house cleaning cost in NYC?</h3>
+          <p class="faq-item__a">
+            Standard cleaning starts from ${{ pricing.residentialFrom }}, deep cleaning from ${{ pricing.deepFrom }}, and move in/out cleaning from ${{ pricing.moveInOutFrom }}. Hourly services include custom cleaning at ${{ pricing.customPerHour }}/hour, heavy condition cleaning at ${{ pricing.heavyConditionPerHour }}/hour per cleaner, and filthy cleaning at ${{ pricing.filthyPerHour }}/hour per cleaner.
+          </p>
+        </article>
+        <article class="faq-item">
+          <h3 class="faq-item__q">Do you offer a first-time customer discount?</h3>
+          <p class="faq-item__a">
+            Yes — your first cleaning comes with a first-time discount{{ firstTimeLabel ? ' of ' + firstTimeLabel : '' }}, applied automatically at checkout. We also offer recurring discounts for weekly, bi-weekly and monthly plans.
+          </p>
+        </article>
+        <article class="faq-item">
+          <h3 class="faq-item__q">How can I save money on regular cleaning?</h3>
+          <p class="faq-item__a">
+            Book a recurring plan to save more the more often we clean, earn Bubble Rewards points on every booking to redeem for money off, and refer friends so you both get rewarded. We also run seasonal and holiday specials around Black Friday, Christmas and other events.
+          </p>
+        </article>
+        <article class="faq-item">
+          <h3 class="faq-item__q">Do you have a loyalty or referral program?</h3>
+          <p class="faq-item__a">
+            Yes. Our Bubble Rewards program earns points on every dollar you spend — redeemable for discounts — with tiers that multiply your points. Our referral program rewards both you and any friend you refer.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ── Closing CTA ───────────────────────────────────────── -->
+    <section class="closing-cta">
+      <h2>See your exact price in under 2 minutes</h2>
+      <p>Build your cleaning, apply any discount and get an instant estimate — no obligation.</p>
+      <div class="intro-actions">
+        <a routerLink="/booking" class="btn-primary cta">Get an Instant Estimate</a>
+        <a routerLink="/contact" class="btn-secondary cta">Talk to Us</a>
+      </div>
+    </section>
+
+  </div>
+</div>

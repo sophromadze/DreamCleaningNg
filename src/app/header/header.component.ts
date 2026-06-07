@@ -10,6 +10,7 @@ import { ThemeService } from '../services/theme.service';
 import { NewOrderNotificationService } from '../services/new-order-notification.service';
 import { TaskService } from '../services/task.service';
 import { SignalRService } from '../services/signalr.service';
+import { PhoneClickTrackingService } from '../services/phone-click-tracking.service';
 import { combineLatest, Subject, fromEvent } from 'rxjs';
 import { takeUntil, filter, debounceTime } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
@@ -29,6 +30,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   isServicesMenuOpen = false;
   isResidentialCleaningSubmenuOpen = false;
   isMoreMenuOpen = false;
+  isAboutMenuOpen = false;
   currentUser: any = null;
   userInitials: string = '';
   isAuthInitialized = false;
@@ -55,9 +57,15 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private newOrderNotificationService: NewOrderNotificationService,
     private taskService: TaskService,
     private signalRService: SignalRService,
+    private phoneTracking: PhoneClickTrackingService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
+  }
+
+  /** Fire the GA4/Google Ads phone-click conversion before the tel: link navigates. */
+  onPhoneClick() {
+    this.phoneTracking.trackPhoneClick();
   }
 
   ngOnInit() {
@@ -394,6 +402,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     const clickedInsideUserMenu = this.elementRef.nativeElement.querySelector('.user-menu')?.contains(targetElement);
     const clickedInsideGuestAuth = this.elementRef.nativeElement.querySelector('.guest-auth-menu')?.contains(targetElement);
     const clickedInsideServices = this.elementRef.nativeElement.querySelector('.has-dropdown.services-dropdown')?.contains(targetElement);
+    const clickedInsideAbout = this.elementRef.nativeElement.querySelector('.has-dropdown.about-dropdown')?.contains(targetElement);
     const clickedInsideMore = this.elementRef.nativeElement.querySelector('.has-dropdown.more-dropdown')?.contains(targetElement);
 
     if (!clickedInsideUserMenu && this.isUserMenuOpen) {
@@ -407,7 +416,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
       this.isServicesMenuOpen = false;
       this.isResidentialCleaningSubmenuOpen = false;
     }
-    
+
+    if (!clickedInsideAbout && this.isAboutMenuOpen) {
+      this.isAboutMenuOpen = false;
+    }
+
     if (!clickedInsideMore && this.isMoreMenuOpen) {
       this.isMoreMenuOpen = false;
     }
@@ -439,6 +452,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
       this.isServicesMenuOpen = false;
       this.isResidentialCleaningSubmenuOpen = false;
       this.isMoreMenuOpen = false;
+      this.isAboutMenuOpen = false;
     }
   }
 
@@ -487,6 +501,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
       this.isServicesMenuOpen = false;
       this.isResidentialCleaningSubmenuOpen = false;
       this.isMoreMenuOpen = false;
+      this.isAboutMenuOpen = false;
         if (this.isBrowser) {
           const navLinks = this.elementRef.nativeElement.querySelector('.nav-links');
           if (navLinks) {
@@ -506,6 +521,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
       const openingServices = !this.isServicesMenuOpen;
       if (openingServices) {
         this.isMoreMenuOpen = false;
+        this.isAboutMenuOpen = false;
       }
       this.isServicesMenuOpen = !this.isServicesMenuOpen;
       if (!this.isServicesMenuOpen) {
@@ -571,6 +587,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.isServicesMenuOpen = false;
     this.isResidentialCleaningSubmenuOpen = false;
     this.isMoreMenuOpen = false;
+    this.isAboutMenuOpen = false;
     this.isUserMenuOpen = false;
     this.isLoginMenuOpen = false;
     this.isMenuOpen = false;
@@ -610,6 +627,55 @@ export class HeaderComponent implements OnInit, OnDestroy {
     if (!this.isMobile) {
       this.isServicesMenuOpen = true;
       this.isMoreMenuOpen = false;
+      this.isAboutMenuOpen = false;
+    }
+  }
+
+  // About dropdown handlers (mirrors the More/Information dropdown)
+  showAboutMenu() {
+    if (!this.isMobile) {
+      this.isAboutMenuOpen = true;
+      this.isServicesMenuOpen = false;
+      this.isResidentialCleaningSubmenuOpen = false;
+      this.isMoreMenuOpen = false;
+    }
+  }
+
+  hideAboutMenu() {
+    if (!this.isMobile) {
+      this.isAboutMenuOpen = false;
+    }
+  }
+
+  closeAboutMenu() {
+    this.isAboutMenuOpen = false;
+  }
+
+  toggleAboutMenu(event?: Event) {
+    if (event) {
+      event.stopPropagation();
+    }
+
+    if (this.isMobile) {
+      const openingAbout = !this.isAboutMenuOpen;
+      if (openingAbout) {
+        this.isServicesMenuOpen = false;
+        this.isResidentialCleaningSubmenuOpen = false;
+        this.isMoreMenuOpen = false;
+      }
+      this.isAboutMenuOpen = !this.isAboutMenuOpen;
+    }
+  }
+
+  onAboutClick(event: Event) {
+    if (this.isMobile) {
+      // On mobile, only toggle menu, don't navigate
+      event.preventDefault();
+      this.toggleAboutMenu(event);
+    } else {
+      // On desktop, navigate to the About page and close menu
+      this.closeAboutMenu();
+      this.router.navigate(['/about']);
     }
   }
 
@@ -643,6 +709,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
       this.isMoreMenuOpen = true;
       this.isServicesMenuOpen = false;
       this.isResidentialCleaningSubmenuOpen = false;
+      this.isAboutMenuOpen = false;
     }
   }
 
@@ -667,19 +734,21 @@ export class HeaderComponent implements OnInit, OnDestroy {
       if (openingMore) {
         this.isServicesMenuOpen = false;
         this.isResidentialCleaningSubmenuOpen = false;
+        this.isAboutMenuOpen = false;
       }
       this.isMoreMenuOpen = !this.isMoreMenuOpen;
     }
   }
 
-  // Handle more link click
+  // Handle Information link click (no landing page — pure dropdown trigger)
   onMoreClick(event: Event) {
     if (this.isMobile) {
       // On mobile, only toggle menu, don't navigate
       event.preventDefault();
       this.toggleMoreMenu(event);
     } else {
-      // On desktop, close menu
+      // On desktop, this is a hover dropdown with no destination — don't navigate
+      event.preventDefault();
       this.closeMoreMenu();
     }
   }
@@ -694,11 +763,22 @@ export class HeaderComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Check if current route is a service route (excludes borough pages which belong to More menu)
+  // Check if current route is a service route (excludes borough pages, which belong
+  // to the About menu, and Information-menu routes)
   isServiceRoute(): boolean {
     const currentUrl = this.router.url;
-    if (this.isMoreRoute()) return false;
+    if (this.isMoreRoute() || this.isAboutRoute()) return false;
     return currentUrl === '/service-page' || currentUrl.startsWith('/services/');
+  }
+
+  // Check if current route belongs to the About menu (Company + Service Area)
+  isAboutRoute(): boolean {
+    const currentUrl = this.router.url.split('?')[0].split('#')[0];
+    return currentUrl === '/about'
+      || currentUrl === '/reviews'
+      || currentUrl === '/services/brooklyn-cleaning'
+      || currentUrl === '/services/manhattan-cleaning'
+      || currentUrl === '/services/queens-cleaning';
   }
 
   get isDark(): boolean {
@@ -709,13 +789,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.themeService.toggle();
   }
 
-  // Check if current route is a more menu route
+  // Check if current route belongs to the Information menu (Explore + Help)
   isMoreRoute(): boolean {
-    const currentUrl = this.router.url;
-    return currentUrl === '/about' || currentUrl === '/contact' || currentUrl === '/faq'
-      || currentUrl === '/services/brooklyn-cleaning'
-      || currentUrl === '/services/manhattan-cleaning'
-      || currentUrl === '/services/queens-cleaning';
+    const currentUrl = this.router.url.split('?')[0].split('#')[0];
+    return currentUrl === '/faq'
+      || currentUrl === '/contact'
+      || currentUrl === '/cleaning-checklist'
+      || currentUrl === '/gift-cards'
+      || currentUrl === '/pricing-and-discounts';
   }
 
   openLoginModal(event?: Event) {

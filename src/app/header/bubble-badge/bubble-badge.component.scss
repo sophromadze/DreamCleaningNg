@@ -35,19 +35,19 @@
     radial-gradient(circle 18% at 70% 72%, rgba(255, 255, 255, 0.5) 0%, transparent 100%),
     radial-gradient(
       circle at 40% 38%,
-      rgba(230, 250, 255, 0.22)  0%,
-      rgba(180, 225, 255, 0.08) 35%,
-      rgba(140, 195, 255, 0.06) 55%,
-      rgba(90,  160, 255, 0.16) 75%,
-      rgba(60,  120, 240, 0.30) 100%
+      rgba(219, 234, 254, 0.22)  0%,
+      rgba(147, 197, 253, 0.08) 35%,
+      rgba(96,  165, 250, 0.06) 55%,
+      rgba(59,  130, 246, 0.16) 75%,
+      rgba(37,  99,  235, 0.30) 100%
     );
 
-  border: 1px solid rgba(160, 220, 255, 0.55);
+  border: 1px solid rgba(96, 165, 250, 0.55);
 
   box-shadow:
     inset 0 0 5px rgba(255, 255, 255, 0.18),
-    inset 0 -3px 6px rgba(60, 130, 255, 0.14),
-    0 3px 10px rgba(40, 130, 255, 0.22),
+    inset 0 -3px 6px rgba(37, 99, 235, 0.14),
+    0 3px 10px rgba(37, 99, 235, 0.22),
     0 1px 3px rgba(0, 0, 0, 0.15);
 
   animation: bubble-shimmer 5s ease-in-out infinite;
@@ -94,7 +94,7 @@
   padding: 6px 14px 0;
   border-radius: 20px;
   background: #ffffff;
-  border: 1.5px solid rgba(0, 123, 255, 0.35);
+  border: 1.5px solid rgba(37, 99, 235, 0.35);
   cursor: pointer;
   font-family: inherit;
   position: relative;
@@ -120,9 +120,9 @@
   }
 
   &:hover {
-    border-color: rgba(0, 123, 255, 0.6);
+    border-color: rgba(37, 99, 235, 0.6);
     box-shadow:
-      0 0 14px rgba(0, 123, 255, 0.15),
+      0 0 14px rgba(37, 99, 235, 0.15),
       0 3px 10px rgba(0, 0, 0, 0.08);
 
     &::after {
@@ -159,7 +159,7 @@
     font-weight: 600;
     letter-spacing: 1.2px;
     text-transform: uppercase;
-    color: rgba(0, 86, 179, 0.75);
+    color: rgba(29, 78, 216, 0.85);
     line-height: 1;
     white-space: nowrap;
   }
@@ -171,7 +171,7 @@
     left: 0;
     right: 0;
     height: 3px;
-    background: rgba(0, 80, 180, 0.2);
+    background: rgba(37, 99, 235, 0.2);
     border-radius: 0 0 22px 22px;
     overflow: visible;
     z-index: 2;
@@ -179,11 +179,11 @@
 
   &__bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, #1a7fff 0%, #00cfff 100%);
+    background: linear-gradient(90deg, var(--primary-color-hover) 0%, var(--primary-color) 100%);
     border-radius: 0 3px 3px 0;
     box-shadow:
-      0 0 10px rgba(0, 210, 255, 0.75),
-      0 0 22px rgba(0, 160, 255, 0.35);
+      0 0 10px rgba(37, 99, 235, 0.55),
+      0 0 22px rgba(37, 99, 235, 0.3);
     transition: width 0.9s cubic-bezier(0.4, 0, 0.2, 1);
     min-width: 10px;
     position: relative;
@@ -197,9 +197,9 @@
       transform: translateY(-50%);
       width: 8px;
       height: 8px;
-      background: radial-gradient(circle, #fff 0%, rgba(0, 230, 255, 0.9) 35%, transparent 75%);
+      background: radial-gradient(circle, #fff 0%, rgba(37, 99, 235, 0.9) 35%, transparent 75%);
       border-radius: 50%;
-      box-shadow: 0 0 6px rgba(0, 220, 255, 0.9);
+      box-shadow: 0 0 6px rgba(37, 99, 235, 0.9);
     }
   }
 
@@ -266,26 +266,26 @@
 
 :host-context([data-theme="dark"]) .bubble-badge {
   background: rgba(6, 14, 36, 0.68);
-  border-color: rgba(80, 160, 255, 0.3);
+  border-color: rgba(96, 165, 250, 0.3);
   backdrop-filter: blur(8px);
   box-shadow: none;
 
   .bubble-badge__points { color: #dff0ff; }
-  .bubble-badge__tier   { color: rgba(130, 200, 255, 0.7); }
+  .bubble-badge__tier   { color: rgba(96, 165, 250, 0.8); }
 
   &:hover {
-    border-color: rgba(100, 200, 255, 0.62);
+    border-color: rgba(96, 165, 250, 0.62);
     box-shadow:
-      0 0 20px rgba(0, 170, 255, 0.2),
-      0 0 8px rgba(0, 230, 255, 0.1),
+      0 0 20px rgba(37, 99, 235, 0.25),
+      0 0 8px rgba(96, 165, 250, 0.12),
       0 5px 16px rgba(0, 0, 0, 0.4);
   }
 
   .bb-bubble {
-    border-color: rgba(120, 200, 255, 0.4);
+    border-color: rgba(96, 165, 250, 0.4);
     box-shadow:
       inset 0 0 6px rgba(255, 255, 255, 0.12),
-      0 4px 12px rgba(40, 130, 255, 0.22);
+      0 4px 12px rgba(37, 99, 235, 0.22);
   }
 }
 
@@ -301,7 +301,7 @@
   }
 }
 
-@media (max-width: 435px) {
+@media (max-width: 550px) {
   .bubble-badge {
     padding: 5px 10px 0;
     min-width: 88px;

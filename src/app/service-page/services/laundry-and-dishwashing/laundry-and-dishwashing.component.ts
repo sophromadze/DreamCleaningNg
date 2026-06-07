@@ -44,7 +44,7 @@ export class LaundryAndDishwashingComponent implements OnInit, OnDestroy {
         {
           '@type': 'Service',
           'name': 'Dishwashing Service in NYC',
-          'description': 'Professional dishwashing service in NYC â€” we wash all dishes, pots, pans, and glassware, then dry and put everything away. Available as add-on or standalone service.',
+          'description': 'Professional dishwashing service in NYC — we wash all dishes, pots, pans, and glassware, then dry and put everything away. Available as add-on or standalone service.',
           'dateModified': '2026-03-22',
           'provider': {
             '@type': 'LocalBusiness',

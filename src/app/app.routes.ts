@@ -31,7 +31,7 @@ export const routes: Routes = [
     loadComponent: () => import('./about/about.component').then(m => m.AboutComponent),
     data: {
       title: 'About Dream Cleaning - NYC Cleaning Service Since 2024',
-      description: "About Dream Cleaning â€” NYC's locally owned cleaning company since 2024. 10+ background-checked cleaners, 200+ homes cleaned, 5.0-star Google rating. Serving 120 ZIP codes across Brooklyn, Manhattan & Queens."
+      description: "About Dream Cleaning — NYC's locally owned cleaning company since 2024. 10+ background-checked cleaners, 200+ homes cleaned, 5.0-star Google rating. Serving 120 ZIP codes across Brooklyn, Manhattan & Queens."
     }
   },
   {
@@ -39,7 +39,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/service-page.component').then(m => m.ServicePageComponent),
     data: {
       title: 'Cleaning Services in Manhattan, Brooklyn & Queens | Dream Cleaning',
-      description: "Dream Cleaning's professional cleaning services in NYC â€” standard cleaning, deep cleaning, move in/out, office cleaning, post-construction & more. Brooklyn, Manhattan & Queens. Book online."
+      description: "Dream Cleaning's professional cleaning services in NYC — standard cleaning, deep cleaning, move in/out, office cleaning, post-construction & more. Brooklyn, Manhattan & Queens. Book online."
     }
   },
   {
@@ -64,7 +64,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/residential-cleaning/kitchen-cleaning/kitchen-cleaning.component').then(m => m.KitchenCleaningComponent),
     data: {
       title: 'Kitchen Cleaning Service NYC | Dream Cleaning',
-      description: "Professional kitchen cleaning in NYC â€” degreasing, sanitization, stovetops, countertops, sinks, cabinet exteriors. Brooklyn, Manhattan & Queens. Book Dream Cleaning online."
+      description: "Professional kitchen cleaning in NYC — degreasing, sanitization, stovetops, countertops, sinks, cabinet exteriors. Brooklyn, Manhattan & Queens. Book Dream Cleaning online."
     }
   },
   {
@@ -72,7 +72,31 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/residential-cleaning/bathroom-cleaning/bathroom-cleaning.component').then(m => m.BathroomCleaningComponent),
     data: {
       title: 'Bathroom Cleaning Service NYC | Dream Cleaning',
-      description: "Professional bathroom cleaning in NYC â€” toilet, sink, shower/bathtub scrubbing, soap scum removal, tile cleaning. Brooklyn, Manhattan & Queens. Book Dream Cleaning online."
+      description: "Professional bathroom cleaning in NYC — toilet, sink, shower/bathtub scrubbing, soap scum removal, tile cleaning. Brooklyn, Manhattan & Queens. Book Dream Cleaning online."
+    }
+  },
+  {
+    path: 'services/house-cleaning',
+    loadComponent: () => import('./service-page/services/house-cleaning/house-cleaning.component').then(m => m.HouseCleaningComponent),
+    data: {
+      title: 'House Cleaning Service NYC | Dream Cleaning',
+      description: `Professional house cleaning in NYC by Dream Cleaning. Starting from $${SERVICE_PRICING.residentialFrom}. Multi-floor homes & estates in Queens, Brooklyn & Staten Island. Fully insured. 5.0-star rated.`
+    }
+  },
+  {
+    path: 'services/condo-cleaning',
+    loadComponent: () => import('./service-page/services/condo-cleaning/condo-cleaning.component').then(m => m.CondoCleaningComponent),
+    data: {
+      title: 'Condo Cleaning Service NYC | Dream Cleaning',
+      description: `Premium condo cleaning in NYC by Dream Cleaning. Starting from $${SERVICE_PRICING.residentialFrom}. Luxury high-rise & boutique condos in Manhattan, Brooklyn & Queens. Fully insured. 5.0-star rated.`
+    }
+  },
+  {
+    path: 'services/airbnb-cleaning',
+    loadComponent: () => import('./service-page/services/airbnb-cleaning/airbnb-cleaning.component').then(m => m.AirbnbCleaningComponent),
+    data: {
+      title: 'Airbnb Cleaning Service NYC | Short-Term Rental Turnover | Dream Cleaning',
+      description: `Airbnb & short-term rental turnover cleaning in NYC. Starting from $${SERVICE_PRICING.residentialFrom}. Same-day changeovers, hotel-quality resets, restocking. Manhattan, Brooklyn & Queens. Protect your Superhost status.`
     }
   },
   {
@@ -96,7 +120,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/custom-cleaning/custom-cleaning.component').then(m => m.CustomCleaningComponent),
     data: {
       title: 'Custom Cleaning Service NYC | Dream Cleaning',
-      description: "Custom cleaning services in NYC â€” design your own cleaning plan. Choose rooms, tasks, and duration. Brooklyn, Manhattan & Queens. Book Dream Cleaning online."
+      description: "Custom cleaning services in NYC — design your own cleaning plan. Choose rooms, tasks, and duration. Brooklyn, Manhattan & Queens. Book Dream Cleaning online."
     }
   },
   {
@@ -112,7 +136,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/heavy-condition-cleaning/heavy-condition-cleaning.component').then(m => m.HeavyConditionCleaningComponent),
     data: {
       title: 'Heavy Condition Cleaning NYC | Dream Cleaning',
-      description: `Heavy condition cleaning in NYC â€” $${SERVICE_PRICING.heavyConditionPerHour}/hour per cleaner. For homes not cleaned in 6+ months. Wall washing, cabinet interiors, professional restoration. Brooklyn, Manhattan & Queens.`
+      description: `Heavy condition cleaning in NYC — $${SERVICE_PRICING.heavyConditionPerHour}/hour per cleaner. For homes not cleaned in 6+ months. Wall washing, cabinet interiors, professional restoration. Brooklyn, Manhattan & Queens.`
     }
   },
   {
@@ -120,15 +144,23 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/filthy-cleaning/filthy-cleaning.component').then(m => m.FilthyCleaningComponent),
     data: {
       title: 'Filthy Cleaning Service NYC | Dream Cleaning',
-      description: "Filthy cleaning service in NYC â€” extreme cleaning for hoarding, severe neglect, heavy buildup. Professional restoration. Brooklyn, Manhattan & Queens. Book Dream Cleaning."
+      description: "Filthy cleaning service in NYC — extreme cleaning for hoarding, severe neglect, heavy buildup. Professional restoration. Brooklyn, Manhattan & Queens. Book Dream Cleaning."
     }
   },
   {
     path: 'services/post-construction-cleaning',
     loadComponent: () => import('./service-page/services/post-construction-cleaning/post-construction-cleaning.component').then(m => m.PostConstructionCleaningComponent),
     data: {
-      title: 'Post Construction Cleaning NYC | Dream Cleaning',
-      description: "Post construction cleaning in NYC â€” dust, debris, residue removal from all surfaces after renovation. Brooklyn, Manhattan & Queens. Book Dream Cleaning online."
+      title: 'Post Construction Cleaning NYC | Commercial Build-Outs | Dream Cleaning',
+      description: "Commercial post construction cleaning in NYC — offices, retail, and build-outs. Industrial dust, debris & residue removal from all surfaces. Brooklyn, Manhattan & Queens. Book Dream Cleaning."
+    }
+  },
+  {
+    path: 'services/post-renovation-cleaning',
+    loadComponent: () => import('./service-page/services/post-renovation-cleaning/post-renovation-cleaning.component').then(m => m.PostRenovationCleaningComponent),
+    data: {
+      title: 'Post Renovation Cleaning NYC | Home Remodel Cleanup | Dream Cleaning',
+      description: "Post renovation cleaning in NYC for homes — kitchen & bathroom remodels, room additions, fresh paint. Fine dust, paint specks & debris removal. Brooklyn, Manhattan & Queens. Book Dream Cleaning."
     }
   },
   {
@@ -144,7 +176,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/brooklyn-cleaning/brooklyn-cleaning.component').then(m => m.BrooklynCleaningComponent),
     data: {
       title: 'Cleaning Service in Brooklyn NY | Dream Cleaning',
-      description: `Professional cleaning service in Brooklyn NY â€” 38 ZIP codes covered. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. 5.0-star Google rating, 100+ reviews. Book Dream Cleaning online.`
+      description: `Professional cleaning service in Brooklyn NY — 38 ZIP codes covered. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. 5.0-star Google rating, 100+ reviews. Book Dream Cleaning online.`
     }
   },
   {
@@ -152,7 +184,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/manhattan-cleaning/manhattan-cleaning.component').then(m => m.ManhattanCleaningComponent),
     data: {
       title: 'Cleaning Service in Manhattan NY | Dream Cleaning',
-      description: `Professional cleaning service in Manhattan NY â€” 24 ZIP codes covered. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. 5.0-star Google rating, 100+ reviews. Book Dream Cleaning online.`
+      description: `Professional cleaning service in Manhattan NY — 24 ZIP codes covered. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. 5.0-star Google rating, 100+ reviews. Book Dream Cleaning online.`
     }
   },
   {
@@ -160,7 +192,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/queens-cleaning/queens-cleaning.component').then(m => m.QueensCleaningComponent),
     data: {
       title: 'Cleaning Service in Queens NY | Dream Cleaning',
-      description: `Professional cleaning service in Queens NY â€” 58 ZIP codes covered. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. 5.0-star Google rating, 100+ reviews. Book Dream Cleaning online.`
+      description: `Professional cleaning service in Queens NY — 58 ZIP codes covered. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. 5.0-star Google rating, 100+ reviews. Book Dream Cleaning online.`
     }
   },
   {
@@ -169,7 +201,7 @@ export const routes: Routes = [
     canActivate: [maintenanceGuard],
     data: {
       title: 'Book Cleaning Service | Dream Cleaning NYC',
-      description: `Book professional cleaning in NYC online in under 2 minutes. Standard cleaning from $${SERVICE_PRICING.residentialFrom}, deep cleaning from $${SERVICE_PRICING.deepFrom}. Instant estimates. Dream Cleaning â€” Brooklyn, Manhattan & Queens.`
+      description: `Book professional cleaning in NYC online in under 2 minutes. Standard cleaning from $${SERVICE_PRICING.residentialFrom}, deep cleaning from $${SERVICE_PRICING.deepFrom}. Instant estimates. Dream Cleaning — Brooklyn, Manhattan & Queens.`
     }
   },
   {
@@ -178,7 +210,23 @@ export const routes: Routes = [
     canActivate: [maintenanceGuard],
     data: {
       title: 'Contact Dream Cleaning | NYC Cleaning Service',
-      description: "Contact Dream Cleaning â€” call (929) 930-1525 or email hello@dreamcleaningnyc.com. Professional cleaning services in Brooklyn, Manhattan & Queens. 5.0-star rated."
+      description: "Contact Dream Cleaning — call (929) 930-1525 or email hello@dreamcleaningnyc.com. Professional cleaning services in Brooklyn, Manhattan & Queens. 5.0-star rated."
+    }
+  },
+  {
+    path: 'reviews',
+    loadComponent: () => import('./reviews/reviews.component').then(m => m.ReviewsComponent),
+    data: {
+      title: 'Customer Reviews | Dream Cleaning NYC',
+      description: "Read why NYC customers rate Dream Cleaning 5.0 stars across 100+ Google reviews. Professional, reliable cleaning in Brooklyn, Manhattan & Queens."
+    }
+  },
+  {
+    path: 'pricing-and-discounts',
+    loadComponent: () => import('./pricing-and-discounts/pricing-and-discounts.component').then(m => m.PricingAndDiscountsComponent),
+    data: {
+      title: 'Pricing & Discounts | Dream Cleaning NYC',
+      description: `Transparent flat-rate cleaning prices from $${SERVICE_PRICING.residentialFrom}, plus first-time and recurring (weekly, bi-weekly, monthly) discounts. Brooklyn, Manhattan & Queens.`
     }
   },
   {
@@ -195,7 +243,7 @@ export const routes: Routes = [
     canActivate: [maintenanceGuard],
     data: {
       title: 'FAQ | Dream Cleaning NYC',
-      description: `Frequently asked questions about Dream Cleaning NYC â€” pricing (from $${SERVICE_PRICING.residentialFrom}), service areas (120 ZIP codes), booking process, what's included, satisfaction guarantee, and more.`
+      description: `Frequently asked questions about Dream Cleaning NYC — pricing (from $${SERVICE_PRICING.residentialFrom}), service areas (120 ZIP codes), booking process, what's included, satisfaction guarantee, and more.`
     }
   },
   {
@@ -242,14 +290,14 @@ export const routes: Routes = [
     loadComponent: () => import('./auth/set-password/set-password.component').then(m => m.SetPasswordComponent)
   },
   {
-    // 2FA challenge â€” reached when a staff user logs in from an untrusted device.
+    // 2FA challenge — reached when a staff user logs in from an untrusted device.
     // Anonymous-friendly: the challenge lives entirely in localStorage state, no JWT yet.
     path: '2fa-challenge',
     canActivate: [clientOnlyGuard, maintenanceGuard],
     loadComponent: () => import('./auth/two-factor-challenge/two-factor-challenge.component').then(m => m.TwoFactorChallengeComponent)
   },
   {
-    // Forced 2FA PIN setup â€” staff users with no PIN are routed here after first login.
+    // Forced 2FA PIN setup — staff users with no PIN are routed here after first login.
     // Requires authGuard (we need a JWT to call /2fa/set-pin) but bypasses pinSetupGuard
     // so the user can actually reach the setup screen.
     path: 'setup-pin',

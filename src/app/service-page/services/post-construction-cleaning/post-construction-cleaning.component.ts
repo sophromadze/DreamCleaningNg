@@ -26,9 +26,9 @@ export class PostConstructionCleaningComponent implements OnInit, OnDestroy {
     const schema = {
       '@context': 'https://schema.org',
       '@type': 'Service',
-      'name': 'Post Construction Cleaning Service in NYC',
-      'description': "Dream Cleaning's post construction cleaning service removes fine construction dust, debris, and residue from every surface in your newly renovated NYC apartment or house.",
-      'dateModified': '2026-03-22',
+      'name': 'Commercial Post Construction Cleaning Service in NYC',
+      'description': "Dream Cleaning's commercial post construction cleaning service removes fine construction dust, debris, and residue from offices, retail spaces, restaurants, and commercial build-outs across Manhattan, Brooklyn, and Queens — preparing your space for occupancy and inspection.",
+      'dateModified': '2026-06-06',
       'provider': { '@type': 'LocalBusiness', 'name': 'Dream Cleaning', '@id': 'https://dreamcleaningnyc.com/#business' },
       'areaServed': { '@type': 'City', 'name': 'New York' },
       'serviceType': 'Post Construction Cleaning'

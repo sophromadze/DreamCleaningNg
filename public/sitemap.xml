@@ -49,6 +49,30 @@
     <priority>0.7</priority>
   </url>
 
+  <!-- House Cleaning Service -->
+  <url>
+    <loc>https://dreamcleaningnyc.com/services/house-cleaning</loc>
+    <lastmod>2026-06-06T10:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Condo Cleaning Service -->
+  <url>
+    <loc>https://dreamcleaningnyc.com/services/condo-cleaning</loc>
+    <lastmod>2026-06-06T10:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Airbnb / Short-Term Rental Turnover Cleaning Service -->
+  <url>
+    <loc>https://dreamcleaningnyc.com/services/airbnb-cleaning</loc>
+    <lastmod>2026-06-06T10:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
   <!-- Deep Cleaning Service -->
   <url>
     <loc>https://dreamcleaningnyc.com/services/deep-cleaning</loc>
@@ -100,7 +124,15 @@
   <!-- Post Construction Cleaning Service -->
   <url>
     <loc>https://dreamcleaningnyc.com/services/post-construction-cleaning</loc>
-    <lastmod>2026-03-22T10:00:00+00:00</lastmod>
+    <lastmod>2026-06-06T10:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Post Renovation Cleaning Service -->
+  <url>
+    <loc>https://dreamcleaningnyc.com/services/post-renovation-cleaning</loc>
+    <lastmod>2026-06-06T10:00:00+00:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -159,6 +191,22 @@
     <lastmod>2026-03-22T10:00:00+00:00</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+  </url>
+
+  <!-- Reviews Page -->
+  <url>
+    <loc>https://dreamcleaningnyc.com/reviews</loc>
+    <lastmod>2026-06-06T10:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Pricing & Discounts Page -->
+  <url>
+    <loc>https://dreamcleaningnyc.com/pricing-and-discounts</loc>
+    <lastmod>2026-06-06T10:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
 
   <!-- Gift Cards -->

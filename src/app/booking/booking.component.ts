@@ -181,6 +181,9 @@ export class BookingComponent implements OnInit, OnDestroy {
   currentStep = 1;
   totalSteps = 3;
 
+  // When arriving via ?cleaningType=deep (e.g. "most requested service" CTAs), preselect Deep Cleaning
+  preselectDeepCleaning = false;
+
   // Google Places Autocomplete (step 3 address)
   @ViewChild('addressAutocompleteContainer') addressContainer!: ElementRef;
   autocompleteLoaded = false;
@@ -410,6 +413,9 @@ export class BookingComponent implements OnInit, OnDestroy {
   ngOnInit() {
     // Restore step from URL BEFORE the browser guard so SSR renders the correct step
     // (prevents hydration mismatch that shows the wrong navigation buttons on refresh)
+    // Deep-cleaning preselect from CTAs like the homepage "most requested service" button
+    this.preselectDeepCleaning = this.route.snapshot.queryParamMap.get('cleaningType') === 'deep';
+
     const stepParam = this.route.snapshot.queryParamMap.get('step');
     const stepNum = stepParam ? parseInt(stepParam, 10) : NaN;
     if (stepNum >= 1 && stepNum <= this.totalSteps) {
@@ -765,7 +771,7 @@ export class BookingComponent implements OnInit, OnDestroy {
             }
           });
           this.cleaningType.setValue(this.getCurrentCleaningType());
-        } else if (savedData.cleaningType === 'deep' && this.canSelectDeepCleaning) {
+        } else if ((savedData.cleaningType === 'deep' || this.preselectDeepCleaning) && this.canSelectDeepCleaning) {
           // Main page only saves cleaningType, not selectedExtraServices. Add deep cleaning extra
           // so the booking price uses the correct multiplier.
           const hasDeep = this.selectedExtraServices.some(s => s.extraService.isDeepCleaning);
@@ -791,6 +797,23 @@ export class BookingComponent implements OnInit, OnDestroy {
       if (residentialCleaning) {
         this.serviceTypeControl.setValue(residentialCleaning.id);
         this.selectServiceType(residentialCleaning);
+        // Honor ?cleaningType=deep (e.g. "most requested service" CTA) on a fresh booking
+        if (this.preselectDeepCleaning && this.canSelectDeepCleaning) {
+          const hasDeep = this.selectedExtraServices.some(s => s.extraService.isDeepCleaning);
+          if (!hasDeep) {
+            const deepExtra = this.getActiveDeepCleaningExtraService();
+            if (deepExtra) {
+              this.selectedExtraServices.push({
+                extraService: deepExtra,
+                quantity: 1,
+                hours: deepExtra.hasHours ? 0.5 : 0
+              });
+            }
+          }
+          this.cleaningType.setValue(this.getCurrentCleaningType());
+          this.normalizeCleaningTypeForSelectedServiceType();
+          this.saveFormData();
+        }
         this.calculateTotal();
       }
     }

@@ -1,0 +1,20 @@
+<div class="first-time-popup" *ngIf="isVisible" role="dialog" aria-label="First-time customer offer">
+  <button type="button" class="first-time-popup__close" (click)="close()" aria-label="Close offer">
+    <i class="fas fa-times" aria-hidden="true"></i>
+  </button>
+
+  <div class="first-time-popup__icon" aria-hidden="true">
+    <i class="fas fa-gift" aria-hidden="true"></i>
+  </div>
+
+  <div class="first-time-popup__body">
+    <span class="first-time-popup__badge">{{ firstTimeDiscountLabel }} OFF</span>
+    <h3 class="first-time-popup__title">Your First Cleaning</h3>
+    <p class="first-time-popup__text">
+      New customers save {{ firstTimeDiscountLabel }} on their first home cleaning. Book online in 2 minutes.
+    </p>
+    <a routerLink="/booking" class="btn-primary first-time-popup__cta" (click)="close()">
+      Book Now &amp; Save
+    </a>
+  </div>
+</div>

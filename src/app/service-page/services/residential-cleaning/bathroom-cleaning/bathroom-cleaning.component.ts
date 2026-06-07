@@ -27,7 +27,7 @@ export class BathroomCleaningComponent implements OnInit, OnDestroy {
       '@context': 'https://schema.org',
       '@type': 'Service',
       'name': 'Bathroom Cleaning Service in NYC',
-      'description': "Dream Cleaning's bathroom cleaning service delivers complete sanitization for NYC bathrooms â€” including toilet, sink, shower/bathtub scrubbing with soap scum removal, mirror polishing, tile cleaning, and fixture disinfection.",
+      'description': "Dream Cleaning's bathroom cleaning service delivers complete sanitization for NYC bathrooms — including toilet, sink, shower/bathtub scrubbing with soap scum removal, mirror polishing, tile cleaning, and fixture disinfection.",
       'dateModified': '2026-03-22',
       'provider': { '@type': 'LocalBusiness', 'name': 'Dream Cleaning', '@id': 'https://dreamcleaningnyc.com/#business' },
       'areaServed': { '@type': 'City', 'name': 'New York' },

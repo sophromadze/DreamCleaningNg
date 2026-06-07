@@ -17,10 +17,10 @@ header{
     position: relative;
     max-width: 1400px;
     margin: 0 auto;
-    padding: 0 20px; 
+    padding: 0 20px;
 
-    @media (max-width: 420px) {
-      padding: 0 10px;
+    @media (max-width: 520px) {
+      padding: 0 5px;
     }
   }
   
@@ -35,7 +35,9 @@ header{
     text-decoration: none;
     transition: all 0.3s ease;
     position: relative;
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 
     &:hover {
       transform: scale(1.02);
@@ -46,6 +48,31 @@ header{
       width: auto;
       object-fit: contain;
       display: block;
+    }
+
+    // Brand wordmark beside the logo. Day theme uses the exact logo-blue so it
+    // matches the colored mark; dark theme flips to light to match the white logo.
+    .logo-wordmark {
+      color: var(--logo-blue);
+    }
+
+    // Day logo by default; the white logo only shows in dark theme.
+    .logo-img--night {
+      display: none;
+    }
+
+    :host-context([data-theme="dark"]) & {
+      .logo-img--day {
+        display: none;
+      }
+
+      .logo-img--night {
+        display: block;
+      }
+
+      .logo-wordmark {
+        color: var(--text-primary);
+      }
     }
   }
 
@@ -67,7 +94,7 @@ header{
     align-items: center;
     justify-content: center;
     min-width: 0;
-    padding: 0 20px;
+    padding-left: 20px;
   }
 
   :host-context([data-theme="dark"]) .ny-time-clock {
@@ -118,18 +145,13 @@ header{
   .nav-container {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
     height: 100%;
   
-    // Guest: theme toggle + account menu side by side
+    // Guest: account menu only (theme toggle now lives inside the dropdown)
     .guest-auth-actions {
       display: flex;
       align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-
-    .theme-toggle--guest {
       flex-shrink: 0;
     }
 
@@ -201,9 +223,29 @@ header{
         border-radius: 8px;
         box-shadow: 0 4px 12px var(--shadow-color);
         border: 1px solid var(--border-color);
-        min-width: 100px;
+        min-width: 140px;
         margin-top: 8px;
         z-index: 1000;
+
+        // Theme toggle row at the top of the guest dropdown
+        .guest-menu-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 10px 14px;
+          border-bottom: 1px solid var(--border-color);
+          color: var(--text-muted);
+          font-size: 0.9rem;
+          border-top-left-radius: 8px;
+          border-top-right-radius: 8px;
+
+          .theme-toggle--inline {
+            flex-shrink: 0;
+            width: 30px;
+            height: 30px;
+          }
+        }
 
         a {
           display: block;
@@ -215,11 +257,6 @@ header{
           &:hover {
             background: var(--page-bg);
             color: var(--primary-color);
-          }
-
-          &:first-child:hover {
-            border-top-left-radius: 8px;
-            border-top-right-radius: 8px;
           }
 
           &:last-child:hover {
@@ -240,7 +277,7 @@ header{
       flex-shrink: 0;
 
       .guest-auth-actions {
-        min-width: 72px;
+        min-width: 32px;
       }
     }
 
@@ -333,12 +370,95 @@ header{
         }
       }
 
+      // Header CTA pair: soft "Get a Quote" (ghost) + hard "Book Online" (accent).
+      // Sits at the right end of the nav links, just before the auth/login menu.
+      .header-cta {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+        margin-left: 6px;
+
+        a {
+          white-space: nowrap;
+          padding: 9px 18px;
+          border-radius: 25px;
+          font-weight: 600;
+          font-size: 14px;
+          line-height: 1;
+          text-decoration: none;
+          display: inline-flex;
+          align-items: center;
+          transition: all 0.25s ease;
+        }
+
+        // Phone link is mobile-menu only
+        a.menu-phone-link {
+          display: none;
+        }
+
+        // Soft / ghost CTA — exploring (first-time) customers
+        a.btn-quote-ghost {
+          background: transparent;
+          color: var(--btn-quote);
+          border: 1.5px solid var(--btn-quote);
+
+          &:hover {
+            background: var(--btn-quote);
+            color: white;
+            transform: translateY(-1px);
+          }
+
+          &.active {
+            background: var(--btn-quote);
+            color: white;
+          }
+
+          // Night mode: white ghost (text + outline) instead of indigo
+          :host-context([data-theme="dark"]) & {
+            color: white;
+            border-color: white;
+
+            &:hover {
+              background: rgba(255, 255, 255, 0.16);
+              color: white;
+            }
+
+            &.active {
+              background: rgba(255, 255, 255, 0.16);
+              color: white;
+            }
+          }
+        }
+
+        // Hard / accent CTA — ready-to-book (returning) customers
+        a.btn-book {
+          background: var(--btn-primary);
+          color: white;
+          border: 1.5px solid transparent;
+          box-shadow: var(--btn-primary-shadow);
+
+          &:hover {
+            background: var(--btn-primary-hover);
+            color: white;
+            transform: translateY(-1px);
+            box-shadow: var(--btn-primary-shadow-hover);
+          }
+
+          &.active {
+            background: var(--btn-primary-hover);
+            color: white;
+          }
+        }
+      }
+
       // Mega dropdown styles
       .has-dropdown {
         position: relative;
         height: 100%;
         display: flex;
         align-items: center;
+        text-align: right;
 
         a {
           font-weight: 500;
@@ -479,7 +599,7 @@ header{
               padding-left: 20px;
 
               &:hover {
-                padding-left: 28px;
+                transform: translateX(8px);
               }
             }
           }
@@ -512,8 +632,11 @@ header{
         text-align: left;
         padding-left: 20px;
 
+        // Shift with transform (not padding) so the centered .sub-links box
+        // never changes width — otherwise hovering the longest link in a column
+        // re-centers the box and drags the other links sideways.
         &:hover {
-          padding-left: 28px;
+          transform: translateX(8px);
         }
       }
 
@@ -521,10 +644,11 @@ header{
         font-size: 18px;
         font-weight: 600;
         color: var(--primary-color);
-        margin-bottom: 15px;
-        padding-bottom: 10px;
+        margin-bottom: 8px;
+        padding-bottom: 6px;
         border-bottom: 2px solid var(--primary-color);
         display: block;
+        text-align: center;
       }
 
       .dropdown-column > a:hover {
@@ -562,17 +686,48 @@ header{
       .sub-links a:hover {
         color: var(--primary-color);
         background: transparent;
-        padding-left: 28px;
+        transform: translateX(8px);
       }
 
       .sub-links a:hover:before {
         opacity: 1;
         left: 5px;
       }
+
+      // Unclickable sub-link (e.g. Blog — coming soon)
+      .sub-links .sub-link-disabled {
+        font-size: 14px;
+        padding: 4px 0 4px 20px;
+        color: var(--text-muted);
+        display: block;
+        text-align: left;
+        width: 100%;
+        cursor: default;
+        user-select: none;
+
+        small {
+          display: inline-block;
+          margin-left: 6px;
+          padding: 1px 7px;
+          font-size: 10px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          color: var(--text-muted);
+          background: var(--surface-subtle);
+          border-radius: var(--radius-pill);
+          vertical-align: middle;
+        }
+      }
     }
 }
   
   .mobile-phone-icon {
+    display: none;
+  }
+
+  // Mobile-only soft CTA surfaced in the top bar (desktop uses the .header-cta pair)
+  .mobile-quote-btn {
     display: none;
   }
 
@@ -585,22 +740,24 @@ header{
     height: 32px;
     padding: 0;
     box-sizing: border-box;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
 
-    // 3×3 grid exactly 32×32px: 3 bubbles + 2 gaps = 32 (smaller gap for tighter look)
-    $bubble: 7px;
-    $gap: 3px;
-    $step: $bubble + $gap;
+    // Three horizontal lines (classic hamburger).
+    // Integer line height so all three render at the same weight (a fractional
+    // height like 2.5px rounds unevenly per line and makes the middle look thinner).
+    $line-h: 2px;
+    $gap: 7px;
+    $step: $line-h + $gap;
 
     span {
       display: block;
-      width: $bubble;
-      height: $bubble;
+      width: 24px;
+      height: $line-h;
       background: var(--primary-color);
-      border-radius: 50%;
-      margin: $gap auto;
-      box-shadow:
-        (-$step) 0 0 0 var(--primary-color),
-        $step 0 0 0 var(--primary-color);
+      border-radius: 2px;
       transform-origin: center;
       // Ease-out with no overshoot: control points in [0,1] so transform never goes past target
       transition:
@@ -608,11 +765,11 @@ header{
         opacity 0.3s ease;
     }
 
-    // Active state: top + bottom rows meet at center, middle fades
+    // Active state: top + bottom lines cross into an X, middle fades
     &.active {
       span {
         &:nth-child(1) {
-          transform: translateY($step) rotate(-45deg);
+          transform: translateY($step) rotate(45deg);
         }
 
         &:nth-child(2) {
@@ -620,18 +777,18 @@ header{
         }
 
         &:nth-child(3) {
-          transform: translateY(-$step) rotate(45deg);
+          transform: translateY(-$step) rotate(-45deg);
         }
       }
     }
 
-    // iOS: middle row (2nd line) circles disappear instantly — avoids slow box-shadow fade
+    // iOS: middle line disappears instantly — avoids slow fade out of sync with rotation
     @supports (-webkit-touch-callout: none) {
       &.active span:nth-child(2) {
         transition: none;
       }
     }
-  }  
+  }
   
   
   
@@ -641,7 +798,6 @@ header{
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    padding: 8px;
     border-radius: 4px;
     transition: background 0.3s ease;
   
@@ -1017,11 +1173,59 @@ header{
     }
   }
 
+  /* Compact desktop nav between the hamburger breakpoint (768px) and 1000px.
+     Scoped to hover-capable devices so touch devices — which are already on the
+     hamburger via `(hover: none)` — are unaffected. Tightens spacing, drops one
+     pixel off the nav font sizes, shrinks the logo, and stacks the CTA pair. */
+  @media (min-width: 769px) and (max-width: 1000px) and (hover: hover) {
+    .header-inner {
+      padding: 0 10px;
+    }
+
+    .nav .logo {
+      gap: 4px;
+
+      .logo-img {
+        height: 52px;
+      }
+    }
+
+    .ny-time-clock {
+      font-size: 12px;
+      padding: 3px 8px;
+    }
+
+    .nav-container {
+      .nav-links {
+        gap: 15px;
+
+        // Dropdown trigger labels: 16px → 15px
+        .has-dropdown a {
+          font-size: 15px;
+        }
+
+        // "Get a Quote" + "Book Online" stack into a column, no left margin
+        .header-cta {
+          flex-direction: column;
+          align-items: stretch;
+          margin-left: 0;
+          gap: 4px;
+
+          a {
+            justify-content: center;
+            padding: 7px 14px;
+            font-size: 13px;
+          }
+        }
+      }
+    }
+  }
+
   /* Mobile layout: narrow screen OR touch device (so tablets in landscape still get hamburger + call + mobile CTA) */
   @media (max-width: 768px), (hover: none) {
+    // NYC clock is desktop-only — hide it on mobile/touch (admins included)
     .ny-time-clock {
-      font-size: 11px;
-      padding: 3px 7px;
+      display: none;
     }
 
     .nav {
@@ -1031,11 +1235,23 @@ header{
         .logo-img{
           height: 48px;
         }
+        .logo-wordmark__line {
+          font-size: 1.3rem;
+        }
       }
     }
     
     .nav-container {
       flex-direction: row-reverse;
+      gap: 6px;
+
+      // Cluster is row-reverse on mobile; a high order value keeps the points
+      // badge at the left end of the cluster (matching desktop) instead of flipping
+      // it to the right.
+      app-bubble-badge {
+        order: 99;
+      }
+
         .nav-links {
           display: none;
           position: absolute;
@@ -1054,7 +1270,8 @@ header{
         &.active {
           display: flex;
           gap: 5px;
-          padding: 30px 20px;
+          // extra bottom padding so the last items clear the sticky bottom CTA bar
+          padding: 30px 20px 56px;
           height: auto;
           min-height: calc(100vh - 60px);
           flex-direction: column;
@@ -1071,138 +1288,232 @@ header{
           justify-content: center;
         }
   
-        a:not(.login-btn) {
+        // No blanket pill styling — menu items are flat, left-aligned rows.
+
+        // Mobile menu CTA: filled "Get a Quote" button + tracked phone link.
+        // Book Online is hidden here — the sticky bottom bar already shows it.
+        .header-cta {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 14px;
           width: 100%;
-          text-align: center;
-          border: 1px solid var(--primary-color);
-          border-radius: 25px;
-          padding: 10px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
+          margin-left: 0;
+          margin-top: 16px;
 
-          .has-dropdown {
-           width: 100%;
-           position: relative;
-
-           a {
-             width: 100%;
-             justify-content: center;
-             border: 1px solid var(--primary-color);
-             border-radius: 25px;
-             padding: 10px;
-             cursor: pointer;
-           }
-
-            .mega-dropdown {
-               position: absolute;
-               top: 100%;
-               left: 0;
-               right: 0;
-               opacity: 1;
-               visibility: visible;
-               transform: none;
-               display: none;
-               box-shadow: none;
-               background: var(--surface);
-               width: 100%;
-               max-height: none;
-               overflow: visible;
-               z-index: 1002;
-               border-bottom: none;
-             }
-
-          &.open .mega-dropdown {
-            display: block;
+          a.btn-book {
+            display: none;
           }
 
-                                                                                       .mega-dropdown-content {
-               grid-template-columns: 1fr;
-               gap: 5px;
-               padding: 0 10px;
-               transform: none;
-               max-width: none;
-               display: flex;
-               flex-direction: column;
-               width: 100%;
-               position: relative;
-               max-height: 400px;
-               overflow-y: auto;
-             }
+          a.btn-quote-ghost {
+            width: 100%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px;
+            font-size: 15px;
+            font-weight: var(--fw-bold);
+            border-radius: var(--radius-pill);
+            background: var(--btn-quote);
+            color: white;
+            border: 1.5px solid var(--btn-quote);
 
-             .specialized-wrapper {
-               grid-column: 1;
-               padding: 5px;
+            &:hover,
+            &.active {
+              background: var(--btn-quote-hover);
+              color: white;
+            }
+          }
 
-               .specialized-cols {
-                 grid-template-columns: 1fr;
-                 gap: 10px;
-               }
+          a.menu-phone-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 4px;
+            font-size: 16px;
+            font-weight: var(--fw-semibold);
+            color: var(--primary-text);
+            text-decoration: none;
+            background: transparent;
+            border: none;
 
-               .sub-links {
-                 display: flex;
-                 flex-direction: column;
-                 gap: 10px;
-                 width: 100%;
-               }
-             }
+            .menu-phone-icon {
+              width: 18px;
+              height: 18px;
+              color: var(--btn-secondary);
+            }
+          }
+        }
 
-             // Center More dropdown content on mobile (stack columns), full width, with gaps
-             .more-dropdown-content {
-               grid-template-columns: 1fr;
-               align-items: center;
-               justify-content: center;
-               width: 100%;
+          // Accordion-style dropdowns: left-aligned label + circular blue chevron.
+          // Children expand in-flow inside a bordered card, pushing items below down.
+          .has-dropdown {
+            width: 100%;
+            position: relative;
+            display: block;
 
-               .dropdown-column {
-                 text-align: center;
-                 width: 100%;
-               }
+            > a {
+              width: 100%;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              gap: 10px;
+              padding: 16px 4px;
+              border: none;
+              border-radius: 0;
+              text-align: left;
+              font-size: 17px;
+              font-weight: var(--fw-bold);
+              color: var(--text-primary);
+              cursor: pointer;
 
-               .dropdown-column .sub-links {
-                 display: flex;
-                 flex-direction: column;
-                 gap: 10px;
-                 width: 100%;
-                 align-items: stretch;
-               }
-             }
+              &:hover,
+              &.active {
+                color: var(--text-primary);
+              }
+            }
+
+            // Chevron rendered as a circular blue button on the right
+            > a .chevron-down {
+              width: 28px;
+              height: 28px;
+              flex-shrink: 0;
+              padding: 7px;
+              margin: 0;
+              box-sizing: border-box;
+              border-radius: 50%;
+              background: var(--primary-color);
+              color: white;
+              transition: transform 0.3s ease, background 0.2s ease;
+            }
+
+            &.open > a .chevron-down {
+              transform: rotate(180deg);
+            }
+
+            // Expanded children container — in-flow card
+            .mega-dropdown {
+              position: static;
+              display: none;
+              width: 100%;
+              background: transparent;
+              box-shadow: none;
+              border-bottom: none;
+              max-height: none;
+              overflow: visible;
+              visibility: visible;
+              opacity: 1;
+              transform: none;
+            }
+
+            // Must also reset max-height/overflow here: on touch devices a tap leaves a
+            // sticky :hover, and the desktop `.has-dropdown:hover .mega-dropdown` rule
+            // (higher specificity via :hover) would otherwise clamp this to 340px and the
+            // overflowing content would spill over About/Information.
+            &.open .mega-dropdown {
+              display: block;
+              max-height: none;
+              overflow: visible;
+            }
+
+            .mega-dropdown-content {
+              display: flex;
+              flex-direction: column;
+              gap: 0;
+              padding: 4px 12px 8px;
+              margin: 0 0 12px;
+              border: 1px solid var(--border-color);
+              border-radius: var(--radius-md);
+              background: var(--surface);
+              grid-template-columns: 1fr;
+              max-width: none;
+              transform: none;
+              // No inner scroll — let the panel expand fully; the whole menu scrolls instead
+              max-height: none;
+              overflow: visible;
+            }
+
+            .specialized-wrapper {
+              grid-column: 1;
+              padding: 0;
+
+              .specialized-cols {
+                grid-template-columns: 1fr;
+                gap: 0;
+              }
+
+              .sub-links {
+                display: flex;
+                flex-direction: column;
+                gap: 0;
+                width: 100%;
+              }
+            }
+
+            .more-dropdown-content {
+              grid-template-columns: 1fr;
+              align-items: stretch;
+              width: 100%;
+
+              .dropdown-column {
+                text-align: left;
+                width: 100%;
+              }
+
+              .dropdown-column .sub-links {
+                display: flex;
+                flex-direction: column;
+                gap: 0;
+                width: 100%;
+                align-items: stretch;
+              }
+            }
 
             .dropdown-column {
-              padding: 5px;
+              padding: 8px 0 0;
               width: 100%;
               display: block;
             }
 
-           .dropdown-column > a {
-             font-size: 16px;
-             color: var(--primary-color);
-             border-bottom: 1px solid var(--primary-color);
-             display: block;
-           }
+            // Section heading inside the card (e.g. Commercial / Specialized / Residential)
+            .dropdown-column > p,
+            .dropdown-column > a {
+              font-size: 12px;
+              font-weight: var(--fw-bold);
+              text-transform: uppercase;
+              letter-spacing: 0.04em;
+              color: var(--text-muted);
+              border: none;
+              padding: 10px 8px 4px;
+              margin: 0;
+              display: block;
+              text-align: left;
+            }
 
-           .sub-links {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            align-items: stretch;
-            justify-content: center;
-            width: 100%;
-           }
-
-          .sub-links a {
-              font-size: 14px;
-              padding: 5px;
-              color: var(--text-primary);
-              border: 1px solid var(--primary-color);
-              border-radius: 25px;
+            .sub-links {
               display: flex;
-              align-items: center;
-              justify-content: center;
-              text-decoration: none;
+              flex-direction: column;
+              gap: 0;
+              align-items: stretch;
+              width: 100%;
+              margin: 0;
+            }
+
+            .sub-links a {
+              font-size: 15px;
+              font-weight: var(--fw-semibold);
+              padding: 13px 8px;
+              color: var(--text-primary);
+              border: none;
+              border-radius: 0;
+              border-bottom: 1px solid var(--border-color);
+              display: block;
+              text-align: left;
               width: 100%;
               min-width: 0;
+              text-decoration: none;
 
               &:before {
                 display: none;
@@ -1210,10 +1521,38 @@ header{
 
               &:hover {
                 color: var(--primary-color);
-                background: var(--page-bg);
+                background: transparent;
+                transform: none;
               }
             }
-        }
+
+            .sub-links a:last-child {
+              border-bottom: none;
+            }
+
+            .sub-link-disabled {
+              font-size: 15px;
+              font-weight: var(--fw-semibold);
+              padding: 13px 8px;
+              color: var(--text-muted);
+              border: none;
+              border-bottom: 1px solid var(--border-color);
+              display: flex;
+              align-items: center;
+              justify-content: flex-start;
+              gap: 6px;
+              width: 100%;
+              cursor: default;
+              user-select: none;
+
+              small {
+                font-size: 10px;
+                font-weight: 600;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+              }
+            }
+          }
       }
 
       .user-menu {
@@ -1242,16 +1581,15 @@ header{
         height: 32px;
         min-width: 32px;
         min-height: 32px;
-        background: var(--fresh-green);
+        background: var(--btn-secondary);
         color: white;
         text-decoration: none;
         border-radius: 50%;
-        transition: background 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+        transition: background 0.3s ease, color 0.3s ease;
 
         &:hover {
-          background: #1e7e34;
+          background: var(--btn-secondary-hover);
           color: white;
-          box-shadow: var(--btn-primary-shadow-hover);
         }
 
         .phone-icon-svg {
@@ -1262,8 +1600,45 @@ header{
         }
       }
 
+      // Soft "Get a Quote" CTA in the mobile top bar
+      .mobile-quote-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+        flex-shrink: 0;
+        padding: 8px 14px;
+        border-radius: var(--radius-pill);
+        font-weight: var(--fw-semibold);
+        font-size: 13px;
+        line-height: 1;
+        text-decoration: none;
+        background: transparent;
+        color: var(--btn-quote);
+        border: 1.5px solid var(--btn-quote);
+        transition: background 0.25s ease, color 0.25s ease;
+
+        &:hover,
+        &.active {
+          background: var(--btn-quote);
+          color: white;
+        }
+
+        // Night mode: white ghost outline to read against the dark header
+        :host-context([data-theme="dark"]) & {
+          color: white;
+          border-color: white;
+
+          &:hover,
+          &.active {
+            background: rgba(255, 255, 255, 0.16);
+            color: white;
+          }
+        }
+      }
+
       .mobile-menu-btn {
-        display: block;
+        display: flex;
       }
     }
   }
@@ -1271,8 +1646,88 @@ header{
   // Additional responsive styling for very small screens
   @media (max-width: 480px) {
     .nav-container {
+      gap: 6px;
+
       .login-btn i {
         font-size: 0.875rem;
+      }
+
+      .mobile-quote-btn {
+        padding: 7px 11px;
+        font-size: 12px;
+      }
+    }
+  }
+
+  // At ≤450px nudge the points badge and the "Get a Quote" button up by the same
+  // -6px as the logo, so the top-bar items stay vertically aligned.
+  @media (max-width: 450px) {
+    app-bubble-badge {
+      position: relative;
+      top: -6px;
+    }
+
+    // Only nudge the quote button up when the badge is actually present (logged in).
+    // The *ngIf removes app-bubble-badge for guests, so this sibling rule won't match
+    // then and the quote button keeps its normal position.
+    app-bubble-badge ~ .mobile-quote-btn {
+      position: relative;
+      top: -6px;
+    }
+  }
+
+  // Below 375px there isn't room for the points badge — hide it. With the badge
+  // gone, the "Get a Quote" button no longer needs the -6px alignment nudge, so
+  // drop it back to its normal vertical position.
+  @media (max-width: 375px) {
+    app-bubble-badge {
+      display: none;
+    }
+
+    // Same specificity as the ≤450 sibling rule above so it overrides the -6px.
+    app-bubble-badge ~ .mobile-quote-btn {
+      top: 0;
+    }
+  }
+
+  // Tightest phones: shrink the quote pill so logo + CTA + call + avatar + menu all fit
+  @media (max-width: 360px) {
+    .nav-container .mobile-quote-btn {
+      padding: 7px 9px;
+      font-size: 11px;
+    }
+  }
+
+  // At ≤550px the "Dream Cleaning" wordmark moves below the logo mark and sits on a
+  // single row ("Dream Cleaning"), instead of beside it on two stacked lines. It is
+  // absolutely positioned (anchored to the bottom-center of the logo, relative parent),
+  // so it's out of flow — the rest of the header lays out as if only the mark is there,
+  // and other elements can sit on top of it. Sizes shrink so the mark + text still fit
+  // inside the 60px mobile nav bar.
+  @media (max-width: 550px) {
+    // Nudge the logo and bubble badge up so the absolutely-positioned wordmark
+    // below the mark gets breathing room from the header's bottom edge.
+    .nav .logo {
+      top: -6px; // base .logo is position: relative, so this shifts it (and its absolute wordmark) up
+
+      .logo-img {
+        height: 34px;
+      }
+
+      .logo-wordmark {
+        position: absolute;
+        top: 100%;
+        // Anchor to the logo's left edge so the (wider-than-the-mark) text extends
+        // rightward into open space — centering it under the ~34px mark pushed the
+        // left half off the screen edge and clipped it.
+        left: 0;
+        flex-direction: row;
+        gap: 3px;
+        margin-top: 0;
+      }
+
+      .logo-wordmark__line {
+        font-size: 13px;
       }
     }
   }
@@ -1281,7 +1736,10 @@ header{
     .nav{
       .logo{
         .logo-img{
-          height: 40px;
+          height: 30px;
+        }
+        .logo-wordmark__line {
+          font-size: 12px;
         }
       }
     }

@@ -49,7 +49,7 @@ export class QueensCleaningComponent implements OnInit, OnDestroy {
       '@context': 'https://schema.org',
       '@type': 'LocalBusiness',
       'name': 'Dream Cleaning - Queens',
-      'description': `Dream Cleaning provides professional cleaning services across 58 ZIP codes in Queens, New York â€” including Astoria, Long Island City, Forest Hills, Flushing, Jamaica, and Rego Park. Standard cleaning from $${SERVICE_PRICING.residentialFrom}, deep cleaning from $${SERVICE_PRICING.deepFrom}.`,
+      'description': `Dream Cleaning provides professional cleaning services across 58 ZIP codes in Queens, New York — including Astoria, Long Island City, Forest Hills, Flushing, Jamaica, and Rego Park. Standard cleaning from $${SERVICE_PRICING.residentialFrom}, deep cleaning from $${SERVICE_PRICING.deepFrom}.`,
       'url': 'https://dreamcleaningnyc.com/services/queens-cleaning',
       'telephone': '+1-929-930-1525',
       'dateModified': '2026-03-22',

@@ -1,8 +1,8 @@
 import { Component, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
-import { PhoneClickTrackingService } from '../services/phone-click-tracking.service';
 import { StickyCtaService } from '../services/sticky-cta.service';
+import { SpecialOfferService, PublicSpecialOffer } from '../services/special-offer.service';
 
 @Component({
   selector: 'app-sticky-mobile-cta',
@@ -13,12 +13,14 @@ import { StickyCtaService } from '../services/sticky-cta.service';
 })
 export class StickyMobileCtaComponent {
   isVisible = false;
+  /** Display label for the first-time discount, e.g. "10%" or "$20". Empty until loaded. */
+  firstTimeDiscountLabel = '';
   private isBrowser: boolean;
 
   constructor(
     private router: Router,
-    private phoneTracking: PhoneClickTrackingService,
     private stickyCtaService: StickyCtaService,
+    private specialOfferService: SpecialOfferService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
@@ -27,9 +29,31 @@ export class StickyMobileCtaComponent {
   ngOnInit() {
     if (this.isBrowser) {
       this.updateVisibility();
+      this.loadFirstTimeOffer();
       window.addEventListener('resize', () => this.updateVisibility());
       this.router.events.subscribe(() => this.updateVisibility());
     }
+  }
+
+  /** Loads the admin-configurable first-time offer; percentage is never hardcoded. */
+  private loadFirstTimeOffer() {
+    this.specialOfferService.getPublicSpecialOffers().subscribe({
+      next: (offers) => {
+        const offer = offers?.find(o =>
+          o.requiresFirstTimeCustomer ||
+          o.type === 'FirstTime' ||
+          (o.name?.toLowerCase().includes('first time') ?? false) ||
+          (o.name?.toLowerCase().includes('first-time') ?? false)
+        );
+        this.firstTimeDiscountLabel = this.buildDiscountLabel(offer);
+      },
+      error: () => { this.firstTimeDiscountLabel = ''; }
+    });
+  }
+
+  private buildDiscountLabel(offer?: PublicSpecialOffer): string {
+    if (!offer) return '';
+    return offer.isPercentage ? `${offer.discountValue}%` : `$${offer.discountValue}`;
   }
 
   /** True if the device has a touch screen. On touch devices we always show mobile CTA regardless of width. */
@@ -52,10 +76,6 @@ export class StickyMobileCtaComponent {
 
     this.isVisible = isMobile && !isOnExcludedRoute;
     this.stickyCtaService.setVisible(this.isVisible);
-  }
-
-  onCallClick() {
-    this.phoneTracking.trackAndCall('tel:+19299301525');
   }
 
 }

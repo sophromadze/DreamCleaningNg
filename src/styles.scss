@@ -1,5 +1,5 @@
 /* You can add global styles to this file, and also import other style files */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Playfair+Display:ital,wght@1,400;1,500;1,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Fraunces:wght@600;700&display=swap');
 @import '@fortawesome/fontawesome-free/css/all.css';
 
 /* Color Variables */
@@ -72,6 +72,7 @@
   --primary-color-hover: #1d4ed8;    /* blue-700, was #0056b3 */
   --primary-text: #1d4ed8;           /* blue-700, was #0056b3 */
   --active-nav-link: #2563eb;        /* blue-600, was #0056b3 */
+  --logo-blue: #0065f3;              /* exact fill of logo.svg — used by the brand wordmark so it matches the mark precisely (theme-stable) */
   --fresh-green: #22c55e;            /* green-500 sRGB fallback (oklch override below) */
   --bright-red: #ef4444;             /* red-500, was #ff6b6b */
   --soft-blue: #dbeafe;              /* blue-100, was #e3f2fd */
@@ -133,6 +134,10 @@
   --btn-quote-hover: #6366f1;        /* indigo-500, was #6b77bd */
   --btn-quote-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
   --btn-quote-shadow-hover: 0 10px 25px rgba(79, 70, 229, 0.35);
+
+  /* First-time offer coupon — matches the "Get a Quote" indigo/purple, slightly translucent, theme-stable */
+  --btn-coupon: linear-gradient(135deg, rgba(99, 102, 241, 0.90) 0%, rgba(79, 70, 229, 0.90) 100%);   /* indigo-500 → indigo-600 (quote palette) @ 90% */
+  --btn-coupon-shadow: 0 6px 20px rgba(79, 70, 229, 0.40);           /* indigo-600 @ 40% */
 
   /* Day mode: address autocomplete field has no border */
   --address-field-border: none;
@@ -540,6 +545,29 @@ asl-google-signin-button div[role="button"] > div > div > div {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     font-size: 16px !important;
     font-weight: 700 !important;
+}
+
+/* Brand wordmark — the stacked "Dream / Cleaning" lockup that sits beside the
+   logo in the header and footer. Fraunces (high-contrast serif) echoes the
+   serif "DC" mark. Color is set where it's used (theme-aware in the header,
+   light in the always-dark footer); only structure/typography lives here. */
+.logo-wordmark {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-top: 10px;
+    font-family: 'Fraunces', serif;
+    font-weight: 600;
+    line-height: 0.95;
+    white-space: nowrap;
+}
+
+.logo-wordmark__line {
+    display: block;
+    /* The global `* { font-family: Inter }` reset hits these spans directly and
+       beats inheritance, so re-inherit the wrapper's wordmark font explicitly. */
+    font-family: inherit;
+    font-size: 20px;
 }
 
 /* Fix: Google Sign-in overlay div collapsing to 0 height on production (GSI renders differently) */
