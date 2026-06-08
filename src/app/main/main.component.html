@@ -435,14 +435,14 @@
         </article>
       </div>
 
-      <p class="rewards-login-note" *ngIf="!isLoggedIn">
+      <p class="rewards-login-note" *ngIf="isBrowser && !isLoggedIn">
         <i class="fas fa-circle-info" aria-hidden="true"></i>
         <span>
           <button type="button" class="rewards-login-link" (click)="openRewardsLogin()">Log in or create an account</button>
           to track your bubble points, redeem rewards, and get your personal referral link — it's free to join.
         </span>
       </p>
-      <p class="rewards-login-note" *ngIf="isLoggedIn">
+      <p class="rewards-login-note" *ngIf="isBrowser && isLoggedIn">
         <i class="fas fa-circle-info" aria-hidden="true"></i>
         <span><a routerLink="/rewards" class="rewards-login-link">View your Bubble Rewards</a> to check your points, redeem them, and share your referral link.</span>
       </p>

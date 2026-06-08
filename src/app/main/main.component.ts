@@ -55,7 +55,10 @@ export class MainComponent implements OnInit, OnDestroy {
   isLoggedIn: boolean = false;
   isLoadingOffers: boolean = false;
   private subscription: Subscription = new Subscription();
-  private isBrowser: boolean;
+  /** Protected (not private) so the template can gate auth-dependent content to the
+   *  browser only — see the rewards login note. Prerendered HTML must not contain
+   *  auth-dependent branches or hydration leaves a stale node behind (duplicate notes). */
+  protected isBrowser: boolean;
   /** Google Reviews only shown in production (API has IP restrictions for hosting only). */
   showGoogleReviews = environment.production;
 

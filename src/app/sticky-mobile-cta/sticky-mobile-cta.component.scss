@@ -12,9 +12,15 @@
     right: 0;
     z-index: 1002; // above the open hamburger menu (1001) so it stays visible
     padding: 0;
-    // Elevated surface (one shade lighter than --surface in dark mode) so the bar
-    // reads as a distinct floating element above the page content.
-    background: var(--surface-elevated);
+    // iOS (Chrome especially) leaves a gap below a `bottom: 0` fixed bar where page
+    // content peeks through the home-indicator / bottom-toolbar inset. Extend the
+    // blue bar's background down through that inset so nothing shows beneath it.
+    // Safari already sits flush, where the inset resolves to 0 and this is a no-op.
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    box-sizing: border-box;
+    // Brand-blue bar so the primary "Book Online" action stands out as a distinct
+    // floating element above the page content.
+    background: var(--primary-color);
     box-shadow: 0 -4px 12px var(--shadow-color);
     -webkit-tap-highlight-color: transparent;
   }
@@ -32,7 +38,7 @@
     background: transparent;
     box-shadow: none;
     text-decoration: none;
-    color: var(--primary-text);
+    color: white; // on brand-blue bar
     -webkit-tap-highlight-color: transparent;
 
     &:active {
@@ -53,7 +59,7 @@
   .cta-book-offer {
     font-weight: var(--fw-semibold);
     font-size: 13px;
-    color: var(--text-secondary);
+    color: rgba(255, 255, 255, 0.9); // on brand-blue bar
     white-space: nowrap;
   }
 }

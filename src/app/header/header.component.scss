@@ -1659,34 +1659,10 @@ header{
     }
   }
 
-  // At ≤450px nudge the points badge and the "Get a Quote" button up by the same
-  // -6px as the logo, so the top-bar items stay vertically aligned.
-  @media (max-width: 450px) {
-    app-bubble-badge {
-      position: relative;
-      top: -6px;
-    }
-
-    // Only nudge the quote button up when the badge is actually present (logged in).
-    // The *ngIf removes app-bubble-badge for guests, so this sibling rule won't match
-    // then and the quote button keeps its normal position.
-    app-bubble-badge ~ .mobile-quote-btn {
-      position: relative;
-      top: -6px;
-    }
-  }
-
-  // Below 375px there isn't room for the points badge — hide it. With the badge
-  // gone, the "Get a Quote" button no longer needs the -6px alignment nudge, so
-  // drop it back to its normal vertical position.
-  @media (max-width: 375px) {
+  // Below 465px there isn't room for the points badge — hide it.
+  @media (max-width: 465px) {
     app-bubble-badge {
       display: none;
-    }
-
-    // Same specificity as the ≤450 sibling rule above so it overrides the -6px.
-    app-bubble-badge ~ .mobile-quote-btn {
-      top: 0;
     }
   }
 
@@ -1698,36 +1674,17 @@ header{
     }
   }
 
-  // At ≤550px the "Dream Cleaning" wordmark moves below the logo mark and sits on a
-  // single row ("Dream Cleaning"), instead of beside it on two stacked lines. It is
-  // absolutely positioned (anchored to the bottom-center of the logo, relative parent),
-  // so it's out of flow — the rest of the header lays out as if only the mark is there,
-  // and other elements can sit on top of it. Sizes shrink so the mark + text still fit
-  // inside the 60px mobile nav bar.
+  // At ≤550px the mark and "Dream Cleaning" wordmark just shrink to fit the mobile
+  // nav bar — the wordmark stays beside the mark on two stacked lines (its default
+  // layout), it is never moved below the logo.
   @media (max-width: 550px) {
-    // Nudge the logo and bubble badge up so the absolutely-positioned wordmark
-    // below the mark gets breathing room from the header's bottom edge.
     .nav .logo {
-      top: -6px; // base .logo is position: relative, so this shifts it (and its absolute wordmark) up
-
       .logo-img {
-        height: 34px;
-      }
-
-      .logo-wordmark {
-        position: absolute;
-        top: 100%;
-        // Anchor to the logo's left edge so the (wider-than-the-mark) text extends
-        // rightward into open space — centering it under the ~34px mark pushed the
-        // left half off the screen edge and clipped it.
-        left: 0;
-        flex-direction: row;
-        gap: 3px;
-        margin-top: 0;
+        height: 44px;
       }
 
       .logo-wordmark__line {
-        font-size: 13px;
+        font-size: 16px;
       }
     }
   }
@@ -1736,10 +1693,10 @@ header{
     .nav{
       .logo{
         .logo-img{
-          height: 30px;
+          height: 38px;
         }
         .logo-wordmark__line {
-          font-size: 12px;
+          font-size: 14px;
         }
       }
     }

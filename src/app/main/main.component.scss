@@ -1179,6 +1179,11 @@
     flex-direction: column;
     line-height: 1.12;
     text-align: left;
+    // iOS WebKit under-computes `max-content` width on this absolutely-positioned,
+    // translateX(-50%) coupon, which squeezes/wraps these labels and makes the whole
+    // ticket render narrower than on desktop/Android. Pin the single-line labels so
+    // the intrinsic width resolves to their full length.
+    white-space: nowrap;
   }
 
   &__eyebrow {
@@ -1241,6 +1246,10 @@
   .hero-offer-coupon {
     width: max-content;
     max-width: none;
+  }
+
+  .hero-image-card {
+    min-height: 260px;
   }
 }
 
@@ -2954,7 +2963,7 @@
   }
 
   .hero-image-card {
-    min-height: 360px;
+    min-height: 260px;
   }
 
   .hero-stat {
