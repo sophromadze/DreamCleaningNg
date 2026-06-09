@@ -51,6 +51,8 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   isLoading = true;
   isSaving = false;
   readonly specialInstructionsMaxLength = 2000;
+  // Must match Order.EntryMethod (500) on the backend.
+  readonly entryMethodMaxLength = 500;
   errorMessage = '';
   successMessage = '';
   additionalAmount = 0;
@@ -170,7 +172,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       serviceDate: ['', Validators.required],
       serviceTime: ['', Validators.required],
       entryMethod: ['', Validators.required],
-      customEntryMethod: [''],
+      customEntryMethod: ['', Validators.maxLength(500)],
       specialInstructions: ['', Validators.maxLength(2000)],
       contactFirstName: ['', Validators.required],
       contactLastName: ['', Validators.required],

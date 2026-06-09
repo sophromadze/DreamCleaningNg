@@ -95,6 +95,47 @@ h1 {
   border: 1px solid #f5c6cb;
 }
 
+// Sticky, dismissible notice for money-sensitive outcomes from confirm-payment. Default (warning)
+// = charge was refunded; the --critical variant = refund failed (more serious, escalated to red).
+.support-notice {
+  background-color: var(--soft-yellow);
+  color: var(--soft-yellow-text);
+  border: 1px solid var(--soft-yellow-text);
+  padding: 1.25rem;
+  border-radius: var(--radius-md);
+  margin: 1rem 0;
+  text-align: left;
+  line-height: 1.5;
+
+  p { margin: 0 0 0.75rem; }
+
+  .dismiss-btn {
+    background: transparent;
+    border: 1px solid var(--soft-yellow-text);
+    color: var(--soft-yellow-text);
+    padding: 0.4rem 1rem;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    font-weight: var(--fw-semibold);
+
+    &:hover { background: var(--soft-yellow-text); color: var(--soft-yellow); }
+  }
+
+  &.support-notice--critical {
+    background-color: var(--soft-red);
+    color: var(--bright-red);
+    border-color: var(--bright-red);
+    font-weight: var(--fw-semibold);
+
+    .dismiss-btn {
+      border-color: var(--bright-red);
+      color: var(--bright-red);
+
+      &:hover { background: var(--bright-red); color: var(--soft-red); }
+    }
+  }
+}
+
 .payment-actions {
   display: flex;
   gap: 1rem;

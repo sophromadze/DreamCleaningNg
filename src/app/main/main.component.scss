@@ -1136,9 +1136,22 @@
   z-index: 2;
   display: flex;
   align-items: stretch;
+  // Floor the ticket width so it never collapses below the body + perforation + deal panel.
+  // iOS WebKit under-computes the `max-content` width used at <=550px, which pushed the
+  // fixed-width "% OFF" deal panel out of the flow; this min-width holds it fully visible
+  // and keeps the coupon the same size across iOS, Android and desktop.
+  min-width: 259px;
   max-width: calc(100% - 1.5rem);
   color: white;
+  text-decoration: none;
+  cursor: pointer;
   background: var(--btn-coupon);
+  transition: transform 0.2s ease, filter 0.2s ease;
+
+  &:hover {
+    transform: translateX(-50%) translateY(-2px);
+    filter: drop-shadow(var(--btn-coupon-shadow-hover, var(--btn-coupon-shadow)));
+  }
   -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
   border-radius: var(--radius-lg);

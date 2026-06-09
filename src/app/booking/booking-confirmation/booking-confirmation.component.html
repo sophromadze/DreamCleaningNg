@@ -26,6 +26,14 @@
         {{ cardError }}
       </div>
       
+      <!-- Money-sensitive notice (auto-refund / contact us) — stays until the customer dismisses it -->
+      <div class="support-notice"
+           [class.support-notice--critical]="stickyNotice.severity === 'critical'"
+           *ngIf="stickyNotice">
+        <p>{{ stickyNotice.message }}</p>
+        <button type="button" class="dismiss-btn" (click)="dismissStickyNotice()">Dismiss</button>
+      </div>
+
       <!-- Error Message -->
       <div class="error-message" *ngIf="errorMessage">
         {{ errorMessage }}

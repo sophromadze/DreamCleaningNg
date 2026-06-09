@@ -24,6 +24,11 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   currentUser: any;
   cardError: string | null = null;
 
+  // Money-sensitive notice (auto-refund outcome from confirm-payment). Shown in its own banner
+  // that stays until the customer manually dismisses it — no auto-clear — so they can read it and
+  // note the contact details. Severity is keyed off the backend "code", not the human text.
+  stickyNotice: { message: string; severity: 'warning' | 'critical' } | null = null;
+
   // Remove the preparePayment flag - we don't need it anymore
   isPreparing = false;
 
@@ -125,6 +130,7 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
 
     this.isProcessing = true;
     this.errorMessage = '';
+    this.stickyNotice = null;
 
     try {
       // Prepare payment - this creates payment intent but NOT the order
@@ -155,7 +161,20 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
                 this.handlePaymentSuccess();
               },
               error: (error) => {
-                this.errorMessage = error.error?.message || 'Payment confirmation failed';
+                const msg = error.error?.message || 'Payment confirmation failed';
+                const code = error.error?.code;
+                // Severity is keyed off the backend error code (not the human text), so the message
+                // can be reworded without breaking detection. Codes are emitted by the refund catch
+                // in BookingController.ConfirmPayment.
+                if (code === 'booking_refunded') {
+                  // Charge WAS refunded — reassuring, lower severity.
+                  this.stickyNotice = { message: msg, severity: 'warning' };
+                } else if (code === 'booking_refund_failed') {
+                  // Charge was NOT refunded — customer must contact us; highest severity.
+                  this.stickyNotice = { message: msg, severity: 'critical' };
+                } else {
+                  this.errorMessage = msg;
+                }
                 this.isProcessing = false;
                 // Order was not created, so no cleanup needed
               }
@@ -231,6 +250,10 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   // REMOVE the old onPaymentError method - we don't need it anymore
 
   // REMOVE the retryPayment method - we'll handle retries differently
+
+  dismissStickyNotice() {
+    this.stickyNotice = null;
+  }
 
   cancelBooking() {
     // Clear the booking data

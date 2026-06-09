@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, catchError, of } from 'rxjs';
+import { Observable, map, catchError, of, switchMap } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export interface Review {
@@ -60,6 +60,47 @@ export class GooglePlacesService {
         });
       })
     );
+  }
+
+  /**
+   * Returns ALL reviews persisted from the Google Business Profile API (backend `/all` endpoint).
+   * If none are stored yet (e.g. before Business Profile API access is set up), it falls back to
+   * the 5-review Places endpoint so the page still shows something.
+   */
+  getAllReviews(): Observable<{ reviews: Review[], overallRating: number, totalReviews: number }> {
+    if (!environment.production) {
+      return of({ reviews: [], overallRating: 0, totalReviews: 0 });
+    }
+    return this.http.get<any>(`${this.apiUrl}/googlereviews/all`).pipe(
+      map(response => this.mapPlacesResponse(response)),
+      switchMap(result =>
+        result.reviews.length > 0 ? of(result) : this.getReviews()
+      ),
+      catchError(error => {
+        console.error('Error loading all reviews from backend:', error);
+        // Backend `/all` failed entirely — fall back to the 5-review Places endpoint.
+        return this.getReviews();
+      })
+    );
+  }
+
+  private mapPlacesResponse(response: any): { reviews: Review[], overallRating: number, totalReviews: number } {
+    const result = response?.result;
+    if (!result) {
+      return { reviews: [], overallRating: 0, totalReviews: 0 };
+    }
+    const reviews = (result.reviews || []).map((review: any) => ({
+      authorName: review.author_name,
+      profilePhotoUrl: review.profile_photo_url,
+      rating: review.rating,
+      text: review.text,
+      time: new Date(review.time * 1000)
+    }));
+    return {
+      reviews,
+      overallRating: result.rating || 0,
+      totalReviews: result.user_ratings_total || 0
+    };
   }
 
   // These methods are not used in your app but keeping for compatibility

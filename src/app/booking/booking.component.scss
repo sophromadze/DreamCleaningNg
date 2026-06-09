@@ -4361,7 +4361,7 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  max-height: 90vh;
+  max-height: 80vh;
   display: flex;
   flex-direction: column;
 }
@@ -4484,6 +4484,7 @@
   line-height: 1.45;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   flex: 1;
 
   p {
@@ -4626,7 +4627,7 @@
   .dc-modal {
     width: 100%;
     border-radius: 14px;
-    max-height: 92vh;
+    max-height: 80vh;
   }
 
   .dc-modal-header {

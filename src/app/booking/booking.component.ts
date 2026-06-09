@@ -218,6 +218,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   maxPhotos = 12;
   maxFileSize = 15 * 1024 * 1024; // 15MB per photo
   readonly specialInstructionsMaxLength = 2000;
+  // Must match Order.EntryMethod / CreateBookingDto.EntryMethod (500) on the backend.
+  readonly entryMethodMaxLength = 500;
   acceptedFormats = 'image/jpeg,image/jpg,image/png,image/webp,image/gif,image/bmp,image/heic,image/heif';
   isUploadingPhoto = false;
   photoUploadError = '';
@@ -373,7 +375,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       serviceDate: [{value: '', disabled: false}, Validators.required],
       serviceTime: ['', Validators.required],
       entryMethod: ['I will be home', Validators.required],
-      customEntryMethod: [''],
+      customEntryMethod: ['', Validators.maxLength(500)],
       specialInstructions: ['', Validators.maxLength(2000)],
       contactFirstName: ['', Validators.required],
       contactLastName: ['', Validators.required],
@@ -618,8 +620,19 @@ export class BookingComponent implements OnInit, OnDestroy {
       clearTimeout(this.addressFallbackTimer);
       this.addressFallbackTimer = null;
     }
+    // Ensure body scroll lock is released if the component is destroyed while a modal is open
+    this.setBodyScrollLock(false);
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /**
+   * Locks/unlocks page scrolling while a dc-modal is open. On mobile, without this the
+   * background booking form scrolls instead of the modal body when the user drags.
+   */
+  private setBodyScrollLock(locked: boolean): void {
+    if (!this.isBrowser) return;
+    document.body.style.overflow = locked ? 'hidden' : '';
   }
 
   private setupDropdownClickOutside() {
@@ -4057,6 +4070,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     }
     if (!this.authService.isLoggedIn()) {
       this.showGuestOfferLoginModal = true;
+      this.setBodyScrollLock(true);
       return;
     }
     this.applySpecialOffer(offer);
@@ -4064,10 +4078,12 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   closeGuestOfferLoginModal() {
     this.showGuestOfferLoginModal = false;
+    this.setBodyScrollLock(false);
   }
 
   openLoginFromGuestOfferModal() {
     this.showGuestOfferLoginModal = false;
+    this.setBodyScrollLock(false);
     // navigateAfterLogin in auth-modal reads from BOTH localStorage.returnUrl and
     // authModalService.getReturnUrl(); set both to the current booking URL so the modal
     // (including social logins) keeps the user on the booking page after sign-in.
@@ -5319,6 +5335,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (this.canProceedToNextStep()) {
       if (this.shouldConfirmCleaningSuppliesBeforeContinuing()) {
         this.showCleaningSuppliesConfirm = true;
+        this.setBodyScrollLock(true);
         return;
       }
       this.nextStep();
@@ -5330,6 +5347,7 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   closeCleaningSuppliesConfirm(): void {
     this.showCleaningSuppliesConfirm = false;
+    this.setBodyScrollLock(false);
   }
 
   selectCleaningSuppliesAndContinue(): void {
@@ -5338,11 +5356,13 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.toggleExtraService(extra);
     }
     this.showCleaningSuppliesConfirm = false;
+    this.setBodyScrollLock(false);
     this.nextStep();
   }
 
   continueWithoutCleaningSupplies(): void {
     this.showCleaningSuppliesConfirm = false;
+    this.setBodyScrollLock(false);
     this.nextStep();
   }
 

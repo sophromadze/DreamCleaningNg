@@ -222,7 +222,9 @@
           <div class="hero-image-card__media" role="img" aria-label="Professional cleaning service in NYC - Dream Cleaning"></div>
           <div class="hero-image-card__overlay" aria-hidden="true"></div>
 
-          <div class="hero-offer-coupon" *ngIf="firstTimeDiscountLabel">
+          <a class="hero-offer-coupon" *ngIf="firstTimeDiscountLabel"
+             routerLink="/booking"
+             [attr.aria-label]="'Welcome offer: ' + firstTimeDiscountLabel + ' off your first cleaning. Book now.'">
             <div class="hero-offer-coupon__body">
               <svg class="hero-offer-coupon__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/>
@@ -238,7 +240,7 @@
               <span class="hero-offer-coupon__percent">{{ firstTimeDiscountLabel }}</span>
               <span class="hero-offer-coupon__off">OFF</span>
             </div>
-          </div>
+          </a>
 
           <div class="hero-trust-bar">
             <div class="hero-trust-bar__item">

@@ -1304,7 +1304,8 @@ header{
             display: none;
           }
 
-          a.btn-quote-ghost {
+          a.btn-quote-ghost,
+          a.btn-contact-ghost {
             width: 100%;
             display: inline-flex;
             align-items: center;
@@ -1322,6 +1323,11 @@ header{
             &.active {
               background: var(--btn-quote-hover);
               color: white;
+            }
+
+            .menu-contact-icon {
+              width: 18px;
+              height: 18px;
             }
           }
 

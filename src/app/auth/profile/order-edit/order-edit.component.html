@@ -216,10 +216,16 @@
                 <select formControlName="entryMethod">
                   <option *ngFor="let method of entryMethods" [value]="method">{{ method }}</option>
                 </select>
-                <input type="text" 
-                       formControlName="customEntryMethod"
-                       placeholder="Please specify"
-                       *ngIf="orderForm.get('entryMethod')?.value === 'Other'">
+                <ng-container *ngIf="orderForm.get('entryMethod')?.value === 'Other'">
+                  <input type="text"
+                         formControlName="customEntryMethod"
+                         placeholder="Please specify"
+                         [maxlength]="entryMethodMaxLength">
+                  <small class="char-counter"
+                         [class.char-counter--limit]="(orderForm.get('customEntryMethod')?.value?.length || 0) >= entryMethodMaxLength">
+                    {{ orderForm.get('customEntryMethod')?.value?.length || 0 }} / {{ entryMethodMaxLength }} characters
+                  </small>
+                </ng-container>
               </div>
             </div>
 

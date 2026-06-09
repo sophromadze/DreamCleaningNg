@@ -1023,11 +1023,17 @@
                 <div class="error-message" *ngIf="entryMethod.invalid && entryMethod.touched">
                   <div *ngIf="entryMethod.errors?.['required']">Entry method is required</div>
                 </div>
-                <input type="text" 
-                        [formControl]="customEntryMethod"
-                        placeholder="Please specify"
-                        *ngIf="entryMethod.value === 'Other'"
-                        class="custom-entry-input">
+                <ng-container *ngIf="entryMethod.value === 'Other'">
+                  <input type="text"
+                          [formControl]="customEntryMethod"
+                          placeholder="Please specify"
+                          [maxlength]="entryMethodMaxLength"
+                          class="custom-entry-input">
+                  <small class="char-counter"
+                         [class.char-counter--limit]="(customEntryMethod.value?.length || 0) >= entryMethodMaxLength">
+                    {{ customEntryMethod.value?.length || 0 }} / {{ entryMethodMaxLength }} characters
+                  </small>
+                </ng-container>
               </div>
             </section>
 

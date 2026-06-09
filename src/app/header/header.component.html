@@ -151,10 +151,25 @@
                On mobile, Book Online is hidden (the sticky bottom CTA covers it) and a
                tracked phone link is shown instead. -->
           <div class="header-cta">
+            <!-- Desktop nav: soft "Get a Quote" ghost CTA. In the mobile hamburger menu
+                 the always-visible top-bar quote button already covers this, so we swap
+                 in a "Contact Us" link instead. -->
             <a routerLink="/free-quote"
                routerLinkActive="active"
                class="btn-quote-ghost"
+               *ngIf="!isMobile"
                (click)="closeMobileMenu()">Get a Quote</a>
+            <a routerLink="/contact"
+               routerLinkActive="active"
+               class="btn-contact-ghost"
+               *ngIf="isMobile"
+               (click)="closeMobileMenu()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="menu-contact-icon" aria-hidden="true">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
+              Contact Us
+            </a>
             <a routerLink="/booking"
                routerLinkActive="active"
                class="btn-book"
