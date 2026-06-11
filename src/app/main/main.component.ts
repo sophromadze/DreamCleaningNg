@@ -252,6 +252,18 @@ export class MainComponent implements OnInit, OnDestroy {
     this.startReviewSlider();
   }
 
+  prevReview() {
+    if (this.reviews.length <= 1) return;
+    const index = (this.currentReviewIndex - 1 + this.reviews.length) % this.reviews.length;
+    this.goToReview(index);
+  }
+
+  nextReview() {
+    if (this.reviews.length <= 1) return;
+    const index = (this.currentReviewIndex + 1) % this.reviews.length;
+    this.goToReview(index);
+  }
+
   pauseReviewSlider()  { this.reviewSliderPaused = true; }
   resumeReviewSlider() { this.reviewSliderPaused = false; }
 

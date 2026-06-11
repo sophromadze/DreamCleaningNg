@@ -7,17 +7,37 @@
       </h1>
       <p class="page-subtitle">
         Every entry here subtracts from Company Revenue in Statistics on its occurrence date.
+        Day-based proration only charges the days an expense was actually active in its first and last month.
       </p>
     </div>
 
-    <div class="header-stats">
-      <div class="header-stat">
-        <span class="header-stat-label">This month</span>
-        <span class="header-stat-value">$ {{ totalThisMonth() | number:'1.2-2' }}</span>
-      </div>
+    <div class="header-actions">
+      <button class="btn btn-quote" type="button" (click)="openCategoryManager()">
+        <i class="fas fa-tags"></i> Categories
+      </button>
       <button class="btn btn-primary" type="button" (click)="openAddForm()" *ngIf="!showForm">
         <i class="fas fa-plus"></i> Add expense
       </button>
+    </div>
+  </div>
+
+  <!-- Month selector + month total -->
+  <div class="month-bar">
+    <div class="month-nav">
+      <button class="icon-btn" type="button" (click)="prevMonth()" title="Previous month">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      <span class="month-label">{{ grouped?.monthLabel || '—' }}</span>
+      <button class="icon-btn" type="button" (click)="nextMonth()" title="Next month">
+        <i class="fas fa-chevron-right"></i>
+      </button>
+      <button class="btn-link" type="button" (click)="goToCurrentMonth()" *ngIf="!isCurrentMonth">
+        Today
+      </button>
+    </div>
+    <div class="month-total">
+      <span class="month-total-label">This month</span>
+      <span class="month-total-value">$ {{ (grouped?.monthTotal || 0) | number:'1.2-2' }}</span>
     </div>
   </div>
 
@@ -38,7 +58,7 @@
     <div class="form-grid">
       <label class="form-field span-2">
         <span>Name</span>
-        <input type="text" [(ngModel)]="form.name" placeholder="e.g. RingCentral subscription">
+        <input type="text" [(ngModel)]="form.name" placeholder="e.g. Claude AI subscription">
       </label>
 
       <label class="form-field">
@@ -48,8 +68,8 @@
 
       <label class="form-field">
         <span>Category</span>
-        <select [ngModel]="form.categoryLabel" (ngModelChange)="onCategoryChange($event)">
-          <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+        <select [(ngModel)]="form.categoryId">
+          <option *ngFor="let c of categories" [ngValue]="c.id">{{ c.name }}</option>
         </select>
       </label>
 
@@ -61,12 +81,10 @@
       <div class="form-field">
         <span>Type</span>
         <div class="toggle-group">
-          <button type="button"
-                  class="toggle"
+          <button type="button" class="toggle"
                   [class.active]="!form.isRecurring"
                   (click)="onRecurringToggle(false)">One-time</button>
-          <button type="button"
-                  class="toggle"
+          <button type="button" class="toggle"
                   [class.active]="form.isRecurring"
                   (click)="onRecurringToggle(true)">Recurring</button>
         </div>
@@ -95,6 +113,18 @@
           <span>End date <small>(optional — leave empty for ongoing)</small></span>
           <input type="date" [(ngModel)]="form.endDate">
         </label>
+
+        <!-- Proration: only for monthly cadence (daily-billed services like ads). -->
+        <div class="form-field span-2 prorate-field" *ngIf="canProrate">
+          <label class="checkbox-line">
+            <input type="checkbox" [(ngModel)]="form.prorateByDay">
+            <span>
+              <strong>Prorate by day</strong>
+              <small>Charge only the active days in the first &amp; last month (e.g. ads that bill daily).
+                Leave off for fixed subscriptions that charge the full amount regardless of start day.</small>
+            </span>
+          </label>
+        </div>
       </ng-container>
 
       <label class="form-field span-2">
@@ -114,68 +144,151 @@
     </div>
   </div>
 
-  <!-- Expenses list ──────────────────────────────────────────────────────── -->
-  <div class="expenses-list" *ngIf="!loading">
-    <div class="empty-state" *ngIf="expenses.length === 0">
+  <!-- Category manager ───────────────────────────────────────────────────── -->
+  <div class="category-manager-card" *ngIf="showCategoryManager">
+    <div class="form-header">
+      <h3><i class="fas fa-tags"></i> Manage categories</h3>
+      <button type="button" class="icon-btn" (click)="closeCategoryManager()" title="Close"><i class="fas fa-times"></i></button>
+    </div>
+
+    <div class="add-category-row">
+      <input type="text" [(ngModel)]="newCategoryName" placeholder="New category name"
+             (keyup.enter)="addCategory()">
+      <button class="btn btn-secondary btn-sm" type="button" (click)="addCategory()" [disabled]="categorySaving">
+        <i class="fas fa-plus"></i> Add
+      </button>
+    </div>
+
+    <ul class="category-list">
+      <li *ngFor="let cat of categories">
+        <ng-container *ngIf="editingCategoryId !== cat.id">
+          <span class="cat-name">{{ cat.name }}</span>
+          <span class="cat-meta">
+            <span class="cat-badge" *ngIf="cat.isSystem">built-in</span>
+            <span class="cat-count">{{ cat.expenseCount }} {{ cat.expenseCount === 1 ? 'expense' : 'expenses' }}</span>
+          </span>
+          <span class="cat-actions" *ngIf="pendingDeleteCategoryId !== cat.id">
+            <button class="icon-btn" type="button" (click)="startEditCategory(cat)" title="Rename">
+              <i class="fas fa-pen"></i>
+            </button>
+            <button class="icon-btn danger" type="button"
+                    [disabled]="cat.isSystem || cat.expenseCount > 0"
+                    [title]="cat.isSystem ? 'Built-in categories can\'t be deleted' : (cat.expenseCount > 0 ? 'Move its expenses first' : 'Delete')"
+                    (click)="askDeleteCategory(cat.id)">
+              <i class="fas fa-trash"></i>
+            </button>
+          </span>
+          <span class="cat-actions confirm" *ngIf="pendingDeleteCategoryId === cat.id">
+            <span class="confirm-text">Delete?</span>
+            <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelDeleteCategory()" [disabled]="categorySaving">No</button>
+            <button class="btn btn-danger btn-sm" type="button" (click)="confirmDeleteCategory()" [disabled]="categorySaving">Yes</button>
+          </span>
+        </ng-container>
+
+        <ng-container *ngIf="editingCategoryId === cat.id">
+          <input class="cat-edit-input" type="text" [(ngModel)]="editingCategoryName" (keyup.enter)="saveCategoryName()">
+          <span class="cat-actions">
+            <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelEditCategory()" [disabled]="categorySaving">Cancel</button>
+            <button class="btn btn-primary btn-sm" type="button" (click)="saveCategoryName()" [disabled]="categorySaving">Save</button>
+          </span>
+        </ng-container>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Grouped list ──────────────────────────────────────────────────────── -->
+  <div class="grouped-list" *ngIf="!loading && grouped">
+    <div class="empty-state" *ngIf="grouped.monthTotal === 0 && grouped.categories.length === 0">
       <i class="fas fa-receipt"></i>
       <p>No expenses recorded yet. Add your first one above.</p>
     </div>
 
-    <div class="expenses-table-wrapper" *ngIf="expenses.length > 0">
-    <table class="expenses-table">
-      <thead>
-        <tr>
-          <th>Name</th>
-          <th>Category</th>
-          <th>Amount</th>
-          <th>Type</th>
-          <th>Start</th>
-          <th>Status</th>
-          <th class="actions-col">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        <ng-container *ngFor="let row of expenses">
-          <tr [class.is-deleting]="pendingDeleteId === row.id">
-            <td>
-              <div class="row-name">{{ row.name }}</div>
-              <div class="row-notes" *ngIf="row.notes">{{ row.notes }}</div>
-            </td>
-            <td><span class="category-chip" [attr.data-category]="row.categoryName">{{ row.categoryName }}</span></td>
-            <td class="amount">$ {{ row.amount | number:'1.2-2' }}</td>
-            <td>{{ recurrenceLabel(row) }}</td>
-            <td>{{ formatDate(row.startDate) }}</td>
-            <td>
-              <span class="status-text" *ngIf="row.isRecurring">{{ cadenceStatus(row) }}</span>
-              <span class="status-text muted" *ngIf="!row.isRecurring">—</span>
-            </td>
-            <td class="actions-col">
-              <button class="icon-btn" type="button" (click)="openEditForm(row)" title="Edit">
-                <i class="fas fa-pen"></i>
-              </button>
-              <button class="icon-btn danger" type="button" (click)="askDelete(row.id)" title="Delete">
-                <i class="fas fa-trash"></i>
-              </button>
-            </td>
-          </tr>
-          <tr *ngIf="pendingDeleteId === row.id" class="confirm-row">
-            <td colspan="7">
-              <div class="confirm-bar">
-                <span><i class="fas fa-exclamation-triangle"></i> Delete <strong>{{ row.name }}</strong>? This removes all of its past and future occurrences from statistics.</span>
-                <div class="confirm-actions">
-                  <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelDelete()" [disabled]="deleting">Cancel</button>
-                  <button class="btn btn-danger btn-sm" type="button" (click)="confirmDelete()" [disabled]="deleting">
-                    <i class="fas" [class.fa-spinner]="deleting" [class.fa-spin]="deleting" [class.fa-trash]="!deleting"></i>
-                    {{ deleting ? 'Deleting…' : 'Delete' }}
-                  </button>
-                </div>
+    <ng-container *ngFor="let cat of grouped.categories">
+      <!-- A category only shows if it has names (any month/all-time activity). -->
+      <div class="category-block" *ngIf="cat.names.length > 0">
+        <div class="category-head" (click)="toggleCategory(cat.categoryId)">
+          <span class="chevron"><i class="fas" [class.fa-chevron-right]="!isCategoryOpen(cat.categoryId)" [class.fa-chevron-down]="isCategoryOpen(cat.categoryId)"></i></span>
+          <span class="category-name">{{ cat.categoryName }}</span>
+          <span class="category-count">{{ cat.names.length }}</span>
+          <span class="category-total">$ {{ cat.monthTotal | number:'1.2-2' }}</span>
+          <button class="icon-btn add-in-cat" type="button" title="Add expense to this category"
+                  (click)="$event.stopPropagation(); openAddForm(cat.categoryId)">
+            <i class="fas fa-plus"></i>
+          </button>
+        </div>
+
+        <!-- Names within the category -->
+        <div class="name-list" *ngIf="isCategoryOpen(cat.categoryId)">
+          <div class="name-block" *ngFor="let n of cat.names">
+            <div class="name-head" (click)="toggleName(cat.categoryId, n.name)">
+              <span class="chevron"><i class="fas" [class.fa-chevron-right]="!isNameOpen(cat.categoryId, n.name)" [class.fa-chevron-down]="isNameOpen(cat.categoryId, n.name)"></i></span>
+              <span class="name-name">{{ n.name }}</span>
+              <span class="name-entries-tag" *ngIf="n.entries.length > 1">{{ n.entries.length }} entries</span>
+              <span class="name-total">$ {{ n.monthTotal | number:'1.2-2' }}</span>
+            </div>
+
+            <!-- Individual entries for this name -->
+            <div class="entry-list" *ngIf="isNameOpen(cat.categoryId, n.name)">
+              <div class="entry-alltime">
+                <i class="fas fa-coins"></i>
+                Total to date across all entries:
+                <strong>$ {{ n.allTimeTotal | number:'1.2-2' }}</strong>
               </div>
-            </td>
-          </tr>
-        </ng-container>
-      </tbody>
-    </table>
-    </div>
+
+              <table class="entry-table">
+                <thead>
+                  <tr>
+                    <th>Amount</th>
+                    <th>Type</th>
+                    <th>Start</th>
+                    <th>Status</th>
+                    <th class="actions-col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <ng-container *ngFor="let row of n.entries">
+                    <tr [class.is-deleting]="pendingDeleteId === row.id">
+                      <td class="amount">$ {{ row.amount | number:'1.2-2' }}</td>
+                      <td>{{ recurrenceLabel(row) }}</td>
+                      <td>{{ formatDate(row.startDate) }}</td>
+                      <td>
+                        <span class="status-text" *ngIf="row.isRecurring">{{ cadenceStatus(row) }}</span>
+                        <span class="status-text muted" *ngIf="!row.isRecurring">—</span>
+                      </td>
+                      <td class="actions-col">
+                        <button class="icon-btn" type="button" (click)="openEditForm(row)" title="Edit">
+                          <i class="fas fa-pen"></i>
+                        </button>
+                        <button class="icon-btn danger" type="button" (click)="askDelete(row.id)" title="Delete">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                    <tr class="notes-row" *ngIf="row.notes">
+                      <td colspan="5"><i class="fas fa-sticky-note"></i> {{ row.notes }}</td>
+                    </tr>
+                    <tr *ngIf="pendingDeleteId === row.id" class="confirm-row">
+                      <td colspan="5">
+                        <div class="confirm-bar">
+                          <span><i class="fas fa-exclamation-triangle"></i> Delete this entry? This removes all of its past and future occurrences from statistics.</span>
+                          <div class="confirm-actions">
+                            <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelDelete()" [disabled]="deleting">Cancel</button>
+                            <button class="btn btn-danger btn-sm" type="button" (click)="confirmDelete()" [disabled]="deleting">
+                              <i class="fas" [class.fa-spinner]="deleting" [class.fa-spin]="deleting" [class.fa-trash]="!deleting"></i>
+                              {{ deleting ? 'Deleting…' : 'Delete' }}
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  </ng-container>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </ng-container>
   </div>
 
   <div class="loading-state" *ngIf="loading">

@@ -59,7 +59,7 @@
   .cta-book-offer {
     font-weight: var(--fw-semibold);
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.9); // on brand-blue bar
+    color: #fff; // full-opacity white for AA contrast on brand-blue bar
     white-space: nowrap;
   }
 }

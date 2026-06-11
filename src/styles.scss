@@ -77,6 +77,7 @@
   --bright-red: #ef4444;             /* red-500, was #ff6b6b */
   --soft-blue: #dbeafe;              /* blue-100, was #e3f2fd */
   --mint-fresh: #dcfce7;             /* green-100 sRGB fallback */
+  --mint-fresh-text: #166534;        /* green-800 — accessible text/icon on --mint-fresh (WCAG AA), sRGB fallback */
   --soft-red: #fee2e2;               /* red-100, was #f4e6e6 */
   --soft-yellow: #fef3c7;            /* amber-100, was #eee8a9 */
   --soft-yellow-text: #92400e;       /* amber-800, was #856404 */
@@ -253,6 +254,7 @@
   --active-nav-link: #60a5fa;
   --bright-red: #f87171;              /* red-400 — better contrast on dark */
   --fresh-green: #4ade80;             /* green-400 sRGB fallback (oklch override below) */
+  --mint-fresh-text: #4ade80;         /* green-400 — readable on the dark mint wash, sRGB fallback */
   --mint-fresh-border: rgba(34, 197, 94, 0.25); /* translucent green-500 fallback */
 
   /* Dark mode: address autocomplete field has border */
@@ -286,11 +288,13 @@
   :root {
     --fresh-green: oklch(72.3% 0.219 149.579);     /* green-500 */
     --mint-fresh: oklch(96.2% 0.044 156.743);      /* green-100 */
+    --mint-fresh-text: oklch(44.8% 0.119 151.328); /* green-800 — accessible text on --mint-fresh */
     --mint-fresh-border: oklch(92.5% 0.084 155.995); /* green-200 */
   }
 
   [data-theme="dark"] {
     --fresh-green: oklch(79.2% 0.209 151.711);     /* green-400 — vivid on dark */
+    --mint-fresh-text: oklch(79.2% 0.209 151.711); /* green-400 — readable on dark mint wash */
     /* Translucent green-500 wash so success/badge surfaces breathe over the
        dark page-bg the same way React's bg-green-500/10 does. */
     --mint-fresh: oklch(72.3% 0.219 149.579 / 0.12);

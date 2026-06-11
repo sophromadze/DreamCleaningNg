@@ -25,13 +25,32 @@
     <button type="button" (click)="errorMessage = ''">&times;</button>
   </div>
 
+  <div class="list-controls">
+    <label class="control">
+      <span class="control-label">Sort</span>
+      <select [(ngModel)]="sortBy" aria-label="Sort cleaners">
+        <option *ngFor="let o of sortOptions" [value]="o.value">{{ o.label }}</option>
+      </select>
+    </label>
+    <label class="control">
+      <span class="control-label">Filter</span>
+      <select [(ngModel)]="filterBy" aria-label="Filter cleaners">
+        <option *ngFor="let o of filterOptions" [value]="o.value">{{ o.label }}</option>
+      </select>
+    </label>
+    <span class="result-count" *ngIf="!loading && cleaners.length > 0">{{ displayedCleaners.length }} shown</span>
+  </div>
+
   <section class="dashboard-body">
     <div class="cards-column">
       <div *ngIf="loading && cleaners.length === 0" class="loading-state">Loading cleaners…</div>
       <div *ngIf="!loading && cleaners.length === 0" class="empty-state">No cleaners found.</div>
+      <div *ngIf="!loading && cleaners.length > 0 && displayedCleaners.length === 0" class="empty-state">
+        No cleaners match this filter.
+      </div>
 
       <article
-        *ngFor="let cleaner of cleaners; trackBy: trackCleaner"
+        *ngFor="let cleaner of displayedCleaners; trackBy: trackCleaner"
         class="cleaner-card"
         [class.inactive]="!cleaner.isActive"
         [class.selected]="selectedDetail?.id === cleaner.id"
@@ -68,7 +87,7 @@
               </div>
               <span *ngIf="cleaner.mainNote" class="mini-main-note">📌 {{ cleaner.mainNote }}</span>
             </div>
-            <span *ngIf="cleaner.location" class="meta-item location">{{ cleaner.location }}</span>
+            <span *ngIf="cleaner.address" class="meta-item address">{{ cleaner.address }}</span>
           </div>
         </div>
       </article>
@@ -363,9 +382,17 @@
           <input type="email" [(ngModel)]="formModel.email" name="email" maxlength="100" />
         </label>
 
-        <label class="full">
+        <label>
           <span>Location</span>
-          <input type="text" [(ngModel)]="formModel.location" name="location" maxlength="300" />
+          <select [(ngModel)]="formModel.location" name="location">
+            <option [ngValue]="null">—</option>
+            <option *ngFor="let opt of locationOptions" [value]="opt.value">{{ opt.label }}</option>
+          </select>
+        </label>
+
+        <label class="full">
+          <span>Address</span>
+          <input type="text" [(ngModel)]="formModel.address" name="address" maxlength="300" />
         </label>
 
         <div class="full availability-block">

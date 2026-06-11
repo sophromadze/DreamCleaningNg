@@ -28,6 +28,7 @@ export class OrderReminderService {
   private orders: OrderData[] = [];
   private checkInterval: any;
   private refreshInterval: any;
+  private ackSyncInterval: any;
   private notificationInterval: any;
   private titleFlashInterval: any;
   private initialized = false;
@@ -149,68 +150,56 @@ export class OrderReminderService {
       this.initialized = true;
 
       // IMPORTANT: Load server state FIRST, then start checking.
-      // This prevents re-triggering already-acknowledged reminders after refresh.
-      this.adminService.getActiveOrderReminders().subscribe({
-        next: (activeFromServer) => {
-          // Build set of keys the server considers active (un-acknowledged)
-          const serverActiveKeys = new Set(
-            activeFromServer.map(r => `${r.orderId}_${r.type}`)
-          );
-
-          // Pre-compute which reminders would be in the 30-min window locally.
-          // If a reminder is in the time window but NOT in the server response,
-          // it means it was already acknowledged — add to acknowledgedKeys.
-          const nowNY = this.getNowInNewYork();
-          for (const order of this.orders) {
-            const status = order.status?.toLowerCase();
-            if (status === 'cancelled' || status === 'done') continue;
-            if (!order.serviceTime || !order.totalDuration) continue;
-
-            const startNY = this.getOrderStartNY(order);
-            const endNY = this.getOrderEndNY(order);
-
-            const startKey = `${order.id}_start`;
-            const alertBeforeStart = new Date(startNY.getTime() - 30 * 60 * 1000);
-            if (nowNY >= alertBeforeStart && nowNY <= startNY && !serverActiveKeys.has(startKey)) {
-              this.acknowledgedKeys.add(startKey);
-            }
-
-            const endKey = `${order.id}_end`;
-            const alertBeforeEnd = new Date(endNY.getTime() - 30 * 60 * 1000);
-            if (nowNY >= alertBeforeEnd && nowNY <= endNY && !serverActiveKeys.has(endKey)) {
-              this.acknowledgedKeys.add(endKey);
-            }
+      // Step 1 — load the authoritative set of ALREADY-acknowledged reminders so an
+      // acknowledged reminder is never re-triggered after a refresh (no fragile
+      // time-window guessing; the DB is the source of truth).
+      this.adminService.getAcknowledgedReminders().subscribe({
+        next: (acked) => {
+          for (const a of acked) {
+            this.acknowledgedKeys.add(`${a.orderId}_${a.type}`);
           }
-
-          // Seed active reminders from server
-          for (const r of activeFromServer) {
-            const key = `${r.orderId}_${r.type}`;
-            if (!this.acknowledgedKeys.has(key) && !this.remindersMap.has(key)) {
-              this.remindersMap.set(key, {
-                orderId: r.orderId,
-                type: r.type as 'start' | 'end',
-                message: r.type === 'start'
-                  ? `30 min before cleaning starts — check cleaners for Order #${r.orderId}`
-                  : `30 min before cleaning ends — check cleaners for Order #${r.orderId}`,
-                triggeredAt: new Date(r.triggeredAt)
-              });
-            }
-          }
-          this.emitReminders();
-
-          // Now start periodic checking (acknowledgedKeys is populated)
-          this.checkReminders();
-          this.startPeriodicChecks();
+          this.seedActiveAndStart();
         },
         error: () => {
-          // Fallback: just start checking without server state
-          this.checkReminders();
-          this.startPeriodicChecks();
+          // Even if this fails, seeding only adds un-acknowledged reminders from the
+          // server, and the periodic sync will reconcile shortly after.
+          this.seedActiveAndStart();
         }
       });
     } else {
       this.checkReminders();
     }
+  }
+
+  /** Seed currently-active (un-acknowledged) reminders from the server, then start the loops. */
+  private seedActiveAndStart(): void {
+    this.adminService.getActiveOrderReminders().subscribe({
+      next: (activeFromServer) => {
+        for (const r of activeFromServer) {
+          const key = `${r.orderId}_${r.type}`;
+          if (!this.acknowledgedKeys.has(key) && !this.remindersMap.has(key)) {
+            this.remindersMap.set(key, {
+              orderId: r.orderId,
+              type: r.type as 'start' | 'end',
+              message: r.type === 'start'
+                ? `30 min before cleaning starts — check cleaners for Order #${r.orderId}`
+                : `30 min before cleaning ends — check cleaners for Order #${r.orderId}`,
+              triggeredAt: new Date(r.triggeredAt)
+            });
+          }
+        }
+        this.emitReminders();
+
+        // Now start periodic checking (acknowledgedKeys is populated)
+        this.checkReminders();
+        this.startPeriodicChecks();
+      },
+      error: () => {
+        // Fallback: just start checking without server state
+        this.checkReminders();
+        this.startPeriodicChecks();
+      }
+    });
   }
 
   private startPeriodicChecks(): void {
@@ -224,6 +213,47 @@ export class OrderReminderService {
         error: () => {}
       });
     }, 5 * 60 * 1000);
+
+    // Safety net: SignalR delivers acknowledgments instantly, but if an admin's
+    // connection dropped the event, poll the DB-backed acknowledged set so a reminder
+    // any admin already dismissed is suppressed for everyone within ~1 minute.
+    this.ackSyncInterval = setInterval(() => this.syncAcknowledged(), 60 * 1000);
+  }
+
+  /** Pull the authoritative acknowledged set and drop any reminder another admin has dismissed. */
+  private syncAcknowledged(): void {
+    this.adminService.getAcknowledgedReminders().subscribe({
+      next: (acked) => {
+        let changed = false;
+        for (const a of acked) {
+          const key = `${a.orderId}_${a.type}`;
+          this.acknowledgedKeys.add(key);
+
+          if (this.remindersMap.has(key)) {
+            this.remindersMap.delete(key);
+            changed = true;
+
+            const current = this.modalReminder$.value;
+            if (current && current.orderId === a.orderId && current.type === a.type) {
+              this.modalReminder$.next(null);
+              this.showNextModal();
+            }
+            this.modalQueue = this.modalQueue.filter(
+              r => !(r.orderId === a.orderId && r.type === a.type)
+            );
+          }
+        }
+
+        if (changed) {
+          this.emitReminders();
+          if (this.remindersMap.size === 0) {
+            this.stopNotificationLoop();
+            this.stopTitleFlash();
+          }
+        }
+      },
+      error: () => {}
+    });
   }
 
   /** Check if a specific order has any active reminder */
@@ -285,6 +315,10 @@ export class OrderReminderService {
     if (this.refreshInterval) {
       clearInterval(this.refreshInterval);
       this.refreshInterval = null;
+    }
+    if (this.ackSyncInterval) {
+      clearInterval(this.ackSyncInterval);
+      this.ackSyncInterval = null;
     }
     this.stopNotificationLoop();
     this.stopTitleFlash();

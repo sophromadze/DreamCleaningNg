@@ -850,7 +850,17 @@
             <div class="cleaner-info">
               <div class="cleaner-name">{{ cleaner.firstName }} {{ cleaner.lastName }}</div>
               <div class="cleaner-email">{{ cleaner.email }}</div>
-              <div class="availability-status" 
+              <div class="cleaner-tags">
+                <span class="cleaner-tag rank" [attr.data-rank]="cleanerRankSlug(cleaner.ranking)">
+                  {{ cleanerRankLabel(cleaner.ranking) }}
+                </span>
+                <span class="cleaner-tag location" *ngIf="cleaner.location">📍 {{ cleaner.location }}</span>
+                <span class="cleaner-tag experience" *ngIf="cleaner.experience">Exp: {{ cleaner.experience }}</span>
+              </div>
+              <div class="cleaner-availability" *ngIf="formatCleanerAvailability(cleaner.availability) as days">
+                🗓 {{ days }}
+              </div>
+              <div class="availability-status"
                    [class.available]="cleaner.isAvailable"
                    [class.busy]="!cleaner.isAvailable">
                 {{ cleaner.isAvailable ? 'Available' : 'Busy' }}

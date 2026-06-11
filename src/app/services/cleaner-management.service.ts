@@ -15,6 +15,7 @@ export interface CleanerListItem {
   isExperienced: boolean;
   phone?: string | null;
   email?: string | null;
+  address?: string | null;
   location?: string | null;
   availability?: string | null;
   alreadyWorkedWithUs: boolean;
@@ -77,6 +78,7 @@ export interface CreateCleanerPayload {
   isExperienced?: boolean;
   phone?: string | null;
   email?: string | null;
+  address?: string | null;
   location?: string | null;
   availability?: string | null;
   alreadyWorkedWithUs?: boolean;

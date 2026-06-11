@@ -9,6 +9,10 @@ export interface AvailableCleaner {
   lastName: string;
   email: string;
   isAvailable: boolean;
+  location?: string | null;
+  ranking?: number | string | null;
+  experience?: string | null;
+  availability?: string | null;
 }
 
 @Injectable({

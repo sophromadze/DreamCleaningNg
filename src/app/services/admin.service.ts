@@ -10,7 +10,7 @@ import { UserSpecialOffer } from './special-offer.service';
 export interface ExpenseBreakdownItem {
   expenseId: number;
   name: string;
-  category: number;
+  categoryId: number;
   categoryName: string;
   date: string;
   amount: number;
@@ -18,7 +18,7 @@ export interface ExpenseBreakdownItem {
 }
 
 export interface ExpenseCategoryBreakdown {
-  category: number;
+  categoryId: number;
   categoryName: string;
   total: number;
   items: ExpenseBreakdownItem[];
@@ -1020,6 +1020,13 @@ export class AdminService {
     return this.http.get<AssignedCleanerAdmin[]>(`${this.apiUrl}/orders/${orderId}/assigned-cleaners-with-ids`);
   }
 
+  /** Returns assigned cleaners for ALL orders in one request, keyed by orderId (string). */
+  getAssignedCleanersWithIdsBulk(): Observable<{ [orderId: string]: AssignedCleanerAdmin[] }> {
+    return this.http.get<{ [orderId: string]: AssignedCleanerAdmin[] }>(
+      `${this.apiUrl}/orders/assigned-cleaners-with-ids/bulk`
+    );
+  }
+
   /** Sends assignment emails only to cleaners who have not been emailed yet for this order. */
   sendCleanerAssignmentMails(orderId: number): Observable<{ emailsSent: number; message: string }> {
     return this.http.post<{ emailsSent: number; message: string }>(
@@ -1118,6 +1125,14 @@ export class AdminService {
   getActiveOrderReminders(): Observable<{ orderId: number; type: string; triggeredAt: string }[]> {
     return this.http.get<{ orderId: number; type: string; triggeredAt: string }[]>(
       `${this.apiUrl}/orders/active-reminders`
+    );
+  }
+
+  // Authoritative set of reminders already acknowledged by any admin (DB-backed).
+  // Used as the safety net so an acknowledged reminder never re-appears for anyone.
+  getAcknowledgedReminders(): Observable<{ orderId: number; type: string }[]> {
+    return this.http.get<{ orderId: number; type: string }[]>(
+      `${this.apiUrl}/orders/acknowledged-reminders`
     );
   }
 

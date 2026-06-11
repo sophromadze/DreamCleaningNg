@@ -114,6 +114,47 @@
   }
 }
 
+.list-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 14px;
+
+  .control {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    .control-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--cd-text-muted);
+    }
+
+    select {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--cd-input-border);
+      background: var(--cd-input-bg);
+      color: var(--cd-text);
+      font-size: 13px;
+      outline: none;
+      min-width: 180px;
+
+      &:focus { border-color: var(--cd-input-focus); }
+    }
+  }
+
+  .result-count {
+    margin-left: auto;
+    align-self: center;
+    font-size: 13px;
+    color: var(--cd-text-muted);
+  }
+}
+
 .error-banner {
   background: var(--cd-danger-soft);
   color: var(--cd-danger);
@@ -251,12 +292,15 @@
     align-items: center;
     gap: 10px;
 
-    .location {
+    .address {
       margin-left: auto;
       text-align: right;
-      color: var(--cd-success);
+      color: var(--cd-text-muted);
       font-size: 13px;
       white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 55%;
     }
   }
 
@@ -1724,5 +1768,194 @@
   &:focus-visible {
     outline: 2px solid #ffffff;
     outline-offset: 2px;
+  }
+}
+
+/* ============================================================
+   Mobile / responsive
+   ============================================================ */
+
+/* Tablet & below: list and detail stack, so the list should scroll
+   with the page instead of inside its own height-capped box. */
+@media (max-width: 960px) {
+  .cards-column {
+    max-height: none;
+    overflow-y: visible;
+    padding-right: 0;
+  }
+
+  .detail-column {
+    padding: 16px;
+  }
+}
+
+/* Phones */
+@media (max-width: 600px) {
+  .cleaners-dashboard {
+    padding: 14px 12px 56px;
+  }
+
+  /* Header: search takes its own full-width row, controls below it */
+  .dashboard-header {
+    gap: 12px;
+
+    .title-block h1 { font-size: 22px; }
+
+    .header-actions {
+      width: 100%;
+      gap: 10px;
+    }
+
+    .search-box {
+      flex: 1 1 100%;
+      order: -1;
+    }
+
+    .search-box input {
+      min-width: 0;
+      width: 100%;
+    }
+
+    .inactive-toggle { flex: 0 0 auto; }
+    .btn-primary { flex: 1 1 auto; }
+  }
+
+  /* Sort / Filter selects go full-width and tappable */
+  .list-controls {
+    gap: 10px;
+
+    .control {
+      flex: 1 1 160px;
+      min-width: 0;
+    }
+
+    .control select {
+      min-width: 0;
+      width: 100%;
+      padding: 10px 30px 10px 12px;
+    }
+
+    .result-count {
+      flex: 1 1 100%;
+      margin-left: 0;
+    }
+  }
+
+  /* Detail header: avatar + name on top, action buttons on their own row */
+  .detail-header {
+    grid-template-columns: 56px 1fr;
+    gap: 12px;
+
+    .avatar.lg {
+      width: 56px;
+      height: 56px;
+      font-size: 20px;
+    }
+
+    .detail-name-block h2 { font-size: 18px; }
+
+    .detail-actions {
+      grid-column: 1 / -1;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+  }
+
+  /* Upcoming/active orders: rigid 5-col grid -> flexible wrapping rows */
+  .orders-section .upcoming-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    align-items: center;
+
+    .job-date-time { flex: 1 1 auto; }
+    .status { margin-left: auto; }
+  }
+
+  /* Modals: use the full width, top-align so tall forms / the on-screen
+     keyboard don't push a vertically-centered dialog off-screen, and use
+     dynamic viewport height so mobile browser chrome doesn't clip it. */
+  .modal-overlay {
+    padding: 8px;
+    align-items: flex-start;
+  }
+
+  .modal {
+    width: 100%;
+    max-height: calc(100dvh - 16px);
+    border-radius: 12px;
+  }
+
+  .modal-header { padding: 12px 14px; }
+
+  .modal-body,
+  .perf-modal-body,
+  .note-modal > .perf-modal-body {
+    padding: 14px;
+  }
+
+  .modal-footer {
+    gap: 8px;
+    flex-wrap: wrap;
+
+    .btn-primary,
+    .btn-secondary,
+    .btn-danger { flex: 1 1 auto; }
+  }
+
+  .modal.perf-modal > .modal-footer,
+  .note-modal > .modal-footer {
+    padding: 12px 14px;
+  }
+
+  /* Stop inner content from forcing the modal wider than the viewport
+     (which produced the left/right scroll). */
+  .modal-body { overflow-x: hidden; }
+
+  .form-grid {
+    gap: 12px;
+
+    /* Grid items default to min-width:auto and refuse to shrink below
+       their content; force them to shrink so fields wrap instead of
+       overflowing. */
+    label,
+    .full,
+    .file-row,
+    .availability-block { min-width: 0; }
+
+    label input,
+    label select,
+    label textarea {
+      width: 100%;
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+  }
+
+  /* Availability rows: stack the day toggle above its time pickers so the
+     two time inputs get the full row width instead of overflowing. */
+  .availability-block {
+    .day-row {
+      grid-template-columns: 1fr;
+      gap: 6px;
+    }
+
+    .day-times {
+      width: 100%;
+      flex-wrap: wrap;
+
+      input[type='time'] {
+        flex: 1 1 88px;
+        min-width: 88px;
+      }
+    }
+  }
+
+  /* Pinned note / location read more naturally left-aligned when stacked */
+  .note-location {
+    align-items: flex-start;
+
+    .location-value { text-align: left; }
   }
 }

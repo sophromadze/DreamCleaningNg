@@ -3,33 +3,25 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
-export type ExpenseCategory =
-  | 'Subscriptions'
-  | 'Supplies'
-  | 'Infrastructure'
-  | 'Marketing'
-  | 'Salaries'
-  | 'Other';
-
-export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
-  'Subscriptions',
-  'Supplies',
-  'Infrastructure',
-  'Marketing',
-  'Salaries',
-  'Other'
-];
+export interface ExpenseCategory {
+  id: number;
+  name: string;
+  displayOrder: number;
+  isSystem: boolean;
+  expenseCount: number;
+}
 
 export interface Expense {
   id: number;
   name: string;
   amount: number;
-  category: number;       // numeric enum value (kept for round-trip with backend)
-  categoryName: ExpenseCategory;
+  categoryId: number;
+  categoryName: string;
   startDate: string;      // ISO date string
   isRecurring: boolean;
   frequencyMonths?: number | null;
   endDate?: string | null;
+  prorateByDay: boolean;
   notes?: string | null;
   createdByUserId: number;
   createdByUserName?: string | null;
@@ -40,27 +32,28 @@ export interface Expense {
 export interface CreateExpense {
   name: string;
   amount: number;
-  category: number;
+  categoryId: number;
   startDate: string;
   isRecurring: boolean;
   frequencyMonths?: number | null;
   endDate?: string | null;
+  prorateByDay: boolean;
   notes?: string | null;
 }
 
 export interface ExpenseOccurrence {
   expenseId: number;
   name: string;
-  category: number;
-  categoryName: ExpenseCategory;
+  categoryId: number;
+  categoryName: string;
   date: string;
   amount: number;
   isRecurring: boolean;
 }
 
 export interface ExpenseCategoryBreakdown {
-  category: number;
-  categoryName: ExpenseCategory;
+  categoryId: number;
+  categoryName: string;
   total: number;
   items: ExpenseOccurrence[];
 }
@@ -68,6 +61,30 @@ export interface ExpenseCategoryBreakdown {
 export interface ExpenseBreakdown {
   total: number;
   byCategory: ExpenseCategoryBreakdown[];
+}
+
+// ── Grouped view (Category → Name → entries) ──
+export interface GroupedName {
+  name: string;
+  monthTotal: number;
+  allTimeTotal: number;
+  entries: Expense[];
+}
+
+export interface GroupedCategory {
+  categoryId: number;
+  categoryName: string;
+  displayOrder: number;
+  monthTotal: number;
+  names: GroupedName[];
+}
+
+export interface GroupedExpenses {
+  year: number;
+  month: number;
+  monthLabel: string;
+  monthTotal: number;
+  categories: GroupedCategory[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -103,8 +120,25 @@ export class ExpenseService {
     return this.http.get<ExpenseBreakdown>(`${this.apiUrl}/breakdown`, { params });
   }
 
-  /** Convert a category label to its numeric enum index — used when sending to backend. */
-  static categoryToNumber(c: ExpenseCategory): number {
-    return EXPENSE_CATEGORIES.indexOf(c);
+  getGrouped(year: number, month: number): Observable<GroupedExpenses> {
+    const params = new HttpParams().set('year', year).set('month', month);
+    return this.http.get<GroupedExpenses>(`${this.apiUrl}/grouped`, { params });
+  }
+
+  // ── Category management ──
+  getCategories(): Observable<ExpenseCategory[]> {
+    return this.http.get<ExpenseCategory[]>(`${this.apiUrl}/categories`);
+  }
+
+  createCategory(name: string): Observable<ExpenseCategory> {
+    return this.http.post<ExpenseCategory>(`${this.apiUrl}/categories`, { name });
+  }
+
+  updateCategory(id: number, name: string): Observable<ExpenseCategory> {
+    return this.http.put<ExpenseCategory>(`${this.apiUrl}/categories/${id}`, { name });
+  }
+
+  deleteCategory(id: number): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/categories/${id}`);
   }
 }

@@ -656,52 +656,27 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.loadingStates.assignedCleaners = true;
 
-    // Load ALL orders' cleaners in batches of 15 to avoid overwhelming the server
-    const batchSize = 15;
-    const allOrders = [...this.orders];
-
-    const loadBatch = (startIndex: number) => {
-      const batch = allOrders.slice(startIndex, startIndex + batchSize);
-      if (batch.length === 0) {
+    // Single bulk request for ALL orders' cleaners. This used to be an N+1 — one request per
+    // order, batched 15 at a time but run sequentially — which took several seconds with many
+    // orders. One round-trip now resolves every row's cleaners.
+    this.adminService.getAssignedCleanersWithIdsBulk().subscribe({
+      next: (cleanersByOrderId) => {
+        this.orders.forEach(order => {
+          const cleaners = cleanersByOrderId[order.id] ?? cleanersByOrderId[String(order.id)] ?? [];
+          this.assignedCleanersCache.set(order.id, cleaners);
+          this.cleanersLoadedSet.add(order.id);
+        });
+        this.cdr.detectChanges();
+      },
+      error: (error) => {
+        console.error('Error preloading assigned cleaners:', error);
+        // Mark all orders as loaded (with empty) so they don't stay stuck in the loading state.
+        this.orders.forEach(order => this.cleanersLoadedSet.add(order.id));
+      },
+      complete: () => {
         this.loadingStates.assignedCleaners = false;
-        return;
       }
-
-      const cleanerRequests = batch.map(order =>
-        this.adminService.getAssignedCleanersWithIds(order.id).pipe(
-          catchError((error) => {
-            console.warn(`Failed to load cleaners for order ${order.id}:`, error);
-            return of([] as AssignedCleanerAdmin[]);
-          })
-        )
-      );
-
-      forkJoin(cleanerRequests).subscribe({
-        next: (allCleaners) => {
-          batch.forEach((order, index) => {
-            this.assignedCleanersCache.set(order.id, allCleaners[index] || []);
-            this.cleanersLoadedSet.add(order.id);
-          });
-        },
-        error: (error) => {
-          console.error('Error preloading assigned cleaners batch:', error);
-          // Mark batch orders as loaded (with empty) so they don't stay in loading state
-          batch.forEach(order => this.cleanersLoadedSet.add(order.id));
-        },
-        complete: () => {
-          const nextIndex = startIndex + batchSize;
-          if (nextIndex < allOrders.length) {
-            // Load next batch
-            loadBatch(nextIndex);
-          } else {
-            // All batches done
-            this.loadingStates.assignedCleaners = false;
-          }
-        }
-      });
-    };
-
-    loadBatch(0);
+    });
   }
 
   /** Preload Deep/Regular variant for residential rows from order details API. */
@@ -1114,6 +1089,48 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       const email = (c.email ?? '').toLowerCase();
       return name.includes(q) || email.includes(q);
     });
+  }
+
+  /** Human-readable rank label for a cleaner in the assignment modal. */
+  cleanerRankLabel(ranking: number | string | null | undefined): string {
+    const labels: Record<string, string> = {
+      '0': 'Best', Top: 'Best',
+      '1': 'Good', Standard: 'Good',
+      '2': 'Normal', Beginner: 'Normal',
+      '3': 'Bad', Restricted: 'Bad',
+      '4': 'No-Exp', NoExp: 'No-Exp'
+    };
+    return labels[String(ranking ?? '1')] ?? 'Good';
+  }
+
+  /** Slug used for rank-colored chips (best/good/normal/bad/noexp). */
+  cleanerRankSlug(ranking: number | string | null | undefined): string {
+    const slugs: Record<string, string> = {
+      '0': 'best', Top: 'best',
+      '1': 'good', Standard: 'good',
+      '2': 'normal', Beginner: 'normal',
+      '3': 'bad', Restricted: 'bad',
+      '4': 'noexp', NoExp: 'noexp'
+    };
+    return slugs[String(ranking ?? '1')] ?? 'good';
+  }
+
+  /** Compact availability summary (e.g. "Mon, Wed, Fri") from the stored JSON slots. */
+  formatCleanerAvailability(value: string | null | undefined): string {
+    if (!value) return '';
+    const dayLabels: Record<string, string> = {
+      mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun'
+    };
+    try {
+      const parsed = JSON.parse(value);
+      if (!Array.isArray(parsed)) return value;
+      const days = parsed
+        .map((slot: any) => dayLabels[String(slot?.day ?? '').toLowerCase()])
+        .filter((label: string | undefined): label is string => !!label);
+      return days.length ? days.join(', ') : '';
+    } catch {
+      return value;
+    }
   }
 
   /** Get default hourly rate based on whether order has deep cleaning extra service */

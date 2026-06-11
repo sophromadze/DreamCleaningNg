@@ -30,6 +30,18 @@ interface AvailabilityDayState {
 type AvailabilityDays = Record<DayKey, AvailabilityDayState>;
 type CleanerExperience = 'Good' | 'Normal' | 'None';
 
+type CleanerSort = 'default' | 'rankBest' | 'rankWorst' | 'expHigh' | 'expLow' | 'name';
+type CleanerFilter =
+  | 'all'
+  | 'best'
+  | 'good'
+  | 'normal'
+  | 'bad'
+  | 'noexp'
+  | 'active'
+  | 'reserve'
+  | 'new';
+
 interface AvailabilitySlot {
   day: DayKey;
   from: string;
@@ -42,6 +54,12 @@ const RANKING_INDEX: Record<CleanerRanking, number> = {
   Beginner: 2,
   Restricted: 3,
   NoExp: 4
+};
+
+const EXPERIENCE_INDEX: Record<CleanerExperience, number> = {
+  Good: 0,
+  Normal: 1,
+  None: 2
 };
 
 const DOCUMENT_TYPE_INDEX: Record<CleanerDocumentType, number> = {
@@ -76,6 +94,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
 
   searchTerm = '';
   includeInactive = false;
+  sortBy: CleanerSort = 'default';
+  filterBy: CleanerFilter = 'all';
   private search$ = new Subject<string>();
   private destroy$ = new Subject<void>();
 
@@ -140,6 +160,33 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     { value: 'Good', label: 'Good' },
     { value: 'Normal', label: 'Normal' },
     { value: 'None', label: 'None' }
+  ];
+
+  readonly sortOptions: { value: CleanerSort; label: string }[] = [
+    { value: 'default', label: 'Default (best first)' },
+    { value: 'rankBest', label: 'Rank: best → worst' },
+    { value: 'rankWorst', label: 'Rank: worst → best' },
+    { value: 'expHigh', label: 'Experience: high → low' },
+    { value: 'expLow', label: 'Experience: low → high' },
+    { value: 'name', label: 'Name (A–Z)' }
+  ];
+
+  readonly filterOptions: { value: CleanerFilter; label: string }[] = [
+    { value: 'all', label: 'Show all' },
+    { value: 'best', label: 'Best rank' },
+    { value: 'good', label: 'Good rank' },
+    { value: 'normal', label: 'Normal rank' },
+    { value: 'bad', label: 'Bad rank' },
+    { value: 'noexp', label: 'No-Exp rank' },
+    { value: 'active', label: 'Active only' },
+    { value: 'reserve', label: 'Reserve only' },
+    { value: 'new', label: 'New cleaners' }
+  ];
+
+  readonly locationOptions: { value: string; label: string }[] = [
+    { value: 'Brooklyn', label: 'Brooklyn' },
+    { value: 'Manhattan', label: 'Manhattan' },
+    { value: 'Queens', label: 'Queens' }
   ];
 
   readonly nationalityOptions: { value: string; label: string }[] = [
@@ -261,6 +308,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       experience: this.normalizeExperience(detail.experience),
       phone: normalizePhone10(detail.phone),
       email: detail.email ?? null,
+      address: detail.address ?? null,
       location: detail.location ?? null,
       availability: detail.availability ?? null,
       alreadyWorkedWithUs: detail.alreadyWorkedWithUs,
@@ -789,6 +837,55 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     this.savePerformance();
   }
 
+  get displayedCleaners(): CleanerListItem[] {
+    const filtered = this.cleaners.filter(c => this.matchesFilter(c));
+    return this.sortCleaners(filtered);
+  }
+
+  private matchesFilter(c: CleanerListItem): boolean {
+    switch (this.filterBy) {
+      case 'best': return this.normalizeRanking(c.ranking) === 'Top';
+      case 'good': return this.normalizeRanking(c.ranking) === 'Standard';
+      case 'normal': return this.normalizeRanking(c.ranking) === 'Beginner';
+      case 'bad': return this.normalizeRanking(c.ranking) === 'Restricted';
+      case 'noexp': return this.normalizeRanking(c.ranking) === 'NoExp';
+      case 'active': return !!c.alreadyWorkedWithUs;
+      case 'reserve': return !c.alreadyWorkedWithUs;
+      case 'new': return this.isNewCleaner(c);
+      case 'all':
+      default: return true;
+    }
+  }
+
+  private sortCleaners(list: CleanerListItem[]): CleanerListItem[] {
+    const byName = (a: CleanerListItem, b: CleanerListItem) =>
+      `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
+    const rank = (c: CleanerListItem) => RANKING_INDEX[this.normalizeRanking(c.ranking)];
+    const exp = (c: CleanerListItem) => EXPERIENCE_INDEX[this.normalizeExperience(c.experience)];
+
+    const sorted = [...list];
+    switch (this.sortBy) {
+      case 'rankBest':
+        return sorted.sort((a, b) => rank(a) - rank(b) || byName(a, b));
+      case 'rankWorst':
+        return sorted.sort((a, b) => rank(b) - rank(a) || byName(a, b));
+      case 'expHigh':
+        return sorted.sort((a, b) => exp(a) - exp(b) || byName(a, b));
+      case 'expLow':
+        return sorted.sort((a, b) => exp(b) - exp(a) || byName(a, b));
+      case 'name':
+        return sorted.sort(byName);
+      case 'default':
+      default:
+        // Mirrors backend default: Top rank first, then alphabetical.
+        return sorted.sort((a, b) => {
+          const aTop = this.normalizeRanking(a.ranking) === 'Top' ? 0 : 1;
+          const bTop = this.normalizeRanking(b.ranking) === 'Top' ? 0 : 1;
+          return aTop - bTop || byName(a, b);
+        });
+    }
+  }
+
   trackCleaner(_: number, item: CleanerListItem): number {
     return item.id;
   }
@@ -809,6 +906,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       experience: 'None',
       phone: null,
       email: null,
+      address: null,
       location: null,
       availability: null,
       alreadyWorkedWithUs: false,
@@ -876,6 +974,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       experience: this.normalizeExperience(this.formModel.experience),
       phone: normalizePhone10(this.formModel.phone),
       email: this.nullIfBlank(this.formModel.email),
+      address: this.nullIfBlank(this.formModel.address),
       location: this.nullIfBlank(this.formModel.location),
       availability: this.serializeAvailability(),
       alreadyWorkedWithUs: !!this.formModel.alreadyWorkedWithUs,

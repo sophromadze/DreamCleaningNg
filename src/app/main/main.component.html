@@ -353,13 +353,24 @@
                   </div>
                 </div>
               </div>
-              <div class="testimonial-quote__dots" *ngIf="reviews.length > 1">
+              <div class="testimonial-quote__nav" *ngIf="reviews.length > 1" role="group" aria-label="Reviews navigation">
                 <button type="button"
-                        *ngFor="let r of reviews; let i = index"
-                        class="testimonial-quote__dot"
-                        [class.is-active]="i === currentReviewIndex"
-                        (click)="goToReview(i)"
-                        [attr.aria-label]="'Show review ' + (i + 1)"></button>
+                        class="testimonial-quote__nav-btn testimonial-quote__nav-btn--prev"
+                        (click)="prevReview()"
+                        aria-label="Show previous review">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m15 18-6-6 6-6"/>
+                  </svg>
+                </button>
+                <span class="testimonial-quote__nav-count" aria-live="polite">{{ currentReviewIndex + 1 }} / {{ reviews.length }}</span>
+                <button type="button"
+                        class="testimonial-quote__nav-btn testimonial-quote__nav-btn--next"
+                        (click)="nextReview()"
+                        aria-label="Show next review">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="m9 18 6-6-6-6"/>
+                  </svg>
+                </button>
               </div>
               <a class="testimonial-quote__google-cta"
                  routerLink="/reviews">
@@ -701,7 +712,7 @@
           <div class="offer-card__body">
             <h4 class="offer-card__title">Residential Cleaning</h4>
             <p class="offer-card__desc">Weekly, biweekly, or monthly upkeep to keep your home consistently fresh — from ${{ pricing.residentialFrom }}.</p>
-            <a routerLink="/services/residential-cleaning" class="offer-card__cta">Learn More
+            <a routerLink="/services/residential-cleaning" class="offer-card__cta">View residential cleaning
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </a>
           </div>
@@ -714,7 +725,7 @@
           <div class="offer-card__body">
             <h4 class="offer-card__title">Deep Cleaning</h4>
             <p class="offer-card__desc">Detailed top-to-bottom clean targeting buildup, grease, baseboards, and hidden dust — from ${{ pricing.deepFrom }}.</p>
-            <a routerLink="/services/deep-cleaning" class="offer-card__cta">Learn More
+            <a routerLink="/services/deep-cleaning" class="offer-card__cta">View deep cleaning
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </a>
           </div>
@@ -727,7 +738,7 @@
           <div class="offer-card__body">
             <h4 class="offer-card__title">Move In/Out Cleaning</h4>
             <p class="offer-card__desc">Transition clean covering cabinet interiors, appliances, and wall spots — from ${{ pricing.moveInOutFrom }}.</p>
-            <a routerLink="/services/move-in-out-cleaning" class="offer-card__cta">Learn More
+            <a routerLink="/services/move-in-out-cleaning" class="offer-card__cta">View move in/out cleaning
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </a>
           </div>
@@ -740,7 +751,7 @@
           <div class="offer-card__body">
             <h4 class="offer-card__title">Office &amp; Commercial</h4>
             <p class="offer-card__desc">Flexible commercial cleaning around your business hours — daily, weekly, or custom plans.</p>
-            <a routerLink="/services/office-cleaning" class="offer-card__cta">Learn More
+            <a routerLink="/services/office-cleaning" class="offer-card__cta">View office &amp; commercial cleaning
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </a>
           </div>
@@ -753,7 +764,7 @@
           <div class="offer-card__body">
             <h4 class="offer-card__title">Heavy Condition Cleaning</h4>
             <p class="offer-card__desc">Intensive restoration for homes not cleaned in 6+ months — ${{ pricing.heavyConditionPerHour }}/hour per cleaner.</p>
-            <a routerLink="/services/heavy-condition-cleaning" class="offer-card__cta">Learn More
+            <a routerLink="/services/heavy-condition-cleaning" class="offer-card__cta">View heavy condition cleaning
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </a>
           </div>
@@ -766,7 +777,7 @@
           <div class="offer-card__body">
             <h4 class="offer-card__title">Filthy Cleaning</h4>
             <p class="offer-card__desc">Our most intensive service for extreme situations — ${{ pricing.filthyPerHour }}/hour per cleaner.</p>
-            <a routerLink="/services/filthy-cleaning" class="offer-card__cta">Learn More
+            <a routerLink="/services/filthy-cleaning" class="offer-card__cta">View filthy cleaning
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </a>
           </div>
@@ -779,7 +790,7 @@
           <div class="offer-card__body">
             <h4 class="offer-card__title">Post Construction</h4>
             <p class="offer-card__desc">Construction dust, debris, and residue removed from every surface — move-in ready.</p>
-            <a routerLink="/services/post-construction-cleaning" class="offer-card__cta">Learn More
+            <a routerLink="/services/post-construction-cleaning" class="offer-card__cta">View post construction cleaning
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </a>
           </div>
@@ -792,7 +803,7 @@
           <div class="offer-card__body">
             <h4 class="offer-card__title">Laundry &amp; Dishwashing</h4>
             <p class="offer-card__desc">On-site laundry — wash, dry, fold — plus all your dishes handled. Nothing outsourced.</p>
-            <a routerLink="/services/laundry-and-dishwashing" class="offer-card__cta">Learn More
+            <a routerLink="/services/laundry-and-dishwashing" class="offer-card__cta">View laundry &amp; dishwashing
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </a>
           </div>

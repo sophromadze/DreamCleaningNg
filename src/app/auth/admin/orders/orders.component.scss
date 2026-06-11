@@ -1198,20 +1198,21 @@
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.6rem;
 
     h4 {
       margin: 0;
+      font-size: 0.9rem;
     }
 
     .cleaner-assignment-search {
       flex: 1 1 auto;
-      min-width: 180px;
+      min-width: 160px;
       max-width: 360px;
-      padding: 8px 12px;
+      padding: 6px 10px;
       border: 1px solid #ccc;
       border-radius: 6px;
-      font-size: 0.95rem;
+      font-size: 0.85rem;
       background: #fff;
       color: #333;
 
@@ -1235,22 +1236,24 @@
   }
 
   .cleaner-grid {
+    max-height: 250px;
+
     @media (max-width: 768px) {
-      max-height: 35vh;
+      max-height: 250px;
       min-height: 120px;
     }
   }
 
   .cleaner-salary-section {
     flex-shrink: 0;
-    padding: 12px 0;
+    padding: 10px 0;
     border-top: 1px solid #e0e0e0;
     border-bottom: 1px solid #e0e0e0;
     margin-bottom: 8px;
 
     h4 {
-      margin: 0 0 8px 0;
-      font-size: 0.95rem;
+      margin: 0 0 6px 0;
+      font-size: 0.85rem;
       color: #333;
     }
 
@@ -1262,15 +1265,15 @@
 
       label {
         font-weight: 600;
-        font-size: 0.9rem;
+        font-size: 0.82rem;
       }
 
       .salary-input {
-        width: 80px;
-        padding: 6px 8px;
+        width: 72px;
+        padding: 5px 7px;
         border: 1px solid #ccc;
         border-radius: 4px;
-        font-size: 0.95rem;
+        font-size: 0.85rem;
         text-align: center;
 
         &:focus {
@@ -1281,7 +1284,7 @@
       }
 
       .salary-hint {
-        font-size: 0.82rem;
+        font-size: 0.74rem;
         color: #666;
         font-style: italic;
       }
@@ -1290,8 +1293,17 @@
 
   .tips-section {
     flex-shrink: 0;
+    margin-bottom: 1rem;
+
+    label {
+      font-size: 0.82rem;
+      margin-bottom: 0.35rem;
+    }
 
     textarea {
+      font-size: 0.85rem;
+      padding: 0.55rem;
+
       @media (max-width: 768px) {
         min-height: 60px;
       }
@@ -1415,55 +1427,55 @@
 
 .cleaner-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 0.6rem;
   margin-bottom: 1.5rem;
-  max-height: 500px;
+  max-height: 250px;
   max-width: 100%;
   margin: 0 auto;
   overflow-y: auto;
   border: 1px solid #e9ecef;
   border-radius: 6px;
-  padding: 1rem;
+  padding: 0.6rem;
   background: #f8f9fa;
 
   @media (max-width: 480px) {
     grid-template-columns: 1fr;
-    gap: 0.75rem;
-    padding: 0.75rem;
-    max-height: 400px;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    max-height: 250px;
   }
 
   @media (max-width: 320px) {
-    gap: 0.5rem;
-    padding: 0.5rem;
-    max-height: 300px;
+    gap: 0.4rem;
+    padding: 0.4rem;
+    max-height: 220px;
   }
 }
 
 .cleaner-card {
   border: 2px solid #e0e0e0;
   border-radius: 8px;
-  padding: 1rem;
+  padding: 0.55rem 0.6rem;
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
   background: white;
-  
+
   &:hover:not(.unavailable) {
     border-color: #007bff;
     box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
   }
-  
+
   &.selected {
     border-color: #28a745;
     background: #f8fff9;
-    
+
     .selection-indicator {
       display: flex;
     }
   }
-  
+
   &.unavailable {
     opacity: 0.6;
     cursor: not-allowed;
@@ -1474,29 +1486,64 @@
 .cleaner-info {
   .cleaner-name {
     font-weight: bold;
-    font-size: 1rem;
+    font-size: 0.82rem;
     color: #333;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.1rem;
+    padding-right: 18px; // keep clear of the selection check
   }
-  
+
   .cleaner-email {
-    font-size: 0.9rem;
+    font-size: 0.7rem;
     color: #666;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.3rem;
+    word-break: break-word;
   }
-  
-  .availability-status {
-    font-size: 0.8rem;
+
+  .cleaner-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 0.3rem;
+  }
+
+  .cleaner-tag {
+    font-size: 0.62rem;
     font-weight: 600;
-    padding: 0.25rem 0.5rem;
+    line-height: 1.1;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: #eef0f3;
+    color: #4b5563;
+    white-space: nowrap;
+
+    &.rank {
+      &[data-rank="best"]   { background: #d4edda; color: #155724; }
+      &[data-rank="good"]   { background: #dbeafe; color: #1d4ed8; }
+      &[data-rank="normal"] { background: #fef3c7; color: #92400e; }
+      &[data-rank="bad"]    { background: #fee2e2; color: #b91c1c; }
+      &[data-rank="noexp"]  { background: #e5e7eb; color: #4b5563; }
+    }
+  }
+
+  .cleaner-availability {
+    font-size: 10px;
+    color: #777;
+    margin-bottom: 0.3rem;
+    line-height: 1.2;
+  }
+
+  .availability-status {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 0.15rem 0.45rem;
     border-radius: 12px;
     display: inline-block;
-    
+
     &.available {
       background: #d4edda;
       color: #155724;
     }
-    
+
     &.busy {
       background: #f8d7da;
       color: #721c24;
@@ -1506,17 +1553,17 @@
 
 .selection-indicator {
   position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
+  top: 0.4rem;
+  right: 0.4rem;
   background: #28a745;
   color: white;
   border-radius: 50%;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   display: none;
   align-items: center;
   justify-content: center;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
 }
 
 .tips-section {
@@ -1786,7 +1833,6 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 15px;
   color: #666;
   font-size: 14px;
 }
@@ -2655,6 +2701,11 @@
     border-color: var(--border-color);
     color: var(--text-primary);
     .cleaner-name, .cleaner-email { color: var(--text-primary) !important; }
+    .cleaner-availability { color: var(--text-muted); }
+    .cleaner-tag:not(.rank) {
+      background: rgba(148, 163, 184, 0.22);
+      color: var(--text-secondary);
+    }
     .availability-status.available {
       background: rgba(40, 167, 69, 0.75) !important;
       color: #fff !important;
