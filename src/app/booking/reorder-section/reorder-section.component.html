@@ -1,0 +1,45 @@
+<button
+  type="button"
+  class="reorder-btn"
+  (click)="toggleModal()"
+  [class.active]="showModal">
+  <i class="fas fa-redo"></i>
+  Reorder from Previous Orders
+</button>
+
+<!-- Reorder Modal -->
+<div class="reorder-modal" *ngIf="showModal">
+  <div class="reorder-modal-header">
+    <h3>Select an Order to Reorder</h3>
+    <button type="button" class="close-btn" (click)="toggleModal()">
+      <i class="fas fa-times"></i>
+    </button>
+  </div>
+  <div class="reorder-modal-body">
+    <div *ngIf="isLoading" class="loading-orders">
+      Loading orders...
+    </div>
+    <div *ngIf="!isLoading && orders.length === 0" class="no-orders">
+      You don't have any previous orders to reorder.
+    </div>
+    <div class="orders-list" *ngIf="!isLoading && orders.length > 0">
+      <div
+        class="order-item"
+        *ngFor="let order of orders"
+        (click)="selectOrder(order.id)"
+        [class.reordering]="reorderingOrderId === order.id">
+        <div class="order-item-header">
+          <h4>{{ order.serviceTypeName }}</h4>
+          <span class="order-total">${{ order.total.toFixed(2) }}</span>
+        </div>
+        <div class="order-item-details">
+          <p class="order-date">{{ formatOrderDate(order.serviceDate) }} at {{ formatTime(order.serviceTime) }}</p>
+          <p class="order-address">{{ order.serviceAddress }}</p>
+        </div>
+        <div class="order-item-status" *ngIf="reorderingOrderId === order.id">
+          <span class="loading-text">Loading...</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -24,6 +24,7 @@ export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
   isPreparing = false;
 
   cardError: string | null = null;
+  showApplePay = false;
   private isBrowser: boolean;
 
   constructor(
@@ -74,22 +75,65 @@ export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.stripeService.destroyCardElement();
+    this.stripeService.destroyPaymentRequestButton();
   }
 
   private async initializeStripeElements() {
     try {
       await this.stripeService.initializeElements();
       const cardElement = this.stripeService.createCardElement('card-element');
-      
+
       if (cardElement) {
         cardElement.on('change', (event: any) => {
           this.cardError = event.error ? event.error.message : null;
         });
       }
+      this.initApplePay();
     } catch (error) {
       console.error('Failed to initialize Stripe elements:', error);
       this.errorMessage = 'Failed to initialize payment form';
     }
+  }
+
+  private async initApplePay() {
+    if (!this.isBrowser || !this.giftCardData) return;
+    const pr = await this.stripeService.createPaymentRequest(this.giftCardAmount, 'Dream Cleaning NYC');
+    if (!pr) return;
+    this.showApplePay = true;
+    setTimeout(() => this.stripeService.createPaymentRequestButton(pr, 'payment-request-button'), 0);
+
+    pr.on('paymentmethod', (ev: any) => {
+      if (this.isProcessing) { ev.complete('fail'); return; }
+      this.isProcessing = true;
+      this.errorMessage = '';
+      this.giftCardService.createGiftCard(this.giftCardData!).subscribe({
+        next: async (response: any) => {
+          try {
+            this.giftCardId = response.giftCardId;
+            const paymentIntent = await this.stripeService.confirmPaymentRequest(
+              response.paymentClientSecret, ev.paymentMethod.id
+            );
+            ev.complete('success');
+            this.giftCardService.confirmGiftCardPayment(this.giftCardId, paymentIntent.id).subscribe({
+              next: () => { this.paymentCompleted = true; this.isProcessing = false; },
+              error: (err: any) => {
+                this.errorMessage = err.error?.message || 'Payment confirmation failed';
+                this.isProcessing = false;
+              }
+            });
+          } catch (payErr: any) {
+            ev.complete('fail');
+            this.errorMessage = payErr.message || 'Payment failed. Please try again.';
+            this.isProcessing = false;
+          }
+        },
+        error: (err: any) => {
+          ev.complete('fail');
+          this.errorMessage = err.error?.message || 'Failed to create gift card. Please try again.';
+          this.isProcessing = false;
+        }
+      });
+    });
   }
 
   async processPayment() {

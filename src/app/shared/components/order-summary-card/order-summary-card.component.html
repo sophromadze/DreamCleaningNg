@@ -1,0 +1,60 @@
+<div [class.summary-card]="variant === 'desktop'"
+     [class.summary-card-mobile]="variant === 'mobile'"
+     [class.collapsed]="collapsed">
+  <h3 *ngIf="title"><i class="fas fa-receipt summary-card__title-icon" aria-hidden="true"></i> {{ title }}</h3>
+
+  <!-- "You're saving" banner — only shown when any discount is applied -->
+  <div class="summary-savings-banner" *ngIf="showSavingsBanner && !collapsed">
+    <i class="fas fa-tag summary-savings-banner__icon" aria-hidden="true"></i>
+    <span>You're saving on this booking</span>
+  </div>
+
+  <!-- Page-specific top block (booking: promo/gift-card input) -->
+  <ng-content select="[summary-top]"></ng-content>
+
+  <div class="summary-details" [class.hidden]="collapsed" *ngIf="details.length > 0">
+    <div class="summary-item" *ngFor="let line of details">
+      <span>{{ line.label }}</span>
+      <span [class]="line.valueClass || 'summary-value'" [shimmer]="line.shimmer || false">{{ line.value }}</span>
+    </div>
+  </div>
+
+  <div class="price-breakdown" [class.hidden]="collapsed">
+    <div *ngFor="let line of priceLines" [class]="'price-item ' + (line.rowClass || '')">
+      <span>{{ line.label }}</span>
+      <span [class]="line.valueClass || 'summary-value'" [shimmer]="line.shimmer || false">{{ line.value }}</span>
+    </div>
+  </div>
+
+  <!-- Page-specific mid block (order-edit: original total + difference) -->
+  <ng-content select="[summary-mid]"></ng-content>
+
+  <!-- Points earn preview -->
+  <div class="pts-earn-preview" *ngIf="estimatedPoints !== null" [class.hidden]="collapsed">
+    <span class="pts-earn-preview-line">
+      You'll earn (est.):
+      <span class="pts-earn-value" [shimmer]="totalShimmer">~{{ estimatedPoints }} pts</span>
+    </span>
+  </div>
+
+  <!-- Fixed Total Section with Toggle -->
+  <div class="total-section">
+    <div class="total">
+      <span>{{ totalLabel }}</span>
+      <span [shimmer]="totalShimmer" class="summary-value">{{ totalValue }}</span>
+    </div>
+    <button class="summary-toggle" *ngIf="showToggle" (click)="toggleCollapsed.emit()" type="button">
+      <!-- Chevron down when collapsed -->
+      <svg class="chevron-icon" *ngIf="collapsed" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+      </svg>
+      <!-- Red X when expanded -->
+      <svg class="close-icon" *ngIf="!collapsed" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Page-specific footer block (booking: next-order subscription info) -->
+  <ng-content select="[summary-footer]"></ng-content>
+</div>

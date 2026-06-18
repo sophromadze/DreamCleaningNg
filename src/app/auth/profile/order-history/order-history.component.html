@@ -18,7 +18,7 @@
         <div class="order-header">
           <div class="order-info">
             <h3>{{ order.serviceTypeName }}</h3>
-            <p class="order-date">Ordered on {{ formatDate(order.orderDate) }}</p>
+            <p class="order-date">Ordered on {{ formatOrderDate(order.orderDate) }}</p>
           </div>
           <div class="order-status">
             <span class="status-badge" [ngClass]="getStatusClass(order.status)">

@@ -58,8 +58,6 @@
               <th class="col-phone">Phone</th>
               <th class="col-email">Email</th>
               <th class="col-last">Last Cleaning</th>
-              <th class="col-note">Last Follow-up</th>
-              <th class="col-offer">Next Offer</th>
               <th class="col-actions" *ngIf="userRole !== 'Moderator'">Actions</th>
             </tr>
           </thead>
@@ -117,20 +115,6 @@
                 <ng-template #noLast><span class="muted">No cleanings yet</span></ng-template>
               </td>
 
-              <td class="col-note">
-                <span class="ellipsis-text" [title]="$any(user).lastFollowUpNote || ''">
-                  {{ truncate($any(user).lastFollowUpNote, 50) || '—' }}
-                </span>
-              </td>
-
-              <td class="col-offer">
-                <span class="offer-pill" *ngIf="$any(user).nextOfferHint; else noOffer"
-                      [title]="$any(user).nextOfferHint">
-                  {{ truncate($any(user).nextOfferHint, 32) }}
-                </span>
-                <ng-template #noOffer><span class="muted">—</span></ng-template>
-              </td>
-
               <td class="col-actions" *ngIf="userRole !== 'Moderator'" (click)="$event.stopPropagation()">
                 <div class="row-actions">
                   <button class="icon-btn note"
@@ -172,7 +156,7 @@
             </tr>
 
             <tr *ngIf="!loadingUsers && filteredUsers.length === 0">
-              <td colspan="7" class="empty-row">No users match the current filters.</td>
+              <td colspan="5" class="empty-row">No users match the current filters.</td>
             </tr>
           </tbody>
         </table>
@@ -246,7 +230,7 @@
     <div class="stats-row" *ngIf="!loadingUserDetails && !editingUser">
       <div class="stat">
         <span class="stat-label">Registered</span>
-        <span class="stat-value">{{ formatShortDate(selectedUser.createdAt) }}</span>
+        <span class="stat-value">{{ formatUtcShortDate(selectedUser.createdAt) }}</span>
       </div>
       <div class="stat">
         <span class="stat-label">Total Jobs</span>
@@ -405,11 +389,11 @@
 
     <!-- Tabs -->
     <nav class="detail-tabs" *ngIf="!editingUser">
+      <button class="tab" [class.active]="detailTab === 'details'" (click)="setDetailTab('details')">Details</button>
       <button class="tab" [class.active]="detailTab === 'overview'" (click)="setDetailTab('overview')">Overview</button>
       <button class="tab" [class.active]="detailTab === 'notes'" (click)="setDetailTab('notes')">Notes
-        <span class="badge" *ngIf="(generalNotes.length + followUpNotes.length) > 0">{{ generalNotes.length + followUpNotes.length }}</span>
+        <span class="badge" *ngIf="generalNotes.length > 0">{{ generalNotes.length }}</span>
       </button>
-      <button class="tab" [class.active]="detailTab === 'details'" (click)="setDetailTab('details')">Details</button>
       <button class="tab" [class.active]="detailTab === 'history'" (click)="setDetailTab('history')">History
         <span class="badge" *ngIf="(selectedUser.orders?.length || 0) > 0">{{ selectedUser.orders?.length }}</span>
       </button>
@@ -424,7 +408,7 @@
         <div class="overview-layout">
           <div class="overview-left">
             <div class="info-card">
-              <h6>Timeline / Calls & Notes</h6>
+              <h6>Notes Timeline</h6>
               <div class="history-list overview-timeline-list">
                 <div *ngFor="let item of overviewTimelineItems; let isLast = last"
                      class="history-row"
@@ -500,7 +484,7 @@
                 </strong>
               </div>
               <div><span>Subscription</span><strong>{{ selectedUser.subscriptionName || 'None' }}</strong></div>
-              <div><span>Registered</span><strong>{{ formatShortDate(selectedUser.createdAt) }}</strong></div>
+              <div><span>Registered</span><strong>{{ formatUtcShortDate(selectedUser.createdAt) }}</strong></div>
             </div>
 
             <div class="comm-prefs">
@@ -569,11 +553,11 @@
                 </div>
                 <div *ngIf="loyaltyDiscount?.activatedAt">
                   <span>Activated</span>
-                  <strong>{{ formatShortDate(loyaltyDiscount!.activatedAt) }}</strong>
+                  <strong>{{ formatUtcShortDate(loyaltyDiscount!.activatedAt) }}</strong>
                 </div>
                 <div *ngIf="loyaltyDiscount?.lastUsedAt">
                   <span>Last used</span>
-                  <strong>{{ formatShortDate(loyaltyDiscount!.lastUsedAt) }}</strong>
+                  <strong>{{ formatUtcShortDate(loyaltyDiscount!.lastUsedAt) }}</strong>
                 </div>
               </div>
 
@@ -746,107 +730,33 @@
             <label class="upload-target">
               <span>Attach to order:</span>
               <select [ngModel]="photoUploadOrderId" (ngModelChange)="setPhotoOrderId($event)">
-                <option [ngValue]="null">— No specific order —</option>
+                <option [ngValue]="null">— Select an order —</option>
                 <option *ngFor="let o of selectedUser.orders" [ngValue]="o.id">
                   #{{ o.id }} • {{ formatShortDate(o.serviceDate) }} • {{ o.serviceTypeName }}
                 </option>
               </select>
             </label>
-            <label class="file-button" [class.disabled]="uploadingPhoto">
-              <input type="file" accept="image/*" multiple (change)="onPhotoFileSelected($event)" [disabled]="uploadingPhoto" hidden>
+            <label class="file-button" [class.disabled]="uploadingPhoto || photoUploadOrderId == null">
+              <input type="file" accept="image/*" multiple (change)="onPhotoFileSelected($event)" [disabled]="uploadingPhoto || photoUploadOrderId == null" hidden>
               {{ uploadingPhoto ? (photoUploadProgress || 'Uploading…') : '+ Upload photos' }}
             </label>
           </div>
+          <p class="muted small" *ngIf="canUpdate && photoUploadOrderId == null">Select an order before uploading — photos must belong to a specific order.</p>
           <div class="error-message inline" *ngIf="photoUploadError">{{ photoUploadError }}</div>
           <div class="success-message inline" *ngIf="photoUploadSuccess">{{ photoUploadSuccess }}</div>
         </div>
       </section>
 
-      <!-- ─── COMMUNICATIONS ─── -->
-      <section *ngIf="detailTab === 'communications'" class="tab-pane">
-        <div class="info-card" *ngIf="canUpdate">
-          <h6>Log a communication</h6>
-          <div class="comm-form">
-            <div class="comm-form__row">
-              <select [(ngModel)]="newComm.type">
-                <option *ngFor="let t of commTypes" [value]="t">{{ t }}</option>
-              </select>
-              <select [(ngModel)]="newComm.status">
-                <option *ngFor="let s of commStatuses" [value]="s">{{ s }}</option>
-              </select>
-            </div>
-            <textarea [(ngModel)]="newComm.notes"
-                      rows="2"
-                      placeholder="What was discussed? Any special requests?"></textarea>
-            <div class="comm-form__actions">
-              <span class="muted small">Logged as you, just now</span>
-              <span class="row-actions">
-                <button *ngIf="editingCommunicationId !== null"
-                        class="action-btn small ghost"
-                        (click)="cancelEditCommunication()"
-                        [disabled]="savingComm">Cancel</button>
-                <button class="action-btn primary small"
-                      (click)="saveCommunication()"
-                      [disabled]="savingComm || !newComm.type">
-                  {{ savingComm ? 'Saving…' : (editingCommunicationId !== null ? 'Save edit' : 'Log entry') }}
-                </button>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div class="info-card">
-          <h6>History
-            <span class="hint" *ngIf="loadingComms">— loading…</span>
-          </h6>
-
-          <div *ngIf="!loadingComms && communications.length === 0" class="muted center">No calls or messages logged yet.</div>
-
-          <div class="comm-list">
-            <div *ngFor="let c of communications" class="comm-item">
-              <div class="comm-item__header">
-                <span class="comm-type" [ngClass]="commTypeClass(c.type)">{{ c.type }}</span>
-                <span class="comm-date muted">{{ formatDateTime(c.interactionDate || c.createdAt) }}</span>
-                <span class="row-actions inline-end" *ngIf="canUpdate">
-                  <button class="link-btn" (click)="startEditCommunication(c)">Edit</button>
-                  <button class="link-btn danger" (click)="removeCommunication(c)">Delete</button>
-                </span>
-              </div>
-              <div class="comm-item__body" *ngIf="c.notes">{{ c.notes }}</div>
-              <div class="comm-item__meta">
-                <span class="muted small">By {{ c.adminName || 'Admin' }}</span>
-                <span class="comm-status" [class.resolved]="c.status === 'Resolved'" [class.closed]="c.status === 'Closed'">{{ c.status }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ─── NOTES ─── -->
+      <!-- ─── NOTES (general only) ─── -->
       <section *ngIf="detailTab === 'notes'" class="tab-pane">
-        <div class="info-card">
-          <h6>Notes & Activity</h6>
-          <div class="note-form__type">
-            <button type="button" class="seg-btn" [class.active]="notesViewTab === 'followup'" (click)="setNotesViewTab('followup')">Follow-up</button>
-            <button type="button" class="seg-btn" [class.active]="notesViewTab === 'general'" (click)="setNotesViewTab('general')">General</button>
-            <button type="button" class="seg-btn" [class.active]="notesViewTab === 'calls'" (click)="setNotesViewTab('calls')">Calls</button>
-            <button type="button" class="seg-btn" [class.active]="notesViewTab === 'tasks'" (click)="setNotesViewTab('tasks')">Tasks</button>
-          </div>
-        </div>
-
-        <div class="info-card" *ngIf="canUpdate && (notesViewTab === 'general' || notesViewTab === 'followup')">
+        <div class="info-card" *ngIf="canUpdate">
           <h6>Add note</h6>
           <div class="note-form">
             <textarea [(ngModel)]="newNoteContent"
                       rows="3"
-                      [placeholder]="notesViewTab === 'followup' ? 'What did the customer say on the last call?' : 'Internal note about this customer'"></textarea>
-            <input *ngIf="notesViewTab === 'followup'"
-                   type="text"
-                   [(ngModel)]="newNoteNextOffer"
-                   placeholder="Next offer suggestion (optional, e.g. '10% off deep clean')"
-                   class="full">
+                      placeholder="Internal note about this customer"></textarea>
             <div class="comm-form__actions">
-              <span class="muted small">Saved to {{ notesViewTab === 'followup' ? 'Follow-ups' : 'General notes' }}</span>
+              <span class="muted small">Saved to General notes</span>
               <button class="action-btn primary small"
                       (click)="saveNewNote()"
                       [disabled]="savingNote || !newNoteContent.trim()">
@@ -856,40 +766,9 @@
           </div>
         </div>
 
-        <div class="info-card" *ngIf="notesViewTab === 'followup'">
-          <h6>Follow-ups <span class="muted">({{ followUpNotes.length }})</span></h6>
-          <div *ngIf="loadingNotes" class="muted center">Loading…</div>
-          <div *ngIf="!loadingNotes && followUpNotes.length === 0" class="muted center">No follow-ups yet.</div>
-          <div class="note-list">
-            <div *ngFor="let n of followUpNotes" class="note-item followup">
-              <ng-container *ngIf="editingNoteId !== n.id">
-                <div class="note-content">{{ n.content }}</div>
-                <div class="next-offer" *ngIf="n.nextOffer">
-                  <span class="next-offer__label">Next offer:</span>
-                  <span class="next-offer__value">{{ n.nextOffer }}</span>
-                </div>
-                <div class="note-meta">
-                  <span class="muted small">{{ n.createdByAdminName || 'Admin' }} • {{ formatDateTime(n.createdAt) }}</span>
-                  <span class="row-actions" *ngIf="canUpdate">
-                    <button class="link-btn" (click)="startEditNote(n)">Edit</button>
-                    <button class="link-btn danger" (click)="deleteNote(n)">Delete</button>
-                  </span>
-                </div>
-              </ng-container>
-              <ng-container *ngIf="editingNoteId === n.id">
-                <textarea [(ngModel)]="editNoteContent" rows="2"></textarea>
-                <input type="text" [(ngModel)]="editNoteNextOffer" placeholder="Next offer (optional)" class="full">
-                <div class="edit-actions">
-                  <button class="action-btn primary small" (click)="saveEditNote(n)">Save</button>
-                  <button class="action-btn small ghost" (click)="cancelEditNote()">Cancel</button>
-                </div>
-              </ng-container>
-            </div>
-          </div>
-        </div>
-
-        <div class="info-card" *ngIf="notesViewTab === 'general'">
+        <div class="info-card">
           <h6>General notes <span class="muted">({{ generalNotes.length }})</span></h6>
+          <div *ngIf="loadingNotes" class="muted center">Loading…</div>
           <div *ngIf="!loadingNotes && generalNotes.length === 0" class="muted center">No general notes yet.</div>
           <div class="note-list">
             <div *ngFor="let n of generalNotes" class="note-item general">
@@ -910,73 +789,6 @@
                   <button class="action-btn small ghost" (click)="cancelEditNote()">Cancel</button>
                 </div>
               </ng-container>
-            </div>
-          </div>
-        </div>
-
-        <div class="info-card" *ngIf="notesViewTab === 'calls'">
-          <h6>Calls</h6>
-          <div class="comm-form" *ngIf="canUpdate">
-            <div class="comm-form__row">
-              <select [(ngModel)]="newComm.type">
-                <option *ngFor="let t of commTypes" [value]="t">{{ t }}</option>
-              </select>
-              <select [(ngModel)]="newComm.status">
-                <option *ngFor="let s of commStatuses" [value]="s">{{ s }}</option>
-              </select>
-            </div>
-            <textarea [(ngModel)]="newComm.notes"
-                      rows="2"
-                      placeholder="What was discussed? Any special requests?"></textarea>
-            <div class="comm-form__actions">
-              <span class="muted small">Logged as you, just now</span>
-              <button class="action-btn primary small"
-                      (click)="saveCommunication()"
-                      [disabled]="savingComm || !newComm.type">
-                {{ savingComm ? 'Saving…' : 'Log entry' }}
-              </button>
-            </div>
-          </div>
-          <div *ngIf="!loadingComms && communications.length === 0" class="muted center">No calls or messages logged yet.</div>
-          <div class="comm-list">
-            <div *ngFor="let c of communications" class="comm-item">
-              <div class="comm-item__header">
-                <span class="comm-type" [ngClass]="commTypeClass(c.type)">{{ c.type }}</span>
-                <span class="comm-date muted">{{ formatDateTime(c.interactionDate || c.createdAt) }}</span>
-                <span class="row-actions inline-end" *ngIf="canUpdate">
-                  <button class="link-btn" (click)="startEditCommunication(c)">Edit</button>
-                  <button class="link-btn danger" (click)="removeCommunication(c)">Delete</button>
-                </span>
-              </div>
-              <div class="comm-item__body" *ngIf="c.notes">{{ c.notes }}</div>
-              <div class="comm-item__meta">
-                <span class="muted small">By {{ c.adminName || 'Admin' }}</span>
-                <span class="comm-status" [class.resolved]="c.status === 'Resolved'" [class.closed]="c.status === 'Closed'">{{ c.status }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="info-card" *ngIf="notesViewTab === 'tasks'">
-          <h6>Tasks</h6>
-          <div *ngIf="loadingTasks" class="muted center">Loading…</div>
-          <div *ngIf="!loadingTasks && userTasks.length === 0" class="muted center">No tasks linked to this customer yet.</div>
-          <div class="task-list">
-            <div *ngFor="let t of userTasks" class="task-item" [class.done]="t.status === 'Done'">
-              <div class="task-item__title">
-                <span class="task-priority"
-                      [class.urgent]="t.priority === 'Urgent'"
-                      [class.high]="t.priority === 'High'"
-                      [class.normal]="t.priority === 'Normal'"
-                      [class.low]="t.priority === 'Low'">{{ t.priority }}</span>
-                <strong>{{ t.title }}</strong>
-                <span class="task-status" [class.done]="t.status === 'Done'">{{ t.status }}</span>
-              </div>
-              <div class="task-item__body" *ngIf="t.description">{{ t.description }}</div>
-              <div class="task-item__meta muted small">
-                <span *ngIf="t.dueDate">Due {{ formatShortDate(t.dueDate) }}</span>
-                <span>By {{ t.createdByAdminName || 'Admin' }} • {{ formatDateTime(t.createdAt) }}</span>
-              </div>
             </div>
           </div>
         </div>

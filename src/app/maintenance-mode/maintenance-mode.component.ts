@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MaintenanceModeService, MaintenanceModeStatus } from '../services/maintenance-mode.service';
+import { formatNyDateTime } from '../shared/ny-time.util';
 
 @Component({
   selector: 'app-maintenance-mode',
@@ -149,7 +150,7 @@ export class MaintenanceModeComponent implements OnInit {
 
   formatDate(date: Date | string | undefined): string {
     if (!date) return '';
-    const d = new Date(date);
-    return d.toLocaleString();
+    // startedAt is UTC — display in NY (business) time.
+    return formatNyDateTime(date);
   }
 } 

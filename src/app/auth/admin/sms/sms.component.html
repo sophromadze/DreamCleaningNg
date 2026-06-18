@@ -106,7 +106,7 @@
           <td>{{ targetRolesDisplay(s.targetRoles) }}</td>
           <td>{{ statusLabel(s) }}</td>
           <td>{{ s.recipientCount }}</td>
-          <td>{{ s.nextScheduledAt ? (s.nextScheduledAt | date:'short') : (s.sentAt ? (s.sentAt | date:'short') : '–') }}</td>
+          <td>{{ s.nextScheduledAt ? (s.nextScheduledAt | nyDate:'datetime') : (s.sentAt ? (s.sentAt | nyDate:'datetime') : '–') }}</td>
           <td>
             <button type="button" class="btn-send" (click)="sendNowFor(s.id)" *ngIf="s.status === 0 && userPermissions?.permissions?.canCreate">Send now</button>
             <button type="button" class="btn-edit" (click)="edit(s)" *ngIf="(s.status === 0 || s.status === 1) && userPermissions?.permissions?.canUpdate">Edit</button>

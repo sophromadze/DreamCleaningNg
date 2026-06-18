@@ -151,7 +151,7 @@
     <div class="reset-feedback error" *ngIf="resetError">{{ resetError }}</div>
     <div class="reset-feedback" *ngIf="undoAvailable && !resetLoading && !undoLoading">
       Undo available for latest {{ undoScope === 'all' ? 'all-clients' : 'specific-client' }} reset.
-      <span *ngIf="undoCreatedAt"> Snapshot: {{ undoCreatedAt | date:'short' }}</span>
+      <span *ngIf="undoCreatedAt"> Snapshot: {{ undoCreatedAt | nyDate:'datetime' }}</span>
     </div>
 
     <div class="reset-modal-actions">

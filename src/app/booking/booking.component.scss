@@ -191,128 +191,6 @@
         }
       }
 
-      .user-search-container {
-        position: relative;
-        margin-bottom: 1.5rem;
-
-        .user-search-input-wrapper {
-          position: relative;
-          display: flex;
-          align-items: center;
-
-          .user-search-input {
-            width: 100%;
-            padding: 1rem 3rem 1rem 1.25rem;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            background: var(--surface);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-
-            &:focus {
-              outline: none;
-              border-color: #667eea;
-              box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
-            }
-
-            &[readonly] {
-              background: #f5f5f5;
-              cursor: not-allowed;
-            }
-          }
-
-          .clear-user-btn {
-            position: absolute;
-            right: 0.75rem;
-            background: transparent;
-            border: none;
-            color: #999;
-            cursor: pointer;
-            padding: 0.5rem;
-            border-radius: 50%;
-            transition: all 0.2s ease;
-            z-index: 2;
-
-            &:hover {
-              background: #f0f0f0;
-              color: #666;
-              transform: rotate(90deg);
-            }
-
-            i {
-              font-size: 1rem;
-            }
-          }
-        }
-
-        .user-dropdown {
-          position: relative;
-          margin-top: 0.5rem;
-          background: var(--surface);
-          border: 2px solid #e0e0e0;
-          border-radius: 10px;
-          max-height: 350px; // Approximately 5 users (70px each)
-          overflow-y: auto;
-          overflow-x: hidden;
-          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-          z-index: 1000;
-
-          .loading-users,
-          .no-users {
-            padding: 1.5rem;
-            text-align: center;
-            color: #666;
-            font-size: 0.95rem;
-          }
-
-          .users-list {
-            // Overflow handled by parent .user-dropdown
-
-            .user-item {
-              padding: 1rem 1.25rem;
-              cursor: pointer;
-              transition: all 0.2s ease;
-              border-bottom: 1px solid #f0f0f0;
-              min-height: 70px;
-              display: flex;
-              align-items: center;
-
-              &:last-child {
-                border-bottom: none;
-              }
-
-              &:hover {
-                background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
-                transform: translateX(5px);
-              }
-
-              .user-info {
-                display: flex;
-                flex-direction: column;
-                gap: 0.25rem;
-
-                strong {
-                  color: #333;
-                  font-size: 1rem;
-                  font-weight: 600;
-                }
-
-                .user-email {
-                  color: #666;
-                  font-size: 0.9rem;
-                }
-
-                .user-id {
-                  color: #999;
-                  font-size: 0.85rem;
-                  font-family: 'Courier New', monospace;
-                }
-              }
-            }
-          }
-        }
-      }
 
       .selected-user-info {
         margin-top: 1rem;
@@ -465,14 +343,6 @@
           }
         }
 
-        .user-search-container {
-          .user-search-input-wrapper {
-            .user-search-input {
-              padding: 0.875rem 2.5rem 0.875rem 1rem;
-              font-size: 0.95rem;
-            }
-          }
-        }
 
         .selected-user-info {
           .selected-user-card {
@@ -606,54 +476,6 @@
           color: var(--text-secondary);
         }
       }
-      .user-search-container .user-search-input-wrapper .user-search-input {
-        background: var(--surface);
-        color: var(--text-primary);
-        border-color: var(--border-color);
-        &::placeholder {
-          color: var(--text-muted);
-        }
-        &:focus {
-          border-color: var(--primary-color);
-          box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
-        }
-        &[readonly] {
-          background: var(--surface);
-          color: var(--text-primary);
-        }
-      }
-      .user-search-container .clear-user-btn {
-        color: var(--text-secondary);
-        &:hover {
-          background: var(--surface);
-          color: var(--text-primary);
-        }
-      }
-      .user-dropdown {
-        background: var(--surface);
-        border-color: var(--border-color);
-        box-shadow: 0 8px 24px var(--shadow-color);
-        .loading-users,
-        .no-users {
-          color: var(--text-secondary);
-        }
-        .users-list .user-item {
-          border-bottom-color: var(--border-color);
-          &:hover {
-            background: rgba(0, 123, 255, 0.12) !important;
-            transform: translateX(5px);
-          }
-          .user-info strong {
-            color: var(--text-primary) !important;
-          }
-          .user-info .user-email {
-            color: var(--text-secondary) !important;
-          }
-          .user-info .user-id {
-            color: var(--text-muted) !important;
-          }
-        }
-      }
       .selected-user-info .selected-user-panel {
         background: var(--surface);
         border: 1px solid var(--border-color);
@@ -726,56 +548,11 @@
       }
     }
 
-    /* Booking summary card: background, text, borders */
-    .summary-card {
-      background: var(--surface);
-      box-shadow: 0 2px 8px var(--shadow-color);
-      border: 1px solid var(--border-color);
-
-      @media (max-width: 1200px) {
-        background: rgba(6, 14, 36, 1);
-        border-color: rgba(80, 160, 255, 0.3);
-        .promo-section .promo-code input,
-      .promo-code-section .promo-code .promo-input input{
+    /* Summary card chrome moved to OrderSummaryCardComponent; only the
+       projected promo input keeps page-scoped dark rules here. */
+    @media (max-width: 1200px) {
+      .booking-summary .promo-code-section .promo-code .promo-input input {
         background: rgba(80, 160, 255, 0.3);
-      }
-      }
-
-      h3 {
-        color: var(--text-primary);
-        border-bottom-color: var(--border-color);
-      }
-
-      .summary-details .summary-item {
-        color: var(--text-secondary);
-
-        span:last-child {
-          color: var(--text-primary);
-        }
-      }
-
-      .price-breakdown {
-        border-top-color: var(--border-color);
-
-        .price-item {
-          color: var(--text-secondary);
-
-          span:last-child {
-            color: var(--text-primary);
-          }
-        }
-      }
-
-      &.collapsed .total-section {
-        border-top-color: var(--border-color);
-      }
-    }
-
-    .total-section {
-      border-top-color: var(--border-color);
-
-      .total {
-        color: var(--text-primary);
       }
     }
 
@@ -800,39 +577,15 @@
       }
     }
 
-    /* Mobile summary card */
-    .summary-card-mobile {
-      background: var(--surface);
-      border: 1px solid var(--border-color);
-      box-shadow: 0 2px 8px var(--shadow-color);
+    /* Mobile summary card chrome moved to OrderSummaryCardComponent;
+       projected promo input keeps its page-scoped dark rule. */
+    .mobile-booking-summary .promo-code-section .promo-code .promo-input input {
+      background: var(--surface-elevated);
+      color: var(--text-primary);
+      border-color: var(--border-color);
 
-      h3 {
-        color: var(--text-primary);
-        border-bottom-color: var(--border-color);
-      }
-
-      .summary-details .summary-item,
-      .price-breakdown .price-item {
-        color: var(--text-secondary);
-
-        span:last-child {
-          color: var(--text-primary);
-        }
-      }
-
-      .total-section .total {
-        color: var(--text-primary);
-      }
-
-      .promo-section .promo-code input,
-      .promo-code-section .promo-code .promo-input input {
-        background: var(--surface-elevated);
-        color: var(--text-primary);
-        border-color: var(--border-color);
-
-        &::placeholder {
-          color: var(--text-muted);
-        }
+      &::placeholder {
+        color: var(--text-muted);
       }
     }
 
@@ -1033,9 +786,6 @@
     .booking-form .services .service-item .service-duration {
       color: var(--text-secondary);
     }
-    .booking-form .services .service-item .quantity-control .control-buttons span {
-      color: var(--text-primary);
-    }
 
     /* Special offers section */
     .special-offers-section {
@@ -1069,52 +819,6 @@
     }
 
     /* Reorder modal */
-    .reorder-section .reorder-modal {
-      background: var(--surface-elevated) !important;
-      border-color: var(--border-color);
-      box-shadow: 0 4px 12px var(--shadow-color);
-      .reorder-modal-header {
-        background: var(--surface) !important;
-        border-bottom-color: var(--border-color);
-        h3 {
-          color: var(--text-primary) !important;
-        }
-        .close-btn {
-          color: var(--text-secondary);
-          &:hover {
-            background: var(--surface-elevated);
-            color: var(--text-primary);
-          }
-        }
-      }
-      .reorder-modal-body {
-        .loading-orders,
-        .no-orders {
-          color: var(--text-muted) !important;
-        }
-        .orders-list .order-item {
-          background: var(--surface) !important;
-          border-color: var(--border-color);
-          &:hover {
-            border-color: var(--primary-color);
-            box-shadow: 0 2px 8px var(--shadow-color);
-          }
-          &.reordering {
-            background: rgba(0, 123, 255, 0.12) !important;
-            border-color: var(--primary-color);
-          }
-          .order-item-header h4 {
-            color: var(--text-primary) !important;
-          }
-          .order-item-details p {
-            color: var(--text-secondary) !important;
-            &.order-address {
-              color: var(--text-muted) !important;
-            }
-          }
-        }
-      }
-    }
 
     /* Partnership overview */
     .booking-form .partnership-overview {
@@ -1152,13 +856,6 @@
       .promo-note-info {
         color: var(--text-secondary);
       }
-    }
-
-    .booking-form .quantity-control button {
-      color: var(--primary-color);
-    }
-    .booking-form .quantity-control .control-value {
-      color: var(--text-primary);
     }
 
     .booking-form .tip-dropdown-toggle,
@@ -1300,23 +997,11 @@
       color: var(--primary-color);
     }
 
-    /* Booking summary – explicit white text in dark mode (step 3 and all steps) */
-    .booking-summary .summary-card,
-    .mobile-booking-summary .summary-card-mobile {
-      h3 {
-        color: #ffffff !important;
-        border-bottom-color: var(--border-color);
-      }
-      .summary-details .summary-item,
-      .price-breakdown .price-item {
-        color: #e8e8e8 !important;
-        span:last-child {
-          color: #ffffff !important;
-        }
-      }
-      .total-section .total {
-        color: #ffffff !important;
-      }
+    /* Booking summary – dark rules for blocks PROJECTED into
+       OrderSummaryCardComponent (they keep this page's style scope).
+       The card's own rows live in the component's stylesheet. */
+    .booking-summary,
+    .mobile-booking-summary {
       .next-order-info .next-order-title {
         color: #ffffff !important;
       }
@@ -1327,17 +1012,6 @@
         color: #ffffff !important;
         &::placeholder {
           color: rgba(255, 255, 255, 0.6);
-        }
-      }
-
-      .pts-earn-preview {
-        justify-content: center;
-        text-align: center;
-        .pts-earn-preview-line {
-          color: #c8c8c8 !important;
-        }
-        .pts-earn-value {
-          color: var(--primary-color) !important;
         }
       }
     }
@@ -1454,41 +1128,6 @@
       }
     }
     
-    // Extra Services Header specific styling
-    h2 {
-      &.extra-services-header {
-        font-size: 1.2rem;
-        font-weight: 400;
-        justify-content: flex-start;
-        text-align: left;
-        margin: 0;
-        
-        @media (max-width: 768px) {
-          font-size: 1.1rem;
-        }
-        
-        @media (max-width: 420px) {
-          font-size: 1rem;
-        }
-      }
-    }
-    
-    // Extra Services Header Container
-    .extra-services-header-container {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      width: 100%;
-      margin-bottom: 1rem;
-      
-      @media (max-width: 768px) {
-        margin-bottom: 0.875rem;
-      }
-      
-      @media (max-width: 420px) {
-        margin-bottom: 0.75rem;
-      }
-    }
   }
 
   // Entry Method & Tips Container
@@ -2498,61 +2137,12 @@
           }
         }
 
-        // Service quantity control styling
+        // Service quantity control — host-level layout only; the stepper's
+        // inner styles live in QuantityControlComponent.
         .quantity-control {
           display: flex;
           align-items: center;
           justify-content: center;
-
-          .control-buttons {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 16px;
-
-            button {
-              width: 30px;
-              height: 30px;
-              border: none;
-              border-radius: 50%;
-              background-color: #E6F4FF;
-              color: #4599F8;
-              cursor: pointer;
-              transition: all 0.2s ease;
-              font-size: 1.2rem;
-              font-weight: 400;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              padding: 0;
-
-              svg {
-                width: 12px;
-                height: 12px;
-              }
-
-              &:hover:not(:disabled) {
-                background-color: #4599F8;
-                color: white;
-                transform: scale(1.05);
-              }
-
-              &:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-                transform: none;
-              }
-            }
-
-            span {
-              font-size: 1.2rem;
-              font-weight: 400;
-              color: #333;
-              min-width: 40px;
-              text-align: center;
-              font-family: 'Poppins', sans-serif;
-            }
-          }
         }
       }
   
@@ -2563,185 +2153,9 @@
     }
   
   
-  // Extra Services
-  .extra-services-container {
-    position: relative;
-    width: 100%;
-    overflow-y: hidden;
-    margin: 0 auto;
-    padding-bottom: 1rem;
-    padding-top: 150px;
-    margin-top: -150px;
-    
-    // When expanded (not collapsed), allow wrapping and remove overflow restriction
-    &:not(.collapsed) {
-      overflow: visible;
-      
-      .extra-services {
-        flex-wrap: wrap;
-        justify-content: center; // Center items when expanded
-      }
-    }
-  }
+  // Extra Services grid moved to ExtraServicesGridComponent
+  // (src/app/shared/components/extra-services-grid).
 
-  .extra-services {
-    display: flex;
-    gap: 1rem;
-    justify-content: flex-start;
-    
-    @media (max-width: 768px) {
-      gap: 0.75rem;
-    }
-    
-    @media (max-width: 534px) {
-      gap: 5px;
-    }
-    
-    @media (max-width: 420px) {
-      gap: 5px;
-    }
-    
-    // Allow tooltips to escape overflow
-    .extra-service-wrapper {
-      overflow: visible !important;
-      
-      .extra-service-card {
-        overflow: visible !important;
-      }
-    }
-  }
-
-  .extra-service-wrapper {
-    display: flex;
-    flex-direction: column;
-    flex: 0 0 150px;
-    width: 150px;
-    align-self: start;
-    overflow: visible; // Changed from overflow-y: hidden to allow tooltips to be visible
-    
-    @media (max-width: 768px) {
-      flex: 0 0 120px;
-      width: 120px;
-    }
-    
-    // Apply 4-color pattern to the card inside
-    &:nth-child(4n+1) {
-      .extra-service-card {
-        background: #FBC3E4; // Pink
-        
-        &:hover, &.selected {
-          background: #FBC3E4;
-          border-color: #E081B8; // Darker pink border
-        }
-        &.selected .extra-icon img {
-          border: 2px solid #E081B8;
-          border-radius: 50%;
-        }
-      }
-      
-      .extra-controls {
-        background: #FBC3E4; // Match card color
-        
-        .control-buttons button {
-          color: #E081B8; // Darker pink
-          
-          &:hover:not(:disabled) {
-            background-color: #E081B8;
-            color: white;
-            border-color: #E081B8;
-          }
-        }
-      }
-    }
-    
-    &:nth-child(4n+2) {
-      .extra-service-card {
-        background: #D4D1FF; // Lavender
-        
-        &:hover, &.selected {
-          background: #D4D1FF;
-          border-color: #B3ADFF; // Darker lavender border
-        }
-        &.selected .extra-icon img {
-          border: 2px solid #B3ADFF;
-          border-radius: 50%;
-        }
-      }
-      
-      .extra-controls {
-        background: #D4D1FF; // Match card color
-        
-        .control-buttons button {
-          color: #B3ADFF; // Darker lavender
-          
-          &:hover:not(:disabled) {
-            background-color: #B3ADFF;
-            color: white;
-            border-color: #B3ADFF;
-          }
-        }
-      }
-    }
-    
-    &:nth-child(4n+3) {
-      .extra-service-card {
-        background: #CDFAC6; // Green
-        
-        &:hover, &.selected {
-          background: #CDFAC6;
-          border-color: #A9EE9F; // Darker green border
-        }
-        &.selected .extra-icon img {
-          border: 2px solid #A9EE9F;
-          border-radius: 50%;
-        }
-      }
-      
-      .extra-controls {
-        background: #CDFAC6; // Match card color
-        
-        .control-buttons button {
-          color: #75FF60; // Green (original color)
-          
-          &:hover:not(:disabled) {
-            background-color: #75FF60;
-            color: white;
-            border-color: #75FF60;
-          }
-        }
-      }
-    }
-    
-    &:nth-child(4n+4) {
-      .extra-service-card {
-        background: #FFE9CA; // Peach
-        
-        &:hover, &.selected {
-          background: #FFE9CA;
-          border-color: #FFD9A3; // Darker peach border
-        }
-        &.selected .extra-icon img {
-          border: 2px solid #FFD9A3;
-          border-radius: 50%;
-        }
-      }
-      
-      .extra-controls {
-        background: #FFE9CA; // Match card color
-        
-        .control-buttons button {
-          color: #FFC966; // Darker peach/orange
-          
-          &:hover:not(:disabled) {
-            background-color: #FFC966;
-            color: white;
-            border-color: #FFC966;
-          }
-        }
-      }
-    }
-  }
-  
   .extra-services-info {
     padding: 0.5rem;
     margin-bottom: 0.5rem;
@@ -3159,465 +2573,6 @@
     }
     100% {
       color: var(--primary-color);
-    }
-  }
-  
-  .extra-service-card {
-    border: 1px solid transparent;
-    border-radius: 31px;
-    padding: 0.75rem;
-    cursor: pointer;
-    transition: background-color 0.2s ease, box-shadow 0.2s ease;
-    background: #CDFAC6;
-    box-shadow: none;
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    text-align: left;
-    width: 100%;
-    min-height: 150px;
-    max-height: 150px;
-    aspect-ratio: 1;
-    overflow: visible; // Changed from hidden to allow tooltips to be visible
-    
-    @media (max-width: 768px) {
-      padding: 12px;
-      min-height: 120px;
-      max-height: 120px;
-    }
-  
-    &:hover {
-      border-width: 2px;
-      box-shadow: none;
-    }
-  
-    &.selected {
-      border-width: 2px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-    }
-
-    &.disabled {
-      cursor: not-allowed;
-      background-color: #f5f5f5;
-      border-color: transparent;
-      
-      .extra-header {
-        opacity: 0.6;
-      }
-
-      &:hover {
-        border-color: transparent;
-        box-shadow: none;
-      }
-      
-      .extra-icon {
-        color: #999;
-        opacity: 0.6;
-
-        img {
-          opacity: 0.6;
-        }
-      }
-      
-      .extra-info h4 {
-        color: #999;
-        text-align: left;
-      }
-      
-      .checkbox input[type="checkbox"] {
-        opacity: 0.5;
-      }
-    }
-  
-    // Custom tooltip styling
-    &[data-tooltip]:hover::after {
-      content: attr(data-tooltip);
-      position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.9);
-      color: white;
-      padding: 0.75rem 1rem;
-      border-radius: 6px;
-      font-size: 0.875rem;
-      line-height: 1.4;
-      white-space: pre-line;
-      z-index: 1000;
-      width: calc(100% - 2rem);
-      height: auto;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-      margin-bottom: 8px;
-      
-      @media (max-width: 768px) {
-        display: none; // Hide hover tooltips on mobile
-      }
-      
-      @media (max-width: 534px) {
-        display: none; // Hide hover tooltips on mobile
-      }
-    }
-    
-    &[data-tooltip]:hover::before {
-      content: '';
-      position: absolute;
-      bottom: 100%;
-      left: 50%;
-      transform: translateX(-50%);
-      border: 5px solid transparent;
-      border-top-color: rgba(0, 0, 0, 0.9);
-      z-index: 1000;
-      margin-bottom: 3px;
-      
-      @media (max-width: 768px) {
-        display: none; // Hide hover tooltip arrows on mobile
-      }
-    }
-
-    // Mobile tooltip styling (only for selected services)
-    // Mobile tooltip styling (only for selected services)
-    &.mobile-tooltip-visible[data-tooltip]::after {
-      @media (min-width: 769px) {
-        display: none; // Hide mobile tooltips on desktop
-      }
-      
-      @media (max-width: 768px) {
-        content: attr(data-tooltip);
-        position: absolute;
-        bottom: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(0, 0, 0, 0.9);
-        color: white;
-        padding: 0.5rem 0.75rem;
-        border-radius: 6px;
-        font-size: 0.8rem;
-        line-height: 1.4;
-        white-space: pre-line;
-        z-index: 1000;
-        width: calc(100% - 1.5rem);
-        height: auto;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        margin-bottom: 8px;
-        animation: fadeInOut 3s ease-in-out;
-        display: block !important; // Force display
-      }
-      
-      @media (max-width: 534px) {
-        width: calc(100% - 1rem);
-        padding: 0.5rem;
-        font-size: 0.75rem;
-      }
-    }
-
-
-    
-    &.mobile-tooltip-visible[data-tooltip]::before {
-      @media (min-width: 769px) {
-        display: none; // Hide mobile tooltip arrows on desktop
-      }
-      
-      @media (max-width: 768px) {
-        content: '';
-        position: absolute;
-        bottom: 100%;
-        left: 50%;
-        transform: translateX(-50%);
-        border: 5px solid transparent;
-        border-top-color: rgba(0, 0, 0, 0.9);
-        z-index: 1000;
-        margin-bottom: 3px;
-        animation: fadeInOut 3s ease-in-out;
-      }
-    }
-  
-    .extra-header {
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      height: 100%;
-      justify-content: space-between;
-      overflow: hidden;
-
-      // .extra-top-controls {
-      //   display: flex;
-      //   justify-content: space-between;
-      //   align-items: center;
-      //   width: 100%;
-      // }
-
-      .extra-icon {
-        width: 64px;
-        height: 64px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--primary-color);
-        font-size: 0.875rem;
-        flex-shrink: 0;
-        align-self: flex-start;
-        margin-bottom: auto;
-        
-        i {
-          font-size: 0.875rem;
-        }
-
-        img {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-        }
-
-        @media (max-width: 768px) {
-          width: 43px;
-          height: 43px;
-        }
-      }
-  
-      .extra-info {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: flex-end;
-        align-items: center;
-        text-align: left;
-        width: 100%;
-        overflow: hidden;
-  
-        h4 {
-          color: #333;
-          font-size: 1.2rem;
-          font-weight: 400;
-          text-align: left;
-          font-family: 'Poppins', sans-serif;
-          margin-top: auto;
-          line-height: 1.2;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: normal;
-          word-wrap: break-word;
-          display: -webkit-box;
-          -webkit-line-clamp: 2;
-          line-clamp: 2;
-          -webkit-box-orient: vertical;
-          max-width: 100%;
-          align-self: flex-start;
-          
-          @media (max-width: 768px) {
-            font-size: 1rem;
-            font-weight: 500;
-          }
-          
-        }
-  
-        .extra-details {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 5px;
-          flex-wrap: wrap;
-  
-          .extra-price {
-            color: var(--fresh-green);
-            padding: 5px;
-            font-size: 14px;
-            font-family: 'Poppins', sans-serif;
-            font-weight: 400;
-            
-            @media (max-width: 768px) {
-              font-size: 12px;
-              padding: 3px;
-            }
-            
-            @media (max-width: 534px) {
-              font-size: 11px;
-              padding: 2px;
-            }
-          }
-  
-          .extra-duration {
-            color: #6c757d;
-            font-size: 14px;
-            gap: 0.5rem;
-            padding: 5px;
-            font-family: 'Poppins', sans-serif;
-            font-weight: 400;
-  
-            .duration-icon {
-              font-size: 0.85rem;
-              color: var(--primary-color);
-            }
-            
-            @media (max-width: 768px) {
-              font-size: 12px;
-              padding: 3px;
-              gap: 0.25rem;
-            }
-            
-            @media (max-width: 534px) {
-              font-size: 11px;
-              padding: 2px;
-              gap: 0.25rem;
-            }
-          }
-        }
-      }
-  
-      .checkbox {
-        max-height: 18px;
-        text-align: right;
-
-        input[type="checkbox"] {
-          width: 18px;
-          height: 18px;
-          cursor: pointer;
-          accent-color: var(--primary-color);
-          
-          @media (max-width: 768px) {
-            width: 16px;
-            height: 16px;
-          }
-          
-          @media (max-width: 534px) {
-            width: 14px;
-            height: 14px;
-          }
-        }
-      }
-    }
-  }
-
-  .extra-controls {
-    border-radius: 31px;
-    padding: 0.4rem;
-    margin-top: 0.5rem;
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    
-    @media (max-width: 768px) {
-      padding: 0.3rem;
-      margin-top: 0.4rem;
-      gap: 0.4rem;
-    }
-    
-    @media (max-width: 534px) {
-      padding: 0.3rem;
-      margin-top: 0.3rem;
-      gap: 0.3rem;
-    }
-
-    .quantity-control,
-    .hours-control {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: center;
-      gap: 0.6rem;
-      width: 100%;
-
-        label {
-          color: #495057;
-          font-size: 1.2rem;
-          font-weight: 400;
-          text-align: center;
-          white-space: nowrap;
-          font-family: 'Poppins', sans-serif;
-          margin-bottom: 0;
-          
-          @media (max-width: 768px) {
-            font-size: 1.1rem;
-          }
-          
-          @media (max-width: 534px) {
-            font-size: 1rem;
-          }
-        }
-
-      .control-buttons {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        width:100%;
-        gap: 3px;
-        flex-shrink: 0;
-
-          button {
-            width: 28px;
-            height: 28px;
-            border: 1px solid #ced4da;
-            background: var(--surface);
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 1.2rem;
-            font-weight: 400;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-
-            svg {
-              width: 12px;
-              height: 12px;
-            }
-
-            &:disabled {
-              opacity: 0.5;
-              cursor: not-allowed;
-              color: #ced4da;
-            }
-            
-            @media (max-width: 768px) {
-              width: 28px;
-              height: 28px;
-              font-size: 1.1rem;
-              
-              svg {
-                width: 10px;
-                height: 10px;
-              }
-            }
-            
-            @media (max-width: 534px) {
-              width: 26px;
-              height: 26px;
-              font-size: 1rem;
-              
-              svg {
-                width: 10px;
-                height: 10px;
-              }
-            }
-          }
-
-          span {
-            text-align: center;
-            color: #333;
-            padding: 3px;
-            font-size: 1.2rem;
-            font-weight: 400;
-            min-width: 28px;
-            font-family: 'Poppins', sans-serif;
-            
-            @media (max-width: 768px) {
-              font-size: 1.1rem;
-              padding: 3px;
-              min-width: 30px;
-            }
-            
-            @media (max-width: 534px) {
-              font-size: 1rem;
-              padding: 2px;
-              min-width: 28px;
-            }
-          }
-      }
     }
   }
   
@@ -4114,229 +3069,6 @@
     width: 100%;
   }
 
-  .reorder-btn {
-    background: var(--btn-secondary);
-    color: white;
-    padding: 0.45rem 0.9rem;
-    border-radius: 58px;
-    border: none;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    transition: all 0.3s ease;
-    box-shadow: var(--btn-secondary-shadow);
-    font-family: 'Poppins', sans-serif;
-    min-height: 36px;
-
-    i {
-      font-size: 0.9rem;
-    }
-
-    &:hover {
-      background: var(--btn-secondary-hover);
-      transform: translateY(-2px);
-      box-shadow: var(--btn-secondary-shadow-hover);
-    }
-
-    &.active {
-      background: var(--btn-secondary-hover);
-    }
-
-    @media (max-width: 768px) {
-      width: 100%;
-      padding: 0.55rem 0.9rem;
-      font-size: 0.8rem;
-      min-height: 38px;
-
-      i {
-        font-size: 0.9rem;
-      }
-    }
-  }
-
-  .reorder-modal {
-    position: absolute;
-    top: calc(100% + 0.5rem);
-    left: 0;
-    right: 0;
-    background: var(--surface);
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 1000;
-    max-height: 500px;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-
-    .reorder-modal-header {
-      padding: 1rem 1.5rem;
-      border-bottom: 1px solid #e0e0e0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: #f8f8f8;
-
-      h3 {
-        margin: 0;
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #333;
-        font-family: 'Poppins', sans-serif;
-      }
-
-      .close-btn {
-        background: none;
-        border: none;
-        cursor: pointer;
-        font-size: 1.25rem;
-        color: #666;
-        padding: 0.25rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 2rem;
-        height: 2rem;
-        border-radius: 4px;
-        transition: all 0.2s ease;
-
-        &:hover {
-          background: #e0e0e0;
-          color: #333;
-        }
-      }
-    }
-
-    .reorder-modal-body {
-      padding: 1rem;
-      overflow-y: auto;
-      flex: 1;
-
-      .loading-orders,
-      .no-orders {
-        text-align: center;
-        padding: 2rem;
-        color: #666;
-        font-size: 0.9rem;
-      }
-
-      .orders-list {
-        display: flex;
-        flex-direction: column;
-        gap: 0.75rem;
-
-        .order-item {
-          padding: 1rem;
-          border: 2px solid #e0e0e0;
-          border-radius: 8px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          background: var(--surface);
-
-          &:hover {
-            border-color: var(--primary-color);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            transform: translateY(-2px);
-          }
-
-          &.reordering {
-            border-color: var(--primary-color);
-            background: #f0f7ff;
-            cursor: wait;
-
-            .order-item-status {
-              margin-top: 0.5rem;
-              color: var(--primary-color);
-              font-size: 0.875rem;
-            }
-          }
-
-          .order-item-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
-
-            h4 {
-              margin: 0;
-              font-size: 1rem;
-              font-weight: 600;
-              color: #333;
-              font-family: 'Poppins', sans-serif;
-            }
-
-            .order-total {
-              font-weight: 600;
-              color: var(--fresh-green);
-              font-size: 1rem;
-            }
-          }
-
-          .order-item-details {
-            p {
-              margin: 0.25rem 0;
-              color: #666;
-              font-size: 0.875rem;
-              font-family: 'Poppins', sans-serif;
-
-              &.order-date {
-                font-weight: 500;
-              }
-
-              &.order-address {
-                color: #888;
-              }
-            }
-          }
-        }
-      }
-    }
-
-    @media (max-width: 768px) {
-      left: 0;
-      right: 0;
-      max-height: 400px;
-
-      .reorder-modal-header {
-        padding: 0.875rem 1.25rem;
-
-        h3 {
-          font-size: 1rem;
-        }
-      }
-
-      .reorder-modal-body {
-        padding: 0.875rem;
-
-        .orders-list {
-          gap: 0.625rem;
-
-          .order-item {
-            padding: 0.875rem;
-
-            .order-item-header {
-              h4 {
-                font-size: 0.9rem;
-              }
-
-              .order-total {
-                font-size: 0.9rem;
-              }
-            }
-
-            .order-item-details {
-              p {
-                font-size: 0.8rem;
-              }
-            }
-          }
-        }
-      }
-    }
-  }
 
   // (Modal styles moved to global scope below)
 }
@@ -4397,14 +3129,6 @@
     flex: 0 0 auto;
   }
 
-  .reorder-btn {
-    padding: 0.35rem 0.65rem;
-    font-size: 0.9rem;
-
-    i {
-      font-size: 0.9rem;
-    }
-  }
 
   @media (max-width: 768px) {
     align-items: stretch;
@@ -4413,10 +3137,6 @@
       width: 100%;
     }
 
-    .reorder-btn {
-      width: 100%;
-      justify-content: center;
-    }
   }
 }
 
@@ -6017,657 +4737,47 @@
       margin: 1.25rem 0;
     }
     
-    .summary-card-mobile {
-      background: var(--surface);
-      border-radius: 20px;
-      padding: 1.5rem;
-      font-family: 'Poppins', sans-serif;
-      
-      @media (max-width: 1200px) {
-        padding: 2rem 1rem 1rem 1rem;
-        border-radius: 8px;
-      }
-      
-      @media (max-width: 768px) {
-        padding: 1.1rem 0.875rem 0.875rem 0.875rem;
-      }
-      
-      @media (max-width: 534px) {
-        padding: 1.1rem 0.75rem 0.75rem 0.75rem;
-      }
-      
-      @media (max-width: 500px) {
-        padding: 1.1rem 0.625rem 0.625rem 0.625rem;
-      }
-      
-      h3 {
-        color: #333;
-        text-align: left;
-        padding-bottom: 5px;
-        border-bottom: 2px solid #f0f0f0;
-        font-size: 1.2rem;
-        font-weight: 500;
-        font-family: 'Poppins', sans-serif;
-        margin: 0 0 1rem 0;
-        display: flex;
-        align-items: center;
-        line-height: 1.3;
-        
-        @media (max-width: 1200px) {
-          margin: 0 0 1.25rem 0;
-          padding-bottom: 0.875rem;
-          font-size: 1.2rem;
-        }
-        
-        @media (max-width: 768px) {
-          margin: 0 0 1rem 0;
-          padding-bottom: 0.75rem;
-          font-size: 1.1rem;
-        }
-        
-        @media (max-width: 534px) {
-          margin: 0 0 0.875rem 0;
-          padding-bottom: 0.625rem;
-          font-size: 1rem;
-        }
-        
-        @media (max-width: 500px) {
-          margin: 0 0 0.75rem 0;
-          padding-bottom: 0.5rem;
-          font-size: 0.95rem;
-        }
-      }
-      
-      // Promo section styling to match booking sections
-      .promo-section {
-        background: var(--surface);
-        border-radius: 20px;
-        padding: 1.5rem;
-        margin: 1.5rem 0;
-        
-        h2 {
-          margin-bottom: 1rem;
-          
-          @media (max-width: 768px) {
-            margin-bottom: 1.25rem;
-          }
-          
-          @media (max-width: 534px) {
-            margin-bottom: 1rem;
-          }
-          
-          @media (max-width: 420px) {
-            margin-bottom: 0.75rem;
-          }
-        }
-        
-        .promo-code-input-section {
-          .promo-code-group {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-            
-            input {
-              flex: 1;
-              padding: 0.75rem;
-              border: none;
-              border-radius: 58px;
-              font-size: 1rem;
-              background: #f8f8f8;
-              
-              @media (max-width: 768px) {
-                padding: 0.625rem;
-                font-size: 0.95rem;
-              }
-              
-              @media (max-width: 534px) {
-                padding: 0.5rem;
-                font-size: 1.1rem;
-                border-radius: 3px;
-              }
-              
-              @media (max-width: 420px) {
-                padding: 0.5rem;
-                font-size: 0.875rem;
-                border-radius: 3px;
-              }
-            }
-            
-            .apply-promo-btn {
-              padding: 0.75rem 1.5rem;
-              background: var(--primary-color);
-              color: white;
-              border: none;
-              border-radius: 58px;
-              cursor: pointer;
-              font-size: 1rem;
-              white-space: nowrap;
-              
-              &:hover {
-                opacity: 0.9;
-              }
-              
-              &[disabled] {
-                opacity: 0.5;
-                cursor: not-allowed;
-              }
-              
-              @media (max-width: 768px) {
-                padding: 0.625rem 1.25rem;
-                font-size: 0.95rem;
-              }
-              
-              @media (max-width: 534px) {
-                padding: 0.5rem 1rem;
-                font-size: 1.1rem;
-                border-radius: 3px;
-              }
-              
-              @media (max-width: 420px) {
-                padding: 0.5rem 0.875rem;
-                font-size: 0.875rem;
-                border-radius: 3px;
-              }
-            }
-          }
-          
-          .remove-promo-btn {
-            margin-top: 0.75rem;
-            padding: 0.75rem 1.5rem;
-            background: var(--bright-red);
-            color: white;
-            border: none;
-            border-radius: 58px;
-            cursor: pointer;
-            font-size: 1rem;
-            
-            &:hover {
-              opacity: 0.9;
-            }
-            
-            @media (max-width: 768px) {
-              padding: 0.625rem 1.25rem;
-              font-size: 0.95rem;
-            }
-            
-            @media (max-width: 534px) {
-              padding: 0.5rem 1rem;
-              font-size: 1.1rem;
-              border-radius: 3px;
-            }
-            
-            @media (max-width: 420px) {
-              padding: 0.5rem 0.875rem;
-              font-size: 0.875rem;
-              border-radius: 3px;
-            }
-          }
-          
-          .promo-note-info {
-            font-size: 0.9rem;
-            color: #666;
-            margin-top: 0.75rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            
-            i {
-              color: var(--primary-color);
-            }
-            
-            @media (max-width: 534px) {
-              font-size: 1.1rem;
-            }
-            
-            @media (max-width: 420px) {
-              font-size: 0.875rem;
-            }
-          }
-        }
-      }
-      
-      .summary-details {
-        .summary-item {
-          display: flex;
-          justify-content: space-between;
-          padding: 5px 0;
-          color: #666;
-          font-size: 0.95rem;
-          font-family: 'Poppins', sans-serif;
-          font-weight: 400;
-          
-          @media (max-width: 1200px) {
-            padding: 3px 0;
-            font-size: 0.9rem;
-          }
-          
-          @media (max-width: 768px) {
-            font-size: 0.85rem;
-          }
-          
-          @media (max-width: 534px) {
-            font-size: 0.8rem;
-          }
-          
-          @media (max-width: 500px) {
-            font-size: 0.75rem;
-          }
-          
-          span:last-child {
-            font-weight: 600;
-            color: #333;
-          }
-        }
-      }
-      
-      .price-breakdown {
-        border-top: 2px solid #f0f0f0;
-        padding-top: 5px;
-        margin-top: 5px;
-        
-        .price-item {
-          display: flex;
-          justify-content: space-between;
-          padding: 5px 0;
-          color: #666;
-          font-size: 0.95rem;
-          font-family: 'Poppins', sans-serif;
-          font-weight: 400;
-          
-          @media (max-width: 1200px) {
-            padding: 3px 0;
-            font-size: 0.9rem;
-          }
-          
-          @media (max-width: 768px) {
-            font-size: 0.85rem;
-          }
-          
-          @media (max-width: 534px) {
-            font-size: 0.8rem;
-          }
-          
-          @media (max-width: 500px) {
-            font-size: 0.75rem;
-          }
-          
-          span:last-child {
-            font-weight: 600;
-            color: #333;
-          }
-          
-          .discount {
-            color: var(--fresh-green);
-          }
-        }
-      }
-      
-      .total-section {
-        border-top: 2px solid #f0f0f0;
-        padding-top: 5px;
-        margin-top: 5px;
-        
-        .total {
-          display: flex;
-          justify-content: space-between;
-          font-size: 1.3rem;
-          font-weight: 700;
-          color: #333;
-          padding: 10px 0;
-          font-family: 'Poppins', sans-serif;
-          
-          @media (max-width: 1200px) {
-            font-size: 1.2rem;
-            justify-content: center;
-            gap: 1rem;
-            width: 100%;
-          }
-          
-          @media (max-width: 768px) {
-            font-size: 1.1rem;
-          }
-          
-          @media (max-width: 534px) {
-            font-size: 1rem;
-          }
-          
-          @media (max-width: 500px) {
-            font-size: 0.95rem;
-          }
-        }
-      }
-      
-      .next-order-info {
-        margin-top: 1rem;
-        padding-top: 1rem;
-        border-top: 2px solid #f0f0f0;
-        
-        .divider {
-          margin: 0.5rem 0;
-        }
-        
-        .next-order-title {
-          font-weight: 600;
-          color: #333;
-          margin-bottom: 0.5rem;
-          font-size: 0.95rem;
-        }
-        
-        .price-item {
-          display: flex;
-          justify-content: space-between;
-          padding: 5px 0;
-          font-size: 0.95rem;
-          
-          span:last-child {
-            font-weight: 600;
-          }
-        }
-      }
-    }
-  }
-  
-    .summary-card {
-    background: #f8f8f8;
-    border-radius: 31px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    padding: 1.5rem;
-    font-family: 'Poppins', sans-serif;
-    min-width: 0;
-    max-width: 100%;
-    box-sizing: border-box;
-
-    @media (max-width: 1200px) {
-      padding: 2rem 1rem 1rem 1rem;
-      border-radius: 8px;
-      background-color: var(--soft-blue);
-      border: 1px solid var(--primary-color);
-      max-width: 100%;
-    }
-
-    // Mobile/touch device with viewport > 768px: use compact top padding like on small screens
-    @media (max-width: 1200px) and (min-width: 769px) and (hover: none) {
-      padding: 1.1rem 1rem 1rem 1rem;
-    }
-    
-    @media (max-width: 768px) {
-      padding: 1.1rem 0.875rem 0.875rem 0.875rem;
-      border-radius: 6px;
-    }
-    
-    @media (max-width: 534px) {
-      padding: 1.1rem 0.75rem 0.75rem 0.75rem;
-      border-radius: 4px;
-    }
-    
-    @media (max-width: 500px) {
-      padding: 1.1rem 0.625rem 0.625rem 0.625rem;
-      border-radius: 4px;
-    }
-
-    h3 {
-      color: #333;
-      text-align: center;
-      padding-bottom: 5px;
-      border-bottom: 2px solid #f0f0f0;
-      font-size: 1.3rem;
-      font-weight: 600;
-      font-family: 'Poppins', sans-serif;
-      word-wrap: break-word;
-      overflow-wrap: break-word;
-      max-width: 100%;
-
-      @media (max-width: 1200px) {
-        margin: 0 0 1.25rem 0;
-        padding-bottom: 0.875rem;
-        font-size: 1.2rem;
-      }
-
-      @media (max-width: 768px) {
-        margin: 0 0 1rem 0;
-        padding-bottom: 0.75rem;
-        font-size: 1.1rem;
-      }
-
-      @media (max-width: 534px) {
-        margin: 0 0 0.875rem 0;
-        padding-bottom: 0.625rem;
-        font-size: 1rem;
-      }
-
-      @media (max-width: 500px) {
-        margin: 0 0 0.75rem 0;
-        padding-bottom: 0.5rem;
-        font-size: 0.95rem;
-      }
-
-      // Ensure border is removed when collapsed on mobile
-      @media (max-width: 1200px) {
-        &.collapsed {
-          border-bottom: none;
-        }
-      }
-    }
-
-    .summary-details {  
-      .summary-item {
-        display: flex;
-        justify-content: space-between;
-        padding: 5px 0;
-        color: #666;
-        font-size: 0.95rem;
-        font-family: 'Poppins', sans-serif;
-        font-weight: 400;
-        
-        @media (max-width: 1200px) {
-          padding: 3px 0;
-          font-size: 0.9rem;
-        }
-        
-        @media (max-width: 768px) {
-          font-size: 0.85rem;
-        }
-        
-        @media (max-width: 534px) {
-          font-size: 0.8rem;
-        }
-        
-        @media (max-width: 500px) {
-          font-size: 0.75rem;
-        }
-  
-        span:last-child {
-          font-weight: 600;
-          color: #333;
-        }
-      }
-    }
-  
-    .price-breakdown {
+    // Mobile summary card chrome moved to OrderSummaryCardComponent.
+    // next-order-info is PROJECTED into the card (keeps this page's scope).
+    .next-order-info {
+      margin-top: 1rem;
+      padding-top: 1rem;
       border-top: 2px solid #f0f0f0;
-      padding-top: 5px;
-      margin-top: 5px;
-        
+
+      .divider {
+        margin: 0.5rem 0;
+      }
+
+      .next-order-title {
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+      }
+
       .price-item {
         display: flex;
         justify-content: space-between;
         padding: 5px 0;
-        color: #666;
         font-size: 0.95rem;
-        font-family: 'Poppins', sans-serif;
-        font-weight: 400;
-        
-        @media (max-width: 1200px) {
-          padding: 3px 0;
-          font-size: 0.9rem;
-        }
-        
-        @media (max-width: 768px) {
-          font-size: 0.85rem;
-        }
-        
-        @media (max-width: 534px) {
-          font-size: 0.8rem;
-        }
-        
-        @media (max-width: 500px) {
-          font-size: 0.75rem;
-        }
-  
+
         span:last-child {
           font-weight: 600;
-          color: #333;
-        }
-  
-        .discount {
-          color: var(--fresh-green);
-        }
-      }
-  
-      // Total styles are now handled in .total-section
-    }
-
-    // Collapsible functionality for mobile
-    @media (max-width: 1200px) {
-      .total-section{
-        .total{
-          justify-content: center;
-          gap: 1rem;
-          width: 100%;
-        }
-      }
-      
-      &.collapsed {
-        .summary-details,
-        .price-breakdown,
-        .next-order-info {
-          display: none;
-        }
-        
-        .total-section {
-          border-top: 2px solid #f0f0f0;
-          padding-top: 5px;
-          margin-top: 5px;
-
-          .total{
-            justify-content: center;
-            gap: 1rem;
-            width: 100%;
-          }
-        }
-        
-        h3 {
-          margin-bottom: 0.5rem;
-          padding-bottom: 0.5rem;
-          border-bottom: none; // Remove border when collapsed
-        }
-      }
-      
-      .hidden {
-        display: none !important;
-      }
-    }
-  }
-
-  // Fixed Total Section with Toggle
-  .total-section {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 5px;
-    padding: 5px 0;
-    border-top: 2px solid #f0f0f0;
-    
-    @media (max-width: 1200px) {
-      margin-top: 0;
-      padding-top: 0.875rem;
-    }
-    
-    @media (max-width: 768px) {
-      margin-top: 0;
-      padding-top: 0.75rem;
-    }
-    
-    @media (max-width: 534px) {
-      margin-top: 0;
-      padding-top: 0.625rem;
-    }
-    
-    @media (max-width: 500px) {
-      margin-top: 0;
-      padding-top: 0.5rem;
-    }
-
-      .total {
-      display: flex;
-      justify-content: center;
-      gap: 1rem;
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #333;
-      width: 100%;
-      font-family: 'Poppins', sans-serif;
-      
-      @media (max-width: 768px) {
-        font-size: 1.15rem;
-      }
-      
-      @media (max-width: 534px) {
-        font-size: 1.1rem;
-      }
-      
-      @media (max-width: 500px) {
-        font-size: 1rem;
-      }
-    }
-
-    .summary-toggle {
-      background: none;
-      border: none;
-      cursor: pointer;
-      padding: 0.5rem;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      
-      @media (min-width: 1201px) {
-        display: none; // Hide toggle on desktop
-      }
-
-      .chevron-icon {
-        width: 24px;
-        height: 24px;
-        color: var(--primary-color);
-        
-        @media (max-width: 768px) {
-          width: 20px;
-          height: 20px;
-        }
-        
-        @media (max-width: 534px) {
-          width: 18px;
-          height: 18px;
-        }
-      }
-
-      .close-icon {
-        width: 24px;
-        height: 24px;
-        color: var(--bright-red);
-        
-        @media (max-width: 768px) {
-          width: 20px;
-          height: 20px;
-        }
-        
-        @media (max-width: 534px) {
-          width: 18px;
-          height: 18px;
         }
       }
     }
   }
+  
+  // Desktop summary card moved to OrderSummaryCardComponent.
+  // Collapse helper for blocks projected into the card (promo,
+  // next-order-info, edit-diff) — they keep this page's style scope.
+  @media (max-width: 1200px) {
+    .booking-summary .hidden,
+    .mobile-booking-summary .hidden {
+      display: none !important;
+    }
+  }
+
 
   .service-pricing-info {
     margin-bottom: 20px;
@@ -6804,12 +4914,6 @@
     }
   }
 
-  .subscription-discount {
-    .discount {
-      color: var(--fresh-green);
-      font-weight: 600;
-    }
-  }
 
   // Profile page styles
   .subscription-active {
@@ -7044,42 +5148,6 @@
     }
   }
   
-  .poll-summary {
-    .summary-card {
-      background: var(--soft-blue);
-      border: 1px solid #e9ecef;
-      border-radius: 8px;
-      padding: 1.5rem;
-      
-      h3 {
-        margin: 0 0 1rem 0;
-        color: #333;
-        font-family: 'Poppins', sans-serif;
-        font-weight: 600;
-      }
-      
-      .summary-details {
-        .summary-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 0.5rem 0;
-          
-          span:first-child {
-            font-weight: 400;
-            color: #666;
-            font-family: 'Poppins', sans-serif;
-          }
-          
-          span:last-child {
-            font-weight: 600;
-            color: #333;
-            font-family: 'Poppins', sans-serif;
-          }
-        }
-      }
-    }
-  }
 
   // Photo Upload Styles
 .upload-description {
@@ -7822,54 +5890,6 @@
     }
   }
 }
-// Extra Services Toggle Button
-.extra-services-toggle {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  
-  .toggle-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background: transparent;
-    border: none;
-    color: var(--primary-color);
-    font-size: 1rem;
-    font-weight: 400;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    font-family: 'Poppins', sans-serif;
-    white-space: nowrap;
-    z-index: 5;
-    
-    &:hover {
-      color: var(--primary-dark-color, #0056b3);
-      opacity: 0.8;
-    }
-    
-    i {
-      transition: transform 0.3s ease;
-      
-      &.rotated {
-        transform: rotate(180deg);
-      }
-    }
-    
-    @media (max-width: 768px) {
-      padding: 0.5rem 0.875rem;
-      font-size: 0.9rem;
-    }
-    
-    @media (max-width: 420px) {
-      padding: 0.5rem 0.75rem;
-      font-size: 0.875rem;
-      gap: 0.375rem;
-    }
-  }
-}
-
 // Shimmer placeholders: match real layout and border-radius of the elements they replace
 // Service type dropdown: pill shape and height to match .dropdown-toggle
 .service-type-dropdown.shimmer-loading {
@@ -7990,33 +6010,11 @@
   overflow: hidden;
 }
 
-// Extra services loading: row of card-shaped placeholders matching .extra-service-wrapper
-.extra-services-shimmer-row {
-  display: flex;
-  gap: 1rem;
-  justify-content: flex-start;
 
-  @media (max-width: 768px) {
-    gap: 0.75rem;
-  }
-}
-
-.extra-service-card-shimmer {
-  flex: 0 0 150px;
-  width: 150px;
-  min-height: 120px;
-  border-radius: 31px;
-  overflow: hidden;
-
-  @media (max-width: 768px) {
-    flex: 0 0 120px;
-    width: 120px;
-    min-height: 100px;
-  }
-}
-
-// Summary value spans: keep min width when shimmering to avoid layout shift
-.summary-value.shimmer-loading {
+// Shimmering values inside blocks PROJECTED into OrderSummaryCardComponent
+// (e.g. next-order-info) keep min width to avoid layout shift; the card's own
+// rows get this from the component stylesheet.
+.next-order-info .summary-value.shimmer-loading {
   min-width: 4ch;
   display: inline-block;
 }
@@ -8216,34 +6214,6 @@
 }
 
 // Centered under breakdown; smaller type; points in primary (see dark overrides in :host-context)
-.pts-earn-preview {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  text-align: center;
-  padding: 0.35rem 0 0.15rem;
-  margin-top: 2px;
-  font-size: 0.8rem;
-  line-height: 1.35;
-  font-family: 'Poppins', sans-serif;
-  font-weight: 400;
-  color: var(--text-secondary, #888);
-
-  @media (max-width: 500px) {
-    font-size: 0.75rem;
-  }
-
-  .pts-earn-preview-line {
-    color: inherit;
-  }
-
-  .pts-earn-value {
-    color: var(--primary-color, #007bff);
-    font-weight: 600;
-    margin-left: 0.2rem;
-  }
-}
 
 /* =============================================================
    MODERN HERO SHELL — booking page surface upgrade
@@ -8346,39 +6316,6 @@
   }
 }
 
-.booking-summary .summary-card {
-  background: var(--surface);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-2xl);
-  box-shadow: 0 10px 40px var(--shadow-color);
-}
-
-/* Mobile/tablet: keep the legacy soft-blue tint (intentional emphasis when
-   the summary is sticky on small screens), only modernize the radius.
-   The background/border are restated here because our base rule above has
-   higher specificity than the legacy `.summary-card` rule and would
-   otherwise wipe out the mobile emphasis. */
-@media (max-width: 1200px) {
-  .booking-summary .summary-card {
-    background-color: var(--soft-blue);
-    border-color: var(--primary-color);
-    border-radius: var(--radius-xl);
-  }
-}
-
-@media (max-width: 768px) {
-  .booking-summary .summary-card {
-    border-radius: var(--radius-lg);
-  }
-}
-
-.mobile-booking-summary .summary-card-mobile {
-  background: var(--surface);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-xl);
-  box-shadow: 0 8px 24px var(--shadow-color);
-}
-
 .booking-form .booking-section > h2 {
   font-weight: var(--fw-extrabold);
   letter-spacing: -0.01em;
@@ -8437,9 +6374,7 @@
 }
 
 :host-context([data-theme="dark"]) {
-  .booking-form,
-  .booking-summary .summary-card,
-  .mobile-booking-summary .summary-card-mobile {
+  .booking-form {
     box-shadow: 0 10px 40px var(--shadow-color);
   }
 
@@ -8714,107 +6649,8 @@
 }
 
 /* ---- Summary card title icon ------------------------------- */
-.summary-card__title-icon {
-  color: var(--primary-color);
-  margin-right: 0.5rem;
-  font-size: 0.95em;
-}
-
-/* ---- "You're saving" banner inside summary ----------------- */
-.summary-savings-banner {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin: 0 0 0.875rem;
-  padding: 0.625rem 0.875rem;
-  border-radius: var(--radius-md);
-  background: var(--mint-fresh);
-  border: 1px solid var(--mint-fresh-border);
-  color: var(--fresh-green);
-  font-size: 0.875rem;
-  font-weight: var(--fw-extrabold);
-  letter-spacing: -0.005em;
-
-  &__icon {
-    font-size: 0.95rem;
-    flex-shrink: 0;
-  }
-}
-
-/* ---- Summary trust footer (3 guarantees at bottom) --------- */
-.summary-trust-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4375rem;
-  list-style: none;
-  margin: 0.875rem 0 0;
-  padding: 0.875rem 0 0;
-  border-top: 1px dashed var(--border-color);
-
-  &__item {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    font-size: 0.8125rem;
-    font-weight: var(--fw-semibold);
-    color: var(--text-secondary);
-    line-height: 1.4;
-  }
-
-  &__icon {
-    font-size: 0.9rem;
-    flex-shrink: 0;
-
-    &--green { color: var(--fresh-green); }
-    &--blue  { color: var(--primary-color); }
-  }
-
-  &.hidden {
-    display: none;
-  }
-}
-
-/* ---- Polished total section -------------------------------- */
-.booking-summary .summary-card .total-section {
-  margin-top: 0.875rem;
-  padding: 0.875rem 1rem;
-  background: linear-gradient(135deg, var(--soft-blue) 0%, var(--mint-fresh) 100%);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-lg);
-
-  .total {
-    font-size: 1.5rem;
-    font-weight: var(--fw-black);
-    color: var(--text-primary);
-    letter-spacing: -0.02em;
-
-    .summary-value {
-      color: var(--fresh-green);
-    }
-
-    @media (max-width: 768px) {
-      font-size: 1.35rem;
-    }
-
-    @media (max-width: 463px) {
-      font-size: 1.2rem;
-    }
-  }
-}
-
-/* Mobile inline summary echoes the same total treatment */
-.mobile-booking-summary .summary-card-mobile .total-section {
-  margin-top: 0.875rem;
-  padding: 0.75rem 0.875rem;
-  background: linear-gradient(135deg, var(--soft-blue) 0%, var(--mint-fresh) 100%);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-
-  .total {
-    font-weight: var(--fw-black);
-    .summary-value { color: var(--fresh-green); }
-  }
-}
+/* Summary card chrome (title icon, savings banner, polished total) moved to
+   OrderSummaryCardComponent (src/app/shared/components/order-summary-card). */
 
 /* ---- Section H2 with leading accent dot -------------------- */
 /* Existing h2 is `display: flex; gap: 0.5rem`, so the pseudo-element
@@ -8829,13 +6665,6 @@
   box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
 }
 
-/* Discount lines in the breakdown — green emphasis for savings */
-.booking-summary .summary-card .price-breakdown .price-item .discount,
-.mobile-booking-summary .summary-card-mobile .price-breakdown .price-item .discount {
-  color: var(--fresh-green);
-  font-weight: var(--fw-extrabold);
-}
-
 /* Dark-mode tuning for new elements */
 :host-context([data-theme="dark"]) {
   .booking-progress-stepper {
@@ -8848,21 +6677,6 @@
     border-color: var(--border-color);
   }
 
-  .summary-savings-banner {
-    background: rgba(34, 197, 94, 0.12);
-    border-color: rgba(34, 197, 94, 0.30);
-    color: var(--fresh-green);
-  }
-
-  .booking-summary .summary-card .total-section,
-  .mobile-booking-summary .summary-card-mobile .total-section {
-    background: linear-gradient(135deg, rgba(37, 99, 235, 0.18) 0%, rgba(34, 197, 94, 0.18) 100%);
-    border-color: var(--border-color);
-  }
-
-  .summary-trust-footer {
-    border-top-color: var(--border-color);
-  }
 }
 
 /* ---- Combined rewards panel (compact) -----------------------
@@ -9153,39 +6967,6 @@
 
   > label {
     font-weight: var(--fw-bold);
-    color: var(--text-primary);
-  }
-}
-
-/* Quantity stepper polish — bigger touch targets, pill */
-.booking-form .quantity-control .control-buttons {
-  background: var(--surface-subtle);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-pill);
-  padding: 0.25rem;
-
-  button {
-    width: 1.875rem;
-    height: 1.875rem;
-    border-radius: 50%;
-    color: var(--primary-color);
-    transition: background 0.15s ease, transform 0.15s ease;
-
-    &:hover:not(:disabled) {
-      background: var(--soft-blue);
-      transform: scale(1.08);
-    }
-
-    &:disabled {
-      color: var(--text-muted);
-      opacity: 0.4;
-    }
-  }
-
-  span {
-    min-width: 2.25rem;
-    text-align: center;
-    font-weight: var(--fw-extrabold);
     color: var(--text-primary);
   }
 }
@@ -9504,6 +7285,12 @@
   }
 }
 
+/* Service-type toggle only: larger font, tighter padding (entry-method keeps the shared sizing) */
+.booking-form .service-type-dropdown .dropdown-toggle {
+  padding: 0.5rem 0.875rem !important;
+  font-size: 1.3rem;
+}
+
 /* Service-type toggle: leading icon avatar + name */
 .booking-form .service-type-dropdown .dropdown-toggle__label {
   display: inline-flex;
@@ -9517,8 +7304,8 @@
 }
 
 .booking-form .service-type-dropdown .dropdown-toggle__icon {
-  width: 1.875rem;
-  height: 1.875rem;
+  width: 2rem;
+  height: 2rem;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
@@ -9526,13 +7313,29 @@
   border-radius: 50%;
   background: var(--soft-blue);
   color: var(--primary-color) !important;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
 }
 
 .booking-form .service-type-dropdown .dropdown-toggle__chevron {
   color: var(--text-muted) !important;
   flex-shrink: 0;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .booking-form .service-type-dropdown .dropdown-toggle {
+    font-size: 1.15rem;
+  }
+
+  .booking-form .service-type-dropdown .dropdown-toggle__icon {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 0.85rem;
+  }
+
+  .booking-form .service-type-dropdown .dropdown-toggle__chevron {
+    font-size: 0.8rem;
+  }
 }
 
 .booking-form .service-type-dropdown .dropdown-menu,
@@ -10023,318 +7826,8 @@
   }
 }
 
-/* ---- Extra Service cards ----------------------------------- */
-/* The card retains its image-driven layout, square aspect, and
-   tooltip behaviour — we only modernize surface & feedback. */
-.booking-form .extra-services .extra-service-card {
-  background: var(--surface-elevated) !important;
-  border: 2px solid var(--border-color) !important;
-  border-radius: var(--radius-xl) !important;
-  transition: transform 0.2s ease, border-color 0.2s ease,
-    box-shadow 0.2s ease, background 0.2s ease !important;
-
-  &:hover:not(.disabled):not(.selected) {
-    transform: translateY(-3px);
-    border-color: var(--primary-color) !important;
-    box-shadow: 0 8px 22px var(--shadow-color) !important;
-    background: var(--surface) !important;
-  }
-
-  &.selected {
-    background: linear-gradient(135deg,
-      var(--mint-fresh) 0%,
-      var(--surface-elevated) 100%) !important;
-    border-color: var(--fresh-green) !important;
-    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.18) !important;
-    /* Check badge now lives on ::before — see Round 3 below.
-       ::after is intentionally left untouched so the legacy
-       `[data-tooltip]:hover::after` keeps showing tooltips. */
-  }
-
-  .extra-info h4 {
-    font-weight: var(--fw-extrabold) !important;
-    color: var(--text-primary) !important;
-    font-size: 0.875rem !important;
-  }
-}
-
-/* Extra service card disabled state in dark mode */
-:host-context([data-theme="dark"]) {
-  .booking-form .extra-services .extra-service-card {
-    background: var(--surface) !important;
-
-    &.selected {
-      background: linear-gradient(135deg,
-        rgba(34, 197, 94, 0.18) 0%,
-        var(--surface-elevated) 100%) !important;
-    }
-
-    &.disabled {
-      background: var(--surface-subtle) !important;
-    }
-  }
-}
-
-/* =============================================================
-   ROUND 2 — feedback fixes
-   - Extra service cards: drop legacy 4-color pastel pattern,
-     swap corner badge to ::before so the tooltip ::after works,
-     add hover blue-plus / red-x states.
-   - Service-type dropdown menu: cap height + scroll inside.
-   - Subscription "Most popular" badge.
-   - Tips: visible input + clean menu, fits 5 presets.
-   - Compact partnership accordion at end of step 3.
-============================================================= */
-
-/* ---- Extra service card: neutralize pastel theme ----------- */
-/* Override the legacy `:nth-child(4n+...)` colored backgrounds
-   on the wrapper, the icon img border, the controls panel and
-   the stepper buttons. Uniform surface + green-on-selected. */
-.booking-form .extra-services .extra-service-wrapper {
-  .extra-service-card .extra-header .extra-icon {
-    background: var(--surface) !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: 50% !important;
-    box-shadow: 0 2px 8px var(--shadow-color) !important;
-    padding: 0;
-
-    img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-  }
-
-  &:has(.extra-service-card.selected) .extra-service-card .extra-header .extra-icon {
-    background: #fff !important;
-    border-color: var(--mint-fresh-border) !important;
-  }
-
-  /* Reset the colored ring CSS adds around the icon when selected */
-  .extra-service-card.selected .extra-icon img {
-    border: none !important;
-  }
-
-  /* Quantity / hours panel — identical look for both kinds.
-     The legacy CSS already groups `.quantity-control, .hours-control`
-     under the same rules; we restate dimensions here so both pills
-     render at exactly the same width regardless of value text.
-     We also neutralize the Round-1 `.quantity-control .control-buttons`
-     background, which was giving the quantity pill a second inner
-     surface that the hours pill didn't have. */
-  .extra-controls {
-    background: transparent !important;
-    border-radius: var(--radius-pill) !important;
-
-    .quantity-control,
-    .hours-control {
-      .control-buttons {
-        gap: 0.375rem;
-        background: transparent !important;
-        border: none !important;
-        padding: 0 !important;
-        border-radius: 0 !important;
-
-        button {
-          width: 28px !important;
-          height: 28px !important;
-          color: var(--fresh-green) !important;
-          background: rgba(34, 197, 94, 0.28) !important;
-          border: none !important;
-          box-shadow: 0 1px 4px var(--shadow-color) !important;
-          transition: background 0.15s ease, color 0.15s ease !important;
-          transform: none !important;
-
-          &:hover:not(:disabled) {
-            background: rgba(34, 197, 94, 0.4) !important;
-            color: #fff !important;
-            transform: none !important;
-          }
-        }
-
-        span {
-          min-width: 42px !important;
-          text-align: center;
-          color: var(--text-primary) !important;
-          font-weight: var(--fw-extrabold);
-          padding: 3px;
-        }
-      }
-    }
-  }
-
-  /* When the card is SELECTED, the panel below adopts a green wash */
-  &:has(.extra-service-card.selected) .extra-controls {
-    background: var(--mint-fresh) !important;
-    border: 1px solid var(--mint-fresh-border) !important;
-
-    .quantity-control,
-    .hours-control {
-      .control-buttons {
-        background: transparent !important;
-        border: none !important;
-        padding: 0 !important;
-
-        button {
-          background: rgba(255, 255, 255, 0.6) !important;
-          color: var(--fresh-green) !important;
-
-          &:hover:not(:disabled) {
-            background: rgba(34, 197, 94, 0.15) !important;
-            color: var(--fresh-green) !important;
-            transform: none !important;
-          }
-        }
-
-        span {
-          color: var(--fresh-green) !important;
-        }
-      }
-    }
-  }
-}
-
-:host-context([data-theme="dark"]) {
-  .booking-form .extra-services .extra-service-wrapper {
-    .extra-service-card .extra-header .extra-icon {
-      background: rgba(255, 255, 255, 0.92) !important;
-      border-color: transparent !important;
-      box-shadow: none !important;
-    }
-
-    .extra-controls .quantity-control .control-buttons,
-    .extra-controls .hours-control .control-buttons {
-      button {
-        border-color: transparent !important;
-        box-shadow: none !important;
-      }
-
-      span {
-        background: transparent !important;
-        border-color: transparent !important;
-      }
-    }
-  }
-}
-
-/* Single corner indicator on every extra-service card — same slot,
-   colour & icon swap by state. ::after stays free for tooltips, so
-   selected cards can still show their data-tooltip on hover.
-   Every state restates dimensions + font-size with !important so the
-   different FontAwesome glyph metrics (+, ✓, ✕) can't visually grow
-   the badge across hover/selected transitions. */
-
-%extra-card-badge-geometry {
-  position: absolute !important;
-  top: 0.5rem !important;
-  right: 0.5rem !important;
-  bottom: auto !important;
-  left: auto !important;
-  width: 1.5rem !important;
-  height: 1.5rem !important;
-  min-width: 1.5rem !important;
-  min-height: 1.5rem !important;
-  max-width: 1.5rem !important;
-  max-height: 1.5rem !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  border-radius: 50% !important;
-  font-family: "Font Awesome 6 Free" !important;
-  font-weight: 900 !important;
-  font-size: 0.625rem !important;
-  line-height: 1 !important;
-  color: #fff !important;
-  z-index: 2 !important;
-  pointer-events: none !important;
-  overflow: hidden !important;
-  box-sizing: border-box !important;
-  transform: none !important;
-  transition: background 0.15s ease, box-shadow 0.15s ease;
-}
-
-.booking-form .extra-services .extra-service-card {
-  &::before {
-    @extend %extra-card-badge-geometry;
-    content: "\f067"; /* fa-plus */
-    background: var(--primary-color) !important;
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
-  }
-
-  &:hover:not(.selected):not(.disabled)::before {
-    @extend %extra-card-badge-geometry;
-    content: "\f067";
-    background: var(--primary-color) !important;
-    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
-  }
-
-  &.disabled::before {
-    display: none !important;
-  }
-
-  &.selected::before {
-    @extend %extra-card-badge-geometry;
-    content: "\f00c"; /* fa-check */
-    background: var(--fresh-green) !important;
-    box-shadow: 0 2px 6px rgba(34, 197, 94, 0.35);
-  }
-
-  &.selected:hover::before {
-    @extend %extra-card-badge-geometry;
-    content: "\f00d"; /* fa-times */
-    background: var(--bright-red) !important;
-    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.40);
-  }
-}
-
-/* Border colours: blue default → green hover → green selected → red selected-hover */
-.booking-form .extra-services .extra-service-card {
-  border-color: var(--primary-color) !important;
-
-  &:hover:not(.selected):not(.disabled) {
-    border-color: var(--fresh-green) !important;
-  }
-
-  &.selected {
-    border-color: var(--fresh-green) !important;
-  }
-
-  &.selected:hover {
-    border-color: var(--bright-red) !important;
-  }
-}
-
-/* Tooltip styling parity with the new card surface */
-.booking-form .extra-services .extra-service-card[data-tooltip]:hover::after {
-  background: rgba(2, 6, 23, 0.92) !important;
-  color: #fff !important;
-  border-radius: var(--radius-md) !important;
-  font-size: 0.75rem !important;
-  font-weight: var(--fw-medium) !important;
-  padding: 0.5rem 0.75rem !important;
-  max-width: 220px !important;
-  white-space: normal !important;
-  z-index: 1000 !important;
-}
-
-/* The hovered card creates its own stacking context above the
-   floor-type-section (which has z-index: 3) so the tooltip — even
-   when expanding upward — is never obscured by the chips above.
-   On touch devices `:hover` doesn't fire reliably, so we also lift
-   the card whenever its mobile tooltip class is set. */
-.booking-form .extra-services .extra-service-card:hover,
-.booking-form .extra-services .extra-service-card.mobile-tooltip-visible {
-  z-index: 10;
-}
-
-/* Tooltip ::after — never capture taps. Otherwise tapping the
-   tooltip area bubbles to the card and silently toggles selection. */
-.booking-form .extra-services .extra-service-card[data-tooltip]:hover::after,
-.booking-form .extra-services .extra-service-card.mobile-tooltip-visible[data-tooltip]::after,
-.booking-form .extra-services .extra-service-card[data-tooltip]:hover::before,
-.booking-form .extra-services .extra-service-card.mobile-tooltip-visible[data-tooltip]::before {
-  pointer-events: none !important;
-}
+/* Extra Services card surface/badge/tooltip redesign moved to
+   ExtraServicesGridComponent (src/app/shared/components/extra-services-grid). */
 
 /* ---- Service Type dropdown: scrollable menu ----------------
    The list has 7 service types currently — give the menu enough
@@ -10596,101 +8089,5 @@
     &__body { border-top-color: var(--border-color); }
   }
 
-  /* Extra service tooltip in dark mode keeps strong contrast */
-  .booking-form .extra-services .extra-service-card[data-tooltip]:hover::after {
-    background: rgba(15, 23, 42, 0.96) !important;
-    color: #fff !important;
-  }
-}
-
-/* ---- Extra services horizontal scrollbar — theme-aware --------
-   .extra-services-container has `overflow-y: hidden`, which forces
-   the horizontal axis to `auto` and renders a scrollbar when the
-   row of cards overflows. Use design tokens so dark mode no longer
-   shows a white-on-dark default scrollbar. */
-.booking-form .extra-services-container {
-  scrollbar-width: auto;
-  scrollbar-color: var(--text-muted) var(--surface-subtle);
-
-  &::-webkit-scrollbar {
-    height: 11px;
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: var(--surface-subtle);
-    border-radius: 999px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--text-muted);
-    border-radius: 999px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
-  }
-
-  &::-webkit-scrollbar-thumb:hover {
-    background: var(--text-secondary);
-    background-clip: padding-box;
-  }
-}
-
-:host-context([data-theme="dark"]) {
-  .booking-form .extra-services-container {
-    scrollbar-color: rgba(255, 255, 255, 0.35) rgba(255, 255, 255, 0.08);
-
-    &::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.35);
-      background-clip: padding-box;
-    }
-
-    &::-webkit-scrollbar-thumb:hover {
-      background: rgba(255, 255, 255, 0.55);
-      background-clip: padding-box;
-    }
-  }
-}
-
-/* ---- Touch-device sticky-hover guard for Extra Services ---------
-   On phones/tablets `:hover` doesn't auto-clear after a tap, which
-   leaves selected cards stuck in the "click-to-remove" hover state
-   (red border + ✕ badge) until the user taps elsewhere. Inside
-   `(hover: none)` we neutralize every hover-only modifier so taps
-   just toggle selection — no sticky red ✕, no sticky lift, and no
-   sticky tooltip. The `.mobile-tooltip-visible` class is what shows
-   tooltips on mobile (handled by the component on tap). */
-@media (hover: none) {
-  .booking-form .extra-services .extra-service-card {
-    &:hover {
-      z-index: auto;
-      transform: none !important;
-      box-shadow: none !important;
-    }
-
-    &:hover:not(.selected):not(.disabled) {
-      border-color: var(--primary-color) !important;
-      background: var(--surface-elevated) !important;
-      box-shadow: none !important;
-    }
-
-    &.selected:hover {
-      border-color: var(--fresh-green) !important;
-    }
-
-    /* Selected card hover keeps the green ✓ instead of swapping to ✕ */
-    &.selected:hover::before {
-      content: "\f00c" !important;
-      background: var(--fresh-green) !important;
-      box-shadow: 0 2px 6px rgba(34, 197, 94, 0.35) !important;
-    }
-
-    /* Suppress the desktop hover tooltip ONLY when the mobile tooltip
-       class isn't set. Otherwise tapping a card triggers a brief
-       :hover state that would race with the mobile-tooltip-visible
-       rule and leave the badge empty. */
-    &[data-tooltip]:hover:not(.mobile-tooltip-visible)::after {
-      content: none !important;
-    }
-  }
 }
 

@@ -18,6 +18,9 @@
     <div class="payment-section">
       <h3>Payment Information</h3>
       
+      <!-- Apple Pay / Google Pay button -->
+      <div id="payment-request-button" class="applepay-button-container" *ngIf="showApplePay"></div>
+
       <!-- Card Element Container -->
       <div id="card-element" class="card-element-container">
         <!-- Stripe Elements will be mounted here -->

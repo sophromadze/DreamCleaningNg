@@ -1,6 +1,9 @@
 <div class="payment-form">
     <h3>Payment Information</h3>
-    
+
+    <!-- Apple Pay / Google Pay button -->
+    <div id="card-element-pr" class="applepay-button-container" *ngIf="showApplePay"></div>
+
     <div class="form-group">
       <label>Card Details</label>
       <div id="card-element" class="stripe-card-element"></div>

@@ -207,10 +207,6 @@ export interface UserAdmin {
   lastCleaningServiceType?: string | null;
   lastBedrooms?: number | null;
   lastBathrooms?: number | null;
-  /** Most recent follow-up note content (preview) for the table. */
-  lastFollowUpNote?: string | null;
-  /** Most recent follow-up note's "next offer" suggestion (preview) for the table. */
-  nextOfferHint?: string | null;
   /** Total number of non-cancelled orders this user has placed. */
   totalOrdersCount?: number;
 }
@@ -220,9 +216,8 @@ export interface UserAdmin {
 export interface UserNote {
   id: number;
   userId: number;
-  type: 'General' | 'FollowUp';
+  type: 'General';
   content: string;
-  nextOffer?: string | null;
   createdByAdminId?: number | null;
   createdByAdminName?: string | null;
   createdAt: string;
@@ -230,14 +225,12 @@ export interface UserNote {
 }
 
 export interface CreateUserNoteDto {
-  type: 'General' | 'FollowUp';
+  type: 'General';
   content: string;
-  nextOffer?: string | null;
 }
 
 export interface UpdateUserNoteDto {
   content: string;
-  nextOffer?: string | null;
 }
 
 export interface UserCleaningPhoto {
@@ -842,6 +835,11 @@ export class AdminService {
     return this.http.post(`${this.apiUrl}/orders/${orderId}/cancel`, { reason });
   }
 
+  /** SuperAdmin-only: permanently delete an order (no refund). */
+  deleteOrder(orderId: number): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/orders/${orderId}`);
+  }
+
   sendReviewRequest(orderId: number): Observable<any> {
     return this.http.post(`${this.apiUrl}/orders/${orderId}/send-review-request`, {});
   }
@@ -880,12 +878,10 @@ export class AdminService {
     return this.http.get<UserSpecialOffer[]>(`${this.apiUrl}/users/${userId}/special-offers`);
   }
 
-  // ── Customer-care: notes (multi-row, type=General|FollowUp) ──
+  // ── Customer-care: general notes ──
 
-  getUserCareNotes(userId: number, type?: 'General' | 'FollowUp'): Observable<UserNote[]> {
-    let params = new HttpParams();
-    if (type) params = params.set('type', type);
-    return this.http.get<UserNote[]>(`${this.apiUrl}/user-care/users/${userId}/notes`, { params });
+  getUserCareNotes(userId: number): Observable<UserNote[]> {
+    return this.http.get<UserNote[]>(`${this.apiUrl}/user-care/users/${userId}/notes`);
   }
 
   createUserCareNote(userId: number, dto: CreateUserNoteDto): Observable<UserNote> {
@@ -921,6 +917,24 @@ export class AdminService {
 
   deleteUserCleaningPhoto(photoId: number): Observable<{ message: string }> {
     return this.http.delete<{ message: string }>(`${this.apiUrl}/user-care/cleaning-photos/${photoId}`);
+  }
+
+  // ── Order-scoped cleaning photos (shared with the per-user library) ──
+
+  getOrderCleaningPhotos(orderId: number): Observable<UserCleaningPhoto[]> {
+    return this.http.get<UserCleaningPhoto[]>(`${this.apiUrl}/user-care/orders/${orderId}/cleaning-photos`);
+  }
+
+  uploadOrderCleaningPhoto(orderId: number, file: File, caption?: string): Observable<UserCleaningPhotoUploadResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    let params = new HttpParams();
+    if (caption) params = params.set('caption', caption);
+    return this.http.post<UserCleaningPhotoUploadResult>(
+      `${this.apiUrl}/user-care/orders/${orderId}/cleaning-photos`,
+      formData,
+      { params }
+    );
   }
 
   // ── Customer-care: communications log (backed by ClientInteractions) ──
@@ -1071,6 +1085,15 @@ export class AdminService {
   /** Send payment reminder (email + SMS) for unpaid additional payment. */
   sendPaymentReminder(orderId: number): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiUrl}/orders/${orderId}/send-payment-reminder`, {});
+  }
+
+  // One-shot re-send of the original payment-link email/SMS to the customer's current
+  // account email/phone (used after an admin corrects a mistyped contact).
+  sendPaymentLink(orderId: number, sendEmail: boolean, sendSms: boolean): Observable<{ message: string; sentToEmail?: string; sentToPhone?: string }> {
+    return this.http.post<{ message: string; sentToEmail?: string; sentToPhone?: string }>(
+      `${this.apiUrl}/orders/${orderId}/send-payment-link`,
+      { sendEmail, sendSms }
+    );
   }
 
   sendUpdatedPayment(orderId: number): Observable<{ message: string }> {

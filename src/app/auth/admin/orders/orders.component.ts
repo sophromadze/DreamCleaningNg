@@ -1,13 +1,14 @@
 import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin } from '../../../services/admin.service';
+import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto } from '../../../services/admin.service';
+import { environment } from '../../../../environments/environment';
 import { OrderService, Order, OrderList } from '../../../services/order.service';
 import { CleanerService, AvailableCleaner } from '../../../services/cleaner.service';
 import { BookingService, ServiceType, ExtraService, Service } from '../../../services/booking.service';
 import { DurationUtils } from '../../../utils/duration.utils';
 import { OrderReminderService } from '../../../services/order-reminder.service';
-import { FloorTypeSelectorComponent, FloorTypeSelection } from '../../../shared/components/floor-type-selector/floor-type-selector.component';
+import { FloorTypeSelection } from '../../../shared/components/floor-type-selector/floor-type-selector.component';
 import { PAYMENT_METHOD_OPTIONS, PaymentMethodValue } from '../../../shared/payment-method';
 import { NewOrderNotificationService } from '../../../services/new-order-notification.service';
 import { BubbleRewardsService } from '../../../services/bubble-rewards.service';
@@ -15,6 +16,14 @@ import { forkJoin, of } from 'rxjs';
 import { catchError, finalize } from 'rxjs/operators';
 import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
 import { ShiftService, ShiftAdmin } from '../../../services/shift.service';
+import { formatNy } from '../../../shared/ny-time.util';
+import {
+  calculateTotals,
+  calculateCleanerTotalSalary,
+  getSquareFeetForBedrooms,
+  round2,
+  SALES_TAX_RATE
+} from '../../../shared/pricing/order-pricing.calculator';
 
 // Extended interface for admin orders with additional properties
 export interface AdminOrderList extends OrderList {
@@ -32,7 +41,7 @@ export interface AdminOrderList extends OrderList {
 @Component({
   selector: 'app-orders',
   standalone: true,
-  imports: [CommonModule, FormsModule, FloorTypeSelectorComponent],
+  imports: [CommonModule, FormsModule],
   templateUrl: './orders.component.html',
   styleUrls: ['./orders.component.scss']
 })
@@ -45,6 +54,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   orders: AdminOrderList[] = [];
   selectedOrder: Order | null = null;
   viewingOrderId: number | null = null;
+
+  // ── Order cleaning photos (shared with the per-user photo library) ──
+  orderPhotos: UserCleaningPhoto[] = [];
+  loadingOrderPhotos = false;
+  uploadingOrderPhoto = false;
+  orderPhotoProgress = '';
+  orderPhotoError = '';
+  orderPhotoSuccess = '';
+  lightboxOrderPhoto: UserCleaningPhoto | null = null;
+
+  // SuperAdmin order deletion
+  deletingOrder = false;
 
   Math = Math;
   readonly specialInstructionsMaxLength = 2000;
@@ -97,8 +118,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   
   // Pagination
   currentPage = 1;
+  // Derived from the filtered list (pure getter; replaces the old field that was
+  // assigned inside the filteredOrders getter and triggered NG0100).
+  get totalPages(): number {
+    return Math.ceil(this.filterOrders().length / this.itemsPerPage);
+  }
   itemsPerPage = 20;
-  totalPages = 1;
 
   // Mark as Done modal
   showDoneModal = false;
@@ -127,6 +152,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   availableCleaners: AvailableCleaner[] = [];
   /** Filters the assign-cleaners modal list by name or email (client-side). */
   cleanerAssignmentSearchQuery = '';
+  /** When true, the assign list also shows cleaners marked busy that day (still assignable). */
+  showBusyCleaners = false;
   selectedCleaners: number[] = [];
   tipsForCleaner = '';
   assigningOrderId: number | null = null;
@@ -143,9 +170,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     assignedCleaners: false,
     assigningCleaners: false,
     removingCleaner: false,
-    sendAssignmentMails: false
+    sendAssignmentMails: false,
+    sendPaymentLink: false
   };
   private resendingCleanerEmailKeys = new Set<string>();
+
+  // "Send Payment Link" modal — re-sends the original payment-link email/SMS to the
+  // customer's current account contact (after an admin fixes a mistyped email/phone).
+  showSendPaymentLinkModal = false;
+  sendPaymentLinkChannels = { email: true, sms: true };
 
   orderUpdateHistory: OrderUpdateHistory[] = [];
   loadingUpdateHistory = false;
@@ -185,8 +218,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   editOrderAvailableExtras: ExtraService[] = [];
   serviceTypesCache: ServiceType[] = [];
 
-  // Booking-consistent tax rate (8.875%)
-  private readonly salesTaxRate = 0.08875;
+  // Booking-consistent tax rate from the shared calculator
+  private readonly salesTaxRate = SALES_TAX_RATE;
 
   // Bubble Points settings (for estimated pts display in edit form)
   pointsPerDollar = 0;
@@ -199,12 +232,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   get canEditOrder(): boolean {
     return this.isSuperAdmin || (this.userRole === 'Admin' && this.userPermissions.permissions.canUpdate);
   }
-  totalOrders = 0;
-  totalAmount = 0;
-  totalTaxes = 0;
-  totalTips = 0;
-  totalAmountWithoutTipsAndTaxes = 0;
-  totalDuration = 0;
+  // Statistics are DERIVED from the filtered orders via memoized getters (see `stats`
+  // below) — never assigned during change detection, which previously caused NG0100
+  // when searching (the filteredOrders getter mutated them mid-pass).
+  get totalOrders(): number { return this.stats.totalOrders; }
+  get totalAmount(): number { return this.stats.totalAmount; }
+  get totalTaxes(): number { return this.stats.totalTaxes; }
+  get totalTips(): number { return this.stats.totalTips; }
+  get totalAmountWithoutTipsAndTaxes(): number { return this.stats.totalAmountWithoutTipsAndTaxes; }
+  get totalDuration(): number { return this.stats.totalDuration; }
 
   // Assigned-admin pill state for the inline order-details expand.
   availableAdmins: ShiftAdmin[] = [];
@@ -245,6 +281,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   toggleAssignedAdminEditor(): void {
+    // Only SuperAdmin may reassign; Admins/Moderators get the read-only pill.
+    if (!this.isSuperAdmin) return;
     this.showAssignedAdminEditor = !this.showAssignedAdminEditor;
   }
 
@@ -715,74 +753,66 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     loadBatch(0);
   }
 
+  // Bumped whenever order DATA changes (load, status update, edit save) so the
+  // memoized stats recompute. Filter-input changes are part of the cache key directly.
+  private statsVersion = 0;
+  private statsCacheKey: string | null = null;
+  private statsCache = {
+    totalOrders: 0, totalAmount: 0, totalTaxes: 0,
+    totalTips: 0, totalAmountWithoutTipsAndTaxes: 0, totalDuration: 0
+  };
+
+  /** Existing call sites signal "order data changed" — invalidates the memoized stats. */
   private calculateStatistics() {
-    // Filter out pending and cancelled orders for calculations
-    const validOrders = this.orders.filter(order => 
-      order.status && 
-      order.status.toLowerCase() !== 'pending' && 
-      order.status.toLowerCase() !== 'cancelled'
-    );
-    
-    this.totalOrders = validOrders.length;
-    // Calculate total amount without tips (since tips don't count for taxes)
-    this.totalAmount = validOrders.reduce((sum, order) => {
-      const orderTotal = order.total || 0;
-      const orderTips = order.tips || 0;
-      const orderCompanyTips = order.companyDevelopmentTips || 0;
-      return sum + (orderTotal - orderTips - orderCompanyTips);
-    }, 0);
-    
-    // Calculate total taxes as 8.887% of total amount (no tips)
-    const taxRate = 0.08887;
-    this.totalTaxes = this.totalAmount * taxRate;
-    
-    // Calculate total tips (cleaner tips + company development tips)
-    this.totalTips = validOrders.reduce((sum, order) => {
-      const orderTips = order.tips || 0;
-      const orderCompanyTips = order.companyDevelopmentTips || 0;
-      return sum + orderTips + orderCompanyTips;
-    }, 0);
-    
-    // Calculate total amount without tips and taxes (base service amount)
-    this.totalAmountWithoutTipsAndTaxes = this.totalAmount - this.totalTaxes;
-    
-    // Calculate total duration from the totalDuration property
-    this.totalDuration = validOrders.reduce((sum, order) => sum + (order.totalDuration || 0), 0);
+    this.statsVersion++;
   }
 
-  private calculateStatisticsFromFiltered(filteredOrders: AdminOrderList[]) {
+  /** Memoized statistics over the CURRENT filtered orders. Stable within a change-detection
+   *  pass (no template-bound state is mutated), which fixes NG0100 on search. */
+  private get stats() {
+    const key = [
+      this.statsVersion, this.orders.length, this.searchTerm,
+      this.statusFilter, this.paymentMethodFilter, this.dateFilter
+    ].join('|');
+    if (key !== this.statsCacheKey) {
+      this.statsCacheKey = key;
+      this.statsCache = this.computeStats(this.filterOrders());
+    }
+    return this.statsCache;
+  }
+
+  private computeStats(filteredOrders: AdminOrderList[]) {
     // Filter out pending and cancelled orders for calculations
-    const validOrders = filteredOrders.filter(order => 
-      order.status && 
-      order.status.toLowerCase() !== 'pending' && 
+    const validOrders = filteredOrders.filter(order =>
+      order.status &&
+      order.status.toLowerCase() !== 'pending' &&
       order.status.toLowerCase() !== 'cancelled'
     );
-    
-    this.totalOrders = validOrders.length;
-    // Calculate total amount without tips (since tips don't count for taxes)
-    this.totalAmount = validOrders.reduce((sum, order) => {
+
+    // Total amount without tips (since tips don't count for taxes)
+    const totalAmount = validOrders.reduce((sum, order) => {
       const orderTotal = order.total || 0;
       const orderTips = order.tips || 0;
       const orderCompanyTips = order.companyDevelopmentTips || 0;
       return sum + (orderTotal - orderTips - orderCompanyTips);
     }, 0);
-    
-    // Calculate total taxes as 8.887% of total amount (no tips)
-    const taxRate = 0.08887;
-    this.totalTaxes = this.totalAmount * taxRate;
-    
-    // Calculate total tips (cleaner tips + company development tips)
-    this.totalTips = validOrders.reduce((sum, order) => {
-      const orderTips = order.tips || 0;
-      const orderCompanyTips = order.companyDevelopmentTips || 0;
-      return sum + orderTips + orderCompanyTips;
-    }, 0);
-    
-    // Calculate total amount without tips and taxes (base service amount)
-    this.totalAmountWithoutTipsAndTaxes = this.totalAmount - this.totalTaxes;
-    
-    // Calculate total duration from the totalDuration property
-    this.totalDuration = validOrders.reduce((sum, order) => sum + (order.totalDuration || 0), 0);
+
+    // Approximate total taxes from the tax-inclusive amount, using the shared sales-tax
+    // rate (the order list DTO doesn't carry per-order tax, so this stays an estimate).
+    const totalTaxes = totalAmount * this.salesTaxRate;
+
+    return {
+      totalOrders: validOrders.length,
+      totalAmount,
+      totalTaxes,
+      totalTips: validOrders.reduce((sum, order) => {
+        const orderTips = order.tips || 0;
+        const orderCompanyTips = order.companyDevelopmentTips || 0;
+        return sum + orderTips + orderCompanyTips;
+      }, 0),
+      totalAmountWithoutTipsAndTaxes: totalAmount - totalTaxes,
+      totalDuration: validOrders.reduce((sum, order) => sum + (order.totalDuration || 0), 0)
+    };
   }
 
   // Helper method to refresh a single order's assigned cleaners
@@ -802,15 +832,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   viewOrderDetails(orderId: number) {
     if (this.viewingOrderId === orderId) {
-      this.viewingOrderId = null;
-      this.selectedOrder = null;
-      this.editingOrder = false;
+      this.closeOrderDetails();
       return;
     }
 
     this.viewingOrderId = orderId;
     this.editingOrder = false;
     this.loadingStates.orderDetails = true;
+    this.resetOrderPhotoState();
+    this.loadOrderPhotos(orderId);
 
     // Acknowledge any active reminders for this order
     this.orderReminderService.acknowledgeOrder(orderId);
@@ -872,6 +902,133 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         }
       });
     }
+  }
+
+  /** Close the slide-in order detail panel. */
+  closeOrderDetails(): void {
+    this.viewingOrderId = null;
+    this.selectedOrder = null;
+    this.editingOrder = false;
+    this.resetOrderPhotoState();
+  }
+
+  private resetOrderPhotoState(): void {
+    this.orderPhotos = [];
+    this.lightboxOrderPhoto = null;
+    this.orderPhotoError = '';
+    this.orderPhotoSuccess = '';
+    this.orderPhotoProgress = '';
+    this.uploadingOrderPhoto = false;
+  }
+
+  // ── Order cleaning photos (same shared store as the per-user library) ──
+
+  private loadOrderPhotos(orderId: number): void {
+    this.loadingOrderPhotos = true;
+    this.adminService.getOrderCleaningPhotos(orderId).subscribe({
+      next: (photos) => {
+        if (this.viewingOrderId !== orderId) return;
+        this.orderPhotos = photos;
+        this.loadingOrderPhotos = false;
+      },
+      error: () => { this.loadingOrderPhotos = false; }
+    });
+  }
+
+  onOrderPhotoSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0 || this.viewingOrderId == null) return;
+    const files = Array.from(input.files);
+    input.value = '';
+    this.uploadOrderPhotosSequentially(this.viewingOrderId, files);
+  }
+
+  private uploadOrderPhotosSequentially(orderId: number, files: File[]): void {
+    if (this.uploadingOrderPhoto || files.length === 0) return;
+    this.uploadingOrderPhoto = true;
+    this.orderPhotoError = '';
+    this.orderPhotoSuccess = '';
+    this.orderPhotoProgress = '';
+
+    const total = files.length;
+    let okCount = 0;
+    let failCount = 0;
+    const errors: string[] = [];
+
+    const uploadOne = (index: number) => {
+      if (this.viewingOrderId !== orderId) {
+        this.uploadingOrderPhoto = false;
+        this.orderPhotoProgress = '';
+        return;
+      }
+      if (index >= total) {
+        this.uploadingOrderPhoto = false;
+        this.orderPhotoProgress = '';
+        if (okCount > 0) {
+          this.orderPhotoSuccess = total === 1 ? 'Photo uploaded.' : `${okCount} of ${total} photos uploaded.`;
+          setTimeout(() => this.orderPhotoSuccess = '', 3000);
+        }
+        if (failCount > 0) {
+          this.orderPhotoError = `${failCount} upload${failCount === 1 ? '' : 's'} failed${errors[0] ? ': ' + errors[0] : ''}.`;
+          setTimeout(() => this.orderPhotoError = '', 5000);
+        }
+        this.loadOrderPhotos(orderId);
+        return;
+      }
+
+      this.orderPhotoProgress = total > 1 ? `Uploading ${index + 1}/${total}…` : 'Uploading…';
+      this.adminService.uploadOrderCleaningPhoto(orderId, files[index]).subscribe({
+        next: () => { okCount++; uploadOne(index + 1); },
+        error: (err) => {
+          failCount++;
+          if (errors.length === 0) errors.push(err?.error?.message || 'Failed to upload photo.');
+          uploadOne(index + 1);
+        }
+      });
+    };
+
+    uploadOne(0);
+  }
+
+  removeOrderPhoto(photo: UserCleaningPhoto): void {
+    if (!confirm('Remove this photo?')) return;
+    const orderId = this.viewingOrderId;
+    this.adminService.deleteUserCleaningPhoto(photo.id).subscribe({
+      next: () => { if (orderId != null) this.loadOrderPhotos(orderId); }
+    });
+  }
+
+  openOrderLightbox(photo: UserCleaningPhoto): void { this.lightboxOrderPhoto = photo; }
+  closeOrderLightbox(): void { this.lightboxOrderPhoto = null; }
+
+  resolvePhotoUrl(photo: UserCleaningPhoto | null | undefined): string {
+    if (photo && photo.id) {
+      return `${environment.apiUrl}/admin/user-care/cleaning-photos/${photo.id}/raw`;
+    }
+    return '';
+  }
+
+  // ── SuperAdmin order deletion ──
+
+  deleteOrder(order: { id: number }): void {
+    if (!this.isSuperAdmin || this.deletingOrder) return;
+    if (!confirm(`Permanently delete order #${order.id}? This cannot be undone and does not issue a refund.`)) return;
+
+    this.deletingOrder = true;
+    this.adminService.deleteOrder(order.id).subscribe({
+      next: () => {
+        this.deletingOrder = false;
+        this.successMessage = `Order #${order.id} deleted.`;
+        setTimeout(() => this.clearMessages(), 3000);
+        this.closeOrderDetails();
+        this.loadOrders();
+      },
+      error: (err) => {
+        this.deletingOrder = false;
+        this.errorMessage = err?.error?.message || 'Failed to delete order.';
+        setTimeout(() => this.clearMessages(), 4000);
+      }
+    });
   }
 
   loadUpdateHistory(orderId: number) {
@@ -981,8 +1138,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   formatUpdateDate(date: any): string {
-    const d = new Date(date);
-    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    // Update-history timestamps are UTC — display in NY (business) time.
+    return formatNy(date, { year: 'numeric', month: 'numeric', day: 'numeric' }) +
+      ' ' + formatNy(date, { hour: '2-digit', minute: '2-digit' });
   }
 
   // Separate method for loading individual order cleaners
@@ -1047,6 +1205,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selectedCleaners = [];
     this.tipsForCleaner = '';
     this.cleanerAssignmentSearchQuery = '';
+    this.showBusyCleaners = false;
 
     // Set hourly rate from order data if available, otherwise use default based on cleaning type
     const order = this.orders.find(o => o.id === orderId);
@@ -1075,20 +1234,35 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.tipsForCleaner = '';
     this.availableCleaners = [];
     this.cleanerAssignmentSearchQuery = '';
+    this.showBusyCleaners = false;
     this.cleanerHourlySalary = 20;
   }
 
-  /** Cleaners shown in the assign modal after applying the name/email search. */
+  /**
+   * Cleaners shown in the assign modal. Applies the name/email search, then — unless
+   * "Show busy" is on — hides cleaners that are marked busy that day or have a hard
+   * scheduling conflict. Already-selected cleaners stay visible regardless.
+   */
   get availableCleanersFiltered(): AvailableCleaner[] {
     const q = this.cleanerAssignmentSearchQuery.trim().toLowerCase();
-    if (!q) {
-      return this.availableCleaners;
-    }
     return this.availableCleaners.filter((c) => {
-      const name = `${c.firstName ?? ''} ${c.lastName ?? ''}`.toLowerCase().trim();
-      const email = (c.email ?? '').toLowerCase();
-      return name.includes(q) || email.includes(q);
+      if (q) {
+        const name = `${c.firstName ?? ''} ${c.lastName ?? ''}`.toLowerCase().trim();
+        const email = (c.email ?? '').toLowerCase();
+        if (!name.includes(q) && !email.includes(q)) return false;
+      }
+      if (this.showBusyCleaners) return true;
+      if (this.isCleanerSelected(c.id)) return true;
+      return !c.isBusyDay && !c.hasScheduleConflict;
     });
+  }
+
+  /** Count of busy/conflicting cleaners currently hidden by the "Show busy" toggle. */
+  get hiddenBusyCleanersCount(): number {
+    if (this.showBusyCleaners) return 0;
+    return this.availableCleaners.filter(
+      (c) => (c.isBusyDay || c.hasScheduleConflict) && !this.isCleanerSelected(c.id)
+    ).length;
   }
 
   /** Human-readable rank label for a cleaner in the assignment modal. */
@@ -1115,24 +1289,6 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return slugs[String(ranking ?? '1')] ?? 'good';
   }
 
-  /** Compact availability summary (e.g. "Mon, Wed, Fri") from the stored JSON slots. */
-  formatCleanerAvailability(value: string | null | undefined): string {
-    if (!value) return '';
-    const dayLabels: Record<string, string> = {
-      mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun'
-    };
-    try {
-      const parsed = JSON.parse(value);
-      if (!Array.isArray(parsed)) return value;
-      const days = parsed
-        .map((slot: any) => dayLabels[String(slot?.day ?? '').toLowerCase()])
-        .filter((label: string | undefined): label is string => !!label);
-      return days.length ? days.join(', ') : '';
-    } catch {
-      return value;
-    }
-  }
-
   /** Get default hourly rate based on whether order has deep cleaning extra service */
   getDefaultHourlyRate(orderId: number): number {
     if (this.selectedOrder && this.selectedOrder.id === orderId) {
@@ -1150,33 +1306,21 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.round(minutes / 15) * 15;
   }
 
-  /** Calculate per-cleaner rounded duration for salary */
-  private getPerCleanerRoundedDuration(totalDuration: number, maidsCount: number, hasCleanersService: boolean): number {
-    // For cleaner-hours service type (e.g. Office Cleaning), TotalDuration is per cleaner
-    // For regular services, TotalDuration is total across all cleaners
-    const perCleaner = hasCleanersService
-      ? totalDuration
-      : (maidsCount > 1 ? totalDuration / maidsCount : totalDuration);
-    return this.roundToQuarter(perCleaner);
-  }
-
-  /** Calculate estimated total salary for display in modal */
+  /** Calculate estimated total salary for display in modal (shared calculator). */
   getEstimatedTotalSalary(): number {
     if (!this.selectedOrder) return 0;
-    const roundedPerCleaner = this.getPerCleanerRoundedDuration(
+    return calculateCleanerTotalSalary(
       this.selectedOrder.totalDuration,
       this.selectedOrder.maidsCount,
-      this.selectedOrder.hasCleanersService
+      this.selectedOrder.hasCleanersService,
+      this.cleanerHourlySalary
     );
-    return Math.round(roundedPerCleaner / 60 * this.selectedOrder.maidsCount * this.cleanerHourlySalary * 100) / 100;
   }
 
   /** Display value for the "Cleaners Total Salary" row in the details view.
    *  ALWAYS computed on-the-fly from current TotalDuration × MaidsCount × HourlyRate so the
    *  number matches what the user sees for Duration/Cleaners on the page, even when the stored
-   *  cleanerTotalSalary is stale (e.g. an older edit added Extra Minutes without recalculating).
-   *  Only cleaner-hours orders (Office Cleaning) store TotalDuration as per-cleaner; everything
-   *  else (including Custom Pricing) stores TotalDuration as TOTAL across all maids and we divide. */
+   *  cleanerTotalSalary is stale (e.g. an older edit added Extra Minutes without recalculating). */
   getDisplayCleanerTotalSalary(): number {
     const order = this.selectedOrder;
     if (!order) return 0;
@@ -1184,22 +1328,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const maids = Number(order.maidsCount) || 1;
     const rate = Number(order.cleanerHourlyRate) || 0;
     if (rate <= 0 || maids <= 0 || totalDuration <= 0) return 0;
-    const hasCleaners = order.hasCleanersService;
-    const perCleaner = hasCleaners
-      ? totalDuration
-      : (maids > 1 ? totalDuration / maids : totalDuration);
-    const roundedPerCleaner = this.roundToQuarter(perCleaner);
-    return Math.round(roundedPerCleaner / 60 * maids * rate * 100) / 100;
+    return calculateCleanerTotalSalary(totalDuration, maids, order.hasCleanersService, rate);
   }
 
-  /** Recalculate cleaner total salary in edit form when hourly rate changes */
+  /** Recalculate cleaner total salary in edit form when hourly rate changes (shared calculator). */
   recalcCleanerTotalSalary(): void {
     const rate = Number(this.editOrderForm.cleanerHourlyRate) || 0;
     const totalDuration = Number(this.editOrderForm.totalDuration) || 0;
     const maidsCount = Number(this.editOrderForm.maidsCount) || 1;
     const hasCleanersService = this.selectedOrder?.hasCleanersService ?? false;
-    const roundedPerCleaner = this.getPerCleanerRoundedDuration(totalDuration, maidsCount, hasCleanersService);
-    this.editOrderForm.cleanerTotalSalary = Math.round(roundedPerCleaner / 60 * maidsCount * rate * 100) / 100;
+    this.editOrderForm.cleanerTotalSalary = calculateCleanerTotalSalary(totalDuration, maidsCount, hasCleanersService, rate);
   }
 
   // Method to force refresh all assigned cleaners (for debugging)
@@ -1213,9 +1351,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const index = this.selectedCleaners.indexOf(cleanerId);
     if (index > -1) {
       this.selectedCleaners.splice(index, 1);
-    } else {
-      this.selectedCleaners.push(cleanerId);
+      return;
     }
+    // Hard rule: never select a cleaner with a same-day scheduling conflict.
+    const cleaner = this.availableCleaners.find((c) => c.id === cleanerId);
+    if (cleaner?.hasScheduleConflict) {
+      return;
+    }
+    this.selectedCleaners.push(cleanerId);
   }
 
   isCleanerSelected(cleanerId: number): boolean {
@@ -1288,7 +1431,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: (error) => {
         console.error('Error assigning cleaners:', error);
-        this.errorMessage = 'Failed to assign cleaners. Please try again.';
+        // Surface the server's reason (e.g. the 1-hour-gap conflict message) when present.
+        this.errorMessage = error?.error?.message || 'Failed to assign cleaners. Please try again.';
       },
       complete: () => {
         this.loadingStates.assigningCleaners = false;
@@ -1357,6 +1501,44 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       complete: () => {
         this.loadingStates.sendAssignmentMails = false;
+      }
+    });
+  }
+
+  openSendPaymentLinkModal() {
+    if (!this.selectedOrder) return;
+    // Reset to both channels checked each time the modal opens.
+    this.sendPaymentLinkChannels = { email: true, sms: true };
+    this.showSendPaymentLinkModal = true;
+  }
+
+  closeSendPaymentLinkModal() {
+    this.showSendPaymentLinkModal = false;
+  }
+
+  confirmSendPaymentLink() {
+    if (!this.selectedOrder) return;
+    const { email, sms } = this.sendPaymentLinkChannels;
+    if (!email && !sms) {
+      this.errorMessage = 'Select at least one channel (email or phone).';
+      return;
+    }
+
+    this.loadingStates.sendPaymentLink = true;
+    this.errorMessage = '';
+
+    this.adminService.sendPaymentLink(this.selectedOrder.id, email, sms).subscribe({
+      next: (result) => {
+        this.successMessage = result.message || 'Payment link sent.';
+        this.showSendPaymentLinkModal = false;
+        this.clearMessagesAfterDelay();
+      },
+      error: (err) => {
+        console.error('Error sending payment link:', err);
+        this.errorMessage = err.error?.message || 'Failed to send payment link.';
+      },
+      complete: () => {
+        this.loadingStates.sendPaymentLink = false;
       }
     });
   }
@@ -1534,7 +1716,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // Filtering methods
+  /** Current page of the filtered list. PURE — no state mutations here (NG0100). */
   get filteredOrders(): AdminOrderList[] {
+    const filtered = this.filterOrders();
+    const start = (this.currentPage - 1) * this.itemsPerPage;
+    return filtered.slice(start, start + this.itemsPerPage);
+  }
+
+  /** Applies search/status/payment/date filters + sort. Pure function of component state. */
+  private filterOrders(): AdminOrderList[] {
     let filtered = this.orders;
 
     // Search filter
@@ -1621,17 +1811,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       });
     }
 
-    // Update pagination
-    this.totalPages = Math.ceil(filtered.length / this.itemsPerPage);
-    
-    // Recalculate statistics for SuperAdmin based on filtered data
-    if (this.isSuperAdmin) {
-      this.calculateStatisticsFromFiltered(filtered);
-    }
-    
-    // Return paginated results
-    const start = (this.currentPage - 1) * this.itemsPerPage;
-    return filtered.slice(start, start + this.itemsPerPage);
+    return filtered;
   }
 
   setSort(column: string) {
@@ -1796,6 +1976,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       timeStr = `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`;
     }
     return `${dateStr} ${timeStr}`;
+  }
+
+  /** For UTC timestamps (orderDate "Booked On" etc.) — formats in NY time, "06/13/26 6:36 AM". */
+  formatUtcDateTime(date: Date | string): string {
+    const dateStr = formatNy(date, { year: '2-digit', month: '2-digit', day: '2-digit' });
+    const timeStr = formatNy(date, { hour: 'numeric', minute: '2-digit', hour12: true });
+    return dateStr && timeStr ? `${dateStr} ${timeStr}` : '';
   }
 
   formatDuration(minutes: number): string {
@@ -2145,6 +2332,43 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return { types, otherText };
   }
 
+  /** Floor-type option values in display order (labels come from floorTypeDisplayNames). */
+  readonly floorTypeOptionValues: string[] = [
+    'hardwood', 'engineered-wood', 'laminate', 'vinyl', 'tile',
+    'natural-stone', 'carpet', 'concrete', 'other'
+  ];
+
+  getFloorTypeLabel(value: string): string {
+    return this.floorTypeDisplayNames[value] || value;
+  }
+
+  /** Options not yet selected — drives the "+ Add floor type" dropdown (extra-services style). */
+  getFloorTypesToAdd(): { value: string; label: string }[] {
+    return this.floorTypeOptionValues
+      .filter(v => !this.editFloorTypes.includes(v))
+      .map(v => ({ value: v, label: this.getFloorTypeLabel(v) }));
+  }
+
+  addEditFloorType(value: string): void {
+    if (!value || this.editFloorTypes.includes(value)) return;
+    this.editFloorTypes = [...this.editFloorTypes, value];
+    this.emitEditFloorTypeChange();
+  }
+
+  removeEditFloorType(value: string): void {
+    this.editFloorTypes = this.editFloorTypes.filter(v => v !== value);
+    if (value === 'other') this.editFloorTypeOther = '';
+    this.emitEditFloorTypeChange();
+  }
+
+  onEditFloorTypeOtherChange(): void {
+    this.emitEditFloorTypeChange();
+  }
+
+  private emitEditFloorTypeChange(): void {
+    this.onEditFloorTypeChange({ types: [...this.editFloorTypes], otherText: this.editFloorTypeOther });
+  }
+
   onEditFloorTypeChange(selection: FloorTypeSelection): void {
     this.editFloorTypes = selection.types;
     this.editFloorTypeOther = selection.otherText;
@@ -2324,8 +2548,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Recalculate Tax + Total. When subTotal changes, apply discount ratio so discount scales with subtotal.
-   * discountedSubTotal = subTotal - discountAmount - subscriptionDiscountAmount; tax = round(discounted * 0.08875, 2); total = discounted + tax + tips + companyTips - giftCard.
+   * Recalculate Tax + Total through the shared calculator. When subTotal changes, apply the
+   * discount ratio so discount scales with subtotal (loyalty scales by its locked percentage
+   * snapshot instead — preserves the "this order had 10% loyalty" historical truth).
    */
   recalculateEditPricing(): void {
     if (!this.selectedOrder || !this.editingOrder) return;
@@ -2338,49 +2563,51 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.editOrderFormOriginalSubTotal > 0 && subTotal !== this.editOrderFormOriginalSubTotal) {
       const ratioDiscount = this.editOrderFormOriginalDiscount / this.editOrderFormOriginalSubTotal;
       const ratioSub = this.editOrderFormOriginalSubscriptionDiscount / this.editOrderFormOriginalSubTotal;
-      discountAmount = Math.round(subTotal * ratioDiscount * 100) / 100;
-      subscriptionDiscountAmount = Math.round(subTotal * ratioSub * 100) / 100;
-      // Loyalty scales by the locked percentage snapshot (newSubTotal * pct / 100), not by
-      // a ratio of the previous amount. This preserves the "this order had 10% loyalty"
-      // historical truth even after admin edits the subtotal.
+      discountAmount = round2(subTotal * ratioDiscount);
+      subscriptionDiscountAmount = round2(subTotal * ratioSub);
       if (this.editOrderFormOriginalLoyaltyPercentage > 0) {
-        loyaltyDiscountAmount = Math.round(subTotal * (this.editOrderFormOriginalLoyaltyPercentage / 100) * 100) / 100;
+        loyaltyDiscountAmount = round2(subTotal * (this.editOrderFormOriginalLoyaltyPercentage / 100));
       }
       this.editOrderForm.discountAmount = discountAmount;
       this.editOrderForm.subscriptionDiscountAmount = subscriptionDiscountAmount;
       this.editOrderForm.loyaltyDiscountAmount = loyaltyDiscountAmount;
     }
 
-    let discountedSubTotal = subTotal - discountAmount - subscriptionDiscountAmount - loyaltyDiscountAmount;
-    if (discountedSubTotal < 0) discountedSubTotal = 0;
-
-    const tax = Math.round(discountedSubTotal * this.salesTaxRate * 100) / 100;
-    // Tips are displayed and saved but do not affect the order total (payments) in admin
-    const giftCardAmountUsed = Number((this.selectedOrder as any).giftCardAmountUsed ?? 0) || 0;
-    const pointsRedeemedDiscount = Number((this.selectedOrder as any).pointsRedeemedDiscount ?? 0) || 0;
-    const rewardBalanceUsed = Number((this.selectedOrder as any).rewardBalanceUsed ?? 0) || 0;
-    const totalBeforeGiftCard = discountedSubTotal + tax;
-    const total = Math.round(Math.max(0, totalBeforeGiftCard - giftCardAmountUsed - pointsRedeemedDiscount - rewardBalanceUsed) * 100) / 100;
-
-    this.editOrderForm.tax = tax;
-    this.editOrderForm.total = total;
-
     const tips = Number(this.editOrderForm.tips ?? 0) || 0;
     const companyTips = Number(this.editOrderForm.companyDevelopmentTips ?? 0) || 0;
-    const base = total - tax - tips - companyTips;
+
+    // Tips are included so the preview matches what the backend persists on save
+    // (SuperAdminFullUpdateOrder recomputes Total with tips through the same calculator).
+    const totals = calculateTotals({
+      subTotal,
+      discountAmount,
+      subscriptionDiscountAmount,
+      loyaltyDiscountAmount,
+      tips,
+      companyDevelopmentTips: companyTips,
+      giftCardAmountUsed: Number((this.selectedOrder as any).giftCardAmountUsed ?? 0) || 0,
+      pointsRedeemedDiscount: Number((this.selectedOrder as any).pointsRedeemedDiscount ?? 0) || 0,
+      rewardBalanceUsed: Number((this.selectedOrder as any).rewardBalanceUsed ?? 0) || 0
+    });
+
+    this.editOrderForm.tax = totals.tax;
+    this.editOrderForm.total = totals.total;
+
+    const base = totals.total - totals.tax - tips - companyTips;
     this.editEstimatedPoints = this.pointsEnabled && this.pointsPerDollar > 0
       ? Math.floor(Math.max(0, base) * this.pointsPerDollar)
       : 0;
   }
 
-  /** Recompute subtotal from base price + services + extras (same formula as backend). */
+  /** Recompute subtotal from base price + the stored per-line costs (which the backend
+   *  writes from the shared calculator). */
   recalcSubtotalFromServicesAndExtras(): void {
     const st = this.getEditOrderServiceType();
     const priceMultiplier = Number((this.selectedOrder?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
     let sum = (Number(st?.basePrice ?? 0) || 0) * priceMultiplier;
     (this.editOrderForm.services ?? []).forEach(s => { sum += Number(s.cost ?? 0) || 0; });
     (this.editOrderForm.extraServices ?? []).forEach(e => { sum += Number(e.cost ?? 0) || 0; });
-    this.editOrderForm.subTotal = Math.round(sum * 100) / 100;
+    this.editOrderForm.subTotal = round2(sum);
     this.recalculateEditPricing();
     this.recalcEditDurationAndMaids();
     // Salary depends on duration/maids/rate; refresh after duration recalc so adding/removing
@@ -2518,12 +2745,25 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly studioBaseCost = 10;
 
   onEditServiceQuantityChange(s: { quantity: number; cost: number }, index: number): void {
-    const q = Number(s.quantity) || 0;
+    let q = Number(s.quantity) || 0;
     const def = this.getEditServiceDefinition(index);
     const isHoursRow = def?.serviceRelationType === 'hours' || def?.serviceKey === 'hours';
     if (isHoursRow) {
       this.onEditServiceHoursChange(index, q);
       return;
+    }
+    // Editing sqft directly: enforce the minimum for the current bedroom count
+    // (same behavior as the booking page and user order edit).
+    if (def?.serviceKey === 'sqft') {
+      const bedroomsIdx = this.findEditServiceIndexByKey('bedrooms');
+      if (bedroomsIdx >= 0) {
+        const bedroomsQty = Number(this.editOrderForm.services?.[bedroomsIdx]?.quantity) || 0;
+        const minSquareFeet = getSquareFeetForBedrooms(bedroomsQty);
+        if (q < minSquareFeet) {
+          q = minSquareFeet;
+          s.quantity = minSquareFeet;
+        }
+      }
     }
     const prevQ = this.editOrderFormPrevServiceQuantities[index] ?? 1;
     const prevCost = Number(s.cost) || 0;
@@ -2531,6 +2771,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (def?.serviceKey === 'bedrooms' && q === 0) {
       s.cost = this.studioBaseCost;
       this.editOrderFormPrevServiceQuantities[index] = 0;
+      this.syncEditSqftWithBedrooms(0);
       this.recalcSubtotalFromServicesAndExtras();
       return;
     }
@@ -2539,7 +2780,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       const hours = this.getEditServiceHours(index);
       const priceMultiplier = Number((this.selectedOrder?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
       const rate = (def.cost ?? 0) * priceMultiplier;
-      s.cost = Math.round(rate * q * hours * 100) / 100;
+      s.cost = round2(rate * q * hours);
       this.editOrderFormPrevServiceQuantities[index] = q;
       this.recalcSubtotalFromServicesAndExtras();
       return;
@@ -2550,9 +2791,44 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       const os = this.selectedOrder.services[index];
       if (os.quantity > 0 && os.cost > 0) unitPrice = os.cost / os.quantity;
     }
-    s.cost = Math.round(unitPrice * q * 100) / 100;
+    s.cost = round2(unitPrice * q);
     this.editOrderFormPrevServiceQuantities[index] = q;
+    // Bedrooms→sqft linkage (same behavior as the booking page): changing bedrooms
+    // auto-sets the Sq.ft row to the default for that bedroom count.
+    if (def?.serviceKey === 'bedrooms') {
+      this.syncEditSqftWithBedrooms(q);
+    }
     this.recalcSubtotalFromServicesAndExtras();
+  }
+
+  /** Find the index of an edit-form service row by its catalog serviceKey. Returns -1 if absent. */
+  private findEditServiceIndexByKey(serviceKey: string): number {
+    const rows = this.editOrderForm.services ?? [];
+    for (let i = 0; i < rows.length; i++) {
+      if (this.getEditServiceDefinition(i)?.serviceKey === serviceKey) return i;
+    }
+    return -1;
+  }
+
+  /** Auto-set the Sq.ft row to the shared default for a bedroom count and reprice it. */
+  private syncEditSqftWithBedrooms(bedroomsQty: number): void {
+    const sqftIdx = this.findEditServiceIndexByKey('sqft');
+    if (sqftIdx < 0) return;
+    const row = this.editOrderForm.services?.[sqftIdx];
+    if (!row) return;
+
+    const newQty = getSquareFeetForBedrooms(bedroomsQty);
+    const def = this.getEditServiceDefinition(sqftIdx);
+    const prevQ = this.editOrderFormPrevServiceQuantities[sqftIdx] ?? 0;
+    const prevCost = Number(row.cost) || 0;
+    // Per-unit price derived from the existing line (keeps any cleaning-type multiplier
+    // the calculator baked in), falling back to the catalog cost.
+    let unitPrice = def?.cost ?? 0;
+    if (prevQ > 0 && prevCost > 0) unitPrice = prevCost / prevQ;
+
+    row.quantity = newQty;
+    row.cost = round2(unitPrice * newQty);
+    this.editOrderFormPrevServiceQuantities[sqftIdx] = newQty;
   }
 
   onEditServiceCostChange(): void {
@@ -2563,7 +2839,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const q = Number(e.quantity) || 0;
     const def = this.getEditExtraDefinition(e, index);
     if (def?.hasQuantity) {
-      e.cost = Math.round(def.price * q * 100) / 100;
+      // Same rule as the shared calculator: deep-cleaning multiplier applies, Same Day is exempt.
+      const priceMultiplier = Number((this.selectedOrder?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
+      const m = def.isSameDayService ? 1 : priceMultiplier;
+      e.cost = round2(def.price * q * m);
     } else {
       const prevQ = this.editOrderFormPrevExtraQuantities[index] ?? 1;
       const prevCost = Number(e.cost) || 0;
@@ -2584,7 +2863,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const h = Number(e.hours) ?? 0;
     const def = this.getEditExtraDefinition(e, index);
     if (def?.hasHours) {
-      e.cost = Math.round(def.price * h * 100) / 100;
+      // Same rule as the shared calculator: deep-cleaning multiplier applies, Same Day is exempt.
+      const priceMultiplier = Number((this.selectedOrder?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
+      const m = def.isSameDayService ? 1 : priceMultiplier;
+      e.cost = round2(def.price * h * m);
     } else {
       const prevH = this.editOrderFormPrevExtraHours[index] ?? 0.5;
       const prevCost = Number(e.cost) || 0;
@@ -2597,6 +2879,28 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onEditExtraCostChange(): void {
     this.recalcSubtotalFromServicesAndExtras();
+  }
+
+  // ── Stepper (+/−) helpers for the edit-form service/extra quantity & hours ──
+
+  stepEditServiceQuantity(s: { quantity: number; cost: number }, index: number, delta: number): void {
+    s.quantity = Math.max(0, (Number(s.quantity) || 0) + delta);
+    this.onEditServiceQuantityChange(s, index);
+  }
+
+  stepEditServiceHours(index: number, delta: number): void {
+    const next = Math.max(0.5, Math.min(24, (this.getEditServiceHours(index) || 0) + delta));
+    this.onEditServiceHoursChange(index, next);
+  }
+
+  stepEditExtraQuantity(e: { orderExtraServiceId?: number | null; quantity: number; hours: number; cost: number }, index: number, delta: number): void {
+    e.quantity = Math.max(0, (Number(e.quantity) || 0) + delta);
+    this.onEditExtraQuantityChange(e, index);
+  }
+
+  stepEditExtraHours(e: { orderExtraServiceId?: number | null; quantity: number; hours: number; cost: number }, index: number, delta: number): void {
+    e.hours = Math.max(0, (Number(e.hours) || 0) + delta);
+    this.onEditExtraHoursChange(e, index);
   }
 
   removeEditExtraService(index: number): void {

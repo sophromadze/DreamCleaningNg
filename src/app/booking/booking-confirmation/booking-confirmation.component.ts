@@ -5,6 +5,7 @@ import { AuthService } from '../../services/auth.service';
 import { BookingService } from '../../services/booking.service';
 import { BookingDataService } from '../../services/booking-data.service';
 import { StripeService } from '../../services/stripe.service';
+import { calculateTotals } from '../../shared/pricing/order-pricing.calculator';
 
 @Component({
   selector: 'app-booking-confirmation',
@@ -23,6 +24,7 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   orderTotal: number = 0;
   currentUser: any;
   cardError: string | null = null;
+  showApplePay = false;
 
   // Money-sensitive notice (auto-refund outcome from confirm-payment). Shown in its own banner
   // that stays until the customer manually dismisses it — no auto-clear — so they can read it and
@@ -61,11 +63,56 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
     
     // Initialize Stripe Elements asynchronously
     this.initializeStripeElements();
+    this.initApplePay();
   }
 
   ngOnDestroy() {
     // Clean up Stripe elements
     this.stripeService.destroyCardElement();
+    this.stripeService.destroyPaymentRequestButton();
+  }
+
+  private async initApplePay() {
+    const pr = await this.stripeService.createPaymentRequest(this.orderTotal, 'Dream Cleaning NYC');
+    if (!pr) return;
+    this.showApplePay = true;
+    setTimeout(() => this.stripeService.createPaymentRequestButton(pr, 'payment-request-button'), 0);
+
+    pr.on('paymentmethod', (ev: any) => {
+      if (this.isProcessing) { ev.complete('fail'); return; }
+      this.isProcessing = true;
+      this.errorMessage = '';
+      this.bookingService.preparePayment(this.bookingData).subscribe({
+        next: async (response: any) => {
+          try {
+            if (response.guestToken && response.guestUser && !this.authService.isLoggedIn()) {
+              this.authService.applyGuestAuth(response.guestToken, response.guestRefreshToken, response.guestUser);
+              this.currentUser = response.guestUser;
+            }
+            const paymentIntent = await this.stripeService.confirmPaymentRequest(
+              response.paymentClientSecret, ev.paymentMethod.id
+            );
+            ev.complete('success');
+            this.bookingService.confirmPayment(0, paymentIntent.id, response.sessionId).subscribe({
+              next: (c: any) => { this.orderId = c.orderId; this.handlePaymentSuccess(); },
+              error: (err: any) => {
+                this.errorMessage = err.error?.message || 'Payment confirmation failed';
+                this.isProcessing = false;
+              }
+            });
+          } catch (payErr: any) {
+            ev.complete('fail');
+            this.errorMessage = payErr.message || 'Payment failed. Please try again.';
+            this.isProcessing = false;
+          }
+        },
+        error: (err: any) => {
+          ev.complete('fail');
+          this.errorMessage = err.error?.message || 'Failed to prepare payment';
+          this.isProcessing = false;
+        }
+      });
+    });
   }
 
   private async initializeStripeElements() {
@@ -95,28 +142,19 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
     } else if (this.bookingData.total !== undefined && this.bookingData.total !== null) {
       total = this.bookingData.total;
     } else {
-      // Fallback calculation
-      const subTotal = this.bookingData.subTotal || 0;
-      const tips = this.bookingData.tips || 0;
-      const companyDevelopmentTips = this.bookingData.companyDevelopmentTips || 0;
-      const discountAmount = this.bookingData.discountAmount || 0;
-      const subscriptionDiscountAmount = this.bookingData.subscriptionDiscountAmount || 0;
-      const loyaltyDiscountAmount = this.bookingData.loyaltyDiscountAmount || 0;
-      const giftCardAmountToUse = this.bookingData.giftCardAmountToUse || 0;
-
-      // Calculate total discount — fallback only fires when bookingData.total is missing, but
-      // when it does fire it must include loyalty so we don't quietly drop the discount and
-      // overcharge.
-      const totalDiscountAmount = discountAmount + subscriptionDiscountAmount + loyaltyDiscountAmount;
-
-      // Calculate tax on DISCOUNTED subtotal
-      const discountedSubTotal = subTotal - totalDiscountAmount;
-      const tax = Math.round(discountedSubTotal * 0.08875 * 100) / 100;
-      
-      // Calculate final total
-      const totalBeforeGiftCard = discountedSubTotal + tax + tips + companyDevelopmentTips;
-      total = Math.max(0, totalBeforeGiftCard - giftCardAmountToUse);
-      total = Math.round(total * 100) / 100;
+      // Fallback calculation through the shared calculator — only fires when
+      // bookingData.total is missing, but must match the booking page exactly
+      // (loyalty included) so we don't quietly drop a discount and overcharge.
+      const totals = calculateTotals({
+        subTotal: this.bookingData.subTotal || 0,
+        discountAmount: this.bookingData.discountAmount || 0,
+        subscriptionDiscountAmount: this.bookingData.subscriptionDiscountAmount || 0,
+        loyaltyDiscountAmount: this.bookingData.loyaltyDiscountAmount || 0,
+        tips: this.bookingData.tips || 0,
+        companyDevelopmentTips: this.bookingData.companyDevelopmentTips || 0,
+        giftCardAmountUsed: this.bookingData.giftCardAmountToUse || 0
+      });
+      total = totals.total;
     }
     
     this.orderTotal = total;

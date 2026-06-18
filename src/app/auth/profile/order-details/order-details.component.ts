@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { OrderService, Order } from '../../../services/order.service';
 import { BookingService, Service, ExtraService } from '../../../services/booking.service';
 import { DurationUtils } from '../../../utils/duration.utils';
+import { formatNyDate } from '../../../shared/ny-time.util';
 import { AuthService } from '../../../services/auth.service';
 import { ShiftService, ShiftAdmin } from '../../../services/shift.service';
 
@@ -292,6 +293,11 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
 
   formatDate(date: any): string {
     return new Date(date).toLocaleDateString();
+  }
+
+  /** orderDate is a UTC timestamp (unlike serviceDate, which is NY wall-clock) — show it in NY time. */
+  formatOrderDate(date: any): string {
+    return formatNyDate(date);
   }
 
   formatTime(time: string): string {

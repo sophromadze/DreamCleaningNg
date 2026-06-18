@@ -14,6 +14,8 @@ export class StripeService {
   private elements: StripeElements | null = null;
   private cardElement: StripeCardElement | null = null;
   private apiUrl = environment.apiUrl;
+  private paymentRequest: any = null;
+  private prButton: any = null;
 
   constructor(
     private http: HttpClient,
@@ -194,5 +196,83 @@ export class StripeService {
   // Get card element
   getCardElement(): StripeCardElement | null {
     return this.cardElement;
+  }
+
+  // Create a PaymentRequest (Apple Pay / Google Pay). Returns null if the device can't pay.
+  async createPaymentRequest(amount: number, label: string): Promise<any | null> {
+    if (!this.stripe) {
+      await this.initializeStripe();
+    }
+    if (!this.stripe) return null;
+
+    this.paymentRequest = this.stripe.paymentRequest({
+      country: 'US',
+      currency: 'usd',
+      total: { label, amount: Math.round(amount * 100) },
+      requestPayerName: true,
+      requestPayerEmail: true,
+    });
+
+    const result = await this.paymentRequest.canMakePayment();
+    return result ? this.paymentRequest : null;
+  }
+
+  // Mount the Apple/Google Pay button. Theme follows the current site theme.
+  createPaymentRequestButton(paymentRequest: any, elementId: string): any {
+    if (!this.elements) {
+      this.createElements();
+    }
+    if (!this.elements) {
+      throw new Error('Stripe Elements not initialized');
+    }
+    const el = document.getElementById(elementId);
+    if (!el) {
+      console.error(`Element with id "${elementId}" not found in DOM`);
+      return null;
+    }
+    if (this.prButton) {
+      try { this.prButton.destroy(); } catch {}
+      this.prButton = null;
+    }
+    const isDark = this.themeService.theme === 'dark';
+    this.prButton = this.elements.create('paymentRequestButton', {
+      paymentRequest,
+      style: {
+        paymentRequestButton: {
+          type: 'default',
+          theme: isDark ? 'dark' : 'light',
+          height: '48px'
+        }
+      }
+    });
+    this.prButton.mount(`#${elementId}`);
+    return this.prButton;
+  }
+
+  // Confirm using the wallet payment method. Handles 3D Secure (requires_action).
+  async confirmPaymentRequest(clientSecret: string, paymentMethodId: string): Promise<any> {
+    if (!this.stripe) throw new Error('Stripe not initialized');
+
+    const { error, paymentIntent } = await this.stripe.confirmCardPayment(
+      clientSecret,
+      { payment_method: paymentMethodId },
+      { handleActions: false }
+    );
+    if (error) throw error;
+
+    if (paymentIntent && paymentIntent.status === 'requires_action') {
+      const res = await this.stripe.confirmCardPayment(clientSecret);
+      if (res.error) throw res.error;
+      return res.paymentIntent;
+    }
+    return paymentIntent;
+  }
+
+  destroyPaymentRequestButton(): void {
+    if (this.prButton) {
+      try { this.prButton.destroy(); } catch {}
+      this.prButton = null;
+    }
+    this.paymentRequest = null;
   }
 }

@@ -1,0 +1,757 @@
+/* Extracted from booking.component.scss in original cascade order (legacy
+   layer → redesign polish), `.booking-summary` / `.mobile-booking-summary`
+   ancestors rewritten as :host-context (the wrappers stay in the parents).
+   Dark-mode rules are grouped at the end so they keep winning their old
+   specificity ties. Projected blocks (promo input, next-order-info,
+   edit-diff) keep their styles in the parent stylesheets. */
+
+/* ---- Legacy: mobile card ---- */
+.summary-card-mobile {
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 1.5rem;
+  font-family: 'Poppins', sans-serif;
+
+  @media (max-width: 1200px) {
+    padding: 2rem 1rem 1rem 1rem;
+    border-radius: 8px;
+  }
+
+  @media (max-width: 768px) {
+    padding: 1.1rem 0.875rem 0.875rem 0.875rem;
+  }
+
+  @media (max-width: 534px) {
+    padding: 1.1rem 0.75rem 0.75rem 0.75rem;
+  }
+
+  @media (max-width: 500px) {
+    padding: 1.1rem 0.625rem 0.625rem 0.625rem;
+  }
+
+  h3 {
+    color: #333;
+    text-align: left;
+    padding-bottom: 5px;
+    border-bottom: 2px solid #f0f0f0;
+    font-size: 1.2rem;
+    font-weight: 500;
+    font-family: 'Poppins', sans-serif;
+    margin: 0 0 1rem 0;
+    display: flex;
+    align-items: center;
+    line-height: 1.3;
+
+    @media (max-width: 1200px) {
+      margin: 0 0 1.25rem 0;
+      padding-bottom: 0.875rem;
+      font-size: 1.2rem;
+    }
+
+    @media (max-width: 768px) {
+      margin: 0 0 1rem 0;
+      padding-bottom: 0.75rem;
+      font-size: 1.1rem;
+    }
+
+    @media (max-width: 534px) {
+      margin: 0 0 0.875rem 0;
+      padding-bottom: 0.625rem;
+      font-size: 1rem;
+    }
+
+    @media (max-width: 500px) {
+      margin: 0 0 0.75rem 0;
+      padding-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
+  }
+
+  .summary-details {
+    .summary-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      color: #666;
+      font-size: 0.95rem;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 400;
+
+      @media (max-width: 1200px) {
+        padding: 3px 0;
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 768px) {
+        font-size: 0.85rem;
+      }
+
+      @media (max-width: 534px) {
+        font-size: 0.8rem;
+      }
+
+      @media (max-width: 500px) {
+        font-size: 0.75rem;
+      }
+
+      span:last-child {
+        font-weight: 600;
+        color: #333;
+      }
+    }
+  }
+
+  .price-breakdown {
+    border-top: 2px solid #f0f0f0;
+    padding-top: 5px;
+    margin-top: 5px;
+
+    .price-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      color: #666;
+      font-size: 0.95rem;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 400;
+
+      @media (max-width: 1200px) {
+        padding: 3px 0;
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 768px) {
+        font-size: 0.85rem;
+      }
+
+      @media (max-width: 534px) {
+        font-size: 0.8rem;
+      }
+
+      @media (max-width: 500px) {
+        font-size: 0.75rem;
+      }
+
+      span:last-child {
+        font-weight: 600;
+        color: #333;
+      }
+
+      .discount {
+        color: var(--fresh-green);
+      }
+    }
+  }
+
+  .total-section {
+    border-top: 2px solid #f0f0f0;
+    padding-top: 5px;
+    margin-top: 5px;
+
+    .total {
+      display: flex;
+      justify-content: space-between;
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #333;
+      padding: 10px 0;
+      font-family: 'Poppins', sans-serif;
+
+      @media (max-width: 1200px) {
+        font-size: 1.2rem;
+        justify-content: center;
+        gap: 1rem;
+        width: 100%;
+      }
+
+      @media (max-width: 768px) {
+        font-size: 1.1rem;
+      }
+
+      @media (max-width: 534px) {
+        font-size: 1rem;
+      }
+
+      @media (max-width: 500px) {
+        font-size: 0.95rem;
+      }
+    }
+  }
+}
+
+/* ---- Legacy: desktop card ---- */
+.summary-card {
+  background: #f8f8f8;
+  border-radius: 31px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  font-family: 'Poppins', sans-serif;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+
+  @media (max-width: 1200px) {
+    padding: 2rem 1rem 1rem 1rem;
+    border-radius: 8px;
+    background-color: var(--soft-blue);
+    border: 1px solid var(--primary-color);
+    max-width: 100%;
+  }
+
+  // Mobile/touch device with viewport > 768px: use compact top padding like on small screens
+  @media (max-width: 1200px) and (min-width: 769px) and (hover: none) {
+    padding: 1.1rem 1rem 1rem 1rem;
+  }
+
+  @media (max-width: 768px) {
+    padding: 1.1rem 0.875rem 0.875rem 0.875rem;
+    border-radius: 6px;
+  }
+
+  @media (max-width: 534px) {
+    padding: 1.1rem 0.75rem 0.75rem 0.75rem;
+    border-radius: 4px;
+  }
+
+  @media (max-width: 500px) {
+    padding: 1.1rem 0.625rem 0.625rem 0.625rem;
+    border-radius: 4px;
+  }
+
+  h3 {
+    color: #333;
+    text-align: center;
+    padding-bottom: 5px;
+    border-bottom: 2px solid #f0f0f0;
+    font-size: 1.3rem;
+    font-weight: 600;
+    font-family: 'Poppins', sans-serif;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+
+    @media (max-width: 1200px) {
+      margin: 0 0 1.25rem 0;
+      padding-bottom: 0.875rem;
+      font-size: 1.2rem;
+    }
+
+    @media (max-width: 768px) {
+      margin: 0 0 1rem 0;
+      padding-bottom: 0.75rem;
+      font-size: 1.1rem;
+    }
+
+    @media (max-width: 534px) {
+      margin: 0 0 0.875rem 0;
+      padding-bottom: 0.625rem;
+      font-size: 1rem;
+    }
+
+    @media (max-width: 500px) {
+      margin: 0 0 0.75rem 0;
+      padding-bottom: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    // Ensure border is removed when collapsed on mobile
+    @media (max-width: 1200px) {
+      &.collapsed {
+        border-bottom: none;
+      }
+    }
+  }
+
+  .summary-details {
+    .summary-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      color: #666;
+      font-size: 0.95rem;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 400;
+
+      @media (max-width: 1200px) {
+        padding: 3px 0;
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 768px) {
+        font-size: 0.85rem;
+      }
+
+      @media (max-width: 534px) {
+        font-size: 0.8rem;
+      }
+
+      @media (max-width: 500px) {
+        font-size: 0.75rem;
+      }
+
+      span:last-child {
+        font-weight: 600;
+        color: #333;
+      }
+    }
+  }
+
+  .price-breakdown {
+    border-top: 2px solid #f0f0f0;
+    padding-top: 5px;
+    margin-top: 5px;
+
+    .price-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      color: #666;
+      font-size: 0.95rem;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 400;
+
+      @media (max-width: 1200px) {
+        padding: 3px 0;
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 768px) {
+        font-size: 0.85rem;
+      }
+
+      @media (max-width: 534px) {
+        font-size: 0.8rem;
+      }
+
+      @media (max-width: 500px) {
+        font-size: 0.75rem;
+      }
+
+      span:last-child {
+        font-weight: 600;
+        color: #333;
+      }
+
+      .discount {
+        color: var(--fresh-green);
+      }
+    }
+  }
+
+  // Collapsible functionality for mobile
+  @media (max-width: 1200px) {
+    .total-section {
+      .total {
+        justify-content: center;
+        gap: 1rem;
+        width: 100%;
+      }
+    }
+
+    &.collapsed {
+      .summary-details,
+      .price-breakdown,
+      .next-order-info {
+        display: none;
+      }
+
+      .total-section {
+        border-top: 2px solid #f0f0f0;
+        padding-top: 5px;
+        margin-top: 5px;
+
+        .total {
+          justify-content: center;
+          gap: 1rem;
+          width: 100%;
+        }
+      }
+
+      h3 {
+        margin-bottom: 0.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: none; // Remove border when collapsed
+      }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  }
+}
+
+/* ---- Legacy: total section + collapse toggle ---- */
+.total-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 5px;
+  padding: 5px 0;
+  border-top: 2px solid #f0f0f0;
+
+  @media (max-width: 1200px) {
+    margin-top: 0;
+    padding-top: 0.875rem;
+  }
+
+  @media (max-width: 768px) {
+    margin-top: 0;
+    padding-top: 0.75rem;
+  }
+
+  @media (max-width: 534px) {
+    margin-top: 0;
+    padding-top: 0.625rem;
+  }
+
+  @media (max-width: 500px) {
+    margin-top: 0;
+    padding-top: 0.5rem;
+  }
+
+  .total {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #333;
+    width: 100%;
+    font-family: 'Poppins', sans-serif;
+
+    @media (max-width: 768px) {
+      font-size: 1.15rem;
+    }
+
+    @media (max-width: 534px) {
+      font-size: 1.1rem;
+    }
+
+    @media (max-width: 500px) {
+      font-size: 1rem;
+    }
+  }
+
+  .summary-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    @media (min-width: 1201px) {
+      display: none; // Hide toggle on desktop
+    }
+
+    .chevron-icon {
+      width: 24px;
+      height: 24px;
+      color: var(--primary-color);
+
+      @media (max-width: 768px) {
+        width: 20px;
+        height: 20px;
+      }
+
+      @media (max-width: 534px) {
+        width: 18px;
+        height: 18px;
+      }
+    }
+
+    .close-icon {
+      width: 24px;
+      height: 24px;
+      color: var(--bright-red);
+
+      @media (max-width: 768px) {
+        width: 20px;
+        height: 20px;
+      }
+
+      @media (max-width: 534px) {
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+}
+
+.subscription-discount {
+  .discount {
+    color: var(--fresh-green);
+    font-weight: 600;
+  }
+}
+
+/* ---- Bubble points earn preview ---- */
+.pts-earn-preview {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  text-align: center;
+  padding: 0.35rem 0 0.15rem;
+  margin-top: 2px;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 400;
+  color: var(--text-secondary, #888);
+
+  @media (max-width: 500px) {
+    font-size: 0.75rem;
+  }
+
+  .pts-earn-preview-line {
+    color: inherit;
+  }
+
+  .pts-earn-value {
+    color: var(--primary-color, #007bff);
+    font-weight: 600;
+    margin-left: 0.2rem;
+  }
+}
+
+/* Shimmering values keep min width to avoid layout shift */
+.summary-value.shimmer-loading {
+  min-width: 4ch;
+  display: inline-block;
+}
+
+/* ---- Redesign: modern card surfaces ---- */
+:host-context(.booking-summary) .summary-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-2xl);
+  box-shadow: 0 10px 40px var(--shadow-color);
+}
+
+/* Mobile/tablet: keep the legacy soft-blue tint (intentional emphasis when
+   the summary is sticky on small screens), only modernize the radius. */
+@media (max-width: 1200px) {
+  :host-context(.booking-summary) .summary-card {
+    background-color: var(--soft-blue);
+    border-color: var(--primary-color);
+    border-radius: var(--radius-xl);
+  }
+}
+
+@media (max-width: 768px) {
+  :host-context(.booking-summary) .summary-card {
+    border-radius: var(--radius-lg);
+  }
+}
+
+:host-context(.mobile-booking-summary) .summary-card-mobile {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 8px 24px var(--shadow-color);
+}
+
+.summary-card__title-icon {
+  color: var(--primary-color);
+  margin-right: 0.5rem;
+  font-size: 0.95em;
+}
+
+/* ---- "You're saving" banner ---- */
+.summary-savings-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.875rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-md);
+  background: var(--mint-fresh);
+  border: 1px solid var(--mint-fresh-border);
+  color: var(--fresh-green);
+  font-size: 0.875rem;
+  font-weight: var(--fw-extrabold);
+  letter-spacing: -0.005em;
+
+  &__icon {
+    font-size: 0.95rem;
+    flex-shrink: 0;
+  }
+}
+
+/* ---- Redesign: polished total section ---- */
+:host-context(.booking-summary) .summary-card .total-section {
+  margin-top: 0.875rem;
+  padding: 0.875rem 1rem;
+  background: linear-gradient(135deg, var(--soft-blue) 0%, var(--mint-fresh) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+
+  .total {
+    font-size: 1.5rem;
+    font-weight: var(--fw-black);
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+
+    .summary-value {
+      color: var(--fresh-green);
+    }
+
+    @media (max-width: 768px) {
+      font-size: 1.35rem;
+    }
+
+    @media (max-width: 463px) {
+      font-size: 1.2rem;
+    }
+  }
+}
+
+/* Mobile inline summary echoes the same total treatment */
+:host-context(.mobile-booking-summary) .summary-card-mobile .total-section {
+  margin-top: 0.875rem;
+  padding: 0.75rem 0.875rem;
+  background: linear-gradient(135deg, var(--soft-blue) 0%, var(--mint-fresh) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  .total {
+    font-weight: var(--fw-black);
+    .summary-value { color: var(--fresh-green); }
+  }
+}
+
+/* Discount lines in the breakdown — green emphasis for savings */
+:host-context(.booking-summary) .summary-card .price-breakdown .price-item .discount,
+:host-context(.mobile-booking-summary) .summary-card-mobile .price-breakdown .price-item .discount {
+  color: var(--fresh-green);
+  font-weight: var(--fw-extrabold);
+}
+
+/* =========================================================================
+   DARK MODE — grouped last so these rules keep winning the ties they used
+   to win through extra ancestor classes.
+   ========================================================================= */
+:host-context([data-theme="dark"]) {
+  .summary-card {
+    background: var(--surface);
+    box-shadow: 0 2px 8px var(--shadow-color);
+    border: 1px solid var(--border-color);
+
+    @media (max-width: 1200px) {
+      background: rgba(6, 14, 36, 1);
+      border-color: rgba(80, 160, 255, 0.3);
+    }
+
+    h3 {
+      color: var(--text-primary);
+      border-bottom-color: var(--border-color);
+    }
+
+    .summary-details .summary-item {
+      color: var(--text-secondary);
+
+      span:last-child {
+        color: var(--text-primary);
+      }
+    }
+
+    .price-breakdown {
+      border-top-color: var(--border-color);
+
+      .price-item {
+        color: var(--text-secondary);
+
+        span:last-child {
+          color: var(--text-primary);
+        }
+      }
+    }
+
+    &.collapsed .total-section {
+      border-top-color: var(--border-color);
+    }
+  }
+
+  .total-section {
+    border-top-color: var(--border-color);
+
+    .total {
+      color: var(--text-primary);
+    }
+  }
+
+  .summary-card-mobile {
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px var(--shadow-color);
+
+    h3 {
+      color: var(--text-primary);
+      border-bottom-color: var(--border-color);
+    }
+
+    .summary-details .summary-item,
+    .price-breakdown .price-item {
+      color: var(--text-secondary);
+
+      span:last-child {
+        color: var(--text-primary);
+      }
+    }
+
+    .total-section .total {
+      color: var(--text-primary);
+    }
+  }
+
+  /* Explicit white text in dark mode (step 3 and all steps) */
+  .summary-card,
+  .summary-card-mobile {
+    h3 {
+      color: #ffffff !important;
+      border-bottom-color: var(--border-color);
+    }
+    .summary-details .summary-item,
+    .price-breakdown .price-item {
+      color: #e8e8e8 !important;
+      span:last-child {
+        color: #ffffff !important;
+      }
+    }
+    .total-section .total {
+      color: #ffffff !important;
+    }
+
+    .pts-earn-preview {
+      justify-content: center;
+      text-align: center;
+      .pts-earn-preview-line {
+        color: #c8c8c8 !important;
+      }
+      .pts-earn-value {
+        color: var(--primary-color) !important;
+      }
+    }
+  }
+
+  /* Redesign shadows + tuned surfaces */
+  .summary-card,
+  .summary-card-mobile {
+    box-shadow: 0 10px 40px var(--shadow-color);
+  }
+
+  .summary-savings-banner {
+    background: rgba(34, 197, 94, 0.12);
+    border-color: rgba(34, 197, 94, 0.30);
+    color: var(--fresh-green);
+  }
+
+  .summary-card .total-section,
+  .summary-card-mobile .total-section {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.18) 0%, rgba(34, 197, 94, 0.18) 100%);
+    border-color: var(--border-color);
+  }
+}

@@ -1,0 +1,62 @@
+<div class="extra-services-header-container">
+  <h2 class="extra-services-header">Extra Services</h2>
+  <div class="extra-services-toggle" *ngIf="hasMore">
+    <button type="button" class="toggle-btn" (click)="toggleShowAll()">
+      <span>{{ showAll ? 'See less' : 'See all' }}</span>
+      <i class="fas fa-chevron-down" [class.rotated]="showAll"></i>
+    </button>
+  </div>
+</div>
+
+<div class="extra-services-container" [class.collapsed]="!showAll" [style.max-width.px]="containerMaxWidth">
+  <!-- Shimmer row when loading (matches real card layout) -->
+  <div *ngIf="loading" class="extra-services extra-services-shimmer-row">
+    <div class="extra-service-card-shimmer" *ngFor="let i of shimmerCards" [shimmer]="true"></div>
+  </div>
+  <div class="extra-services" *ngIf="!loading">
+    <div class="extra-service-wrapper" *ngFor="let extra of extras">
+      <div class="extra-service-card"
+            [class.selected]="isSelected(extra)"
+            [class.mobile-tooltip-visible]="isTooltipVisible(extra.id)"
+            [class.disabled]="isDisabled(extra)"
+            (click)="cardClick.emit(extra)"
+            [attr.data-tooltip]="tooltipFor(extra)">
+        <div class="extra-header">
+          <div class="extra-top-controls" style="display: none;">
+            <div class="checkbox">
+              <input type="checkbox"
+                     [checked]="isSelected(extra)"
+                     [disabled]="isDisabled(extra)"
+                     style="pointer-events: none; cursor: default;">
+            </div>
+          </div>
+          <div class="extra-info">
+            <div class="extra-icon">
+              <img [src]="imageFor(extra)" [alt]="extra.name">
+            </div>
+            <h4>{{ extra.name }}</h4>
+            <div class="extra-details">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quantity / hours controls (render only when the card is selected) -->
+      <div class="extra-controls" *ngIf="isSelected(extra) && (extra.hasQuantity || extra.hasHours)">
+        <app-quantity-control class="quantity-control" variant="extra" *ngIf="extra.hasQuantity"
+          [value]="getQuantity(extra)"
+          [decrementDisabled]="getQuantity(extra) <= 1"
+          (decrement)="quantityChange.emit({ extra: extra, quantity: getQuantity(extra) - 1 }); $event.stopPropagation()"
+          (increment)="quantityChange.emit({ extra: extra, quantity: getQuantity(extra) + 1 }); $event.stopPropagation()">
+        </app-quantity-control>
+
+        <app-quantity-control class="hours-control" variant="extra" *ngIf="extra.hasHours"
+          [value]="getHours(extra)"
+          [decrementDisabled]="getHours(extra) <= 0.5"
+          (decrement)="hoursChange.emit({ extra: extra, hours: getHours(extra) - 0.5 }); $event.stopPropagation()"
+          (increment)="hoursChange.emit({ extra: extra, hours: getHours(extra) + 0.5 }); $event.stopPropagation()">
+        </app-quantity-control>
+      </div>
+    </div>
+  </div>
+</div>

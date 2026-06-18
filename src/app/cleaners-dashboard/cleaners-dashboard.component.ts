@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
+import { NyDatePipe } from '../shared/ny-time.util';
 import { Subject, of, forkJoin, Observable } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil, catchError, finalize, tap } from 'rxjs/operators';
 import {
@@ -13,7 +14,8 @@ import {
   CreateCleanerNotePayload,
   CleanerRanking,
   CleanerDocumentType,
-  CleanerNote
+  CleanerNote,
+  CleanerVacation
 } from '../services/cleaner-management.service';
 import { compressImage } from '../utils/image-compression';
 import { normalizePhone10, sanitizePhoneInput, telHrefUS } from '../utils/phone.utils';
@@ -21,16 +23,20 @@ import { normalizePhone10, sanitizePhoneInput, telHrefUS } from '../utils/phone.
 type ModalMode = 'create' | 'edit';
 
 type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
-interface AvailabilityDayState {
-  enabled: boolean;
-  from: string;
-  to: string;
+
+// Whether each weekday is marked as a recurring busy day for the cleaner.
+type BusyDays = Record<DayKey, boolean>;
+
+// One editable vacation range row in the form (dates as yyyy-MM-dd for <input type="date">).
+interface VacationRow {
+  startDate: string;
+  endDate: string;
+  note: string;
 }
 
-type AvailabilityDays = Record<DayKey, AvailabilityDayState>;
 type CleanerExperience = 'Good' | 'Normal' | 'None';
 
-type CleanerSort = 'default' | 'rankBest' | 'rankWorst' | 'expHigh' | 'expLow' | 'name';
+type CleanerSort = 'default' | 'rankBest' | 'rankWorst' | 'expHigh' | 'expLow' | 'name' | 'createdNew' | 'createdOld';
 type CleanerFilter =
   | 'all'
   | 'best'
@@ -41,12 +47,6 @@ type CleanerFilter =
   | 'active'
   | 'reserve'
   | 'new';
-
-interface AvailabilitySlot {
-  day: DayKey;
-  from: string;
-  to: string;
-}
 
 const RANKING_INDEX: Record<CleanerRanking, number> = {
   Top: 0,
@@ -70,6 +70,14 @@ const DOCUMENT_TYPE_INDEX: Record<CleanerDocumentType, number> = {
 
 const DAY_ORDER: DayKey[] = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
 
+// Maps to System.DayOfWeek integers used by the backend (0=Sun … 6=Sat).
+const DAY_KEY_TO_INT: Record<DayKey, number> = {
+  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6
+};
+const INT_TO_DAY_KEY: Record<number, DayKey> = {
+  0: 'sun', 1: 'mon', 2: 'tue', 3: 'wed', 4: 'thu', 5: 'fri', 6: 'sat'
+};
+
 const DAY_LABEL: Record<DayKey, string> = {
   mon: 'Mon',
   tue: 'Tue',
@@ -83,7 +91,7 @@ const DAY_LABEL: Record<DayKey, string> = {
 @Component({
   selector: 'app-cleaners-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, NyDatePipe],
   templateUrl: './cleaners-dashboard.component.html',
   styleUrls: ['./cleaners-dashboard.component.scss']
 })
@@ -109,7 +117,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   formError = '';
   editingId: number | null = null;
 
-  availabilityDays: AvailabilityDays = this.emptyAvailability();
+  busyDays: BusyDays = this.emptyBusyDays();
+  vacations: VacationRow[] = [];
 
   photoUploading = false;
   documentUploading = false;
@@ -168,7 +177,9 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     { value: 'rankWorst', label: 'Rank: worst → best' },
     { value: 'expHigh', label: 'Experience: high → low' },
     { value: 'expLow', label: 'Experience: low → high' },
-    { value: 'name', label: 'Name (A–Z)' }
+    { value: 'name', label: 'Name (A–Z)' },
+    { value: 'createdNew', label: 'Created: newest first' },
+    { value: 'createdOld', label: 'Created: oldest first' }
   ];
 
   readonly filterOptions: { value: CleanerFilter; label: string }[] = [
@@ -289,7 +300,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     this.formMode = 'create';
     this.editingId = null;
     this.formModel = this.emptyFormModel();
-    this.availabilityDays = this.emptyAvailability();
+    this.busyDays = this.emptyBusyDays();
+    this.vacations = [];
     this.formPhotoFile = null;
     this.formPhotoPreview = null;
     this.formDocumentFile = null;
@@ -310,7 +322,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       email: detail.email ?? null,
       address: detail.address ?? null,
       location: detail.location ?? null,
-      availability: detail.availability ?? null,
+      busyDaysOfWeek: detail.busyDaysOfWeek ?? [],
+      vacations: detail.vacations ?? [],
       alreadyWorkedWithUs: detail.alreadyWorkedWithUs,
       nationality: detail.nationality ?? null,
       ranking: this.normalizeRanking(detail.ranking),
@@ -321,7 +334,12 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       documentType: this.normalizeDocumentType(detail.documentType),
       isActive: detail.isActive
     };
-    this.availabilityDays = this.parseAvailability(detail.availability);
+    this.busyDays = this.intsToBusyDays(detail.busyDaysOfWeek);
+    this.vacations = (detail.vacations ?? []).map(v => ({
+      startDate: this.toDateInput(v.startDate),
+      endDate: this.toDateInput(v.endDate),
+      note: v.note ?? ''
+    }));
     this.formPhotoFile = null;
     this.formPhotoPreview = detail.photoUrl ?? null;
     this.formDocumentFile = null;
@@ -333,7 +351,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   closeForm(): void {
     this.formOpen = false;
     this.formModel = this.emptyFormModel();
-    this.availabilityDays = this.emptyAvailability();
+    this.busyDays = this.emptyBusyDays();
+    this.vacations = [];
     this.formPhotoFile = null;
     this.formPhotoPreview = null;
     this.formDocumentFile = null;
@@ -342,12 +361,17 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     this.formError = '';
   }
 
-  toggleDay(day: DayKey): void {
-    const current = this.availabilityDays[day];
-    this.availabilityDays = {
-      ...this.availabilityDays,
-      [day]: { ...current, enabled: !current.enabled }
-    };
+  toggleBusyDay(day: DayKey): void {
+    this.busyDays = { ...this.busyDays, [day]: !this.busyDays[day] };
+  }
+
+  addVacation(): void {
+    const today = this.toDateInput(new Date().toISOString());
+    this.vacations = [...this.vacations, { startDate: today, endDate: today, note: '' }];
+  }
+
+  removeVacation(index: number): void {
+    this.vacations = this.vacations.filter((_, i) => i !== index);
   }
 
   onFormPhotoSelected(event: Event): void {
@@ -648,13 +672,24 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     return found?.label ?? '';
   }
 
-  formatAvailability(value: string | null | undefined): string {
-    if (!value) return '';
-    const slots = this.parseAvailabilityToSlots(value);
-    if (!slots.length) return value;
-    return slots
-      .map(s => `${DAY_LABEL[s.day]} ${s.from}–${s.to}`)
+  /** Weekday names (e.g. "Mon, Tue"), or '' when none — for the detail panel. */
+  busyDayNames(ints: number[] | null | undefined): string {
+    if (!ints || ints.length === 0) return '';
+    return DAY_ORDER
+      .filter(day => ints.includes(DAY_KEY_TO_INT[day]))
+      .map(day => DAY_LABEL[day])
       .join(', ');
+  }
+
+  /** Formats a date-only value (yyyy-MM-dd / ISO) without timezone drift, e.g. "Jul 1, 2026". */
+  formatDateOnly(value: string | null | undefined): string {
+    if (!value) return '';
+    const parts = value.substring(0, 10).split('-');
+    if (parts.length !== 3) return value;
+    const [y, m, d] = parts.map(p => parseInt(p, 10));
+    if (!y || !m || !d) return value;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[m - 1]} ${d}, ${y}`;
   }
 
   telHref(phone: string | null | undefined): string {
@@ -862,6 +897,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`);
     const rank = (c: CleanerListItem) => RANKING_INDEX[this.normalizeRanking(c.ranking)];
     const exp = (c: CleanerListItem) => EXPERIENCE_INDEX[this.normalizeExperience(c.experience)];
+    const created = (c: CleanerListItem) => new Date(c.createdAt).getTime() || 0;
 
     const sorted = [...list];
     switch (this.sortBy) {
@@ -875,6 +911,10 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
         return sorted.sort((a, b) => exp(b) - exp(a) || byName(a, b));
       case 'name':
         return sorted.sort(byName);
+      case 'createdNew':
+        return sorted.sort((a, b) => created(b) - created(a) || byName(a, b));
+      case 'createdOld':
+        return sorted.sort((a, b) => created(a) - created(b) || byName(a, b));
       case 'default':
       default:
         // Mirrors backend default: Top rank first, then alphabetical.
@@ -908,7 +948,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       email: null,
       address: null,
       location: null,
-      availability: null,
+      busyDaysOfWeek: [],
+      vacations: [],
       alreadyWorkedWithUs: false,
       nationality: 'Georgian',
       ranking: 'Standard',
@@ -921,46 +962,44 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     };
   }
 
-  private emptyAvailability(): AvailabilityDays {
-    const obj: Partial<AvailabilityDays> = {};
+  private emptyBusyDays(): BusyDays {
+    const obj: Partial<BusyDays> = {};
     for (const d of DAY_ORDER) {
-      obj[d] = { enabled: false, from: '09:00', to: '17:00' };
+      obj[d] = false;
     }
-    return obj as AvailabilityDays;
+    return obj as BusyDays;
   }
 
-  private parseAvailability(value: string | null | undefined): AvailabilityDays {
-    const base = this.emptyAvailability();
-    const slots = this.parseAvailabilityToSlots(value);
-    for (const slot of slots) {
-      base[slot.day] = { enabled: true, from: slot.from, to: slot.to };
+  private intsToBusyDays(ints: number[] | null | undefined): BusyDays {
+    const base = this.emptyBusyDays();
+    for (const n of ints ?? []) {
+      const key = INT_TO_DAY_KEY[n];
+      if (key) base[key] = true;
     }
     return base;
   }
 
-  private parseAvailabilityToSlots(value: string | null | undefined): AvailabilitySlot[] {
-    if (!value) return [];
-    try {
-      const parsed = JSON.parse(value);
-      if (!Array.isArray(parsed)) return [];
-      return parsed
-        .filter(p => p && typeof p === 'object' && DAY_ORDER.includes(p.day))
-        .map(p => ({ day: p.day as DayKey, from: String(p.from ?? ''), to: String(p.to ?? '') }));
-    } catch {
-      return [];
-    }
+  private busyDaysToInts(): number[] {
+    return DAY_ORDER
+      .filter(day => this.busyDays[day])
+      .map(day => DAY_KEY_TO_INT[day]);
   }
 
-  private serializeAvailability(): string | null {
-    const slots: AvailabilitySlot[] = [];
-    for (const day of DAY_ORDER) {
-      const state = this.availabilityDays[day];
-      if (state.enabled && state.from && state.to) {
-        slots.push({ day, from: state.from, to: state.to });
-      }
-    }
-    if (slots.length === 0) return null;
-    return JSON.stringify(slots);
+  /** Vacation rows ready to POST — only complete rows (both dates) are sent. */
+  private buildVacationPayload(): CleanerVacation[] {
+    return this.vacations
+      .filter(v => v.startDate && v.endDate)
+      .map(v => ({
+        startDate: v.startDate,
+        endDate: v.endDate,
+        note: v.note && v.note.trim() ? v.note.trim() : null
+      }));
+  }
+
+  /** Normalizes an ISO/date string to the yyyy-MM-dd a date input expects. */
+  private toDateInput(value: string | null | undefined): string {
+    if (!value) return '';
+    return value.length >= 10 ? value.substring(0, 10) : value;
   }
 
   private buildPayload(): CreateCleanerPayload | UpdateCleanerPayload {
@@ -976,7 +1015,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       email: this.nullIfBlank(this.formModel.email),
       address: this.nullIfBlank(this.formModel.address),
       location: this.nullIfBlank(this.formModel.location),
-      availability: this.serializeAvailability(),
+      busyDaysOfWeek: this.busyDaysToInts(),
+      vacations: this.buildVacationPayload(),
       alreadyWorkedWithUs: !!this.formModel.alreadyWorkedWithUs,
       nationality: this.nullIfBlank(this.formModel.nationality),
       ranking: RANKING_INDEX[rankingStr] ?? 1,

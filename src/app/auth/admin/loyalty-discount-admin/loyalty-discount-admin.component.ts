@@ -7,6 +7,7 @@ import {
   LoyaltyDiscountSettingsDto,
   UserPermissions,
 } from '../../../services/admin.service';
+import { formatNyDateTime } from '../../../shared/ny-time.util';
 
 // Panel A: 7-setting form gated to Admin/SuperAdmin. Panel B: read-only audit feed of
 // LoyaltyDiscount changes for the last 30 days. The whole tab is gated upstream by the
@@ -194,8 +195,9 @@ export class LoyaltyDiscountAdminComponent implements OnInit {
   // ── Formatting ─────────────────────────────────────────────────────────────────
   formatWhen(date: any): string {
     if (!date) return '—';
-    const d = new Date(date);
-    return Number.isNaN(d.getTime()) ? String(date) : d.toLocaleString();
+    // Audit-log timestamps are UTC — display in NY (business) time.
+    const formatted = formatNyDateTime(date);
+    return formatted || String(date);
   }
 
   // ── Internals ──────────────────────────────────────────────────────────────────

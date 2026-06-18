@@ -4,6 +4,7 @@ import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { SpecialOfferService, PublicSpecialOffer } from '../services/special-offer.service';
+import { AuthService } from '../services/auth.service';
 
 /**
  * Desktop-only marketing popup (bottom-left) promoting the first-time customer
@@ -32,23 +33,27 @@ export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
   private hasScrolled = false;
   private dismissed = false;
   private _path = '/';
+  /** True when the logged-in user already placed their first order (offer no longer applies). */
+  private usedFirstTimeOffer = false;
   private subscriptions = new Subscription();
   private scrollHandler = () => this.onScroll();
 
   constructor(
     private router: Router,
     private specialOfferService: SpecialOfferService,
+    private authService: AuthService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 
-  /** Popup shows only when: offer loaded, scrolled past hero, on an allowed route, not dismissed, on desktop. */
+  /** Popup shows only when: offer loaded, scrolled past hero, on an allowed route, not dismissed, eligible, on desktop. */
   get isVisible(): boolean {
     return this.isBrowser &&
       !this.dismissed &&
       this.hasScrolled &&
       !!this.firstTimeDiscountLabel &&
+      !this.usedFirstTimeOffer &&
       !this.isHiddenRoute(this._path) &&
       this.isDesktop();
   }
@@ -68,6 +73,14 @@ export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
         filter((e): e is NavigationEnd => e instanceof NavigationEnd)
       ).subscribe(() => {
         this._path = window.location.pathname || '/';
+      })
+    );
+
+    // The offer is first-order-only: once a logged-in user has placed an order
+    // (firstTimeOrder flips to false), the popup is no longer relevant to them.
+    this.subscriptions.add(
+      this.authService.currentUser.subscribe(user => {
+        this.usedFirstTimeOffer = !!user && user.firstTimeOrder === false;
       })
     );
   }
@@ -138,9 +151,15 @@ export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
       '/profile',
       '/cleaners-dashboard',
       '/cleaner/cabinet',
-      '/order',
+      '/order',              // also covers /order/:id/pay (payment page)
       '/rewards',
-      '/booking',            // covers /booking, /booking-confirmation, /booking-success
+      '/booking',
+      // Payment + payment-complete pages. These are NOT covered by '/booking':
+      // matching requires "prefix" or "prefix/", and '/booking-confirmation'
+      // only shares the string prefix, not a path segment.
+      '/booking-confirmation',
+      '/booking-success',
+      '/gift-card-confirmation',
       '/login',
       '/auth',
       '/change-password',

@@ -16,14 +16,13 @@ import {
 } from '../../../services/admin.service';
 import { OrderService, OrderList } from '../../../services/order.service';
 import { Apartment, CreateApartment } from '../../../services/profile.service';
+import { formatNy, parseUtcDate } from '../../../shared/ny-time.util';
 import { BubbleRewardsService } from '../../../services/bubble-rewards.service';
 import { AdminBonusService, AdminBonusSummary } from '../../../services/admin-bonus.service';
 import { environment } from '../../../../environments/environment';
 import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
 
-type DetailTab = 'overview' | 'details' | 'history' | 'photos' | 'communications' | 'notes' | 'tasks';
-type NoteType = 'General' | 'FollowUp';
-type NotesViewTab = 'general' | 'followup' | 'calls' | 'tasks';
+type DetailTab = 'overview' | 'details' | 'history' | 'photos' | 'notes' | 'tasks';
 
 @Component({
   selector: 'app-user-management',
@@ -141,20 +140,15 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   newReferrerSearchResults: { id: number; email: string; name: string }[] = [];
   settingReferredBy = false;
 
-  // ── Customer-care: notes ──
+  // ── Customer-care: notes (general only) ──
   generalNotes: UserNote[] = [];
-  followUpNotes: UserNote[] = [];
   loadingNotes = false;
 
-  newNoteType: NoteType = 'General';
-  notesViewTab: NotesViewTab = 'followup';
   newNoteContent = '';
-  newNoteNextOffer = '';
   savingNote = false;
 
   editingNoteId: number | null = null;
   editNoteContent = '';
-  editNoteNextOffer = '';
 
   // ── Customer-care: photos ──
   cleaningPhotoGroups: UserCleaningPhotosByOrder[] = [];
@@ -166,28 +160,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   photoUploadError = '';
   photoUploadSuccess = '';
   lightboxPhoto: UserCleaningPhoto | null = null;
-
-  // ── Customer-care: communications ──
-  communications: any[] = [];
-  loadingComms = false;
-  newComm = {
-    type: 'Outgoing Call',
-    notes: '',
-    status: 'Pending'
-  };
-  editingCommunicationId: number | null = null;
-  savingComm = false;
-  commTypes = [
-    'Incoming Call',
-    'Outgoing Call',
-    'Email',
-    'SMS',
-    'No Answer',
-    'Refused',
-    'Voicemail',
-    'Other'
-  ];
-  commStatuses = ['Pending', 'Resolved', 'Closed', 'Requires Follow-up'];
 
   // ── Customer-care: tasks ──
   userTasks: any[] = [];
@@ -506,7 +478,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     }
 
     this.viewingUserId = user.id;
-    this.detailTab = 'overview';
+    this.detailTab = 'details';
     this.roleDropdownUserId = null;
     this.editingUser = false;
     this.loadingUserDetails = true;
@@ -514,21 +486,16 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
     // Reset child sections
     this.generalNotes = [];
-    this.followUpNotes = [];
     this.cleaningPhotoGroups = [];
-    this.communications = [];
     this.userTasks = [];
     this.editingNoteId = null;
     this.newNoteContent = '';
-    this.newNoteNextOffer = '';
-    this.notesViewTab = 'followup';
 
     this.loadUserOrders(user.id);
     this.loadUserApartments(user.id);
     this.loadUserRewards(user.id);
     this.loadUserLoyalty(user.id);
     this.loadUserNotes(user.id);
-    this.loadCommunications(user.id);
     this.loadUserTasksList(user.id);
     this.loadCleaningPhotos(user.id);
     this.loadAdminBonusStats(user);
@@ -589,25 +556,12 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   setDetailTab(tab: DetailTab): void {
     this.detailTab = tab;
     if (!this.selectedUser) return;
-    if (tab === 'notes') {
-      this.notesViewTab = 'followup';
-      this.newNoteType = 'FollowUp';
-    }
     if (tab === 'photos' && this.cleaningPhotoGroups.length === 0 && !this.loadingPhotos) {
       this.loadCleaningPhotos(this.selectedUser.id);
-    }
-    if (tab === 'communications' && this.communications.length === 0 && !this.loadingComms) {
-      this.loadCommunications(this.selectedUser.id);
     }
     if (tab === 'tasks' && this.userTasks.length === 0 && !this.loadingTasks) {
       this.loadUserTasksList(this.selectedUser.id);
     }
-  }
-
-  setNotesViewTab(tab: NotesViewTab): void {
-    this.notesViewTab = tab;
-    if (tab === 'general') this.newNoteType = 'General';
-    if (tab === 'followup') this.newNoteType = 'FollowUp';
   }
 
   @HostListener('document:keydown.escape')
@@ -786,8 +740,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.adminService.getUserCareNotes(userId).subscribe({
       next: (notes) => {
         if (this.selectedUser?.id !== userId) return;
+        // Only general notes exist now — follow-up notes were removed.
         this.generalNotes = notes.filter(n => n.type === 'General');
-        this.followUpNotes = notes.filter(n => n.type === 'FollowUp');
         this.refreshOverviewCollections();
         this.loadingNotes = false;
       },
@@ -801,20 +755,15 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     if (!content) return;
 
     const dto: CreateUserNoteDto = {
-      type: this.newNoteType,
-      content,
-      nextOffer: this.newNoteType === 'FollowUp' && this.newNoteNextOffer.trim()
-        ? this.newNoteNextOffer.trim()
-        : null
+      type: 'General',
+      content
     };
 
     this.savingNote = true;
     this.adminService.createUserCareNote(this.selectedUser.id, dto).subscribe({
       next: (note) => {
-        if (note.type === 'General') this.generalNotes = [note, ...this.generalNotes];
-        else this.followUpNotes = [note, ...this.followUpNotes];
+        this.generalNotes = [note, ...this.generalNotes];
         this.newNoteContent = '';
-        this.newNoteNextOffer = '';
         this.savingNote = false;
         this.successMessage = 'Note added.';
         this.refreshOverviewCollections();
@@ -831,13 +780,11 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   startEditNote(note: UserNote): void {
     this.editingNoteId = note.id;
     this.editNoteContent = note.content;
-    this.editNoteNextOffer = note.nextOffer || '';
   }
 
   cancelEditNote(): void {
     this.editingNoteId = null;
     this.editNoteContent = '';
-    this.editNoteNextOffer = '';
   }
 
   saveEditNote(note: UserNote): void {
@@ -845,21 +792,12 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     const content = this.editNoteContent.trim();
     if (!content) return;
 
-    const dto: UpdateUserNoteDto = {
-      content,
-      nextOffer: note.type === 'FollowUp' && this.editNoteNextOffer.trim()
-        ? this.editNoteNextOffer.trim()
-        : null
-    };
+    const dto: UpdateUserNoteDto = { content };
 
     this.adminService.updateUserCareNote(note.id, dto).subscribe({
       next: (updated) => {
-        const apply = (arr: UserNote[]) => {
-          const idx = arr.findIndex(n => n.id === updated.id);
-          if (idx >= 0) arr[idx] = updated;
-        };
-        apply(this.generalNotes);
-        apply(this.followUpNotes);
+        const idx = this.generalNotes.findIndex(n => n.id === updated.id);
+        if (idx >= 0) this.generalNotes[idx] = updated;
         this.cancelEditNote();
         this.refreshOverviewCollections();
       },
@@ -875,7 +813,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.adminService.deleteUserCareNote(note.id).subscribe({
       next: () => {
         this.generalNotes = this.generalNotes.filter(n => n.id !== note.id);
-        this.followUpNotes = this.followUpNotes.filter(n => n.id !== note.id);
         this.refreshOverviewCollections();
       }
     });
@@ -906,6 +843,12 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     if (!input.files || input.files.length === 0 || !this.selectedUser) return;
     const files = Array.from(input.files);
     input.value = '';
+    // Photos must always be attached to a specific order — unassigned uploads are not allowed.
+    if (this.photoUploadOrderId == null) {
+      this.photoUploadError = 'Select the order these photos belong to first.';
+      setTimeout(() => this.photoUploadError = '', 4000);
+      return;
+    }
     this.uploadPhotosSequentially(files);
   }
 
@@ -1001,111 +944,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       return `${environment.apiUrl}/admin/user-care/cleaning-photos/${photoOrUrl.id}/raw`;
     }
     return typeof photoOrUrl === 'string' ? photoOrUrl : '';
-  }
-
-  // ── Communications ──
-
-  private loadCommunications(userId: number): void {
-    this.loadingComms = true;
-    this.adminService.getUserCommunications(userId).subscribe({
-      next: (items) => {
-        if (this.selectedUser?.id !== userId) return;
-        this.communications = items;
-        this.refreshOverviewCollections();
-        this.loadingComms = false;
-      },
-      error: () => { this.loadingComms = false; }
-    });
-  }
-
-  saveCommunication(): void {
-    if (!this.selectedUser || this.savingComm) return;
-    const type = (this.newComm.type || '').trim();
-    if (!type) return;
-
-    this.savingComm = true;
-
-    // Edit path — preserves the original timestamp & id via PUT.
-    if (this.editingCommunicationId) {
-      const editId = this.editingCommunicationId;
-      this.adminService.updateUserCommunication(editId, {
-        type,
-        notes: this.newComm.notes?.trim() || null,
-        status: this.newComm.status
-      }).subscribe({
-        next: (updated) => {
-          const idx = this.communications.findIndex(c => c.id === editId);
-          if (idx >= 0) this.communications[idx] = updated;
-          this.refreshOverviewCollections();
-          this.newComm = { type: 'Outgoing Call', notes: '', status: 'Pending' };
-          this.editingCommunicationId = null;
-          this.savingComm = false;
-        },
-        error: (err) => {
-          this.savingComm = false;
-          this.errorMessage = err?.error?.message || 'Failed to update communication.';
-          setTimeout(() => this.errorMessage = '', 3000);
-        }
-      });
-      return;
-    }
-
-    // Create path
-    const fullName = `${this.selectedUser.firstName || ''} ${this.selectedUser.lastName || ''}`.trim();
-    this.adminService.createUserCommunication(this.selectedUser.id, {
-      type,
-      notes: this.newComm.notes?.trim() || undefined,
-      status: this.newComm.status,
-      clientName: fullName || undefined
-    }).subscribe({
-      next: (item) => {
-        this.communications = [item, ...this.communications];
-        this.refreshOverviewCollections();
-        this.newComm = { type: 'Outgoing Call', notes: '', status: 'Pending' };
-        this.savingComm = false;
-      },
-      error: (err) => {
-        this.savingComm = false;
-        this.errorMessage = err?.error?.message || 'Failed to log communication.';
-        setTimeout(() => this.errorMessage = '', 3000);
-      }
-    });
-  }
-
-  removeCommunication(item: any): void {
-    if (!confirm('Remove this communication entry?')) return;
-    this.adminService.deleteUserCommunication(item.id).subscribe({
-      next: () => {
-        this.communications = this.communications.filter(c => c.id !== item.id);
-        this.refreshOverviewCollections();
-      }
-    });
-  }
-
-  startEditCommunication(item: any): void {
-    this.editingCommunicationId = item.id;
-    this.newComm = {
-      type: item.type || 'Outgoing Call',
-      notes: item.notes || '',
-      status: item.status || 'Pending'
-    };
-  }
-
-  cancelEditCommunication(): void {
-    this.editingCommunicationId = null;
-    this.newComm = { type: 'Outgoing Call', notes: '', status: 'Pending' };
-  }
-
-  /** Returns CSS class name for a communication type chip. */
-  commTypeClass(type: string): string {
-    const t = (type || '').toLowerCase();
-    if (t.includes('incoming')) return 'comm-incoming';
-    if (t.includes('outgoing')) return 'comm-outgoing';
-    if (t.includes('email')) return 'comm-email';
-    if (t.includes('sms')) return 'comm-sms';
-    if (t.includes('no answer') || t.includes('voicemail')) return 'comm-noanswer';
-    if (t.includes('refused')) return 'comm-refused';
-    return 'comm-other';
   }
 
   // ── Tasks ──
@@ -1286,16 +1124,23 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     return new Date(date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
   }
 
+  /** For NY wall-clock dates (serviceDate, dueDate, lastCleaningDate) — no timezone conversion. */
   formatShortDate(date: any): string {
     if (!date) return '—';
     return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
   }
 
+  /** For UTC timestamps (createdAt, activatedAt, lastUsedAt) — shown in NY time. */
+  formatUtcShortDate(date: any): string {
+    if (!date) return '—';
+    return formatNy(date, { month: 'short', day: 'numeric', year: '2-digit' });
+  }
+
+  /** All call sites pass UTC timestamps (createdAt, interactionDate) — shown in NY time. */
   formatDateTime(date: any): string {
     if (!date) return 'N/A';
-    const d = new Date(date);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
-      ' • ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+    return formatNy(date, { month: 'short', day: 'numeric' }) +
+      ' • ' + formatNy(date, { hour: '2-digit', minute: '2-digit' });
   }
 
   formatCurrency(amount: number): string {
@@ -1915,21 +1760,15 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     body: string;
     iconClass: string;
   }> {
-    const commItems = this.communications.map((c) => ({
-      date: new Date(c.interactionDate || c.createdAt || Date.now()),
-      typeLabel: this.getTimelineTypeLabel(c.type, false),
-      admin: this.formatAdminShortName(c.adminName || 'Admin'),
-      body: c.notes || c.status || '',
-      iconClass: this.getTimelineIconClass(c.type, false)
-    }));
-    const noteItems = [...this.followUpNotes, ...this.generalNotes].map((n) => ({
-      date: new Date(n.createdAt || Date.now()),
-      typeLabel: n.type === 'FollowUp' ? 'Follow-up' : 'General',
+    // Timeline shows general notes only — calls history was removed.
+    const noteItems = this.generalNotes.map((n) => ({
+      date: parseUtcDate(n.createdAt) || new Date(),
+      typeLabel: 'General',
       admin: this.formatAdminShortName(n.createdByAdminName || 'Admin'),
       body: n.content || '',
-      iconClass: n.type === 'FollowUp' ? 'followup' : 'general'
+      iconClass: 'general'
     }));
-    return [...commItems, ...noteItems]
+    return noteItems
       .sort((a, b) => b.date.getTime() - a.date.getTime())
       .slice(0, limit);
   }
@@ -1940,43 +1779,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.overviewRecentOrders = this.getRecentOrders(5);
   }
 
-  private getTimelineTypeLabel(type: string | undefined | null, isNote: boolean): string {
-    if (isNote) return 'General';
-    const t = (type || '').toLowerCase();
-    if (t.includes('incoming')) return 'Incoming Call';
-    if (t.includes('outgoing')) return 'Outgoing Call';
-    if (t.includes('voicemail')) return 'Voicemail';
-    if (t.includes('email')) return 'Email';
-    if (t.includes('sms') || t.includes('text')) return 'SMS';
-    if (t.includes('answer')) return 'No Answer';
-    if (t.includes('refused')) return 'Refused';
-    return type?.trim() || 'Call';
-  }
-
-  private getTimelineIconClass(type: string | undefined | null, isNote: boolean): string {
-    if (isNote) return 'general';
-    const t = (type || '').toLowerCase();
-    if (t.includes('incoming')) return 'incoming-call';
-    if (t.includes('outgoing')) return 'outgoing-call';
-    if (t.includes('voicemail')) return 'voicemail';
-    if (t.includes('email')) return 'email';
-    if (t.includes('sms') || t.includes('text')) return 'sms';
-    if (t.includes('answer')) return 'no-answer';
-    if (t.includes('refused')) return 'refused';
-    if (t.includes('call')) return 'call';
-    return 'other';
-  }
-
   getTimelineFaIcon(iconClass: string): string {
     switch (iconClass) {
-      case 'incoming-call': return 'fa-solid fa-phone-volume';
-      case 'outgoing-call': return 'fa-solid fa-phone';
-      case 'voicemail': return 'fa-solid fa-microphone-lines';
-      case 'email': return 'fa-solid fa-envelope';
-      case 'sms': return 'fa-solid fa-comment-dots';
-      case 'no-answer': return 'fa-solid fa-phone-slash';
-      case 'refused': return 'fa-solid fa-ban';
-      case 'followup': return 'fa-solid fa-rotate-right';
       case 'general': return 'fa-solid fa-note-sticky';
       default: return 'fa-solid fa-circle-info';
     }
@@ -2080,8 +1884,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
     if (s.includes('move') && (s.includes('in') || s.includes('out'))) return 'Move In/Out';
     if (s.includes('office')) return 'Office';
-    if (s.includes('arranged') || s.includes('pre-arranged') || s.includes('pre arranged')) return 'Pre-arranged';
-    if (s.includes('heavy conditional') || s === 'heavy') return 'Heavy';
+    if (s.includes('arranged') || s.includes('pre-arranged') || s.includes('pre arranged')) return 'Arranged';
+    if (s.includes('heavy')) return 'Heavy';
 
     if (s.includes('residential')) {
       if (order?.lastCleaningServiceType !== undefined && order?.id && this.userLastCleaningVariantCache.has(order.id)) {

@@ -22,6 +22,7 @@ import { BeforeAfterPhotoService } from '../services/before-after-photo.service'
 import { FormPersistenceService } from '../services/form-persistence.service';
 import { ShimmerDirective } from '../shared/directives/shimmer.directive';
 import { SERVICE_PRICING } from '../shared/service-pricing.data';
+import { calculateQuote, QuoteInput, ExtraServiceLineInput } from '../shared/pricing/order-pricing.calculator';
 import { Subscription } from 'rxjs';
 
 interface ExtendedReview extends Review {
@@ -993,84 +994,64 @@ export class MainComponent implements OnInit, OnDestroy {
     return `from $${price}`;
   }
 
-  private calculateStartingPrice(cleaningType: 'normal' | 'deep'): number {
-    if (!this.selectedServiceType) return 0;
-    let priceMultiplier = 1;
-    let deepFee = 0;
+  /** Builds the shared-calculator input for a starting-price / live estimate.
+   *  ALL price math lives in shared/pricing/order-pricing.calculator.ts. */
+  private buildEstimateQuoteInput(cleaningType: 'normal' | 'deep', useMinQuantities: boolean): QuoteInput | null {
+    if (!this.selectedServiceType) return null;
+
+    const extraServices: ExtraServiceLineInput[] = [];
     if (cleaningType === 'deep') {
       const deepExtra = this.selectedServiceType.extraServices?.find(e => e.isDeepCleaning && e.isActive !== false);
       if (deepExtra) {
-        priceMultiplier = deepExtra.priceMultiplier || 1;
-        deepFee = deepExtra.price || 0;
-      }
-    }
-    const basePrice = this.selectedServiceType.basePrice ?? 0;
-    let subTotal = basePrice * priceMultiplier + deepFee;
-
-    const hasCleanerService = this.selectedServices.some(s => s.service.serviceRelationType === 'cleaner');
-    const hoursService = this.selectedServices.find(s => s.service.serviceRelationType === 'hours');
-
-    if (hasCleanerService && hoursService) {
-      const cleanerService = this.selectedServices.find(s => s.service.serviceRelationType === 'cleaner');
-      if (cleanerService) {
-        const minCleaners = cleanerService.service.minValue ?? 1;
-        const minHours = hoursService.service.minValue ?? 1;
-        const costPerCleanerPerHour = (cleanerService.service.cost || 0) * priceMultiplier;
-        subTotal += costPerCleanerPerHour * minCleaners * minHours;
+        extraServices.push({
+          extraServiceId: deepExtra.id,
+          price: deepExtra.price || 0,
+          duration: deepExtra.duration || 0,
+          priceMultiplier: deepExtra.priceMultiplier || 1,
+          isDeepCleaning: true,
+          isSuperDeepCleaning: false,
+          isSameDayService: false,
+          hasHours: false,
+          hasQuantity: false,
+          name: deepExtra.name,
+          quantity: 0,
+          hours: 0
+        });
       }
     }
 
-    this.selectedServices.forEach(selected => {
-      if (selected.service.serviceRelationType === 'cleaner' || selected.service.serviceRelationType === 'hours') return;
+    const services = this.selectedServices.map(selected => {
       const minQty = selected.service.serviceKey === 'bedrooms' ? 0 : (selected.service.minValue ?? 1);
-      if (selected.service.serviceKey === 'bedrooms' && minQty === 0) {
-        subTotal += 10 * priceMultiplier;
-      } else {
-        subTotal += (selected.service.cost || 0) * minQty * priceMultiplier;
-      }
+      return {
+        serviceId: selected.service.id,
+        cost: selected.service.cost || 0,
+        timeDuration: selected.service.timeDuration || 0,
+        serviceRelationType: selected.service.serviceRelationType,
+        serviceKey: selected.service.serviceKey,
+        quantity: useMinQuantities ? minQty : (selected.quantity ?? minQty)
+      };
     });
-    return Math.max(1, Math.round(subTotal));
+
+    return {
+      basePrice: this.selectedServiceType.basePrice ?? 0,
+      baseDuration: this.selectedServiceType.timeDuration ?? 0,
+      services,
+      extraServices
+    };
+  }
+
+  private calculateStartingPrice(cleaningType: 'normal' | 'deep'): number {
+    const input = this.buildEstimateQuoteInput(cleaningType, true);
+    if (!input) return 0;
+    return Math.max(1, Math.round(calculateQuote(input).subTotal));
   }
 
   /** Live estimate based on current bedrooms, bathrooms, square feet, and cleaning type. */
   getEstimatedPrice(): number {
     const cleaningType = (this.cleaningTypeControl.value === 'deep' ? 'deep' : 'normal') as 'normal' | 'deep';
-    if (!this.selectedServiceType) return 0;
-    let priceMultiplier = 1;
-    let deepFee = 0;
-    if (cleaningType === 'deep') {
-      const deepExtra = this.selectedServiceType.extraServices?.find(e => e.isDeepCleaning && e.isActive !== false);
-      if (deepExtra) {
-        priceMultiplier = deepExtra.priceMultiplier || 1;
-        deepFee = deepExtra.price || 0;
-      }
-    }
-    const basePrice = this.selectedServiceType.basePrice ?? 0;
-    let subTotal = basePrice * priceMultiplier + deepFee;
-
-    const hasCleanerService = this.selectedServices.some(s => s.service.serviceRelationType === 'cleaner');
-    const hoursService = this.selectedServices.find(s => s.service.serviceRelationType === 'hours');
-
-    if (hasCleanerService && hoursService) {
-      const cleanerService = this.selectedServices.find(s => s.service.serviceRelationType === 'cleaner');
-      if (cleanerService) {
-        const cleanerQty = cleanerService.quantity ?? (cleanerService.service.minValue ?? 1);
-        const hoursQty = hoursService.quantity ?? (hoursService.service.minValue ?? 1);
-        const costPerCleanerPerHour = (cleanerService.service.cost || 0) * priceMultiplier;
-        subTotal += costPerCleanerPerHour * cleanerQty * hoursQty;
-      }
-    }
-
-    this.selectedServices.forEach(selected => {
-      if (selected.service.serviceRelationType === 'cleaner' || selected.service.serviceRelationType === 'hours') return;
-      const qty = selected.quantity ?? (selected.service.serviceKey === 'bedrooms' ? 0 : (selected.service.minValue ?? 1));
-      if (selected.service.serviceKey === 'bedrooms' && qty === 0) {
-        subTotal += 10 * priceMultiplier;
-      } else {
-        subTotal += (selected.service.cost || 0) * qty * priceMultiplier;
-      }
-    });
-    return Math.max(1, Math.round(subTotal));
+    const input = this.buildEstimateQuoteInput(cleaningType, false);
+    if (!input) return 0;
+    return Math.max(1, Math.round(calculateQuote(input).subTotal));
   }
 
   // Helper methods for template

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MailService, ROLES, ScheduledMailDto, CreateScheduledMailDto, UpdateScheduledMailDto, MailUserCountDto, MailStatsDto } from '../../../services/mail.service';
 import { AdminService, UserPermissions } from '../../../services/admin.service';
+import { NyDatePipe } from '../../../shared/ny-time.util';
 
 const STATUS_DRAFT = 0;
 const STATUS_SCHEDULED = 1;
@@ -11,7 +12,7 @@ const STATUS_SENT = 2;
 @Component({
   selector: 'app-mails',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, NyDatePipe],
   templateUrl: './mails.component.html',
   styleUrls: ['./mails.component.scss']
 })

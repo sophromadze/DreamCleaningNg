@@ -3,6 +3,7 @@ import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, Hos
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from '../../../services/admin.service';
+import { formatNyDateTime } from '../../../shared/ny-time.util';
 
 interface GiftCardAdmin {
   id: number;
@@ -564,7 +565,8 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   formatDateTime(date: any): string {
-    return new Date(date).toLocaleString();
+    // createdAt/paidAt/usedAt are UTC — display in NY (business) time.
+    return formatNyDateTime(date);
   }
 
   loadGiftCardConfig() {

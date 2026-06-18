@@ -29,46 +29,11 @@
         <p>Select a user to create a booking on their behalf</p>
       </div>
       
-      <div class="user-search-container">
-        <div class="user-search-input-wrapper">
-          <input 
-            type="text"
-            class="user-search-input"
-            [(ngModel)]="userSearchTerm"
-            (input)="onUserSearchChange()"
-            placeholder="Search by name, email, or ID..."
-            [readonly]="!!selectedTargetUser">
-          <button 
-            type="button"
-            class="clear-user-btn"
-            *ngIf="selectedTargetUser"
-            (click)="clearSelectedUser()">
-            <i class="fas fa-times"></i>
-          </button>
-        </div>
-        
-        <!-- User Dropdown -->
-        <div class="user-dropdown" *ngIf="!selectedTargetUser">
-          <div *ngIf="isLoadingUsers" class="loading-users">
-            Loading users...
-          </div>
-          <div *ngIf="!isLoadingUsers && filteredUsers.length === 0" class="no-users">
-            No users found
-          </div>
-          <div class="users-list" *ngIf="!isLoadingUsers && filteredUsers.length > 0">
-            <div 
-              class="user-item"
-              *ngFor="let user of filteredUsers"
-              (click)="selectUser(user)">
-              <div class="user-info">
-                <strong>{{ user.firstName }} {{ user.lastName }}</strong>
-                <span class="user-email">{{ user.email }}</span>
-                <span class="user-id">ID: {{ user.id }}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <app-admin-user-search
+        [selectedUser]="selectedTargetUser"
+        (userSelected)="selectUser($event)"
+        (cleared)="clearSelectedUser()">
+      </app-admin-user-search>
       
       <div class="selected-user-info" *ngIf="selectedTargetUser">
         <div class="selected-user-panel">
@@ -128,53 +93,14 @@
       <div class="booking-form">
         <div class="booking-form-top" *ngIf="!showPollForm && currentStep === 1">
           <!-- Reorder Section - only when loaded and user has previous orders (no shimmer; guests and users without orders don't see it) -->
-          <div class="reorder-section" *ngIf="!loading.previousOrders && previousOrders.length > 0 && currentStep === 1">
-            <button 
-              type="button"
-              class="reorder-btn"
-              (click)="toggleReorderModal()"
-              [class.active]="showReorderModal">
-              <i class="fas fa-redo"></i>
-              Reorder from Previous Orders
-            </button>
-            
-            <!-- Reorder Modal -->
-            <div class="reorder-modal" *ngIf="showReorderModal">
-              <div class="reorder-modal-header">
-                <h3>Select an Order to Reorder</h3>
-                <button type="button" class="close-btn" (click)="toggleReorderModal()">
-                  <i class="fas fa-times"></i>
-                </button>
-              </div>
-              <div class="reorder-modal-body">
-                <div *ngIf="isLoadingOrders" class="loading-orders">
-                  Loading orders...
-                </div>
-                <div *ngIf="!isLoadingOrders && previousOrders.length === 0" class="no-orders">
-                  You don't have any previous orders to reorder.
-                </div>
-                <div class="orders-list" *ngIf="!isLoadingOrders && previousOrders.length > 0">
-                  <div 
-                    class="order-item" 
-                    *ngFor="let order of previousOrders"
-                    (click)="selectOrderToReorder(order.id)"
-                    [class.reordering]="reorderingOrderId === order.id">
-                    <div class="order-item-header">
-                      <h4>{{ order.serviceTypeName }}</h4>
-                      <span class="order-total">${{ order.total.toFixed(2) }}</span>
-                    </div>
-                    <div class="order-item-details">
-                      <p class="order-date">{{ formatOrderDate(order.serviceDate) }} at {{ formatTime(order.serviceTime) }}</p>
-                      <p class="order-address">{{ order.serviceAddress }}</p>
-                    </div>
-                    <div class="order-item-status" *ngIf="reorderingOrderId === order.id">
-                      <span class="loading-text">Loading...</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <app-reorder-section
+            *ngIf="!loading.previousOrders && previousOrders.length > 0 && currentStep === 1"
+            [orders]="previousOrders"
+            [isLoading]="isLoadingOrders"
+            [reorderingOrderId]="reorderingOrderId"
+            (opened)="onReorderOpened()"
+            (orderSelected)="selectOrderToReorder($event)">
+          </app-reorder-section>
 
           <!-- Step progress indicator (decorative; visualises currentStep) -->
           <div class="booking-progress-stepper booking-progress-stepper--compact" [attr.data-current-step]="currentStep">
@@ -471,44 +397,22 @@
                 <div class="service-item">
                   <label>Bedrooms</label>
                   <div class="service-input">
-                    <div class="quantity-control">
-                      <div class="control-buttons">
-                        <button type="button" (click)="bedroomsQuantityControl.setValue(Math.max((bedroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()">
-                          <svg width="12" height="2" viewBox="0 0 12 2" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="1" y1="1" x2="11" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                        <span>{{ (bedroomsQuantityControl.value || 0) === 0 ? 'Studio' : bedroomsQuantityControl.value }}</span>
-                        <button type="button" (click)="bedroomsQuantityControl.setValue(Math.min((bedroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
+                    <app-quantity-control class="quantity-control"
+                      [value]="(bedroomsQuantityControl.value || 0) === 0 ? 'Studio' : bedroomsQuantityControl.value"
+                      (decrement)="bedroomsQuantityControl.setValue(Math.max((bedroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()"
+                      (increment)="bedroomsQuantityControl.setValue(Math.min((bedroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
+                    </app-quantity-control>
                   </div>
                 </div>
 
                 <div class="service-item">
                   <label>Bathrooms</label>
                   <div class="service-input">
-                    <div class="quantity-control">
-                      <div class="control-buttons">
-                        <button type="button" (click)="bathroomsQuantityControl.setValue(Math.max((bathroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()">
-                          <svg width="12" height="2" viewBox="0 0 12 2" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="1" y1="1" x2="11" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                        <span>{{ bathroomsQuantityControl.value || 0 }}</span>
-                        <button type="button" (click)="bathroomsQuantityControl.setValue(Math.min((bathroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
+                    <app-quantity-control class="quantity-control"
+                      [value]="bathroomsQuantityControl.value || 0"
+                      (decrement)="bathroomsQuantityControl.setValue(Math.max((bathroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()"
+                      (increment)="bathroomsQuantityControl.setValue(Math.min((bathroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
+                    </app-quantity-control>
                   </div>
                 </div>
               </div>
@@ -638,24 +542,13 @@
                   
                   <!-- Quantity Control Input -->
                   <div class="service-input" *ngIf="selected.service.inputType === 'dropdown'" [shimmer]="loading.serviceDetails">
-                    <div class="quantity-control">
-                      <div class="control-buttons">
-                        <button (click)="decrementServiceQuantity(selected.service)"
-                                [disabled]="selected.quantity <= getServiceMinValue(selected.service)">
-                          <svg width="12" height="2" viewBox="0 0 12 2" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="1" y1="1" x2="11" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                        <span>{{ selected.service.serviceKey === 'bedrooms' && selected.quantity === 0 ? 'Studio' : selected.quantity }}</span>
-                        <button (click)="incrementServiceQuantity(selected.service)" 
-                                [disabled]="selected.quantity >= (selected.service.maxValue || 10)">
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
+                    <app-quantity-control class="quantity-control"
+                      [value]="selected.service.serviceKey === 'bedrooms' && selected.quantity === 0 ? 'Studio' : selected.quantity"
+                      [decrementDisabled]="selected.quantity <= getServiceMinValue(selected.service)"
+                      [incrementDisabled]="selected.quantity >= (selected.service.maxValue || 10)"
+                      (decrement)="decrementServiceQuantity(selected.service)"
+                      (increment)="incrementServiceQuantity(selected.service)">
+                    </app-quantity-control>
                   </div>
 
                   <!-- Slider Input for Square Feet -->
@@ -676,44 +569,22 @@
                 <div class="service-item" *ngIf="shouldShowStandaloneBedroomBathroom()">
                   <label>Bedrooms</label>
                   <div class="service-input">
-                    <div class="quantity-control">
-                      <div class="control-buttons">
-                        <button (click)="bedroomsQuantityControl.setValue(Math.max((bedroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()">
-                          <svg width="12" height="2" viewBox="0 0 12 2" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="1" y1="1" x2="11" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                        <span>{{ (bedroomsQuantityControl.value || 0) === 0 ? 'Studio' : bedroomsQuantityControl.value }}</span>
-                        <button (click)="bedroomsQuantityControl.setValue(Math.min((bedroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
+                    <app-quantity-control class="quantity-control"
+                      [value]="(bedroomsQuantityControl.value || 0) === 0 ? 'Studio' : bedroomsQuantityControl.value"
+                      (decrement)="bedroomsQuantityControl.setValue(Math.max((bedroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()"
+                      (increment)="bedroomsQuantityControl.setValue(Math.min((bedroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
+                    </app-quantity-control>
                   </div>
                 </div>
 
                 <div class="service-item" *ngIf="shouldShowStandaloneBedroomBathroom()">
                   <label>Bathrooms</label>
                   <div class="service-input">
-                    <div class="quantity-control">
-                      <div class="control-buttons">
-                        <button (click)="bathroomsQuantityControl.setValue(Math.max((bathroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()">
-                          <svg width="12" height="2" viewBox="0 0 12 2" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="1" y1="1" x2="11" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                        <span>{{ bathroomsQuantityControl.value || 0 }}</span>
-                        <button (click)="bathroomsQuantityControl.setValue(Math.min((bathroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
+                    <app-quantity-control class="quantity-control"
+                      [value]="bathroomsQuantityControl.value || 0"
+                      (decrement)="bathroomsQuantityControl.setValue(Math.max((bathroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()"
+                      (increment)="bathroomsQuantityControl.setValue(Math.min((bathroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
+                    </app-quantity-control>
                   </div>
                 </div>
               </div>
@@ -728,96 +599,18 @@
                 (selectionChange)="onFloorTypeSelectionChange($event)">
               </app-floor-type-selector>
 
-              <div class="extra-services-header-container">
-                <h2 class="extra-services-header">Extra Services</h2>
-                <div class="extra-services-toggle" *ngIf="hasMoreExtraServices()">
-                  <button class="toggle-btn" (click)="toggleExtraServicesDisplay()">
-                    <span>{{ showAllExtraServices ? 'See less' : 'See all' }}</span>
-                    <i class="fas fa-chevron-down" [class.rotated]="showAllExtraServices"></i>
-                  </button>
-                </div>
-              </div>
-
-              <div class="extra-services-container" [class.collapsed]="!showAllExtraServices" [style.max-width.px]="extraServicesContainerMaxWidth">
-                <!-- Shimmer row when loading (matches real card layout) -->
-                <div *ngIf="loading.extras" class="extra-services extra-services-shimmer-row">
-                  <div class="extra-service-card-shimmer" *ngFor="let i of shimmerExtraCardCount" [shimmer]="true"></div>
-                </div>
-                <div class="extra-services" *ngIf="!loading.extras">
-                  <div class="extra-service-wrapper"
-                        *ngFor="let extra of getExtraServicesToDisplay()">
-                  <div class="extra-service-card"
-                        [class.selected]="isExtraServiceSelected(extra)"
-                        [class.mobile-tooltip-visible]="isMobileTooltipVisible(extra.id)"
-                        [class.disabled]="extra.isSameDayService && !isSameDayServiceAvailable"
-                        (click)="onExtraServiceCardClick(extra)"
-                        [attr.data-tooltip]="getExtraServiceTooltip(extra)">
-                    <div class="extra-header">
-                      <div class="extra-top-controls" style="display: none;">
-                        
-                        <div class="checkbox">
-                          <input type="checkbox" 
-                                 [checked]="isExtraServiceSelected(extra)" 
-                                 [disabled]="extra.isSameDayService && !isSameDayServiceAvailable"
-                                 style="pointer-events: none; cursor: default;">
-                        </div>
-                      </div>
-                      <div class="extra-info">
-                        <div class="extra-icon">
-                          <img [src]="getExtraServiceImage(extra, isExtraServiceSelected(extra))" [alt]="extra.name">
-                        </div>
-                        <h4>{{ extra.name }}</h4>
-                        <div class="extra-details">
-                          <!-- Removed price and duration display -->
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <!-- Quantity Control -->
-                  <div class="extra-controls" *ngIf="isExtraServiceSelected(extra) && (extra.hasQuantity || extra.hasHours)">
-                    <div class="quantity-control" *ngIf="extra.hasQuantity">
-                      <!-- <label>Qty:</label> -->
-                      <div class="control-buttons">
-                        <button (click)="updateExtraServiceQuantity(extra, getExtraServiceQuantity(extra) - 1); $event.stopPropagation()" 
-                                [disabled]="getExtraServiceQuantity(extra) <= 1">
-                          <svg width="12" height="2" viewBox="0 0 12 2" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="1" y1="1" x2="11" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                        <span>{{ getExtraServiceQuantity(extra) }}</span>
-                        <button (click)="updateExtraServiceQuantity(extra, getExtraServiceQuantity(extra) + 1); $event.stopPropagation()">
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <!-- Hours Control -->
-                    <div class="hours-control" *ngIf="extra.hasHours">
-                      <!-- <label>hr:</label> -->
-                      <div class="control-buttons">
-                        <button (click)="updateExtraServiceHours(extra, getExtraServiceHours(extra) - 0.5); $event.stopPropagation()" 
-                                [disabled]="getExtraServiceHours(extra) <= 0.5">
-                          <svg width="12" height="2" viewBox="0 0 12 2" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="1" y1="1" x2="11" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                        <span>{{ getExtraServiceHours(extra) }}</span>
-                        <button (click)="updateExtraServiceHours(extra, getExtraServiceHours(extra) + 0.5); $event.stopPropagation()">
-                          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              </div>
+              <app-extra-services-grid
+                [extras]="getExtraServicesToDisplay()"
+                [selections]="selectedExtraServices"
+                [tooltips]="mobileTooltips"
+                [sameDayServiceAvailable]="isSameDayServiceAvailable"
+                [sameDayDisabledReason]="sameDayServiceDisabledReason"
+                [loading]="loading.extras"
+                [containerMaxWidth]="extraServicesContainerMaxWidth"
+                (cardClick)="onExtraServiceCardClick($event)"
+                (quantityChange)="updateExtraServiceQuantity($event.extra, $event.quantity)"
+                (hoursChange)="updateExtraServiceHours($event.extra, $event.hours)">
+              </app-extra-services-grid>
             </section>
           </ng-container>
 
@@ -1602,10 +1395,17 @@
 
           <!-- Mobile Booking Summary - Only visible on Step 3 in the flow -->
           <div class="mobile-booking-summary" *ngIf="!showPollForm">
-            <div class="summary-card-mobile">
+            <app-order-summary-card
+              variant="mobile"
+              [showToggle]="false"
+              [details]="getSummaryDetailLines(true)"
+              [priceLines]="getSummaryPriceLines(true)"
+              totalLabel="Total:"
+              [totalValue]="'$' + calculation.total.toFixed(2)"
+              [estimatedPoints]="getEstimatedPointsDisplay()">
 
               <!-- Promo / Gift Card code (mobile-only; replaces the standalone section at this step) -->
-              <div class="promo-code-section">
+              <div summary-top class="promo-code-section">
                 <div class="promo-code">
                   <div class="promo-input">
                     <input
@@ -1633,138 +1433,8 @@
                 </div>
               </div>
 
-              <div class="summary-details" *ngIf="selectedServiceType">
-                <div class="summary-item">
-                  <span>Service Type:</span>
-                  <span>{{ selectedServiceType.name }}</span>
-                </div>
-                
-                <!-- Custom Pricing Details -->
-                <ng-container *ngIf="showCustomPricing">
-                  <div class="summary-item">
-                    <span>Number of Cleaners:</span>
-                    <span>{{ customCleaners.value }}</span>
-                  </div>
-                  
-                  <div class="summary-item">
-                    <span>Duration:</span>
-                    <span>{{ formatDuration(customDuration.value) }}</span>
-                  </div>
-                </ng-container>
-                
-                <!-- Regular Booking Details -->
-                <ng-container *ngIf="!showCustomPricing">
-                  <div class="summary-item" *ngIf="selectedSubscription">
-                    <span>Cleaning frequency:</span>
-                    <span>{{ selectedSubscription.name }}</span>
-                  </div>
-                  
-                  <div class="summary-item">
-                    <span>Duration:</span>
-                    <span>{{ formatDuration(calculation.totalDuration) }}</span>
-                  </div>
-                  
-                  <div class="summary-item">
-                    <span>Number of Cleaners:</span>
-                    <span>{{ calculatedMaidsCount }}</span>
-                  </div>
-                </ng-container>
-                
-                <!-- Common Details for Both -->
-                <div class="summary-item" *ngIf="serviceDate.value && serviceTime.value">
-                  <span>Date & Time:</span>
-                  <span>{{ serviceDate.value | date:'MMM d' }} at {{ formatTime(serviceTime.value) }}</span>
-                </div>
-              </div>
-
-              <div class="price-breakdown">
-                <div class="price-item">
-                  <span>Subtotal:</span>
-                  <span>${{ calculation.subTotal.toFixed(2) }}</span>
-                </div>
-
-                <!-- Show subscription discount if active -->
-                <div class="price-item subscription-discount" *ngIf="subscriptionDiscountAmount > 0">
-                  <span>Plan discount ({{ userSubscription?.discountPercentage }}%):</span>
-                  <span class="discount">-${{ subscriptionDiscountAmount.toFixed(2) }}</span>
-                </div>
-
-                <!-- Loyalty Discount (auto-applied; no input required). User-facing label only —
-                     never mentions inactivity, win-back, or the trigger reason. Spec section 2.6. -->
-                <div class="price-item" *ngIf="loyaltyDiscountAmount > 0">
-                  <span>Loyalty Discount ({{ loyaltyDiscountPercentage }}%):</span>
-                  <span class="discount">-${{ loyaltyDiscountAmount.toFixed(2) }}</span>
-                </div>
-
-                <!-- Show promo/first-time/special offer discount if active -->
-                <div class="price-item" *ngIf="promoOrFirstTimeDiscountAmount > 0">
-                  <span>
-                    <ng-container *ngIf="specialOfferApplied && selectedSpecialOffer">
-                      {{ selectedSpecialOffer.name }}
-                      <ng-container *ngIf="selectedSpecialOffer.isPercentage">({{ selectedSpecialOffer.discountValue }}%)</ng-container>
-                    </ng-container>
-                    <ng-container *ngIf="firstTimeDiscountApplied && !specialOfferApplied">
-                      First-Time Discount ({{ firstTimeDiscountPercentage }}%)
-                    </ng-container>
-                    <ng-container *ngIf="promoCodeApplied && !firstTimeDiscountApplied && !specialOfferApplied">
-                      Promo Code Discount
-                      <ng-container *ngIf="promoIsPercentage">({{ promoDiscount }}%)</ng-container>
-                    </ng-container>
-                  </span>
-                  <span class="discount">-${{ promoOrFirstTimeDiscountAmount.toFixed(2) }}</span>
-                </div>
-
-                <!-- Gift card discount -->
-                <div class="price-item gift-card-discount" *ngIf="giftCardApplied">
-                  <span>Gift Card Discount:</span>
-                  <span class="discount">-${{ getGiftCardDisplayInfo().amountToUse.toFixed(2) }}</span>
-                </div>
-
-                <!-- Points discount line (mobile) -->
-                <div class="price-item points-discount" *ngIf="selectedPointsToRedeem > 0">
-                  <span>Bubble Points ({{ selectedPointsToRedeem | number }} pts):</span>
-                  <span class="discount">-${{ pointsDiscountAmount | number:'1.2-2' }}</span>
-                </div>
-
-                <!-- Reward Balance discount line (mobile) -->
-                <div class="price-item points-discount" *ngIf="useCredits && userBubbleCredits > 0">
-                  <span>Reward Balance:</span>
-                  <span class="discount">-${{ userBubbleCredits.toFixed(2) }}</span>
-                </div>
-
-                <div class="price-item">
-                  <span>Sales Tax (8.875%):</span>
-                  <span>${{ calculation.tax.toFixed(2) }}</span>
-                </div>
-                
-                <div class="price-item" *ngIf="tips.value > 0">
-                  <span>Tips for Cleaners:</span>
-                  <span>${{ (tips.value || 0).toFixed(2) }}</span>
-                </div>
-                
-                <div class="price-item" *ngIf="companyDevelopmentTips.value > 0">
-                  <span>Tips for Company Development:</span>
-                  <span>${{ (companyDevelopmentTips.value || 0).toFixed(2) }}</span>
-                </div>
-              </div>
-              
-              <!-- Points earn preview (mobile) -->
-              <div class="pts-earn-preview" *ngIf="currentUser && bubblePointsEnabled && estimatedPoints > 0">
-                <span class="pts-earn-preview-line">
-                  You'll earn (est.):
-                  <span class="pts-earn-value">~{{ estimatedPoints | number }} pts</span>
-                </span>
-              </div>
-
-              <div class="total-section">
-                <div class="total">
-                  <span>Total:</span>
-                  <span>${{ calculation.total.toFixed(2) }}</span>
-                </div>
-              </div>
-
               <!-- Show next order discount for subscription -->
-              <div class="next-order-info" *ngIf="selectedSubscription && (selectedSubscription.subscriptionDays || 0) > 0 && !hasActiveSubscription">
+              <div summary-footer class="next-order-info" *ngIf="selectedSubscription && (selectedSubscription.subscriptionDays || 0) > 0 && !hasActiveSubscription">
                 <div class="divider"></div>
                 <div class="next-order-title">Continue with {{ selectedSubscription.name }} plan:</div>
                 <div class="price-item">
@@ -1776,7 +1446,7 @@
                   <span>${{ nextOrderTotal.toFixed(2) }}</span>
                 </div>
               </div>
-            </div>
+            </app-order-summary-card>
           </div>
 
         </div>
@@ -2059,18 +1729,20 @@
       <!-- Right Side - Booking Summary (Fixed) -->
 <!-- Card always visible when not in poll form; only dynamic values shimmer -->
 <div class="booking-summary" *ngIf="!showPollForm">
-  <div class="summary-card" [class.collapsed]="isSummaryCollapsed">
-    <h3><i class="fas fa-receipt summary-card__title-icon" aria-hidden="true"></i> Booking Summary</h3>
-
-    <!-- "You're saving" banner — only shown when any discount is applied -->
-    <div class="summary-savings-banner"
-         *ngIf="!isSummaryCollapsed && (subscriptionDiscountAmount > 0 || promoOrFirstTimeDiscountAmount > 0 || loyaltyDiscountAmount > 0 || giftCardApplied || (selectedPointsToRedeem || 0) > 0 || useCredits)">
-      <i class="fas fa-tag summary-savings-banner__icon" aria-hidden="true"></i>
-      <span>You're saving on this booking</span>
-    </div>
+  <app-order-summary-card
+    title="Booking Summary"
+    [collapsed]="isSummaryCollapsed"
+    [showSavingsBanner]="subscriptionDiscountAmount > 0 || promoOrFirstTimeDiscountAmount > 0 || loyaltyDiscountAmount > 0 || giftCardApplied || (selectedPointsToRedeem || 0) > 0 || useCredits"
+    [details]="getSummaryDetailLines(false)"
+    [priceLines]="getSummaryPriceLines(false)"
+    totalLabel="Total:"
+    [totalValue]="'$' + calculation.total.toFixed(2)"
+    [totalShimmer]="loading.pricing"
+    [estimatedPoints]="getEstimatedPointsDisplay()"
+    (toggleCollapsed)="toggleBookingSummary()">
 
     <!-- Promo Code Section - static input, no shimmer on section -->
-    <div class="promo-code-section" [class.hidden]="isSummaryCollapsed">
+    <div summary-top class="promo-code-section" [class.hidden]="isSummaryCollapsed">
       <div class="promo-code">
         <div class="promo-input" [shimmer]="loading.summary">
           <input
@@ -2095,149 +1767,9 @@
         </p>
       </div>
     </div>
-    
-    <div class="summary-details" [class.hidden]="isSummaryCollapsed">
-      <div class="summary-item">
-        <span>Service Type:</span>
-        <span [shimmer]="loading.serviceTypes" class="summary-value">{{ selectedServiceType?.name || '—' }}</span>
-      </div>
-      
-      <!-- Custom Pricing Details -->
-      <ng-container *ngIf="showCustomPricing">
-        <div class="summary-item">
-          <span>Number of Cleaners:</span>
-          <span [shimmer]="loading.serviceTypes" class="summary-value">{{ customCleaners.value }}</span>
-        </div>
-        
-        <div class="summary-item">
-          <span>Duration:</span>
-          <span [shimmer]="loading.serviceTypes" class="summary-value">{{ formatDuration(customDuration.value) }}</span>
-        </div>
-      </ng-container>
-      
-      <!-- Regular Booking Details -->
-      <ng-container *ngIf="!showCustomPricing">
-        <div class="summary-item" *ngIf="selectedSubscription">
-          <span>Cleaning frequency:</span>
-          <span [shimmer]="loading.summary" class="summary-value">{{ selectedSubscription.name || '—' }}</span>
-        </div>
-        
-        <div class="summary-item">
-          <span>Duration:</span>
-          <span [shimmer]="loading.summary" class="summary-value">{{ formatDuration(calculation.totalDuration) }}</span>
-        </div>
-        
-        <div class="summary-item">
-          <span>Number of Cleaners:</span>
-          <span [shimmer]="loading.summary" class="summary-value">{{ calculatedMaidsCount }}</span>
-        </div>
-      </ng-container>
-      
-      <!-- Common Details for Both -->
-      <div class="summary-item">
-        <span>Date & Time:</span>
-        <span [shimmer]="loading.summary" class="summary-value">{{ serviceDate.value && serviceTime.value ? (serviceDate.value | date:'MMM d') + ' at ' + formatTime(serviceTime.value) : '—' }}</span>
-      </div>
-    </div>
-
-    <div class="price-breakdown" [class.hidden]="isSummaryCollapsed">
-      <div class="price-item">
-        <span>Subtotal:</span>
-        <span [shimmer]="loading.pricing" class="summary-value">${{ calculation.subTotal.toFixed(2) }}</span>
-      </div>
-
-      <!-- Show subscription discount if active -->
-      <div class="price-item subscription-discount" *ngIf="subscriptionDiscountAmount > 0">
-        <span>Plan discount ({{ userSubscription?.discountPercentage }}%):</span>
-        <span class="discount" [shimmer]="loading.pricing">-${{ subscriptionDiscountAmount.toFixed(2) }}</span>
-      </div>
-
-      <!-- Loyalty Discount (collapsible summary mirror). Same label, same generic copy. -->
-      <div class="price-item" *ngIf="loyaltyDiscountAmount > 0">
-        <span>Loyalty Discount ({{ loyaltyDiscountPercentage }}%):</span>
-        <span class="discount" [shimmer]="loading.pricing">-${{ loyaltyDiscountAmount.toFixed(2) }}</span>
-      </div>
-
-      <!-- Show promo/first-time/special offer discount if active -->
-      <div class="price-item" *ngIf="promoOrFirstTimeDiscountAmount > 0">
-        <span>
-          <ng-container *ngIf="specialOfferApplied && selectedSpecialOffer">
-            {{ selectedSpecialOffer.name }}
-            <ng-container *ngIf="selectedSpecialOffer.isPercentage">({{ selectedSpecialOffer.discountValue }}%)</ng-container>
-          </ng-container>
-          <ng-container *ngIf="firstTimeDiscountApplied && !specialOfferApplied">
-            First-Time Discount ({{ firstTimeDiscountPercentage }}%)
-          </ng-container>
-          <ng-container *ngIf="promoCodeApplied && !firstTimeDiscountApplied && !specialOfferApplied">
-            Promo Code Discount
-            <ng-container *ngIf="promoIsPercentage">({{ promoDiscount }}%)</ng-container>
-          </ng-container>
-        </span>
-        <span class="discount" [shimmer]="loading.pricing">-${{ promoOrFirstTimeDiscountAmount.toFixed(2) }}</span>
-      </div>
-
-      <!-- Gift card discount -->
-      <div class="price-item gift-card-discount" *ngIf="giftCardApplied">
-        <span>Gift Card Discount:</span>
-        <span class="discount" [shimmer]="loading.pricing">-${{ getGiftCardDisplayInfo().amountToUse.toFixed(2) }}</span>
-      </div>
-
-      <!-- Points discount line -->
-      <div class="price-item points-discount" *ngIf="selectedPointsToRedeem > 0">
-        <span>Points ({{ selectedPointsToRedeem | number }} pts):</span>
-        <span class="discount" [shimmer]="loading.pricing">-${{ pointsDiscountAmount | number:'1.2-2' }}</span>
-      </div>
-
-      <!-- Reward Balance discount line -->
-      <div class="price-item points-discount" *ngIf="useCredits && userBubbleCredits > 0">
-        <span>Reward Balance:</span>
-        <span class="discount" [shimmer]="loading.pricing">-${{ userBubbleCredits.toFixed(2) }}</span>
-      </div>
-
-      <div class="price-item">
-        <span>Sales Tax (8.875%):</span>
-        <span [shimmer]="loading.pricing" class="summary-value">${{ calculation.tax.toFixed(2) }}</span>
-      </div>
-      
-      <div class="price-item" *ngIf="tips.value > 0">
-        <span>Tips for Cleaners:</span>
-        <span [shimmer]="loading.pricing" class="summary-value">${{ (tips.value || 0).toFixed(2) }}</span>
-      </div>
-      
-      <div class="price-item" *ngIf="companyDevelopmentTips.value > 0">
-        <span>Tips for Company Development:</span>
-        <span [shimmer]="loading.pricing" class="summary-value">${{ (companyDevelopmentTips.value || 0).toFixed(2) }}</span>
-      </div>
-    </div>
-    
-    <!-- Points earn preview -->
-    <div class="pts-earn-preview" *ngIf="currentUser && bubblePointsEnabled && estimatedPoints > 0" [class.hidden]="isSummaryCollapsed">
-      <span class="pts-earn-preview-line">
-        You'll earn (est.):
-        <span class="pts-earn-value" [shimmer]="loading.pricing">~{{ estimatedPoints | number }} pts</span>
-      </span>
-    </div>
-
-    <!-- Fixed Total Section with Toggle -->
-    <div class="total-section">
-      <div class="total">
-        <span>Total:</span>
-        <span [shimmer]="loading.pricing" class="summary-value">${{ calculation.total.toFixed(2) }}</span>
-      </div>
-      <button class="summary-toggle" (click)="toggleBookingSummary()" type="button">
-        <!-- Chevron down when collapsed -->
-        <svg class="chevron-icon" *ngIf="isSummaryCollapsed" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
-        </svg>
-        <!-- Red X when expanded -->
-        <svg class="close-icon" *ngIf="!isSummaryCollapsed" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-        </svg>
-      </button>
-    </div>
 
     <!-- Show next order discount for subscription -->
-    <div class="next-order-info" *ngIf="selectedSubscription && (selectedSubscription.subscriptionDays || 0) > 0 && !hasActiveSubscription" [class.hidden]="isSummaryCollapsed">
+    <div summary-footer class="next-order-info" *ngIf="selectedSubscription && (selectedSubscription.subscriptionDays || 0) > 0 && !hasActiveSubscription" [class.hidden]="isSummaryCollapsed">
       <div class="divider"></div>
       <div class="next-order-title">Continue with {{ selectedSubscription.name }} plan:</div>
       <div class="price-item">
@@ -2249,25 +1781,8 @@
         <span [shimmer]="loading.pricing" class="summary-value">${{ nextOrderTotal.toFixed(2) }}</span>
       </div>
     </div>
-
-    <!-- Trust footer — reassurance row of 3 guarantees, hides when summary collapsed -->
-    <ul class="summary-trust-footer" [class.hidden]="isSummaryCollapsed">
-      <li class="summary-trust-footer__item">
-        <i class="fas fa-shield-alt summary-trust-footer__icon summary-trust-footer__icon--green" aria-hidden="true"></i>
-        <span>100% satisfaction guarantee</span>
-      </li>
-      <li class="summary-trust-footer__item">
-        <i class="fas fa-undo summary-trust-footer__icon summary-trust-footer__icon--blue" aria-hidden="true"></i>
-        <span>Free reschedule up to 48h before</span>
-      </li>
-      <li class="summary-trust-footer__item">
-        <i class="fas fa-lock summary-trust-footer__icon summary-trust-footer__icon--blue" aria-hidden="true"></i>
-        <span>Secure checkout via Stripe</span>
-      </li>
-    </ul>
-  </div>
-
-  </div>
+  </app-order-summary-card>
+</div>
 </div>
 
 <!-- Trust strip (decorative reassurance) -->

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { BubbleRewardsService, RewardsSettings, RewardsStats } from '../../../services/bubble-rewards.service';
 import { AdminService, UserAdmin } from '../../../services/admin.service';
+import { NyDatePipe } from '../../../shared/ny-time.util';
 
 interface CategoryGroup {
   category: string;
@@ -16,7 +17,7 @@ interface CategoryGroup {
 @Component({
   selector: 'app-admin-rewards',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, NyDatePipe],
   templateUrl: './admin-rewards.component.html',
   styleUrl: './admin-rewards.component.scss'
 })

@@ -4,6 +4,7 @@ import { RouterModule, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { OrderService, OrderList, Order } from '../../../services/order.service';
 import { FormPersistenceService } from '../../../services/form-persistence.service';
+import { formatNyDate } from '../../../shared/ny-time.util';
 
 
 @Component({
@@ -60,6 +61,11 @@ export class OrderHistoryComponent implements OnInit {
 
   formatDate(date: any): string {
     return new Date(date).toLocaleDateString();
+  }
+
+  /** orderDate is a UTC timestamp (unlike serviceDate, which is NY wall-clock) — show it in NY time. */
+  formatOrderDate(date: any): string {
+    return formatNyDate(date);
   }
 
   formatTime(time: string): string {

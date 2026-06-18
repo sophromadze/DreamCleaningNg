@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TwoFactorService, TrustedDevice } from '../../services/two-factor.service';
 import { AuthService } from '../../services/auth.service';
+import { formatNy } from '../../shared/ny-time.util';
 
 @Component({
   selector: 'app-trusted-devices',
@@ -81,8 +82,8 @@ export class TrustedDevicesComponent implements OnInit {
   }
 
   formatDate(iso: string): string {
-    const d = new Date(iso);
-    return d.toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+    // createdAt/lastUsedAt are UTC — display in NY (business) time.
+    return formatNy(iso, { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   }
 
   private flashNotice(msg: string): void {

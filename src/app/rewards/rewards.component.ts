@@ -2,6 +2,7 @@ import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { ShimmerDirective } from '../shared/directives/shimmer.directive';
+import { NyDatePipe } from '../shared/ny-time.util';
 import {
   BubbleRewardsService,
   RewardsSummary,
@@ -13,7 +14,7 @@ import {
 @Component({
   selector: 'app-rewards',
   standalone: true,
-  imports: [CommonModule, RouterModule, ShimmerDirective],
+  imports: [CommonModule, RouterModule, ShimmerDirective, NyDatePipe],
   templateUrl: './rewards.component.html',
   styleUrl: './rewards.component.scss'
 })

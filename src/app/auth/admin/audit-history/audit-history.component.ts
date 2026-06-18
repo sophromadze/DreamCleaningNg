@@ -2,6 +2,7 @@ import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, Hos
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, AuditLog, UserPermissions } from '../../../services/admin.service';
+import { formatNyDateTime } from '../../../shared/ny-time.util';
 
 @Component({
   selector: 'app-audit-history',
@@ -654,7 +655,8 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   formatDate(date: any): string {
-    return new Date(date).toLocaleString();
+    // Audit timestamps are UTC — display in NY (business) time.
+    return formatNyDateTime(date);
   }
 
   getActionClass(action: string): string {
@@ -698,10 +700,21 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     if (value === null || value === undefined) return 'null';
     if (typeof value === 'boolean') return value ? 'true' : 'false';
     if (value instanceof Date || (typeof value === 'string' && !isNaN(Date.parse(value)))) {
-      return new Date(value).toLocaleString();
+      return this.formatAuditTimestamp(value);
     }
     if (typeof value === 'object') return JSON.stringify(value);
     return value.toString();
+  }
+
+  /**
+   * Audit timestamps are UTC → show in NY time. Midnight values are date-only
+   * wall-clock fields (ServiceDate, DueDate, ...) — show the date as-is, no conversion.
+   */
+  private formatAuditTimestamp(value: any): string {
+    if (typeof value === 'string' && /T00:00:00(\.0+)?Z?$/.test(value)) {
+      return new Date(value.replace(/Z$/, '')).toLocaleDateString();
+    }
+    return formatNyDateTime(value);
   }
 
   // UPDATED: Special handling for CleanerAssignment logs
@@ -830,7 +843,7 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
       try {
         const date = new Date(value);
         if (!isNaN(date.getTime())) {
-          return date.toLocaleString();
+          return this.formatAuditTimestamp(value);
         }
       } catch {
         // Fall through to return as string
@@ -1029,8 +1042,9 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
       return v ? 'Yes' : 'No';
     }
     if (field === 'ActivatedAt' || field === 'LastUsedAt') {
-      const d = new Date(v);
-      return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleString();
+      // UTC timestamps — display in NY (business) time.
+      const formatted = formatNyDateTime(v);
+      return formatted || String(v);
     }
     return String(v);
   }

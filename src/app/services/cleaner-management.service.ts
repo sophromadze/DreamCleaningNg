@@ -17,13 +17,22 @@ export interface CleanerListItem {
   email?: string | null;
   address?: string | null;
   location?: string | null;
-  availability?: string | null;
+  /** Recurring weekdays the cleaner is busy (0=Sun … 6=Sat). */
+  busyDaysOfWeek: number[];
   alreadyWorkedWithUs: boolean;
   nationality?: string | null;
   ranking: CleanerRanking | number;
   mainNote?: string | null;
   photoUrl?: string | null;
   isActive: boolean;
+  createdAt: string;
+}
+
+export interface CleanerVacation {
+  id?: number | null;
+  startDate: string;
+  endDate: string;
+  note?: string | null;
 }
 
 export interface CleanerNote {
@@ -68,6 +77,7 @@ export interface CleanerDetail extends CleanerListItem {
   createdByAdminName?: string | null;
   notes: CleanerNote[];
   assignedOrders: CleanerAssignedOrder[];
+  vacations: CleanerVacation[];
 }
 
 export interface CreateCleanerPayload {
@@ -80,7 +90,8 @@ export interface CreateCleanerPayload {
   email?: string | null;
   address?: string | null;
   location?: string | null;
-  availability?: string | null;
+  busyDaysOfWeek: number[];
+  vacations: CleanerVacation[];
   alreadyWorkedWithUs?: boolean;
   nationality?: string | null;
   ranking?: CleanerRanking | number;
@@ -93,12 +104,6 @@ export interface CreateCleanerPayload {
 
 export interface UpdateCleanerPayload extends CreateCleanerPayload {
   isActive: boolean;
-}
-
-export interface CleanerAvailabilitySlot {
-  day: 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
-  from: string;
-  to: string;
 }
 
 export interface CreateCleanerNotePayload {

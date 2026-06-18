@@ -969,3 +969,5 @@ gmp-place-autocomplete::part(prediction-item-selected) {
     span:not(.pac-item-query) { color: #999 !important; }
   }
 }
+/* Apple Pay / Google Pay (Stripe Payment Request Button) container */
+.applepay-button-container { margin-bottom: 0.75rem; }

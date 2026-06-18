@@ -1,0 +1,309 @@
+/* Moved verbatim from booking.component.scss when the reorder widget was
+ * extracted into this component. Host-level layout rules (.reorder-section,
+ * .booking-form-top .reorder-section) stay in the booking page — the host
+ * element carries the .reorder-section class so they keep applying. */
+
+.reorder-btn {
+  background: var(--btn-secondary);
+  color: white;
+  padding: 0.45rem 0.9rem;
+  border-radius: 58px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+  box-shadow: var(--btn-secondary-shadow);
+  font-family: 'Poppins', sans-serif;
+  min-height: 36px;
+
+  i {
+    font-size: 0.9rem;
+  }
+
+  &:hover {
+    background: var(--btn-secondary-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--btn-secondary-shadow-hover);
+  }
+
+  &.active {
+    background: var(--btn-secondary-hover);
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.8rem;
+    min-height: 38px;
+
+    i {
+      font-size: 0.9rem;
+    }
+  }
+}
+
+.reorder-modal {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  max-height: 500px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  .reorder-modal-header {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8f8f8;
+
+    h3 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #333;
+      font-family: 'Poppins', sans-serif;
+    }
+
+    .close-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.25rem;
+      color: #666;
+      padding: 0.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: #e0e0e0;
+        color: #333;
+      }
+    }
+  }
+
+  .reorder-modal-body {
+    padding: 1rem;
+    overflow-y: auto;
+    flex: 1;
+
+    .loading-orders,
+    .no-orders {
+      text-align: center;
+      padding: 2rem;
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .orders-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+
+      .order-item {
+        padding: 1rem;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: var(--surface);
+
+        &:hover {
+          border-color: var(--primary-color);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          transform: translateY(-2px);
+        }
+
+        &.reordering {
+          border-color: var(--primary-color);
+          background: #f0f7ff;
+          cursor: wait;
+
+          .order-item-status {
+            margin-top: 0.5rem;
+            color: var(--primary-color);
+            font-size: 0.875rem;
+          }
+        }
+
+        .order-item-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 0.5rem;
+
+          h4 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+            color: #333;
+            font-family: 'Poppins', sans-serif;
+          }
+
+          .order-total {
+            font-weight: 600;
+            color: var(--fresh-green);
+            font-size: 1rem;
+          }
+        }
+
+        .order-item-details {
+          p {
+            margin: 0.25rem 0;
+            color: #666;
+            font-size: 0.875rem;
+            font-family: 'Poppins', sans-serif;
+
+            &.order-date {
+              font-weight: 500;
+            }
+
+            &.order-address {
+              color: #888;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @media (max-width: 768px) {
+    left: 0;
+    right: 0;
+    max-height: 400px;
+
+    .reorder-modal-header {
+      padding: 0.875rem 1.25rem;
+
+      h3 {
+        font-size: 1rem;
+      }
+    }
+
+    .reorder-modal-body {
+      padding: 0.875rem;
+
+      .orders-list {
+        gap: 0.625rem;
+
+        .order-item {
+          padding: 0.875rem;
+
+          .order-item-header {
+            h4 {
+              font-size: 0.9rem;
+            }
+
+            .order-total {
+              font-size: 0.9rem;
+            }
+          }
+
+          .order-item-details {
+            p {
+              font-size: 0.8rem;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/* Compact variant when rendered inside the booking-form top bar
+ * (was .booking-form-top .reorder-btn in booking.component.scss). */
+:host-context(.booking-form-top) {
+  .reorder-btn {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.9rem;
+
+    i {
+      font-size: 0.9rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .reorder-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+}
+
+/* Night mode (moved from booking.component.scss's dark block) */
+:host-context([data-theme="dark"]) {
+  .reorder-modal {
+    background: var(--surface-elevated) !important;
+    border-color: var(--border-color);
+    box-shadow: 0 4px 12px var(--shadow-color);
+
+    .reorder-modal-header {
+      background: var(--surface) !important;
+      border-bottom-color: var(--border-color);
+
+      h3 {
+        color: var(--text-primary) !important;
+      }
+
+      .close-btn {
+        color: var(--text-secondary);
+
+        &:hover {
+          background: var(--surface-elevated);
+          color: var(--text-primary);
+        }
+      }
+    }
+
+    .reorder-modal-body {
+      .loading-orders,
+      .no-orders {
+        color: var(--text-muted) !important;
+      }
+
+      .orders-list .order-item {
+        background: var(--surface) !important;
+        border-color: var(--border-color);
+
+        &:hover {
+          border-color: var(--primary-color);
+          box-shadow: 0 2px 8px var(--shadow-color);
+        }
+
+        &.reordering {
+          background: rgba(0, 123, 255, 0.12) !important;
+          border-color: var(--primary-color);
+        }
+
+        .order-item-header h4 {
+          color: var(--text-primary) !important;
+        }
+
+        .order-item-details p {
+          color: var(--text-secondary) !important;
+
+          &.order-address {
+            color: var(--text-muted) !important;
+          }
+        }
+      }
+    }
+  }
+}

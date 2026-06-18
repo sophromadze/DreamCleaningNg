@@ -30,6 +30,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   currentUser: any;
   cardError: string | null = null;
   isLoading = true;
+  showApplePay = false;
   private hasInitialized = false;
 
   constructor(
@@ -59,6 +60,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     // Clean up Stripe elements
     this.stripeService.destroyCardElement();
+    this.stripeService.destroyPaymentRequestButton();
   }
 
   private tryInit() {
@@ -209,10 +211,49 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
       
       // Start trying to mount immediately
       tryMountElement();
+      this.initApplePay();
     } catch (error: any) {
       console.error('Failed to initialize Stripe elements:', error);
       this.errorMessage = error.message || 'Failed to initialize payment form. Please refresh the page.';
     }
+  }
+
+  private async initApplePay() {
+    if (!this.paymentClientSecret) return;
+    const pr = await this.stripeService.createPaymentRequest(this.orderTotal, 'Dream Cleaning NYC');
+    if (!pr) return;
+    this.showApplePay = true;
+    this.cdr.detectChanges();
+    setTimeout(() => this.stripeService.createPaymentRequestButton(pr, 'payment-request-button'), 0);
+
+    pr.on('paymentmethod', async (ev: any) => {
+      if (this.isProcessing) { ev.complete('fail'); return; }
+      this.isProcessing = true;
+      this.errorMessage = '';
+      try {
+        const paymentIntent = await this.stripeService.confirmPaymentRequest(
+          this.paymentClientSecret!, ev.paymentMethod.id
+        );
+        ev.complete('success');
+        const idForConfirm = paymentIntent?.id ?? this.paymentIntentId;
+        const confirm$ = this.paymentType === 'order'
+          ? this.bookingService.confirmPayment(this.orderId, idForConfirm)
+          : this.orderService.confirmPendingUpdatePayment(this.orderId, idForConfirm);
+        confirm$.subscribe({
+          next: () => this.handlePaymentSuccess(),
+          error: (err: any) => {
+            this.errorMessage = err.error?.message || err.message || 'Payment confirmation failed';
+            this.isProcessing = false;
+            this.cdr.detectChanges();
+          }
+        });
+      } catch (payErr: any) {
+        ev.complete('fail');
+        this.errorMessage = payErr.message || 'Payment failed. Please try again.';
+        this.isProcessing = false;
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   async processPayment() {

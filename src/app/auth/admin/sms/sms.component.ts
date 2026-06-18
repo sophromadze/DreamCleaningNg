@@ -11,6 +11,7 @@ import {
   SmsStatsDto,
   SmsUserCountDto
 } from '../../../services/scheduled-sms.service';
+import { NyDatePipe } from '../../../shared/ny-time.util';
 
 const STATUS_DRAFT = 0;
 const STATUS_SCHEDULED = 1;
@@ -19,7 +20,7 @@ const STATUS_SENT = 2;
 @Component({
   selector: 'app-sms',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, NyDatePipe],
   templateUrl: './sms.component.html',
   styleUrls: ['./sms.component.scss']
 })

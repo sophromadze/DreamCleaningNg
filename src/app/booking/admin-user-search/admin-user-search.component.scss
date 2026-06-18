@@ -1,0 +1,187 @@
+/* Moved verbatim from booking.component.scss when the admin user search was
+ * extracted into this component. The surrounding .admin-user-selector panel
+ * styles stay in the booking page (the panel itself still lives there). */
+
+.user-search-container {
+  position: relative;
+  margin-bottom: 1.5rem;
+
+  .user-search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+
+    .user-search-input {
+      width: 100%;
+      padding: 1rem 3rem 1rem 1.25rem;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      background: var(--surface);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+      &:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+      }
+
+      &[readonly] {
+        background: #f5f5f5;
+        cursor: not-allowed;
+      }
+    }
+
+    .clear-user-btn {
+      position: absolute;
+      right: 0.75rem;
+      background: transparent;
+      border: none;
+      color: #999;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+      z-index: 2;
+
+      &:hover {
+        background: #f0f0f0;
+        color: #666;
+        transform: rotate(90deg);
+      }
+
+      i {
+        font-size: 1rem;
+      }
+    }
+  }
+
+  .user-dropdown {
+    position: relative;
+    margin-top: 0.5rem;
+    background: var(--surface);
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    max-height: 350px; // Approximately 5 users (70px each)
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+
+    .loading-users,
+    .no-users {
+      padding: 1.5rem;
+      text-align: center;
+      color: #666;
+      font-size: 0.95rem;
+    }
+
+    .users-list {
+      // Overflow handled by parent .user-dropdown
+
+      .user-item {
+        padding: 1rem 1.25rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-bottom: 1px solid #f0f0f0;
+        min-height: 70px;
+        display: flex;
+        align-items: center;
+
+        &:last-child {
+          border-bottom: none;
+        }
+
+        &:hover {
+          background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+          transform: translateX(5px);
+        }
+
+        .user-info {
+          display: flex;
+          flex-direction: column;
+          gap: 0.25rem;
+
+          strong {
+            color: #333;
+            font-size: 1rem;
+            font-weight: 600;
+          }
+
+          .user-email {
+            color: #666;
+            font-size: 0.9rem;
+          }
+
+          .user-id {
+            color: #999;
+            font-size: 0.85rem;
+            font-family: 'Courier New', monospace;
+          }
+        }
+      }
+    }
+  }
+
+  @media (max-width: 768px) {
+    .user-search-input-wrapper {
+      .user-search-input {
+        padding: 0.875rem 2.5rem 0.875rem 1rem;
+        font-size: 0.95rem;
+      }
+    }
+  }
+}
+
+/* Night mode (moved from booking.component.scss's dark block) */
+:host-context([data-theme="dark"]) {
+  .user-search-container .user-search-input-wrapper .user-search-input {
+    background: var(--surface);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+    &::placeholder {
+      color: var(--text-muted);
+    }
+    &:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+    }
+    &[readonly] {
+      background: var(--surface);
+      color: var(--text-primary);
+    }
+  }
+  .user-search-container .clear-user-btn {
+    color: var(--text-secondary);
+    &:hover {
+      background: var(--surface);
+      color: var(--text-primary);
+    }
+  }
+  .user-dropdown {
+    background: var(--surface);
+    border-color: var(--border-color);
+    box-shadow: 0 8px 24px var(--shadow-color);
+    .loading-users,
+    .no-users {
+      color: var(--text-secondary);
+    }
+    .users-list .user-item {
+      border-bottom-color: var(--border-color);
+      &:hover {
+        background: rgba(0, 123, 255, 0.12) !important;
+        transform: translateX(5px);
+      }
+      .user-info strong {
+        color: var(--text-primary) !important;
+      }
+      .user-info .user-email {
+        color: var(--text-secondary) !important;
+      }
+      .user-info .user-id {
+        color: var(--text-muted) !important;
+      }
+    }
+  }
+}

@@ -46,7 +46,7 @@
     <div class="pending-edits-list">
       <div *ngFor="let pe of pendingOrderEdits" class="pending-edit-row">
         <span class="pending-summary">{{ pe.orderSummary }}</span>
-        <span class="pending-meta">Requested by {{ pe.requestedByName }} · {{ pe.requestedAt | date:'short' }}</span>
+        <span class="pending-meta">Requested by {{ pe.requestedByName }} · {{ formatUtcDateTime(pe.requestedAt) }}</span>
         <button class="action-btn primary small" (click)="openPendingEditDetail(pe.id)">Review &amp; confirm</button>
       </div>
     </div>
@@ -154,50 +154,144 @@
                   </ng-template>
                 </div>
               </td>
-              <td class="actions" *ngIf="userPermissions.permissions.canUpdate">
-                <!-- Phase 1: Done button now also visible on Pending orders so admins can
-                     mark a Pending order as Done in one step when a manual payment came in. -->
-                <button *ngIf="userPermissions.permissions.canUpdate && (order.status.toLowerCase() === 'active' || order.status.toLowerCase() === 'pending')"
-                        class="action-btn complete"
-                        (click)="markOrderAsDone(order); $event.stopPropagation()"
-                        title="Mark as Done">
-                  Done
-                </button>
-                <button *ngIf="userPermissions.permissions.canUpdate && order.status.toLowerCase() !== 'cancelled' && order.status.toLowerCase() !== 'done'" 
-                        class="action-btn cancel" 
-                        (click)="cancelOrder(order); $event.stopPropagation()"
-                        title="Cancel Order">
-                  Cancel
-                </button>                
-                <button *ngIf="userPermissions.permissions.canUpdate && (order.status.toLowerCase() === 'done' || order.status.toLowerCase() === 'cancelled')" 
-                        class="action-btn reactivate" 
-                        (click)="reactivateOrder(order); $event.stopPropagation()"
-                        title="Reactivate Order">
-                  <i class="fas fa-undo"></i> Reactivate
-                </button>
+              <td class="actions" *ngIf="userPermissions.permissions.canUpdate" (click)="$event.stopPropagation()">
+                <div class="row-actions">
+                  <!-- Mark as Done (Active/Pending orders) -->
+                  <button *ngIf="order.status.toLowerCase() === 'active' || order.status.toLowerCase() === 'pending'"
+                          class="icon-btn ok"
+                          (click)="markOrderAsDone(order)"
+                          title="Mark as Done">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+                  <!-- Cancel -->
+                  <button *ngIf="order.status.toLowerCase() !== 'cancelled' && order.status.toLowerCase() !== 'done'"
+                          class="icon-btn warn"
+                          (click)="cancelOrder(order)"
+                          title="Cancel Order">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+                  </button>
+                  <!-- Reactivate (Done/Cancelled orders) -->
+                  <button *ngIf="order.status.toLowerCase() === 'done' || order.status.toLowerCase() === 'cancelled'"
+                          class="icon-btn history"
+                          (click)="reactivateOrder(order)"
+                          title="Reactivate Order">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-9.36L1 10"/></svg>
+                  </button>
+                  <!-- SuperAdmin-only hard delete (no refund) -->
+                  <button *ngIf="isSuperAdmin"
+                          class="icon-btn danger"
+                          (click)="deleteOrder(order)"
+                          [disabled]="deletingOrder"
+                          title="Delete Order (permanent, no refund)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+                  </button>
+                </div>
               </td>
             </tr>
-            
-            <!-- Order Details Row -->
-            <tr *ngIf="viewingOrderId === order.id && selectedOrder" class="order-details-row">
-              <td colspan="8">
-                <!-- Loading Indicator for Order Details -->
-                <div *ngIf="loadingStates.orderDetails" class="loading-small">
-                  <div class="spinner-small"></div>
-                  <span>Loading order details...</span>
-                </div>
+          </ng-container>
+        </tbody>
+        </table>
+      </div>
+    </div>
 
-                <div *ngIf="!loadingStates.orderDetails" class="order-details-content">
+    <!-- Pagination (matches audit-history) -->
+    <div class="pagination" *ngIf="totalPages > 1">
+      <button class="page-btn" (click)="previousPage()" [disabled]="currentPage === 1">‹ Previous</button>
+      <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage === 1">1</button>
+      <span *ngIf="totalPages > 5 && currentPage > 3" class="page-ellipsis">...</span>
+      <button *ngFor="let page of getVisiblePages()"
+              class="page-btn"
+              (click)="goToPage(page)"
+              [class.active]="currentPage === page">
+        {{ page }}
+      </button>
+      <span *ngIf="totalPages > 5 && currentPage < totalPages - 2" class="page-ellipsis">...</span>
+      <button *ngIf="totalPages > 1"
+              class="page-btn"
+              (click)="goToPage(totalPages)"
+              [class.active]="currentPage === totalPages">
+        {{ totalPages }}
+      </button>
+      <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages">Next ›</button>
+    </div>
+  </div>
+
+  <!-- Global Messages for Table Actions -->
+  <div *ngIf="errorMessage && !viewingOrderId" class="error-message">
+    {{errorMessage}}
+    <button class="close-btn" (click)="clearMessages()">×</button>
+  </div>
+  <div *ngIf="successMessage && !viewingOrderId" class="success-message">
+    {{successMessage}}
+    <button class="close-btn" (click)="clearMessages()">×</button>
+  </div>
+</div>
+
+<!-- Slide-in order detail panel (mirrors the users tab) -->
+<div class="detail-overlay" *ngIf="viewingOrderId !== null" (click)="closeOrderDetails()"></div>
+<aside class="detail-panel order-detail-panel" [class.open]="viewingOrderId !== null">
+  <ng-container *ngIf="viewingOrderId !== null">
+    <div class="order-panel-header">
+      <h3>Order #{{ selectedOrder?.id }}</h3>
+      <div class="order-panel-header__actions">
+        <!-- View mode: Edit -->
+        <button class="action-btn small edit"
+                *ngIf="canEditOrder && !editingOrder && !loadingStates.orderDetails && selectedOrder"
+                (click)="startEditOrder()">
+          Edit
+        </button>
+        <!-- Edit mode: Save (left) + Discard -->
+        <button class="action-btn small save"
+                *ngIf="canEditOrder && editingOrder"
+                (click)="saveOrderEdit()"
+                [disabled]="savingOrder">
+          {{ savingOrder ? 'Saving…' : (isSuperAdmin ? 'Save' : 'Send for approval') }}
+        </button>
+        <button class="action-btn small discard"
+                *ngIf="canEditOrder && editingOrder"
+                (click)="cancelEditOrder()"
+                [disabled]="savingOrder">
+          Discard
+        </button>
+        <button class="action-btn small ghost" (click)="closeOrderDetails()" aria-label="Close">✕</button>
+      </div>
+    </div>
+
+    <!-- Loading Indicator for Order Details -->
+    <div *ngIf="loadingStates.orderDetails" class="loading-small">
+      <div class="spinner-small"></div>
+      <span>Loading order details...</span>
+    </div>
+
+    <!-- Always-visible summary: admins see duration / subtotal / total even while scrolling -->
+    <div class="order-summary-bar" *ngIf="!loadingStates.orderDetails && selectedOrder">
+      <div class="summary-item">
+        <span class="summary-label">Duration</span>
+        <span class="summary-value">{{ formatDuration(editingOrder ? (editOrderForm.totalDuration || 0) : selectedOrder.totalDuration) }}</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Subtotal</span>
+        <span class="summary-value">${{ formatCurrency(editingOrder ? (editOrderForm.subTotal || 0) : selectedOrder.subTotal) }}</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">Total</span>
+        <span class="summary-value">${{ formatCurrency(editingOrder ? (editOrderForm.total || 0) : getCurrentTotalWithoutTips()) }}</span>
+      </div>
+    </div>
+
+    <div *ngIf="!loadingStates.orderDetails && selectedOrder" class="order-details-content">
                   <div class="order-details-header-row">
                     <h4>Order Details</h4>
 
-                    <!-- Assigned-admin pill: who handles this order. Admins/SuperAdmins click to reassign.
-                         Backend pre-formats display as "F. LastName". `selectedOrder` is already
-                         narrowed to non-null by the outer *ngIf on the details row. -->
+                    <!-- Assigned-admin pill: who handles this order. SuperAdmin clicks to reassign;
+                         Admins/Moderators see it read-only. Backend pre-formats display as
+                         "F. LastName". `selectedOrder` is already narrowed to non-null by the
+                         outer *ngIf on the details row. -->
                     <div class="assigned-admin-pill"
                          [class.is-empty]="!selectedOrder.assignedAdminId"
                          (click)="$event.stopPropagation()">
-                      <button type="button"
+                      <button *ngIf="isSuperAdmin"
+                              type="button"
                               class="assigned-admin-trigger"
                               (click)="toggleAssignedAdminEditor()"
                               [disabled]="isSavingAssignedAdmin"
@@ -207,7 +301,13 @@
                         <span class="assigned-admin-caret" aria-hidden="true">▾</span>
                       </button>
 
-                      <div *ngIf="showAssignedAdminEditor" class="assigned-admin-menu" role="listbox">
+                      <!-- Read-only variant for non-SuperAdmins -->
+                      <span *ngIf="!isSuperAdmin" class="assigned-admin-trigger assigned-admin-readonly">
+                        <span class="assigned-admin-by">By:</span>
+                        <span class="assigned-admin-name">{{ assignedAdminLabel() }}</span>
+                      </span>
+
+                      <div *ngIf="isSuperAdmin && showAssignedAdminEditor" class="assigned-admin-menu" role="listbox">
                         <button type="button"
                                 class="assigned-admin-option"
                                 [class.is-selected]="!selectedOrder.assignedAdminId"
@@ -226,18 +326,42 @@
                     </div>
                   </div>
 
+                  <!-- Top actions: assign cleaners / send assignment emails (kept at the top) -->
+                  <div class="order-top-actions" *ngIf="!editingOrder && userPermissions.permissions.canView">
+                    <button class="action-btn assign-cleaners"
+                            (click)="openCleanerAssignmentModal(selectedOrder.id)"
+                            [disabled]="loadingStates.assigningCleaners">
+                      {{ loadingStates.assigningCleaners ? 'Assigning...' : 'Assign Cleaners' }}
+                    </button>
+                    <button *ngIf="getAssignedCleanersWithIds(selectedOrder.id).length > 0"
+                            type="button"
+                            class="action-btn send-assignment-mail"
+                            (click)="sendCleanerAssignmentMailsForOrder(selectedOrder.id)"
+                            [disabled]="loadingStates.sendAssignmentMails || getPendingAssignmentEmailCleaners(selectedOrder.id).length === 0">
+                      {{ loadingStates.sendAssignmentMails ? 'Sending…' : (getPendingAssignmentEmailCleaners(selectedOrder.id).length > 0 ? 'Send assignment email (' + getPendingAssignmentEmailCleaners(selectedOrder.id).length + ' pending)' : 'All cleaners notified') }}
+                    </button>
+                    <!-- Re-send the original payment-link email/SMS to the customer's current
+                         account email/phone (after fixing a mistyped contact). -->
+                    <button type="button"
+                            class="action-btn send-payment-link"
+                            (click)="openSendPaymentLinkModal()"
+                            [disabled]="loadingStates.sendPaymentLink"
+                            title="Re-send the payment link to the customer's current account email/phone">
+                      {{ loadingStates.sendPaymentLink ? 'Sending…' : 'Send Payment Link' }}
+                    </button>
+                  </div>
+
                   <!-- Order Edit Form (SuperAdmin: direct save; Admin: submit for approval) -->
                   <div *ngIf="editingOrder && canEditOrder" class="superadmin-order-edit">
                     <h5>Edit Order <span *ngIf="isSuperAdmin">— all changes are recorded in Audit logs</span><span *ngIf="!isSuperAdmin">— your changes will be sent to SAdmin for approval</span></h5>
-                    <div class="edit-grid">
-                      <div class="edit-group">
+                    <div class="edit-group edit-group--contact">
                         <h6>Contact</h6>
                         <div class="edit-row"><label>First Name</label><input [(ngModel)]="editOrderForm.contactFirstName"></div>
                         <div class="edit-row"><label>Last Name</label><input [(ngModel)]="editOrderForm.contactLastName"></div>
                         <div class="edit-row"><label>Email</label><input type="email" [(ngModel)]="editOrderForm.contactEmail"></div>
                         <div class="edit-row"><label>Phone</label><input type="tel" inputmode="numeric" [(ngModel)]="editOrderForm.contactPhone" (input)="onEditOrderPhoneInput($event)" placeholder="10-digit number"></div>
                       </div>
-                      <div class="edit-group">
+                      <div class="edit-group edit-group--address">
                         <h6>Address</h6>
                         <div class="edit-row"><label>Address</label><input [(ngModel)]="editOrderForm.serviceAddress"></div>
                         <div class="edit-row"><label>Apt/Suite</label><input [(ngModel)]="editOrderForm.aptSuite"></div>
@@ -245,16 +369,14 @@
                         <div class="edit-row"><label>State</label><input [(ngModel)]="editOrderForm.state"></div>
                         <div class="edit-row"><label>Zip</label><input [(ngModel)]="editOrderForm.zipCode"></div>
                       </div>
-                      <div class="edit-group">
+                      <div class="edit-group edit-group--service">
                         <h6>Service</h6>
                         <div class="edit-row"><label>Service Date</label><input type="date" [(ngModel)]="editOrderForm.serviceDate"></div>
                         <div class="edit-row"><label>Service Time (HH:mm)</label><input type="text" [(ngModel)]="editOrderForm.serviceTime" placeholder="14:30"></div>
                         <div class="edit-row"><label>Maids</label><input type="number" [(ngModel)]="editOrderForm.maidsCount" (ngModelChange)="onEditMaidsChange()" title="Auto from duration (1 per 6h); you can override"></div>
                         <div class="edit-row"><label>Duration (min)</label><input type="number" [(ngModel)]="editOrderForm.totalDuration" (ngModelChange)="onEditDurationChange()" min="60" placeholder="min"> <span class="duration-hint">{{ getEditDurationHintText() }} per maid</span></div>
-                        <div class="edit-row" *ngIf="editOrderForm.bedroomsQuantity != null || editOrderForm.bathroomsQuantity != null"><label>Bedrooms (read-only)</label><input type="text" [value]="(editOrderForm.bedroomsQuantity ?? 0) === 0 ? 'Studio' : (editOrderForm.bedroomsQuantity ?? 'N/A')" readonly></div>
-                        <div class="edit-row" *ngIf="editOrderForm.bedroomsQuantity != null || editOrderForm.bathroomsQuantity != null"><label>Bathrooms (read-only)</label><input type="text" [value]="editOrderForm.bathroomsQuantity ?? 'N/A'" readonly></div>
                         <div class="edit-row"><label>Entry</label><input [(ngModel)]="editOrderForm.entryMethod"></div>
-                        <div class="edit-row">
+                        <div class="edit-row edit-row--full">
                           <label>{{ isCustomServiceType(selectedOrder) ? 'Description' : 'Instructions' }}</label>
                           <div>
                             <textarea [(ngModel)]="editOrderForm.specialInstructions"
@@ -266,15 +388,33 @@
                             </small>
                           </div>
                         </div>
-                        <div class="edit-row">
-                          <app-floor-type-selector
-                            [selectedTypes]="editFloorTypes"
-                            [otherText]="editFloorTypeOther"
-                            (selectionChange)="onEditFloorTypeChange($event)">
-                          </app-floor-type-selector>
+                        <div class="edit-row edit-row--floortype">
+                          <label>Floor Types</label>
+                          <div class="floortype-edit">
+                            <div class="floortype-chips" *ngIf="editFloorTypes.length > 0">
+                              <span *ngFor="let t of editFloorTypes" class="floortype-chip">
+                                {{ getFloorTypeLabel(t) }}
+                                <button type="button" class="floortype-chip__remove" (click)="removeEditFloorType(t)" title="Remove">×</button>
+                              </span>
+                            </div>
+                            <input *ngIf="editFloorTypes.includes('other')"
+                                   type="text"
+                                   class="floortype-other"
+                                   [(ngModel)]="editFloorTypeOther"
+                                   (ngModelChange)="onEditFloorTypeOtherChange()"
+                                   placeholder="Specify other floor type"
+                                   maxlength="100">
+                            <select *ngIf="getFloorTypesToAdd().length > 0"
+                                    #addFloorSelect
+                                    (change)="addEditFloorType(addFloorSelect.value); addFloorSelect.value = ''"
+                                    class="add-extra-select floortype-add">
+                              <option value="">+ Add floor type</option>
+                              <option *ngFor="let o of getFloorTypesToAdd()" [value]="o.value">{{ o.label }}</option>
+                            </select>
+                          </div>
                         </div>
                       </div>
-                      <div class="edit-group">
+                      <div class="edit-group edit-group--pricing">
                         <h6>Pricing & Status</h6>
                         <div class="edit-row"><label>SubTotal</label><input type="number" step="1" [(ngModel)]="editOrderForm.subTotal" (ngModelChange)="recalculateEditPricing()"></div>
                         <div class="edit-row"><label>Tax</label><input type="number" step="1" [(ngModel)]="editOrderForm.tax" readonly></div>
@@ -308,39 +448,68 @@
                         <div class="edit-row"><label>Cleaner $/hr</label><input type="number" step="0.5" [(ngModel)]="editOrderForm.cleanerHourlyRate" (ngModelChange)="recalcCleanerTotalSalary()"></div>
                         <div class="edit-row" *ngIf="isSuperAdmin"><label>Cleaners Total Salary</label><input type="number" step="1" [(ngModel)]="editOrderForm.cleanerTotalSalary"></div>
                       </div>
-                    </div>
-                    <div class="edit-group" *ngIf="editOrderForm.services && editOrderForm.services.length > 0">
+                    <div class="edit-group edit-group--services" *ngIf="editOrderForm.services && editOrderForm.services.length > 0">
                       <h6>Services (Qty, Hours, Duration, Cost)</h6>
                       <div class="mini-table">
                         <div *ngFor="let s of editOrderForm.services; let i = index" class="mini-row">
                           <span class="minilabel">{{ getEditServiceDisplayName(s, i) }}</span>
-                          <ng-container *ngIf="!getEditServiceIsHoursOnlyRow(i); else hoursRowQty">
-                            <input type="number" [(ngModel)]="s.quantity" (ngModelChange)="onEditServiceQuantityChange(s, i)" style="width:60px" placeholder="Qty">
-                          </ng-container>
-                          <ng-template #hoursRowQty><span class="placeholder-hrs">—</span></ng-template>
-                          <ng-container *ngIf="getEditServiceShowsHours(i); else noHoursCol">
-                            <input type="number" step="0.5" min="0.5" [ngModel]="getEditServiceHours(i)" (ngModelChange)="onEditServiceHoursChange(i, $event)" style="width:56px" placeholder="Hrs" class="service-hrs-input" title="Hours (affects cost and duration)">
-                          </ng-container>
-                          <ng-template #noHoursCol><span class="duration-min placeholder-hrs">—</span></ng-template>
-                          <span class="duration-min">{{ getEditServiceDurationMinDisplay(s, i) }} min</span>
-                          <input type="number" step="1" [(ngModel)]="s.cost" (ngModelChange)="onEditServiceCostChange()" style="width:80px" placeholder="Cost">
+                          <div class="mini-controls">
+                            <label class="mini-field" *ngIf="!getEditServiceIsHoursOnlyRow(i)">
+                              <span class="mini-field__label">Qty</span>
+                              <span class="stepper">
+                                <button type="button" class="stepper__btn" (click)="stepEditServiceQuantity(s, i, -1)">−</button>
+                                <input type="number" [(ngModel)]="s.quantity" (ngModelChange)="onEditServiceQuantityChange(s, i)" class="stepper__input" placeholder="Qty">
+                                <button type="button" class="stepper__btn" (click)="stepEditServiceQuantity(s, i, 1)">+</button>
+                              </span>
+                            </label>
+                            <label class="mini-field" *ngIf="getEditServiceShowsHours(i)">
+                              <span class="mini-field__label">Hrs</span>
+                              <span class="stepper">
+                                <button type="button" class="stepper__btn" (click)="stepEditServiceHours(i, -0.5)">−</button>
+                                <input type="number" step="0.5" min="0.5" [ngModel]="getEditServiceHours(i)" (ngModelChange)="onEditServiceHoursChange(i, $event)" class="stepper__input" placeholder="Hrs" title="Hours (affects cost and duration)">
+                                <button type="button" class="stepper__btn" (click)="stepEditServiceHours(i, 0.5)">+</button>
+                              </span>
+                            </label>
+                            <span class="mini-duration">{{ getEditServiceDurationMinDisplay(s, i) }} min</span>
+                            <label class="mini-field mini-field--cost">
+                              <span class="mini-field__label">Cost</span>
+                              <input type="number" step="1" [(ngModel)]="s.cost" (ngModelChange)="onEditServiceCostChange()" class="mini-cost-input" placeholder="Cost">
+                            </label>
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <div class="edit-group">
+                    <div class="edit-group edit-group--extras">
                       <h6>Extra Services (Qty or Hrs, Duration, Cost)</h6>
                       <div class="mini-table" *ngIf="editOrderForm.extraServices && editOrderForm.extraServices.length > 0">
                         <div *ngFor="let e of editOrderForm.extraServices; let i = index" class="mini-row">
                           <span class="minilabel">{{ getExtraServiceName(selectedOrder, i, e) }}</span>
-                          <ng-container *ngIf="getEditExtraHasHours(e, i); else showQty">
-                            <input type="number" step="0.5" [(ngModel)]="e.hours" (ngModelChange)="onEditExtraHoursChange(e, i)" style="width:60px" placeholder="Hrs" class="extra-hrs-input">
-                          </ng-container>
-                          <ng-template #showQty>
-                            <input type="number" [(ngModel)]="e.quantity" (ngModelChange)="onEditExtraQuantityChange(e, i)" style="width:50px" placeholder="Qty" class="extra-qty-input">
-                          </ng-template>
-                          <span class="duration-min">{{ getEditExtraDurationMin(e, i) }} min</span>
-                          <input type="number" step="1" [(ngModel)]="e.cost" (ngModelChange)="onEditExtraCostChange()" style="width:80px" placeholder="Cost">
-                          <button type="button" class="remove-extra-row-btn" (click)="removeEditExtraService(i)" title="Remove this extra service">Remove</button>
+                          <div class="mini-controls">
+                            <label class="mini-field" *ngIf="getEditExtraHasHours(e, i); else extraQtyField">
+                              <span class="mini-field__label">Hrs</span>
+                              <span class="stepper">
+                                <button type="button" class="stepper__btn" (click)="stepEditExtraHours(e, i, -0.5)">−</button>
+                                <input type="number" step="0.5" [(ngModel)]="e.hours" (ngModelChange)="onEditExtraHoursChange(e, i)" class="stepper__input" placeholder="Hrs">
+                                <button type="button" class="stepper__btn" (click)="stepEditExtraHours(e, i, 0.5)">+</button>
+                              </span>
+                            </label>
+                            <ng-template #extraQtyField>
+                              <label class="mini-field">
+                                <span class="mini-field__label">Qty</span>
+                                <span class="stepper">
+                                  <button type="button" class="stepper__btn" (click)="stepEditExtraQuantity(e, i, -1)">−</button>
+                                  <input type="number" [(ngModel)]="e.quantity" (ngModelChange)="onEditExtraQuantityChange(e, i)" class="stepper__input" placeholder="Qty">
+                                  <button type="button" class="stepper__btn" (click)="stepEditExtraQuantity(e, i, 1)">+</button>
+                                </span>
+                              </label>
+                            </ng-template>
+                            <span class="mini-duration">{{ getEditExtraDurationMin(e, i) }} min</span>
+                            <label class="mini-field mini-field--cost">
+                              <span class="mini-field__label">Cost</span>
+                              <input type="number" step="1" [(ngModel)]="e.cost" (ngModelChange)="onEditExtraCostChange()" class="mini-cost-input" placeholder="Cost">
+                            </label>
+                            <button type="button" class="remove-extra-row-btn" (click)="removeEditExtraService(i)" title="Remove this extra service">Remove</button>
+                          </div>
                         </div>
                       </div>
                       <div class="add-extra-row" *ngIf="getEditOrderExtrasToAdd().length > 0">
@@ -351,17 +520,13 @@
                         </select>
                       </div>
                     </div>
-                    <div class="edit-actions">
-                      <button class="action-btn primary" (click)="saveOrderEdit()" [disabled]="savingOrder">{{ savingOrder ? 'Saving...' : (isSuperAdmin ? 'Save' : 'Send for approval') }}</button>
-                      <button class="action-btn" (click)="cancelEditOrder()" [disabled]="savingOrder">Cancel</button>
-                    </div>
                   </div>
 
                   <!-- SuperAdmin: Pending edits for this order (quick link) -->
                   <div *ngIf="isSuperAdmin && !editingOrder && getPendingEditsForSelectedOrder().length > 0" class="pending-edits-inline">
                     <h5>Pending edit(s) for this order</h5>
                     <div *ngFor="let pe of getPendingEditsForSelectedOrder()" class="pending-item">
-                      <span class="pending-by">{{ pe.requestedByName }} at {{ pe.requestedAt | date:'short' }}</span>
+                      <span class="pending-by">{{ pe.requestedByName }} at {{ formatUtcDateTime(pe.requestedAt) }}</span>
                       <button class="action-btn primary" (click)="openPendingEditDetail(pe.id)">Review &amp; confirm</button>
                     </div>
                   </div>
@@ -381,7 +546,7 @@
                       <h5>Service Details</h5>
                       <p><strong>Service Type:</strong> {{selectedOrder.serviceTypeName}}</p>
                       <p><strong>Service Date:</strong> {{formatDateTime((selectedOrder.serviceDate || '1970-01-01'), selectedOrder.serviceTime)}}</p>
-                      <p><strong>Booked On:</strong> {{formatDateTime(selectedOrder.orderDate)}}</p>
+                      <p><strong>Booked On:</strong> {{formatUtcDateTime(selectedOrder.orderDate)}}</p>
                       <p><strong>Duration:</strong>
                         <ng-container *ngIf="hasCleanersService(); else perMaid">
                           {{formatDuration(selectedOrder.totalDuration)}}
@@ -708,74 +873,35 @@
                     <button class="close-btn" (click)="clearMessages()">×</button>
                   </div>
 
-                  <!-- Action Buttons in Details View -->
-                  <div class="detail-actions" *ngIf="!editingOrder">
-                    <button *ngIf="getAssignedCleanersWithIds(selectedOrder.id).length > 0 && userPermissions.permissions.canView"
-                            type="button"
-                            class="action-btn send-assignment-mail"
-                            (click)="sendCleanerAssignmentMailsForOrder(selectedOrder.id)"
-                            [disabled]="loadingStates.sendAssignmentMails || getPendingAssignmentEmailCleaners(selectedOrder.id).length === 0">
-                      {{ loadingStates.sendAssignmentMails ? 'Sending…' : (getPendingAssignmentEmailCleaners(selectedOrder.id).length > 0 ? 'Send assignment email (' + getPendingAssignmentEmailCleaners(selectedOrder.id).length + ' pending)' : 'All cleaners notified') }}
-                    </button>
-                    <button class="action-btn assign-cleaners" 
-                            (click)="openCleanerAssignmentModal(selectedOrder.id)"
-                            [disabled]="loadingStates.assigningCleaners"
-                            *ngIf="userPermissions.permissions.canView">
-                      {{ loadingStates.assigningCleaners ? 'Assigning...' : 'Assign Cleaners' }}
-                    </button>
-                    <button class="action-btn edit-btn" *ngIf="canEditOrder" (click)="startEditOrder()">
-                      Edit
-                    </button>
-                    <button class="action-btn primary" (click)="viewOrderDetails(selectedOrder.id)">
-                      Close Details
-                    </button>
+                  <!-- Cleaning Photos for this order (shared per-user library) -->
+                  <div class="order-photos-section" *ngIf="!editingOrder">
+                    <h5>Cleaning Photos <span class="hint">— last 2 cleanings per customer are kept</span></h5>
+                    <div *ngIf="loadingOrderPhotos" class="muted center">Loading photos…</div>
+                    <div *ngIf="!loadingOrderPhotos && orderPhotos.length === 0" class="muted center">No photos for this order yet.</div>
+                    <div class="order-photo-grid" *ngIf="orderPhotos.length > 0">
+                      <div *ngFor="let p of orderPhotos" class="order-photo-thumb">
+                        <img [src]="resolvePhotoUrl(p)" [alt]="p.caption || 'Cleaning photo'" (click)="openOrderLightbox(p)">
+                        <button *ngIf="userPermissions.permissions.canUpdate" class="thumb-remove" (click)="removeOrderPhoto(p)" title="Remove">×</button>
+                      </div>
+                    </div>
+                    <div class="order-photo-upload" *ngIf="userPermissions.permissions.canUpdate">
+                      <label class="file-button" [class.disabled]="uploadingOrderPhoto">
+                        <input type="file" accept="image/*" multiple (change)="onOrderPhotoSelected($event)" [disabled]="uploadingOrderPhoto" hidden>
+                        {{ uploadingOrderPhoto ? (orderPhotoProgress || 'Uploading…') : '+ Upload photos' }}
+                      </label>
+                    </div>
+                    <div class="error-message inline" *ngIf="orderPhotoError">{{ orderPhotoError }}</div>
+                    <div class="success-message inline" *ngIf="orderPhotoSuccess">{{ orderPhotoSuccess }}</div>
                   </div>
-                </div>
-              </td>
-            </tr>
-          </ng-container>
-        </tbody>
-        </table>
-      </div>
-    </div>
-    
-    <!-- Pagination (matches audit-history) -->
-    <div class="pagination" *ngIf="totalPages > 1">
-      <button class="page-btn" (click)="previousPage()" [disabled]="currentPage === 1">‹ Previous</button>
-      
-      <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage === 1">1</button>
-      
-      <span *ngIf="totalPages > 5 && currentPage > 3" class="page-ellipsis">...</span>
-      
-      <button *ngFor="let page of getVisiblePages()" 
-              class="page-btn" 
-              (click)="goToPage(page)"
-              [class.active]="currentPage === page">
-        {{ page }}
-      </button>
-      
-      <span *ngIf="totalPages > 5 && currentPage < totalPages - 2" class="page-ellipsis">...</span>
-      
-      <button *ngIf="totalPages > 1" 
-              class="page-btn" 
-              (click)="goToPage(totalPages)"
-              [class.active]="currentPage === totalPages">
-        {{ totalPages }}
-      </button>
-      
-      <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages">Next ›</button>
-    </div>
-  </div>
 
-  <!-- Global Messages for Table Actions -->
-  <div *ngIf="errorMessage && !viewingOrderId" class="error-message">
-    {{errorMessage}}
-    <button class="close-btn" (click)="clearMessages()">×</button>
-  </div>
-  <div *ngIf="successMessage && !viewingOrderId" class="success-message">
-    {{successMessage}}
-    <button class="close-btn" (click)="clearMessages()">×</button>
-  </div>
+                </div>
+  </ng-container>
+</aside>
+
+<!-- Order photo lightbox -->
+<div class="lightbox" *ngIf="lightboxOrderPhoto" (click)="closeOrderLightbox()">
+  <img [src]="resolvePhotoUrl(lightboxOrderPhoto)" [alt]="lightboxOrderPhoto.caption || 'Cleaning photo'">
+  <button class="lightbox-close" (click)="closeOrderLightbox()">✕</button>
 </div>
 
 <!-- Pending order edit review modal (SuperAdmin) -->
@@ -786,7 +912,7 @@
       <button class="close-btn" (click)="closePendingEditDetail()">×</button>
     </div>
     <div class="modal-body" *ngIf="selectedPendingEdit">
-      <p class="pending-edit-meta">Requested by <strong>{{ selectedPendingEdit.requestedByName }}</strong> on {{ selectedPendingEdit.requestedAt | date:'medium' }}</p>
+      <p class="pending-edit-meta">Requested by <strong>{{ selectedPendingEdit.requestedByName }}</strong> on {{ formatUtcDateTime(selectedPendingEdit.requestedAt) }}</p>
       <p class="pending-edit-hint">Review every change below. Approve to apply to the order, or Reject to discard.</p>
       <div *ngIf="loadingPendingEditDetail" class="loading-small"><div class="spinner-small"></div> Loading...</div>
       <div *ngIf="!loadingPendingEditDetail && getPendingEditChanges().length === 0" class="no-changes">No field changes to show (or invalid data).</div>
@@ -836,17 +962,23 @@
                  (click)="$event.stopPropagation()"
                  aria-label="Search available cleaners by name or email">
         </div>
+        <label class="show-busy-toggle" (click)="$event.stopPropagation()">
+          <input type="checkbox" [(ngModel)]="showBusyCleaners">
+          <span>Show busy cleaners</span>
+          <span class="show-busy-count" *ngIf="hiddenBusyCleanersCount > 0">({{ hiddenBusyCleanersCount }} hidden)</span>
+        </label>
         <p *ngIf="availableCleaners.length > 0 && availableCleanersFiltered.length === 0"
            class="cleaner-search-empty">
           No cleaners match your search.
         </p>
         <div class="cleaner-grid">
-          <div *ngFor="let cleaner of availableCleanersFiltered" 
+          <div *ngFor="let cleaner of availableCleanersFiltered"
                class="cleaner-card"
                [class.selected]="isCleanerSelected(cleaner.id)"
-               [class.unavailable]="!cleaner.isAvailable"
-               (click)="cleaner.isAvailable && toggleCleanerSelection(cleaner.id)">
-            
+               [class.unavailable]="cleaner.hasScheduleConflict"
+               [class.busy-day]="cleaner.isBusyDay && !cleaner.hasScheduleConflict"
+               (click)="!cleaner.hasScheduleConflict && toggleCleanerSelection(cleaner.id)">
+
             <div class="cleaner-info">
               <div class="cleaner-name">{{ cleaner.firstName }} {{ cleaner.lastName }}</div>
               <div class="cleaner-email">{{ cleaner.email }}</div>
@@ -857,19 +989,25 @@
                 <span class="cleaner-tag location" *ngIf="cleaner.location">📍 {{ cleaner.location }}</span>
                 <span class="cleaner-tag experience" *ngIf="cleaner.experience">Exp: {{ cleaner.experience }}</span>
               </div>
-              <div class="cleaner-availability" *ngIf="formatCleanerAvailability(cleaner.availability) as days">
-                🗓 {{ days }}
+              <div class="cleaner-busy-reason conflict" *ngIf="cleaner.hasScheduleConflict">
+                ⛔ {{ cleaner.conflictReason || 'Has another job within 1 hour that day' }}
+              </div>
+              <div class="cleaner-busy-reason soft" *ngIf="!cleaner.hasScheduleConflict && cleaner.isBusyDay">
+                🌴 {{ cleaner.busyDayReason }}
               </div>
               <div class="availability-status"
-                   [class.available]="cleaner.isAvailable"
-                   [class.busy]="!cleaner.isAvailable">
-                {{ cleaner.isAvailable ? 'Available' : 'Busy' }}
+                   [class.available]="!cleaner.isBusyDay && !cleaner.hasScheduleConflict"
+                   [class.busy-soft]="cleaner.isBusyDay && !cleaner.hasScheduleConflict"
+                   [class.busy]="cleaner.hasScheduleConflict">
+                {{ cleaner.hasScheduleConflict ? 'Unavailable' : (cleaner.isBusyDay ? 'Busy · can still assign' : 'Available') }}
               </div>
             </div>
             
             <div class="selection-indicator" *ngIf="isCleanerSelected(cleaner.id)">
                               <i class="fas fa-check"></i>
             </div>
+
+            <div class="cleaner-created" *ngIf="cleaner.createdAt">Added {{ formatDate(cleaner.createdAt) }}</div>
           </div>
         </div>
       </div>
@@ -987,6 +1125,42 @@
           Confirm Cancellation
         </button>
         <button class="btn-secondary" (click)="closeAdminCancelModal()">Keep Order</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Send Payment Link Modal — re-sends the original payment-link email/SMS to the
+     customer's CURRENT account email/phone (one-time, fires on click only). -->
+<div class="modal-overlay" *ngIf="showSendPaymentLinkModal" (click)="closeSendPaymentLinkModal()">
+  <div class="modal-content send-payment-link-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Send Payment Link — Order #{{ selectedOrder?.id }}</h3>
+      <button class="close-btn" (click)="closeSendPaymentLinkModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="send-payment-link-note">
+        Re-sends the same payment link emailed/texted when the order was created. It goes to the
+        customer's <strong>current account email and phone</strong>, so correct any mistyped
+        contact on the user's account first.
+      </p>
+      <div class="send-payment-link-channels">
+        <label class="checkbox-row">
+          <input type="checkbox" [(ngModel)]="sendPaymentLinkChannels.email">
+          <span>Email</span>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" [(ngModel)]="sendPaymentLinkChannels.sms">
+          <span>Phone (text message)</span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-primary"
+                (click)="confirmSendPaymentLink()"
+                [disabled]="loadingStates.sendPaymentLink || (!sendPaymentLinkChannels.email && !sendPaymentLinkChannels.sms)">
+          {{ loadingStates.sendPaymentLink ? 'Sending…' : 'Send' }}
+        </button>
+        <button class="btn-secondary" (click)="closeSendPaymentLinkModal()">Cancel</button>
       </div>
     </div>
   </div>

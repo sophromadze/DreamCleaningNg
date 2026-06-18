@@ -8,11 +8,18 @@ export interface AvailableCleaner {
   firstName: string;
   lastName: string;
   email: string;
+  /** False only when there is a hard scheduling conflict (the 1-hour-gap rule). */
   isAvailable: boolean;
   location?: string | null;
   ranking?: number | string | null;
   experience?: string | null;
-  availability?: string | null;
+  /** Soft: marked busy that day via recurring weekday / vacation. Still assignable. */
+  isBusyDay?: boolean;
+  busyDayReason?: string | null;
+  /** Hard: another Active/Pending job within 1 hour the same day. Cannot assign. */
+  hasScheduleConflict?: boolean;
+  conflictReason?: string | null;
+  createdAt?: string;
 }
 
 @Injectable({

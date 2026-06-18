@@ -173,7 +173,7 @@
           <div class="history-item__info">
             <div class="history-item__type">{{ getHistoryTypeLabel(item.type) }}</div>
             <div class="history-item__desc" *ngIf="item.description">{{ item.description }}</div>
-            <div class="history-item__date">{{ item.createdAt | date:'MMM d, y' }}</div>
+            <div class="history-item__date">{{ item.createdAt | nyDate }}</div>
           </div>
           <div class="history-item__points"
                [class.positive]="item.points > 0 || item.type === 'ReferralOrderCompleted'"

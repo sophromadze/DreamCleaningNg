@@ -589,6 +589,48 @@
   }
 }
 
+.availability-summary {
+  background: var(--cd-surface-alt);
+  border: 1px solid var(--cd-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  font-size: 13px;
+
+  .avail-row {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+
+    & + .avail-row { margin-top: 6px; }
+
+    label {
+      flex: 0 0 78px;
+      font-size: 12px;
+      color: var(--cd-text-muted);
+    }
+
+    span { color: var(--cd-text); }
+  }
+
+  .vacation-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .vacation-chip {
+    background: var(--cd-input-bg);
+    border: 1px solid var(--cd-border);
+    border-radius: 9999px;
+    padding: 2px 10px;
+    font-size: 12px;
+    white-space: nowrap;
+
+    .vac-note { color: var(--cd-text-muted); }
+  }
+}
+
 .upload-section {
   margin-bottom: 18px;
 
@@ -1412,49 +1454,97 @@
   }
 }
 
-/* Availability picker */
-.availability-block {
-  .availability-grid {
+/* Busy-day & vacation editor */
+.field-hint {
+  font-size: 12px;
+  color: var(--cd-text-muted);
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+
+.busy-days-block {
+  .busy-day-chips {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .busy-day-chip {
+    display: inline-flex;
+    align-items: center;
     gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--cd-input-border);
+    border-radius: 9999px;
+    background: var(--cd-input-bg);
+    color: var(--cd-text);
+    font-size: 13px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+    // Fixed square so every day's checkbox renders as the same circle/box, not stretched.
+    input {
+      width: 14px;
+      height: 14px;
+      flex: 0 0 14px;
+      margin: 0;
+    }
+
+    &.active {
+      background: var(--cd-input-focus, var(--primary-color));
+      border-color: var(--cd-input-focus, var(--primary-color));
+      color: #fff;
+    }
+  }
+}
+
+.vacations-block {
+  .vacations-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .add-vacation-btn {
+    border: 1px solid var(--cd-input-border);
+    background: var(--cd-surface-alt);
+    color: var(--cd-text);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+
+    &:hover { border-color: var(--cd-input-focus); }
+  }
+
+  .vacation-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     background: var(--cd-surface-alt);
     border: 1px solid var(--cd-border);
     border-radius: 10px;
-    padding: 10px 12px;
+    padding: 8px 10px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
   }
 
-  .day-row {
-    display: grid;
-    grid-template-columns: 90px 1fr;
-    gap: 12px;
-    align-items: center;
-
-    @media (max-width: 520px) {
-      grid-template-columns: 80px 1fr;
-    }
-  }
-
-  .day-toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    color: var(--cd-text);
-    cursor: pointer;
-
-    input { width: auto; }
-  }
-
-  .day-times {
+  .vacation-dates {
     display: inline-flex;
     gap: 8px;
-    align-items: center;
-    font-size: 13px;
+    flex-wrap: wrap;
+  }
 
-    &.disabled { opacity: 0.4; }
+  .vacation-field {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 11px;
+    color: var(--cd-text-muted);
 
-    input[type='time'] {
+    input[type='date'] {
       background: var(--cd-input-bg);
       border: 1px solid var(--cd-input-border);
       color: var(--cd-text);
@@ -1464,10 +1554,33 @@
       outline: none;
 
       &:focus { border-color: var(--cd-input-focus); }
-      &:disabled { cursor: not-allowed; }
     }
+  }
 
-    .sep { color: var(--cd-text-muted); }
+  .vacation-note {
+    flex: 1 1 160px;
+    min-width: 120px;
+    background: var(--cd-input-bg);
+    border: 1px solid var(--cd-input-border);
+    color: var(--cd-text);
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 13px;
+    outline: none;
+
+    &:focus { border-color: var(--cd-input-focus); }
+  }
+
+  .remove-vacation-btn {
+    border: none;
+    background: transparent;
+    color: var(--cd-text-muted);
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0 4px;
+
+    &:hover { color: var(--bright-red); }
   }
 }
 
@@ -1921,7 +2034,8 @@
     label,
     .full,
     .file-row,
-    .availability-block { min-width: 0; }
+    .busy-days-block,
+    .vacations-block { min-width: 0; }
 
     label input,
     label select,
@@ -1933,23 +2047,13 @@
     }
   }
 
-  /* Availability rows: stack the day toggle above its time pickers so the
-     two time inputs get the full row width instead of overflowing. */
-  .availability-block {
-    .day-row {
-      grid-template-columns: 1fr;
-      gap: 6px;
-    }
+  /* Vacation rows stack their fields full-width on narrow screens. */
+  .vacations-block {
+    .vacation-dates { width: 100%; }
 
-    .day-times {
-      width: 100%;
-      flex-wrap: wrap;
+    .vacation-field { flex: 1 1 130px; }
 
-      input[type='time'] {
-        flex: 1 1 88px;
-        min-width: 88px;
-      }
-    }
+    .vacation-note { flex: 1 1 100%; }
   }
 
   /* Pinned note / location read more naturally left-aligned when stacked */

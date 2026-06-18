@@ -21,6 +21,7 @@ import {
 import { AdminService, UserAdmin } from '../../services/admin.service';
 import { AuthService } from '../../services/auth.service';
 import { SignalRService } from '../../services/signalr.service';
+import { formatNy } from '../../shared/ny-time.util';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, filter } from 'rxjs/operators';
 
@@ -1161,17 +1162,17 @@ export class TasksComponent implements OnInit, OnDestroy {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
+  // Both helpers format UTC timestamps (createdAt) in NY (business) time.
+  // Wall-clock fields (dueDate) go through getDueLabel instead — don't reuse these for them.
   formatFullDate(dateStr: string): string {
     if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return formatNy(dateStr, { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
   formatFullDateTime(dateStr: string): string {
     if (!dateStr) return '';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
-      ' ' + date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    return formatNy(dateStr, { month: 'short', day: 'numeric', year: 'numeric' }) +
+      ' ' + formatNy(dateStr, { hour: '2-digit', minute: '2-digit', hour12: true });
   }
 
   getTargetAudienceLabel(audience: string): string {

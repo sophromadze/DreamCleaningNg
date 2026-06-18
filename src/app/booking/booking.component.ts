@@ -24,10 +24,38 @@ import { AdminService, UserAdmin } from '../services/admin.service';
 import { ShimmerDirective } from '../shared/directives/shimmer.directive';
 import { GoogleMapsLoaderService } from '../services/google-maps-loader.service';
 import { FloorTypeSelectorComponent, FloorTypeSelection } from '../shared/components/floor-type-selector/floor-type-selector.component';
+import { AdminUserSearchComponent } from './admin-user-search/admin-user-search.component';
+import { ReorderSectionComponent } from './reorder-section/reorder-section.component';
 import { CleaningTypeDetailsExpandableComponent } from '../shared/components/cleaning-type-details-expandable/cleaning-type-details-expandable.component';
 import { MoveInOutChecklistComponent } from '../shared/components/move-in-out-checklist/move-in-out-checklist.component';
+import { QuantityControlComponent } from '../shared/components/quantity-control/quantity-control.component';
+import { ExtraServicesGridComponent } from '../shared/components/extra-services-grid/extra-services-grid.component';
+import { OrderSummaryCardComponent, SummaryLine } from '../shared/components/order-summary-card/order-summary-card.component';
+import { formatDate, formatNumber } from '@angular/common';
 import { BubbleRewardsService, RedemptionOption } from '../services/bubble-rewards.service';
 import { normalizePhone10, sanitizePhoneInput } from '../utils/phone.utils';
+import {
+  getExtraServiceImage,
+  getExtraServiceTooltip,
+  formatTime12h,
+  MobileTooltipManager
+} from '../shared/booking/extra-service-display.utils';
+import {
+  calculateQuote,
+  calculateTotals,
+  resolveLoyaltyStacking,
+  resolveGiftCardAmountToUse,
+  resolvePriceMultiplier,
+  getServiceDisplayPrice,
+  getExtraServiceDisplayPrice,
+  getServiceDisplayDuration,
+  getSquareFeetForBedrooms,
+  buildQuoteInputFromSelections,
+  mapSelectedExtraInputs,
+  round2,
+  SALES_TAX_RATE,
+  QuoteInput
+} from '../shared/pricing/order-pricing.calculator';
 
 interface SelectedService {
   service: Service;
@@ -43,7 +71,7 @@ interface SelectedExtraService {
 @Component({
   selector: 'app-booking',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule, RouterModule, DurationSelectorComponent, TimeSelectorComponent, DateSelectorComponent, ShimmerDirective, FloorTypeSelectorComponent, CleaningTypeDetailsExpandableComponent, MoveInOutChecklistComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule, RouterModule, DurationSelectorComponent, TimeSelectorComponent, DateSelectorComponent, ShimmerDirective, FloorTypeSelectorComponent, CleaningTypeDetailsExpandableComponent, MoveInOutChecklistComponent, AdminUserSearchComponent, ReorderSectionComponent, QuantityControlComponent, ExtraServicesGridComponent, OrderSummaryCardComponent],
   providers: [BookingService],
   templateUrl: './booking.component.html',
   styleUrl: './booking.component.scss'
@@ -258,8 +286,9 @@ export class BookingComponent implements OnInit, OnDestroy {
   bubblePointsEnabled = false;
   
   // Mobile tooltip management
-  mobileTooltipTimeouts: { [key: number]: any } = {};
-  mobileTooltipStates: { [key: number]: boolean } = {};
+  // Mobile tooltip state — shared machinery in shared/booking/extra-service-display.utils
+  // Public: passed into ExtraServicesGridComponent, which reads visibility from it.
+  mobileTooltips = new MobileTooltipManager(() => this.isCurrentlyMobile(), 3000);
   
   // Tip dropdown state
   tipDropdownOpen = false;
@@ -284,7 +313,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   savedPollData: any = null;
   
   // Constants
-  salesTaxRate = 0.08875; // 8.875%
+  salesTaxRate = SALES_TAX_RATE;
   minDate = new Date();
   minTipAmount = 10; 
   minCompanyTipAmount = 10;
@@ -315,9 +344,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   isSameDayServiceAvailable = true;
   sameDayServiceDisabledReason = '';
 
-  // Reorder functionality
+  // Reorder functionality (widget UI lives in ReorderSectionComponent)
   previousOrders: OrderList[] = [];
-  showReorderModal = false;
   isLoadingOrders = false;
   reorderingOrderId: number | null = null;
 
@@ -331,12 +359,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   isSuperAdmin = false;
   isModerator = false;
   isAdminMode = false;
+  // Search box UI lives in AdminUserSearchComponent; the page owns the selection.
   selectedTargetUser: UserAdmin | null = null;
-  userSearchTerm = '';
-  availableUsers: UserAdmin[] = [];
-  filteredUsers: UserAdmin[] = [];
-  showUserSelector = false;
-  isLoadingUsers = false;
 
   // Phase 1 manual payment tracking — admin-only. Reset to defaults whenever admin mode is
   // toggled off or the target user changes so a previous selection doesn't leak across users.
@@ -1829,17 +1853,10 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.saveFormData(); // Save the selection
   }
 
+  // Single definition shared with the order edits (user + admin) so the
+  // bedrooms→sqft linkage prices identically everywhere.
   private getSquareFeetForBedrooms(bedrooms: number): number {
-    switch (bedrooms) {
-      case 0: return 400;  // Studio
-      case 1: return 650;
-      case 2: return 850;
-      case 3: return 1000;
-      case 4: return 1500;
-      case 5: return 1800;
-      case 6: return 2000;
-      default: return Math.max(400, bedrooms * 300); // Fallback for 7+
-    }
+    return getSquareFeetForBedrooms(bedrooms);
   }
 
   getSquareFeetMinForBedrooms(): number {
@@ -2015,51 +2032,21 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.saveFormData();
   }
 
-  // Mobile tooltip management methods
+  // Mobile tooltip management — delegates to the shared MobileTooltipManager
   showMobileTooltip(extraServiceId: number) {
-    // Only show tooltip on mobile devices
-    if (!this.isCurrentlyMobile()) return;
-    
-    // Clear any existing timeout for this service
-    this.clearMobileTooltip(extraServiceId);
-    
-    // Set tooltip state to visible
-    this.mobileTooltipStates[extraServiceId] = true;
-
-    // Set timeout to hide tooltip after 3 seconds
-    this.mobileTooltipTimeouts[extraServiceId] = setTimeout(() => {
-      this.clearMobileTooltip(extraServiceId);
-    }, 3000);
+    this.mobileTooltips.show(extraServiceId);
   }
 
   clearMobileTooltip(extraServiceId: number) {
-    // Clear the timeout
-    if (this.mobileTooltipTimeouts[extraServiceId]) {
-      clearTimeout(this.mobileTooltipTimeouts[extraServiceId]);
-      delete this.mobileTooltipTimeouts[extraServiceId];
-    }
-    
-    // Set tooltip state to hidden
-    this.mobileTooltipStates[extraServiceId] = false;
+    this.mobileTooltips.clear(extraServiceId);
   }
 
-  // Clear all mobile tooltips
   clearAllMobileTooltips() {
-    // Clear all timeouts
-    Object.keys(this.mobileTooltipTimeouts).forEach(key => {
-      const id = parseInt(key);
-      if (this.mobileTooltipTimeouts[id]) {
-        clearTimeout(this.mobileTooltipTimeouts[id]);
-      }
-    });
-    
-    // Reset all tooltip states
-    this.mobileTooltipTimeouts = {};
-    this.mobileTooltipStates = {};
+    this.mobileTooltips.clearAll();
   }
 
   isMobileTooltipVisible(extraServiceId: number): boolean {
-    return this.mobileTooltipStates[extraServiceId] || false;
+    return this.mobileTooltips.isVisible(extraServiceId);
   }
 
   // Check if currently on mobile
@@ -2101,33 +2088,10 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   getExtraServicePrice(extraService: ExtraService): number {
     const selected = this.selectedExtraServices.find(s => s.extraService.id === extraService.id);
-    
-    // Get price multiplier based on cleaning type
-    let priceMultiplier = 1;
-    const deepCleaning = this.selectedExtraServices.find(s => s.extraService.isDeepCleaning);
-    const superDeepCleaning = this.selectedExtraServices.find(s => s.extraService.isSuperDeepCleaning);
-
-    if (superDeepCleaning) {
-      priceMultiplier = superDeepCleaning.extraService.priceMultiplier;
-    } else if (deepCleaning) {
-      priceMultiplier = deepCleaning.extraService.priceMultiplier;
-    }
-
-    // Apply multiplier (except for same day service)
-    const currentMultiplier = extraService.isSameDayService ? 1 : priceMultiplier;
-
-    // Calculate price based on type
-    if (extraService.hasHours) {
-      // For hours-based services, use selected hours or default to 0.5
-      const hours = selected ? selected.hours : 0.5;
-      return extraService.price * hours * currentMultiplier;
-    } else if (extraService.hasQuantity) {
-      // For quantity-based services, use selected quantity or default to 1
-      const quantity = selected ? selected.quantity : 1;
-      return extraService.price * quantity * currentMultiplier;
-    } else {
-      return extraService.price * currentMultiplier;
-    }
+    // Defaults for not-yet-selected cards: 0.5h / qty 1. Math lives in the shared calculator.
+    const hours = selected ? selected.hours : 0.5;
+    const quantity = selected ? selected.quantity : 1;
+    return getExtraServiceDisplayPrice(extraService, quantity, hours, this.getSelectedPriceMultiplier());
   }
 
   getExtraServiceDuration(extraService: ExtraService): number {
@@ -2148,24 +2112,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   getServicePrice(service: Service, quantity: number): number {
-    // Get price multiplier based on cleaning type
-    let priceMultiplier = 1;
-    const deepCleaning = this.selectedExtraServices.find(s => s.extraService.isDeepCleaning);
-    const superDeepCleaning = this.selectedExtraServices.find(s => s.extraService.isSuperDeepCleaning);
-
-    if (superDeepCleaning) {
-      priceMultiplier = superDeepCleaning.extraService.priceMultiplier;
-    } else if (deepCleaning) {
-      priceMultiplier = deepCleaning.extraService.priceMultiplier;
-    }
-
-    // Special handling for studio apartment (bedrooms = 0)
-    if (service.serviceKey === 'bedrooms' && quantity === 0) {
-      return 10 * priceMultiplier; // $10 base price for studio, adjusted by cleaning type
-    }
-
-    // Apply multiplier to service cost
-    return service.cost * quantity * priceMultiplier;
+    // Studio rule + multiplier live in the shared calculator.
+    return getServiceDisplayPrice(service, quantity, this.getSelectedPriceMultiplier());
   }
 
 
@@ -2187,7 +2135,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (this.loyaltyDiscountPercentage <= 0) return 0;
     const sub = this.calculation.subTotal || 0;
     if (sub <= 0) return 0;
-    return Math.round(sub * (this.loyaltyDiscountPercentage / 100) * 100) / 100;
+    return round2(sub * (this.loyaltyDiscountPercentage / 100));
   }
 
   // Compute what a candidate discount would be worth in $ on the current subTotal, matching
@@ -2197,7 +2145,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     const sub = this.calculation.subTotal || 0;
     if (sub <= 0) return 0;
     if (isPercentage) {
-      return Math.round(sub * (value / 100) * 100) / 100;
+      return round2(sub * (value / 100));
     }
     return Math.min(value, sub);
   }
@@ -2348,404 +2296,112 @@ export class BookingComponent implements OnInit, OnDestroy {
     }
   }
 
-  calculateTotal() {
-    let subTotal = 0;
-    let totalDuration = 0;
-    let actualTotalDuration = 0;
-    let deepCleaningFee = 0;
-    let displayDuration = 0;
-    let useExplicitHours = false;
-
-    // ADD THIS BLOCK FOR CUSTOM PRICING
+  // Maps the component's selections into the shared calculator's input shape.
+  // ALL price math AND the selection→input mapping live in
+  // shared/pricing/order-pricing.calculator.ts (mirrored by the backend).
+  private buildQuoteInput(): QuoteInput {
     if (this.showCustomPricing && this.customAmount.value) {
-      // For custom pricing, use the custom values directly
-      subTotal = parseFloat(this.customAmount.value) || 0;
-
-      // Parse and log duration
-      const parsedDuration = parseInt(this.customDuration.value);
-
-      // IMPORTANT: Parse duration as integer
-      actualTotalDuration = parsedDuration || 90;
-      totalDuration = actualTotalDuration; // Add this line
-      displayDuration = actualTotalDuration;
-      
-      
-      // Parse cleaners as integer
-      this.calculatedMaidsCount = parseInt(this.customCleaners.value) || 1;
-    
-      // Store the actual total duration for backend
-      this.actualTotalDuration = actualTotalDuration;
-    
-      // Skip all the complex calculations for custom pricing
-      // Jump straight to discount calculations
-    
-      // Reset discount amounts
-      this.subscriptionDiscountAmount = 0;
-      this.promoOrFirstTimeDiscountAmount = 0;
-    
-      // Calculate subscription discount if applicable
-      // Use selectedSubscription's discountPercentage if user has active subscription and selected subscription matches
-      if (this.hasActiveSubscription && this.userSubscription && this.selectedSubscription) {
-        // Check if selected subscription matches user's active subscription
-        const userSubscriptionDays = this.getSubscriptionDaysForSubscription(this.userSubscription.subscriptionName);
-        const selectedSubscriptionDays = this.selectedSubscription.subscriptionDays || 0;
-        
-        if (userSubscriptionDays === selectedSubscriptionDays && selectedSubscriptionDays > 0) {
-          // User has active subscription and selected subscription matches - use selected subscription's discount
-          this.subscriptionDiscountAmount = Math.round(subTotal * (this.selectedSubscription.discountPercentage / 100) * 100) / 100;
-        } else {
-          // Selected subscription doesn't match user's active subscription - no discount
-          this.subscriptionDiscountAmount = 0;
-        }
-      } else {
-        this.subscriptionDiscountAmount = 0;
-      }
-    
-      // Calculate promo or first-time discount
-      if (this.specialOfferApplied && this.selectedSpecialOffer) {
-        const offer = this.selectedSpecialOffer;
-        if (offer.isPercentage) {
-          this.promoOrFirstTimeDiscountAmount = Math.round(subTotal * (offer.discountValue / 100) * 100) / 100;
-        } else {
-          this.promoOrFirstTimeDiscountAmount = Math.min(offer.discountValue, subTotal);
-        }
-      } else if (this.hasFirstTimeDiscount && this.currentUser?.firstTimeOrder && this.firstTimeDiscountApplied) {
-        this.promoOrFirstTimeDiscountAmount = Math.round(subTotal * (this.firstTimeDiscountPercentage / 100) * 100) / 100;
-      } else if (this.promoCodeApplied && !this.giftCardApplied) {
-        if (this.promoIsPercentage) {
-          this.promoOrFirstTimeDiscountAmount = Math.round(subTotal * (this.promoDiscount / 100) * 100) / 100;
-        } else {
-          this.promoOrFirstTimeDiscountAmount = this.promoDiscount;
-        }
-      }
-
-      // Loyalty Discount stacking — mutates subscription/promo in place per the rules.
-      // See applyLoyaltyStacking for the full algorithm.
-      this.applyLoyaltyStacking(subTotal);
-
-      // Total discount is the sum of all three slots (loyalty + subscription + promo). After
-      // stacking at most two of these are non-zero: either {subscription, promo} (when subscription
-      // beats loyalty) or {loyalty} alone (when loyalty beats both subscription and promo) or
-      // {subscription} alone or {promo} alone.
-      const totalDiscountAmount = this.subscriptionDiscountAmount + this.promoOrFirstTimeDiscountAmount + this.loyaltyDiscountAmount;
-
-      // Calculate tax on discounted subtotal
-      const discountedSubTotal = subTotal - totalDiscountAmount;
-      const tax = Math.round(discountedSubTotal * this.salesTaxRate * 100) / 100;
-    
-      // Get tips
-      const tips = this.tips.value || 0;
-      const companyDevelopmentTips = this.companyDevelopmentTips.value || 0;
-      const totalTips = tips + companyDevelopmentTips;
-    
-      // Calculate total
-      const total = discountedSubTotal + tax + totalTips;
-
-      // Apply gift card if applicable
-      let finalTotal = total;
-      if (this.giftCardApplied && this.isGiftCard) {
-        this.giftCardAmountToUse = Math.min(this.giftCardBalance, total);
-        finalTotal = Math.max(0, total - this.giftCardAmountToUse);
-      }
-
-      // Apply bubble points discount
-      if (this.selectedPointsToRedeem > 0 && this.pointsDiscountAmount > 0) {
-        finalTotal = Math.max(0, finalTotal - this.pointsDiscountAmount);
-      }
-
-      // Apply bubble credits
-      if (this.useCredits && this.userBubbleCredits > 0) {
-        finalTotal = Math.max(0, finalTotal - this.userBubbleCredits);
-      }
-
-      this.calculation = {
-        subTotal: Math.round(subTotal * 100) / 100,
-        tax,
-        discountAmount: totalDiscountAmount,
-        tips: totalTips,
-        total: Math.round(finalTotal * 100) / 100,
-        totalDuration: displayDuration
+      return {
+        basePrice: this.selectedServiceType?.basePrice ?? 0,
+        baseDuration: this.selectedServiceType?.timeDuration ?? 0,
+        services: [],
+        extraServices: [],
+        isCustomPricing: true,
+        customAmount: parseFloat(this.customAmount.value) || 0,
+        customCleaners: parseInt(this.customCleaners.value) || 1,
+        customDuration: parseInt(this.customDuration.value) || 90
       };
-
-      // Calculate next order's total if needed
-      if (this.selectedSubscription && this.selectedSubscription.subscriptionDays > 0 && !this.hasActiveSubscription) {
-        const nextOrderDiscountPercentage = this.selectedSubscription.discountPercentage;
-        this.nextOrderDiscount = Math.round(subTotal * (nextOrderDiscountPercentage / 100) * 100) / 100;
-        const nextOrderDiscountedSubTotal = subTotal - this.nextOrderDiscount;
-        const nextOrderTax = Math.round(nextOrderDiscountedSubTotal * this.salesTaxRate * 100) / 100;
-        this.nextOrderTotal = nextOrderDiscountedSubTotal + nextOrderTax;
-      } else {
-        this.nextOrderDiscount = 0;
-        this.nextOrderTotal = 0;
-      }
-    
-      return; // Exit early for custom pricing
     }
 
-    // Check for deep cleaning multipliers FIRST
-    let priceMultiplier = 1;
+    return buildQuoteInputFromSelections(this.selectedServiceType, this.selectedServices, this.selectedExtraServices);
+  }
 
-    const deepCleaning = this.selectedExtraServices.find(s => s.extraService.isDeepCleaning);
-    const superDeepCleaning = this.selectedExtraServices.find(s => s.extraService.isSuperDeepCleaning);
+  /** Current cleaning-type multiplier (super deep > deep > 1) from the shared calculator. */
+  getSelectedPriceMultiplier(): number {
+    return resolvePriceMultiplier(mapSelectedExtraInputs(this.selectedExtraServices)).multiplier;
+  }
 
-    if (superDeepCleaning) {
-      priceMultiplier = superDeepCleaning.extraService.priceMultiplier;
-      deepCleaningFee = superDeepCleaning.extraService.price;
-    } else if (deepCleaning) {
-      priceMultiplier = deepCleaning.extraService.priceMultiplier;
-      deepCleaningFee = deepCleaning.extraService.price;
-    }
+  calculateTotal() {
+    // Single source of truth: the shared pricing calculator (mirrored by the backend).
+    const quote = calculateQuote(this.buildQuoteInput());
 
-    // Calculate base price with multiplier
-    if (this.selectedServiceType) {
-      subTotal += this.selectedServiceType.basePrice * priceMultiplier;
-
-      // ADD THIS LINE - Add service type's base duration
-      if (!useExplicitHours) {
-        totalDuration += this.selectedServiceType.timeDuration || 0;
-        actualTotalDuration += this.selectedServiceType.timeDuration || 0;
-      }
-    }
-
-    // Check if we have cleaner-hours relationship
-    const hasCleanerService = this.selectedServices.some(s => 
-      s.service.serviceRelationType === 'cleaner'
-    );
-    const hoursService = this.selectedServices.find(s => 
-      s.service.serviceRelationType === 'hours'
-    );
-
-    // If we have both cleaner and hours services, use hours as the duration
-    if (hasCleanerService && hoursService) {
-      useExplicitHours = true;
-      actualTotalDuration = hoursService.quantity * 60;
-      totalDuration = actualTotalDuration;
-    }
-
-    // Calculate service costs
-    this.selectedServices.forEach(selected => {
-      if (selected.service.serviceRelationType === 'cleaner') {
-        if (hoursService) {
-          const hours = hoursService.quantity;
-          const cleaners = selected.quantity;
-          const costPerCleanerPerHour = selected.service.cost * priceMultiplier;
-          const cost = costPerCleanerPerHour * cleaners * hours;
-          subTotal += cost;
-        }
-      } else if (selected.service.serviceKey === 'bedrooms' && selected.quantity === 0) {
-        const cost = this.getServicePrice(selected.service, 0);
-        subTotal += cost;
-        if (!useExplicitHours) {
-          const studioDuration = this.getServiceDuration(selected.service);
-          totalDuration += studioDuration;
-          actualTotalDuration += studioDuration;
-        }
-      } else if (selected.service.serviceRelationType !== 'hours') {
-        const cost = selected.service.cost * selected.quantity * priceMultiplier;
-        subTotal += cost;
-        if (!useExplicitHours) {
-          const serviceDuration = selected.service.timeDuration * selected.quantity;
-          totalDuration += serviceDuration;
-          actualTotalDuration += serviceDuration;
-        }
-      }
-    });
-
-    // Calculate extra service costs
-    this.selectedExtraServices.forEach(selected => {
-      if (!selected.extraService.isDeepCleaning && !selected.extraService.isSuperDeepCleaning) {
-        const currentMultiplier = selected.extraService.isSameDayService ? 1 : priceMultiplier;
-        
-        if (selected.extraService.hasHours) {
-          subTotal += selected.extraService.price * selected.hours * currentMultiplier;
-          if (!useExplicitHours) {
-            const extraDuration = selected.extraService.duration * selected.hours;
-            totalDuration += extraDuration;
-            actualTotalDuration += extraDuration;
-          }
-        } else if (selected.extraService.hasQuantity) {
-          subTotal += selected.extraService.price * selected.quantity * currentMultiplier;
-          if (!useExplicitHours) {
-            const extraDuration = selected.extraService.duration * selected.quantity;
-            totalDuration += extraDuration;
-            actualTotalDuration += extraDuration;
-          }
-        } else {
-          subTotal += selected.extraService.price * currentMultiplier;
-          if (!useExplicitHours) {
-            totalDuration += selected.extraService.duration;
-            actualTotalDuration += selected.extraService.duration;
-          }
-        }
-      } else {
-        if (!useExplicitHours) {
-          totalDuration += selected.extraService.duration;
-          actualTotalDuration += selected.extraService.duration;
-        }
-      }
-    });
-
-    // Calculate extra cleaners FIRST
-    const extraCleaners = this.getExtraCleanersCount();
-
-    // Calculate base maids count (without extra cleaners)
-    let baseMaidsCount = 1;
-
-    if (hasCleanerService) {
-      const cleanerService = this.selectedServices.find(s => 
-        s.service.serviceRelationType === 'cleaner'
-      );
-      if (cleanerService) {
-        baseMaidsCount = cleanerService.quantity;
-      }
-      // When cleaners are explicitly selected, use actual duration without division initially
-      displayDuration = actualTotalDuration;
-    } else {
-      const totalHours = totalDuration / 60;
-      if (totalHours <= 6) {
-        baseMaidsCount = 1;
-        displayDuration = totalDuration;
-      } else {
-        baseMaidsCount = Math.ceil(totalHours / 6);
-        displayDuration = totalDuration; // Don't divide yet
-      }
-    }
-
-    // NOW add extra cleaners to get total maid count
-    this.calculatedMaidsCount = baseMaidsCount + extraCleaners;
-      
-    // FINALLY divide duration by TOTAL maid count (including extra cleaners)
-    if (this.calculatedMaidsCount > 1 && !hasCleanerService) {
-      // Only divide duration when we have multiple maids and no explicit cleaner service
-      displayDuration = Math.ceil(totalDuration / this.calculatedMaidsCount);
-    } else if (hasCleanerService && this.calculatedMaidsCount > baseMaidsCount) {
-      // If we have explicit cleaners AND extra cleaners, divide by total count
-      displayDuration = Math.ceil(actualTotalDuration / this.calculatedMaidsCount);
-    }
-    
-    // Per-maid minimum: 1h normally, 2h30m when Extra Cleaners is added. The shop's rule is
-    // that an Extra-Cleaners booking is always at least 2.5h of work per cleaner — this is the
-    // bedroom/bathroom-based equivalent of the cleaner-hours service's 2.5h floor (which is
-    // already enforced by getServiceMinValue + the +/- control). Both paths land at the same
-    // floor so customers can't slip past it by switching service types.
-    const perMaidMinMinutes = this.hasExtraCleanersSelected() ? 150 : 60;
-    displayDuration = Math.max(displayDuration, perMaidMinMinutes);
-
-    // actualTotalDuration semantics differ between service types: for cleaner-hours it's already
-    // per-cleaner (no division ever happens), for everything else it's total work across all
-    // maids. Apply the floor accordingly so cleaner-salary math doesn't collapse.
-    const totalMinMinutes = hasCleanerService
-      ? perMaidMinMinutes
-      : perMaidMinMinutes * Math.max(1, this.calculatedMaidsCount);
-    this.actualTotalDuration = Math.max(actualTotalDuration, totalMinMinutes);
-
-    // Add deep cleaning fee AFTER discounts are calculated
-    subTotal += deepCleaningFee;
+    this.calculatedMaidsCount = quote.maidsCount;
+    this.actualTotalDuration = quote.totalDuration;
+    const subTotal = quote.subTotal;
 
     // Reset discount amounts
     this.subscriptionDiscountAmount = 0;
     this.promoOrFirstTimeDiscountAmount = 0;
 
-    // Calculate subscription discount if applicable
-    // Use selectedSubscription's discountPercentage if user has active subscription and selected subscription matches
+    // Subscription discount: only when the user's active subscription matches the selection.
     if (this.hasActiveSubscription && this.userSubscription && this.selectedSubscription) {
-      // Check if selected subscription matches user's active subscription
       const userSubscriptionDays = this.getSubscriptionDaysForSubscription(this.userSubscription.subscriptionName);
       const selectedSubscriptionDays = this.selectedSubscription.subscriptionDays || 0;
-      
       if (userSubscriptionDays === selectedSubscriptionDays && selectedSubscriptionDays > 0) {
-        // User has active subscription and selected subscription matches - use selected subscription's discount
-        this.subscriptionDiscountAmount = Math.round(subTotal * (this.selectedSubscription.discountPercentage / 100) * 100) / 100;
-      } else {
-        // Selected subscription doesn't match user's active subscription - no discount
-        this.subscriptionDiscountAmount = 0;
+        this.subscriptionDiscountAmount = round2(subTotal * (this.selectedSubscription.discountPercentage / 100));
       }
-    } else {
-      this.subscriptionDiscountAmount = 0;
     }
 
-    // Calculate promo or first-time discount (can stack with subscription)
+    // Promo / special offer / first-time discount (can stack with subscription).
     if (this.specialOfferApplied && this.selectedSpecialOffer) {
-      // Use selected special offer
       const offer = this.selectedSpecialOffer;
-      if (offer.isPercentage) {
-        this.promoOrFirstTimeDiscountAmount = Math.round(subTotal * (offer.discountValue / 100) * 100) / 100;
-      } else {
-        this.promoOrFirstTimeDiscountAmount = Math.min(offer.discountValue, subTotal);
-      }
+      this.promoOrFirstTimeDiscountAmount = offer.isPercentage
+        ? round2(subTotal * (offer.discountValue / 100))
+        : Math.min(offer.discountValue, subTotal);
     } else if (this.hasFirstTimeDiscount && this.currentUser?.firstTimeOrder && this.firstTimeDiscountApplied) {
-      // Old logic for backward compatibility
-      this.promoOrFirstTimeDiscountAmount = Math.round(subTotal * (this.firstTimeDiscountPercentage / 100) * 100) / 100;
+      this.promoOrFirstTimeDiscountAmount = round2(subTotal * (this.firstTimeDiscountPercentage / 100));
     } else if (this.promoCodeApplied && !this.giftCardApplied) {
-      if (this.promoIsPercentage) {
-        this.promoOrFirstTimeDiscountAmount = Math.round(subTotal * (this.promoDiscount / 100) * 100) / 100;
-      } else {
-        this.promoOrFirstTimeDiscountAmount = this.promoDiscount;
-      }
+      this.promoOrFirstTimeDiscountAmount = this.promoIsPercentage
+        ? round2(subTotal * (this.promoDiscount / 100))
+        : this.promoDiscount;
     }
 
-    // Loyalty Discount stacking — same gate as the custom-pricing branch above. See
-    // applyLoyaltyStacking for the algorithm; mutates the three discount slots in place so
-    // the totalDiscountAmount sum below picks up whatever survived.
+    // Loyalty Discount stacking — mutates the three discount slots in place.
     this.applyLoyaltyStacking(subTotal);
 
-    // Total discount is the sum of all three slots (loyalty + subscription + promo) — after
-    // stacking, at most two are non-zero, see applyLoyaltyStacking comments.
+    // Total discount is the sum of all three slots; after stacking at most two are non-zero.
     const totalDiscountAmount = this.subscriptionDiscountAmount + this.promoOrFirstTimeDiscountAmount + this.loyaltyDiscountAmount;
 
-    // Calculate tax on discounted subtotal
-    const discountedSubTotal = subTotal - totalDiscountAmount;
-    const tax = Math.round(discountedSubTotal * this.salesTaxRate * 100) / 100;
-
-    // Get tips
     const tips = this.tips.value || 0;
     const companyDevelopmentTips = this.companyDevelopmentTips.value || 0;
     const totalTips = tips + companyDevelopmentTips;
-      
-    // Calculate total
-    const total = discountedSubTotal + tax + totalTips;
 
-    // Apply gift card if applicable
-    let finalTotal = total;
+    const totals = calculateTotals({
+      subTotal,
+      discountAmount: this.promoOrFirstTimeDiscountAmount,
+      subscriptionDiscountAmount: this.subscriptionDiscountAmount,
+      loyaltyDiscountAmount: this.loyaltyDiscountAmount,
+      tips,
+      companyDevelopmentTips
+    });
+
+    // Gift card / bubble points / bubble credits come off the very end.
+    let finalTotal = totals.totalBeforeGiftCard;
     if (this.giftCardApplied && this.isGiftCard) {
-      this.giftCardAmountToUse = Math.min(this.giftCardBalance, total);
-      finalTotal = Math.max(0, total - this.giftCardAmountToUse);
+      this.giftCardAmountToUse = resolveGiftCardAmountToUse(this.giftCardBalance, totals.totalBeforeGiftCard);
+      finalTotal = Math.max(0, finalTotal - this.giftCardAmountToUse);
     }
-
-    // Apply bubble points discount
     if (this.selectedPointsToRedeem > 0 && this.pointsDiscountAmount > 0) {
       finalTotal = Math.max(0, finalTotal - this.pointsDiscountAmount);
     }
-
-    // Apply bubble credits
     if (this.useCredits && this.userBubbleCredits > 0) {
       finalTotal = Math.max(0, finalTotal - this.userBubbleCredits);
     }
 
-    // For display, when using explicit hours, show the hours directly
-    if (useExplicitHours && hoursService) {
-      displayDuration = hoursService.quantity * 60;
-    }
-
     this.calculation = {
-      subTotal: Math.round(subTotal * 100) / 100,
-      tax,
+      subTotal: round2(subTotal),
+      tax: totals.tax,
       discountAmount: totalDiscountAmount,
       tips: totalTips,
-      total: Math.round(finalTotal * 100) / 100,
-      totalDuration: displayDuration
+      total: round2(finalTotal),
+      totalDuration: quote.displayDuration
     };
 
-    // Calculate next order's total with subscription discount
+    // Next order's total with the subscription discount applied (no tips/gift card).
     if (this.selectedSubscription && this.selectedSubscription.subscriptionDays > 0 && !this.hasActiveSubscription) {
-    const nextOrderDiscountPercentage = this.selectedSubscription.discountPercentage;
-    this.nextOrderDiscount = Math.round(subTotal * (nextOrderDiscountPercentage / 100) * 100) / 100;
-    
-    // Calculate tax on the discounted subtotal for next order
-    const nextOrderDiscountedSubTotal = subTotal - this.nextOrderDiscount;
-    const nextOrderTax = Math.round(nextOrderDiscountedSubTotal * this.salesTaxRate * 100) / 100;
-    
-    this.nextOrderTotal = nextOrderDiscountedSubTotal + nextOrderTax;
+      this.nextOrderDiscount = round2(subTotal * (this.selectedSubscription.discountPercentage / 100));
+      const nextTotals = calculateTotals({ subTotal, discountAmount: this.nextOrderDiscount });
+      this.nextOrderTotal = nextTotals.discountedSubTotal + nextTotals.tax;
     } else {
       this.nextOrderDiscount = 0;
       this.nextOrderTotal = 0;
@@ -2849,17 +2505,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     // Get the actual cleaner service cost from the selected services
     const cleanerService = this.selectedServices.find(s => s.service.serviceRelationType === 'cleaner');
     const basePrice = cleanerService ? cleanerService.service.cost : 40; // fallback to 40 if no cleaner service found
-    
-    const deepCleaning = this.selectedExtraServices.find(s => s.extraService.isDeepCleaning);
-    const superDeepCleaning = this.selectedExtraServices.find(s => s.extraService.isSuperDeepCleaning);
-    
-    if (superDeepCleaning) {
-      return basePrice * superDeepCleaning.extraService.priceMultiplier;
-    } else if (deepCleaning) {
-      return basePrice * deepCleaning.extraService.priceMultiplier;
-    }
-    
-    return basePrice; // regular cleaning - no multiplier
+    return basePrice * this.getSelectedPriceMultiplier();
   }
 
   getExtraCleanersCount(): number {
@@ -2895,40 +2541,124 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   formatTime(time: string): string {
-    if (!time) return '';
-    const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const hour12 = hour % 12 || 12;
-    const formatted = `${hour12}:${minutes} ${ampm}`;
-    return formatted;
+    return formatTime12h(time);
+  }
+
+  // ── Summary card line builders (OrderSummaryCardComponent) ──────────────
+  // Same content/conditions as the old inline summary markup; `mobile` keeps
+  // the mobile card's small differences (no shimmer, no '—' fallbacks,
+  // 'Bubble Points' label).
+
+  getSummaryDetailLines(mobile: boolean): SummaryLine[] {
+    const lines: SummaryLine[] = [];
+    if (mobile && !this.selectedServiceType) return lines;
+
+    lines.push({ label: 'Service Type:', value: this.selectedServiceType?.name || (mobile ? '' : '—'), shimmer: !mobile && this.loading.serviceTypes });
+
+    if (this.showCustomPricing) {
+      lines.push({ label: 'Number of Cleaners:', value: `${this.customCleaners.value}`, shimmer: !mobile && this.loading.serviceTypes });
+      lines.push({ label: 'Duration:', value: this.formatDuration(this.customDuration.value), shimmer: !mobile && this.loading.serviceTypes });
+    } else {
+      if (this.selectedSubscription) {
+        lines.push({ label: 'Cleaning frequency:', value: this.selectedSubscription.name || (mobile ? '' : '—'), shimmer: !mobile && this.loading.summary });
+      }
+      lines.push({ label: 'Duration:', value: this.formatDuration(this.calculation.totalDuration), shimmer: !mobile && this.loading.summary });
+      lines.push({ label: 'Number of Cleaners:', value: `${this.calculatedMaidsCount}`, shimmer: !mobile && this.loading.summary });
+    }
+
+    const hasDateTime = this.serviceDate.value && this.serviceTime.value;
+    if (hasDateTime || !mobile) {
+      lines.push({
+        label: 'Date & Time:',
+        value: hasDateTime ? `${formatDate(this.serviceDate.value, 'MMM d', 'en-US')} at ${this.formatTime(this.serviceTime.value)}` : '—',
+        shimmer: !mobile && this.loading.summary
+      });
+    }
+    return lines;
+  }
+
+  getSummaryPriceLines(mobile: boolean): SummaryLine[] {
+    const shimmer = !mobile && this.loading.pricing;
+    const lines: SummaryLine[] = [];
+
+    lines.push({ label: 'Subtotal:', value: `$${this.calculation.subTotal.toFixed(2)}`, shimmer });
+
+    if (this.subscriptionDiscountAmount > 0) {
+      lines.push({
+        label: `Plan discount (${this.userSubscription?.discountPercentage}%):`,
+        value: `-$${this.subscriptionDiscountAmount.toFixed(2)}`,
+        rowClass: 'subscription-discount', valueClass: 'discount', shimmer
+      });
+    }
+
+    if (this.loyaltyDiscountAmount > 0) {
+      lines.push({
+        label: `Loyalty Discount (${this.loyaltyDiscountPercentage}%):`,
+        value: `-$${this.loyaltyDiscountAmount.toFixed(2)}`,
+        valueClass: 'discount', shimmer
+      });
+    }
+
+    if (this.promoOrFirstTimeDiscountAmount > 0) {
+      let label = '';
+      if (this.specialOfferApplied && this.selectedSpecialOffer) {
+        label = this.selectedSpecialOffer.name + (this.selectedSpecialOffer.isPercentage ? ` (${this.selectedSpecialOffer.discountValue}%)` : '');
+      } else if (this.firstTimeDiscountApplied) {
+        label = `First-Time Discount (${this.firstTimeDiscountPercentage}%)`;
+      } else if (this.promoCodeApplied) {
+        label = 'Promo Code Discount' + (this.promoIsPercentage ? ` (${this.promoDiscount}%)` : '');
+      }
+      lines.push({ label, value: `-$${this.promoOrFirstTimeDiscountAmount.toFixed(2)}`, valueClass: 'discount', shimmer });
+    }
+
+    if (this.giftCardApplied) {
+      lines.push({
+        label: 'Gift Card Discount:',
+        value: `-$${this.getGiftCardDisplayInfo().amountToUse.toFixed(2)}`,
+        rowClass: 'gift-card-discount', valueClass: 'discount', shimmer
+      });
+    }
+
+    if (this.selectedPointsToRedeem > 0) {
+      lines.push({
+        label: `${mobile ? 'Bubble Points' : 'Points'} (${formatNumber(this.selectedPointsToRedeem, 'en-US')} pts):`,
+        value: `-$${formatNumber(this.pointsDiscountAmount, 'en-US', '1.2-2')}`,
+        rowClass: 'points-discount', valueClass: 'discount', shimmer
+      });
+    }
+
+    if (this.useCredits && this.userBubbleCredits > 0) {
+      lines.push({
+        label: 'Reward Balance:',
+        value: `-$${this.userBubbleCredits.toFixed(2)}`,
+        rowClass: 'points-discount', valueClass: 'discount', shimmer
+      });
+    }
+
+    lines.push({ label: 'Sales Tax (8.875%):', value: `$${this.calculation.tax.toFixed(2)}`, shimmer });
+
+    if (this.tips.value > 0) {
+      lines.push({ label: 'Tips for Cleaners:', value: `$${(this.tips.value || 0).toFixed(2)}`, shimmer });
+    }
+
+    if (this.companyDevelopmentTips.value > 0) {
+      lines.push({ label: 'Tips for Company Development:', value: `$${(this.companyDevelopmentTips.value || 0).toFixed(2)}`, shimmer });
+    }
+
+    return lines;
+  }
+
+  /** Pts-earn preview value for the summary card; null hides the block. */
+  getEstimatedPointsDisplay(): string | null {
+    return this.currentUser && this.bubblePointsEnabled && this.estimatedPoints > 0
+      ? formatNumber(this.estimatedPoints, 'en-US')
+      : null;
   }
 
   getServiceDuration(service: Service): number {
+    // Per-service display duration scales with the cleaning-type multiplier (shared calculator).
     const quantity = this.getServiceQuantity(service);
-    
-    // Get duration multiplier based on cleaning type
-    let durationMultiplier = 1;
-    const deepCleaning = this.selectedExtraServices.find(s => s.extraService.isDeepCleaning);
-    const superDeepCleaning = this.selectedExtraServices.find(s => s.extraService.isSuperDeepCleaning);
-
-    if (superDeepCleaning) {
-      durationMultiplier = superDeepCleaning.extraService.priceMultiplier;
-    } else if (deepCleaning) {
-      durationMultiplier = deepCleaning.extraService.priceMultiplier;
-    }
-    
-    if (service.serviceKey === 'bedrooms' && quantity === 0) {
-      return Math.round(20 * durationMultiplier); // 20 minutes base for studio, adjusted by cleaning type
-    }
-    
-    // For most services, duration should be multiplied by quantity
-    // But for cleaner and hours services, we don't multiply as they have special logic
-    if (service.serviceRelationType === 'cleaner' || service.serviceRelationType === 'hours') {
-      return Math.round(service.timeDuration * durationMultiplier);
-    }
-    
-    return Math.round(service.timeDuration * quantity * durationMultiplier);
+    return getServiceDisplayDuration(service, quantity, this.getSelectedPriceMultiplier());
   }
 
   getServiceQuantity(service: Service): number {
@@ -3105,12 +2835,10 @@ export class BookingComponent implements OnInit, OnDestroy {
       tax: this.calculation.tax,
       total: this.calculation.total,
       calculation: this.calculation, // Add the full calculation object
-      // For custom pricing, store TotalDuration as TOTAL cleaner-minutes (per-cleaner duration × cleaners),
-      // matching the convention used by non-custom orders. Booking summary still shows per-cleaner via
-      // calculation.totalDuration / formatDuration which appends "per maid".
-      totalDuration: this.showCustomPricing
-        ? Math.max(parseInt(this.customDuration.value) * (parseInt(this.customCleaners.value) || 1), 60)
-        : this.actualTotalDuration,
+      // TOTAL cleaner-minutes from the shared calculator (custom pricing included — the
+      // calculator already stores per-cleaner × cleaners with the 1h floor). Booking summary
+      // still shows per-cleaner via calculation.totalDuration / formatDuration ("per maid").
+      totalDuration: this.actualTotalDuration,
       hasActiveSubscription: this.hasActiveSubscription,
       userSubscriptionId: this.userSubscription?.subscriptionId,
       giftCardCode: this.giftCardApplied && this.isGiftCard ? this.promoCode.value : null,
@@ -3158,7 +2886,6 @@ export class BookingComponent implements OnInit, OnDestroy {
           this.formPersistenceService.clearFormData();
           this.bookingForm.reset();
           this.selectedTargetUser = null;
-          this.userSearchTerm = '';
           this.isAdminMode = false;
           this.resetAdminPaymentFields();
           
@@ -3585,9 +3312,9 @@ export class BookingComponent implements OnInit, OnDestroy {
     });
   }
 
-  toggleReorderModal() {
-    this.showReorderModal = !this.showReorderModal;
-    if (this.showReorderModal && this.previousOrders.length === 0) {
+  /** Reorder widget opened — lazy-load orders if none are loaded yet. */
+  onReorderOpened() {
+    if (this.previousOrders.length === 0) {
       this.loadOrders();
     }
   }
@@ -3608,14 +3335,8 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   toggleAdminMode() {
     this.isAdminMode = !this.isAdminMode;
-    if (this.isAdminMode) {
-      if (this.availableUsers.length === 0) {
-        this.loadUsers();
-      } else {
-        // Users already loaded, just refresh the filtered list
-        this.filterUsers();
-      }
-    }
+    // (User search/list loading is owned by AdminUserSearchComponent, which
+    // initializes itself when admin mode renders it.)
     if (!this.isAdminMode) {
       // Restore admin's apartments if a user was selected
       if (this.selectedTargetUser) {
@@ -3633,7 +3354,6 @@ export class BookingComponent implements OnInit, OnDestroy {
       }
       
       this.selectedTargetUser = null;
-      this.userSearchTerm = '';
       this.resetAdminPaymentFields();
 
       // Reload admin's subscription when admin mode is turned off
@@ -3647,56 +3367,9 @@ export class BookingComponent implements OnInit, OnDestroy {
     }
   }
 
-  loadUsers() {
-    this.isLoadingUsers = true;
-    this.adminService.getUsers().subscribe({
-      next: (response: any) => {
-        // Handle both response formats
-        if (response && response.users) {
-          this.availableUsers = response.users.filter((u: UserAdmin) => 
-            u.role === 'Customer' && u.isActive
-          );
-        } else if (Array.isArray(response)) {
-          this.availableUsers = response.filter((u: UserAdmin) => 
-            u.role === 'Customer' && u.isActive
-          );
-        } else {
-          this.availableUsers = [];
-        }
-        this.filterUsers();
-        this.isLoadingUsers = false;
-      },
-      error: (error) => {
-        console.error('Error loading users:', error);
-        this.availableUsers = [];
-        this.isLoadingUsers = false;
-      }
-    });
-  }
-
-  filterUsers() {
-    if (!this.userSearchTerm.trim()) {
-      this.filteredUsers = this.availableUsers; // Show all users
-      return;
-    }
-
-    const search = this.userSearchTerm.toLowerCase().trim();
-    this.filteredUsers = this.availableUsers.filter(user =>
-      user.email.toLowerCase().includes(search) ||
-      user.firstName.toLowerCase().includes(search) ||
-      user.lastName.toLowerCase().includes(search) ||
-      user.id.toString().includes(search)
-    ); // Show all filtered results
-  }
-
-  onUserSearchChange() {
-    this.filterUsers();
-  }
-
   selectUser(user: UserAdmin) {
     this.selectedTargetUser = user;
-    this.userSearchTerm = `${user.firstName} ${user.lastName} (${user.email})`;
-    
+
     // Store admin's original apartments before loading user's apartments
     this.adminOriginalApartments = [...this.userApartments];
     
@@ -3788,10 +3461,8 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   clearSelectedUser() {
     this.selectedTargetUser = null;
-    this.userSearchTerm = '';
     this.resetAdminPaymentFields();
-    this.filterUsers(); // Refresh the filtered users list
-    
+
     // Restore admin's apartments
     this.userApartments = [...this.adminOriginalApartments];
     this.adminOriginalApartments = [];
@@ -3843,7 +3514,6 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   selectOrderToReorder(orderId: number) {
     this.reorderingOrderId = orderId;
-    this.showReorderModal = false;
 
     // In admin mode, use admin endpoint to fetch order details
     const order$ = this.isAdminMode && this.selectedTargetUser
@@ -3996,10 +3666,6 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.reorderingOrderId = null;
       }
     });
-  }
-
-  formatOrderDate(date: any): string {
-    return new Date(date).toLocaleDateString();
   }
 
   isFirstTimeOffer(offer: UserSpecialOffer): boolean {
@@ -4407,28 +4073,17 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.loyaltyDiscountAmount = 0;
     if (this.loyaltyDiscountPercentage <= 0 || subTotal <= 0) return;
 
-    let loyaltyCandidate = Math.round(subTotal * (this.loyaltyDiscountPercentage / 100) * 100) / 100;
-    if (loyaltyCandidate <= 0) return;
-
-    // Round 1: loyalty vs subscription. Tie → subscription wins (preserves existing user
-    // expectation that an actively-paid subscription shows up).
-    if (loyaltyCandidate > this.subscriptionDiscountAmount) {
-      this.subscriptionDiscountAmount = 0;
-    } else {
-      loyaltyCandidate = 0;
-    }
-
-    // Round 2: round-1 winner vs promo/special/first-time. If subscription won round 1,
-    // loyalty is already zero and promo continues stacking with subscription.
-    if (loyaltyCandidate > 0) {
-      if (loyaltyCandidate > this.promoOrFirstTimeDiscountAmount) {
-        this.promoOrFirstTimeDiscountAmount = 0;
-      } else {
-        loyaltyCandidate = 0;
-      }
-    }
-
-    this.loyaltyDiscountAmount = loyaltyCandidate;
+    // Single stacking implementation lives in the shared calculator (mirrored by the backend).
+    const loyaltyCandidate = round2(subTotal * (this.loyaltyDiscountPercentage / 100));
+    const stacked = resolveLoyaltyStacking(
+      loyaltyCandidate,
+      this.loyaltyDiscountPercentage,
+      this.subscriptionDiscountAmount,
+      this.promoOrFirstTimeDiscountAmount
+    );
+    this.loyaltyDiscountAmount = stacked.loyaltyAmount;
+    this.subscriptionDiscountAmount = stacked.subscriptionAmount;
+    this.promoOrFirstTimeDiscountAmount = stacked.promoAmount;
   }
 
   // Load the user's current loyalty discount percentage. In admin mode this MUST read from
@@ -4575,19 +4230,11 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   getExtraServiceTooltip(extra: ExtraService): string {
-    let tooltip = extra.description || '';
-    
-    // Add additional info for Extra Cleaners
-    if (extra.name === 'Extra Cleaners') {
-      tooltip += '\n\nEach extra cleaner reduces service duration.';
-    }
-    
-    // Add disabled reason for same day service
+    // Booking-specific: a disabled Same Day Service explains why instead.
     if (extra.isSameDayService && !this.isSameDayServiceAvailable) {
-      tooltip = this.sameDayServiceDisabledReason;
+      return this.sameDayServiceDisabledReason;
     }
-    
-    return tooltip;
+    return getExtraServiceTooltip(extra);
   }
 
   getSubscriptionTooltip(subscription: Subscription): string {
@@ -5092,35 +4739,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   getExtraServiceImage(extraService: ExtraService, isSelected: boolean): string {
-    const serviceName = extraService.name.toLowerCase();
-    const suffix = isSelected ? '' : '_disabled';
-    
-    // Map service names to PNG image paths
-    if (serviceName.includes('same day')) return `/images/same_day${suffix}.png`;
-    if (serviceName.includes('extra cleaners')) return `/images/extra_cleaners${suffix}.png`;
-    if (serviceName.includes('extra minutes')) return `/images/extra_minutes${suffix}.png`;
-    if (serviceName.includes('cleaning supplies')) return `/images/cleaning_supplies${suffix}.png`;
-    if (serviceName.includes('vacuum cleaner')) return `/images/vacuum_cleaner${suffix}.png`;
-    if (serviceName.includes('pets')) return `/images/pets${suffix}.png`;
-    if (serviceName.includes('fridge')) return `/images/fridge${suffix}.png`;
-    if (serviceName.includes('oven')) return `/images/oven${suffix}.png`;
-    if (serviceName.includes('kitchen cabinets')) return `/images/kitchen_cabinets${suffix}.png`;
-    if (serviceName.includes('closets')) return `/images/closets${suffix}.png`;
-    if (serviceName.includes('dishes')) return `/images/dishes${suffix}.png`;
-    if (serviceName.includes('baseboards')) return `/images/baseboards${suffix}.png`;
-    if (serviceName.includes('windows')) return `/images/windows${suffix}.png`;
-    if (serviceName.includes('walls')) return `/images/walls${suffix}.png`;
-    if (serviceName.includes('stairs')) return `/images/stairs${suffix}.png`;
-    if (serviceName.includes('folding') || serviceName.includes('folding / organizing')) return `/images/folding${suffix}.png`;
-    if (serviceName.includes('laundry')) return `/images/laundry${suffix}.png`;
-    if (serviceName.includes('balcony')) return `/images/balcony${suffix}.png`;
-    if (serviceName.includes('cabinet')) return `/images/office${suffix}.png`;
-    if (serviceName.includes('couches')) return `/images/couches${suffix}.png`;
-    if (serviceName.includes('chandelier')) return `/images/chandelier${suffix}.png`;
-    if (serviceName.includes('ceiling fan')) return `/images/ceiling_fan${suffix}.png`;
-    
-    // Default image for unknown services
-    return `/images/default_icon${suffix}.png`;
+    // Icon mapping lives in shared/booking/extra-service-display.utils.
+    return getExtraServiceImage(extraService, isSelected);
   }
 
   toggleBookingSummary() {
