@@ -9,6 +9,7 @@ import {
   CreateExpense,
   GroupedExpenses
 } from '../../../services/expense.service';
+import { AuthService } from '../../../services/auth.service';
 
 @Component({
   selector: 'app-expenses',
@@ -63,7 +64,15 @@ export class ExpensesComponent implements OnInit {
   categorySaving = false;
   pendingDeleteCategoryId: number | null = null;
 
-  constructor(private expenseService: ExpenseService) {}
+  /** SuperAdmins can edit; Admins granted view-only access see the page read-only. */
+  canEdit = false;
+
+  constructor(
+    private expenseService: ExpenseService,
+    private authService: AuthService
+  ) {
+    this.canEdit = this.authService.currentUserValue?.role === 'SuperAdmin';
+  }
 
   ngOnInit(): void {
     this.load();

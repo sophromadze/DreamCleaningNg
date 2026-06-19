@@ -52,4 +52,13 @@ export class OrderSummaryCardComponent {
   @Input() estimatedPoints: string | null = null;
 
   @Output() toggleCollapsed = new EventEmitter<void>();
+
+  /** Tapping anywhere on the total section toggles the summary (mobile). The
+   * toggle button stops propagation so it doesn't double-fire. No-op when the
+   * card isn't collapsible (e.g. the always-expanded mobile inline variant). */
+  onTotalSectionClick(): void {
+    if (this.showToggle) {
+      this.toggleCollapsed.emit();
+    }
+  }
 }

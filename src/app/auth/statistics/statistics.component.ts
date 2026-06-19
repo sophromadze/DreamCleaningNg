@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_I
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, OrderStatistics, DailyStatistics, MonthlyFinancialRate } from '../../services/admin.service';
+import { AuthService } from '../../services/auth.service';
 import { forkJoin } from 'rxjs';
 import Chart from 'chart.js/auto';
 
@@ -62,12 +63,17 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   ratesLoading = false;
   ratesError = '';
 
+  /** SuperAdmins can override FX/bonus rates; view-only Admins see the page read-only. */
+  canEdit = false;
+
   constructor(
     private adminService: AdminService,
+    private authService: AuthService,
     private cdr: ChangeDetectorRef,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
+    this.canEdit = this.authService.currentUserValue?.role === 'SuperAdmin';
   }
 
   ngOnInit(): void {

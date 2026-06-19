@@ -1,11 +1,11 @@
 <div class="admin-rewards-page">
   <div class="admin-rewards-header">
     <h1>🫧 Bubble Rewards Management</h1>
-    <button class="reset-btn" (click)="openResetModal()">Reset Points</button>
+    <button class="reset-btn" *ngIf="canEdit" (click)="openResetModal()">Reset Points</button>
     <div class="master-switch-row">
       <label class="switch-label">Rewards System:</label>
       <label class="toggle-switch">
-        <input type="checkbox" [checked]="masterSwitch" (change)="toggleMasterSwitch($any($event.target).checked)">
+        <input type="checkbox" [checked]="masterSwitch" [disabled]="!canEdit" (change)="toggleMasterSwitch($any($event.target).checked)">
         <span class="toggle-slider"></span>
       </label>
       <span class="master-status" [class.on]="masterSwitch" [class.off]="!masterSwitch">
@@ -44,6 +44,7 @@
               <label class="toggle-switch small">
                 <input type="checkbox"
                        [checked]="(group.pendingChanges[setting.settingKey] ?? setting.settingValue) === 'true'"
+                       [disabled]="!canEdit"
                        (change)="onSettingChange(group, setting.settingKey, $any($event.target).checked ? 'true' : 'false')">
                 <span class="toggle-slider"></span>
               </label>
@@ -53,12 +54,13 @@
               <input type="text"
                      class="setting-input"
                      [value]="group.pendingChanges[setting.settingKey] ?? setting.settingValue"
+                     [disabled]="!canEdit"
                      (change)="onSettingChange(group, setting.settingKey, $any($event.target).value)">
             </ng-container>
           </div>
         </div>
 
-        <div class="category-actions">
+        <div class="category-actions" *ngIf="canEdit">
           <button class="save-category-btn"
                   [disabled]="group.saving || !hasPendingChanges(group)"
                   (click)="saveCategory(group)">

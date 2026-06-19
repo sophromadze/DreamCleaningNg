@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, shareReplay } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 // Interfaces
@@ -127,8 +127,17 @@ export class SpecialOfferService {
   }
 
   // Public methods
+  /** Shared, session-cached public offers so multiple consumers on one page
+   *  (e.g. homepage hero coupon + rewards section, service-page hero) make a single call. */
+  private publicOffers$?: Observable<PublicSpecialOffer[]>;
+
   getPublicSpecialOffers(): Observable<PublicSpecialOffer[]> {
-    return this.http.get<PublicSpecialOffer[]>(`${this.apiUrl}/special-offers/public`);
+    if (!this.publicOffers$) {
+      this.publicOffers$ = this.http
+        .get<PublicSpecialOffer[]>(`${this.apiUrl}/special-offers/public`)
+        .pipe(shareReplay(1));
+    }
+    return this.publicOffers$;
   }
 
   enableSpecialOffer(id: number): Observable<{ message: string }> {

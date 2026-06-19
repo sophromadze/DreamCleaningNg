@@ -89,6 +89,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   searchTerm: string = '';
   statusFilter: string = 'all';
   dateFilter: string = 'all';
+  // Service-type filter. Values are the canonical category keys produced by
+  // getServiceTypeFilterKey() — residential splits into 'deep'/'regular'.
+  serviceTypeFilter: string = 'all';
 
   // Table sort (default: latest service date first)
   sortColumn: string = 'serviceDate';
@@ -772,7 +775,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   private get stats() {
     const key = [
       this.statsVersion, this.orders.length, this.searchTerm,
-      this.statusFilter, this.paymentMethodFilter, this.dateFilter
+      this.statusFilter, this.paymentMethodFilter, this.dateFilter,
+      this.serviceTypeFilter
     ].join('|');
     if (key !== this.statsCacheKey) {
       this.statsCacheKey = key;
@@ -1747,6 +1751,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       filtered = filtered.filter(o => (o.paymentMethod || 'Normal') === this.paymentMethodFilter);
     }
 
+    // Service-type filter (move in/out, arranged, deep, regular, custom, filthy, heavy).
+    // Residential orders resolve to 'deep'/'regular' via the same logic as the column.
+    if (this.serviceTypeFilter !== 'all') {
+      filtered = filtered.filter(o => this.getServiceTypeFilterKey(o) === this.serviceTypeFilter);
+    }
+
     // Date filter
     if (this.dateFilter !== 'all') {
       const now = new Date();
@@ -1890,6 +1900,27 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.formatServiceTypeLabel(order.serviceTypeName);
   }
 
+  /**
+   * Canonical service-type category key for the orders filter. Mirrors the labels shown
+   * in the Service Type column: residential splits into 'deep'/'regular'; everything else
+   * maps by name to 'move-in-out' / 'arranged' / 'custom' / 'filthy' / 'heavy'. Anything
+   * else falls through to 'other' (never matches a filter option, so it's hidden when a
+   * specific type is selected — and always shown under "All Types").
+   */
+  getServiceTypeFilterKey(order: AdminOrderList): string {
+    if (this.isResidentialServiceType(order.serviceTypeName)) {
+      return this.getServiceTypeDisplay(order) === 'Deep' ? 'deep' : 'regular';
+    }
+    const key = (order.serviceTypeName || '').toLowerCase();
+    if (key.includes('move')) return 'move-in-out';
+    if (key.includes('office')) return 'office';
+    if (key.includes('arranged')) return 'arranged';
+    if (key.includes('custom')) return 'custom';
+    if (key.includes('filthy')) return 'filthy';
+    if (key.includes('heavy')) return 'heavy';
+    return 'other';
+  }
+
   private formatServiceTypeLabel(serviceTypeName: string | null | undefined): string {
     if (!serviceTypeName) return 'N/A';
 
@@ -1903,7 +1934,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // Keep "in/out" formatting for move in/out service labels.
     normalized = normalized.replace(/\bin out\b/g, 'in/out');
-    normalized = normalized.replace(/\bheavy conditional\b/g, 'heavy');
+    normalized = normalized.replace(/\bheavy condition(al)?\b/g, 'heavy');
     normalized = normalized.replace(/\bpre arranged\b/g, 'arranged');
 
     if (!normalized) return 'N/A';

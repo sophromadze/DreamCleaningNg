@@ -1,0 +1,272 @@
+<!-- =========================================================
+     HERO SECTION (shared)
+     Left: trust badge, headline, location pills, hero image
+           with overlay badges, primary CTAs
+     Right: booking form card (functionality preserved)
+     (DOM order is booking card then hero content; visual order is
+      swapped via CSS `order` on .hero-grid items.)
+========================================================== -->
+<section class="hero-section">
+  <div class="hero-bg-glow hero-bg-glow--blue" aria-hidden="true"></div>
+  <div class="hero-bg-glow hero-bg-glow--green" aria-hidden="true"></div>
+
+  <div class="hero-grid">
+
+    <!-- ===== Booking form card (right) ===== -->
+    <aside class="booking-form-card">
+      <header class="booking-form-card__header">
+        <div>
+          <p class="booking-form-card__step">Step 1 of 3</p>
+          <h2 class="booking-form-card__title">Book Your Cleaning</h2>
+        </div>
+        <span class="badge badge--success">Online booking</span>
+      </header>
+
+      <form class="booking-form" (ngSubmit)="continueBooking()">
+
+        <!-- Service Type -->
+        <div class="form-group">
+          <div *ngIf="isLoadingServiceTypes" class="service-type-dropdown shimmer-dropdown" [shimmer]="true"></div>
+          <div *ngIf="!isLoadingServiceTypes" class="service-type-dropdown">
+            <button
+              type="button"
+              class="dropdown-toggle"
+              [class.error]="serviceTypeControl.invalid && serviceTypeControl.touched"
+              (click)="toggleServiceTypeDropdown()">
+              <span class="dropdown-toggle__label">
+                <i class="fas dropdown-toggle__icon"
+                   [ngClass]="getServiceTypeIcon(selectedServiceType?.name)"
+                   aria-hidden="true"></i>
+                <span>{{ selectedServiceType ? selectedServiceType.name : 'Select a service type' }}</span>
+              </span>
+              <i class="fas fa-chevron-down dropdown-toggle__chevron"></i>
+            </button>
+            <div class="dropdown-menu" *ngIf="serviceTypeDropdownOpen">
+              <button
+                *ngFor="let type of serviceTypes"
+                type="button"
+                class="dropdown-item"
+                [class.is-active]="selectedServiceType?.id === type.id"
+                (click)="selectServiceType(type)">
+                <i class="fas dropdown-item__icon"
+                   [ngClass]="getServiceTypeIcon(type.name)"
+                   aria-hidden="true"></i>
+                <span>{{ type.name }}</span>
+              </button>
+            </div>
+          </div>
+          <div class="error-message" *ngIf="!isLoadingServiceTypes && serviceTypeControl.invalid && serviceTypeControl.touched">
+            Service type is required
+          </div>
+        </div>
+
+        <!-- About Your Home -->
+        <div class="form-section" *ngIf="isLoadingServiceTypes || selectedServiceType">
+          <h3 class="section-title">About Your Home</h3>
+          <div class="services services-shimmer" *ngIf="isLoadingServiceTypes">
+            <div class="shimmer-service-line" *ngFor="let i of [1,2,3]" [shimmer]="true"></div>
+          </div>
+          <div class="services" *ngIf="!isLoadingServiceTypes && selectedServiceType">
+            <ng-container *ngFor="let selected of selectedServices">
+              <div class="service-item" *ngIf="selected.service.serviceKey !== 'sqft'">
+                <label>{{ selected.service.name }}</label>
+
+                <div class="service-input" *ngIf="selected.service.inputType === 'dropdown'">
+                  <div class="quantity-control">
+                    <div class="control-buttons">
+                      <button
+                        type="button"
+                        [attr.aria-label]="'Decrease ' + selected.service.name"
+                        (click)="decrementServiceQuantity(selected.service)"
+                        [disabled]="selected.quantity <= (selected.service.minValue || 0)">
+                        <svg width="12" height="2" viewBox="0 0 12 2" fill="none">
+                          <line x1="1" y1="1" x2="11" y2="1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                      </button>
+                      <span class="quantity-value">
+                        {{ selected.service.serviceKey === 'bedrooms' && selected.quantity === 0 ? 'Studio' : selected.quantity }}
+                      </span>
+                      <button
+                        type="button"
+                        [attr.aria-label]="'Increase ' + selected.service.name"
+                        (click)="incrementServiceQuantity(selected.service)"
+                        [disabled]="selected.quantity >= (selected.service.maxValue || 10)">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                          <line x1="6" y1="1" x2="6" y2="11" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                          <line x1="1" y1="6" x2="11" y2="6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+
+        <!-- Cleaning Type -->
+        <div class="form-section" *ngIf="isLoadingServiceTypes || canSelectDeepCleaning">
+          <h3 class="section-title">Cleaning Type</h3>
+          <div *ngIf="isLoadingServiceTypes" class="cleaning-type-buttons">
+            <div class="shimmer-btn-pill" [shimmer]="true"></div>
+            <div class="shimmer-btn-pill" [shimmer]="true"></div>
+          </div>
+          <div *ngIf="!isLoadingServiceTypes && canSelectDeepCleaning" class="cleaning-type-buttons">
+            <button
+              type="button"
+              class="cleaning-type-btn"
+              [class.selected]="cleaningTypeControl.value === 'normal'"
+              (click)="selectCleaningType('normal')">
+              <i class="fas fa-broom cleaning-type-btn__icon" aria-hidden="true"></i>
+              <span class="cleaning-type-btn__body">
+                <span class="cleaning-type-btn__title">Regular Cleaning</span>
+                <span class="cleaning-type-btn__sub">Standard maintenance clean</span>
+              </span>
+              <i class="fas fa-check-circle cleaning-type-btn__check" aria-hidden="true"></i>
+            </button>
+            <button
+              type="button"
+              class="cleaning-type-btn cleaning-type-btn--featured"
+              [class.selected]="cleaningTypeControl.value === 'deep'"
+              (click)="selectCleaningType('deep')">
+              <span class="cleaning-type-btn__badge">Most popular</span>
+              <i class="fas fa-spray-can-sparkles cleaning-type-btn__icon" aria-hidden="true"></i>
+              <span class="cleaning-type-btn__body">
+                <span class="cleaning-type-btn__title">Deep Cleaning</span>
+                <span class="cleaning-type-btn__sub">Recommended for first-timers</span>
+              </span>
+              <i class="fas fa-check-circle cleaning-type-btn__check" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="error-message" *ngIf="!isLoadingServiceTypes && cleaningTypeControl.invalid && cleaningTypeControl.touched">
+            Cleaning type is required
+          </div>
+        </div>
+
+        <!-- CTA -->
+        <div *ngIf="isLoadingServiceTypes" class="shimmer-btn" [shimmer]="true"></div>
+        <button *ngIf="!isLoadingServiceTypes" type="submit" class="btn-cta-secondary btn-cta-secondary--full">
+          See Exact Times &amp; Price
+          <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m9 18 6-6-6-6"/>
+          </svg>
+        </button>
+
+        <!-- Starting estimate -->
+        <div class="estimate-row" *ngIf="isLoadingServiceTypes || selectedServiceType">
+          <span class="estimate-row__label">Starting estimate</span>
+          <div *ngIf="isLoadingServiceTypes" class="shimmer-price" [shimmer]="true"></div>
+          <span *ngIf="!isLoadingServiceTypes" class="estimate-row__price">from ${{ getEstimatedPrice() }}</span>
+        </div>
+
+        <ul class="trust-mini-list">
+          <li><i class="fas fa-check-circle trust-mini-list__icon trust-mini-list__icon--green" aria-hidden="true"></i> No hidden fees</li>
+          <li><i class="fas fa-lock trust-mini-list__icon trust-mini-list__icon--blue" aria-hidden="true"></i> Secure payment</li>
+          <li><i class="fas fa-calendar-check trust-mini-list__icon trust-mini-list__icon--blue" aria-hidden="true"></i> Easy reschedule</li>
+        </ul>
+
+      </form>
+
+      <!-- Need help? Phone shown as a clickable link, not a button -->
+      <p class="booking-form-card__help">
+        Need help? <a href="tel:+19299301525" class="booking-form-card__help-phone">Call now (929) 930-1525</a>
+      </p>
+    </aside>
+
+    <!-- ===== Hero content (left) ===== -->
+    <div class="hero-content">
+      <div class="hero-content__badge">
+        <svg viewBox="0 0 24 24" fill="currentColor" class="star-icon" aria-hidden="true">
+          <path d="M12 2.75 14.86 8.55l6.4.93-4.63 4.51 1.09 6.37L12 17.35 6.28 20.36l1.09-6.37-4.63-4.51 6.4-.93L12 2.75Z"/>
+        </svg>
+        <span *ngIf="totalReviews > 0">{{ totalReviews }}+ Google Reviews ·&nbsp;</span>Trusted NYC Cleaners
+      </div>
+
+      <h1 class="hero-title">
+        Professional Cleaning Services in <span class="hero-title__accent">{{ locationName }}</span>
+      </h1>
+      <p class="hero-slogan">Where dreams feel clean</p>
+
+      <div class="hero-locations" *ngIf="showLocations">
+        <a routerLink="/services/manhattan-cleaning" class="location-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+          Manhattan
+        </a>
+        <a routerLink="/services/brooklyn-cleaning" class="location-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+          Brooklyn
+        </a>
+        <a routerLink="/services/queens-cleaning" class="location-pill">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+          Queens
+        </a>
+      </div>
+
+      <p class="hero-subtitle">
+        {{ heroSubtitle }}
+      </p>
+
+      <!-- Hero image card with overlay badges -->
+      <div class="hero-image-card">
+        <div class="hero-image-card__media" role="img" aria-label="Professional cleaning service in NYC - Dream Cleaning"></div>
+        <div class="hero-image-card__overlay" aria-hidden="true"></div>
+
+        <a class="hero-offer-coupon" *ngIf="firstTimeDiscountLabel"
+           routerLink="/booking"
+           [attr.aria-label]="'Welcome offer: ' + firstTimeDiscountLabel + ' off your first cleaning. Book now.'">
+          <div class="hero-offer-coupon__body">
+            <svg class="hero-offer-coupon__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/>
+              <circle cx="7" cy="7" r="1.6" fill="currentColor"/>
+            </svg>
+            <span class="hero-offer-coupon__copy">
+              <span class="hero-offer-coupon__eyebrow">Welcome Offer</span>
+              <span class="hero-offer-coupon__headline">First cleaning</span>
+            </span>
+          </div>
+          <span class="hero-offer-coupon__perf" aria-hidden="true"></span>
+          <div class="hero-offer-coupon__deal">
+            <span class="hero-offer-coupon__percent">{{ firstTimeDiscountLabel }}</span>
+            <span class="hero-offer-coupon__off">OFF</span>
+          </div>
+        </a>
+
+        <div class="hero-trust-bar">
+          <div class="hero-trust-bar__item">
+            <svg class="trust-icon trust-icon--amber" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8Z"/>
+            </svg>
+            <p class="hero-trust-bar__title">Same-Day Service</p>
+            <p class="hero-trust-bar__sub">Available on short notice</p>
+          </div>
+          <div class="hero-trust-bar__item">
+            <svg class="trust-icon trust-icon--green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/>
+              <path d="m9 12 2 2 4-4"/>
+            </svg>
+            <p class="hero-trust-bar__title">Licensed &amp; Insured</p>
+            <p class="hero-trust-bar__sub">Your home is protected</p>
+          </div>
+          <div class="hero-trust-bar__item">
+            <svg class="trust-icon trust-icon--blue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/>
+              <path d="m8 12 2.5 2.5L16 9"/>
+            </svg>
+            <p class="hero-trust-bar__title">Satisfaction</p>
+            <p class="hero-trust-bar__sub">Not happy until you are</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>

@@ -1,0 +1,394 @@
+/* Width wrapper (mirrors the homepage .container-narrow so the section lines
+   up with surrounding page content wherever it's embedded). */
+.container-narrow {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.badge {
+  display: inline-flex;
+  align-self: flex-start;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.875rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: var(--fw-extrabold);
+  white-space: nowrap;
+
+  svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  &--success {
+    background: var(--mint-fresh);
+    color: var(--mint-fresh-text);
+  }
+}
+
+.testimonial-section {
+  padding: 2rem 0;
+  background: var(--page-bg);
+}
+
+.testimonial-card {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 2rem;
+  padding: 2rem;
+  border-radius: var(--radius-3xl);
+  background: linear-gradient(
+    135deg,
+    var(--surface-glass) 0%,
+    var(--surface) 100%
+  );
+  border: 1px solid var(--border-color);
+  box-shadow: 0 12px 40px var(--shadow-color);
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 1.5rem;
+  }
+
+  &__photo {
+    position: relative;
+    border-radius: var(--radius-2xl);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    min-height: 320px;
+
+    /* Direct-child selector so the cover image rule doesn't also apply to the
+       caption logo nested inside __caption (which has its own sizing). */
+    > img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+  }
+
+  &__photo-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      var(--overlay-dark-strong) 0%,
+      var(--overlay-dark-soft) 50%,
+      transparent 100%
+    );
+  }
+
+  &__caption {
+    position: absolute;
+    inset: auto 1.25rem 1.25rem 1.25rem;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  &__photo-logo {
+    display: block;
+    /* Constrained max-width keeps the wide brand logo (logo.svg includes the
+       "DREAM CLEANING" word-mark) from spilling across the photo. */
+    width: auto;
+    height: 2.25rem;
+    max-width: 11rem;
+    object-fit: contain;
+    /* Logo is blue brand color; small drop shadow helps it stay legible
+       on the dark overlay area at the bottom of the photo. */
+    filter: drop-shadow(0 2px 6px var(--overlay-dark-strong));
+  }
+
+  &__photo-title {
+    font-size: 1.125rem;
+    font-weight: var(--fw-black);
+    color: #fff;
+    margin: 0;
+  }
+
+  &__photo-sub {
+    font-size: 0.8125rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin: 0.25rem 0 0;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1.25rem;
+  }
+
+  &__heading {
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    font-weight: var(--fw-black);
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    color: var(--text-primary);
+    margin: 0;
+    max-width: 540px;
+  }
+
+  &__accent {
+    color: var(--primary-color);
+  }
+
+  &__grid {
+    display: grid;
+    /* auto-fit so the panel still looks balanced if the Google review fetch
+       returned nothing (dev / pre-hydration) and only the stats card is shown. */
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-top: 0.5rem;
+  }
+
+  &__badge-row {
+    display: flex;
+  }
+}
+
+.testimonial-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+
+  /* Slider viewport: each slide is absolutely positioned and fades in.
+     Min-height keeps the card stable so adjacent layout doesn't jump
+     between reviews of different lengths. */
+  &__viewport {
+    position: relative;
+    min-height: 12.5rem;
+  }
+
+  &__slide {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    opacity: 0;
+    transform: translateY(6px);
+    pointer-events: none;
+    transition: opacity 0.45s ease, transform 0.45s ease;
+
+    &.is-active {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+  }
+
+  .rating-stars {
+    display: inline-flex;
+    gap: 2px;
+
+    svg {
+      width: 1.125rem;
+      height: 1.125rem;
+      color: var(--border-color);
+
+      &.filled {
+        color: var(--star-color);
+      }
+    }
+  }
+
+  &__rating-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    .google-g-icon {
+      width: 1.125rem;
+      height: 1.125rem;
+      flex-shrink: 0;
+    }
+  }
+
+  &__text {
+    font-size: 1rem;
+    line-height: 1.55;
+    color: var(--text-primary);
+    margin: 0;
+    font-weight: var(--fw-medium);
+    /* Cap long Google reviews so the card doesn't blow out the testimonial layout. */
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    line-clamp: 5;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  &__author-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: auto;
+  }
+
+  &__avatar {
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--surface-subtle);
+
+    &--fallback {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px;
+      background: var(--surface);
+      border: 1px solid var(--border-color);
+    }
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__author {
+    font-size: 0.875rem;
+    font-weight: var(--fw-extrabold);
+    color: var(--primary-text);
+    margin: 0;
+  }
+
+  &__google-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    align-self: flex-start;
+    padding: 0.5rem 0.875rem;
+    border-radius: var(--radius-pill);
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+    font-weight: var(--fw-bold);
+    text-decoration: none;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+
+    &:hover {
+      background: var(--surface);
+      border-color: var(--primary-color);
+      transform: translateY(-1px);
+    }
+
+    .google-g-icon {
+      width: 1rem;
+      height: 1rem;
+      flex-shrink: 0;
+    }
+  }
+
+  &__nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+    margin-top: auto;
+  }
+
+  &__nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.875rem;
+    height: 2.875rem;
+    padding: 0;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-color);
+    background: var(--surface);
+    color: var(--primary-text);
+    cursor: pointer;
+    box-shadow: 0 2px 6px -1px var(--shadow-color);
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+
+    svg {
+      width: 1.375rem;
+      height: 1.375rem;
+    }
+
+    &:hover {
+      border-color: var(--primary-color);
+      background: var(--surface-elevated);
+      box-shadow: 0 3px 8px -1px var(--shadow-color);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+  }
+
+  &__nav-count {
+    min-width: 3.25rem;
+    text-align: center;
+    font-size: 0.875rem;
+    font-weight: var(--fw-bold);
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.testimonial-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 1.25rem;
+  background: var(--warning-orange-bg);
+  border: 1px solid var(--warning-orange-border);
+  border-radius: var(--radius-xl);
+
+  &__title {
+    font-size: 1.25rem;
+    font-weight: var(--fw-black);
+    color: var(--text-primary);
+    margin: 0;
+  }
+
+  &__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.625rem 0.75rem;
+      background: var(--surface);
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      font-weight: var(--fw-bold);
+      color: var(--text-primary);
+
+      svg {
+        width: 1rem;
+        height: 1rem;
+        color: var(--fresh-green);
+        flex-shrink: 0;
+      }
+    }
+  }
+}

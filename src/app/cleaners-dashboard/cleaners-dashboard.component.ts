@@ -104,6 +104,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   includeInactive = false;
   sortBy: CleanerSort = 'default';
   filterBy: CleanerFilter = 'all';
+  // '' = no weekday filter; otherwise show only cleaners NOT busy that weekday.
+  availableOnDay: DayKey | '' = '';
   private search$ = new Subject<string>();
   private destroy$ = new Subject<void>();
 
@@ -192,6 +194,16 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     { value: 'active', label: 'Active only' },
     { value: 'reserve', label: 'Reserve only' },
     { value: 'new', label: 'New cleaners' }
+  ];
+
+  readonly availableDayOptions: { value: DayKey; label: string }[] = [
+    { value: 'mon', label: 'Monday' },
+    { value: 'tue', label: 'Tuesday' },
+    { value: 'wed', label: 'Wednesday' },
+    { value: 'thu', label: 'Thursday' },
+    { value: 'fri', label: 'Friday' },
+    { value: 'sat', label: 'Saturday' },
+    { value: 'sun', label: 'Sunday' }
   ];
 
   readonly locationOptions: { value: string; label: string }[] = [
@@ -878,6 +890,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   }
 
   private matchesFilter(c: CleanerListItem): boolean {
+    if (!this.matchesAvailableDay(c)) return false;
     switch (this.filterBy) {
       case 'best': return this.normalizeRanking(c.ranking) === 'Top';
       case 'good': return this.normalizeRanking(c.ranking) === 'Standard';
@@ -890,6 +903,13 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       case 'all':
       default: return true;
     }
+  }
+
+  /** When a weekday is selected, keep only cleaners NOT marked busy on that day. */
+  private matchesAvailableDay(c: CleanerListItem): boolean {
+    if (!this.availableOnDay) return true;
+    const dayInt = DAY_KEY_TO_INT[this.availableOnDay];
+    return !(c.busyDaysOfWeek ?? []).includes(dayInt);
   }
 
   private sortCleaners(list: CleanerListItem[]): CleanerListItem[] {

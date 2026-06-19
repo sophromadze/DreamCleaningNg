@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, map, catchError, of, switchMap } from 'rxjs';
+import { Observable, map, catchError, of, switchMap, shareReplay } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export interface Review {
@@ -18,6 +18,10 @@ export class GooglePlacesService {
   private apiUrl = environment.apiUrl;
   private readonly placeId = 'ChIJHSWM5PolFKIRKY3v5B2aLKg'; // Your Google Place ID
 
+  /** Shared, session-cached reviews stream so multiple subscribers (homepage hero
+   *  badge + testimonial section, service pages, etc.) trigger only one HTTP call. */
+  private reviews$?: Observable<{ reviews: Review[], overallRating: number, totalReviews: number }>;
+
   constructor(private http: HttpClient) { }
 
   getReviews(): Observable<{ reviews: Review[], overallRating: number, totalReviews: number }> {
@@ -25,8 +29,11 @@ export class GooglePlacesService {
     if (!environment.production) {
       return of({ reviews: [], overallRating: 0, totalReviews: 0 });
     }
+    if (this.reviews$) {
+      return this.reviews$;
+    }
     // THIS IS THE KEY CHANGE - calling your backend instead of Google directly
-    return this.http.get<any>(`${this.apiUrl}/googlereviews/${this.placeId}`).pipe(
+    this.reviews$ = this.http.get<any>(`${this.apiUrl}/googlereviews/${this.placeId}`).pipe(
       map(response => {
         const result = response.result;
         if (!result) {
@@ -58,8 +65,10 @@ export class GooglePlacesService {
           overallRating: 0,
           totalReviews: 0
         });
-      })
+      }),
+      shareReplay(1)
     );
+    return this.reviews$;
   }
 
   /**

@@ -1040,6 +1040,21 @@ $app-header-height-mobile: 60px;
       background: #fff;
     }
   }
+
+  // Page-access grants (SuperAdmin → regular Admin, read-only)
+  .page-access-head {
+    margin-top: 0.5rem;
+
+    .pref-hint {
+      color: var(--text-muted);
+      font-size: 0.7rem;
+      font-style: italic;
+    }
+  }
+
+  .pref-label-sub {
+    padding-left: 0.85rem;
+  }
 }
 
 .yes-no-toggle {

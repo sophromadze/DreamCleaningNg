@@ -83,6 +83,20 @@
         <option value="month">This Month</option>
       </select>
 
+      <!-- Service-type filter. Categories mirror the Service Type column labels;
+           residential is split into Deep / Regular. -->
+      <select [(ngModel)]="serviceTypeFilter" class="filter-select">
+        <option value="all">All Types</option>
+        <option value="move-in-out">Move In/Out</option>
+        <option value="office">Office</option>
+        <option value="arranged">Arranged</option>
+        <option value="deep">Deep</option>
+        <option value="regular">Regular</option>
+        <option value="custom">Custom</option>
+        <option value="filthy">Filthy</option>
+        <option value="heavy">Heavy</option>
+      </select>
+
       <!-- Phase 1: Payment Method filter. Filters by how the order was paid, independent of
            Status (so admin can see e.g. all Active Zelle orders or all Done Cash orders). -->
       <select [(ngModel)]="paymentMethodFilter" class="filter-select">

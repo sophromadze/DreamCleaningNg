@@ -21,6 +21,7 @@ import { BubbleRewardsService } from '../../../services/bubble-rewards.service';
 import { AdminBonusService, AdminBonusSummary } from '../../../services/admin-bonus.service';
 import { environment } from '../../../../environments/environment';
 import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
+import { ADMIN_VIEWABLE_PAGES } from '../../../shared/admin-viewable-pages';
 
 type DetailTab = 'overview' | 'details' | 'history' | 'photos' | 'notes' | 'tasks';
 
@@ -1017,6 +1018,61 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       error: (error) => {
         user.role = originalRole;
         this.errorMessage = error.error?.message || 'Failed to update user role.';
+        setTimeout(() => this.errorMessage = '', 4000);
+      }
+    });
+  }
+
+  // ── Restricted-page view grants (SuperAdmin → regular Admin, read-only) ──
+
+  /** Registry of grantable restricted pages, used to render one toggle each. */
+  readonly viewablePageOptions = ADMIN_VIEWABLE_PAGES;
+
+  /** Show the page-access control only when a SuperAdmin is viewing a regular Admin. */
+  canManagePageAccess(user: DetailedUser | UserAdmin | null): boolean {
+    return !!user && this.currentUserRole === 'SuperAdmin' && user.role === 'Admin';
+  }
+
+  isPageGranted(user: DetailedUser | UserAdmin | null, pageKey: string): boolean {
+    return !!user && Array.isArray(user.viewablePages) && user.viewablePages.includes(pageKey);
+  }
+
+  togglingPageAccessUserId: number | null = null;
+
+  toggleUserPageAccess(user: DetailedUser | UserAdmin, pageKey: string, granted: boolean, event?: Event) {
+    event?.stopPropagation();
+    if (!this.canManagePageAccess(user)) return;
+
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    const original = Array.isArray(user.viewablePages) ? [...user.viewablePages] : [];
+    const next = granted
+      ? Array.from(new Set([...original, pageKey]))
+      : original.filter(k => k !== pageKey);
+
+    // Optimistic update on both the row and the open panel copy.
+    user.viewablePages = next;
+    if (this.selectedUser && this.selectedUser.id === user.id) {
+      this.selectedUser.viewablePages = next;
+    }
+    this.togglingPageAccessUserId = user.id;
+
+    this.adminService.updateUserViewablePages(user.id, next).subscribe({
+      next: (res) => {
+        this.togglingPageAccessUserId = null;
+        user.viewablePages = res.pages;
+        if (this.selectedUser && this.selectedUser.id === user.id) {
+          this.selectedUser.viewablePages = res.pages;
+        }
+      },
+      error: (error) => {
+        this.togglingPageAccessUserId = null;
+        user.viewablePages = original;
+        if (this.selectedUser && this.selectedUser.id === user.id) {
+          this.selectedUser.viewablePages = original;
+        }
+        this.errorMessage = error.error?.message || 'Failed to update page access.';
         setTimeout(() => this.errorMessage = '', 4000);
       }
     });

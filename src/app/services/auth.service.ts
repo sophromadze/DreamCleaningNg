@@ -25,6 +25,8 @@ export interface UserDto {
   /** When false, show "Set password" in profile instead of "Change password". */
   hasPassword?: boolean;
   isEmailVerified?: boolean;
+  /** Restricted-admin-page keys this Admin has been granted read-only access to (see admin-viewable-pages.ts). */
+  viewablePages?: string[];
 }
 
 interface AuthResponse {

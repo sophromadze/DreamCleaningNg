@@ -319,17 +319,17 @@
                 </a>
                 <a routerLink="/admin/statistics"
                    (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="currentUser?.role === 'SuperAdmin'">
+                   *ngIf="canViewPage('statistics')">
                   Statistics
                 </a>
                 <a routerLink="/admin/rewards"
                    (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="currentUser?.role === 'SuperAdmin'">
+                   *ngIf="canViewPage('bubble-rewards')">
                   Bubble Rewards
                 </a>
                 <a routerLink="/admin/expenses"
                    (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="currentUser?.role === 'SuperAdmin'">
+                   *ngIf="canViewPage('expenses')">
                   Expenses
                 </a>
                 <a (click)="logout(); closeAllMenus(); $event.stopPropagation()">Logout</a>

@@ -8,7 +8,7 @@ import { maintenanceGuard } from './guards/maintenance.guard';
 import { clientOnlyGuard } from './guards/client-only.guard';
 import { realEmailGuard } from './guards/real-email.guard';
 import { bookingSuccessGuard } from './guards/booking-success.guard';
-import { superAdminGuard } from './guards/super-admin.guard';
+import { pageViewGuard } from './guards/page-view.guard';
 import { passwordSetupGuard } from './guards/password-setup.guard';
 import { pendingVerificationGuard } from './guards/pending-verification.guard';
 import { pinSetupGuard } from './guards/pin-setup.guard';
@@ -321,17 +321,17 @@ export const routes: Routes = [
   },
   {
     path: 'admin/statistics',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, superAdminGuard],
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, pageViewGuard('statistics')],
     loadComponent: () => import('./auth/statistics/statistics.component').then(m => m.StatisticsComponent)
   },
   {
     path: 'admin/rewards',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, superAdminGuard],
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, pageViewGuard('bubble-rewards')],
     loadComponent: () => import('./auth/admin/rewards/admin-rewards.component').then(m => m.AdminRewardsComponent)
   },
   {
     path: 'admin/expenses',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, superAdminGuard],
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, pageViewGuard('expenses')],
     loadComponent: () => import('./auth/admin/expenses/expenses.component').then(m => m.ExpensesComponent)
   },
 

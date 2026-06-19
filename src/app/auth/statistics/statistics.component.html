@@ -176,7 +176,7 @@
             <th>USD per 1 GEL</th>
             <th>Bonus / order</th>
             <th>Source</th>
-            <th></th>
+            <th *ngIf="canEdit"></th>
           </tr>
         </thead>
         <tbody>
@@ -184,7 +184,7 @@
             <td class="rate-month">{{ r.monthKey }}</td>
             <td>
               <input type="number" step="0.0001" min="0.0001"
-                     [(ngModel)]="r.editValue" [disabled]="r.saving" class="rate-input" />
+                     [(ngModel)]="r.editValue" [disabled]="r.saving || !canEdit" class="rate-input" />
             </td>
             <td class="rate-bonus">
               {{ r.adminBonusRatePerOrderGel | number:'1.0-2' }} GEL
@@ -194,7 +194,7 @@
               <span class="rate-source" [class.manual]="r.fxSource === 'manual'"
                     [class.fallback]="r.fxSource === 'fallback'">{{ r.fxSource }}</span>
             </td>
-            <td class="rate-actions">
+            <td class="rate-actions" *ngIf="canEdit">
               <button class="rate-save" (click)="saveRate(r)" [disabled]="r.saving">Save</button>
               <button class="rate-refetch" (click)="refetchRate(r)" [disabled]="r.saving"
                       title="Discard override and re-fetch the auto rate">Re-fetch</button>

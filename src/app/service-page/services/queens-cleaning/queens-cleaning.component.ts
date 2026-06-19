@@ -3,6 +3,7 @@ import { CommonModule, DOCUMENT } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { GooglePlacesService } from '../../../services/google-reviews.service';
 import { ServiceAreaMapComponent } from '../../../service-area-map/service-area-map.component';
+import { HomeHeroComponent } from '../../../shared/components/home-hero/home-hero.component';
 import { QUEENS_ZIPS } from '../../../data/zip-code-data';
 import { SERVICE_PRICING } from '../../../shared/service-pricing.data';
 import { environment } from '../../../../environments/environment';
@@ -10,7 +11,7 @@ import { environment } from '../../../../environments/environment';
 @Component({
   selector: 'app-queens-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterModule, ServiceAreaMapComponent],
+  imports: [CommonModule, RouterModule, ServiceAreaMapComponent, HomeHeroComponent],
   templateUrl: './queens-cleaning.component.html',
   styleUrls: ['./queens-cleaning.component.scss']
 })

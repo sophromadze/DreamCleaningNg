@@ -11,7 +11,7 @@
       </p>
     </div>
 
-    <div class="header-actions">
+    <div class="header-actions" *ngIf="canEdit">
       <button class="btn btn-quote" type="button" (click)="openCategoryManager()">
         <i class="fas fa-tags"></i> Categories
       </button>
@@ -212,6 +212,7 @@
           <span class="category-count">{{ cat.names.length }}</span>
           <span class="category-total">$ {{ cat.monthTotal | number:'1.2-2' }}</span>
           <button class="icon-btn add-in-cat" type="button" title="Add expense to this category"
+                  *ngIf="canEdit"
                   (click)="$event.stopPropagation(); openAddForm(cat.categoryId)">
             <i class="fas fa-plus"></i>
           </button>
@@ -242,7 +243,7 @@
                     <th>Type</th>
                     <th>Start</th>
                     <th>Status</th>
-                    <th class="actions-col">Actions</th>
+                    <th class="actions-col" *ngIf="canEdit">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -255,7 +256,7 @@
                         <span class="status-text" *ngIf="row.isRecurring">{{ cadenceStatus(row) }}</span>
                         <span class="status-text muted" *ngIf="!row.isRecurring">—</span>
                       </td>
-                      <td class="actions-col">
+                      <td class="actions-col" *ngIf="canEdit">
                         <button class="icon-btn" type="button" (click)="openEditForm(row)" title="Edit">
                           <i class="fas fa-pen"></i>
                         </button>

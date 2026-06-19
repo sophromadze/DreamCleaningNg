@@ -197,6 +197,8 @@ export interface UserAdmin {
   canReceiveMessages?: boolean;
   /** Admin-only notes about this user. Not visible to the user. */
   adminNotes?: string | null;
+  /** Restricted-admin-page keys this (Admin-role) user has been granted read-only access to. */
+  viewablePages?: string[];
   /** True if user has an active connection (on site). */
   isOnline?: boolean;
 
@@ -728,6 +730,14 @@ export class AdminService {
 
   updateUserRole(userId: number, role: string): Observable<any> {
     return this.http.put(`${this.apiUrl}/users/${userId}/role`, { role });
+  }
+
+  /** SuperAdmin: grant/revoke a regular Admin read-only access to restricted admin pages. */
+  updateUserViewablePages(userId: number, pages: string[]): Observable<{ message: string; pages: string[] }> {
+    return this.http.put<{ message: string; pages: string[] }>(
+      `${this.apiUrl}/users/${userId}/viewable-pages`,
+      { pages }
+    );
   }
 
   updateUserStatus(userId: number, isActive: boolean): Observable<any> {

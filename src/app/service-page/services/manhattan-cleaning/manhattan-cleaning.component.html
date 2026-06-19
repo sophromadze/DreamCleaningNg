@@ -1,39 +1,11 @@
 <div class="manhattan-cleaning-container">
-  <div class="hero-section">
-    <div class="container">
-      <div class="hero-map">
-        <app-service-area-map
-          borough="manhattan"
-          [serviceZipCodes]="manhattanZips"
-          [mapCenter]="manhattanMapCenter"
-          [zoomLevel]="manhattanZoom">
-        </app-service-area-map>
-      </div>
-      <div class="hero-content">
-        <h1>Cleaning Service in Manhattan NY</h1>
-        <div class="overall-rating" *ngIf="showGoogleReviews">
-          <div class="rating-stars">
-            <span class="star">⭐</span>
-            <span class="rating-number">5.0</span>
-            <img src="https://cdn.nicejob.co/icons/google-2025.svg" alt="Google" class="google-icon">
-          </div>
-          <a href="https://g.page/r/CSmN7-QdmiyoEAI/review" target="_blank" class="reviews-link">Based on {{totalReviews}} reviews</a>
-        </div>
-        <p class="hero-description">
-          Dream Cleaning is a 5.0-star rated professional cleaning service serving 24 ZIP codes across Manhattan, New York — including Midtown, Chelsea, Lower East Side, Upper West Side, Financial District, SoHo, East Village, Greenwich Village, and Tribeca. We offer standard cleaning (from ${{ pricing.residentialFrom }}), deep cleaning (from ${{ pricing.deepFrom }}), move in/out cleaning (from ${{ pricing.moveInOutFrom }}), office cleaning, and specialized services with online booking and a 100% satisfaction guarantee.
-        </p>
-        <div class="call-to-action-buttons">
-          <a routerLink="/booking" class="btn-primary">Book in 60 Seconds</a>
-          <a routerLink="/free-quote" class="btn-secondary">Get a Quote</a>
-        </div>
-        <div class="borough-switch">
-          <span>Also serving:</span>
-          <a routerLink="/services/brooklyn-cleaning">Brooklyn</a>
-          <a routerLink="/services/queens-cleaning">Queens</a>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Shared hero + booking form (also used on the homepage). -->
+  <app-home-hero
+    [locationName]="'Manhattan'"
+    [heroSubtitle]="'Trusted home &amp; apartment cleaning in Manhattan. Transparent pricing, trained cleaners, and a simple online booking experience.'"
+    [showLocations]="false">
+  </app-home-hero>
+
 
   <section class="service-overview">
     <div class="container">
@@ -52,7 +24,7 @@
 
         <div class="cta-section">
           <a routerLink="/booking" class="btn-primary">Book a Cleaner Today</a>
-          <a routerLink="/contact" class="btn-secondary">Contact Us</a>
+          <a routerLink="/reviews" class="btn-secondary">Read Our Reviews</a>
         </div>
       </div>
     </div>
@@ -544,4 +516,40 @@
       </div>
     </div>
   </section>
-</div> 
+  <!-- Local service-area hero (moved to bottom). -->
+  <div class="hero-section">
+    <div class="container">
+      <div class="hero-map">
+        <app-service-area-map
+          borough="manhattan"
+          [serviceZipCodes]="manhattanZips"
+          [mapCenter]="manhattanMapCenter"
+          [zoomLevel]="manhattanZoom">
+        </app-service-area-map>
+      </div>
+      <div class="hero-content">
+        <h1>Cleaning Service in Manhattan NY</h1>
+        <div class="overall-rating" *ngIf="showGoogleReviews">
+          <div class="rating-stars">
+            <span class="star">⭐</span>
+            <span class="rating-number">5.0</span>
+            <img src="https://cdn.nicejob.co/icons/google-2025.svg" alt="Google" class="google-icon">
+          </div>
+          <a href="https://g.page/r/CSmN7-QdmiyoEAI/review" target="_blank" class="reviews-link">Based on {{totalReviews}} reviews</a>
+        </div>
+        <p class="hero-description">
+          Dream Cleaning is a 5.0-star rated professional cleaning service serving 24 ZIP codes across Manhattan, New York — including Midtown, Chelsea, Lower East Side, Upper West Side, Financial District, SoHo, East Village, Greenwich Village, and Tribeca. We offer standard cleaning (from ${{ pricing.residentialFrom }}), deep cleaning (from ${{ pricing.deepFrom }}), move in/out cleaning (from ${{ pricing.moveInOutFrom }}), office cleaning, and specialized services with online booking and a 100% satisfaction guarantee.
+        </p>
+        <div class="call-to-action-buttons">
+          <a routerLink="/booking" class="btn-primary">Book in 60 Seconds</a>
+          <a routerLink="/free-quote" class="btn-secondary">Get a Quote</a>
+        </div>
+        <div class="borough-switch">
+          <span>Also serving:</span>
+          <a routerLink="/services/brooklyn-cleaning">Brooklyn</a>
+          <a routerLink="/services/queens-cleaning">Queens</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

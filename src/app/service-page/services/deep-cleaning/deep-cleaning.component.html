@@ -4,9 +4,18 @@
     <div class="container">
       <h1>Deep Cleaning Services in Manhattan, Brooklyn, Queens & NYC</h1>
       <p class="subtitle">Detailed top-to-bottom deep cleaning by Dream Cleaning NYC — trusted by homes and apartments across NYC.</p>
+      <p class="first-time-discount" *ngIf="firstTimeDiscountLabel">
+        <span class="first-time-discount__pill">
+          <i class="fas fa-tags" aria-hidden="true"></i>
+          New customer? Save <strong>{{ firstTimeDiscountLabel }}</strong> on your first cleaning.
+        </span>
+      </p>
       <button class="btn btn-danger book-now-btn" routerLink="/booking">Book Now</button>
     </div>
   </section>
+
+  <!-- Social proof — shared testimonial section (same as homepage). -->
+  <app-testimonial-section></app-testimonial-section>
 
   <div class="container">
     <div class="content-section">

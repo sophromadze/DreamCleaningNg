@@ -38,6 +38,13 @@
         <option *ngFor="let o of filterOptions" [value]="o.value">{{ o.label }}</option>
       </select>
     </label>
+    <label class="control">
+      <span class="control-label">Available on</span>
+      <select [(ngModel)]="availableOnDay" aria-label="Filter by available weekday">
+        <option value="">Any day</option>
+        <option *ngFor="let o of availableDayOptions" [value]="o.value">{{ o.label }}</option>
+      </select>
+    </label>
     <span class="result-count" *ngIf="!loading && cleaners.length > 0">{{ displayedCleaners.length }} shown</span>
   </div>
 

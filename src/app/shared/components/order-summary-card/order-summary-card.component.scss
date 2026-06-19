@@ -432,6 +432,14 @@
     }
   }
 
+  // Whole total section is tappable to expand/collapse on mobile (the toggle
+  // button is hidden on desktop, so the affordance is mobile-only too).
+  &.total-section--clickable {
+    @media (max-width: 1200px) {
+      cursor: pointer;
+    }
+  }
+
   .summary-toggle {
     background: none;
     border: none;

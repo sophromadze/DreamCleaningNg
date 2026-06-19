@@ -32,6 +32,34 @@
         color: #e3f2fd;
       }
 
+    .first-time-discount {
+      display: flex;
+      justify-content: center;
+      margin: 0;
+
+      &__pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 18px;
+        border-radius: var(--radius-pill);
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        color: white;
+        font-size: 1.05rem;
+        font-weight: 500;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      }
+
+      i {
+        color: var(--star-color);
+      }
+
+      strong {
+        font-weight: 700;
+      }
+    }
+
     .book-now-btn {
       background: var(--btn-danger);
       color: white;

@@ -524,6 +524,26 @@
                   <option value="SuperAdmin" *ngIf="currentUserRole === 'SuperAdmin'">SAdmin</option>
                 </select>
               </span>
+
+              <!-- Page access: SuperAdmin grants a regular Admin read-only access to
+                   restricted pages (Statistics / Expenses / Bubble Rewards). -->
+              <ng-container *ngIf="canManagePageAccess(selectedUser)">
+                <span class="pref-row page-access-head">
+                  <span class="pref-label">Page access</span>
+                  <span class="pref-hint">View-only access to restricted pages</span>
+                </span>
+                <span class="pref-row" *ngFor="let page of viewablePageOptions">
+                  <span class="pref-label pref-label-sub">{{ page.label }}</span>
+                  <span class="yes-no-toggle">
+                    <span class="yn-btn" [class.active]="isPageGranted(selectedUser, page.key)"
+                          (click)="toggleUserPageAccess(selectedUser, page.key, true, $event)"
+                          [class.disabled]="togglingPageAccessUserId === selectedUser.id">Yes</span>
+                    <span class="yn-btn" [class.active]="!isPageGranted(selectedUser, page.key)"
+                          (click)="toggleUserPageAccess(selectedUser, page.key, false, $event)"
+                          [class.disabled]="togglingPageAccessUserId === selectedUser.id">No</span>
+                  </span>
+                </span>
+              </ng-container>
             </div>
           </div>
 

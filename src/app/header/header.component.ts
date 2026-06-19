@@ -11,6 +11,7 @@ import { NewOrderNotificationService } from '../services/new-order-notification.
 import { TaskService } from '../services/task.service';
 import { SignalRService } from '../services/signalr.service';
 import { PhoneClickTrackingService } from '../services/phone-click-tracking.service';
+import { canViewAdminPage } from '../shared/admin-viewable-pages';
 import { combineLatest, Subject, fromEvent } from 'rxjs';
 import { takeUntil, filter, debounceTime } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
@@ -222,6 +223,11 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   get isAdminOrSuperAdmin(): boolean {
     return this.currentUser?.role === 'SuperAdmin' || this.currentUser?.role === 'Admin';
+  }
+
+  /** True when the user can view a restricted admin page (SuperAdmin, or a granted Admin). */
+  canViewPage(pageKey: string): boolean {
+    return canViewAdminPage(this.currentUser, pageKey);
   }
 
   get isInternalUser(): boolean {

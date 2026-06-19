@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { BubbleRewardsService, RewardsSettings, RewardsStats } from '../../../services/bubble-rewards.service';
 import { AdminService, UserAdmin } from '../../../services/admin.service';
+import { AuthService } from '../../../services/auth.service';
 import { NyDatePipe } from '../../../shared/ny-time.util';
 
 interface CategoryGroup {
@@ -49,10 +50,16 @@ export class AdminRewardsComponent implements OnInit {
   undoCreatedAt = '';
   undoScope: 'all' | 'specific' | '' = '';
 
+  /** SuperAdmins can change settings / reset points; view-only Admins see the page read-only. */
+  canEdit = false;
+
   constructor(
     private bubbleRewardsService: BubbleRewardsService,
-    private adminService: AdminService
-  ) {}
+    private adminService: AdminService,
+    private authService: AuthService
+  ) {
+    this.canEdit = this.authService.currentUserValue?.role === 'SuperAdmin';
+  }
 
   ngOnInit(): void {
     this.loadSettings();

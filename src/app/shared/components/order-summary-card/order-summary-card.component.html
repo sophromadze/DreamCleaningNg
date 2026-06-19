@@ -37,13 +37,15 @@
     </span>
   </div>
 
-  <!-- Fixed Total Section with Toggle -->
-  <div class="total-section">
+  <!-- Fixed Total Section with Toggle (whole section is tappable on mobile) -->
+  <div class="total-section"
+       [class.total-section--clickable]="showToggle"
+       (click)="onTotalSectionClick()">
     <div class="total">
       <span>{{ totalLabel }}</span>
       <span [shimmer]="totalShimmer" class="summary-value">{{ totalValue }}</span>
     </div>
-    <button class="summary-toggle" *ngIf="showToggle" (click)="toggleCollapsed.emit()" type="button">
+    <button class="summary-toggle" *ngIf="showToggle" (click)="$event.stopPropagation(); toggleCollapsed.emit()" type="button">
       <!-- Chevron down when collapsed -->
       <svg class="chevron-icon" *ngIf="collapsed" viewBox="0 0 24 24" fill="currentColor">
         <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
