@@ -40,7 +40,8 @@ export interface BookingFormData {
   floorTypeOther?: string;
   smsConsent?: boolean;
   cancellationConsent?: boolean;
-  
+  termsConsent?: boolean;
+
   // Selected Subscription
   selectedSubscriptionId?: string;
   
@@ -48,6 +49,7 @@ export interface BookingFormData {
   customAmount?: number;
   customCleaners?: number;
   customDuration?: number;
+  customServiceName?: string;
   bedroomsQuantity?: number;
   bathroomsQuantity?: number;
   

@@ -270,7 +270,6 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       .pipe(
         tap(list => {
           this.cleaners = list;
-          this.hydrateCleanerMainNotes(list);
         }),
         catchError(err => {
           this.errorMessage = this.extractError(err) || 'Failed to load cleaners';
@@ -1048,36 +1047,6 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       isActive: this.formModel.isActive
     };
     return payload;
-  }
-
-  private hydrateCleanerMainNotes(list: CleanerListItem[]): void {
-    if (!list.length) return;
-
-    const idsMissingMainNote = list
-      .filter(item => item.mainNote === undefined)
-      .map(item => item.id);
-
-    if (!idsMissingMainNote.length) return;
-
-    const requests = idsMissingMainNote.map(id =>
-      this.cleanerService.getById(id).pipe(catchError(() => of(null)))
-    );
-
-    forkJoin(requests)
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(details => {
-        const noteById = new Map<number, string | null>();
-        for (const detail of details) {
-          if (detail) {
-            noteById.set(detail.id, detail.mainNote ?? null);
-          }
-        }
-
-        this.cleaners = this.cleaners.map(item =>
-          noteById.has(item.id) ? { ...item, mainNote: noteById.get(item.id) ?? null } : item
-        );
-        this.cdr.markForCheck();
-      });
   }
 
   private nullIfBlank(value: string | null | undefined): string | null {

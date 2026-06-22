@@ -1,0 +1,167 @@
+<div class="crm-container">
+  <div class="crm-header">
+    <div class="crm-title">
+      <a routerLink="/admin" class="back-link">← Admin</a>
+      <h1>CRM</h1>
+    </div>
+  </div>
+
+  <div class="crm-tabs">
+    <button class="crm-tab" [class.active]="activeTab === 'leads'" (click)="setTab('leads')">
+      Leads &amp; Pipeline
+    </button>
+    <button class="crm-tab" [class.active]="activeTab === 'customers'" (click)="setTab('customers')">
+      Customers
+    </button>
+    <button class="crm-tab" [class.active]="activeTab === 'segments'" (click)="setTab('segments')">
+      Segments
+    </button>
+    <button class="crm-tab" [class.active]="activeTab === 'automation'" (click)="setTab('automation')">
+      Automation
+    </button>
+  </div>
+
+  <div class="crm-content">
+    <app-leads-pipeline *ngIf="activeTab === 'leads'"></app-leads-pipeline>
+    <app-crm-customers *ngIf="activeTab === 'customers'" [segmentFilter]="customerSegmentFilter"></app-crm-customers>
+    <app-crm-segments *ngIf="activeTab === 'segments'" (selectSegment)="onSegmentSelected($event)"></app-crm-segments>
+    <app-crm-automation *ngIf="activeTab === 'automation'"></app-crm-automation>
+  </div>
+
+  <!-- ───────────────────────────────────────────────────────────
+       ახსნა-განმარტება ადმინებისთვის (ქართულად).
+       ჩანს ყველა ტაბის ბოლოში — ჯერ ზოგადი, შემდეგ კონკრეტული ტაბის.
+       ──────────────────────────────────────────────────────────── -->
+  <section class="crm-help">
+    <details open>
+      <summary>ℹ️ რა არის CRM და როგორ მუშაობს — ინსტრუქცია ადმინებისთვის</summary>
+
+      <div class="help-body">
+        <!-- ზოგადი ახსნა — ყველა ტაბზე -->
+        <div class="help-block">
+          <h4>CRM — ზოგადი</h4>
+          <p>
+            <strong>CRM</strong> (Customer Relationship Management) არის სისტემა, რომელიც გვეხმარება
+            მართოთ ურთიერთობა როგორც <strong>პოტენციურ კლიენტებთან</strong> (ვინც ჯერ არ დაჯავშნა),
+            ისე <strong>არსებულ მომხმარებლებთან</strong>. აქ თავს იყრის ლიდები, კლიენტების ისტორია,
+            სეგმენტები და შეხსენებები — რომ არცერთი მომხმარებელი არ დაიკარგოს.
+          </p>
+          <p>
+            CRM იყენებს იმავე მონაცემებს, რაც უკვე გაქვთ (შეკვეთები, მომხმარებლები, გამოწერები) —
+            ის არ ქმნის დუბლიკატებს, უბრალოდ აჯგუფებს და აანალიზებს მათ.
+          </p>
+        </div>
+
+        <!-- LEADS ტაბი -->
+        <div class="help-block" *ngIf="activeTab === 'leads'">
+          <h4>Leads &amp; Pipeline — ლიდები და გაყიდვების ძაბრი</h4>
+          <p><strong>ლიდი</strong> = პოტენციური კლიენტი, რომელმაც დაგვიკავშირდა, მაგრამ ჯერ არ დაუჯავშნია სერვისი.</p>
+          <ul>
+            <li><strong>წყაროები (Source):</strong>
+              <em>Contact</em> — საკონტაქტო ფორმა; <em>Quote</em> — უფასო ფასის მოთხოვნა;
+              <em>Chat</em> — ლაივ ჩატი; <em>Manual</em> — ხელით დამატებული (მაგ. ზარით მოსული).
+              ფორმებიდან ლიდი იქმნება <u>ავტომატურად</u>.</li>
+            <li><strong>ეტაპები (Stages):</strong>
+              <em>New</em> (ახალი) → <em>Contacted</em> (დავუკავშირდით) → <em>Quoted</em> (ფასი გავუგზავნეთ) →
+              <em>Won</em> (მოვიგეთ — დაჯავშნა შედგა) ან <em>Lost</em> (დავკარგეთ).</li>
+            <li><strong>ბარათის გადატანა:</strong> ისრებით ◀ ▶ ან ჩამოსაშლელით შეცვალეთ ეტაპი.
+              ბარათზე დაჭერით იხსნება დეტალები და აქტივობის ისტორია.</li>
+            <li><strong>ზედა მაჩვენებლები:</strong>
+              <em>Open leads</em> — ღია ლიდები; <em>Pipeline value</em> — სავარაუდო ჯამური ღირებულება;
+              <em>Conversion</em> — მოგების პროცენტი (Won ÷ (Won + Lost));
+              <em>Follow-ups due</em> — ვისთვისაც დადგა შეხსენების დრო.</li>
+            <li><strong>Lost reason</strong> — როცა ლიდს Lost-ზე გადაიტანთ, შეგიძლიათ მიზეზი ჩაწეროთ.</li>
+          </ul>
+        </div>
+
+        <!-- CUSTOMERS ტაბი -->
+        <div class="help-block" *ngIf="activeTab === 'customers'">
+          <h4>Customers — კლიენტების 360° ხედი</h4>
+          <p>ყველა რეგისტრირებული მომხმარებლის სრული სურათი ერთ ადგილას.</p>
+          <ul>
+            <li><strong>LTV (Lifetime Value):</strong> კლიენტის მიერ დახარჯული ჯამური თანხა.</li>
+            <li><strong>Stage (სასიცოცხლო ციკლი):</strong>
+              <em>Prospect</em> — ჯერ არ შეუკვეთავს; <em>New</em> — ბოლო 30 დღეში მოვიდა;
+              <em>Active</em> — შეუკვეთა ბოლო 60 დღეში; <em>At-risk</em> — 60–180 დღეა არ შეუკვეთავს;
+              <em>Churned</em> — 180+ დღეა გაქრა.</li>
+            <li><strong>Segments:</strong> ავტომატური ჯგუფები (იხ. Segments ტაბი).</li>
+            <li><strong>Tags (იარლიყები):</strong> ხელით დასამატებელი ნიშნულები
+              (მაგ. „ცხოველის პატრონი“, „კარის კოდი“). ეს თქვენ თვითონ ამატებთ.</li>
+            <li>დეტალებში ჩანს: საკონტაქტო, KPI-ები, ბოლო შეკვეთები, გამოწერა, ლოიალობა.</li>
+          </ul>
+        </div>
+
+        <!-- SEGMENTS ტაბი -->
+        <div class="help-block" *ngIf="activeTab === 'segments'">
+          <h4>Segments — სეგმენტები (ავტომატური ჯგუფები)</h4>
+          <p>
+            სეგმენტი ავტომატურად გამოითვლება შეკვეთების ისტორიის, დახარჯვისა და გამოწერის მიხედვით.
+            ბარათზე დაჭერით გადახვალთ ამ ჯგუფის კლიენტების სიაზე.
+          </p>
+          <ul>
+            <li><strong>New</strong> — შემოგვიერთდა ბოლო 30 დღეში.</li>
+            <li><strong>Active</strong> — შეუკვეთა ბოლო 60 დღეში.</li>
+            <li><strong>Recurring</strong> — აქვს აქტიური გამოწერა (მუდმივი კლიენტი).</li>
+            <li><strong>VIP</strong> — ≥ 5 შეკვეთა ან $1000+ დახარჯული.</li>
+            <li><strong>One-time</strong> — შეუკვეთა, მაგრამ გამოწერის გარეშე.</li>
+            <li><strong>At-risk</strong> — 60–180 დღეა არ შეუკვეთავს (რისკის ქვეშაა).</li>
+            <li><strong>Churned</strong> — 180+ დღეა გაქრა.</li>
+            <li><strong>Prospect</strong> — დარეგისტრირდა, მაგრამ შეკვეთა არ აქვს.</li>
+          </ul>
+        </div>
+
+        <!-- AUTOMATION ტაბი -->
+        <div class="help-block" *ngIf="activeTab === 'automation'">
+          <h4>Automation — ავტომატიზაცია</h4>
+          <p class="help-warn">
+            🔒 სისტემა კლიენტს <u>არასოდეს</u> უგზავნის შეტყობინებას. წესები მხოლოდ <strong>შესახსენებელ
+            სიას (Review alerts) გიქმნით</strong> — დაკავშირებას თქვენ თვითონ აკეთებთ ხელით.
+          </p>
+
+          <h5 class="help-sub">🔄 Win-back — დაკარგული კლიენტების დაბრუნება</h5>
+          <p>
+            ეს წესი ეძებს კლიენტებს, რომლებიც <strong>ადრე გვიკვეთავდნენ, მაგრამ დიდი ხანია გაჩუმდნენ</strong>
+            („lapsed“ = მიძინებული / დაკარგული კლიენტი).
+          </p>
+
+          <div class="onoff-grid">
+            <div class="onoff on">
+              <span class="onoff-tag">ჩართული (On)</span>
+              <p>
+                ყოველ <strong>6 საათში</strong> თვითონ ამოწმებს ყველა კლიენტს. ვინც: ① <strong>ერთხელ მაინც</strong>
+                შეუკვეთა, ② <strong>არ არის</strong> გამოწერაზე, ③ ბოლო შეკვეთიდან გასულია <strong>Threshold</strong>-ზე
+                მეტი დღე — მოინიშნება <strong>„Review alerts“</strong>-ში, რომ დაურეკოთ და დააბრუნოთ.
+              </p>
+            </div>
+            <div class="onoff off">
+              <span class="onoff-tag">გამორთული (Off)</span>
+              <p>შემოწმება არ ხდება და ახალი შესახსენებლები არ იქმნება. ნაგულისხმევად სწორედ ასეა — გამორთული.</p>
+            </div>
+          </div>
+
+          <ul>
+            <li><strong>Threshold (21 დღე = 3 კვირა):</strong> რამდენი უმოქმედო დღის შემდეგ მოინიშნოს კლიენტი.</li>
+            <li><strong>Cooldown (40 დღე):</strong> ერთხელ მონიშვნის შემდეგ ამდენ დღეს იგივე კლიენტი ხელახლა აღარ მოინიშნება.</li>
+            <li><strong>Run now:</strong> ამოწმებს ახლავე (გამორთულზეც), რომ წინასწარ ნახოთ ვინ მოინიშნება.</li>
+            <li><strong>Alert სტატუსები:</strong> <em>Open</em> (გასაკეთებელი), <em>Snoozed</em> (გადავადებული),
+              <em>Done</em> (შესრულდა), <em>Dismissed</em> (უარვყავი).</li>
+            <li><strong>Remind later (გადავადება):</strong> თუ კლიენტმა გითხრათ რომ მოგვიანებით სურს დასუფთავება
+              (მაგ. ივლისში) — დააჭირეთ „Remind later“-ს და აირჩიეთ თარიღი. Alert დაიმალება და <u>თვითონ
+              დაბრუნდება „Open“-ში</u> იმ დღეს, რომ შეგახსენოთ ხელახლა დარეკვა.</li>
+            <li><strong>No answer (არ უპასუხა):</strong> თუ დაურეკეთ და კლიენტმა <u>არ აიღო</u> — დააჭირეთ
+              „No answer“-ს. ეს <strong>არ შლის</strong> alert-ს — ის რჩება „Open“-ში, რომ მოგვიანებით ხელახლა
+              სცადოთ. სისტემა ითვლის ცდების რაოდენობას („No answer ×2“) და ბოლო ცდის თარიღს.
+              რამდენიმე უშედეგო ცდის შემდეგ თავად გადაწყვიტეთ — გადადოთ (Remind later) თუ უარყოთ (Dismiss).</li>
+            <li>წესს ცვლის მხოლოდ <strong>Admin / SuperAdmin</strong>.</li>
+          </ul>
+
+          <p class="help-example">
+            <strong>მაგალითი:</strong> კლიენტმა ბოლოს შეუკვეთა <strong>30 დღის წინ</strong> (3 კვირაზე მეტი), გამოწერა არ აქვს,
+            Threshold = 21 → მოინიშნება და გამოჩნდება „Review alerts“-ში სახელით, ნომრით, მეილითა და LTV-ით.
+            Cooldown = 40 → 40 დღე ხელახლა აღარ შეგაწუხებთ იმავე კლიენტით.
+          </p>
+        </div>
+      </div>
+    </details>
+  </section>
+</div>

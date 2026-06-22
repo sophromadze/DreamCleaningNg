@@ -334,6 +334,11 @@ export const routes: Routes = [
     canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, pageViewGuard('expenses')],
     loadComponent: () => import('./auth/admin/expenses/expenses.component').then(m => m.ExpensesComponent)
   },
+  {
+    path: 'admin/crm',
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
+    loadComponent: () => import('./auth/admin/crm/crm.component').then(m => m.CrmComponent)
+  },
 
   {
     path: 'profile/orders',

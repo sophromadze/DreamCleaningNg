@@ -299,6 +299,11 @@
                   Admin Panel
                   <span class="new-order-menu-indicator" *ngIf="hasUnviewedNewOrders"></span>
                 </a>
+                <a routerLink="/admin/crm"
+                   (click)="closeAllMenus(); $event.stopPropagation()"
+                   *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'">
+                  CRM
+                </a>
                 <a routerLink="/cleaners-dashboard"
                    (click)="closeAllMenus(); $event.stopPropagation()"
                    *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'">

@@ -4,6 +4,7 @@ import { BehaviorSubject, combineLatest } from 'rxjs';
 import { AuthService } from './auth.service';
 import { AdminService } from './admin.service';
 import { SignalRService } from './signalr.service';
+import { OrderSoundService } from './order-sound.service';
 
 @Injectable({
   providedIn: 'root'
@@ -25,6 +26,7 @@ export class NewOrderNotificationService {
     private authService: AuthService,
     private adminService: AdminService,
     private signalRService: SignalRService,
+    private orderSound: OrderSoundService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
@@ -35,6 +37,7 @@ export class NewOrderNotificationService {
         if (data) {
           this.unviewedOrderIds.add(data.orderId);
           this.emit();
+          this.orderSound.playNewOrderAdmin();
           this.sendNewOrderNotification(data.orderId);
         }
       });

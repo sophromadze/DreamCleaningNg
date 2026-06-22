@@ -1,0 +1,124 @@
+<div class="crm-automation">
+  <div class="safety-banner">
+    🔒 Automation never messages customers. Rules create review alerts for your team to action manually.
+  </div>
+
+  <div class="error-message" *ngIf="errorMessage">{{ errorMessage }}</div>
+  <div class="info-message" *ngIf="infoMessage">{{ infoMessage }}</div>
+
+  <!-- Rules -->
+  <section class="rules">
+    <h3>Rules</h3>
+    <div class="rule-card" *ngFor="let rule of rules; trackBy: trackByRuleId">
+      <div class="rule-head">
+        <div class="rule-title">
+          <span class="rule-name">{{ rule.name }}</span>
+          <span class="badge" [class.on]="rule.isEnabled">{{ rule.isEnabled ? 'On' : 'Off' }}</span>
+          <span class="open-count" *ngIf="rule.openAlertCount > 0">{{ rule.openAlertCount }} open</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" [checked]="rule.isEnabled"
+                 [disabled]="savingRuleId === rule.id"
+                 (change)="toggleRule(rule)" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <p class="rule-desc">{{ rule.description }}</p>
+
+      <div class="rule-config">
+        <label>
+          Flag after
+          <input type="number" min="1" max="1000" [(ngModel)]="rule.thresholdDays" />
+          days without an order
+        </label>
+        <label>
+          Don't re-flag within
+          <input type="number" min="1" max="1000" [(ngModel)]="rule.cooldownDays" />
+          days
+        </label>
+        <button class="btn-save" (click)="saveThresholds(rule)" [disabled]="savingRuleId === rule.id">Save</button>
+        <button class="btn-run" (click)="runNow(rule)" [disabled]="runningRuleId === rule.id">
+          {{ runningRuleId === rule.id ? 'Running…' : 'Run now' }}
+        </button>
+      </div>
+
+      <div class="rule-meta">
+        Last run: {{ formatDate(rule.lastRunAt) }}
+        <span *ngIf="rule.lastRunAt"> · created {{ rule.lastRunCreatedCount }} alert(s)</span>
+      </div>
+    </div>
+
+    <div class="loading-state" *ngIf="loading">Loading rules…</div>
+  </section>
+
+  <!-- Alerts feed -->
+  <section class="alerts">
+    <div class="alerts-head">
+      <h3>Review alerts</h3>
+      <select [(ngModel)]="alertStatusFilter" (ngModelChange)="onStatusFilterChange()">
+        <option value="Open">Open</option>
+        <option value="Snoozed">Snoozed (scheduled)</option>
+        <option value="Done">Done</option>
+        <option value="Dismissed">Dismissed</option>
+        <option value="all">All</option>
+      </select>
+    </div>
+
+    <div class="alert-list" [class.loading]="alertsLoading">
+      <div class="alert-row" *ngFor="let a of alerts; trackBy: trackByAlertId">
+        <div class="alert-main">
+          <a [routerLink]="['/admin/crm']" class="cust-name">{{ a.customerName }}</a>
+          <div class="alert-reason">{{ a.reason }}</div>
+          <div class="alert-contact">
+            <a *ngIf="a.customerEmail" [href]="'mailto:' + a.customerEmail">✉ {{ a.customerEmail }}</a>
+            <a *ngIf="a.customerPhone" [href]="'tel:' + a.customerPhone">📞 {{ a.customerPhone }}</a>
+            <span class="ltv">LTV {{ a.customerLifetimeValue | currency:'USD':'symbol':'1.0-0' }}</span>
+          </div>
+          <div class="attempts-note" *ngIf="a.attempts > 0">
+            📵 No answer ×{{ a.attempts }}<span *ngIf="a.lastAttemptAt"> · last tried {{ formatDay(a.lastAttemptAt) }}</span>
+          </div>
+          <div class="snooze-banner" *ngIf="a.status === 'Snoozed'">
+            ⏰ Reminder set for <strong>{{ formatDay(a.remindAt) }}</strong> — it will reappear in Open on that day.
+          </div>
+        </div>
+
+        <!-- Open: action buttons or the inline snooze picker -->
+        <div class="alert-actions" *ngIf="a.status === 'Open' && snoozingAlertId !== a.id">
+          <button class="btn-done" (click)="resolveAlert(a, 'Done')">Mark done</button>
+          <button class="btn-noanswer" (click)="noAnswer(a)">No answer</button>
+          <button class="btn-snooze" (click)="startSnooze(a)">Remind later</button>
+          <button class="btn-dismiss" (click)="resolveAlert(a, 'Dismissed')">Dismiss</button>
+        </div>
+
+        <div class="snooze-picker" *ngIf="a.status === 'Open' && snoozingAlertId === a.id">
+          <label>Remind me on:</label>
+          <input type="date" [(ngModel)]="snoozeDate" [min]="minSnoozeDate" />
+          <button class="btn-done" (click)="confirmSnooze(a)" [disabled]="!snoozeDate">Set</button>
+          <button class="btn-dismiss" (click)="cancelSnooze()">Cancel</button>
+        </div>
+
+        <!-- Snoozed: change date or reopen now -->
+        <div class="alert-resolved" *ngIf="a.status === 'Snoozed'">
+          <button class="btn-snooze" (click)="startSnooze(a)" *ngIf="snoozingAlertId !== a.id">Change date</button>
+          <button class="btn-reopen" (click)="reopenAlert(a)" *ngIf="snoozingAlertId !== a.id">Reopen now</button>
+          <ng-container *ngIf="snoozingAlertId === a.id">
+            <input type="date" [(ngModel)]="snoozeDate" [min]="minSnoozeDate" />
+            <button class="btn-done" (click)="confirmSnooze(a)" [disabled]="!snoozeDate">Set</button>
+            <button class="btn-dismiss" (click)="cancelSnooze()">Cancel</button>
+          </ng-container>
+        </div>
+
+        <!-- Done / Dismissed -->
+        <div class="alert-resolved" *ngIf="a.status === 'Done' || a.status === 'Dismissed'">
+          <span class="resolved-badge" [ngClass]="'rs-' + a.status.toLowerCase()">{{ a.status }}</span>
+          <button class="btn-reopen" (click)="reopenAlert(a)">Reopen</button>
+        </div>
+      </div>
+
+      <div class="empty" *ngIf="!alertsLoading && alerts.length === 0">
+        No {{ alertStatusFilter === 'all' ? '' : alertStatusFilter.toLowerCase() }} alerts.
+      </div>
+    </div>
+  </section>
+</div>

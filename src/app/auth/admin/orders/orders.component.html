@@ -121,6 +121,7 @@
               <th class="sortable" (click)="setSort('email')">Email <span *ngIf="sortColumn === 'email'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
               <th class="sortable" (click)="setSort('serviceDate')">Service Date <span *ngIf="sortColumn === 'serviceDate'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
               <th class="sortable" (click)="setSort('serviceType')">Service Type <span *ngIf="sortColumn === 'serviceType'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
+              <th class="sortable" (click)="setSort('city')">City <span *ngIf="sortColumn === 'city'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
               <th class="sortable" (click)="setSort('total')">Total <span *ngIf="sortColumn === 'total'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
               <th class="sortable" (click)="setSort('status')">Status <span *ngIf="sortColumn === 'status'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
               <th class="sortable" (click)="setSort('cleaners')">Cleaners <span *ngIf="sortColumn === 'cleaners'" class="sort-icon">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span></th>
@@ -141,6 +142,7 @@
               <td>{{getCustomerEmail(order.id)}}</td>
               <td>{{formatDateTime(order.serviceDate, order.serviceTime)}}</td>
               <td>{{getServiceTypeDisplay(order)}}</td>
+              <td>{{order.city || '—'}}</td>
               <td class="amount">$ {{formatCurrency(getOrderTotalWithoutTips(order))}}</td>
               <td>
                 <!-- Phase 1: shows "DoneM" suffix for orders marked Done with a non-Stripe
@@ -559,6 +561,25 @@
                     <div class="detail-section">
                       <h5>Service Details</h5>
                       <p><strong>Service Type:</strong> {{selectedOrder.serviceTypeName}}</p>
+
+                      <!-- Custom ("Pre-Arranged") orders: SuperAdmin and Admins can change the
+                           service-type name. Lets staff re-label legacy "Arranged" orders to a
+                           real type (Deep, Office, …). -->
+                      <div class="custom-service-name-edit" *ngIf="selectedOrderIsCustomServiceType">
+                        <ng-container *ngIf="canEditCustomServiceName; else customNameReadonly">
+                          <label class="custom-service-name-label"><strong>Change service type:</strong></label>
+                          <select class="custom-service-name-select"
+                                  [disabled]="isSavingCustomServiceName"
+                                  [ngModel]="selectedOrder.customServiceDisplayName || ''"
+                                  (ngModelChange)="selectCustomServiceNameForOrder($event || null)">
+                            <option value="">— Not set (Arranged) —</option>
+                            <option *ngFor="let name of customServiceNameOptions" [value]="name">{{ name }}</option>
+                          </select>
+                          <span class="custom-service-name-saving" *ngIf="isSavingCustomServiceName">Saving…</span>
+                        </ng-container>
+                        <ng-template #customNameReadonly></ng-template>
+                      </div>
+
                       <p><strong>Service Date:</strong> {{formatDateTime((selectedOrder.serviceDate || '1970-01-01'), selectedOrder.serviceTime)}}</p>
                       <p><strong>Booked On:</strong> {{formatUtcDateTime(selectedOrder.orderDate)}}</p>
                       <p><strong>Duration:</strong>
@@ -729,6 +750,53 @@
                               <span class="update-amount" [class.positive]="update.additionalAmount > 0">
                                 {{update.additionalAmount >= 0 ? '+' : ''}}${{formatCurrency(Math.abs(update.additionalAmount))}}
                               </span>
+                            </div>
+
+                            <!-- Per-row payment status for additional amounts -->
+                            <div class="update-pay-status" *ngIf="update.additionalAmount > 0.01">
+                              <span class="pay-pill paid" *ngIf="update.isPaid && update.paymentMethod && update.paymentMethod !== 'Normal'">
+                                Paid via {{update.paymentMethod}}<ng-container *ngIf="update.paymentReference"> · {{update.paymentReference}}</ng-container>
+                              </span>
+                              <span class="pay-pill paid" *ngIf="update.isPaid && (!update.paymentMethod || update.paymentMethod === 'Normal')">
+                                Paid via card
+                              </span>
+                              <span class="pay-pill unpaid" *ngIf="!update.isPaid">Unpaid</span>
+
+                              <button type="button" class="action-btn secondary record-pay-btn"
+                                      *ngIf="canRecordManualPayment(update) && recordingManualPaymentForId !== update.id"
+                                      (click)="openManualPaymentForm(update)"
+                                      title="Mark this additional amount as paid by Zelle / Cash / Check">
+                                Record manual payment
+                              </button>
+                            </div>
+
+                            <!-- Inline manual-payment form (admins with update rights + SuperAdmin) -->
+                            <div class="manual-pay-form" *ngIf="recordingManualPaymentForId === update.id">
+                              <div class="manual-pay-row">
+                                <label>Method</label>
+                                <select [(ngModel)]="manualPaymentMethod">
+                                  <option *ngFor="let m of manualPaymentMethods" [value]="m">{{m}}</option>
+                                </select>
+                              </div>
+                              <div class="manual-pay-row">
+                                <label>Reference</label>
+                                <input type="text" [(ngModel)]="manualPaymentReference"
+                                       placeholder="Zelle confirmation #, check #, …" />
+                              </div>
+                              <div class="manual-pay-row">
+                                <label>Notes</label>
+                                <input type="text" [(ngModel)]="manualPaymentNotes" placeholder="Optional" />
+                              </div>
+                              <div class="manual-pay-actions">
+                                <button type="button" class="action-btn primary"
+                                        (click)="confirmManualPayment(update)"
+                                        [disabled]="savingManualPayment">
+                                  {{ savingManualPayment ? 'Saving...' : 'Confirm ' + manualPaymentMethod + ' payment of $' + formatCurrency(update.additionalAmount) }}
+                                </button>
+                                <button type="button" class="action-btn"
+                                        (click)="cancelManualPayment()"
+                                        [disabled]="savingManualPayment">Cancel</button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -933,13 +1001,16 @@
       <div *ngIf="!loadingPendingEditDetail && getPendingEditChanges().length > 0" class="pending-edit-changes">
         <table class="changes-table">
           <thead>
-            <tr><th>Field</th><th>Current</th><th>Proposed</th></tr>
+            <tr><th>Field</th><th>Current</th><th>Proposed</th><th>Difference</th></tr>
           </thead>
           <tbody>
             <tr *ngFor="let ch of getPendingEditChanges()">
               <td class="field-name">{{ ch.field }}</td>
               <td class="current-val">{{ ch.current }}</td>
               <td class="proposed-val">{{ ch.proposed }}</td>
+              <td class="diff-val"
+                  [class.diff-up]="ch.difference.charAt(0) === '+'"
+                  [class.diff-down]="ch.difference.charAt(0) === '-'">{{ ch.difference }}</td>
             </tr>
           </tbody>
         </table>

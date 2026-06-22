@@ -987,13 +987,15 @@
       }
     }
 
-    /* SMS and cancellation consent: checkbox labels */
+    /* SMS, cancellation and terms consent: checkbox labels */
     .sms-consent-section .checkbox-label,
-    .cancellation-consent-section .checkbox-label {
+    .cancellation-consent-section .checkbox-label,
+    .terms-consent-section .checkbox-label {
       color: var(--text-primary);
     }
     .sms-consent-section .checkbox-label a,
-    .cancellation-consent-section .checkbox-label a {
+    .cancellation-consent-section .checkbox-label a,
+    .terms-consent-section .checkbox-label a {
       color: var(--primary-color);
     }
 
@@ -4435,8 +4437,9 @@
     }
   }
 
-  // Cancellation Consent Section
-  .cancellation-consent-section {
+  // Cancellation Consent Section / Terms Consent Section
+  .cancellation-consent-section,
+  .terms-consent-section {
     padding: 1rem;
     
     @media (max-width: 768px) {
@@ -7422,6 +7425,7 @@
 .booking-form .form-grid .form-group textarea,
 .booking-form .address-options .saved-address-container select,
 .booking-form .custom-pricing-form .amount-input,
+.booking-form .custom-pricing-form .form-group select,
 .booking-form .promo-code-input-section .promo-code-group input,
 .booking-form .tips-input-container .tip-custom-input .tip-input {
   width: 100%;
@@ -7559,9 +7563,10 @@
   }
 }
 
-/* ---- Consent checkboxes (SMS + Cancellation) --------------- */
+/* ---- Consent checkboxes (SMS + Cancellation + Terms) --------------- */
 .sms-consent-section,
-.cancellation-consent-section {
+.cancellation-consent-section,
+.terms-consent-section {
   background: var(--surface-subtle);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
@@ -7801,7 +7806,8 @@
   }
 
   .sms-consent-section,
-  .cancellation-consent-section {
+  .cancellation-consent-section,
+  .terms-consent-section {
     background: var(--surface-elevated);
     border-color: var(--border-color);
 

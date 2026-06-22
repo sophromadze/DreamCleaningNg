@@ -1,0 +1,169 @@
+import { Injectable } from '@angular/core';
+import { HttpClient, HttpParams } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
+
+// ── Pipeline constants ──
+
+export const LEAD_STAGES = ['New', 'Contacted', 'Quoted', 'Won', 'Lost'] as const;
+export type LeadStage = typeof LEAD_STAGES[number];
+
+export const LEAD_SOURCES = ['ContactForm', 'QuoteRequest', 'LiveChat', 'Manual', 'Booking'] as const;
+export type LeadSource = typeof LEAD_SOURCES[number];
+
+export const LEAD_ACTIVITY_TYPES = ['Note', 'StageChange', 'Call', 'Email', 'Sms', 'System'] as const;
+export type LeadActivityType = typeof LEAD_ACTIVITY_TYPES[number];
+
+// ── Interfaces ──
+
+export interface Lead {
+  id: number;
+  firstName?: string;
+  lastName?: string;
+  fullName: string;
+  email?: string;
+  phone?: string;
+  serviceAddress?: string;
+  cleaningType?: string;
+  message?: string;
+  stage: LeadStage;
+  source: LeadSource;
+  estimatedValue?: number;
+  assignedToAdminId?: number;
+  assignedToAdminName?: string;
+  clientId?: number;
+  convertedOrderId?: number;
+  lostReason?: string;
+  nextFollowUpDate?: string;
+  createdAt: string;
+  updatedAt: string;
+  lastActivityAt: string;
+}
+
+export interface LeadActivity {
+  id: number;
+  leadId: number;
+  type: LeadActivityType;
+  content?: string;
+  adminId?: number;
+  adminName?: string;
+  createdAt: string;
+}
+
+export interface LeadDetail extends Lead {
+  activities: LeadActivity[];
+}
+
+export interface LeadPipelineColumn {
+  stage: LeadStage;
+  count: number;
+  totalEstimatedValue: number;
+  leads: Lead[];
+}
+
+export interface LeadStats {
+  total: number;
+  new: number;
+  contacted: number;
+  quoted: number;
+  won: number;
+  lost: number;
+  openCount: number;
+  openPipelineValue: number;
+  conversionRate?: number;
+  dueFollowUps: number;
+}
+
+export interface CreateLead {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  serviceAddress?: string;
+  cleaningType?: string;
+  message?: string;
+  source?: LeadSource;
+  estimatedValue?: number;
+  assignedToAdminId?: number;
+  clientId?: number;
+  nextFollowUpDate?: string;
+}
+
+export interface UpdateLead {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  serviceAddress?: string;
+  cleaningType?: string;
+  message?: string;
+  estimatedValue?: number;
+  assignedToAdminId?: number;
+  clearAssignedAdmin?: boolean;
+  nextFollowUpDate?: string;
+  clearNextFollowUpDate?: boolean;
+}
+
+export interface UpdateLeadStage {
+  stage: LeadStage;
+  lostReason?: string;
+}
+
+export interface CreateLeadActivity {
+  type?: LeadActivityType;
+  content: string;
+}
+
+// ── Service ──
+
+@Injectable({ providedIn: 'root' })
+export class CrmLeadService {
+  private apiUrl = `${environment.apiUrl}/crm/leads`;
+
+  constructor(private http: HttpClient) {}
+
+  getPipeline(filters?: { search?: string; source?: string; assignedToAdminId?: number }): Observable<LeadPipelineColumn[]> {
+    let params = new HttpParams();
+    if (filters?.search) params = params.set('search', filters.search);
+    if (filters?.source) params = params.set('source', filters.source);
+    if (filters?.assignedToAdminId != null) params = params.set('assignedToAdminId', filters.assignedToAdminId);
+    return this.http.get<LeadPipelineColumn[]>(`${this.apiUrl}/pipeline`, { params });
+  }
+
+  getStats(): Observable<LeadStats> {
+    return this.http.get<LeadStats>(`${this.apiUrl}/stats`);
+  }
+
+  getLeads(filters?: { search?: string; stage?: string; source?: string; assignedToAdminId?: number }): Observable<Lead[]> {
+    let params = new HttpParams();
+    if (filters?.search) params = params.set('search', filters.search);
+    if (filters?.stage) params = params.set('stage', filters.stage);
+    if (filters?.source) params = params.set('source', filters.source);
+    if (filters?.assignedToAdminId != null) params = params.set('assignedToAdminId', filters.assignedToAdminId);
+    return this.http.get<Lead[]>(this.apiUrl, { params });
+  }
+
+  getLead(id: number): Observable<LeadDetail> {
+    return this.http.get<LeadDetail>(`${this.apiUrl}/${id}`);
+  }
+
+  createLead(lead: CreateLead): Observable<LeadDetail> {
+    return this.http.post<LeadDetail>(this.apiUrl, lead);
+  }
+
+  updateLead(id: number, lead: UpdateLead): Observable<LeadDetail> {
+    return this.http.put<LeadDetail>(`${this.apiUrl}/${id}`, lead);
+  }
+
+  updateStage(id: number, payload: UpdateLeadStage): Observable<LeadDetail> {
+    return this.http.put<LeadDetail>(`${this.apiUrl}/${id}/stage`, payload);
+  }
+
+  addActivity(id: number, activity: CreateLeadActivity): Observable<LeadActivity> {
+    return this.http.post<LeadActivity>(`${this.apiUrl}/${id}/activities`, activity);
+  }
+
+  deleteLead(id: number): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.apiUrl}/${id}`);
+  }
+}

@@ -5,6 +5,7 @@ import { AuthService } from '../../services/auth.service';
 import { BookingService } from '../../services/booking.service';
 import { BookingDataService } from '../../services/booking-data.service';
 import { StripeService } from '../../services/stripe.service';
+import { OrderSoundService } from '../../services/order-sound.service';
 import { calculateTotals } from '../../shared/pricing/order-pricing.calculator';
 
 @Component({
@@ -40,7 +41,8 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
     private authService: AuthService,
     private bookingService: BookingService,
     private bookingDataService: BookingDataService,
-    private stripeService: StripeService
+    private stripeService: StripeService,
+    private orderSound: OrderSoundService
   ) {}
 
   ngOnInit() {
@@ -237,7 +239,10 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   private handlePaymentSuccess() {
     this.paymentCompleted = true;
     this.isProcessing = false;
-    
+
+    // Celebratory cue — payment confirmed and order created.
+    this.orderSound.playBookingConfirmed();
+
     // Clear the booking data
     this.bookingDataService.clearBookingData();
     

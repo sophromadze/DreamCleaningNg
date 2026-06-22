@@ -1,0 +1,204 @@
+.crm-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.crm-header {
+  margin-bottom: 16px;
+
+  .crm-title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+
+    .back-link {
+      color: var(--primary-text);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: var(--fw-medium);
+      &:hover { text-decoration: underline; }
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.6rem;
+      color: var(--text-primary);
+    }
+  }
+}
+
+.crm-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 18px;
+
+  .crm-tab {
+    border: none;
+    background: transparent;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 0.92rem;
+    font-weight: var(--fw-medium);
+    color: var(--text-secondary);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+
+    .soon {
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      background: var(--surface-subtle);
+      color: var(--text-muted);
+      padding: 1px 5px;
+      border-radius: var(--radius-pill);
+      margin-left: 4px;
+      vertical-align: middle;
+    }
+
+    &:hover { color: var(--text-primary); }
+    &.active {
+      color: var(--active-nav-link);
+      border-bottom-color: var(--primary-color);
+    }
+  }
+}
+
+.placeholder {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+
+  .placeholder-icon { font-size: 2.4rem; margin-bottom: 8px; }
+  h2 { color: var(--text-secondary); margin: 0 0 8px; }
+  p { max-width: 420px; margin: 0 auto; font-size: 0.92rem; }
+}
+
+/* ── ახსნა-განმარტება (Georgian help) ── */
+.crm-help {
+  margin-top: 32px;
+  border-top: 1px dashed var(--border-color);
+  padding-top: 16px;
+
+  details {
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+  }
+
+  summary {
+    cursor: pointer;
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    list-style: none;
+    &::-webkit-details-marker { display: none; }
+    &:hover { color: var(--text-primary); }
+  }
+
+  .help-body {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .help-block {
+    h4 {
+      margin: 0 0 6px;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+    }
+
+    p {
+      margin: 0 0 8px;
+      font-size: 0.86rem;
+      line-height: 1.7;
+      color: var(--text-secondary);
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    li {
+      font-size: 0.86rem;
+      line-height: 1.6;
+      color: var(--text-secondary);
+    }
+
+    strong { color: var(--text-primary); }
+    em { font-style: normal; font-weight: var(--fw-semibold); color: var(--primary-text); }
+    u { text-decoration-color: var(--warning-orange); }
+
+    .help-sub {
+      margin: 12px 0 6px;
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      font-weight: var(--fw-semibold);
+    }
+
+    .help-warn {
+      background: var(--warning-orange-bg);
+      color: var(--warning-orange-text);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-size: 0.85rem;
+      u { text-decoration-color: currentColor; }
+      strong { color: inherit; }
+    }
+
+    .onoff-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 10px 0 12px;
+    }
+
+    .onoff {
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      padding: 12px;
+
+      .onoff-tag {
+        display: inline-block;
+        font-size: 0.72rem;
+        font-weight: var(--fw-bold);
+        padding: 2px 9px;
+        border-radius: var(--radius-pill);
+        margin-bottom: 6px;
+      }
+      p { margin: 0; font-size: 0.83rem; }
+
+      &.on {
+        border-left: 3px solid var(--fresh-green);
+        .onoff-tag { background: var(--mint-fresh); color: var(--fresh-green); }
+      }
+      &.off {
+        border-left: 3px solid var(--text-muted);
+        .onoff-tag { background: var(--surface-subtle); color: var(--text-muted); }
+      }
+    }
+
+    .help-example {
+      background: var(--soft-blue);
+      color: var(--primary-color);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-size: 0.84rem;
+      margin-top: 10px;
+      strong { color: inherit; }
+    }
+
+    @media (max-width: 600px) {
+      .onoff-grid { grid-template-columns: 1fr; }
+    }
+  }
+}

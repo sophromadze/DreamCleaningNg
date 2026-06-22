@@ -86,11 +86,15 @@ export interface AdminOrderList {
   contactFirstName: string;
   contactLastName: string;
   serviceTypeName: string;
+  isCustomServiceType: boolean;
+  /** Bare admin-chosen label for custom orders (no "Cleaning" suffix), e.g. "Deep". */
+  customServiceDisplayName?: string | null;
   serviceDate: Date;
   serviceTime: string;
   status: string;
   total: number;
   serviceAddress: string;
+  city: string;
   orderDate: Date;
   totalDuration: number;
   tips: number;
@@ -479,6 +483,11 @@ export interface OrderUpdateHistory {
   paidAt: Date | null;
   updateNotes: string | null;
   updatedPaymentNotificationSentAt: Date | null;
+  // Manual (non-Stripe) payment of this additional amount. "Normal" = paid via Stripe or unpaid.
+  paymentMethod: string;
+  paymentReference: string | null;
+  paymentNotes: string | null;
+  manualPaymentRecordedAt: Date | null;
 }
 
 export interface UserProfile {
@@ -1090,6 +1099,23 @@ export class AdminService {
 
   getOrderUpdateHistory(orderId: number): Observable<OrderUpdateHistory[]> {
     return this.http.get<OrderUpdateHistory[]>(`${this.apiUrl}/orders/${orderId}/update-history`);
+  }
+
+  /**
+   * Record a non-Stripe payment (Zelle/Cash/Check/Other) for a single additional-amount row.
+   * SuperAdmin only. Marks just that update-history row paid; the base order stays a Stripe order.
+   */
+  recordManualAdditionalPayment(
+    orderId: number,
+    historyId: number,
+    paymentMethod: string,
+    paymentReference: string | null,
+    paymentNotes: string | null
+  ): Observable<{ message: string; historyId: number; paymentMethod: string; paidAt: string; statusReactivated: boolean; status: string | null }> {
+    return this.http.post<{ message: string; historyId: number; paymentMethod: string; paidAt: string; statusReactivated: boolean; status: string | null }>(
+      `${this.apiUrl}/orders/${orderId}/update-history/${historyId}/record-manual-payment`,
+      { paymentMethod, paymentReference, paymentNotes }
+    );
   }
 
   /** Send payment reminder (email + SMS) for unpaid additional payment. */

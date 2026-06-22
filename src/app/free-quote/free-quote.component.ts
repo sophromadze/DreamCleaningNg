@@ -5,6 +5,7 @@ import { HttpClient } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
 import { environment } from '../../environments/environment';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
+import { OrderSoundService } from '../services/order-sound.service';
 
 @Component({
   selector: 'app-free-quote',
@@ -23,6 +24,7 @@ export class FreeQuoteComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private http: HttpClient,
+    private orderSound: OrderSoundService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.quoteForm = this.fb.group({
@@ -84,6 +86,9 @@ export class FreeQuoteComponent implements OnInit {
           this.isSubmitting = false;
           this.showSuccess = true;
           this.showError = false;
+
+          // Confirmation cue — quote request sent.
+          this.orderSound.playFormSubmit();
 
           // GA4 conversion event for Google Ads (only in browser, not SSR)
           if (isPlatformBrowser(this.platformId) && typeof window.gtag === 'function') {
@@ -157,4 +162,5 @@ export class FreeQuoteComponent implements OnInit {
       control?.markAsTouched();
     });
   }
+
 }

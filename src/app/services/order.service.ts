@@ -7,11 +7,14 @@ export interface OrderList {
   id: number;
   serviceTypeName: string;
   isCustomServiceType: boolean;
+  /** Bare admin-chosen label for custom orders (no "Cleaning" suffix), e.g. "Deep". */
+  customServiceDisplayName?: string | null;
   serviceDate: Date;
   serviceTime: string;
   status: string;
   total: number;
   serviceAddress: string;
+  city?: string;
   orderDate: Date;
   isPaid?: boolean;
   paidAt?: Date;
@@ -49,6 +52,10 @@ export interface Order {
   userId: number;
   serviceTypeId: number;
   serviceTypeName: string;
+  /** True when this order uses the custom ("Pre-Arranged") service type. */
+  isCustomServiceType?: boolean;
+  /** Bare admin-chosen label for custom orders (no "Cleaning" suffix), e.g. "Deep". */
+  customServiceDisplayName?: string | null;
   orderDate: Date;
   serviceDate: Date;
   serviceTime: string;
@@ -193,6 +200,13 @@ export interface AssignedAdminInfo {
   displayName?: string | null;
 }
 
+/** Returned by PATCH /api/order/{id}/custom-service-name. */
+export interface CustomServiceNameResult {
+  orderId: number;
+  customServiceDisplayName: string | null;
+  serviceTypeName: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -220,6 +234,15 @@ export class OrderService {
 
   updateOrder(orderId: number, updateData: UpdateOrder): Observable<Order> {
     return this.http.put<Order>(`${this.apiUrl}/order/${orderId}`, updateData);
+  }
+
+  /** SuperAdmin only — change the display label of an existing custom ("Pre-Arranged") order.
+   *  Backend rejects non-custom orders. Returns the new bare label + effective "<label> Cleaning". */
+  setCustomServiceName(orderId: number, customServiceDisplayName: string | null): Observable<CustomServiceNameResult> {
+    return this.http.patch<CustomServiceNameResult>(
+      `${this.apiUrl}/order/${orderId}/custom-service-name`,
+      { customServiceDisplayName }
+    );
   }
 
   cancelOrder(orderId: number, cancelData: CancelOrder): Observable<any> {

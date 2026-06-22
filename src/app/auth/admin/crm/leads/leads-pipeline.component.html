@@ -1,0 +1,191 @@
+<div class="leads-pipeline">
+
+  <!-- Stats strip -->
+  <div class="stats-strip" *ngIf="stats">
+    <div class="stat">
+      <span class="stat-value">{{ stats.openCount }}</span>
+      <span class="stat-label">Open leads</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{{ stats.openPipelineValue | currency:'USD':'symbol':'1.0-0' }}</span>
+      <span class="stat-label">Pipeline value</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{{ stats.conversionRate != null ? (stats.conversionRate + '%') : '—' }}</span>
+      <span class="stat-label">Conversion</span>
+    </div>
+    <div class="stat" [class.stat--alert]="stats.dueFollowUps > 0">
+      <span class="stat-value">{{ stats.dueFollowUps }}</span>
+      <span class="stat-label">Follow-ups due</span>
+    </div>
+    <div class="stat stat--won">
+      <span class="stat-value">{{ stats.won }}</span>
+      <span class="stat-label">Won</span>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="search-box">
+      <input type="text" placeholder="Search name, phone, email, address…"
+             [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()" />
+    </div>
+    <select [(ngModel)]="sourceFilter" (ngModelChange)="onSourceFilterChange()" class="source-select">
+      <option value="">All sources</option>
+      <option *ngFor="let s of sources" [value]="s">{{ sourceLabel(s) }}</option>
+    </select>
+    <button class="btn-refresh" (click)="refresh()" title="Refresh">⟳</button>
+    <button class="btn-add" (click)="openAddModal()">+ Add lead</button>
+  </div>
+
+  <div class="error-message" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+  <!-- Kanban board -->
+  <div class="board" [class.loading]="loading">
+    <div class="board-column" *ngFor="let stage of stages; trackBy: trackByStage">
+      <div class="column-header" [ngClass]="stageClass(stage)">
+        <span class="column-title">{{ stage }}</span>
+        <span class="column-count">{{ columnFor(stage).count }}</span>
+        <span class="column-value" *ngIf="columnFor(stage).totalEstimatedValue > 0">
+          {{ columnFor(stage).totalEstimatedValue | currency:'USD':'symbol':'1.0-0' }}
+        </span>
+      </div>
+
+      <div class="column-body">
+        <div class="lead-card" *ngFor="let lead of columnFor(stage).leads; trackBy: trackByLeadId"
+             (click)="openLead(lead)" [class.follow-due]="isFollowUpDue(lead)">
+          <div class="card-top">
+            <span class="lead-name">{{ lead.fullName || 'Unnamed lead' }}</span>
+            <span class="source-badge" [ngClass]="'src-' + lead.source.toLowerCase()">{{ sourceLabel(lead.source) }}</span>
+          </div>
+          <div class="card-line" *ngIf="lead.phone">📞 {{ lead.phone }}</div>
+          <div class="card-line" *ngIf="lead.email">✉ {{ lead.email }}</div>
+          <div class="card-line muted" *ngIf="lead.cleaningType">{{ lead.cleaningType }}</div>
+          <div class="card-meta">
+            <span class="est-value" *ngIf="lead.estimatedValue">{{ lead.estimatedValue | currency:'USD':'symbol':'1.0-0' }}</span>
+            <span class="follow-flag" *ngIf="isFollowUpDue(lead)">⏰ due</span>
+            <span class="time">{{ relativeTime(lead.lastActivityAt) }}</span>
+          </div>
+
+          <!-- Stage move controls -->
+          <div class="card-actions" (click)="$event.stopPropagation()">
+            <button class="move-btn" [disabled]="!canMoveLeft(lead)"
+                    (click)="moveStage(lead, -1, $event)" title="Move back">◀</button>
+            <select class="stage-select" [ngModel]="lead.stage"
+                    (ngModelChange)="onStageSelect(lead, $event)">
+              <option *ngFor="let s of stages" [value]="s">{{ s }}</option>
+            </select>
+            <button class="move-btn" [disabled]="!canMoveRight(lead)"
+                    (click)="moveStage(lead, 1, $event)" title="Move forward">▶</button>
+          </div>
+
+          <!-- Inline lost-reason prompt -->
+          <div class="lost-prompt" *ngIf="pendingLostLeadId === lead.id" (click)="$event.stopPropagation()">
+            <input type="text" placeholder="Reason lost (optional)" [(ngModel)]="lostReason" />
+            <div class="lost-actions">
+              <button class="btn-mini danger" (click)="confirmLost()">Mark Lost</button>
+              <button class="btn-mini" (click)="cancelLost()">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="empty-column" *ngIf="columnFor(stage).count === 0">No leads</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────────  Detail slide-in panel  ───────────── -->
+  <div class="panel-overlay" *ngIf="selectedLead" (click)="closePanel()"></div>
+  <aside class="detail-panel" *ngIf="selectedLead" [class.open]="selectedLead">
+    <div class="panel-header">
+      <div>
+        <h3>{{ selectedLead.fullName || 'Unnamed lead' }}</h3>
+        <span class="stage-pill" [ngClass]="stageClass(selectedLead.stage)">{{ selectedLead.stage }}</span>
+        <span class="source-badge" [ngClass]="'src-' + selectedLead.source.toLowerCase()">{{ sourceLabel(selectedLead.source) }}</span>
+      </div>
+      <button class="close-btn" (click)="closePanel()">✕</button>
+    </div>
+
+    <div class="panel-body" *ngIf="!panelLoading">
+      <!-- Editable details -->
+      <section class="edit-grid">
+        <label>First name<input type="text" [(ngModel)]="editBuffer.firstName" /></label>
+        <label>Last name<input type="text" [(ngModel)]="editBuffer.lastName" /></label>
+        <label>Phone<input type="text" [(ngModel)]="editBuffer.phone" /></label>
+        <label>Email<input type="email" [(ngModel)]="editBuffer.email" /></label>
+        <label class="full">Address<input type="text" [(ngModel)]="editBuffer.serviceAddress" /></label>
+        <label>Cleaning type<input type="text" [(ngModel)]="editBuffer.cleaningType" /></label>
+        <label>Est. value ($)<input type="number" min="0" [(ngModel)]="editBuffer.estimatedValue" /></label>
+        <label class="full">Next follow-up<input type="date" [(ngModel)]="editBuffer.nextFollowUpDate" /></label>
+        <label class="full">Message / notes<textarea rows="2" [(ngModel)]="editBuffer.message"></textarea></label>
+      </section>
+
+      <div class="panel-actions">
+        <button class="btn-save" (click)="saveLeadEdits()" [disabled]="savingLead">
+          {{ savingLead ? 'Saving…' : 'Save changes' }}
+        </button>
+        <button class="btn-delete" (click)="deleteLead()">Delete</button>
+      </div>
+
+      <div class="converted-note" *ngIf="selectedLead.convertedOrderId">
+        ✓ Converted to order #{{ selectedLead.convertedOrderId }}
+      </div>
+      <div class="lost-note" *ngIf="selectedLead.stage === 'Lost' && selectedLead.lostReason">
+        Lost reason: {{ selectedLead.lostReason }}
+      </div>
+
+      <!-- Activity timeline -->
+      <section class="timeline">
+        <h4>Activity</h4>
+        <div class="add-note">
+          <textarea rows="2" placeholder="Log a call, note, or next step…" [(ngModel)]="newNote"></textarea>
+          <button class="btn-note" (click)="addNote()" [disabled]="addingNote || !newNote.trim()">Add</button>
+        </div>
+        <ul class="timeline-list">
+          <li *ngFor="let a of selectedLead.activities" class="timeline-item" [ngClass]="'type-' + a.type.toLowerCase()">
+            <div class="ti-head">
+              <span class="ti-type">{{ a.type === 'StageChange' ? 'Stage' : a.type }}</span>
+              <span class="ti-when">{{ relativeTime(a.createdAt) }}</span>
+            </div>
+            <div class="ti-content">{{ a.content }}</div>
+            <div class="ti-author" *ngIf="a.adminName">— {{ a.adminName }}</div>
+          </li>
+          <li *ngIf="selectedLead.activities.length === 0" class="timeline-empty">No activity yet.</li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="panel-loading" *ngIf="panelLoading">Loading…</div>
+  </aside>
+
+  <!-- ─────────────  Add-lead modal  ───────────── -->
+  <div class="modal-overlay" *ngIf="showAddModal" (click)="closeAddModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Add lead</h3>
+        <button class="close-btn" (click)="closeAddModal()">✕</button>
+      </div>
+      <div class="modal-body edit-grid">
+        <label>First name<input type="text" [(ngModel)]="newLead.firstName" /></label>
+        <label>Last name<input type="text" [(ngModel)]="newLead.lastName" /></label>
+        <label>Phone<input type="text" [(ngModel)]="newLead.phone" /></label>
+        <label>Email<input type="email" [(ngModel)]="newLead.email" /></label>
+        <label class="full">Address<input type="text" [(ngModel)]="newLead.serviceAddress" /></label>
+        <label>Cleaning type<input type="text" [(ngModel)]="newLead.cleaningType" /></label>
+        <label>Est. value ($)<input type="number" min="0" [(ngModel)]="newLead.estimatedValue" /></label>
+        <label>Source
+          <select [(ngModel)]="newLead.source">
+            <option *ngFor="let s of sources" [value]="s">{{ sourceLabel(s) }}</option>
+          </select>
+        </label>
+        <label class="full">Message / notes<textarea rows="2" [(ngModel)]="newLead.message"></textarea></label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-save" (click)="createLead()" [disabled]="creatingLead">
+          {{ creatingLead ? 'Creating…' : 'Create lead' }}
+        </button>
+        <button class="btn-cancel" (click)="closeAddModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>

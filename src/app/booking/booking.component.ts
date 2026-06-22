@@ -56,6 +56,7 @@ import {
   SALES_TAX_RATE,
   QuoteInput
 } from '../shared/pricing/order-pricing.calculator';
+import { buildCustomServiceTypeNameOptions } from '../shared/booking/custom-service-type.util';
 
 interface SelectedService {
   service: Service;
@@ -90,6 +91,10 @@ export class BookingComponent implements OnInit, OnDestroy {
   customAmount: FormControl = new FormControl('', [Validators.required, Validators.min(0.01)]);
   customCleaners: FormControl = new FormControl(1, [Validators.required, Validators.min(1), Validators.max(10)]);
   customDuration: FormControl = new FormControl(60, [Validators.required, Validators.min(60), Validators.max(480)]);
+  // Admin-chosen display name for the custom ("Pre-Arranged") service type. Required while custom
+  // pricing is shown. Options are built from the live DB service types (Residential -> Regular/Deep).
+  customServiceName: FormControl = new FormControl('', [Validators.required]);
+  customServiceNameOptions: string[] = [];
   bedroomsQuantityControl: FormControl = new FormControl(0, [Validators.required, Validators.min(0), Validators.max(10)]);
   bathroomsQuantityControl: FormControl = new FormControl(1, [Validators.required, Validators.min(0), Validators.max(10)]);
 
@@ -432,7 +437,8 @@ export class BookingComponent implements OnInit, OnDestroy {
       ]],
       cleaningType: ['normal', Validators.required], // Add new form control for cleaning type
       smsConsent: [false, [Validators.requiredTrue]],
-      cancellationConsent: [false, [Validators.requiredTrue]]
+      cancellationConsent: [false, [Validators.requiredTrue]],
+      termsConsent: [false, [Validators.requiredTrue]]
     });
   }
 
@@ -719,6 +725,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (savedData.cleaningType) formValues.cleaningType = savedData.cleaningType;
     if (savedData.smsConsent !== undefined) formValues.smsConsent = savedData.smsConsent;
     if (savedData.cancellationConsent !== undefined) formValues.cancellationConsent = savedData.cancellationConsent;
+    if (savedData.termsConsent !== undefined) formValues.termsConsent = savedData.termsConsent;
     if (savedData.bedroomsQuantity !== undefined) this.bedroomsQuantityControl.setValue(savedData.bedroomsQuantity);
     if (savedData.bathroomsQuantity !== undefined) this.bathroomsQuantityControl.setValue(savedData.bathroomsQuantity);
   
@@ -734,6 +741,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       customAmount: savedData.customAmount,
       customCleaners: savedData.customCleaners,
       customDuration: savedData.customDuration,
+      customServiceName: savedData.customServiceName,
       bedroomsQuantity: savedData.bedroomsQuantity,
       bathroomsQuantity: savedData.bathroomsQuantity
     };
@@ -1052,7 +1060,9 @@ export class BookingComponent implements OnInit, OnDestroy {
     
     // Listen to service date changes
     this.bookingForm.get('serviceDate')?.valueChanges.subscribe(newDate => {
-      if (this.isSameDaySelected && newDate) {
+      // Admins / SuperAdmins may keep Same Day Service on any date — never auto-remove it for them.
+      // (Customer flow/timing below is unchanged.)
+      if (this.isSameDaySelected && newDate && !this.isAdminOrSuperAdmin) {
         const today = new Date();
         
         // Parse the selected date without timezone issues
@@ -1116,14 +1126,16 @@ export class BookingComponent implements OnInit, OnDestroy {
       // Consent checkboxes
       smsConsent: this.smsConsent.value,
       cancellationConsent: this.cancellationConsent.value,
-      
+      termsConsent: this.termsConsent.value,
+
       // Custom Pricing Data
       customAmount: this.showCustomPricing ? this.customAmount.value : undefined,
       customCleaners: this.showCustomPricing ? this.customCleaners.value : undefined,
       customDuration: this.showCustomPricing ? this.customDuration.value : undefined,
+      customServiceName: this.showCustomPricing ? this.customServiceName.value : undefined,
       bedroomsQuantity: this.getSelectedBedroomsQuantity(),
       bathroomsQuantity: this.getSelectedBathroomsQuantity(),
-      
+
       // Poll Data
       pollAnswers: this.showPollForm ? this.pollAnswers : undefined,
 
@@ -1210,6 +1222,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.companyDevelopmentTips.setValue(0);
       this.smsConsent.setValue(false);
       this.cancellationConsent.setValue(false);
+      this.termsConsent.setValue(false);
     }
   }
 
@@ -1653,6 +1666,11 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (serviceType.isCustom) {
       this.showCustomPricing = true;
 
+      // Build the name options from the live service types (Residential -> Regular/Deep) and
+      // restore any previously chosen name.
+      this.customServiceNameOptions = buildCustomServiceTypeNameOptions(this.serviceTypes);
+      this.customServiceName.setValue(this.savedCustomPricingData?.customServiceName || '');
+
       // Restore saved custom pricing data if available
       if (this.savedCustomPricingData) {
         this.customAmount.setValue(this.savedCustomPricingData.customAmount || serviceType.basePrice);
@@ -1712,7 +1730,10 @@ export class BookingComponent implements OnInit, OnDestroy {
       
       this.cancellationConsent.clearValidators();
       this.cancellationConsent.updateValueAndValidity();
-      
+
+      this.termsConsent.clearValidators();
+      this.termsConsent.updateValueAndValidity();
+
       // Set default values to prevent validation errors but disable validators
       // Only set to 'I will be home' if no saved value exists
       if (!this.entryMethod.value) {
@@ -1750,7 +1771,10 @@ export class BookingComponent implements OnInit, OnDestroy {
       
       this.cancellationConsent.setValidators([Validators.requiredTrue]);
       this.cancellationConsent.updateValueAndValidity();
-      
+
+      this.termsConsent.setValidators([Validators.requiredTrue]);
+      this.termsConsent.updateValueAndValidity();
+
       // Reset entry method value when switching back to regular booking only if no saved value exists
       if (!this.entryMethod.value || this.entryMethod.value === 'N/A') {
         this.entryMethod.setValue('I will be home');
@@ -1952,8 +1976,9 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   // New click handler for extra service card
   onExtraServiceCardClick(extraService: ExtraService) {
-    // If it's a disabled same day service and on mobile, show tooltip
-    if (extraService.isSameDayService && !this.isSameDayServiceAvailable && this.isCurrentlyMobile()) {
+    // If it's a disabled same day service and on mobile, show tooltip.
+    // Admins / SuperAdmins are never restricted, so they always fall through to the toggle.
+    if (extraService.isSameDayService && !this.isSameDayServiceAvailable && !this.isAdminOrSuperAdmin && this.isCurrentlyMobile()) {
       this.clearAllMobileTooltips();
       this.showMobileTooltip(extraService.id);
       return;
@@ -2680,6 +2705,7 @@ export class BookingComponent implements OnInit, OnDestroy {
              this.cleaningType.value !== null &&
              this.smsConsent.value === true &&
              this.cancellationConsent.value === true &&
+             this.termsConsent.value === true &&
              this.customAmount.valid &&
              this.customCleaners.valid &&
              this.customDuration.valid &&
@@ -2692,7 +2718,8 @@ export class BookingComponent implements OnInit, OnDestroy {
            this.selectedSubscription !== null && 
            this.cleaningType.value !== null &&
            this.smsConsent.value === true &&
-           this.cancellationConsent.value === true;
+           this.cancellationConsent.value === true &&
+           this.termsConsent.value === true;
   }
 
   onSubmit() {
@@ -2725,7 +2752,8 @@ export class BookingComponent implements OnInit, OnDestroy {
     }
     
     // Also check custom pricing fields if applicable
-    if (this.showCustomPricing && (!this.customAmount.valid || !this.customCleaners.valid || !this.customDuration.valid || !this.entryMethod.value)) {
+    if (this.showCustomPricing && (!this.customAmount.valid || !this.customCleaners.valid || !this.customDuration.valid || !this.entryMethod.value || !this.customServiceName.value)) {
+      this.customServiceName.markAsTouched();
       this.scrollToFirstError();
       return;
     }
@@ -2847,10 +2875,13 @@ export class BookingComponent implements OnInit, OnDestroy {
       customAmount: this.showCustomPricing ? parseFloat(this.customAmount.value) : undefined,
       customCleaners: this.showCustomPricing ? parseInt(this.customCleaners.value) : undefined,
       customDuration: this.showCustomPricing ? parseInt(this.customDuration.value) : undefined,
+      // Admin-chosen display name for the custom service type — replaces "Pre-Arranged Cleaning".
+      customServiceDisplayName: this.showCustomPricing ? (this.customServiceName.value || null) : undefined,
       bedroomsQuantity: this.getSelectedBedroomsQuantity(),
       bathroomsQuantity: this.getSelectedBathroomsQuantity(),
       smsConsent: formValue.smsConsent,
       cancellationConsent: formValue.cancellationConsent,
+      termsConsent: formValue.termsConsent,
       uploadedPhotos: this.preparePhotosForSubmission(),
       floorTypes: this.buildFloorTypesString(),
       floorTypeOther: this.floorTypeOther || null,
@@ -3099,10 +3130,13 @@ export class BookingComponent implements OnInit, OnDestroy {
 
 
   getMinDateString(): string {
+    // Admins / SuperAdmins may book any date with no minimum (incl. today / past dates).
+    if (this.isAdminOrSuperAdmin) return '';
     const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate() + 1).padStart(2, '0'); // Tomorrow
+    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0'); // Tomorrow
     return `${year}-${month}-${day}`;
   }
 
@@ -3927,6 +3961,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   get cleaningType() { return this.bookingForm.get('cleaningType') as FormControl; }
   get smsConsent() { return this.bookingForm.get('smsConsent') as FormControl; }
   get cancellationConsent() { return this.bookingForm.get('cancellationConsent') as FormControl; }
+  get termsConsent() { return this.bookingForm.get('termsConsent') as FormControl; }
 
   onFloorTypeSelectionChange(selection: FloorTypeSelection): void {
     this.floorTypes = selection.types;
@@ -4437,27 +4472,32 @@ export class BookingComponent implements OnInit, OnDestroy {
     return slot?.reason || null;
   }
 
+  /** Admins / SuperAdmins (and admin-mode bookings) bypass all blocked-date / busy restrictions. */
+  get bypassBlockedDates(): boolean {
+    return this.isAdminMode || this.isAdminOrSuperAdmin;
+  }
+
   /** Returns list of fully blocked date strings (YYYY-MM-DD) for the date-selector. */
   getBlockedDates(): string[] {
-    if (this.isAdminMode) return [];
+    if (this.bypassBlockedDates) return [];
     return Array.from(this.blockedFullDays);
   }
 
   /** Returns list of partially blocked date strings (YYYY-MM-DD) for the date-selector. */
   getPartiallyBlockedDates(): string[] {
-    if (this.isAdminMode) return [];
+    if (this.bypassBlockedDates) return [];
     return Array.from(this.blockedHoursMap.keys());
   }
 
   /** Returns set of blocked hours for a specific date (empty if admin mode). */
   getBlockedHoursForDate(dateStr: string): Set<string> {
-    if (this.isAdminMode) return new Set();
+    if (this.bypassBlockedDates) return new Set();
     return this.blockedHoursMap.get(dateStr) || new Set();
   }
 
   /** Returns blocked hours array for the currently selected date (for time-selector input). */
   getBlockedHoursForSelectedDate(): string[] {
-    if (this.isAdminMode) return [];
+    if (this.bypassBlockedDates) return [];
     const dateStr = this.serviceDate.value;
     if (!dateStr) return [];
     const cleanDate = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
@@ -4474,7 +4514,7 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   /** Check if the currently selected date + time is blocked. */
   isSelectedDateTimeBlocked(): boolean {
-    if (this.isAdminMode) return false;
+    if (this.bypassBlockedDates) return false;
     const dateStr = this.serviceDate.value;
     if (!dateStr) return false;
     const cleanDate = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
@@ -4561,8 +4601,9 @@ export class BookingComponent implements OnInit, OnDestroy {
       String(today.getMonth() + 1).padStart(2, '0') + '-' + 
       String(today.getDate()).padStart(2, '0');
     
-    // If user selected a date that's not today, uncheck same day service
-    if (date !== todayFormatted) {
+    // If user selected a date that's not today, uncheck same day service.
+    // Admins / SuperAdmins are exempt — they may keep Same Day Service on any date.
+    if (date !== todayFormatted && !this.isAdminOrSuperAdmin) {
       // Find and uncheck the same day service
       const sameDayService = this.selectedExtraServices.find(s => s.extraService.isSameDayService);
       if (sameDayService) {
@@ -4843,6 +4884,7 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   /** Returns true when same-day service is selected but today has no available (non-blocked) time slots. */
   isSameDayFullyBooked(): boolean {
+    if (this.bypassBlockedDates) return false;
     if (!this.isSameDaySelected) return false;
     const dateStr = this.serviceDate.value;
     if (!dateStr) return false;
@@ -5106,7 +5148,8 @@ export class BookingComponent implements OnInit, OnDestroy {
            this.state.valid &&
            this.zipCode.valid &&
            this.smsConsent.value === true &&
-           this.cancellationConsent.value === true;
+           this.cancellationConsent.value === true &&
+           this.termsConsent.value === true;
   }
 
   // Check if we can proceed to next step

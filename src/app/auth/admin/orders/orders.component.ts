@@ -24,6 +24,7 @@ import {
   round2,
   SALES_TAX_RATE
 } from '../../../shared/pricing/order-pricing.calculator';
+import { buildCustomServiceTypeNameOptions } from '../../../shared/booking/custom-service-type.util';
 
 // Extended interface for admin orders with additional properties
 export interface AdminOrderList extends OrderList {
@@ -235,6 +236,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   get canEditOrder(): boolean {
     return this.isSuperAdmin || (this.userRole === 'Admin' && this.userPermissions.permissions.canUpdate);
   }
+  /** True if user may re-label a custom ("Pre-Arranged") order: SuperAdmin or any Admin (direct
+   *  save) — independent of the canUpdate permission, matching the backend's role-only gate. */
+  get canEditCustomServiceName(): boolean {
+    return this.isSuperAdmin || this.userRole === 'Admin';
+  }
   // Statistics are DERIVED from the filtered orders via memoized getters (see `stats`
   // below) — never assigned during change detection, which previously caused NG0100
   // when searching (the filteredOrders getter mutated them mid-pass).
@@ -249,6 +255,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   availableAdmins: ShiftAdmin[] = [];
   showAssignedAdminEditor = false;
   isSavingAssignedAdmin = false;
+
+  // SuperAdmin-only editor for an existing custom ("Pre-Arranged") order's display name.
+  showCustomServiceNameEditor = false;
+  isSavingCustomServiceName = false;
 
   constructor(
     private adminService: AdminService,
@@ -310,6 +320,55 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: () => {
         this.isSavingAssignedAdmin = false;
+      }
+    });
+  }
+
+  /** Whether the open detail order is a custom ("Pre-Arranged") order whose name can be re-labeled. */
+  get selectedOrderIsCustomServiceType(): boolean {
+    return !!(this.selectedOrder && (this.selectedOrder as any).isCustomServiceType);
+  }
+
+  /** Display-name options for the custom-service-type editor (Residential -> Regular/Deep). */
+  get customServiceNameOptions(): string[] {
+    return buildCustomServiceTypeNameOptions(this.serviceTypesCache);
+  }
+
+  toggleCustomServiceNameEditor(): void {
+    // SuperAdmin and Admins (with update permission) may re-label; others just see the value.
+    if (!this.canEditCustomServiceName) return;
+    this.showCustomServiceNameEditor = !this.showCustomServiceNameEditor;
+  }
+
+  selectCustomServiceNameForOrder(name: string | null): void {
+    if (!this.selectedOrder || this.isSavingCustomServiceName) return;
+    const current = (this.selectedOrder as any).customServiceDisplayName ?? null;
+    if ((current || null) === (name || null)) {
+      this.showCustomServiceNameEditor = false;
+      return;
+    }
+    this.isSavingCustomServiceName = true;
+    const orderId = this.selectedOrder.id;
+    this.orderService.setCustomServiceName(orderId, name || null).subscribe({
+      next: (result) => {
+        if (this.selectedOrder && this.selectedOrder.id === orderId) {
+          (this.selectedOrder as any).customServiceDisplayName = result.customServiceDisplayName;
+          this.selectedOrder.serviceTypeName = result.serviceTypeName;
+        }
+        // Keep the table row in sync so the Service Type column updates without a reload.
+        const row = this.orders.find(o => o.id === orderId);
+        if (row) {
+          row.customServiceDisplayName = result.customServiceDisplayName;
+          row.serviceTypeName = result.serviceTypeName;
+        }
+        this.residentialVariantCache.delete(orderId);
+        this.isSavingCustomServiceName = false;
+        this.showCustomServiceNameEditor = false;
+        this.cdr.markForCheck();
+      },
+      error: () => {
+        this.isSavingCustomServiceName = false;
+        this.cdr.markForCheck();
       }
     });
   }
@@ -1051,6 +1110,73 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
   
 
+  // ── Record manual (non-Stripe) payment for an additional-amount row ──
+  // Used when the customer paid an order top-up by Zelle/Cash/Check (e.g. cleaning ran longer).
+  // Marks just that update-history row paid via the chosen method; the base order stays a Stripe
+  // order, so statistics still treat the base as a card charge and exclude this from Stripe fees.
+  recordingManualPaymentForId: number | null = null;
+  manualPaymentMethod = 'Zelle';
+  manualPaymentReference = '';
+  manualPaymentNotes = '';
+  savingManualPayment = false;
+  readonly manualPaymentMethods = ['Zelle', 'Cash', 'Check', 'Other'];
+
+  /** Admins with update rights (and SuperAdmin), for an unpaid row that has money to collect. */
+  canRecordManualPayment(update: OrderUpdateHistory): boolean {
+    const canUpdate = this.isSuperAdmin || !!this.userPermissions?.permissions?.canUpdate;
+    return canUpdate && !update.isPaid && (Number(update.additionalAmount) || 0) > 0.01;
+  }
+
+  openManualPaymentForm(update: OrderUpdateHistory): void {
+    this.recordingManualPaymentForId = update.id;
+    this.manualPaymentMethod = 'Zelle';
+    this.manualPaymentReference = '';
+    this.manualPaymentNotes = '';
+  }
+
+  cancelManualPayment(): void {
+    this.recordingManualPaymentForId = null;
+  }
+
+  confirmManualPayment(update: OrderUpdateHistory): void {
+    if (!this.selectedOrder || this.savingManualPayment) return;
+    const orderId = this.selectedOrder.id;
+    this.savingManualPayment = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.adminService.recordManualAdditionalPayment(
+      orderId,
+      update.id,
+      this.manualPaymentMethod,
+      this.manualPaymentReference?.trim() || null,
+      this.manualPaymentNotes?.trim() || null
+    ).subscribe({
+      next: (res) => {
+        this.successMessage = res?.message || 'Manual payment recorded.';
+        setTimeout(() => { this.successMessage = ''; }, 5000);
+        this.recordingManualPaymentForId = null;
+        // Paying off the last additional amount flips the order Pending -> Active server-side.
+        // Mirror the returned status locally so the panel badge + list update without a reload.
+        if (res?.status) {
+          if (this.selectedOrder && this.selectedOrder.id === orderId) {
+            this.selectedOrder.status = res.status;
+          }
+          const listOrder = this.orders.find(o => o.id === orderId);
+          if (listOrder) listOrder.status = res.status;
+        }
+        // Refresh history so the row flips to "paid via <method>" and unpaid totals update.
+        this.adminService.getOrderUpdateHistory(orderId).subscribe({
+          next: (history) => { this.orderUpdateHistory = history; }
+        });
+      },
+      error: (err) => {
+        this.errorMessage = err.error?.message || 'Failed to record manual payment.';
+        setTimeout(() => { this.errorMessage = ''; }, 5000);
+      },
+      complete: () => { this.savingManualPayment = false; }
+    });
+  }
+
   /** Total additional payment = difference (current total − tips) − (original total − tips), not sum of all update amounts. */
   getTotalAdditionalAmount(): number {
     if (!this.selectedOrder || !this.orderUpdateHistory?.length) return 0;
@@ -1143,7 +1269,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   formatUpdateDate(date: any): string {
     // Update-history timestamps are UTC — display in NY (business) time.
-    return formatNy(date, { year: 'numeric', month: 'numeric', day: 'numeric' }) +
+    // Year omitted intentionally (panel is space-constrained; month/day/time is enough).
+    return formatNy(date, { month: 'short', day: 'numeric' }) +
       ' ' + formatNy(date, { hour: '2-digit', minute: '2-digit' });
   }
 
@@ -1805,6 +1932,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           case 'serviceType':
             cmp = this.getServiceTypeDisplay(a).localeCompare(this.getServiceTypeDisplay(b));
             break;
+          case 'city':
+            cmp = (a.city || '').localeCompare(b.city || '');
+            break;
           case 'total':
             cmp = this.getOrderTotalWithoutTips(a) - this.getOrderTotalWithoutTips(b);
             break;
@@ -1865,6 +1995,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   getServiceTypeDisplay(order: AdminOrderList): string {
+    // Custom ("Pre-Arranged") orders show the admin-chosen label bare (no "Cleaning").
+    // Legacy custom orders with no chosen label fall through to the normal formatter, which
+    // renders "Pre-Arranged Cleaning" as "Arranged" until a SuperAdmin assigns a real type.
+    if (order.isCustomServiceType && order.customServiceDisplayName) {
+      return order.customServiceDisplayName;
+    }
+
     const normalize = (value: string | null | undefined): string =>
       (value || '').toLowerCase().trim().replace(/[_\s]+/g, '-');
 
@@ -1908,6 +2045,19 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * specific type is selected — and always shown under "All Types").
    */
   getServiceTypeFilterKey(order: AdminOrderList): string {
+    // Custom orders fold into the real categories by their chosen label so they sort/filter
+    // alongside genuine Deep/Office/etc. orders. Legacy custom orders (no label) stay "arranged".
+    if (order.isCustomServiceType) {
+      if (!order.customServiceDisplayName) return 'arranged';
+      const label = order.customServiceDisplayName.toLowerCase();
+      if (label.includes('deep')) return 'deep';
+      if (label.includes('regular')) return 'regular';
+      if (label.includes('move')) return 'move-in-out';
+      if (label.includes('office')) return 'office';
+      if (label.includes('filthy')) return 'filthy';
+      if (label.includes('heavy')) return 'heavy';
+      return 'custom';
+    }
     if (this.isResidentialServiceType(order.serviceTypeName)) {
       return this.getServiceTypeDisplay(order) === 'Deep' ? 'deep' : 'regular';
     }
@@ -3074,22 +3224,32 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /** Build a list of field-level changes (current vs proposed) for display. */
-  getPendingEditChanges(): { field: string; current: string; proposed: string }[] {
+  getPendingEditChanges(): { field: string; current: string; proposed: string; difference: string }[] {
     const d = this.selectedPendingEdit;
     if (!d?.currentOrder || !d?.proposedChanges) return [];
     const cur = d.currentOrder as any;
     const prop = d.proposedChanges;
-    const changes: { field: string; current: string; proposed: string }[] = [];
+    const changes: { field: string; current: string; proposed: string; difference: string }[] = [];
     const fmt = (v: any): string => v == null || v === '' ? '—' : String(v);
+    // Signed numeric difference (proposed − current). Returns '—' when either side
+    // isn't a finite number (text fields like names/addresses) or when there's no change.
+    const fmtDiff = (c: any, p: any): string => {
+      const cn = Number(c), pn = Number(p);
+      if (c == null || c === '' || p == null || p === '' || !isFinite(cn) || !isFinite(pn)) return '—';
+      const dlt = Math.round((pn - cn) * 100) / 100;
+      if (dlt === 0) return '—';
+      const body = Number.isInteger(dlt) ? String(dlt) : dlt.toFixed(2);
+      return dlt > 0 ? `+${body}` : body;
+    };
     const push = (field: string, c: any, p: any) => {
       const cv = fmt(c);
       const pv = fmt(p);
-      if (cv !== pv) changes.push({ field, current: cv, proposed: pv });
+      if (cv !== pv) changes.push({ field, current: cv, proposed: pv, difference: fmtDiff(c, p) });
     };
     const pushTime = (field: string, c: any, p: any) => {
       const cv = this.normalizeTimeToHHmm(c);
       const pv = this.normalizeTimeToHHmm(p);
-      if (cv !== pv) changes.push({ field, current: cv || '—', proposed: pv || '—' });
+      if (cv !== pv) changes.push({ field, current: cv || '—', proposed: pv || '—', difference: '—' });
     };
     push('Contact First Name', cur.contactFirstName, prop.contactFirstName);
     push('Contact Last Name', cur.contactLastName, prop.contactLastName);
@@ -3109,7 +3269,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     };
     const curDate = dateOnly(cur.serviceDate);
     const propDate = dateOnly(prop.serviceDate);
-    if (curDate !== propDate) changes.push({ field: 'Service Date', current: curDate || '—', proposed: propDate || '—' });
+    if (curDate !== propDate) changes.push({ field: 'Service Date', current: curDate || '—', proposed: propDate || '—', difference: '—' });
     pushTime('Service Time', cur.serviceTime, prop.serviceTime);
     push('Duration (min)', cur.totalDuration, prop.totalDuration);
     push('Maids', cur.maidsCount, prop.maidsCount);
@@ -3140,7 +3300,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         const pq = Number(ps.quantity);
         const pc = Number(ps.cost);
         if (cq !== pq || cc !== pc) {
-          changes.push({ field: `${name} (qty/cost)`, current: `(${cq}/${cc})`, proposed: `(${pq}/${pc})` });
+          changes.push({ field: `${name} (qty/cost)`, current: `(${cq}/${cc})`, proposed: `(${pq}/${pc})`, difference: fmtDiff(cc, pc) });
         }
       }
     }
@@ -3162,7 +3322,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         const cc = Number(ce.cost);
         const pc = Number(pe.cost);
         if (cVal !== pVal || cc !== pc) {
-          changes.push({ field: `${label} ${unit}`, current: `(${cVal}/${cc})`, proposed: `(${pVal}/${pc})` });
+          changes.push({ field: `${label} ${unit}`, current: `(${cVal}/${cc})`, proposed: `(${pVal}/${pc})`, difference: fmtDiff(cc, pc) });
         }
       } else if (oeId === 0 && (pe.extraServiceId ?? (pe as any).extraServiceId)) {
         const eid = pe.extraServiceId ?? (pe as any).extraServiceId;
@@ -3170,7 +3330,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         const useHours = this.extraServiceHasHoursMap.get(Number(eid));
         const pVal = useHours ? Number(pe.hours) : Number(pe.quantity);
         const pc = Number(pe.cost);
-        changes.push({ field: `${extraName} (new) ${unit}`, current: '—', proposed: `(${pVal}/${pc})` });
+        changes.push({ field: `${extraName} (new) ${unit}`, current: '—', proposed: `(${pVal}/${pc})`, difference: fmtDiff(0, pc) });
       }
     }
     // Removed extras: in current but not in proposed
@@ -3183,7 +3343,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       const useHours = this.extraServiceHasHoursMap.get(Number(eid));
       const cVal = useHours ? Number(ce.hours) : Number(ce.quantity);
       const cc = Number(ce.cost);
-      changes.push({ field: `${extraLabel} (removed) ${unit}`, current: `(${cVal}/${cc})`, proposed: '—' });
+      changes.push({ field: `${extraLabel} (removed) ${unit}`, current: `(${cVal}/${cc})`, proposed: '—', difference: fmtDiff(cc, 0) });
     }
     return changes;
   }

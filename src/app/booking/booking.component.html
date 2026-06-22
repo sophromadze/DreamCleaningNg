@@ -352,6 +352,17 @@
 
             <div class="custom-pricing-form">
               <div class="form-group">
+                <label>Service Type Name <span class="required">*</span></label>
+                <select [formControl]="customServiceName" id="customServiceName">
+                  <option value="" disabled>Select a service type name…</option>
+                  <option *ngFor="let name of customServiceNameOptions" [value]="name">{{ name }}</option>
+                </select>
+                <div class="error-message" *ngIf="customServiceName.invalid && customServiceName.touched">
+                  <div *ngIf="customServiceName.errors?.['required']">Please choose a service type name</div>
+                </div>
+              </div>
+
+              <div class="form-group">
                 <label>Service Amount <span class="required">*</span></label>
                 <div class="input-group">
                   <input type="number" 
@@ -603,7 +614,7 @@
                 [extras]="getExtraServicesToDisplay()"
                 [selections]="selectedExtraServices"
                 [tooltips]="mobileTooltips"
-                [sameDayServiceAvailable]="isSameDayServiceAvailable"
+                [sameDayServiceAvailable]="isSameDayServiceAvailable || isAdminOrSuperAdmin"
                 [sameDayDisabledReason]="sameDayServiceDisabledReason"
                 [loading]="loading.extras"
                 [containerMaxWidth]="extraServicesContainerMaxWidth"
@@ -1390,6 +1401,26 @@
             </div>
             <div class="error-message" *ngIf="cancellationConsent.invalid && cancellationConsent.touched">
               <div *ngIf="cancellationConsent.errors?.['required']">Cancellation fee and booking details consent is required to proceed with booking</div>
+            </div>
+          </div>
+
+          <!-- Privacy Policy and Terms of Service Consent Checkbox -->
+          <div class="terms-consent-section" *ngIf="!showPollForm">
+            <div class="checkbox-group">
+              <input
+                type="checkbox"
+                id="termsConsent"
+                [formControl]="termsConsent"
+                class="form-checkbox"
+                [class.error]="termsConsent.invalid && termsConsent.touched">
+              <label for="termsConsent" class="checkbox-label">
+                I have read and agree to Dream Cleaning's
+                <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> and
+                <a routerLink="/terms-and-conditions" target="_blank">Terms of Service</a>. <span class="required">*</span>
+              </label>
+            </div>
+            <div class="error-message" *ngIf="termsConsent.invalid && termsConsent.touched">
+              <div *ngIf="termsConsent.errors?.['required']">You must accept the Privacy Policy and Terms of Service to proceed with booking</div>
             </div>
           </div>
 
