@@ -10,6 +10,9 @@
     <button class="crm-tab" [class.active]="activeTab === 'leads'" (click)="setTab('leads')">
       Leads &amp; Pipeline
     </button>
+    <button class="crm-tab" [class.active]="activeTab === 'calls'" (click)="setTab('calls')">
+      Calls
+    </button>
     <button class="crm-tab" [class.active]="activeTab === 'customers'" (click)="setTab('customers')">
       Customers
     </button>
@@ -22,7 +25,8 @@
   </div>
 
   <div class="crm-content">
-    <app-leads-pipeline *ngIf="activeTab === 'leads'"></app-leads-pipeline>
+    <app-leads-pipeline *ngIf="activeTab === 'leads'" [openLeadId]="leadToOpen"></app-leads-pipeline>
+    <app-crm-calls *ngIf="activeTab === 'calls'" (openLead)="onCallLeadSelected($event)"></app-crm-calls>
     <app-crm-customers *ngIf="activeTab === 'customers'" [segmentFilter]="customerSegmentFilter"></app-crm-customers>
     <app-crm-segments *ngIf="activeTab === 'segments'" (selectSegment)="onSegmentSelected($event)"></app-crm-segments>
     <app-crm-automation *ngIf="activeTab === 'automation'"></app-crm-automation>

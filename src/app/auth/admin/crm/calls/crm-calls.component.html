@@ -1,0 +1,148 @@
+<div class="crm-calls">
+  <!-- Stats header — scoped to the selected date range + direction (full set, before category filter) -->
+  <div class="stats-section" *ngIf="summary">
+    <div class="stats-strip">
+      <div class="stat">
+        <span class="stat-value">{{ summary.total }}</span>
+        <span class="stat-label">Total (range)</span>
+      </div>
+      <div class="stat stat--answered">
+        <span class="stat-value">{{ summary.answered }}</span>
+        <span class="stat-label">Answered</span>
+      </div>
+      <div class="stat stat--missed">
+        <span class="stat-value">{{ summary.missed }}</span>
+        <span class="stat-label">Missed</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ summary.answerRate }}%</span>
+        <span class="stat-label">Answer rate</span>
+      </div>
+    </div>
+
+    <!-- Category breakdown (always the full range, so it's clear what's being hidden) -->
+    <div class="stats-strip cat-strip">
+      <div class="stat stat--cat cat-customer">
+        <span class="stat-value">{{ summary.customer }}</span>
+        <span class="stat-label">Customer</span>
+      </div>
+      <div class="stat stat--cat cat-cleaner">
+        <span class="stat-value">{{ summary.cleaner }}</span>
+        <span class="stat-label">Cleaner</span>
+      </div>
+      <div class="stat stat--cat cat-spam">
+        <span class="stat-value">{{ summary.spam }}</span>
+        <span class="stat-label">Spam</span>
+      </div>
+      <div class="stat stat--cat cat-unknown">
+        <span class="stat-value">{{ summary.unknown }}</span>
+        <span class="stat-label">Unknown</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="calls-toolbar">
+    <div class="filter">
+      <label>From</label>
+      <input type="date" [(ngModel)]="fromDate" (change)="applyFilters()" />
+    </div>
+    <div class="filter">
+      <label>To</label>
+      <input type="date" [(ngModel)]="toDate" (change)="applyFilters()" />
+    </div>
+    <div class="filter">
+      <label>Direction</label>
+      <select [(ngModel)]="directionFilter" (change)="applyFilters()">
+        <option value="">All</option>
+        <option value="Inbound">Inbound</option>
+        <option value="Outbound">Outbound</option>
+      </select>
+    </div>
+    <div class="filter">
+      <label>Category</label>
+      <select [(ngModel)]="categoryFilter" (change)="applyFilters()">
+        <option value="">All</option>
+        <option value="Customer">Customer</option>
+        <option value="Cleaner">Cleaner</option>
+        <option value="Spam">Spam</option>
+        <option value="Unknown">Unknown</option>
+      </select>
+    </div>
+
+    <label class="hide-toggle" [class.disabled]="!!categoryFilter">
+      <input type="checkbox" [(ngModel)]="hideNonCustomer" (change)="onHideToggle()" [disabled]="!!categoryFilter" />
+      Hide cleaners &amp; spam
+      <span class="hidden-count" *ngIf="hideNonCustomer && !categoryFilter && hiddenCount > 0">({{ hiddenCount }} hidden)</span>
+    </label>
+
+    <div class="toolbar-spacer"></div>
+
+    <button class="btn-light" (click)="reclassify()" [disabled]="reclassifying" title="Recompute categories for all calls">
+      {{ reclassifying ? 'Reclassifying…' : 'Reclassify' }}
+    </button>
+    <button class="btn-secondary" (click)="downloadExcel()" [disabled]="exporting">
+      {{ exporting ? 'Exporting…' : 'Download Excel' }}
+    </button>
+  </div>
+
+  <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+  <!-- Table -->
+  <div class="calls-table-wrap" *ngIf="!loading; else loadingTpl">
+    <table class="calls-table" *ngIf="calls.length; else emptyTpl">
+      <thead>
+        <tr>
+          <th>Date / Time</th>
+          <th>Category</th>
+          <th>Direction</th>
+          <th>From</th>
+          <th>Duration</th>
+          <th>Result</th>
+          <th>Linked Lead</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let call of calls; trackBy: trackByCallId">
+          <td>{{ call.startTimeUtc | date:'MMM d, y, HH:mm' }}</td>
+          <td>
+            <span class="cat-badge" [ngClass]="categoryClass(call.category)">{{ call.category }}</span>
+            <span class="cleaner-name" *ngIf="call.category === 'Cleaner' && call.matchedCleanerName">
+              {{ call.matchedCleanerName }}
+            </span>
+          </td>
+          <td>{{ call.direction }}</td>
+          <td>
+            <div class="from-cell">
+              <span class="from-number">{{ call.fromNumber || '—' }}</span>
+              <span class="from-name" *ngIf="call.fromName">{{ call.fromName }}</span>
+            </div>
+          </td>
+          <td>{{ formatDuration(call.durationSeconds) }}</td>
+          <td><span class="result-pill" [ngClass]="resultClass(call.result)">{{ call.result }}</span></td>
+          <td>
+            <a href="#" *ngIf="call.leadId" class="lead-link" (click)="goToLead(call.leadId, $event)">
+              {{ call.leadName || 'View lead' }}
+            </a>
+            <span *ngIf="!call.leadId" class="muted">—</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Paging -->
+    <div class="paging" *ngIf="totalPages > 1">
+      <button class="btn-light" (click)="prevPage()" [disabled]="page <= 1">← Prev</button>
+      <span class="page-info">Page {{ page }} of {{ totalPages }} · {{ totalCount }} calls</span>
+      <button class="btn-light" (click)="nextPage()" [disabled]="page >= totalPages">Next →</button>
+    </div>
+  </div>
+
+  <ng-template #loadingTpl>
+    <div class="state-msg">Loading calls…</div>
+  </ng-template>
+
+  <ng-template #emptyTpl>
+    <div class="state-msg">No calls found for this range.</div>
+  </ng-template>
+</div>

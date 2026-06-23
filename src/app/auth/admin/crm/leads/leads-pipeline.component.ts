@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -14,6 +14,9 @@ import {
   styleUrls: ['./leads-pipeline.component.scss']
 })
 export class LeadsPipelineComponent implements OnInit {
+  /** When set (e.g. from the Calls tab deep-link), auto-open this lead's detail panel on load. */
+  @Input() openLeadId?: number;
+
   readonly stages = LEAD_STAGES;
   readonly sources = LEAD_SOURCES;
 
@@ -50,6 +53,20 @@ export class LeadsPipelineComponent implements OnInit {
   ngOnInit(): void {
     this.loadPipeline();
     this.loadStats();
+    if (this.openLeadId != null) this.openLeadById(this.openLeadId);
+  }
+
+  /** Open a lead's detail panel directly by id (used by the Calls-tab deep-link). */
+  openLeadById(id: number): void {
+    this.panelLoading = true;
+    this.leadService.getLead(id).subscribe({
+      next: detail => {
+        this.selectedLead = detail;
+        this.editBuffer = { ...detail };
+        this.panelLoading = false;
+      },
+      error: () => { this.panelLoading = false; }
+    });
   }
 
   // ── Loading ──

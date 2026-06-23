@@ -5,13 +5,14 @@ import { LeadsPipelineComponent } from './leads/leads-pipeline.component';
 import { CrmCustomersComponent } from './customers/crm-customers.component';
 import { CrmSegmentsComponent } from './segments/crm-segments.component';
 import { CrmAutomationComponent } from './automation/crm-automation.component';
+import { CrmCallsComponent } from './calls/crm-calls.component';
 
-type CrmTab = 'leads' | 'customers' | 'segments' | 'automation';
+type CrmTab = 'leads' | 'calls' | 'customers' | 'segments' | 'automation';
 
 @Component({
   selector: 'app-crm',
   standalone: true,
-  imports: [CommonModule, RouterLink, LeadsPipelineComponent, CrmCustomersComponent, CrmSegmentsComponent, CrmAutomationComponent],
+  imports: [CommonModule, RouterLink, LeadsPipelineComponent, CrmCustomersComponent, CrmSegmentsComponent, CrmAutomationComponent, CrmCallsComponent],
   templateUrl: './crm.component.html',
   styleUrls: ['./crm.component.scss']
 })
@@ -20,6 +21,9 @@ export class CrmComponent {
 
   /** Segment key passed into the customers list when a segment card is opened. */
   customerSegmentFilter = '';
+
+  /** Lead id to auto-open in the Leads tab when a call's linked lead is clicked. */
+  leadToOpen?: number;
 
   setTab(tab: CrmTab): void {
     this.activeTab = tab;
@@ -30,6 +34,12 @@ export class CrmComponent {
   onSegmentSelected(key: string): void {
     this.customerSegmentFilter = key;
     this.setTab('customers');
+  }
+
+  /** From the Calls tab: open the linked lead in the Leads pipeline. */
+  onCallLeadSelected(leadId: number): void {
+    this.leadToOpen = leadId;
+    this.setTab('leads');
   }
 
   constructor() {
