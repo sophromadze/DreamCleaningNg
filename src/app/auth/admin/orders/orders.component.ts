@@ -21,6 +21,7 @@ import {
   calculateTotals,
   calculateCleanerTotalSalary,
   getSquareFeetForBedrooms,
+  resolveGiftCardAmountToUse,
   round2,
   SALES_TAX_RATE
 } from '../../../shared/pricing/order-pricing.calculator';
@@ -211,6 +212,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // can be flat-dollar; loyalty is always %-based per spec section 4.5).
   editOrderFormOriginalLoyaltyDiscount = 0;
   editOrderFormOriginalLoyaltyPercentage = 0;
+  // Gift card on edit: available balance (current remaining + what this order already used) so a
+  // price increase can be re-drawn from leftover funds before charging the customer. Mirrors the
+  // user order-edit page; matches the backend ApplyEditGiftCardAsync re-resolution.
+  editGiftCardCode: string | null = null;
+  editGiftCardOriginalUsed = 0;
+  editGiftCardAvailableBalance = 0;
+  editGiftCardAmountToUse = 0;
   editOrderFormPrevServiceQuantities: number[] = [];
   editOrderFormPrevExtraQuantities: number[] = [];
   editOrderFormPrevExtraHours: number[] = [];
@@ -2624,6 +2632,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       loyaltyDiscountAmount: this.selectedOrder.loyaltyDiscountAmount ?? 0,
       cleanerHourlyRate: this.selectedOrder.cleanerHourlyRate ?? 20,
       cleanerTotalSalary: this.selectedOrder.cleanerTotalSalary ?? 0,
+      customServiceDisplayName: (this.selectedOrder as any).customServiceDisplayName ?? null,
       services: this.selectedOrder.services?.map(s => ({ orderServiceId: s.id, quantity: s.quantity, cost: s.cost })) ?? null,
       // Include extraServiceId for existing rows too (backend may require it to persist/recognize updates)
       extraServices: this.selectedOrder.extraServices?.map(e => ({
@@ -2643,6 +2652,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.editOrderFormOriginalSubscriptionDiscount = (this.selectedOrder as any).subscriptionDiscountAmount ?? 0;
     this.editOrderFormOriginalLoyaltyDiscount = this.selectedOrder.loyaltyDiscountAmount ?? 0;
     this.editOrderFormOriginalLoyaltyPercentage = this.selectedOrder.loyaltyDiscountPercentage ?? 0;
+    this.initEditGiftCard();
     this.editOrderFormPrevServiceQuantities = (this.editOrderForm.services ?? []).map(s => s.quantity);
     this.editOrderFormPrevExtraQuantities = (this.editOrderForm.extraServices ?? []).map(e => e.quantity);
     this.editOrderFormPrevExtraHours = (this.editOrderForm.extraServices ?? []).map(e => e.hours);
@@ -2733,6 +2743,31 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * discount ratio so discount scales with subtotal (loyalty scales by its locked percentage
    * snapshot instead — preserves the "this order had 10% loyalty" historical truth).
    */
+  /** Load the order's gift card (if any) so an edited total can re-draw from leftover balance.
+   *  availableBalance = the card's current remaining balance + what this order already used. */
+  private initEditGiftCard(): void {
+    const code = (this.selectedOrder as any)?.giftCardCode ?? null;
+    const used = Number((this.selectedOrder as any)?.giftCardAmountUsed ?? 0) || 0;
+    this.editGiftCardCode = code;
+    this.editGiftCardOriginalUsed = used;
+    this.editGiftCardAmountToUse = used;
+    this.editGiftCardAvailableBalance = 0;
+
+    if (!code || used <= 0) return;
+
+    this.bookingService.validatePromoCode(code).subscribe({
+      next: (validation: any) => {
+        if (validation?.isValid && validation?.isGiftCard) {
+          // availableBalance from the API is the card's CURRENT remaining balance; add back what
+          // this order already consumed so the edit can re-draw up to the full balance.
+          this.editGiftCardAvailableBalance = (Number(validation.availableBalance) || 0) + used;
+          this.recalculateEditPricing();
+        }
+      },
+      error: () => { /* keep the fixed original amount if the lookup fails */ }
+    });
+  }
+
   recalculateEditPricing(): void {
     if (!this.selectedOrder || !this.editingOrder) return;
 
@@ -2757,8 +2792,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const tips = Number(this.editOrderForm.tips ?? 0) || 0;
     const companyTips = Number(this.editOrderForm.companyDevelopmentTips ?? 0) || 0;
 
+    const pointsRedeemedDiscount = Number((this.selectedOrder as any).pointsRedeemedDiscount ?? 0) || 0;
+    const rewardBalanceUsed = Number((this.selectedOrder as any).rewardBalanceUsed ?? 0) || 0;
+
     // Tips are included so the preview matches what the backend persists on save
     // (SuperAdminFullUpdateOrder recomputes Total with tips through the same calculator).
+    // Gift card is applied AFTER, re-resolved against the live balance so an increased total
+    // draws additional funds from any leftover gift-card balance (mirrors ApplyEditGiftCardAsync).
     const totals = calculateTotals({
       subTotal,
       discountAmount,
@@ -2766,13 +2806,20 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       loyaltyDiscountAmount,
       tips,
       companyDevelopmentTips: companyTips,
-      giftCardAmountUsed: Number((this.selectedOrder as any).giftCardAmountUsed ?? 0) || 0,
-      pointsRedeemedDiscount: Number((this.selectedOrder as any).pointsRedeemedDiscount ?? 0) || 0,
-      rewardBalanceUsed: Number((this.selectedOrder as any).rewardBalanceUsed ?? 0) || 0
+      pointsRedeemedDiscount,
+      rewardBalanceUsed
     });
 
+    // Re-resolve the gift card: draw up to min(availableBalance, totalBeforeGiftCard). Falls back
+    // to the original fixed amount until the balance lookup (initEditGiftCard) resolves.
+    const giftCardAmountToUse = this.editGiftCardAvailableBalance > 0
+      ? resolveGiftCardAmountToUse(this.editGiftCardAvailableBalance, totals.totalBeforeGiftCard)
+      : this.editGiftCardOriginalUsed;
+    this.editGiftCardAmountToUse = giftCardAmountToUse;
+
     this.editOrderForm.tax = totals.tax;
-    this.editOrderForm.total = totals.total;
+    this.editOrderForm.total = round2(Math.max(0,
+      totals.totalBeforeGiftCard - giftCardAmountToUse - pointsRedeemedDiscount - rewardBalanceUsed));
 
     const base = totals.total - totals.tax - tips - companyTips;
     this.editEstimatedPoints = this.pointsEnabled && this.pointsPerDollar > 0
@@ -3286,6 +3333,25 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     push('Subscription Discount', cur.subscriptionDiscountAmount, prop.subscriptionDiscountAmount);
     push('Status', cur.status, prop.status);
     push('Cancellation Reason', cur.cancellationReason, prop.cancellationReason);
+    push('Cleaner $/hr', cur.cleanerHourlyRate, prop.cleanerHourlyRate);
+    push('Cleaners Total Salary', cur.cleanerTotalSalary, prop.cleanerTotalSalary);
+    // Custom ("Pre-Arranged") orders: relabeling the service-type display name. Treat an
+    // empty proposed value as "Arranged" so clearing the label reads sensibly in the diff.
+    // `undefined` means the field wasn't part of this edit (e.g. pending edits created before
+    // this field existed) — skip it so we never show a spurious "name → Arranged" change.
+    if (this.isCustomServiceType(cur) && prop.customServiceDisplayName !== undefined) {
+      const curName = cur.customServiceDisplayName;
+      const propName = prop.customServiceDisplayName;
+      const labelOrArranged = (v: any) => (v == null || v === '' ? 'Arranged' : String(v));
+      if (labelOrArranged(curName) !== labelOrArranged(propName)) {
+        changes.push({
+          field: 'Service Type Name',
+          current: labelOrArranged(curName),
+          proposed: labelOrArranged(propName),
+          difference: '—'
+        });
+      }
+    }
 
     // Services: one row per service with label "Name (qty/cost)"
     const curServices = cur.services ?? [];
@@ -3398,6 +3464,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       loyaltyDiscountAmount: this.editOrderForm.loyaltyDiscountAmount ?? undefined,
       cleanerHourlyRate: this.editOrderForm.cleanerHourlyRate ?? undefined,
       cleanerTotalSalary: this.editOrderForm.cleanerTotalSalary ?? undefined,
+      // Only meaningful for custom orders; backend ignores it for other service types.
+      // Send '' (not undefined) when cleared so the backend can reset it to "Arranged".
+      customServiceDisplayName: this.selectedOrderIsCustomServiceType
+        ? (this.editOrderForm.customServiceDisplayName ?? '')
+        : undefined,
       services: this.editOrderForm.services ?? undefined,
       // Send extra services: existing rows with orderExtraServiceId; new rows with orderExtraServiceId: 0 and extraServiceId (backend may expect 0 for "create")
       extraServices: (this.editOrderForm.extraServices ?? undefined)?.map(e => {

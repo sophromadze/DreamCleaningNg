@@ -169,7 +169,7 @@
 
       <!-- Need help? Phone shown as a clickable link, not a button -->
       <p class="booking-form-card__help">
-        Need help? <a href="tel:+19299301525" class="booking-form-card__help-phone">Call now (929) 930-1525</a>
+        Need help? <a [href]="phoneNumber.telHref()" class="booking-form-card__help-phone">Call now {{ phoneNumber.displayNumber() }}</a>
       </p>
     </aside>
 

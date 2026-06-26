@@ -11,6 +11,9 @@ export type LeadStage = typeof LEAD_STAGES[number];
 export const LEAD_SOURCES = ['ContactForm', 'QuoteRequest', 'LiveChat', 'Manual', 'Booking'] as const;
 export type LeadSource = typeof LEAD_SOURCES[number];
 
+export const LEAD_TYPES = ['Residential', 'Commercial'] as const;
+export type LeadType = typeof LEAD_TYPES[number];
+
 export const LEAD_ACTIVITY_TYPES = ['Note', 'StageChange', 'Call', 'Email', 'Sms', 'System'] as const;
 export type LeadActivityType = typeof LEAD_ACTIVITY_TYPES[number];
 
@@ -25,6 +28,7 @@ export interface Lead {
   phone?: string;
   serviceAddress?: string;
   cleaningType?: string;
+  type: LeadType;
   message?: string;
   stage: LeadStage;
   source: LeadSource;
@@ -81,6 +85,7 @@ export interface CreateLead {
   phone?: string;
   serviceAddress?: string;
   cleaningType?: string;
+  type?: LeadType;
   message?: string;
   source?: LeadSource;
   estimatedValue?: number;
@@ -96,6 +101,7 @@ export interface UpdateLead {
   phone?: string;
   serviceAddress?: string;
   cleaningType?: string;
+  type?: LeadType;
   message?: string;
   estimatedValue?: number;
   assignedToAdminId?: number;
@@ -122,10 +128,11 @@ export class CrmLeadService {
 
   constructor(private http: HttpClient) {}
 
-  getPipeline(filters?: { search?: string; source?: string; assignedToAdminId?: number }): Observable<LeadPipelineColumn[]> {
+  getPipeline(filters?: { search?: string; source?: string; type?: string; assignedToAdminId?: number }): Observable<LeadPipelineColumn[]> {
     let params = new HttpParams();
     if (filters?.search) params = params.set('search', filters.search);
     if (filters?.source) params = params.set('source', filters.source);
+    if (filters?.type) params = params.set('type', filters.type);
     if (filters?.assignedToAdminId != null) params = params.set('assignedToAdminId', filters.assignedToAdminId);
     return this.http.get<LeadPipelineColumn[]>(`${this.apiUrl}/pipeline`, { params });
   }
@@ -134,11 +141,12 @@ export class CrmLeadService {
     return this.http.get<LeadStats>(`${this.apiUrl}/stats`);
   }
 
-  getLeads(filters?: { search?: string; stage?: string; source?: string; assignedToAdminId?: number }): Observable<Lead[]> {
+  getLeads(filters?: { search?: string; stage?: string; source?: string; type?: string; assignedToAdminId?: number }): Observable<Lead[]> {
     let params = new HttpParams();
     if (filters?.search) params = params.set('search', filters.search);
     if (filters?.stage) params = params.set('stage', filters.stage);
     if (filters?.source) params = params.set('source', filters.source);
+    if (filters?.type) params = params.set('type', filters.type);
     if (filters?.assignedToAdminId != null) params = params.set('assignedToAdminId', filters.assignedToAdminId);
     return this.http.get<Lead[]>(this.apiUrl, { params });
   }

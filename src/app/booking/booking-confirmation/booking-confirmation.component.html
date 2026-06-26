@@ -15,17 +15,24 @@
     <!-- Payment Form Section -->
     <div class="payment-section">
       <h2>Payment Information</h2>
-      
-      <!-- Apple Pay / Google Pay button -->
-      <div id="payment-request-button" class="applepay-button-container" *ngIf="showApplePay"></div>
 
-      <!-- Card Element Container -->
-      <div id="card-element" class="card-element-container">
+      <!-- Fully covered by gift card / credits: no charge required -->
+      <div class="fully-covered-notice" *ngIf="fullyCovered">
+        <i class="fas fa-gift"></i>
+        <p>Your gift card covers the full amount. No payment is required — just confirm your booking.</p>
+      </div>
+
+      <!-- Apple Pay / Google Pay button -->
+      <div id="payment-request-button" class="applepay-button-container" *ngIf="showApplePay && !fullyCovered"></div>
+
+      <!-- Card Element Container (kept in the DOM for Stripe even while hidden, so it can be
+           revealed if the gift card no longer covers the full amount) -->
+      <div id="card-element" class="card-element-container" [hidden]="fullyCovered">
         <!-- Stripe Elements will be mounted here -->
       </div>
-      
+
       <!-- Card Error Message -->
-      <div class="card-error" *ngIf="cardError">
+      <div class="card-error" *ngIf="cardError && !fullyCovered">
         {{ cardError }}
       </div>
       
@@ -44,11 +51,12 @@
       
       <!-- Action Buttons -->
       <div class="payment-actions">
-        <button 
-          class="pay-btn" 
+        <button
+          class="pay-btn"
           (click)="processPayment()"
-          [disabled]="isProcessing || !!cardError">
-          <span *ngIf="!isProcessing">Pay ${{ orderTotal | number:'1.2-2' }}</span>
+          [disabled]="isProcessing || (!fullyCovered && !!cardError)">
+          <span *ngIf="!isProcessing && fullyCovered">Complete Booking</span>
+          <span *ngIf="!isProcessing && !fullyCovered">Pay ${{ orderTotal | number:'1.2-2' }}</span>
           <span *ngIf="isProcessing">Processing...</span>
         </button>
         

@@ -151,7 +151,8 @@
         </div>
         <div class="about-text">
           <h2 class="section-title-h2 section-title-h2--left">About Us</h2>
-          <p>Dream Cleaning is a locally owned professional cleaning company in New York City, founded in 2024. We serve 120 ZIP codes across Brooklyn, Manhattan, and Queens with a team of background-checked, insured professionals. With a 5.0-star Google rating across 100+ reviews and over 300 homes cleaned, we offer standard cleaning (from ${{ pricing.residentialFrom }}), deep cleaning (from ${{ pricing.deepFrom }}), move in/out cleaning (from ${{ pricing.moveInOutFrom }}), office cleaning, and specialized services — with online booking, transparent pricing, and a 100% satisfaction guarantee.</p>
+          <p>Dream Cleaning wasn't created because cleaning services didn't exist — it was created because customers were so often missing what matters most: quality, accountability, and a calm, worry-free experience.</p>
+          <p>Before we started the company, we were customers ourselves. For years we watched how different companies worked and saw the difficulties people faced when they trusted a professional with their home or office — inconsistent quality, mismatched expectations, and too little communication while the work was happening. Too often, customers had no clear idea of what to expect, while companies never fully understood what actually mattered to the client. That gap is what creates uncertainty and distrust — so we decided to do things differently.</p>
           <a routerLink="/about" class="btn-cta-primary btn-cta-primary--inline">Learn More About Us</a>
         </div>
       </div>
@@ -484,11 +485,11 @@
           <p>Book online in minutes or call us directly. Professional cleaning across Manhattan, Brooklyn, and Queens — backed by our 100% satisfaction guarantee.</p>
           <div class="final-cta-card__buttons">
             <a routerLink="/booking" [queryParams]="{ cleaningType: 'deep' }" class="btn-cta-primary">Book Your Cleaning</a>
-            <a href="tel:+19299301525" class="btn-cta-secondary">
+            <a [href]="phoneNumber.telHref()" class="btn-cta-secondary">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.19 19 19.5 19.5 0 0 1 5 12.81 19.79 19.79 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.12.9.32 1.78.6 2.62a2 2 0 0 1-.45 2.11L8 9.67a16 16 0 0 0 6.33 6.33l1.22-1.22a2 2 0 0 1 2.11-.45c.84.28 1.72.48 2.62.6A2 2 0 0 1 22 16.92Z"/>
               </svg>
-              (929) 930-1525
+              {{ phoneNumber.displayNumber() }}
             </a>
           </div>
         </div>

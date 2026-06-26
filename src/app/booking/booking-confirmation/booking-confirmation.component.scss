@@ -95,6 +95,24 @@ h1 {
   border: 1px solid #f5c6cb;
 }
 
+// Gift-card-fully-covers notice. Success palette (mint + fresh green), theme-aware tokens.
+.fully-covered-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background-color: var(--mint-fresh);
+  color: var(--fresh-green);
+  border: 1px solid var(--mint-fresh-border);
+  padding: 1.25rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1.5rem;
+  text-align: left;
+  line-height: 1.5;
+
+  i { font-size: 1.4rem; flex-shrink: 0; }
+  p { margin: 0; font-weight: var(--fw-medium); }
+}
+
 // Sticky, dismissible notice for money-sensitive outcomes from confirm-payment. Default (warning)
 // = charge was refunded; the --critical variant = refund failed (more serious, escalated to red).
 .support-notice {

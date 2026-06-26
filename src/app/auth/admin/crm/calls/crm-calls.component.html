@@ -38,6 +38,10 @@
         <span class="stat-value">{{ summary.unknown }}</span>
         <span class="stat-label">Unknown</span>
       </div>
+      <div class="stat stat--cat cat-ad">
+        <span class="stat-value">{{ summary.adCall }}</span>
+        <span class="stat-label">Ad calls</span>
+      </div>
     </div>
   </div>
 
@@ -76,6 +80,12 @@
       <span class="hidden-count" *ngIf="hideNonCustomer && !categoryFilter && hiddenCount > 0">({{ hiddenCount }} hidden)</span>
     </label>
 
+    <label class="hide-toggle">
+      <input type="checkbox" [(ngModel)]="adOnly" (change)="onAdOnlyToggle()" />
+      Ad calls only
+      <span class="hidden-count" *ngIf="summary && summary.adCall > 0">({{ summary.adCall }} in range)</span>
+    </label>
+
     <div class="toolbar-spacer"></div>
 
     <button class="btn-light" (click)="reclassify()" [disabled]="reclassifying" title="Recompute categories for all calls">
@@ -107,6 +117,7 @@
           <td>{{ call.startTimeUtc | date:'MMM d, y, HH:mm' }}</td>
           <td>
             <span class="cat-badge" [ngClass]="categoryClass(call.category)">{{ call.category }}</span>
+            <span class="ad-badge" *ngIf="call.isAdCall" title="Call to the dedicated Google Ads number">Ad</span>
             <span class="cleaner-name" *ngIf="call.category === 'Cleaner' && call.matchedCleanerName">
               {{ call.matchedCleanerName }}
             </span>

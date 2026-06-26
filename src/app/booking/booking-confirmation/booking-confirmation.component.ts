@@ -26,6 +26,10 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   currentUser: any;
   cardError: string | null = null;
   showApplePay = false;
+  // True when a gift card (or credits) covers the full amount, so no Stripe charge is needed.
+  // Drives the UI to hide the card form and confirm the booking directly. The server has the
+  // final say via the prepare-payment `requiresPayment` flag.
+  fullyCovered = false;
 
   // Money-sensitive notice (auto-refund outcome from confirm-payment). Shown in its own banner
   // that stays until the customer manually dismisses it — no auto-clear — so they can read it and
@@ -75,6 +79,8 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   }
 
   private async initApplePay() {
+    // No wallet button when a gift card covers the full amount (nothing to charge).
+    if (this.fullyCovered) return;
     const pr = await this.stripeService.createPaymentRequest(this.orderTotal, 'Dream Cleaning NYC');
     if (!pr) return;
     this.showApplePay = true;
@@ -158,15 +164,17 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
       });
       total = totals.total;
     }
-    
+
     this.orderTotal = total;
+    // Below Stripe's $0.50 minimum the charge is impossible — treat as fully covered.
+    this.fullyCovered = total < 0.5;
   }
 
   // REMOVE the old preparePayment method entirely
 
   // Prepare payment and get payment intent WITHOUT creating order
   async processPayment() {
-    if (this.isProcessing || this.cardError) return;
+    if (this.isProcessing || (!this.fullyCovered && this.cardError)) return;
 
     this.isProcessing = true;
     this.errorMessage = '';
@@ -186,6 +194,30 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
             this.currentUser = response.guestUser;
           }
 
+          // Gift card (or credits) fully covered the order — the server skipped Stripe.
+          // Confirm the booking directly without a card charge.
+          if (response.requiresPayment === false || !response.paymentClientSecret) {
+            this.fullyCovered = true;
+            this.bookingService.confirmPayment(0, '', sessionId).subscribe({
+              next: (confirmResponse) => {
+                this.orderId = confirmResponse.orderId;
+                this.handlePaymentSuccess();
+              },
+              error: (error) => this.handleConfirmError(error)
+            });
+            return;
+          }
+
+          // Server says payment IS required but the UI assumed full coverage (e.g. the gift
+          // card balance dropped since validation). Reveal the card form for the remainder.
+          if (this.fullyCovered) {
+            this.fullyCovered = false;
+            this.errorMessage = 'Your gift card no longer covers the full amount. Please enter your card details to pay the remaining balance.';
+            this.isProcessing = false;
+            this.initApplePay();
+            return;
+          }
+
           try {
             // Now immediately confirm the payment
             const paymentIntent = await this.stripeService.confirmCardPayment(
@@ -200,24 +232,7 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
                 this.orderId = confirmResponse.orderId; // Get the created order ID
                 this.handlePaymentSuccess();
               },
-              error: (error) => {
-                const msg = error.error?.message || 'Payment confirmation failed';
-                const code = error.error?.code;
-                // Severity is keyed off the backend error code (not the human text), so the message
-                // can be reworded without breaking detection. Codes are emitted by the refund catch
-                // in BookingController.ConfirmPayment.
-                if (code === 'booking_refunded') {
-                  // Charge WAS refunded — reassuring, lower severity.
-                  this.stickyNotice = { message: msg, severity: 'warning' };
-                } else if (code === 'booking_refund_failed') {
-                  // Charge was NOT refunded — customer must contact us; highest severity.
-                  this.stickyNotice = { message: msg, severity: 'critical' };
-                } else {
-                  this.errorMessage = msg;
-                }
-                this.isProcessing = false;
-                // Order was not created, so no cleanup needed
-              }
+              error: (error) => this.handleConfirmError(error)
             });
           } catch (paymentError: any) {
             // Payment failed - no order was created, so nothing to clean up
@@ -293,6 +308,25 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   // REMOVE the old onPaymentError method - we don't need it anymore
 
   // REMOVE the retryPayment method - we'll handle retries differently
+
+  // Shared confirm-payment error handler. Severity is keyed off the backend error code (not the
+  // human text), so the message can be reworded without breaking detection. Codes are emitted by
+  // the refund catch in BookingController.ConfirmPayment.
+  private handleConfirmError(error: any) {
+    const msg = error.error?.message || 'Payment confirmation failed';
+    const code = error.error?.code;
+    if (code === 'booking_refunded') {
+      // Charge WAS refunded — reassuring, lower severity.
+      this.stickyNotice = { message: msg, severity: 'warning' };
+    } else if (code === 'booking_refund_failed') {
+      // Charge was NOT refunded — customer must contact us; highest severity.
+      this.stickyNotice = { message: msg, severity: 'critical' };
+    } else {
+      this.errorMessage = msg;
+    }
+    this.isProcessing = false;
+    // Order was not created (or already handled server-side), so no cleanup needed
+  }
 
   dismissStickyNotice() {
     this.stickyNotice = null;

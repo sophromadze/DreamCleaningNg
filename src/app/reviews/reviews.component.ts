@@ -1,8 +1,9 @@
-import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, inject } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { environment } from '../../environments/environment';
 import { GooglePlacesService, Review } from '../services/google-reviews.service';
+import { PhoneNumberService } from '../services/phone-number.service';
 import { Subscription } from 'rxjs';
 
 interface DisplayReview extends Review {
@@ -23,6 +24,7 @@ export class ReviewsComponent implements OnInit, OnDestroy {
   totalReviews = 0;
   isLoading = false;
   hasLoaded = false;
+  protected readonly phoneNumber = inject(PhoneNumberService);
 
   /** Google Reviews only resolve in production (API has IP restrictions for hosting only). */
   showGoogleReviews = environment.production;

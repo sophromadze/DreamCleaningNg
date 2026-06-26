@@ -2,6 +2,7 @@ import { Component, HostListener, ElementRef, Inject, PLATFORM_ID } from '@angul
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { PhoneClickTrackingService } from '../services/phone-click-tracking.service';
+import { PhoneNumberService } from '../services/phone-number.service';
 
 @Component({
   selector: 'app-floating-action-buttons',
@@ -19,6 +20,7 @@ export class FloatingActionButtonsComponent {
     private router: Router, 
     private elementRef: ElementRef,
     private phoneTracking: PhoneClickTrackingService,
+    private phoneNumber: PhoneNumberService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
@@ -40,7 +42,7 @@ export class FloatingActionButtonsComponent {
   }
   
   callPhone() {
-    this.phoneTracking.trackAndCall('tel:+19299301525');
+    this.phoneTracking.trackAndCall(this.phoneNumber.telHref());
   }
 
   sendEmail() {

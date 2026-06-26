@@ -129,11 +129,11 @@
             <p>hello&#64;dreamcleaningnyc.com</p>
           </div>
           <div class="info-item">
-            <a href="tel:+19299301525">
+            <a [href]="phoneNumber.telHref()">
               <i class="fas fa-phone icon"></i>
             </a>
             <h3>Phone</h3>
-            <p>(929) 930-1525</p>
+            <p>{{ phoneNumber.displayNumber() }}</p>
           </div>
           <div class="info-item">
             <div class="social-icons">

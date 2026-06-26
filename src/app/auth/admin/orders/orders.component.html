@@ -387,6 +387,13 @@
                       </div>
                       <div class="edit-group edit-group--service">
                         <h6>Service</h6>
+                        <div class="edit-row" *ngIf="selectedOrderIsCustomServiceType">
+                          <label>Service Type Name</label>
+                          <select [(ngModel)]="editOrderForm.customServiceDisplayName">
+                            <option [ngValue]="null">— Not set (Arranged) —</option>
+                            <option *ngFor="let name of customServiceNameOptions" [ngValue]="name">{{ name }}</option>
+                          </select>
+                        </div>
                         <div class="edit-row"><label>Service Date</label><input type="date" [(ngModel)]="editOrderForm.serviceDate"></div>
                         <div class="edit-row"><label>Service Time (HH:mm)</label><input type="text" [(ngModel)]="editOrderForm.serviceTime" placeholder="14:30"></div>
                         <div class="edit-row"><label>Maids</label><input type="number" [(ngModel)]="editOrderForm.maidsCount" (ngModelChange)="onEditMaidsChange()" title="Auto from duration (1 per 6h); you can override"></div>
@@ -453,6 +460,12 @@
                         <div class="edit-row edit-row--readonly-discount" *ngIf="(selectedOrder.rewardBalanceUsed || 0) > 0">
                           <label>Reward Balance</label>
                           <input type="number" [value]="selectedOrder.rewardBalanceUsed || 0" readonly>
+                        </div>
+                        <!-- Gift card on edit: re-resolved against the live balance so an increased
+                             total is absorbed by leftover funds before charging the customer. -->
+                        <div class="edit-row edit-row--readonly-discount" *ngIf="editGiftCardCode && editGiftCardOriginalUsed > 0">
+                          <label>Gift Card{{ editGiftCardAvailableBalance > 0 ? ' (bal. $' + (editGiftCardAvailableBalance - editGiftCardAmountToUse).toFixed(2) + ' left)' : '' }}</label>
+                          <input type="number" [value]="editGiftCardAmountToUse.toFixed(2)" readonly>
                         </div>
                         <div class="edit-row"><label>Total</label><input type="number" step="1" [(ngModel)]="editOrderForm.total" readonly></div>
                         <div class="edit-row edit-row--pts-preview" *ngIf="pointsEnabled && editEstimatedPoints > 0">

@@ -163,7 +163,7 @@
 
         <div class="contact-info">
           <h3>Contact us for a free estimate:</h3>
-          <p><strong>Phone:</strong> <a href="tel:+19299301525">(929) 930-1525</a></p>
+          <p><strong>Phone:</strong> <a [href]="phoneNumber.telHref()">{{ phoneNumber.displayNumber() }}</a></p>
           <p><strong>Email:</strong> <a href="mailto:hello&#64;dreamcleaningnyc.com">hello&#64;dreamcleaningnyc.com</a></p>
         </div>
 

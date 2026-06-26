@@ -1,9 +1,10 @@
-import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, Inject, PLATFORM_ID, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
 import { AuthService } from '../services/auth.service';
+import { PhoneNumberService } from '../services/phone-number.service';
 import { environment } from '../../environments/environment';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
 
@@ -27,6 +28,7 @@ export class ContactComponent implements OnInit {
   showError = false;
   errorMessage = '';
   currentUser: any;
+  protected readonly phoneNumber = inject(PhoneNumberService);
 
   constructor(
     private fb: FormBuilder,

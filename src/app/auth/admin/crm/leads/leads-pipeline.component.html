@@ -34,6 +34,10 @@
       <option value="">All sources</option>
       <option *ngFor="let s of sources" [value]="s">{{ sourceLabel(s) }}</option>
     </select>
+    <select [(ngModel)]="typeFilter" (ngModelChange)="onTypeFilterChange()" class="source-select">
+      <option value="">All types</option>
+      <option *ngFor="let t of types" [value]="t">{{ t }}</option>
+    </select>
     <button class="btn-refresh" (click)="refresh()" title="Refresh">⟳</button>
     <button class="btn-add" (click)="openAddModal()">+ Add lead</button>
   </div>
@@ -56,7 +60,10 @@
              (click)="openLead(lead)" [class.follow-due]="isFollowUpDue(lead)">
           <div class="card-top">
             <span class="lead-name">{{ lead.fullName || 'Unnamed lead' }}</span>
-            <span class="source-badge" [ngClass]="'src-' + lead.source.toLowerCase()">{{ sourceLabel(lead.source) }}</span>
+            <span class="card-badges">
+              <span class="type-badge" [ngClass]="'type-' + lead.type.toLowerCase()">{{ lead.type }}</span>
+              <span class="source-badge" [ngClass]="'src-' + lead.source.toLowerCase()">{{ sourceLabel(lead.source) }}</span>
+            </span>
           </div>
           <div class="card-line" *ngIf="lead.phone">📞 {{ lead.phone }}</div>
           <div class="card-line" *ngIf="lead.email">✉ {{ lead.email }}</div>
@@ -101,6 +108,7 @@
       <div>
         <h3>{{ selectedLead.fullName || 'Unnamed lead' }}</h3>
         <span class="stage-pill" [ngClass]="stageClass(selectedLead.stage)">{{ selectedLead.stage }}</span>
+        <span class="type-badge" [ngClass]="'type-' + selectedLead.type.toLowerCase()">{{ selectedLead.type }}</span>
         <span class="source-badge" [ngClass]="'src-' + selectedLead.source.toLowerCase()">{{ sourceLabel(selectedLead.source) }}</span>
       </div>
       <button class="close-btn" (click)="closePanel()">✕</button>
@@ -115,6 +123,11 @@
         <label>Email<input type="email" [(ngModel)]="editBuffer.email" /></label>
         <label class="full">Address<input type="text" [(ngModel)]="editBuffer.serviceAddress" /></label>
         <label>Cleaning type<input type="text" [(ngModel)]="editBuffer.cleaningType" /></label>
+        <label>Type
+          <select [(ngModel)]="editBuffer.type">
+            <option *ngFor="let t of types" [value]="t">{{ t }}</option>
+          </select>
+        </label>
         <label>Est. value ($)<input type="number" min="0" [(ngModel)]="editBuffer.estimatedValue" /></label>
         <label class="full">Next follow-up<input type="date" [(ngModel)]="editBuffer.nextFollowUpDate" /></label>
         <label class="full">Message / notes<textarea rows="2" [(ngModel)]="editBuffer.message"></textarea></label>
@@ -172,6 +185,11 @@
         <label>Email<input type="email" [(ngModel)]="newLead.email" /></label>
         <label class="full">Address<input type="text" [(ngModel)]="newLead.serviceAddress" /></label>
         <label>Cleaning type<input type="text" [(ngModel)]="newLead.cleaningType" /></label>
+        <label>Type
+          <select [(ngModel)]="newLead.type">
+            <option *ngFor="let t of types" [value]="t">{{ t }}</option>
+          </select>
+        </label>
         <label>Est. value ($)<input type="number" min="0" [(ngModel)]="newLead.estimatedValue" /></label>
         <label>Source
           <select [(ngModel)]="newLead.source">

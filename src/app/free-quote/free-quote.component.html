@@ -5,7 +5,7 @@
     <h1>Need a Cleaning Quote?</h1>
     <p class="help-subtitle">Call us today</p>
     <p class="phone-number">
-      <a href="tel:+19299301525">(929) 930-1525</a>
+      <a [href]="phoneNumber.telHref()">{{ phoneNumber.displayNumber() }}</a>
     </p>
     <p class="help-description">
       or fill out the form below to get a free, no-obligation quote.

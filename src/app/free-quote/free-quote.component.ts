@@ -1,9 +1,10 @@
-import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, Inject, PLATFORM_ID, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
 import { environment } from '../../environments/environment';
+import { PhoneNumberService } from '../services/phone-number.service';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
 import { OrderSoundService } from '../services/order-sound.service';
 
@@ -20,6 +21,7 @@ export class FreeQuoteComponent implements OnInit {
   showSuccess = false;
   showError = false;
   errorMessage = '';
+  protected readonly phoneNumber = inject(PhoneNumberService);
 
   constructor(
     private fb: FormBuilder,

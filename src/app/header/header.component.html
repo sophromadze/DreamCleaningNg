@@ -174,13 +174,13 @@
                routerLinkActive="active"
                class="btn-book"
                (click)="closeMobileMenu()">Book Online</a>
-            <a href="tel:+19299301525"
+            <a [href]="phoneNumber.telHref()"
                class="menu-phone-link"
                (click)="onPhoneClick(); closeMobileMenu()">
               <svg viewBox="0 0 24 24" fill="currentColor" class="menu-phone-icon" aria-hidden="true">
                 <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
               </svg>
-              (929) 930-1525
+              {{ phoneNumber.displayNumber() }}
             </a>
           </div>
         </div>
@@ -344,11 +344,11 @@
           </ng-container>
         </div>
         <!-- Mobile-only phone icon — always available now that the sticky CTA bar no longer has a call button -->
-        <a href="tel:+19299301525"
+        <a [href]="phoneNumber.telHref()"
            class="mobile-phone-icon"
            *ngIf="isMobile"
            (click)="onPhoneClick()"
-           aria-label="Call (929) 930-1525">
+           [attr.aria-label]="'Call ' + phoneNumber.displayNumber()">
           <svg viewBox="0 0 24 24" fill="currentColor" class="phone-icon-svg">
             <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
           </svg>

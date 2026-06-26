@@ -311,6 +311,8 @@ export interface SuperAdminUpdateOrderDto {
   loyaltyDiscountAmount?: number | null;
   cleanerHourlyRate?: number | null;
   cleanerTotalSalary?: number | null;
+  /** Custom ("Pre-Arranged") orders only: display label. '' clears it, null = no change. */
+  customServiceDisplayName?: string | null;
   services?: { orderServiceId: number; quantity: number; cost: number }[] | null;
   /** Existing rows: orderExtraServiceId = row id. New rows: orderExtraServiceId = 0 and extraServiceId required. */
   extraServices?: { orderExtraServiceId: number; extraServiceId?: number; quantity: number; hours: number; cost: number }[] | null;

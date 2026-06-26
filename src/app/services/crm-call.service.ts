@@ -23,6 +23,8 @@ export interface CallRecord {
   leadId?: number;
   leadName?: string;
   category: CallCategory;
+  /** Independent of category: call was placed to the dedicated Google Ads tracking number. */
+  isAdCall: boolean;
   matchedCleanerId?: number;
   matchedCleanerName?: string;
   createdAt: string;
@@ -53,6 +55,7 @@ export interface CallSummary {
   cleaner: number;
   spam: number;
   unknown: number;
+  adCall: number;
   perDay: CallDayCount[];
 }
 
@@ -62,6 +65,7 @@ export interface ReclassifyResult {
   cleaner: number;
   spam: number;
   unknown: number;
+  adCall: number;
 }
 
 export interface CallFilters {
@@ -70,6 +74,7 @@ export interface CallFilters {
   direction?: string;
   category?: string;
   excludeNonCustomer?: boolean;
+  adOnly?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -89,6 +94,7 @@ export class CrmCallService {
     if (filters?.direction) params = params.set('direction', filters.direction);
     if (filters?.category) params = params.set('category', filters.category);
     if (filters?.excludeNonCustomer) params = params.set('excludeNonCustomer', true);
+    if (filters?.adOnly) params = params.set('adOnly', true);
     if (filters?.page != null) params = params.set('page', filters.page);
     if (filters?.pageSize != null) params = params.set('pageSize', filters.pageSize);
     return this.http.get<CallListResult>(this.apiUrl, { params });
@@ -102,13 +108,14 @@ export class CrmCallService {
     return this.http.get<CallSummary>(`${this.apiUrl}/summary`, { params });
   }
 
-  exportExcel(filters?: { from?: string; to?: string; direction?: string; category?: string; excludeNonCustomer?: boolean }): Observable<Blob> {
+  exportExcel(filters?: { from?: string; to?: string; direction?: string; category?: string; excludeNonCustomer?: boolean; adOnly?: boolean }): Observable<Blob> {
     let params = new HttpParams();
     if (filters?.from) params = params.set('from', filters.from);
     if (filters?.to) params = params.set('to', filters.to);
     if (filters?.direction) params = params.set('direction', filters.direction);
     if (filters?.category) params = params.set('category', filters.category);
     if (filters?.excludeNonCustomer) params = params.set('excludeNonCustomer', true);
+    if (filters?.adOnly) params = params.set('adOnly', true);
     return this.http.get(`${this.apiUrl}/export`, { params, responseType: 'blob' });
   }
 

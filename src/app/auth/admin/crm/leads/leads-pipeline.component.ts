@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   CrmLeadService, Lead, LeadDetail, LeadPipelineColumn, LeadStats,
-  CreateLead, LEAD_STAGES, LEAD_SOURCES, LeadStage
+  CreateLead, LEAD_STAGES, LEAD_SOURCES, LEAD_TYPES, LeadStage
 } from '../../../../services/crm-lead.service';
 
 @Component({
@@ -19,6 +19,7 @@ export class LeadsPipelineComponent implements OnInit {
 
   readonly stages = LEAD_STAGES;
   readonly sources = LEAD_SOURCES;
+  readonly types = LEAD_TYPES;
 
   columns: LeadPipelineColumn[] = [];
   stats: LeadStats | null = null;
@@ -28,6 +29,7 @@ export class LeadsPipelineComponent implements OnInit {
   // Filters
   searchTerm = '';
   sourceFilter = '';
+  typeFilter = '';
   private searchDebounce: any;
 
   // Detail slide-in panel
@@ -45,7 +47,7 @@ export class LeadsPipelineComponent implements OnInit {
 
   // Add-lead modal
   showAddModal = false;
-  newLead: CreateLead = { source: 'Manual' };
+  newLead: CreateLead = { source: 'Manual', type: 'Residential' };
   creatingLead = false;
 
   constructor(private leadService: CrmLeadService) {}
@@ -76,7 +78,8 @@ export class LeadsPipelineComponent implements OnInit {
     this.errorMessage = '';
     this.leadService.getPipeline({
       search: this.searchTerm.trim() || undefined,
-      source: this.sourceFilter || undefined
+      source: this.sourceFilter || undefined,
+      type: this.typeFilter || undefined
     }).subscribe({
       next: cols => { this.columns = cols; this.loading = false; },
       error: () => { this.errorMessage = 'Failed to load the pipeline.'; this.loading = false; }
@@ -96,6 +99,10 @@ export class LeadsPipelineComponent implements OnInit {
   }
 
   onSourceFilterChange(): void {
+    this.loadPipeline();
+  }
+
+  onTypeFilterChange(): void {
     this.loadPipeline();
   }
 
@@ -189,6 +196,7 @@ export class LeadsPipelineComponent implements OnInit {
       phone: b.phone ?? '',
       serviceAddress: b.serviceAddress ?? '',
       cleaningType: b.cleaningType ?? '',
+      type: b.type,
       message: b.message ?? '',
       estimatedValue: b.estimatedValue != null && b.estimatedValue !== ('' as any) ? Number(b.estimatedValue) : undefined,
       nextFollowUpDate: b.nextFollowUpDate || undefined,
@@ -234,7 +242,7 @@ export class LeadsPipelineComponent implements OnInit {
   // ── Add-lead modal ──
 
   openAddModal(): void {
-    this.newLead = { source: 'Manual' };
+    this.newLead = { source: 'Manual', type: 'Residential' };
     this.showAddModal = true;
   }
 

@@ -4,7 +4,8 @@ import {
   OnDestroy,
   Input,
   Inject,
-  PLATFORM_ID
+  PLATFORM_ID,
+  inject
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
@@ -17,6 +18,7 @@ import { BookingService, ServiceType, Service } from '../../../services/booking.
 import { FormPersistenceService } from '../../../services/form-persistence.service';
 import { ShimmerDirective } from '../../directives/shimmer.directive';
 import { calculateQuote, QuoteInput, ExtraServiceLineInput } from '../../pricing/order-pricing.calculator';
+import { PhoneNumberService } from '../../../services/phone-number.service';
 
 /**
  * Homepage hero — trust badge, headline, optional location pills, hero image with
@@ -42,6 +44,8 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
     'Transparent pricing, trained cleaners, and a simple online booking experience.';
   /** Borough pill row — shown on the homepage, hidden on the borough service pages. */
   @Input() showLocations = true;
+
+  protected readonly phoneNumber = inject(PhoneNumberService);
 
   totalReviews = 0;
   specialOffers: PublicSpecialOffer[] = [];

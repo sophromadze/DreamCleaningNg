@@ -47,6 +47,11 @@
     &.cat-cleaner { border-left-color: var(--primary-color); }
     &.cat-spam { border-left-color: var(--text-muted); }
     &.cat-unknown { border-left-color: var(--border-color); }
+    /* Ad calls — independent dimension, indigo accent to stand apart from the categories. */
+    &.cat-ad {
+      border-left-color: var(--btn-quote);
+      .stat-value { color: var(--btn-quote); }
+    }
   }
 }
 
@@ -219,6 +224,20 @@
   &.cat-cleaner { background: var(--soft-blue); color: var(--primary-color); }
   &.cat-spam { background: var(--surface-subtle); color: var(--text-muted); }
   &.cat-unknown { background: var(--surface-subtle); color: var(--text-secondary); }
+}
+
+/* ── Ad badge ── independent of the category badge; distinct indigo so an ad call
+   stands out regardless of its category. Sits inline next to the category badge. */
+.ad-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 0.7rem;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.03em;
+  background: var(--soft-lavender);
+  color: var(--btn-quote);
 }
 
 .cleaner-name {

@@ -26,7 +26,7 @@ import { formatNyDateTime } from '../shared/ny-time.util';
         <div class="contact-info">
           <p>If you have an urgent matter, please contact us:</p>
           <p><strong>Email:</strong> <a href="mailto:hello@dreamcleaningnyc.com">hello&#64;dreamcleaningnyc.com</a></p>
-          <p><strong>Phone:</strong> <a href="tel:+9299301525">(929) 930-1525</a></p>
+          <p><strong>Phone:</strong> <a href="tel:+19299301525">(929) 930-1525</a></p>
         </div>
       </div>
     </div>

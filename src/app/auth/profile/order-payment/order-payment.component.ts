@@ -31,6 +31,9 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   cardError: string | null = null;
   isLoading = true;
   showApplePay = false;
+  // True when a gift card covers the full order amount (server returns requiresPayment=false).
+  // Skips Stripe entirely and confirms the order directly.
+  fullyCovered = false;
   private hasInitialized = false;
 
   constructor(
@@ -141,6 +144,14 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
 
     request$.subscribe({
       next: (response: any) => {
+        // Gift card covers the full amount — server skipped Stripe. Confirm directly, no card form.
+        if (response.requiresPayment === false) {
+          this.fullyCovered = true;
+          this.isLoading = false;
+          this.cdr.detectChanges();
+          return;
+        }
+
         this.paymentClientSecret = response.paymentClientSecret;
         this.paymentIntentId = response.paymentIntentId ?? response.PaymentIntentId ?? null;
         this.isLoading = false;
@@ -257,15 +268,30 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   }
 
   async processPayment() {
-    if (this.isProcessing || this.cardError || !this.paymentClientSecret) return;
-    
+    if (this.isProcessing) return;
+    if (!this.fullyCovered && (this.cardError || !this.paymentClientSecret)) return;
+
     this.isProcessing = true;
     this.errorMessage = '';
 
+    // Fully covered by gift card — confirm the order with no Stripe charge.
+    if (this.fullyCovered) {
+      this.bookingService.confirmPayment(this.orderId, '').subscribe({
+        next: () => this.handlePaymentSuccess(),
+        error: (error) => {
+          this.errorMessage = error.error?.message || error.message || 'Payment confirmation failed';
+          this.isProcessing = false;
+          this.cdr.detectChanges();
+        }
+      });
+      return;
+    }
+
     try {
-      // Confirm the payment
+      // Confirm the payment. Non-null: this path only runs when !fullyCovered, where the
+      // early guard above already ensured paymentClientSecret is set.
       const paymentIntent = await this.stripeService.confirmCardPayment(
-        this.paymentClientSecret,
+        this.paymentClientSecret!,
         this.billingDetails
       );
       

@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { PhoneNumberService } from '../services/phone-number.service';
 
 @Component({
   selector: 'app-footer',
@@ -10,5 +11,5 @@ import { CommonModule } from '@angular/common';
   styleUrl: './footer.component.scss'
 })
 export class FooterComponent {
-
+  protected readonly phoneNumber = inject(PhoneNumberService);
 }

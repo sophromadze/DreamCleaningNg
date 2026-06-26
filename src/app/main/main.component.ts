@@ -6,7 +6,8 @@ import {
   PLATFORM_ID,
   ChangeDetectorRef,
   ViewChild,
-  ElementRef
+  ElementRef,
+  inject
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -17,6 +18,7 @@ import { AuthService } from '../services/auth.service';
 import { AuthModalService } from '../services/auth-modal.service';
 import { BeforeAfterPhotoService } from '../services/before-after-photo.service';
 import { SERVICE_PRICING } from '../shared/service-pricing.data';
+import { PhoneNumberService } from '../services/phone-number.service';
 import { Subscription } from 'rxjs';
 
 /** Public-facing before/after photo card — populated from BeforeAfterPhotosController. */
@@ -40,6 +42,7 @@ export interface BeforeAfterPhoto {
 export class MainComponent implements OnInit, OnDestroy {
   specialOffers: PublicSpecialOffer[] = [];
   isLoggedIn: boolean = false;
+  protected readonly phoneNumber = inject(PhoneNumberService);
   private subscription: Subscription = new Subscription();
   /** Protected (not private) so the template can gate auth-dependent content to the
    *  browser only — see the rewards login note. Prerendered HTML must not contain

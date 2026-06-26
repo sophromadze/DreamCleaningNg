@@ -1,7 +1,8 @@
-import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, inject } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { SERVICE_PRICING } from '../../../shared/service-pricing.data';
+import { PhoneNumberService } from '../../../services/phone-number.service';
 
 @Component({
   selector: 'app-house-cleaning',
@@ -12,6 +13,7 @@ import { SERVICE_PRICING } from '../../../shared/service-pricing.data';
 })
 export class HouseCleaningComponent implements OnInit, OnDestroy {
   readonly pricing = SERVICE_PRICING;
+  protected readonly phoneNumber = inject(PhoneNumberService);
   private schemaElement: HTMLScriptElement | null = null;
 
   constructor(@Inject(DOCUMENT) private document: Document) {}

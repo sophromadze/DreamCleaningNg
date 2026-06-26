@@ -1,6 +1,7 @@
-import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, inject } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { PhoneNumberService } from '../../../services/phone-number.service';
 
 @Component({
   selector: 'app-post-construction-cleaning',
@@ -10,6 +11,7 @@ import { RouterModule } from '@angular/router';
   styleUrl: './post-construction-cleaning.component.scss'
 })
 export class PostConstructionCleaningComponent implements OnInit, OnDestroy {
+  protected readonly phoneNumber = inject(PhoneNumberService);
   private schemaElement: HTMLScriptElement | null = null;
 
   constructor(@Inject(DOCUMENT) private document: Document) {}

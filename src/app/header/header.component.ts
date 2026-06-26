@@ -11,6 +11,7 @@ import { NewOrderNotificationService } from '../services/new-order-notification.
 import { TaskService } from '../services/task.service';
 import { SignalRService } from '../services/signalr.service';
 import { PhoneClickTrackingService } from '../services/phone-click-tracking.service';
+import { PhoneNumberService } from '../services/phone-number.service';
 import { canViewAdminPage } from '../shared/admin-viewable-pages';
 import { combineLatest, Subject, fromEvent } from 'rxjs';
 import { takeUntil, filter, debounceTime } from 'rxjs/operators';
@@ -59,6 +60,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private taskService: TaskService,
     private signalRService: SignalRService,
     private phoneTracking: PhoneClickTrackingService,
+    public phoneNumber: PhoneNumberService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
