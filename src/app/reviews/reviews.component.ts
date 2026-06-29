@@ -23,8 +23,21 @@ export class ReviewsComponent implements OnInit, OnDestroy {
   overallRating = 0;
   totalReviews = 0;
   isLoading = false;
+  isLoadingMore = false;
   hasLoaded = false;
+  hasMore = false;
   protected readonly phoneNumber = inject(PhoneNumberService);
+
+  /**
+   * Hero photo — royalty-free Unsplash image (woman reviewing on her phone), free for
+   * commercial use, no attribution required. Gracefully hides if it ever fails to load.
+   * To self-host instead, drop a file at /images/reviews-hero.webp and swap this URL.
+   */
+  readonly heroImage = 'https://images.unsplash.com/photo-1713947506367-b639b30230d5?auto=format&fit=crop&w=1200&q=70';
+  heroImageFailed = false;
+
+  private readonly pageSize = 9;
+  private currentPage = 0;
 
   /** Google Reviews only resolve in production (API has IP restrictions for hosting only). */
   showGoogleReviews = environment.production;
@@ -94,19 +107,38 @@ export class ReviewsComponent implements OnInit, OnDestroy {
     }
 
     this.isLoading = true;
+    this.loadPage(1, () => {
+      this.isLoading = false;
+      this.hasLoaded = true;
+    });
+  }
+
+  loadMore(): void {
+    if (this.isLoadingMore || !this.hasMore) {
+      return;
+    }
+    this.isLoadingMore = true;
+    this.loadPage(this.currentPage + 1, () => {
+      this.isLoadingMore = false;
+    });
+  }
+
+  /** Fetches a page from the cached backend snapshot; page 1 replaces, later pages append. */
+  private loadPage(page: number, done: () => void): void {
     this.subscription.add(
-      this.googlePlacesService.getAllReviews().subscribe({
+      this.googlePlacesService.getAllReviewsPage(page, this.pageSize).subscribe({
         next: data => {
-          this.reviews = data.reviews.map(r => this.toDisplay(r));
+          const mapped = data.reviews.map(r => this.toDisplay(r));
+          this.reviews = page === 1 ? mapped : [...this.reviews, ...mapped];
           this.overallRating = data.overallRating;
           this.totalReviews = data.totalReviews;
-          this.isLoading = false;
-          this.hasLoaded = true;
+          this.hasMore = data.hasMore;
+          this.currentPage = page;
+          done();
         },
         error: err => {
           console.error('Error loading reviews:', err);
-          this.isLoading = false;
-          this.hasLoaded = true;
+          done();
         }
       })
     );
@@ -122,6 +154,10 @@ export class ReviewsComponent implements OnInit, OnDestroy {
 
   onAvatarError(review: DisplayReview): void {
     review.avatarFailed = true;
+  }
+
+  onHeroImageError(): void {
+    this.heroImageFailed = true;
   }
 
   initials(name: string): string {

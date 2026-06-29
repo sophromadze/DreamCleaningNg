@@ -93,6 +93,47 @@ export class GooglePlacesService {
     );
   }
 
+  /**
+   * Returns a single page of ALL stored Business Profile reviews (backend `/all?page&pageSize`).
+   * The backend serves pages from a cached snapshot, so "Load More" never re-hits Google. On the
+   * FIRST page, if nothing is stored yet (or the call fails), it falls back to the 5-review Places
+   * endpoint so the page still shows something; later pages just return empty/no-more on error.
+   */
+  getAllReviewsPage(page: number, pageSize: number): Observable<{ reviews: Review[], overallRating: number, totalReviews: number, hasMore: boolean }> {
+    if (!environment.production) {
+      return of({ reviews: [], overallRating: 0, totalReviews: 0, hasMore: false });
+    }
+    return this.http.get<any>(`${this.apiUrl}/googlereviews/all?page=${page}&pageSize=${pageSize}`).pipe(
+      map(response => this.mapPagedResponse(response)),
+      switchMap(result =>
+        (page === 1 && result.reviews.length === 0)
+          ? this.getReviews().pipe(map(r => ({ ...r, hasMore: false })))
+          : of(result)
+      ),
+      catchError(error => {
+        console.error('Error loading reviews page from backend:', error);
+        return page === 1
+          ? this.getReviews().pipe(map(r => ({ ...r, hasMore: false })))
+          : of({ reviews: [], overallRating: 0, totalReviews: 0, hasMore: false });
+      })
+    );
+  }
+
+  private mapPagedResponse(response: any): { reviews: Review[], overallRating: number, totalReviews: number, hasMore: boolean } {
+    const base = this.mapPlacesResponse(response);
+    return { ...base, hasMore: !!response?.result?.has_more };
+  }
+
+  /**
+   * Returns every displayable review in one call (large page) for the homepage / service-page
+   * testimonial slider. Reuses the paged endpoint (cached server-side) and its Places fallback.
+   */
+  getAllReviewsForSlider(): Observable<{ reviews: Review[], overallRating: number, totalReviews: number }> {
+    return this.getAllReviewsPage(1, 500).pipe(
+      map(({ reviews, overallRating, totalReviews }) => ({ reviews, overallRating, totalReviews }))
+    );
+  }
+
   private mapPlacesResponse(response: any): { reviews: Review[], overallRating: number, totalReviews: number } {
     const result = response?.result;
     if (!result) {

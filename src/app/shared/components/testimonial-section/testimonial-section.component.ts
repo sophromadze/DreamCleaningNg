@@ -111,9 +111,10 @@ export class TestimonialSectionComponent implements OnInit, OnDestroy {
     }
 
     // Production path: cached Google Reviews backend endpoint (7-day IMemoryCache).
+    // Slider cycles through ALL displayable reviews, not just the first 5.
     if (!this.showGoogleReviews) return;
     this.subscription.add(
-      this.googlePlacesService.getReviews().subscribe({
+      this.googlePlacesService.getAllReviewsForSlider().subscribe({
         next: (data) => {
           this.reviews = data.reviews.map(review => ({
             ...review,
