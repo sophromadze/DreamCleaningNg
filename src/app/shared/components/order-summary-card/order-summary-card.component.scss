@@ -438,6 +438,14 @@
     @media (max-width: 1200px) {
       cursor: pointer;
     }
+
+    // On desktop the summary isn't collapsible (the toggle button is hidden),
+    // so the tap-to-collapse affordance must be inert here — otherwise clicking
+    // the total fires onTotalSectionClick(), flips the (desktop-invisible)
+    // collapsed state and shifts the layout ("scrolls a bit down").
+    @media (min-width: 1201px) {
+      pointer-events: none;
+    }
   }
 
   .summary-toggle {

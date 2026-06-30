@@ -76,6 +76,14 @@ export class OrderHistoryComponent implements OnInit {
     return `${displayHour}:${minutes} ${ampm}`;
   }
 
+  /** An order needs no payment from the website when it's Stripe-paid (isPaid) OR was
+   *  settled outside Stripe — Cash/Zelle/Check/Other, i.e. paymentMethod !== 'Normal'.
+   *  Manual-paid orders keep isPaid=false by backend design, so we must treat them as
+   *  paid here to suppress the Unpaid badge and Pay button. */
+  isEffectivelyPaid(order: OrderList): boolean {
+    return !!order.isPaid || (!!order.paymentMethod && order.paymentMethod !== 'Normal');
+  }
+
   /** Additional amount to pay. Backend sends the correct difference (current − tips) − (original − tips). Show it as-is; do not add tips. */
   getEffectivePendingUpdateAmount(order: OrderList): number {
     const pending = order.pendingUpdateAmount ?? 0;

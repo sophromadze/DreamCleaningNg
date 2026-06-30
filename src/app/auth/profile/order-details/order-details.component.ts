@@ -245,6 +245,14 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
     return this.order.isPaid && hoursUntilService <= 48;
   }
 
+  /** An order needs no payment from the website when it's Stripe-paid (isPaid) OR was
+   *  settled outside Stripe — Cash/Zelle/Check/Other, i.e. paymentMethod !== 'Normal'.
+   *  Manual-paid orders keep isPaid=false by backend design, so we treat them as paid
+   *  here to suppress the Pay button. */
+  isEffectivelyPaid(): boolean {
+    return !!this.order && (!!this.order.isPaid || (!!this.order.paymentMethod && this.order.paymentMethod !== 'Normal'));
+  }
+
   /** Additional amount to pay. Backend sends the correct difference (current − tips) − (original − tips). Use it as-is; do not add tips. */
   getEffectivePendingUpdateAmount(): number {
     if (!this.order || (this.order.pendingUpdateAmount ?? 0) <= 0.01) return 0;

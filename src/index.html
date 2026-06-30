@@ -255,6 +255,13 @@
     
     // Google Ads (add your AW- ID here)
     gtag('config', 'AW-16660459036');
+
+    // Google Ads website call conversion — lets Google swap the displayed main
+    // number with its own forwarding number for ad visitors so calls are attributed.
+    // The number below MUST match the static number rendered on the page.
+    gtag('config', 'AW-16660459036/hQCtCNH7zcccEJzcqYg-', {
+      'phone_conversion_number': '(929) 930-1525'
+    });
   </script>
   
   <!-- Google Maps is loaded dynamically by GoogleMapsLoaderService with the frontend API key -->

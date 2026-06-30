@@ -26,7 +26,6 @@ export class CrmCallsComponent implements OnInit {
   directionFilter = '';
   categoryFilter = '';            // '' = All
   hideNonCustomer = true;         // "Hide cleaners & spam" — default ON
-  adOnly = false;                 // "Ad calls only" — independent of the filters above
 
   reclassifying = false;
 
@@ -64,7 +63,6 @@ export class CrmCallsComponent implements OnInit {
       direction: this.directionFilter || undefined,
       category: this.categoryFilter || undefined,
       excludeNonCustomer: !hasCategory && this.hideNonCustomer,
-      adOnly: this.adOnly,
       page: this.page,
       pageSize: this.pageSize
     }).subscribe({
@@ -100,12 +98,6 @@ export class CrmCallsComponent implements OnInit {
     this.loadCalls();
   }
 
-  /** "Ad calls only" toggle — composes with the category/hide filters. */
-  onAdOnlyToggle(): void {
-    this.page = 1;
-    this.loadCalls();
-  }
-
   /** Calls hidden by the "hide cleaners & spam" toggle (from the full-scope summary). */
   get hiddenCount(): number {
     if (!this.summary) return 0;
@@ -132,8 +124,7 @@ export class CrmCallsComponent implements OnInit {
       to: this.toIso(),
       direction: this.directionFilter || undefined,
       category: this.categoryFilter || undefined,
-      excludeNonCustomer: !hasCategory && this.hideNonCustomer,
-      adOnly: this.adOnly
+      excludeNonCustomer: !hasCategory && this.hideNonCustomer
     }).subscribe({
       next: blob => {
         const url = window.URL.createObjectURL(blob);

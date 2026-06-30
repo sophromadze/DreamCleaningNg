@@ -494,6 +494,14 @@ export class ProfileComponent implements OnInit {
     this.router.navigate(['/order', orderId, 'pay']);
   }
 
+  /** An order needs no payment from the website when it's Stripe-paid (isPaid) OR was
+   *  settled outside Stripe — Cash/Zelle/Check/Other, i.e. paymentMethod !== 'Normal'.
+   *  Manual-paid orders keep isPaid=false by backend design, so we treat them as paid
+   *  here to suppress the Pay button. */
+  isEffectivelyPaid(order: OrderList): boolean {
+    return !!order.isPaid || (!!order.paymentMethod && order.paymentMethod !== 'Normal');
+  }
+
   cancellingOrderId: number | null = null;
 
   cancelUnpaidOrder(orderId: number) {

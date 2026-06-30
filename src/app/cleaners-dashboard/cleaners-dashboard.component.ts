@@ -106,6 +106,10 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   filterBy: CleanerFilter = 'all';
   // '' = no weekday filter; otherwise show only cleaners NOT busy that weekday.
   availableOnDay: DayKey | '' = '';
+  // '' = any borough; otherwise keep only cleaners who operate in that borough.
+  filterBorough = '';
+  // '' = any nationality; otherwise keep only cleaners with that nationality.
+  filterNationality = '';
   private search$ = new Subject<string>();
   private destroy$ = new Subject<void>();
 
@@ -121,6 +125,10 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
 
   busyDays: BusyDays = this.emptyBusyDays();
   vacations: VacationRow[] = [];
+  // Which operating boroughs are checked in the form. Keyed by borough name.
+  // Populated by openCreate/openEdit before the form renders (kept empty here so this
+  // field initializer doesn't run before locationOptions is initialized).
+  operatingBoroughs: Record<string, boolean> = {};
 
   photoUploading = false;
   documentUploading = false;
@@ -206,10 +214,11 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     { value: 'sun', label: 'Sunday' }
   ];
 
+  // Operating boroughs a cleaner can work in (multi-select; all selected by default).
   readonly locationOptions: { value: string; label: string }[] = [
     { value: 'Brooklyn', label: 'Brooklyn' },
-    { value: 'Manhattan', label: 'Manhattan' },
-    { value: 'Queens', label: 'Queens' }
+    { value: 'Queens', label: 'Queens' },
+    { value: 'Manhattan', label: 'Manhattan' }
   ];
 
   readonly nationalityOptions: { value: string; label: string }[] = [
@@ -312,6 +321,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     this.editingId = null;
     this.formModel = this.emptyFormModel();
     this.busyDays = this.emptyBusyDays();
+    // New cleaners operate in all boroughs by default.
+    this.operatingBoroughs = this.emptyBoroughs(true);
     this.vacations = [];
     this.formPhotoFile = null;
     this.formPhotoPreview = null;
@@ -346,6 +357,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       isActive: detail.isActive
     };
     this.busyDays = this.intsToBusyDays(detail.busyDaysOfWeek);
+    this.operatingBoroughs = this.csvToBoroughs(detail.operatingAreas);
     this.vacations = (detail.vacations ?? []).map(v => ({
       startDate: this.toDateInput(v.startDate),
       endDate: this.toDateInput(v.endDate),
@@ -363,6 +375,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     this.formOpen = false;
     this.formModel = this.emptyFormModel();
     this.busyDays = this.emptyBusyDays();
+    this.operatingBoroughs = this.emptyBoroughs(true);
     this.vacations = [];
     this.formPhotoFile = null;
     this.formPhotoPreview = null;
@@ -374,6 +387,10 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
 
   toggleBusyDay(day: DayKey): void {
     this.busyDays = { ...this.busyDays, [day]: !this.busyDays[day] };
+  }
+
+  toggleBorough(borough: string): void {
+    this.operatingBoroughs = { ...this.operatingBoroughs, [borough]: !this.operatingBoroughs[borough] };
   }
 
   addVacation(): void {
@@ -890,6 +907,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
 
   private matchesFilter(c: CleanerListItem): boolean {
     if (!this.matchesAvailableDay(c)) return false;
+    if (!this.matchesBorough(c)) return false;
+    if (!this.matchesNationality(c)) return false;
     switch (this.filterBy) {
       case 'best': return this.normalizeRanking(c.ranking) === 'Top';
       case 'good': return this.normalizeRanking(c.ranking) === 'Standard';
@@ -909,6 +928,30 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     if (!this.availableOnDay) return true;
     const dayInt = DAY_KEY_TO_INT[this.availableOnDay];
     return !(c.busyDaysOfWeek ?? []).includes(dayInt);
+  }
+
+  /** When a borough is selected, keep cleaners who WORK there (no operating areas set = works everywhere). */
+  private matchesBorough(c: CleanerListItem): boolean {
+    if (!this.filterBorough) return true;
+    const boroughs = this.parseBoroughs(c.operatingAreas);
+    if (boroughs.length === 0) return true;
+    return boroughs.includes(this.filterBorough);
+  }
+
+  /** When a nationality is selected, keep only cleaners with that exact nationality. */
+  private matchesNationality(c: CleanerListItem): boolean {
+    if (!this.filterNationality) return true;
+    return (c.nationality || '').trim() === this.filterNationality;
+  }
+
+  /** Distinct nationalities present in the loaded cleaners, for the nationality filter dropdown. */
+  get availableNationalities(): string[] {
+    const set = new Set<string>();
+    for (const c of this.cleaners) {
+      const n = (c.nationality || '').trim();
+      if (n) set.add(n);
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
   }
 
   private sortCleaners(list: CleanerListItem[]): CleanerListItem[] {
@@ -1004,6 +1047,55 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       .map(day => DAY_KEY_TO_INT[day]);
   }
 
+  /** Initial borough-checkbox map, all on or all off. */
+  private emptyBoroughs(allSelected: boolean): Record<string, boolean> {
+    const obj: Record<string, boolean> = {};
+    for (const opt of this.locationOptions) {
+      obj[opt.value] = allSelected;
+    }
+    return obj;
+  }
+
+  /** Splits the stored CSV (e.g. "Brooklyn,Queens") into a checkbox map. */
+  private csvToBoroughs(csv: string | null | undefined): Record<string, boolean> {
+    const list = this.parseBoroughs(csv);
+    // Old cleaners with nothing saved default to all boroughs selected.
+    if (list.length === 0) {
+      return this.emptyBoroughs(true);
+    }
+    const set = new Set(list);
+    const obj: Record<string, boolean> = {};
+    for (const opt of this.locationOptions) {
+      obj[opt.value] = set.has(opt.value);
+    }
+    return obj;
+  }
+
+  /** Selected boroughs back to CSV for the payload, or null when none selected. */
+  private boroughsToCsv(): string | null {
+    const selected = this.locationOptions
+      .filter(opt => this.operatingBoroughs[opt.value])
+      .map(opt => opt.value);
+    return selected.length ? selected.join(',') : null;
+  }
+
+  /** Parses a borough CSV into a trimmed, non-empty list. */
+  private parseBoroughs(csv: string | null | undefined): string[] {
+    return (csv || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+  }
+
+  /** Human-readable operating areas for cards/detail. Every borough selected (or nothing saved) = "All areas". */
+  boroughsDisplay(csv: string | null | undefined): string {
+    const list = this.parseBoroughs(csv);
+    if (list.length === 0 || this.locationOptions.every(opt => list.includes(opt.value))) {
+      return 'All areas';
+    }
+    return list.join(', ');
+  }
+
   /** Vacation rows ready to POST — only complete rows (both dates) are sent. */
   private buildVacationPayload(): CleanerVacation[] {
     return this.vacations
@@ -1032,8 +1124,11 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       experience: this.normalizeExperience(this.formModel.experience),
       phone: normalizePhone10(this.formModel.phone),
       email: this.nullIfBlank(this.formModel.email),
+      // Address is hidden from the UI but preserved on save so it can be re-surfaced later.
       address: this.nullIfBlank(this.formModel.address),
+      // Location = where the cleaner lives (single borough); OperatingAreas = where they work (CSV).
       location: this.nullIfBlank(this.formModel.location),
+      operatingAreas: this.boroughsToCsv(),
       busyDaysOfWeek: this.busyDaysToInts(),
       vacations: this.buildVacationPayload(),
       alreadyWorkedWithUs: !!this.formModel.alreadyWorkedWithUs,

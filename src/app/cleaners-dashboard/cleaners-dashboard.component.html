@@ -45,6 +45,20 @@
         <option *ngFor="let o of availableDayOptions" [value]="o.value">{{ o.label }}</option>
       </select>
     </label>
+    <label class="control">
+      <span class="control-label">Borough</span>
+      <select [(ngModel)]="filterBorough" aria-label="Filter by operating borough">
+        <option value="">Any borough</option>
+        <option *ngFor="let o of locationOptions" [value]="o.value">{{ o.label }}</option>
+      </select>
+    </label>
+    <label class="control" *ngIf="availableNationalities.length > 0">
+      <span class="control-label">Nationality</span>
+      <select [(ngModel)]="filterNationality" aria-label="Filter by nationality">
+        <option value="">Any nationality</option>
+        <option *ngFor="let n of availableNationalities" [value]="n">{{ n }}</option>
+      </select>
+    </label>
     <span class="result-count" *ngIf="!loading && cleaners.length > 0">{{ displayedCleaners.length }} shown</span>
   </div>
 
@@ -94,7 +108,7 @@
               </div>
               <span *ngIf="cleaner.mainNote" class="mini-main-note">📌 {{ cleaner.mainNote }}</span>
             </div>
-            <span *ngIf="cleaner.address" class="meta-item address">{{ cleaner.address }}</span>
+            <span class="meta-item address">📍 {{ boroughsDisplay(cleaner.operatingAreas) }}</span>
           </div>
         </div>
       </article>
@@ -162,6 +176,7 @@
           <div *ngIf="selectedDetail.age != null"><label>Age</label><span>{{ selectedDetail.age }}</span></div>
           <div *ngIf="selectedDetail.email"><label>Email</label><span>{{ selectedDetail.email }}</span></div>
           <div><label>Jobs Completed</label><span>{{ jobsCompletedCount }}</span></div>
+          <div><label>Operating areas</label><span>{{ boroughsDisplay(selectedDetail.operatingAreas) }}</span></div>
           <div *ngIf="selectedDetail.nationality"><label>Nationality</label><span>{{ selectedDetail.nationality }}</span></div>
           <div *ngIf="selectedDetail.experience"><label>Experience</label><span>{{ selectedDetail.experience }}</span></div>
           <div *ngIf="selectedDetail.ranking === 'Restricted' || selectedDetail.ranking === 3">
@@ -406,17 +421,27 @@
         </label>
 
         <label>
-          <span>Location</span>
+          <span>Location (lives in)</span>
           <select [(ngModel)]="formModel.location" name="location">
             <option [ngValue]="null">—</option>
             <option *ngFor="let opt of locationOptions" [value]="opt.value">{{ opt.label }}</option>
           </select>
         </label>
 
-        <label class="full">
-          <span>Address</span>
-          <input type="text" [(ngModel)]="formModel.address" name="address" maxlength="300" />
-        </label>
+        <div class="full busy-days-block">
+          <span class="field-label">Operating areas</span>
+          <p class="field-hint">Select the boroughs this cleaner works in. All three are selected by default — unselect any that don't apply. Unselected boroughs are hidden from that borough's filter.</p>
+          <div class="busy-day-chips">
+            <label class="busy-day-chip" *ngFor="let opt of locationOptions" [class.active]="operatingBoroughs[opt.value]">
+              <input
+                type="checkbox"
+                [checked]="operatingBoroughs[opt.value]"
+                (change)="toggleBorough(opt.value)"
+                [name]="'borough-' + opt.value" />
+              <span>{{ opt.label }}</span>
+            </label>
+          </div>
+        </div>
 
         <div class="full busy-days-block">
           <span class="field-label">Busy days (recurring)</span>

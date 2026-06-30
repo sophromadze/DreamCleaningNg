@@ -38,6 +38,18 @@
       <option value="">All types</option>
       <option *ngFor="let t of types" [value]="t">{{ t }}</option>
     </select>
+    <select [(ngModel)]="periodFilter" (ngModelChange)="onPeriodFilterChange()" class="source-select">
+      <option value="">All time</option>
+      <option value="today">This day</option>
+      <option value="week">This week</option>
+      <option value="month">This month</option>
+      <option value="year">This year</option>
+    </select>
+    <select [(ngModel)]="dateFieldFilter" (ngModelChange)="onDateFieldChange()" class="source-select"
+            [disabled]="!periodFilter" title="Which date the period filter applies to">
+      <option value="created">By created date</option>
+      <option value="activity">By last activity</option>
+    </select>
     <button class="btn-refresh" (click)="refresh()" title="Refresh">⟳</button>
     <button class="btn-add" (click)="openAddModal()">+ Add lead</button>
   </div>
@@ -101,6 +113,43 @@
     </div>
   </div>
 
+  <!-- ─────────────  Archive drawer (full-width, below the board)  ───────────── -->
+  <div class="archive-drawer">
+    <button class="archive-toggle" (click)="toggleArchived()">
+      <span class="archive-caret" [class.open]="showArchived">▸</span>
+      <span class="archive-label">Archived leads</span>
+      <span class="archive-count">{{ archivedLeads.length }}</span>
+    </button>
+
+    <div class="archive-body" *ngIf="showArchived">
+      <div class="archive-loading" *ngIf="loadingArchived">Loading…</div>
+      <div class="archive-empty" *ngIf="!loadingArchived && archivedLeads.length === 0">No archived leads.</div>
+
+      <div class="archive-grid" *ngIf="!loadingArchived && archivedLeads.length > 0">
+        <div class="lead-card archived" *ngFor="let lead of archivedLeads; trackBy: trackByLeadId"
+             (click)="openLead(lead)">
+          <div class="card-top">
+            <span class="lead-name">{{ lead.fullName || 'Unnamed lead' }}</span>
+            <span class="card-badges">
+              <span class="stage-pill" [ngClass]="stageClass(lead.stage)">{{ lead.stage }}</span>
+              <span class="source-badge" [ngClass]="'src-' + lead.source.toLowerCase()">{{ sourceLabel(lead.source) }}</span>
+            </span>
+          </div>
+          <div class="card-line" *ngIf="lead.phone">📞 {{ lead.phone }}</div>
+          <div class="card-line" *ngIf="lead.email">✉ {{ lead.email }}</div>
+          <div class="card-meta">
+            <span class="est-value" *ngIf="lead.estimatedValue">{{ lead.estimatedValue | currency:'USD':'symbol':'1.0-0' }}</span>
+            <span class="time">{{ relativeTime(lead.archivedAt || lead.lastActivityAt) }}</span>
+          </div>
+          <div class="card-actions" (click)="$event.stopPropagation()">
+            <button class="btn-mini" (click)="unarchiveLead(lead)" [disabled]="archivingLead">Restore</button>
+            <button *ngIf="isSuperAdmin" class="btn-mini danger" (click)="deleteLead(lead)">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ─────────────  Detail slide-in panel  ───────────── -->
   <div class="panel-overlay" *ngIf="selectedLead" (click)="closePanel()"></div>
   <aside class="detail-panel" *ngIf="selectedLead" [class.open]="selectedLead">
@@ -137,8 +186,15 @@
         <button class="btn-save" (click)="saveLeadEdits()" [disabled]="savingLead">
           {{ savingLead ? 'Saving…' : 'Save changes' }}
         </button>
-        <button class="btn-delete" (click)="deleteLead()">Delete</button>
+        <button *ngIf="!selectedLead.isArchived" class="btn-archive" (click)="archiveLead()" [disabled]="archivingLead">
+          {{ archivingLead ? 'Archiving…' : 'Archive' }}
+        </button>
+        <button *ngIf="selectedLead.isArchived" class="btn-restore" (click)="unarchiveLead()" [disabled]="archivingLead">
+          {{ archivingLead ? 'Restoring…' : 'Restore' }}
+        </button>
+        <button *ngIf="isSuperAdmin" class="btn-delete" (click)="deleteLead()">Delete</button>
       </div>
+      <div class="archived-banner" *ngIf="selectedLead.isArchived">📦 This lead is archived.</div>
 
       <div class="converted-note" *ngIf="selectedLead.convertedOrderId">
         ✓ Converted to order #{{ selectedLead.convertedOrderId }}

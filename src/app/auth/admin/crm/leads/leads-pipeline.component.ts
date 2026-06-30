@@ -5,6 +5,7 @@ import {
   CrmLeadService, Lead, LeadDetail, LeadPipelineColumn, LeadStats,
   CreateLead, LEAD_STAGES, LEAD_SOURCES, LEAD_TYPES, LeadStage
 } from '../../../../services/crm-lead.service';
+import { AuthService } from '../../../../services/auth.service';
 
 @Component({
   selector: 'app-leads-pipeline',
@@ -30,7 +31,18 @@ export class LeadsPipelineComponent implements OnInit {
   searchTerm = '';
   sourceFilter = '';
   typeFilter = '';
+  periodFilter = '';            // '' | today | week | month | year
+  dateFieldFilter = 'created';  // 'created' | 'activity'
   private searchDebounce: any;
+
+  // Whether the current user may hard-delete leads (SuperAdmin only). Admins archive instead.
+  isSuperAdmin = false;
+
+  // Archive drawer (below the board)
+  archivedLeads: Lead[] = [];
+  loadingArchived = false;
+  showArchived = false;
+  archivingLead = false;
 
   // Detail slide-in panel
   selectedLead: LeadDetail | null = null;
@@ -50,11 +62,13 @@ export class LeadsPipelineComponent implements OnInit {
   newLead: CreateLead = { source: 'Manual', type: 'Residential' };
   creatingLead = false;
 
-  constructor(private leadService: CrmLeadService) {}
+  constructor(private leadService: CrmLeadService, private authService: AuthService) {}
 
   ngOnInit(): void {
+    this.isSuperAdmin = this.authService.currentUserValue?.role === 'SuperAdmin';
     this.loadPipeline();
     this.loadStats();
+    this.loadArchived();
     if (this.openLeadId != null) this.openLeadById(this.openLeadId);
   }
 
@@ -73,16 +87,31 @@ export class LeadsPipelineComponent implements OnInit {
 
   // ── Loading ──
 
+  /** Shared filter payload for pipeline + archive queries. */
+  private currentFilters() {
+    return {
+      search: this.searchTerm.trim() || undefined,
+      source: this.sourceFilter || undefined,
+      type: this.typeFilter || undefined,
+      period: this.periodFilter || undefined,
+      dateField: this.dateFieldFilter || undefined
+    };
+  }
+
   loadPipeline(): void {
     this.loading = true;
     this.errorMessage = '';
-    this.leadService.getPipeline({
-      search: this.searchTerm.trim() || undefined,
-      source: this.sourceFilter || undefined,
-      type: this.typeFilter || undefined
-    }).subscribe({
+    this.leadService.getPipeline(this.currentFilters()).subscribe({
       next: cols => { this.columns = cols; this.loading = false; },
       error: () => { this.errorMessage = 'Failed to load the pipeline.'; this.loading = false; }
+    });
+  }
+
+  loadArchived(): void {
+    this.loadingArchived = true;
+    this.leadService.getArchived(this.currentFilters()).subscribe({
+      next: leads => { this.archivedLeads = leads; this.loadingArchived = false; },
+      error: () => { this.loadingArchived = false; }
     });
   }
 
@@ -95,20 +124,37 @@ export class LeadsPipelineComponent implements OnInit {
 
   onSearchChange(): void {
     clearTimeout(this.searchDebounce);
-    this.searchDebounce = setTimeout(() => this.loadPipeline(), 300);
+    this.searchDebounce = setTimeout(() => { this.loadPipeline(); this.loadArchived(); }, 300);
   }
 
   onSourceFilterChange(): void {
     this.loadPipeline();
+    this.loadArchived();
   }
 
   onTypeFilterChange(): void {
     this.loadPipeline();
+    this.loadArchived();
+  }
+
+  onPeriodFilterChange(): void {
+    this.loadPipeline();
+    this.loadArchived();
+  }
+
+  onDateFieldChange(): void {
+    // Only re-filter when a period is active (date field is meaningless otherwise).
+    if (this.periodFilter) { this.loadPipeline(); this.loadArchived(); }
   }
 
   refresh(): void {
     this.loadPipeline();
     this.loadStats();
+    this.loadArchived();
+  }
+
+  toggleArchived(): void {
+    this.showArchived = !this.showArchived;
   }
 
   // ── Column helpers ──
@@ -229,12 +275,47 @@ export class LeadsPipelineComponent implements OnInit {
     });
   }
 
-  deleteLead(): void {
-    if (!this.selectedLead) return;
-    if (!confirm('Delete this lead permanently? This cannot be undone.')) return;
+  /** Archive the open lead — moves it off the board into the archive drawer (Admins' delete alternative). */
+  archiveLead(): void {
+    if (!this.selectedLead || this.archivingLead) return;
+    this.archivingLead = true;
     const id = this.selectedLead.id;
+    this.leadService.archiveLead(id).subscribe({
+      next: updated => {
+        this.archivingLead = false;
+        if (this.selectedLead?.id === id) this.selectedLead = updated;
+        this.refresh();
+      },
+      error: () => { this.errorMessage = 'Failed to archive lead.'; this.archivingLead = false; }
+    });
+  }
+
+  /** Restore a lead from the archive back onto the active board. */
+  unarchiveLead(lead?: Lead): void {
+    const id = lead?.id ?? this.selectedLead?.id;
+    if (id == null || this.archivingLead) return;
+    this.archivingLead = true;
+    this.leadService.unarchiveLead(id).subscribe({
+      next: updated => {
+        this.archivingLead = false;
+        if (this.selectedLead?.id === id) this.selectedLead = updated;
+        this.refresh();
+      },
+      error: () => { this.errorMessage = 'Failed to restore lead.'; this.archivingLead = false; }
+    });
+  }
+
+  /** Hard delete — SuperAdmin only. `lead` lets the archive drawer delete without opening the panel. */
+  deleteLead(lead?: Lead): void {
+    if (!this.isSuperAdmin) return;
+    const id = lead?.id ?? this.selectedLead?.id;
+    if (id == null) return;
+    if (!confirm('Delete this lead permanently? This cannot be undone.')) return;
     this.leadService.deleteLead(id).subscribe({
-      next: () => { this.closePanel(); this.refresh(); },
+      next: () => {
+        if (this.selectedLead?.id === id) this.closePanel();
+        this.refresh();
+      },
       error: () => this.errorMessage = 'Failed to delete lead.'
     });
   }

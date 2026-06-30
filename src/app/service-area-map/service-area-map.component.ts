@@ -304,7 +304,6 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
       const expanded = this.expandMultiPolygonToPolygons(filteredParts);
       const validFeatures = expanded.filter((f: Feature) => this.hasValidGeometry(f));
 
-      console.log(`[ServiceAreaMap] Borough: ${this.borough}, Total features loaded: ${validFeatures.length}`);
       if (validFeatures.length === 0) {
         console.warn('[ServiceAreaMap] No features found for this borough. Check GeoJSON file and ZIP code matching.');
       }

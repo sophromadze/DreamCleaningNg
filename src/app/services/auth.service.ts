@@ -553,8 +553,12 @@ export class AuthService {
       try {
         await this.socialAuthService.signOut();
       } catch (error) {
-        console.error('Social sign out error:', error);
-        // Continue with logout even if social signout fails
+        // "Not logged in" just means there's no active Google session to end — benign on logout.
+        // Continue with logout regardless; only surface genuinely unexpected failures.
+        const message = (error as any)?.toString?.() ?? '';
+        if (!message.includes('Not logged in')) {
+          console.warn('Social sign out error:', error);
+        }
       }
     }
   }

@@ -297,7 +297,7 @@
       <!-- Action Buttons -->
       <div class="action-buttons">
         <!-- Pay and Cancel buttons for unpaid orders (not cancelled) -->
-        <div class="unpaid-actions" *ngIf="!order.isPaid && order.status !== 'Cancelled'">
+        <div class="unpaid-actions" *ngIf="!isEffectivelyPaid() && order.status !== 'Cancelled'">
           <a [routerLink]="['/order', order.id, 'pay']"
              class="pay-btn">
             Pay Now

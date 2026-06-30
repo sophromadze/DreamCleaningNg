@@ -238,17 +238,17 @@
                 <span class="order-status" [ngClass]="order.status.toLowerCase()">{{ order.status }}</span>
               </div>
               <div class="order-actions">
-                <div class="unpaid-actions" *ngIf="order.status !== 'Cancelled' && (!order.isPaid || (order.pendingUpdateAmount || 0) > 0.01)">
-                  <button 
-                    class="pay-btn" 
+                <div class="unpaid-actions" *ngIf="order.status !== 'Cancelled' && (!isEffectivelyPaid(order) || (order.pendingUpdateAmount || 0) > 0.01)">
+                  <button
+                    class="pay-btn"
                     (click)="payOrder(order.id)">
-                    {{ !order.isPaid ? 'Pay' : 'Pay Additional' }}
+                    {{ !isEffectivelyPaid(order) ? 'Pay' : 'Pay Additional' }}
                   </button>
-                  <button 
-                    class="cancel-btn" 
+                  <button
+                    class="cancel-btn"
                     (click)="cancelUnpaidOrder(order.id)"
                     [disabled]="isCancellingOrder(order.id)"
-                    *ngIf="!order.isPaid">
+                    *ngIf="!isEffectivelyPaid(order)">
                     <span *ngIf="!isCancellingOrder(order.id)">Cancel</span>
                     <span *ngIf="isCancellingOrder(order.id)">Cancelling...</span>
                   </button>

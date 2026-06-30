@@ -289,11 +289,6 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: () => {}
     });
-    // Admins-list for the assigned-admin pill dropdown. Same source the shifts page uses.
-    this.shiftService.getShiftAdmins().subscribe({
-      next: a => this.availableAdmins = a,
-      error: () => {}
-    });
   }
 
   // Assigned-admin pill helpers (mirror order-details.component but local to this view).
@@ -687,6 +682,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         this.userRole = response.role;
         this.userPermissions = response;
         this.isSuperAdmin = response.role === 'SuperAdmin';
+        // Admins-list for the assigned-admin pill dropdown. Same source the shifts page uses.
+        // Endpoint is Admin/SuperAdmin-only — skip for Moderators (avoids a 403) since they
+        // can't reassign anyway.
+        if (this.userRole === 'Admin' || this.isSuperAdmin) {
+          this.shiftService.getShiftAdmins().subscribe({
+            next: a => this.availableAdmins = a,
+            error: () => {}
+          });
+        }
         this.loadOrders();
       },
       error: (error) => {

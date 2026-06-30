@@ -24,13 +24,13 @@
             <span class="status-badge" [ngClass]="getStatusClass(order.status)">
               {{ order.status }}
             </span>
-            <span class="payment-badge unpaid" *ngIf="!order.isPaid">
+            <span class="payment-badge unpaid" *ngIf="!isEffectivelyPaid(order)">
               Unpaid
             </span>
             <span class="payment-badge unpaid" *ngIf="order.isPaid && (order.pendingUpdateAmount || 0) > 0.01 && order.status !== 'Cancelled'">
               Payment Due
             </span>
-            <span class="payment-badge paid" *ngIf="order.isPaid && (order.pendingUpdateAmount || 0) <= 0.01">
+            <span class="payment-badge paid" *ngIf="isEffectivelyPaid(order) && (order.pendingUpdateAmount || 0) <= 0.01">
               Paid
             </span>
           </div>
@@ -53,9 +53,9 @@
   
         <div class="order-actions">
           <!-- Pay and Cancel buttons for unpaid orders (not cancelled) -->
-          <div class="unpaid-actions" *ngIf="!order.isPaid && order.status !== 'Cancelled'">
-            <button 
-              (click)="payOrder(order.id)" 
+          <div class="unpaid-actions" *ngIf="!isEffectivelyPaid(order) && order.status !== 'Cancelled'">
+            <button
+              (click)="payOrder(order.id)"
               class="pay-btn">
               Pay ${{ order.total.toFixed(2) }}
             </button>
@@ -89,7 +89,7 @@
             (click)="reorder(order.id)"
             class="reorder-btn"
             [disabled]="isReordering(order.id)"
-            *ngIf="!order.isCustomServiceType && (order.isPaid || order.status === 'Cancelled')">
+            *ngIf="!order.isCustomServiceType && (isEffectivelyPaid(order) || order.status === 'Cancelled')">
             <span *ngIf="!isReordering(order.id)">Reorder</span>
             <span *ngIf="isReordering(order.id)">Loading...</span>
           </button>

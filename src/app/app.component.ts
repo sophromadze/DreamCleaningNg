@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectorRef, afterNextRender } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectorRef } from '@angular/core';
 import { DOCUMENT, CommonModule, isPlatformBrowser } from '@angular/common';
 import { PlatformLocation } from '@angular/common';
 import { RouterOutlet, Router, NavigationEnd, ActivatedRoute } from '@angular/router';
@@ -14,7 +14,6 @@ import { AuthModalComponent } from './auth/auth-modal/auth-modal.component';
 import { FirstTimeOfferPopupComponent } from './first-time-offer-popup/first-time-offer-popup.component';
 import { AuthService } from './services/auth.service';
 import { TokenRefreshService } from './services/token-refresh.service';
-import { PhoneNumberService } from './services/phone-number.service';
 // TEMPORARILY DISABLED — Telegram bot integration is off; widget is commented out in app.component.html.
 // import { LiveChatWidgetComponent } from './shared/live-chat-widget/live-chat-widget.component';
 import { TelClickTrackingDirective } from './directives/tel-click-tracking.directive';
@@ -110,19 +109,11 @@ export class AppComponent implements OnInit, OnDestroy {
     private metaService: Meta,
     private cdr: ChangeDetectorRef,
     private platformLocation: PlatformLocation,
-    private phoneNumberService: PhoneNumberService,
     @Inject(PLATFORM_ID) private platformId: Object,
     @Inject(DOCUMENT) private document: Document
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
     this._path = this.getInitialPath();
-
-    // Detect Google Ads visitors and swap to the tracking number — browser-only and
-    // after the first render, so SSR/prerender output keeps the main number (no
-    // hydration mismatch). afterNextRender never runs on the server.
-    afterNextRender(() => {
-      this.phoneNumberService.initAdDetection();
-    });
   }
 
   private updateCanonicalUrl(): void {

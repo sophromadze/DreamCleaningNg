@@ -14,8 +14,13 @@ export type LeadSource = typeof LEAD_SOURCES[number];
 export const LEAD_TYPES = ['Residential', 'Commercial'] as const;
 export type LeadType = typeof LEAD_TYPES[number];
 
-export const LEAD_ACTIVITY_TYPES = ['Note', 'StageChange', 'Call', 'Email', 'Sms', 'System'] as const;
+export const LEAD_ACTIVITY_TYPES = ['Note', 'StageChange', 'Update', 'Call', 'Email', 'Sms', 'System'] as const;
 export type LeadActivityType = typeof LEAD_ACTIVITY_TYPES[number];
+
+/** Date-window filter applied to either the created or last-activity date. */
+export const LEAD_PERIODS = ['', 'today', 'week', 'month', 'year'] as const;
+export type LeadPeriod = typeof LEAD_PERIODS[number];
+export type LeadDateField = 'created' | 'activity';
 
 // ── Interfaces ──
 
@@ -42,6 +47,8 @@ export interface Lead {
   createdAt: string;
   updatedAt: string;
   lastActivityAt: string;
+  isArchived?: boolean;
+  archivedAt?: string;
 }
 
 export interface LeadActivity {
@@ -128,13 +135,25 @@ export class CrmLeadService {
 
   constructor(private http: HttpClient) {}
 
-  getPipeline(filters?: { search?: string; source?: string; type?: string; assignedToAdminId?: number }): Observable<LeadPipelineColumn[]> {
+  getPipeline(filters?: { search?: string; source?: string; type?: string; assignedToAdminId?: number; period?: string; dateField?: string }): Observable<LeadPipelineColumn[]> {
     let params = new HttpParams();
     if (filters?.search) params = params.set('search', filters.search);
     if (filters?.source) params = params.set('source', filters.source);
     if (filters?.type) params = params.set('type', filters.type);
     if (filters?.assignedToAdminId != null) params = params.set('assignedToAdminId', filters.assignedToAdminId);
+    if (filters?.period) params = params.set('period', filters.period);
+    if (filters?.dateField) params = params.set('dateField', filters.dateField);
     return this.http.get<LeadPipelineColumn[]>(`${this.apiUrl}/pipeline`, { params });
+  }
+
+  getArchived(filters?: { search?: string; source?: string; type?: string; period?: string; dateField?: string }): Observable<Lead[]> {
+    let params = new HttpParams();
+    if (filters?.search) params = params.set('search', filters.search);
+    if (filters?.source) params = params.set('source', filters.source);
+    if (filters?.type) params = params.set('type', filters.type);
+    if (filters?.period) params = params.set('period', filters.period);
+    if (filters?.dateField) params = params.set('dateField', filters.dateField);
+    return this.http.get<Lead[]>(`${this.apiUrl}/archived`, { params });
   }
 
   getStats(): Observable<LeadStats> {
@@ -169,6 +188,14 @@ export class CrmLeadService {
 
   addActivity(id: number, activity: CreateLeadActivity): Observable<LeadActivity> {
     return this.http.post<LeadActivity>(`${this.apiUrl}/${id}/activities`, activity);
+  }
+
+  archiveLead(id: number): Observable<LeadDetail> {
+    return this.http.put<LeadDetail>(`${this.apiUrl}/${id}/archive`, {});
+  }
+
+  unarchiveLead(id: number): Observable<LeadDetail> {
+    return this.http.put<LeadDetail>(`${this.apiUrl}/${id}/unarchive`, {});
   }
 
   deleteLead(id: number): Observable<{ message: string }> {

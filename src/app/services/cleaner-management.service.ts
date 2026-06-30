@@ -16,7 +16,10 @@ export interface CleanerListItem {
   phone?: string | null;
   email?: string | null;
   address?: string | null;
+  /** Borough the cleaner lives in (single). */
   location?: string | null;
+  /** Boroughs the cleaner works in, CSV e.g. "Brooklyn,Queens". */
+  operatingAreas?: string | null;
   /** Recurring weekdays the cleaner is busy (0=Sun … 6=Sat). */
   busyDaysOfWeek: number[];
   alreadyWorkedWithUs: boolean;
@@ -90,6 +93,7 @@ export interface CreateCleanerPayload {
   email?: string | null;
   address?: string | null;
   location?: string | null;
+  operatingAreas?: string | null;
   busyDaysOfWeek: number[];
   vacations: CleanerVacation[];
   alreadyWorkedWithUs?: boolean;

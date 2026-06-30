@@ -84,6 +84,13 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         // - Unpaid order (initial booking payment)
         // - Pending additional payment after an admin/customer update
         const pendingUpdateAmount = order.pendingUpdateAmount ?? 0;
+        // Manual-paid orders (Cash/Zelle/Check/Other) were settled outside Stripe and keep
+        // isPaid=false by backend design — there is nothing to pay on the website.
+        if (order.paymentMethod && order.paymentMethod !== 'Normal') {
+          this.errorMessage = 'This order was paid outside the website and has no payment due.';
+          this.isLoading = false;
+          return;
+        }
         if (!order.isPaid) {
           this.paymentType = 'order';
           this.orderTotal = order.total;

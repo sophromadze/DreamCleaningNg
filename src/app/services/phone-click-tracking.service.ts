@@ -1,6 +1,5 @@
 import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
-import { PhoneNumberService } from './phone-number.service';
 
 declare global {
   interface Window {
@@ -17,8 +16,7 @@ export class PhoneClickTrackingService {
   private isBrowser: boolean;
 
   constructor(
-    @Inject(PLATFORM_ID) private platformId: Object,
-    private phoneNumber: PhoneNumberService
+    @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
@@ -53,8 +51,8 @@ export class PhoneClickTrackingService {
           event_category: 'contact',
           event_label: 'website_phone_call',
           value: 20,
-          // Which number the visitor saw — lets Google Ads attribute calls to ads.
-          phone_variant: this.phoneNumber.variant
+          // Single static number now (Google's call-conversion snippet handles ad attribution).
+          phone_variant: 'main'
         });
       }
     } catch {
