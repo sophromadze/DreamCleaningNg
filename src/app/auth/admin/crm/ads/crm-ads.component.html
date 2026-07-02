@@ -1,0 +1,109 @@
+<div class="crm-ads">
+  <!-- Totals strip — sticky, stays pinned at the top while the table scrolls -->
+  <div class="stats-section" *ngIf="totals">
+    <div class="stats-strip">
+      <div class="stat">
+        <span class="stat-value">{{ totals.adSpend | currency }}</span>
+        <span class="stat-label">Ad spend</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ totals.clicks }}</span>
+        <span class="stat-label">Clicks</span>
+      </div>
+      <div class="stat stat--google">
+        <span class="stat-value">{{ totals.googleConversions }}</span>
+        <span class="stat-label">Google conversions ({{ totals.googleConversionRate }}%)</span>
+      </div>
+      <div class="stat stat--booked">
+        <span class="stat-value">{{ totals.bookedOrders }}</span>
+        <span class="stat-label">Booked orders ({{ totals.bookedConversionRate }}%)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="ads-toolbar">
+    <div class="preset-dropdown" [class.open]="dropdownOpen">
+      <button type="button"
+              class="dropdown-trigger"
+              (click)="toggleDropdown()"
+              [attr.aria-expanded]="dropdownOpen">
+        <span>{{ rangeLabel }}</span>
+        <span class="caret" aria-hidden="true">▾</span>
+      </button>
+
+      <ul class="dropdown-menu" *ngIf="dropdownOpen" role="listbox">
+        <li *ngFor="let p of presets"
+            class="dropdown-item"
+            [class.active]="period === p.key"
+            role="option"
+            [attr.aria-selected]="period === p.key"
+            (click)="selectPreset(p.key)">
+          {{ p.label }}
+        </li>
+      </ul>
+    </div>
+
+    <div class="custom-range">
+      <div class="filter">
+        <label for="ads-from">From</label>
+        <input id="ads-from" type="date" [(ngModel)]="fromDate" />
+      </div>
+      <div class="filter">
+        <label for="ads-to">To</label>
+        <input id="ads-to" type="date" [(ngModel)]="toDate" />
+      </div>
+      <button class="btn-light" (click)="applyCustom()" [disabled]="loading">Apply</button>
+    </div>
+
+    <div class="toolbar-spacer"></div>
+
+    <button class="btn-secondary" (click)="downloadExcel()" [disabled]="exporting || loading">
+      {{ exporting ? 'Exporting…' : 'Export Excel' }}
+    </button>
+  </div>
+
+  <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+  <!-- Table -->
+  <div class="ads-table-wrap" *ngIf="!loading && rows.length > 0">
+    <table class="ads-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Ad spend</th>
+          <th>Clicks</th>
+          <th>Google conversions</th>
+          <th>Booked orders</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of rows; trackBy: trackByDate">
+          <td>{{ row.date | date: 'EEE, MMM d, y' }}</td>
+          <td>{{ row.adSpend | currency }}</td>
+          <td>{{ row.clicks }}</td>
+          <td>
+            <span class="conv-google">{{ row.googleConversions }}</span>
+            <span class="conv-rate muted" *ngIf="row.clicks > 0">{{ row.googleConversionRate }}% of clicks</span>
+          </td>
+          <td>
+            <span class="conv-booked">{{ row.bookedOrders }}</span>
+            <span class="conv-rate muted" *ngIf="row.clicks > 0">{{ row.bookedConversionRate }}% of clicks</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Paging -->
+    <div class="paging" *ngIf="totalPages > 1">
+      <button class="btn-light" (click)="prevPage()" [disabled]="page <= 1">← Prev</button>
+      <span class="page-info">Page {{ page }} of {{ totalPages }} · {{ totalCount }} days</span>
+      <button class="btn-light" (click)="nextPage()" [disabled]="page >= totalPages">Next →</button>
+    </div>
+  </div>
+
+  <div class="state-msg" *ngIf="loading">Loading…</div>
+  <div class="state-msg" *ngIf="!loading && rows.length === 0 && !errorMessage">
+    No ad activity in this range.
+  </div>
+</div>

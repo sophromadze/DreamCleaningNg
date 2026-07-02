@@ -192,8 +192,8 @@
 
         <div class="availability-summary">
           <div class="avail-row">
-            <label>Busy days</label>
-            <span>{{ busyDayNames(selectedDetail.busyDaysOfWeek) || 'None' }}</span>
+            <label>Available days</label>
+            <span>{{ availableDayNames(selectedDetail.busyDaysOfWeek) || 'None' }}</span>
           </div>
           <div class="avail-row">
             <label>Vacations</label>
@@ -430,7 +430,6 @@
 
         <div class="full busy-days-block">
           <span class="field-label">Operating areas</span>
-          <p class="field-hint">Select the boroughs this cleaner works in. All three are selected by default — unselect any that don't apply. Unselected boroughs are hidden from that borough's filter.</p>
           <div class="busy-day-chips">
             <label class="busy-day-chip" *ngFor="let opt of locationOptions" [class.active]="operatingBoroughs[opt.value]">
               <input
@@ -444,15 +443,14 @@
         </div>
 
         <div class="full busy-days-block">
-          <span class="field-label">Busy days (recurring)</span>
-          <p class="field-hint">Check only the days this cleaner is regularly off. Unchecked days stay available. Checked days are hidden from the order assign list unless “Show busy” is on — you can still assign them.</p>
+          <span class="field-label">Available days</span>
           <div class="busy-day-chips">
-            <label class="busy-day-chip" *ngFor="let day of dayOrder" [class.active]="busyDays[day]">
+            <label class="busy-day-chip" *ngFor="let day of dayOrder" [class.active]="availableDays[day]">
               <input
                 type="checkbox"
-                [checked]="busyDays[day]"
-                (change)="toggleBusyDay(day)"
-                [name]="'busy-' + day" />
+                [checked]="availableDays[day]"
+                (change)="toggleAvailableDay(day)"
+                [name]="'available-' + day" />
               <span>{{ dayLabel[day] }}</span>
             </label>
           </div>

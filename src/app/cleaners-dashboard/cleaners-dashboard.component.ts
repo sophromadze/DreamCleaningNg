@@ -24,8 +24,8 @@ type ModalMode = 'create' | 'edit';
 
 type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
 
-// Whether each weekday is marked as a recurring busy day for the cleaner.
-type BusyDays = Record<DayKey, boolean>;
+// Whether each weekday the cleaner is available on. Checked = available.
+type AvailableDays = Record<DayKey, boolean>;
 
 // One editable vacation range row in the form (dates as yyyy-MM-dd for <input type="date">).
 interface VacationRow {
@@ -123,7 +123,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   formError = '';
   editingId: number | null = null;
 
-  busyDays: BusyDays = this.emptyBusyDays();
+  availableDays: AvailableDays = this.emptyAvailableDays();
   vacations: VacationRow[] = [];
   // Which operating boroughs are checked in the form. Keyed by borough name.
   // Populated by openCreate/openEdit before the form renders (kept empty here so this
@@ -320,7 +320,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     this.formMode = 'create';
     this.editingId = null;
     this.formModel = this.emptyFormModel();
-    this.busyDays = this.emptyBusyDays();
+    this.availableDays = this.emptyAvailableDays();
     // New cleaners operate in all boroughs by default.
     this.operatingBoroughs = this.emptyBoroughs(true);
     this.vacations = [];
@@ -356,7 +356,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       documentType: this.normalizeDocumentType(detail.documentType),
       isActive: detail.isActive
     };
-    this.busyDays = this.intsToBusyDays(detail.busyDaysOfWeek);
+    this.availableDays = this.intsToAvailableDays(detail.busyDaysOfWeek);
     this.operatingBoroughs = this.csvToBoroughs(detail.operatingAreas);
     this.vacations = (detail.vacations ?? []).map(v => ({
       startDate: this.toDateInput(v.startDate),
@@ -374,7 +374,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   closeForm(): void {
     this.formOpen = false;
     this.formModel = this.emptyFormModel();
-    this.busyDays = this.emptyBusyDays();
+    this.availableDays = this.emptyAvailableDays();
     this.operatingBoroughs = this.emptyBoroughs(true);
     this.vacations = [];
     this.formPhotoFile = null;
@@ -385,8 +385,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     this.formError = '';
   }
 
-  toggleBusyDay(day: DayKey): void {
-    this.busyDays = { ...this.busyDays, [day]: !this.busyDays[day] };
+  toggleAvailableDay(day: DayKey): void {
+    this.availableDays = { ...this.availableDays, [day]: !this.availableDays[day] };
   }
 
   toggleBorough(borough: string): void {
@@ -700,11 +700,15 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     return found?.label ?? '';
   }
 
-  /** Weekday names (e.g. "Mon, Tue"), or '' when none — for the detail panel. */
-  busyDayNames(ints: number[] | null | undefined): string {
-    if (!ints || ints.length === 0) return '';
+  /**
+   * Available-weekday names (e.g. "Mon, Tue") for the detail panel. `ints` is the
+   * stored busy-day CSV; available days are every weekday NOT in that list, so an
+   * empty/unset value means the cleaner is available every day.
+   */
+  availableDayNames(ints: number[] | null | undefined): string {
+    const busy = ints ?? [];
     return DAY_ORDER
-      .filter(day => ints.includes(DAY_KEY_TO_INT[day]))
+      .filter(day => !busy.includes(DAY_KEY_TO_INT[day]))
       .map(day => DAY_LABEL[day])
       .join(', ');
   }
@@ -1024,26 +1028,30 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     };
   }
 
-  private emptyBusyDays(): BusyDays {
-    const obj: Partial<BusyDays> = {};
+  // Default is fully available: every weekday checked (matches old cleaners with no
+  // busy days stored, who are available every day).
+  private emptyAvailableDays(): AvailableDays {
+    const obj: Partial<AvailableDays> = {};
     for (const d of DAY_ORDER) {
-      obj[d] = false;
+      obj[d] = true;
     }
-    return obj as BusyDays;
+    return obj as AvailableDays;
   }
 
-  private intsToBusyDays(ints: number[] | null | undefined): BusyDays {
-    const base = this.emptyBusyDays();
+  // The stored value is a list of busy-day ints; a day is available when it's NOT busy.
+  private intsToAvailableDays(ints: number[] | null | undefined): AvailableDays {
+    const base = this.emptyAvailableDays();
     for (const n of ints ?? []) {
       const key = INT_TO_DAY_KEY[n];
-      if (key) base[key] = true;
+      if (key) base[key] = false;
     }
     return base;
   }
 
-  private busyDaysToInts(): number[] {
+  // Back to the stored busy-day ints: every weekday the cleaner is NOT available on.
+  private availableDaysToBusyInts(): number[] {
     return DAY_ORDER
-      .filter(day => this.busyDays[day])
+      .filter(day => !this.availableDays[day])
       .map(day => DAY_KEY_TO_INT[day]);
   }
 
@@ -1129,7 +1137,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       // Location = where the cleaner lives (single borough); OperatingAreas = where they work (CSV).
       location: this.nullIfBlank(this.formModel.location),
       operatingAreas: this.boroughsToCsv(),
-      busyDaysOfWeek: this.busyDaysToInts(),
+      busyDaysOfWeek: this.availableDaysToBusyInts(),
       vacations: this.buildVacationPayload(),
       alreadyWorkedWithUs: !!this.formModel.alreadyWorkedWithUs,
       nationality: this.nullIfBlank(this.formModel.nationality),
