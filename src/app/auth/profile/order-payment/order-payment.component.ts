@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { BookingService } from '../../../services/booking.service';
 import { OrderService, Order } from '../../../services/order.service';
@@ -34,6 +35,14 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   // True when a gift card covers the full order amount (server returns requiresPayment=false).
   // Skips Stripe entirely and confirms the order directly.
   fullyCovered = false;
+  /** Secret payment-link token (?t=...) — lets anyone with the link use this page,
+   *  logged out OR logged in as a different user. Backend re-validates it on every
+   *  call and only while something is unpaid. */
+  guestToken: string | null = null;
+  /** True when paying via the token rather than as the order's own logged-in owner
+   *  (covers both logged-out visitors and other logged-in users). Determined after
+   *  the order loads. */
+  isGuestMode = false;
   private hasInitialized = false;
 
   constructor(
@@ -47,6 +56,8 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
+    this.guestToken = this.route.snapshot.queryParamMap.get('t');
+
     // Get current user for billing details
     this.authService.currentUser.subscribe(user => {
       this.currentUser = user;
@@ -69,7 +80,8 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   private tryInit() {
     if (this.hasInitialized) return;
     if (!this.orderId || Number.isNaN(this.orderId)) return;
-    if (!this.currentUser?.id) return;
+    // With a payment-link token the page works logged-out; otherwise wait for the user.
+    if (!this.currentUser?.id && !this.guestToken) return;
 
     this.hasInitialized = true;
     this.loadOrder();
@@ -77,8 +89,21 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
 
   loadOrder() {
     this.isLoading = true;
-    this.orderService.getOrderById(this.orderId).subscribe({
+    const loggedIn = !!this.currentUser?.id;
+    // Logged-in users try the owner-scoped endpoint first (works even on fully-paid
+    // orders); if the order belongs to someone else and we hold a link token, fall
+    // back to the token-gated guest endpoint. Logged-out visitors go straight there.
+    const order$ = loggedIn
+      ? this.orderService.getOrderById(this.orderId).pipe(
+          catchError(err => this.guestToken
+            ? this.orderService.getOrderByIdGuest(this.orderId, this.guestToken)
+            : throwError(() => err))
+        )
+      : this.orderService.getOrderByIdGuest(this.orderId, this.guestToken!);
+    order$.subscribe({
       next: (order) => {
+        // Token mode = anyone who isn't the order's own logged-in owner.
+        this.isGuestMode = !!this.guestToken && order.userId !== this.currentUser?.id;
         this.order = order;
         // Decide what kind of payment is needed:
         // - Unpaid order (initial booking payment)
@@ -104,8 +129,9 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
           return;
         }
 
-        // Check if order belongs to current user
-        if (order.userId !== this.currentUser?.id) {
+        // Ownership check for logged-in users. Guest mode skips it — the backend already
+        // validated the secret link token and the unpaid-amount rule.
+        if (!this.isGuestMode && order.userId !== this.currentUser?.id) {
           this.errorMessage = 'You do not have permission to pay for this order';
           this.isLoading = false;
           return;
@@ -130,7 +156,10 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         this.createPaymentIntent();
       },
       error: (error) => {
-        this.errorMessage = 'Failed to load order';
+        // Guest link on an already-settled order: backend returns 403 with a helpful message.
+        this.errorMessage = error.status === 403
+          ? (error.error?.message || 'This order has no pending payments. Please log in to view its details.')
+          : 'Failed to load order';
         this.isLoading = false;
         console.error('Error loading order:', error);
       }
@@ -145,9 +174,10 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   }
 
   createPaymentIntent() {
+    const guestToken = this.isGuestMode ? this.guestToken! : undefined;
     const request$ = this.paymentType === 'order'
-      ? this.bookingService.createPaymentIntentForOrder(this.orderId)
-      : this.orderService.createPendingUpdatePaymentIntent(this.orderId, this.orderTotal);
+      ? this.bookingService.createPaymentIntentForOrder(this.orderId, guestToken)
+      : this.orderService.createPendingUpdatePaymentIntent(this.orderId, this.orderTotal, guestToken);
 
     request$.subscribe({
       next: (response: any) => {
@@ -254,9 +284,10 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         );
         ev.complete('success');
         const idForConfirm = paymentIntent?.id ?? this.paymentIntentId;
+        const guestToken = this.isGuestMode ? this.guestToken! : undefined;
         const confirm$ = this.paymentType === 'order'
-          ? this.bookingService.confirmPayment(this.orderId, idForConfirm)
-          : this.orderService.confirmPendingUpdatePayment(this.orderId, idForConfirm);
+          ? this.bookingService.confirmPayment(this.orderId, idForConfirm, undefined, guestToken)
+          : this.orderService.confirmPendingUpdatePayment(this.orderId, idForConfirm, guestToken);
         confirm$.subscribe({
           next: () => this.handlePaymentSuccess(),
           error: (err: any) => {
@@ -283,7 +314,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
 
     // Fully covered by gift card — confirm the order with no Stripe charge.
     if (this.fullyCovered) {
-      this.bookingService.confirmPayment(this.orderId, '').subscribe({
+      this.bookingService.confirmPayment(this.orderId, '', undefined, this.isGuestMode ? this.guestToken! : undefined).subscribe({
         next: () => this.handlePaymentSuccess(),
         error: (error) => {
           this.errorMessage = error.error?.message || error.message || 'Payment confirmation failed';
@@ -310,9 +341,10 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         return;
       }
 
+      const guestToken = this.isGuestMode ? this.guestToken! : undefined;
       const confirm$ = this.paymentType === 'order'
-        ? this.bookingService.confirmPayment(this.orderId, idForConfirm)
-        : this.orderService.confirmPendingUpdatePayment(this.orderId, idForConfirm);
+        ? this.bookingService.confirmPayment(this.orderId, idForConfirm, undefined, guestToken)
+        : this.orderService.confirmPendingUpdatePayment(this.orderId, idForConfirm, guestToken);
 
       confirm$.subscribe({
         next: () => {
@@ -339,6 +371,12 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
     this.paymentCompleted = true;
     this.isProcessing = false;
 
+    if (this.isGuestMode) {
+      // No session to refresh and nowhere to redirect (order pages need login) —
+      // stay here and show the success state.
+      return;
+    }
+
     // Refresh user profile
     this.authService.refreshUserProfile().subscribe({
       next: () => {},
@@ -361,6 +399,11 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   }
 
   cancelPayment() {
+    if (this.isGuestMode) {
+      // Guests can't open the order-details page (auth-guarded) — go home instead.
+      this.router.navigate(['/']);
+      return;
+    }
     this.router.navigate(['/order', this.orderId]);
   }
 
@@ -370,6 +413,38 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
       email: this.order?.contactEmail || this.currentUser?.email || '',
       phone: this.order?.contactPhone || this.currentUser?.phone || ''
     };
+  }
+
+  // ── Order-summary display helpers (mirror order-details.component conventions:
+  //    quantities only, never per-item prices; deep cleaning shown as Cleaning Type) ──
+
+  getCleaningTypeText(): string {
+    const extras = this.order?.extraServices ?? [];
+    const hasSuperDeep = extras.some(s => (s.extraServiceName ?? '').toLowerCase().includes('super deep cleaning'));
+    const hasDeep = extras.some(s => {
+      const n = (s.extraServiceName ?? '').toLowerCase();
+      return n.includes('deep cleaning') && !n.includes('super');
+    });
+    if (hasSuperDeep) return 'Super Deep Cleaning';
+    if (hasDeep) return 'Deep Cleaning';
+    return 'Regular Cleaning';
+  }
+
+  /** Deep/super-deep cleaning is shown under Cleaning Type, not as a line item. */
+  private isCleaningTypeExtra(extraServiceName: string): boolean {
+    return (extraServiceName ?? '').toLowerCase().includes('deep cleaning');
+  }
+
+  getDisplayExtraServices() {
+    return (this.order?.extraServices ?? []).filter(e => !this.isCleaningTypeExtra(e.extraServiceName));
+  }
+
+  /** Quantity label for a service line: "Studio" for bedrooms=0, hours for cleaners, plain qty otherwise. */
+  getServiceQuantityLabel(service: { serviceName: string; quantity: number; duration: number }): string {
+    const name = (service.serviceName ?? '').toLowerCase();
+    if (name.includes('bedroom') && service.quantity === 0) return 'Studio';
+    if (name.includes('cleaner')) return `Qty: ${service.quantity} | Hours: ${service.duration / 60}`;
+    return `Qty: ${service.quantity}`;
   }
 
   formatDate(date: any): string {

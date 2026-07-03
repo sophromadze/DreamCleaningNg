@@ -1,0 +1,357 @@
+<div class="finances-container">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="page-title">
+      <h1>Company Finances</h1>
+      <p class="page-subtitle">
+        Pick a period, then check or uncheck any cost — the money that's left recalculates instantly.
+      </p>
+    </div>
+    <button class="export-btn" (click)="exportExcel()" [disabled]="!canExport || isLoading || isExporting">
+      <i class="fas fa-file-excel"></i>
+      {{ compareMode ? 'Export comparison in Excel' : 'Export in Excel' }}
+    </button>
+  </div>
+
+  <!-- Period filters -->
+  <div class="filters-card">
+    <div class="filters-left">
+      <div class="quick-filter-dropdown">
+        <select [ngModel]="activeQuickFilter" (ngModelChange)="onQuickFilterChange($event)">
+          <option *ngFor="let f of quickFilters" [value]="f.key">{{ f.label }}</option>
+        </select>
+      </div>
+      <button class="compare-open-btn" (click)="openCompareModal()">
+        <i class="fas fa-balance-scale"></i>
+        Compare
+      </button>
+    </div>
+    <div class="custom-range">
+      <label>From <input type="date" [(ngModel)]="customFrom" /></label>
+      <label>To <input type="date" [(ngModel)]="customTo" /></label>
+      <button class="apply-btn" (click)="applyCustomRange()" [disabled]="!customFrom || !customTo">Apply</button>
+      <button class="clear-btn" (click)="clearCustomRange()" *ngIf="customFrom || customTo">Clear</button>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-state" *ngIf="error && !isLoading && !compareMode">
+    <p>{{ error }}</p>
+  </div>
+
+  <ng-container *ngIf="!error && !compareMode">
+
+    <!-- Hero: the answer -->
+    <div class="hero-card" [class.negative]="!isLoading && profit < 0">
+      <div class="hero-label">What's left for the company</div>
+      <div class="hero-value" [class.shimmer-loading]="isLoading">{{ profit | currency:'USD' }}</div>
+
+      <div class="hero-compare"
+           *ngIf="!isLoading && hasComparison"
+           [class.up]="profitDelta >= 0"
+           [class.down]="profitDelta < 0">
+        <span class="compare-arrow">{{ profitDelta >= 0 ? '▲' : '▼' }}</span>
+        <span>{{ profitDelta >= 0 ? '+' : '' }}{{ profitDelta | currency:'USD' }}</span>
+        <span *ngIf="hasDeltaPercent">({{ profitDeltaPercent >= 0 ? '+' : '' }}{{ profitDeltaPercent | number:'1.0-1' }}%)</span>
+        <span class="compare-label">{{ compareLabel }}</span>
+      </div>
+
+      <div class="hero-note" *ngIf="!isLoading">
+        <ng-container *ngIf="matchesOfficial">
+          <i class="fas fa-check-circle"></i>
+          This is the official Company Revenue — every cost is counted.
+        </ng-container>
+        <ng-container *ngIf="!matchesOfficial">
+          <i class="fas fa-sliders-h"></i>
+          You unchecked {{ excludedCount }} cost{{ excludedCount === 1 ? '' : 's' }}.
+          With everything counted it would be {{ officialRevenue | currency:'USD' }}.
+          <button class="link-btn" (click)="includeEverything()">Count everything again</button>
+        </ng-container>
+      </div>
+    </div>
+
+    <div class="content-grid">
+
+      <!-- The receipt -->
+      <div class="receipt-card">
+
+        <div class="receipt-section-title in">
+          <i class="fas fa-arrow-down"></i> Money in
+        </div>
+        <div class="receipt-row money-in">
+          <div class="row-main">
+            <div class="row-label">Cleaning revenue</div>
+            <div class="row-explanation">Everything customers paid for cleanings in this period (before tax, without tips).</div>
+          </div>
+          <div class="row-amount plus" [class.shimmer-loading]="isLoading">{{ moneyIn | currency:'USD' }}</div>
+        </div>
+
+        <div class="receipt-section-title out">
+          <i class="fas fa-arrow-up"></i> Money out
+          <span class="section-hint">uncheck anything to see the numbers without it</span>
+        </div>
+
+        <div class="receipt-row cost"
+             *ngFor="let line of costLines; trackBy: trackByKey"
+             [class.excluded]="!line.included"
+             [class.expandable]="!!line.items?.length">
+          <label class="row-check">
+            <input type="checkbox" [checked]="line.included" (change)="toggleLine(line)" />
+          </label>
+          <div class="row-main" (click)="toggleExpand(line)">
+            <div class="row-label">
+              {{ line.label }}
+              <i class="fas fa-chevron-down expand-caret"
+                 *ngIf="line.items?.length"
+                 [class.open]="line.expanded"></i>
+            </div>
+            <div class="row-explanation">{{ line.explanation }}</div>
+
+            <!-- Per-expense detail for category rows -->
+            <div class="row-items" *ngIf="line.expanded && line.items?.length">
+              <div class="row-item" *ngFor="let item of line.items">
+                <span class="item-name">{{ item.name }}<span class="item-recurring" *ngIf="item.isRecurring"> (subscription)</span></span>
+                <span class="item-date">{{ item.date | date:'MMM d, y' }}</span>
+                <span class="item-amount">{{ item.amount | currency:'USD' }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="row-amount minus" [class.shimmer-loading]="isLoading">
+            − {{ line.amount | currency:'USD' }}
+          </div>
+        </div>
+
+        <!-- Totals -->
+        <div class="receipt-total">
+          <div class="total-row">
+            <span>Money out (checked)</span>
+            <span class="total-amount" [class.shimmer-loading]="isLoading">− {{ moneyOut | currency:'USD' }}</span>
+          </div>
+          <div class="total-row result" [class.negative]="!isLoading && profit < 0">
+            <span>What's left</span>
+            <span class="total-amount" [class.shimmer-loading]="isLoading">{{ profit | currency:'USD' }}</span>
+          </div>
+        </div>
+
+        <!-- Info rows: shown for context, never part of the math -->
+        <div class="receipt-section-title info">
+          <i class="fas fa-info-circle"></i> Good to know
+          <span class="section-hint">these never change the numbers above</span>
+        </div>
+
+        <div class="receipt-row info-row" [class.excluded]="!showTips">
+          <label class="row-check">
+            <input type="checkbox" [(ngModel)]="showTips" />
+          </label>
+          <div class="row-main">
+            <div class="row-label">Tips</div>
+            <div class="row-explanation">Tips go to the cleaners and the company-development fund — they pass through us and are not company profit.</div>
+          </div>
+          <div class="row-amount neutral" [class.shimmer-loading]="isLoading" *ngIf="showTips">
+            {{ (stats?.totalTips ?? 0) | currency:'USD' }}
+          </div>
+        </div>
+
+        <div class="receipt-row info-row">
+          <span class="row-check spacer"></span>
+          <div class="row-main">
+            <div class="row-label">Completed cleanings</div>
+            <div class="row-explanation">Finished, paid orders inside this period.</div>
+          </div>
+          <div class="row-amount neutral" [class.shimmer-loading]="isLoading">
+            {{ (stats?.totalOrders ?? 0) | number }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Simple visuals -->
+      <div class="side-col">
+
+        <div class="viz-card">
+          <h3 class="viz-title">Money in vs money out</h3>
+          <div class="bars">
+            <div class="bar-row">
+              <div class="bar-head">
+                <span>Money in</span>
+                <span class="bar-amount" [class.shimmer-loading]="isLoading">{{ moneyIn | currency:'USD' }}</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill in" [style.width.%]="isLoading ? 0 : moneyInBarWidth"></div>
+              </div>
+            </div>
+            <div class="bar-row">
+              <div class="bar-head">
+                <span>Money out</span>
+                <span class="bar-amount" [class.shimmer-loading]="isLoading">{{ moneyOut | currency:'USD' }}</span>
+              </div>
+              <div class="bar-track">
+                <div class="bar-fill out" [style.width.%]="isLoading ? 0 : moneyOutBarWidth"></div>
+              </div>
+            </div>
+          </div>
+          <p class="viz-hint" *ngIf="!isLoading">
+            The gap between the two bars is what the company keeps.
+          </p>
+        </div>
+
+        <div class="viz-card">
+          <h3 class="viz-title">Where the money goes</h3>
+          <div class="donut-wrap" [class.shimmer-loading]="isLoading">
+            <canvas #donutCanvas [hidden]="isLoading || donutLegend.length === 0"></canvas>
+            <div class="donut-empty" *ngIf="!isLoading && donutLegend.length === 0">
+              Nothing checked (or no costs in this period).
+            </div>
+          </div>
+          <ul class="donut-legend" *ngIf="!isLoading">
+            <li *ngFor="let slice of donutLegend">
+              <span class="legend-chip"
+                    [style.background]="slice.colorVar ? 'var(' + slice.colorVar + ')' : 'var(--text-muted)'"></span>
+              <span class="legend-label">{{ slice.label }}</span>
+              <span class="legend-amount">{{ slice.amount | currency:'USD' }}</span>
+              <span class="legend-percent">{{ slice.percent | number:'1.0-1' }}%</span>
+            </li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- Side-by-side comparison (replaces the single-period view while active) -->
+  <div class="compare-section" *ngIf="compareMode">
+
+    <div class="compare-head">
+      <h2>Side-by-side comparison</h2>
+      <div class="compare-head-actions">
+        <button class="change-periods-btn" (click)="openCompareModal()">
+          <i class="fas fa-pen"></i> Change periods
+        </button>
+        <button class="exit-compare-btn" (click)="exitCompare()">
+          <i class="fas fa-times"></i> Back to one period
+        </button>
+      </div>
+    </div>
+
+    <div class="winner-card" *ngIf="winnerLine">
+      <i class="fas fa-trophy"></i>
+      <span>{{ winnerLine }}</span>
+    </div>
+
+    <div class="compare-card">
+      <h3 class="viz-title">What's left for the company</h3>
+      <div class="bars">
+        <div class="bar-row" *ngFor="let r of compareResults; let i = index">
+          <div class="bar-head">
+            <span>{{ r.label }}</span>
+            <span class="bar-amount" [class.neg]="profitOf(r) < 0">{{ profitOf(r) | currency:'USD' }}</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill compare"
+                 [class.winner]="i === winnerIndex"
+                 [style.width.%]="compareBarWidth(r)"></div>
+          </div>
+        </div>
+      </div>
+      <p class="viz-hint">The green bar is the period that kept the most money.</p>
+    </div>
+
+    <div class="compare-card">
+      <h3 class="viz-title">Everything, side by side</h3>
+      <div class="compare-table-wrap">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th class="metric-col"></th>
+              <th *ngFor="let r of compareResults">
+                <div class="col-label">{{ r.label }}</div>
+                <div class="col-range" *ngIf="r.rangeLabel">{{ r.rangeLabel }}</div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of compareRows" [class.emphasize]="row.emphasize">
+              <td class="metric-col">{{ row.label }}</td>
+              <td *ngFor="let v of row.values; let i = index"
+                  [class.best]="isBest(row, i)"
+                  [class.neg]="row.isMoney && v < 0">
+                {{ row.isMoney ? (v | currency:'USD') : (v | number) }}
+                <span class="best-chip" *ngIf="isBest(row, i)">best</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="compare-footnote">
+        Green marks the period with the most cleaning revenue, the most money left,
+        and the most completed cleanings. Tips never count toward profit.
+      </p>
+    </div>
+  </div>
+
+  <!-- Compare periods modal -->
+  <div class="modal-overlay" *ngIf="showCompareModal" (click)="closeCompareModal()">
+    <div class="compare-modal" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h2>Compare periods</h2>
+        <button class="modal-close" (click)="closeCompareModal()" aria-label="Close">×</button>
+      </div>
+      <p class="modal-hint">
+        Pick whole days, weeks, months or years — 2 to 4 of them — and see them side by side.
+      </p>
+
+      <div class="unit-tabs">
+        <button *ngFor="let u of compareUnits"
+                [class.active]="compareUnit === u.key"
+                (click)="setCompareUnit(u.key)">{{ u.label }}</button>
+      </div>
+
+      <div class="pick-list">
+        <div class="pick-row" *ngFor="let pick of comparePicks; let i = index">
+          <span class="pick-num">{{ i + 1 }}</span>
+
+          <ng-container [ngSwitch]="compareUnit">
+            <input *ngSwitchCase="'day'" type="date" [(ngModel)]="pick.date" />
+
+            <ng-container *ngSwitchCase="'week'">
+              <input type="date" [(ngModel)]="pick.date" />
+              <span class="pick-preview" *ngIf="pick.date">{{ weekPreview(pick.date) }}</span>
+            </ng-container>
+
+            <ng-container *ngSwitchCase="'month'">
+              <select [(ngModel)]="pick.month">
+                <option *ngFor="let m of monthNames; let mi = index" [ngValue]="mi">{{ m }}</option>
+              </select>
+              <select [(ngModel)]="pick.year">
+                <option *ngFor="let y of yearOptions" [ngValue]="y">{{ y }}</option>
+              </select>
+            </ng-container>
+
+            <select *ngSwitchCase="'year'" [(ngModel)]="pick.year">
+              <option *ngFor="let y of yearOptions" [ngValue]="y">{{ y }}</option>
+            </select>
+          </ng-container>
+
+          <button class="remove-pick"
+                  *ngIf="comparePicks.length > 2"
+                  (click)="removePick(i)"
+                  aria-label="Remove this period">×</button>
+        </div>
+      </div>
+
+      <button class="add-pick" *ngIf="comparePicks.length < 4" (click)="addPick()">
+        <i class="fas fa-plus"></i> Add another {{ unitNoun }}
+      </button>
+
+      <div class="modal-error" *ngIf="compareError">{{ compareError }}</div>
+
+      <div class="modal-footer">
+        <button class="cancel-btn" (click)="closeCompareModal()">Cancel</button>
+        <button class="run-compare-btn" (click)="runCompare()" [disabled]="!picksValid || isComparing">
+          <i class="fas" [ngClass]="isComparing ? 'fa-spinner fa-spin' : 'fa-balance-scale'"></i>
+          {{ isComparing ? 'Comparing…' : 'Compare' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

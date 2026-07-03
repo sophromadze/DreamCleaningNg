@@ -16,7 +16,57 @@
           <p><strong>Service Date:</strong> {{ formatDate(order.serviceDate) }}</p>
           <p><strong>Service Time:</strong> {{ formatTime(order.serviceTime) }}</p>
           <p><strong>Address:</strong> {{ order.serviceAddress }}{{ order.aptSuite ? ', ' + order.aptSuite : '' }}</p>
-          <p><strong>Amount Due:</strong> ${{ orderTotal | number:'1.2-2' }}</p>
+          <p><strong>City:</strong> {{ order.city }}, {{ order.state }} {{ order.zipCode }}</p>
+        </div>
+
+        <!-- Full service breakdown so the payer sees exactly what they're paying for
+             (payment links may be opened by someone who didn't place the booking).
+             Quantities only — per-item prices are never shown to customers; deep/super-deep
+             cleaning surfaces as Cleaning Type, matching the order-details page. -->
+        <div class="summary-breakdown" *ngIf="(order.services?.length || 0) > 0 || (order.extraServices?.length || 0) > 0">
+          <div class="breakdown-line cleaning-type">
+            <span><strong>Cleaning Type</strong></span>
+            <span>{{ getCleaningTypeText() }}</span>
+          </div>
+
+          <ng-container *ngIf="(order.services?.length || 0) > 0">
+            <h3>Services</h3>
+            <div class="breakdown-line" *ngFor="let s of order.services">
+              <span>{{ s.serviceName }}</span>
+              <span>{{ getServiceQuantityLabel(s) }}</span>
+            </div>
+          </ng-container>
+
+          <ng-container *ngIf="getDisplayExtraServices().length > 0">
+            <h3>Extra Services</h3>
+            <div class="breakdown-line" *ngFor="let es of getDisplayExtraServices()">
+              <span>{{ es.extraServiceName }}</span>
+              <span *ngIf="es.quantity > 0">Qty: {{ es.quantity }}</span>
+              <span *ngIf="es.quantity <= 0 && es.hours > 0">Hours: {{ es.hours }}</span>
+            </div>
+          </ng-container>
+        </div>
+
+        <div class="summary-breakdown totals">
+          <div class="breakdown-line"><span>Subtotal</span><span>${{ order.subTotal | number:'1.2-2' }}</span></div>
+          <div class="breakdown-line" *ngIf="(order.discountAmount || 0) > 0">
+            <span>Discount{{ order.promoCodeDetails ? ' (' + order.promoCodeDetails + ')' : '' }}</span>
+            <span class="discount">-${{ order.discountAmount | number:'1.2-2' }}</span>
+          </div>
+          <div class="breakdown-line" *ngIf="(order.subscriptionDiscountAmount || 0) > 0">
+            <span>Subscription Discount</span>
+            <span class="discount">-${{ order.subscriptionDiscountAmount | number:'1.2-2' }}</span>
+          </div>
+          <div class="breakdown-line" *ngIf="(order.giftCardAmountUsed || 0) > 0">
+            <span>Gift Card</span>
+            <span class="discount">-${{ order.giftCardAmountUsed | number:'1.2-2' }}</span>
+          </div>
+          <div class="breakdown-line"><span>Tax</span><span>${{ order.tax | number:'1.2-2' }}</span></div>
+          <div class="breakdown-line" *ngIf="(order.tips || 0) > 0"><span>Tips</span><span>${{ order.tips | number:'1.2-2' }}</span></div>
+          <div class="breakdown-line amount-due">
+            <span><strong>{{ paymentType === 'update' ? 'Additional Amount Due' : 'Amount Due' }}</strong></span>
+            <span><strong>${{ orderTotal | number:'1.2-2' }}</strong></span>
+          </div>
         </div>
       </div>
 
@@ -107,6 +157,7 @@
       </ul>
     </ng-template>
     
-    <a [routerLink]="['/order', orderId]" class="view-order-btn">View Order Now</a>
+    <!-- Order pages need login, so guests paying via a link just get the confirmation above. -->
+    <a *ngIf="!isGuestMode" [routerLink]="['/order', orderId]" class="view-order-btn">View Order Now</a>
   </div>
 </div>

@@ -43,14 +43,46 @@ h1 {
   
   .summary-details {
     text-align: left;
-    
+
     p {
       margin: 0.5rem 0;
       color: #666;
     }
-    
+
     strong {
       color: #333;
+    }
+  }
+
+  .summary-breakdown {
+    text-align: left;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e0e0e0;
+
+    h3 {
+      color: #333;
+      font-size: 1rem;
+      margin: 0 0 0.5rem;
+    }
+
+    .breakdown-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
+      margin: 0.35rem 0;
+      color: #666;
+      font-size: 0.95rem;
+
+      .discount { color: #28a745; }
+
+      &.amount-due {
+        margin-top: 0.6rem;
+        padding-top: 0.6rem;
+        border-top: 1px solid #e0e0e0;
+        color: #333;
+        font-size: 1.05rem;
+      }
     }
   }
 }
@@ -252,6 +284,18 @@ h1 {
     }
     strong {
       color: var(--text-primary) !important;
+    }
+  }
+  .summary-breakdown {
+    border-top-color: var(--border-color);
+    h3 { color: var(--text-primary) !important; }
+    .breakdown-line {
+      color: var(--text-secondary) !important;
+      .discount { color: var(--fresh-green) !important; }
+      &.amount-due {
+        border-top-color: var(--border-color);
+        color: var(--text-primary) !important;
+      }
     }
   }
 }

@@ -45,7 +45,8 @@
             },
             "scripts": [],
             "allowedCommonJsDependencies": [
-              "leaflet"
+              "leaflet",
+              "xlsx"
             ],
             "server": "src/main.server.ts",
             "prerender": false,

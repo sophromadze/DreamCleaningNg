@@ -388,6 +388,7 @@ $app-header-height-mobile: 60px;
 
   &.first-time { background: #ecfdf5; color: #065f46; }
   &.blocked { background: #fef2f2; color: #b91c1c; }
+  &.no-email { background: var(--soft-yellow); color: var(--soft-yellow-text); }
 }
 
 // Last cleaning

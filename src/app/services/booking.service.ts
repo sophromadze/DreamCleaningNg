@@ -85,7 +85,8 @@ export interface BookingData {
   specialInstructions?: string;
   contactFirstName: string;
   contactLastName: string;
-  contactEmail: string;
+  /** Null only when an admin books for a no-email (cash) customer via create-for-user. */
+  contactEmail: string | null;
   contactPhone: string;
   serviceAddress: string;
   aptSuite?: string;
@@ -166,10 +167,15 @@ export class BookingService {
     );
   }
 
-  confirmPayment(orderId: number, paymentIntentId: string, sessionId?: string): Observable<any> {
+  confirmPayment(orderId: number, paymentIntentId: string, sessionId?: string, guestToken?: string): Observable<any> {
     const body: any = { paymentIntentId };
     if (sessionId) {
       body.sessionId = sessionId;
+    }
+    // Secret payment-link token — lets a logged-out payer confirm an existing order's
+    // payment (needed when there's no Stripe intent for the backend to resolve them from).
+    if (guestToken) {
+      body.guestToken = guestToken;
     }
     // Send paymentIntentId in both body and query so backend gets it even if body binding fails
     const url = `${this.apiUrl}/booking/confirm-payment/${orderId}?paymentIntentId=${encodeURIComponent(paymentIntentId)}`;
@@ -223,9 +229,10 @@ export class BookingService {
     );
   }
 
-  createPaymentIntentForOrder(orderId: number): Observable<any> {
+  createPaymentIntentForOrder(orderId: number, guestToken?: string): Observable<any> {
+    const query = guestToken ? `?guestToken=${encodeURIComponent(guestToken)}` : '';
     return this.http.post<any>(
-      `${this.apiUrl}/booking/create-payment-intent/${orderId}`,
+      `${this.apiUrl}/booking/create-payment-intent/${orderId}${query}`,
       {},
       { headers: this.getAuthHeaders() }
     );

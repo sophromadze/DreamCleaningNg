@@ -223,6 +223,12 @@ export class OrderService {
     return this.http.get<Order>(`${this.apiUrl}/order/${orderId}`);
   }
 
+  /** Guest access to the payment page's order details via the secret payment-link token
+   *  (?t=... from emailed/SMSed links). Backend allows it only while something is unpaid. */
+  getOrderByIdGuest(orderId: number, token: string): Observable<Order> {
+    return this.http.get<Order>(`${this.apiUrl}/order/${orderId}/guest`, { params: { token } });
+  }
+
   /** Set, change, or clear (adminId = null) the admin assigned to an order.
    *  Admin/SuperAdmin only — backend enforces. */
   setAssignedAdmin(orderId: number, adminId: number | null): Observable<AssignedAdminInfo> {
@@ -268,13 +274,15 @@ export class OrderService {
    * Pass amount (in dollars) so the backend can create a payment intent for the correct amount when the
    * stored pendingUpdateAmount was computed including tips (legacy bug). Backend should use this amount
    * when provided. */
-  createPendingUpdatePaymentIntent(orderId: number, amount?: number): Observable<any> {
+  createPendingUpdatePaymentIntent(orderId: number, amount?: number, guestToken?: string): Observable<any> {
     const body = amount != null && amount > 0 ? { amount } : {};
-    return this.http.post(`${this.apiUrl}/order/${orderId}/create-pending-update-payment-intent`, body);
+    const options = guestToken ? { params: { guestToken } } : {};
+    return this.http.post(`${this.apiUrl}/order/${orderId}/create-pending-update-payment-intent`, body, options);
   }
 
   /** Confirms a pending additional payment and marks related update-history rows as paid. */
-  confirmPendingUpdatePayment(orderId: number, paymentIntentId: string): Observable<any> {
-    return this.http.post(`${this.apiUrl}/order/${orderId}/confirm-pending-update-payment`, { paymentIntentId });
+  confirmPendingUpdatePayment(orderId: number, paymentIntentId: string, guestToken?: string): Observable<any> {
+    const options = guestToken ? { params: { guestToken } } : {};
+    return this.http.post(`${this.apiUrl}/order/${orderId}/confirm-pending-update-payment`, { paymentIntentId }, options);
   }
 }

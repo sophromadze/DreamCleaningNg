@@ -181,11 +181,33 @@ export interface UpdatePromoCode {
   isActive: boolean;
 }
 
+/** One SuperAdmin order transfer (order moved between customer accounts). */
+export interface OrderTransferInfo {
+  id: number;
+  orderId: number;
+  fromUserId: number;
+  fromUserName: string;
+  toUserId: number;
+  toUserName: string;
+  transferredByUserId: number;
+  transferredByName: string;
+  notes?: string;
+  createdAt: string;
+  isUndone: boolean;
+  undoneAt?: string;
+  undoneByName?: string;
+  pointsMoved: number;
+  spentAmountMoved: number;
+  photosMoved: number;
+}
+
 export interface UserAdmin {
   id: number;
   firstName: string;
   lastName: string;
   email: string;
+  /** True for admin-created cash customers with no email; email arrives blank from the API. */
+  isNoEmailUser?: boolean;
   phone?: string;
   role: string;
   authProvider?: string;
@@ -266,7 +288,8 @@ export interface UserCleaningPhotoUploadResult {
 export interface SuperAdminUpdateUserDto {
   firstName: string;
   lastName: string;
-  email: string;
+  /** Null when left blank (only valid for no-email cash accounts). */
+  email: string | null;
   phone?: string | null;
   role: string;
   isActive: boolean;
@@ -735,7 +758,7 @@ export class AdminService {
     return this.http.get<UsersResponse | UserAdmin[]>(`${this.apiUrl}/users`, { headers, params });
   }
 
-  registerUser(userData: { firstName: string; lastName: string; email: string; phone?: string }): Observable<any> {
+  registerUser(userData: { firstName: string; lastName: string; email?: string; phone?: string; noEmail?: boolean }): Observable<any> {
     return this.http.post(`${this.apiUrl}/users/register`, userData);
   }
 
@@ -1120,6 +1143,21 @@ export class AdminService {
     );
   }
 
+  /** SuperAdmin-only: switch an order between the Stripe (Normal) flow and a manual payment
+   *  method. The backend re-routes the order (manual tracking fields, Pending/Active status,
+   *  Stripe-fee accounting) and returns the resulting method + status to mirror locally. */
+  updateOrderPaymentMethod(
+    orderId: number,
+    paymentMethod: string,
+    paymentReference: string | null,
+    paymentNotes: string | null
+  ): Observable<{ message: string; paymentMethod: string; paymentReference: string | null; paymentNotes: string | null; status: string }> {
+    return this.http.put<{ message: string; paymentMethod: string; paymentReference: string | null; paymentNotes: string | null; status: string }>(
+      `${this.apiUrl}/orders/${orderId}/payment-method`,
+      { paymentMethod, paymentReference, paymentNotes }
+    );
+  }
+
   /** Send payment reminder (email + SMS) for unpaid additional payment. */
   sendPaymentReminder(orderId: number): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiUrl}/orders/${orderId}/send-payment-reminder`, {});
@@ -1132,6 +1170,20 @@ export class AdminService {
       `${this.apiUrl}/orders/${orderId}/send-payment-link`,
       { sendEmail, sendSms }
     );
+  }
+
+  // ── SuperAdmin order transfer (move an order between customer accounts, undoable) ──
+
+  transferOrder(orderId: number, targetUserId: number, notes?: string): Observable<OrderTransferInfo> {
+    return this.http.post<OrderTransferInfo>(`${this.apiUrl}/orders/${orderId}/transfer`, { targetUserId, notes });
+  }
+
+  getOrderTransfers(orderId: number): Observable<OrderTransferInfo[]> {
+    return this.http.get<OrderTransferInfo[]>(`${this.apiUrl}/orders/${orderId}/transfers`);
+  }
+
+  undoOrderTransfer(transferId: number): Observable<OrderTransferInfo> {
+    return this.http.post<OrderTransferInfo>(`${this.apiUrl}/order-transfers/${transferId}/undo`, {});
   }
 
   sendUpdatedPayment(orderId: number): Observable<{ message: string }> {

@@ -31,7 +31,7 @@
         (click)="selectUser(user)">
         <div class="user-info">
           <strong>{{ user.firstName }} {{ user.lastName }}</strong>
-          <span class="user-email">{{ user.email }}</span>
+          <span class="user-email">{{ user.isNoEmailUser ? 'No email' : user.email }}</span>
           <span class="user-id">ID: {{ user.id }}</span>
         </div>
       </div>

@@ -19,6 +19,7 @@ export const ADMIN_VIEWABLE_PAGES: AdminViewablePage[] = [
   { key: 'statistics', label: 'Statistics', route: '/admin/statistics' },
   { key: 'expenses', label: 'Expenses', route: '/admin/expenses' },
   { key: 'bubble-rewards', label: 'Bubble Rewards', route: '/admin/rewards' },
+  { key: 'finances', label: 'Finances', route: '/admin/finances' },
 ];
 
 /**

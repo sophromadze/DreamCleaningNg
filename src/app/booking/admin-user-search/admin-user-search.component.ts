@@ -35,9 +35,9 @@ export class AdminUserSearchComponent implements OnInit {
 
   /** With a selected user the input shows their label read-only; otherwise the live search term. */
   get displayTerm(): string {
-    return this.selectedUser
-      ? `${this.selectedUser.firstName} ${this.selectedUser.lastName} (${this.selectedUser.email})`
-      : this.userSearchTerm;
+    if (!this.selectedUser) return this.userSearchTerm;
+    const emailLabel = this.selectedUser.isNoEmailUser ? 'No email' : this.selectedUser.email;
+    return `${this.selectedUser.firstName} ${this.selectedUser.lastName} (${emailLabel})`;
   }
 
   onSearchInput(value: string): void {

@@ -100,7 +100,10 @@
               </td>
 
               <td class="col-phone">{{ user.phone || '—' }}</td>
-              <td class="col-email"><span class="ellipsis-text">{{ user.email }}</span></td>
+              <td class="col-email">
+                <span *ngIf="user.isNoEmailUser" class="tag-chip no-email" title="Customer without email — admin-managed account (pays cash, Zelle, etc.)">No email</span>
+                <span *ngIf="!user.isNoEmailUser" class="ellipsis-text">{{ user.email }}</span>
+              </td>
 
               <!-- Last cleaning: date + service type chip -->
               <td class="col-last">
@@ -212,7 +215,8 @@
           </h3>
           <div class="detail-contact">
             <span title="Phone">📞 {{ selectedUser.phone || '—' }}</span>
-            <span title="Email">✉ {{ selectedUser.email }}</span>
+            <span title="Email" *ngIf="!selectedUser.isNoEmailUser">✉ {{ selectedUser.email }}</span>
+            <span *ngIf="selectedUser.isNoEmailUser" class="tag-chip no-email" title="Customer without email — admin-managed account (pays cash, Zelle, etc.)">No email</span>
           </div>
           <div class="detail-address-line">📍 {{ getPrimaryAddressLine(selectedUser) }}</div>
         </div>
@@ -278,7 +282,11 @@
       <div class="edit-grid">
         <label><span>First Name</span><input type="text" [(ngModel)]="editUserForm.firstName"></label>
         <label><span>Last Name</span><input type="text" [(ngModel)]="editUserForm.lastName"></label>
-        <label><span>Email</span><input type="email" [(ngModel)]="editUserForm.email"></label>
+        <label>
+          <span>Email</span>
+          <input type="email" [(ngModel)]="editUserForm.email"
+                 [placeholder]="selectedUser.isNoEmailUser ? 'No email — type one to convert to a normal account' : ''">
+        </label>
         <label><span>Phone</span><input type="tel" inputmode="numeric" [ngModel]="editUserForm.phone" (input)="onEditPhoneInput($event)" placeholder="10-digit"></label>
         <label class="check"><input type="checkbox" [(ngModel)]="editUserForm.firstTimeOrder"> First-time customer</label>
       </div>
@@ -842,11 +850,19 @@
         <input id="reg-lastName" type="text" [(ngModel)]="registerForm.lastName" placeholder="Last name" [disabled]="isRegistering">
       </div>
       <div class="form-group">
-        <label for="reg-email">Email <span class="required">*</span></label>
-        <input id="reg-email" type="email" [(ngModel)]="registerForm.email" placeholder="Email" [disabled]="isRegistering">
+        <label for="reg-email">Email <span class="required" *ngIf="!registerForm.noEmail">*</span></label>
+        <input id="reg-email" type="email" [(ngModel)]="registerForm.email"
+               [placeholder]="registerForm.noEmail ? 'No email on file' : 'Email'"
+               [disabled]="isRegistering || registerForm.noEmail">
+      </div>
+      <div class="form-group no-email-toggle">
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="registerForm.noEmail" [disabled]="isRegistering">
+          Customer has no email (phone required, cannot log in; pays cash, Zelle, etc.)
+        </label>
       </div>
       <div class="form-group">
-        <label for="reg-phone">Phone <span class="optional">(optional)</span></label>
+        <label for="reg-phone">Phone <span class="required" *ngIf="registerForm.noEmail">*</span><span class="optional" *ngIf="!registerForm.noEmail">(optional)</span></label>
         <input id="reg-phone" type="tel" inputmode="numeric" [(ngModel)]="registerForm.phone" (input)="onRegisterPhoneInput($event)" placeholder="10-digit number" [disabled]="isRegistering">
       </div>
     </div>

@@ -62,7 +62,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     firstName: '',
     lastName: '',
     email: '',
-    phone: ''
+    phone: '',
+    noEmail: false
   };
   isRegistering = false;
   registerModalError = '';
@@ -1429,7 +1430,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     return {
       firstName: this.editUserForm.firstName,
       lastName: this.editUserForm.lastName,
-      email: this.editUserForm.email,
+      // null (not "") when blank — the backend's [EmailAddress] rejects an empty string.
+      // Blank is valid only for no-email (cash) accounts, whose email field starts empty.
+      email: this.editUserForm.email?.trim() ? this.editUserForm.email.trim() : null,
       phone: this.editUserForm.phone,
       firstTimeOrder: this.editUserForm.firstTimeOrder,
       role: user.role,
@@ -1461,17 +1464,22 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
         this.editingUser = false;
         this.selectedUser!.firstName = payload.firstName;
         this.selectedUser!.lastName = payload.lastName;
-        this.selectedUser!.email = payload.email;
+        this.selectedUser!.email = payload.email ?? this.selectedUser!.email;
         this.selectedUser!.phone = payload.phone ?? this.selectedUser!.phone;
         this.selectedUser!.firstTimeOrder = payload.firstTimeOrder;
+        // Giving a no-email (cash) account a real email converts it to a normal account.
+        if (this.selectedUser!.isNoEmailUser && payload.email?.trim()) {
+          this.selectedUser!.isNoEmailUser = false;
+        }
         const userIndex = this.users.findIndex(user => user.id === this.selectedUser!.id);
         if (userIndex !== -1) {
           const updatedUser = this.users[userIndex];
           updatedUser.firstName = payload.firstName;
           updatedUser.lastName = payload.lastName;
-          updatedUser.email = payload.email;
+          updatedUser.email = payload.email ?? updatedUser.email;
           updatedUser.phone = payload.phone ?? updatedUser.phone;
           updatedUser.firstTimeOrder = payload.firstTimeOrder;
+          updatedUser.isNoEmailUser = this.selectedUser!.isNoEmailUser;
         }
         this.loadUsers();
         setTimeout(() => { this.successMessage = ''; }, 5000);
@@ -1653,7 +1661,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   openRegisterModal(): void {
-    this.registerForm = { firstName: '', lastName: '', email: '', phone: '' };
+    this.registerForm = { firstName: '', lastName: '', email: '', phone: '', noEmail: false };
     this.registerModalError = '';
     this.showRegisterModal = true;
   }
@@ -1665,8 +1673,16 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   registerUser(): void {
     const f = this.registerForm;
-    if (!f.firstName?.trim() || !f.lastName?.trim() || !f.email?.trim()) {
-      this.registerModalError = 'First name, last name, and email are required.';
+    if (!f.firstName?.trim() || !f.lastName?.trim()) {
+      this.registerModalError = 'First name and last name are required.';
+      return;
+    }
+    if (!f.noEmail && !f.email?.trim()) {
+      this.registerModalError = 'Email is required (or mark the customer as having no email).';
+      return;
+    }
+    if (f.noEmail && !normalizePhone10(f.phone)) {
+      this.registerModalError = 'Phone is required for customers without an email.';
       return;
     }
     this.registerModalError = '';
@@ -1674,8 +1690,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.adminService.registerUser({
       firstName: f.firstName.trim(),
       lastName: f.lastName.trim(),
-      email: f.email.trim(),
-      phone: normalizePhone10(f.phone) || undefined
+      email: f.noEmail ? undefined : f.email.trim(),
+      phone: normalizePhone10(f.phone) || undefined,
+      noEmail: f.noEmail
     }).subscribe({
       next: (res: any) => {
         const name = `${res.firstName || this.registerForm.firstName} ${res.lastName || this.registerForm.lastName}`;

@@ -337,6 +337,11 @@
                    *ngIf="canViewPage('expenses')">
                   Expenses
                 </a>
+                <a routerLink="/admin/finances"
+                   (click)="closeAllMenus(); $event.stopPropagation()"
+                   *ngIf="canViewPage('finances')">
+                  Finances
+                </a>
                 <a (click)="logout(); closeAllMenus(); $event.stopPropagation()">Logout</a>
               </div>
             </div>

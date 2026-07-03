@@ -198,6 +198,19 @@
   --fw-bold: 700;
   --fw-extrabold: 800;
   --fw-black: 900;
+
+  /* Chart categorical palette (finances page donut & any future data viz).
+     Fixed slot order — assign by entity, never re-shuffle when series count
+     changes. Validated for CVD separation + contrast against --surface in both
+     themes (dark values are the same hues re-stepped, overridden below). */
+  --chart-cat-1: #2a78d6;   /* blue */
+  --chart-cat-2: #1baf7a;   /* aqua */
+  --chart-cat-3: #eda100;   /* yellow */
+  --chart-cat-4: #008300;   /* green */
+  --chart-cat-5: #4a3aa7;   /* violet */
+  --chart-cat-6: #e34948;   /* red */
+  --chart-cat-7: #e87ba4;   /* magenta */
+  --chart-cat-8: #eb6834;   /* orange */
 }
 
 /* Night (dark) theme – opposite backgrounds and text
@@ -276,6 +289,16 @@
   --warning-orange-text: #fdba74;     /* orange-300 — readable on dark */
   --warning-orange-bg: rgba(249, 115, 22, 0.15);
   --warning-orange-border: rgba(249, 115, 22, 0.35);
+
+  /* Chart categorical palette — same hues re-stepped for the dark surface */
+  --chart-cat-1: #3987e5;
+  --chart-cat-2: #199e70;
+  --chart-cat-3: #c98500;
+  --chart-cat-4: #008300;
+  --chart-cat-5: #9085e9;
+  --chart-cat-6: #e66767;
+  --chart-cat-7: #d55181;
+  --chart-cat-8: #d95926;
 }
 
 /* ==============================================================

@@ -566,8 +566,65 @@
                       <h5>Customer Information</h5>
                       <p><strong>User ID:</strong> {{selectedOrder.userId}}</p>
                       <p><strong>Name:</strong> {{selectedOrder.contactFirstName}} {{selectedOrder.contactLastName}}</p>
-                      <p><strong>Email:</strong> {{selectedOrder.contactEmail}}</p>
+                      <p><strong>Email:</strong> {{selectedOrder.contactEmail || '— (no email)'}}</p>
                       <p><strong>Phone:</strong> {{selectedOrder.contactPhone}}</p>
+
+                      <!-- SuperAdmin-only: move this order (and everything it earned) to another customer -->
+                      <div class="order-transfer" *ngIf="isSuperAdmin">
+                        <button type="button" class="action-btn small transfer-toggle" (click)="toggleTransferPanel()">
+                          {{ showTransferPanel ? 'Close transfer' : 'Transfer to another customer…' }}
+                        </button>
+
+                        <div class="transfer-panel" *ngIf="showTransferPanel">
+                          <div class="transfer-error" *ngIf="transferError">{{ transferError }}</div>
+
+                          <ng-container *ngIf="!transferTargetUser">
+                            <input type="text" class="transfer-search"
+                                   [ngModel]="transferSearchTerm"
+                                   (ngModelChange)="onTransferSearchInput($event)"
+                                   placeholder="Search customer by name, email, or ID…">
+                            <div class="transfer-results" *ngIf="loadingTransferCandidates">Loading customers…</div>
+                            <div class="transfer-results" *ngIf="!loadingTransferCandidates && transferSearchResults.length > 0">
+                              <button type="button" class="transfer-result" *ngFor="let u of transferSearchResults" (click)="selectTransferTarget(u)">
+                                {{ transferUserLabel(u) }}
+                              </button>
+                            </div>
+                          </ng-container>
+
+                          <div class="transfer-selected" *ngIf="transferTargetUser">
+                            <span>→ {{ transferUserLabel(transferTargetUser) }}</span>
+                            <button type="button" class="link-btn" (click)="clearTransferTarget()">change</button>
+                          </div>
+
+                          <input type="text" class="transfer-notes" [(ngModel)]="transferNotes"
+                                 placeholder="Note (optional, shown in history)" maxlength="500">
+
+                          <button type="button" class="action-btn primary small"
+                                  [disabled]="!transferTargetUser || isTransferring"
+                                  (click)="submitTransfer()">
+                            {{ isTransferring ? 'Transferring…' : 'Transfer order' }}
+                          </button>
+                          <p class="transfer-hint">Moves the order, its photos, earned points/spent amount and the service address to the selected customer. Recorded in Audit logs; undoable below.</p>
+                        </div>
+
+                        <div class="transfer-history" *ngIf="orderTransfers.length > 0">
+                          <h6>Transfer history</h6>
+                          <div class="transfer-entry" *ngFor="let t of orderTransfers" [class.is-undone]="t.isUndone">
+                            <span class="transfer-line">
+                              {{ formatUtcDateTime(t.createdAt) }} — {{ t.fromUserName }} → {{ t.toUserName }}
+                              by {{ t.transferredByName }}
+                              <ng-container *ngIf="t.pointsMoved > 0"> · {{ t.pointsMoved }} pts</ng-container>
+                              <ng-container *ngIf="t.notes"> · “{{ t.notes }}”</ng-container>
+                            </span>
+                            <span class="transfer-undone-tag" *ngIf="t.isUndone">Undone {{ t.undoneByName ? 'by ' + t.undoneByName : '' }}</span>
+                            <button type="button" class="action-btn small ghost" *ngIf="!t.isUndone"
+                                    [disabled]="undoingTransferId !== null"
+                                    (click)="undoTransfer(t)">
+                              {{ undoingTransferId === t.id ? 'Undoing…' : 'Undo' }}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                     
                     <!-- Service Details -->
@@ -734,7 +791,9 @@
 
                         <!-- Phase 1: payment-method line. "Paid by Website" for Stripe orders
                              (PaymentMethod = Normal); "Paid by Cash/Zelle/Check/Other" with
-                             reference inline for manual payments. -->
+                             reference inline for manual payments. SuperAdmins can switch the
+                             order between the Stripe and manual flows here (only while Stripe
+                             hasn't actually charged the card — backend enforces the same). -->
                         <p class="payment-method-line">
                           <strong>Payment:</strong>
                           <span [ngSwitch]="(selectedOrder.paymentMethod || 'Normal')">
@@ -744,7 +803,52 @@
                               <span *ngIf="selectedOrder.paymentReference"> (Ref: {{ selectedOrder.paymentReference }})</span>
                             </ng-container>
                           </span>
+                          <button type="button" class="action-btn secondary pm-change-btn"
+                                  *ngIf="canEditPaymentMethod && !editingPaymentMethod"
+                                  (click)="startEditPaymentMethod()"
+                                  title="Change how this order is (or will be) paid — SuperAdmin only">
+                            Change
+                          </button>
                         </p>
+                        <div class="manual-pay-form pm-editor" *ngIf="editingPaymentMethod">
+                          <div class="manual-pay-row">
+                            <label>Method</label>
+                            <select [(ngModel)]="paymentMethodEdit">
+                              <option *ngFor="let opt of paymentMethodOptions" [value]="opt.value">{{ opt.label }}</option>
+                            </select>
+                          </div>
+                          <ng-container *ngIf="paymentMethodEdit !== 'Normal'">
+                            <div class="manual-pay-row">
+                              <label>Reference</label>
+                              <input type="text" [(ngModel)]="paymentMethodEditReference"
+                                     maxlength="255"
+                                     placeholder="Zelle confirmation #, check #, …" />
+                            </div>
+                            <div class="manual-pay-row">
+                              <label>Notes</label>
+                              <input type="text" [(ngModel)]="paymentMethodEditNotes"
+                                     maxlength="1000" placeholder="Optional" />
+                            </div>
+                          </ng-container>
+                          <p class="pm-editor-hint" *ngIf="paymentMethodEdit !== 'Normal'">
+                            The order moves to the manual-payment flow: treated as paid outside the
+                            website, no Stripe fees in statistics, and a Pending order becomes Active.
+                          </p>
+                          <p class="pm-editor-hint" *ngIf="paymentMethodEdit === 'Normal' && (selectedOrder.paymentMethod || 'Normal') !== 'Normal'">
+                            The order returns to the Stripe flow: it counts as awaiting online payment
+                            again (an Active unpaid order goes back to Pending).
+                          </p>
+                          <div class="manual-pay-actions">
+                            <button type="button" class="action-btn primary"
+                                    (click)="savePaymentMethod()"
+                                    [disabled]="savingPaymentMethod">
+                              {{ savingPaymentMethod ? 'Saving...' : 'Save payment method' }}
+                            </button>
+                            <button type="button" class="action-btn"
+                                    (click)="cancelEditPaymentMethod()"
+                                    [disabled]="savingPaymentMethod">Cancel</button>
+                          </div>
+                        </div>
                         <p *ngIf="selectedOrder.paymentNotes" class="payment-notes-line">
                           <strong>Payment Notes:</strong> {{ selectedOrder.paymentNotes }}
                         </p>

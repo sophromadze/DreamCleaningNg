@@ -4004,3 +4004,211 @@ $order-header-mobile: 60px;
     font-style: italic;
   }
 }
+/* ── SuperAdmin order transfer (Customer Information section) ── */
+.order-transfer {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed var(--border-color);
+
+  .transfer-panel {
+    margin-top: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+  }
+
+  .transfer-error {
+    background: var(--soft-red);
+    color: var(--bright-red);
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+  }
+
+  .transfer-search,
+  .transfer-notes {
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface-elevated);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .transfer-results {
+    display: flex;
+    flex-direction: column;
+    max-height: 14rem;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface-elevated);
+
+    .transfer-result {
+      text-align: left;
+      padding: 0.45rem 0.6rem;
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      cursor: pointer;
+
+      &:last-child { border-bottom: none; }
+      &:hover { background: var(--surface-subtle); }
+    }
+  }
+
+  .transfer-selected {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    font-weight: var(--fw-semibold);
+
+    .link-btn {
+      background: none;
+      border: none;
+      color: var(--primary-text);
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 0;
+      text-decoration: underline;
+    }
+  }
+
+  .transfer-hint {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  .transfer-history {
+    margin-top: 0.75rem;
+
+    h6 {
+      margin: 0 0 0.4rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .transfer-entry {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+
+      &:last-child { border-bottom: none; }
+      &.is-undone .transfer-line { text-decoration: line-through; opacity: 0.7; }
+
+      .transfer-undone-tag {
+        background: var(--soft-yellow);
+        color: var(--soft-yellow-text);
+        padding: 0.05rem 0.45rem;
+        border-radius: var(--radius-pill);
+        font-size: 0.72rem;
+        font-weight: var(--fw-semibold);
+      }
+    }
+  }
+}
+
+// ── SuperAdmin payment-method editor (details panel "Payment:" line) ──
+// Self-contained: the pricing column isn't covered by the update-history
+// .manual-pay-form / .action-btn scopes, so the editor styles its own controls.
+.payment-method-line .pm-change-btn {
+  margin-left: 0.5rem;
+  padding: 0.15rem 0.55rem;
+  font-size: 0.7rem;
+  font-weight: var(--fw-semibold);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+  color: var(--primary-text);
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover { background: var(--soft-blue); }
+}
+
+.pm-editor {
+  margin: 0.45rem 0;
+  padding: 0.55rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+
+  .manual-pay-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    label {
+      flex: 0 0 4.25rem;
+      font-size: 0.68rem;
+      font-weight: var(--fw-semibold);
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+
+    select, input {
+      flex: 1 1 auto;
+      min-width: 0;
+      padding: 0.3rem 0.45rem;
+      font-size: 0.76rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-primary);
+    }
+  }
+
+  .pm-editor-hint {
+    margin: 0;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+
+  .manual-pay-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+
+    .action-btn {
+      font-size: 0.72rem;
+      padding: 0.32rem 0.65rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-primary);
+      font-weight: var(--fw-semibold);
+      cursor: pointer;
+      transition: background 0.2s;
+
+      &.primary {
+        background: var(--btn-primary);
+        color: #fff;
+        border: none;
+
+        &:hover:not(:disabled) { background: var(--btn-primary-hover); }
+      }
+    }
+  }
+}

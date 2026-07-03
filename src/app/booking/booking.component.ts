@@ -2835,7 +2835,9 @@ export class BookingComponent implements OnInit, OnDestroy {
       specialInstructions: formValue.specialInstructions,
       contactFirstName: formValue.contactFirstName,
       contactLastName: formValue.contactLastName,
-      contactEmail: formValue.contactEmail,
+      // null (not "") when booking for a no-email cash customer — the backend's
+      // [EmailAddress] validation accepts null but rejects an empty string.
+      contactEmail: formValue.contactEmail?.trim() ? formValue.contactEmail.trim() : null,
       contactPhone: formValue.contactPhone,
       serviceAddress: formValue.serviceAddress,
       aptSuite: formValue.aptSuite,
@@ -3406,7 +3408,7 @@ export class BookingComponent implements OnInit, OnDestroy {
 
     // Store admin's original apartments before loading user's apartments
     this.adminOriginalApartments = [...this.userApartments];
-    
+
     // Pre-fill form with selected user's contact information
     if (user.firstName) {
       this.contactFirstName.setValue(user.firstName);
@@ -3414,8 +3416,19 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (user.lastName) {
       this.contactLastName.setValue(user.lastName);
     }
-    if (user.email) {
-      this.contactEmail.setValue(user.email);
+    if (user.isNoEmailUser) {
+      // Cash customer without email: blank the field and drop the required rule so the
+      // admin can complete the booking. The backend allows a missing contact email only
+      // for these accounts (create-for-user checks IsNoEmailUser server-side).
+      this.contactEmail.setValue('');
+      this.contactEmail.setValidators([Validators.email]);
+      this.contactEmail.updateValueAndValidity();
+    } else {
+      if (user.email) {
+        this.contactEmail.setValue(user.email);
+      }
+      this.contactEmail.setValidators([Validators.required, Validators.email]);
+      this.contactEmail.updateValueAndValidity();
     }
     if (user.phone) {
       this.contactPhone.setValue(user.phone.replace(/\D/g, '').slice(0, 10));
@@ -3496,6 +3509,10 @@ export class BookingComponent implements OnInit, OnDestroy {
   clearSelectedUser() {
     this.selectedTargetUser = null;
     this.resetAdminPaymentFields();
+
+    // Restore the standard email requirement (may have been relaxed for a no-email customer).
+    this.contactEmail.setValidators([Validators.required, Validators.email]);
+    this.contactEmail.updateValueAndValidity();
 
     // Restore admin's apartments
     this.userApartments = [...this.adminOriginalApartments];

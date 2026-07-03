@@ -12,6 +12,7 @@ import { pageViewGuard } from './guards/page-view.guard';
 import { passwordSetupGuard } from './guards/password-setup.guard';
 import { pendingVerificationGuard } from './guards/pending-verification.guard';
 import { pinSetupGuard } from './guards/pin-setup.guard';
+import { skipWhenPaymentToken } from './guards/payment-link.guard';
 
 export const routes: Routes = [
   {
@@ -335,6 +336,11 @@ export const routes: Routes = [
     loadComponent: () => import('./auth/admin/expenses/expenses.component').then(m => m.ExpensesComponent)
   },
   {
+    path: 'admin/finances',
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, pageViewGuard('finances')],
+    loadComponent: () => import('./auth/admin/finances/finances.component').then(m => m.FinancesComponent)
+  },
+  {
     path: 'admin/crm',
     canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
     loadComponent: () => import('./auth/admin/crm/crm.component').then(m => m.CrmComponent)
@@ -356,8 +362,18 @@ export const routes: Routes = [
     loadComponent: () => import('./auth/profile/order-edit/order-edit.component').then(m => m.OrderEditComponent)
   },
   {
+    // Payment links carry a secret token (?t=...) that lets logged-out recipients open the
+    // page; the auth-related guards are skipped only when the token is present. The backend
+    // re-validates the token on every call and only while the order has something unpaid.
     path: 'order/:id/pay',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
+    canActivate: [
+      clientOnlyGuard,
+      skipWhenPaymentToken(authGuard),
+      skipWhenPaymentToken(realEmailGuard),
+      skipWhenPaymentToken(passwordSetupGuard),
+      skipWhenPaymentToken(pinSetupGuard),
+      maintenanceGuard
+    ],
     loadComponent: () => import('./auth/profile/order-payment/order-payment.component').then(m => m.OrderPaymentComponent)
   },
   {

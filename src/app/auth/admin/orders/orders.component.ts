@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto } from '../../../services/admin.service';
+import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderTransferInfo, UserAdmin } from '../../../services/admin.service';
 import { environment } from '../../../../environments/environment';
 import { OrderService, Order, OrderList } from '../../../services/order.service';
 import { CleanerService, AvailableCleaner } from '../../../services/cleaner.service';
@@ -268,6 +268,19 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   showCustomServiceNameEditor = false;
   isSavingCustomServiceName = false;
 
+  // ── SuperAdmin order transfer (move order to another customer, undoable) ──
+  showTransferPanel = false;
+  transferSearchTerm = '';
+  transferCandidates: UserAdmin[] = [];      // all active customers (lazy-loaded on first open)
+  transferSearchResults: UserAdmin[] = [];
+  transferTargetUser: UserAdmin | null = null;
+  transferNotes = '';
+  isTransferring = false;
+  loadingTransferCandidates = false;
+  orderTransfers: OrderTransferInfo[] = [];
+  undoingTransferId: number | null = null;
+  transferError = '';
+
   constructor(
     private adminService: AdminService,
     private orderService: OrderService,
@@ -288,6 +301,148 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         this.pointsEnabled = s.pointsSystemEnabled ?? false;
       },
       error: () => {}
+    });
+  }
+
+  // ── SuperAdmin order transfer ──
+
+  resetTransferPanel(): void {
+    this.showTransferPanel = false;
+    this.transferSearchTerm = '';
+    this.transferSearchResults = [];
+    this.transferTargetUser = null;
+    this.transferNotes = '';
+    this.transferError = '';
+    this.orderTransfers = [];
+  }
+
+  loadOrderTransfers(orderId: number): void {
+    this.adminService.getOrderTransfers(orderId).subscribe({
+      next: (transfers) => {
+        // Ignore late responses after the admin switched to a different order.
+        if (this.viewingOrderId === orderId) this.orderTransfers = transfers;
+      },
+      error: () => { /* non-fatal: panel simply shows no history */ }
+    });
+  }
+
+  toggleTransferPanel(): void {
+    if (!this.isSuperAdmin) return;
+    this.showTransferPanel = !this.showTransferPanel;
+    this.transferError = '';
+    if (this.showTransferPanel && this.transferCandidates.length === 0 && !this.loadingTransferCandidates) {
+      this.loadingTransferCandidates = true;
+      this.adminService.getUsers().subscribe({
+        next: (response: any) => {
+          const list: UserAdmin[] = Array.isArray(response) ? response : (response?.users ?? []);
+          this.transferCandidates = list.filter(u => u.role === 'Customer' && u.isActive);
+          this.loadingTransferCandidates = false;
+          this.filterTransferCandidates();
+        },
+        error: () => { this.loadingTransferCandidates = false; }
+      });
+    }
+  }
+
+  onTransferSearchInput(value: string): void {
+    this.transferSearchTerm = value;
+    this.transferTargetUser = null;
+    this.filterTransferCandidates();
+  }
+
+  private filterTransferCandidates(): void {
+    const search = this.transferSearchTerm.toLowerCase().trim();
+    const currentOwnerId = this.selectedOrder?.userId;
+    const pool = this.transferCandidates.filter(u => u.id !== currentOwnerId);
+    if (!search) {
+      this.transferSearchResults = pool.slice(0, 8);
+      return;
+    }
+    this.transferSearchResults = pool.filter(u =>
+      (u.email || '').toLowerCase().includes(search) ||
+      u.firstName.toLowerCase().includes(search) ||
+      u.lastName.toLowerCase().includes(search) ||
+      u.id.toString().includes(search)
+    ).slice(0, 8);
+  }
+
+  selectTransferTarget(user: UserAdmin): void {
+    this.transferTargetUser = user;
+    this.transferSearchResults = [];
+  }
+
+  clearTransferTarget(): void {
+    this.transferTargetUser = null;
+    this.transferSearchTerm = '';
+    this.filterTransferCandidates();
+  }
+
+  transferUserLabel(user: UserAdmin): string {
+    const emailLabel = user.isNoEmailUser ? 'No email' : (user.email || '—');
+    return `${user.firstName} ${user.lastName} (${emailLabel}, ID ${user.id})`;
+  }
+
+  submitTransfer(): void {
+    if (!this.selectedOrder || !this.transferTargetUser || this.isTransferring) return;
+    const target = this.transferTargetUser;
+    if (!confirm(`Transfer order #${this.selectedOrder.id} and everything it earned (points, spent amount, photos, address) to ${target.firstName} ${target.lastName}? This is recorded in Audit logs and can be undone.`)) {
+      return;
+    }
+    this.isTransferring = true;
+    this.transferError = '';
+    const orderId = this.selectedOrder.id;
+    this.adminService.transferOrder(orderId, target.id, this.transferNotes.trim() || undefined).subscribe({
+      next: () => {
+        this.isTransferring = false;
+        this.successMessage = `Order #${orderId} transferred to ${target.firstName} ${target.lastName}.`;
+        setTimeout(() => { this.successMessage = ''; }, 5000);
+        this.showTransferPanel = false;
+        this.transferTargetUser = null;
+        this.transferNotes = '';
+        // Refresh the details panel + list so the new owner shows everywhere.
+        this.loadOrderTransfers(orderId);
+        this.refreshSelectedOrderAfterTransfer(orderId);
+      },
+      error: (err) => {
+        this.isTransferring = false;
+        this.transferError = err.error?.message || 'Transfer failed.';
+      }
+    });
+  }
+
+  undoTransfer(transfer: OrderTransferInfo): void {
+    if (this.undoingTransferId !== null) return;
+    if (!confirm(`Undo the transfer of order #${transfer.orderId} to ${transfer.toUserName}? Everything moves back to ${transfer.fromUserName}.`)) {
+      return;
+    }
+    this.undoingTransferId = transfer.id;
+    this.transferError = '';
+    this.adminService.undoOrderTransfer(transfer.id).subscribe({
+      next: () => {
+        this.undoingTransferId = null;
+        this.successMessage = `Transfer undone — order #${transfer.orderId} is back with ${transfer.fromUserName}.`;
+        setTimeout(() => { this.successMessage = ''; }, 5000);
+        this.loadOrderTransfers(transfer.orderId);
+        this.refreshSelectedOrderAfterTransfer(transfer.orderId);
+      },
+      error: (err) => {
+        this.undoingTransferId = null;
+        this.transferError = err.error?.message || 'Undo failed.';
+      }
+    });
+  }
+
+  private refreshSelectedOrderAfterTransfer(orderId: number): void {
+    this.adminService.getOrderDetails(orderId).subscribe({
+      next: (order) => {
+        if (this.viewingOrderId === orderId) {
+          this.selectedOrder = order;
+          this.customerNames.set(orderId, `${order.contactFirstName} ${order.contactLastName}`);
+          this.customerDetails.set(orderId, { id: order.userId, email: order.contactEmail });
+        }
+        this.loadOrders();
+      },
+      error: () => { this.loadOrders(); }
     });
   }
 
@@ -913,9 +1068,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.viewingOrderId = orderId;
     this.editingOrder = false;
+    this.editingPaymentMethod = false;
     this.loadingStates.orderDetails = true;
     this.resetOrderPhotoState();
     this.loadOrderPhotos(orderId);
+    this.resetTransferPanel();
+    if (this.isSuperAdmin) this.loadOrderTransfers(orderId);
 
     // Acknowledge any active reminders for this order
     this.orderReminderService.acknowledgeOrder(orderId);
@@ -984,6 +1142,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.viewingOrderId = null;
     this.selectedOrder = null;
     this.editingOrder = false;
+    this.editingPaymentMethod = false;
     this.resetOrderPhotoState();
   }
 
@@ -1186,6 +1345,77 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         setTimeout(() => { this.errorMessage = ''; }, 5000);
       },
       complete: () => { this.savingManualPayment = false; }
+    });
+  }
+
+  // ── SuperAdmin: change the order's payment method (details panel) ──
+  // For orders created expecting Stripe where the customer decided to pay cash/Zelle/etc.
+  // (or the reverse). The backend re-routes the order between the Stripe and manual flows
+  // (tracking fields, Pending/Active status, Stripe-fee accounting) — SuperAdmin-only.
+  editingPaymentMethod = false;
+  savingPaymentMethod = false;
+  paymentMethodEdit: PaymentMethodValue = 'Normal';
+  paymentMethodEditReference = '';
+  paymentMethodEditNotes = '';
+
+  /** SuperAdmin, and never once Stripe actually charged the card — a real charge is
+   *  corrected with a refund, not a relabel (backend enforces the same rule). */
+  get canEditPaymentMethod(): boolean {
+    return this.isSuperAdmin && !!this.selectedOrder && !this.selectedOrder.isPaid;
+  }
+
+  startEditPaymentMethod(): void {
+    if (!this.selectedOrder) return;
+    this.paymentMethodEdit = ((this.selectedOrder.paymentMethod as PaymentMethodValue) || 'Normal');
+    this.paymentMethodEditReference = this.selectedOrder.paymentReference || '';
+    this.paymentMethodEditNotes = this.selectedOrder.paymentNotes || '';
+    this.editingPaymentMethod = true;
+  }
+
+  cancelEditPaymentMethod(): void {
+    this.editingPaymentMethod = false;
+  }
+
+  savePaymentMethod(): void {
+    if (!this.selectedOrder || this.savingPaymentMethod) return;
+    const orderId = this.selectedOrder.id;
+    const method = this.paymentMethodEdit;
+    this.savingPaymentMethod = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.adminService.updateOrderPaymentMethod(
+      orderId,
+      method,
+      method !== 'Normal' ? (this.paymentMethodEditReference?.trim() || null) : null,
+      method !== 'Normal' ? (this.paymentMethodEditNotes?.trim() || null) : null
+    ).subscribe({
+      next: (res) => {
+        this.editingPaymentMethod = false;
+        // Mirror the returned method + status into the panel and the table row so the
+        // status badge, DoneM label and Payment Method filter update without a reload.
+        if (this.selectedOrder && this.selectedOrder.id === orderId) {
+          this.selectedOrder.paymentMethod = res.paymentMethod;
+          this.selectedOrder.paymentReference = res.paymentReference;
+          this.selectedOrder.paymentNotes = res.paymentNotes;
+          this.selectedOrder.status = res.status;
+        }
+        const listOrder = this.orders.find(o => o.id === orderId);
+        if (listOrder) {
+          listOrder.paymentMethod = res.paymentMethod;
+          listOrder.paymentReference = res.paymentReference;
+          listOrder.paymentNotes = res.paymentNotes;
+          listOrder.status = res.status;
+        }
+        this.successMessage = res?.message || 'Payment method updated.';
+        this.clearMessagesAfterDelay();
+      },
+      error: (err) => {
+        this.savingPaymentMethod = false;
+        console.error('Error updating payment method:', err);
+        this.errorMessage = err?.error?.message || 'Failed to update payment method.';
+        this.clearMessagesAfterDelay();
+      },
+      complete: () => { this.savingPaymentMethod = false; }
     });
   }
 
