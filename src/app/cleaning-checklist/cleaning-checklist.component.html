@@ -32,17 +32,23 @@
       </div>
       <div class="comparison-hero__center container-narrow">
         <div class="comparison-card">
-            <div class="comparison-card__table-wrap">
+          <!-- ALL room tables are rendered into the DOM (non-active tabs are CSS-hidden)
+               so the complete checklist exists in the prerendered HTML — needed for SEO
+               and for the chat agent's get_page_content(cleaning_checklist) source. -->
+          <div
+            class="comparison-card__table-wrap"
+            *ngFor="let section of comparisonSections; trackBy: trackComparisonSection"
+            [class.comparison-card__table-wrap--hidden]="section.key !== activeRoom">
           <table class="comparison-table">
             <thead>
               <tr>
-                <th scope="col">{{ activeSection.heading }}</th>
+                <th scope="col">{{ section.heading }}</th>
                 <th scope="col">Standard<br />Cleaning</th>
                 <th scope="col">Deep<br />Cleaning</th>
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let row of activeSection.rows">
+              <tr *ngFor="let row of section.rows">
                 <td class="cell-task">{{ row.task }}</td>
                 <td class="cell-status" data-label="Standard">
                   <span class="status-icon status-icon--yes" *ngIf="row.standard; else standardNo">
@@ -75,13 +81,13 @@
           <div class="mobile-comparison" aria-label="Mobile cleaning checklist comparison">
             <div class="mobile-comparison__header">
               <span>Standard</span>
-              <span class="mobile-comparison__header-center">{{ activeSection.label }}</span>
+              <span class="mobile-comparison__header-center">{{ section.label }}</span>
               <span>Deep</span>
             </div>
 
             <div
               class="mobile-comparison__row"
-              *ngFor="let row of activeSection.rows">
+              *ngFor="let row of section.rows">
               <div class="mobile-comparison__task">{{ row.task }}</div>
               <div class="mobile-comparison__status">
                 <span

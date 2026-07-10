@@ -1,0 +1,202 @@
+// Admin-header popover for AI chat agent settings. Sits inline with the
+// Maintenance button; the panel is anchored to the host. Design tokens only.
+
+:host {
+  position: relative;
+  display: inline-block;
+}
+
+.chat-agent-btn {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 6px; // matches .maintenance-btn next to it
+  font-weight: var(--fw-semibold);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+
+  &:hover {
+    background: var(--primary-color-hover);
+    transform: translateY(-1px);
+  }
+
+  &--open {
+    background: var(--primary-color-hover);
+  }
+
+  &__status {
+    opacity: 0.85;
+    font-weight: var(--fw-medium);
+  }
+
+  @media (max-width: 480px) {
+    padding: 8px 12px;
+    font-size: 11px;
+    width: 100%;
+  }
+}
+
+.chat-agent-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 1010;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 12px 32px var(--shadow-color);
+  padding: 16px;
+
+  @media (max-width: 480px) {
+    left: auto;
+    right: 0;
+  }
+
+  &__title {
+    margin: 0 0 12px;
+    font-size: 0.95rem;
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+  }
+
+  &__loading {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 8px 0;
+  }
+
+  &__group {
+    border: none;
+    margin: 0 0 14px;
+    padding: 0;
+
+    legend {
+      font-size: 0.78rem;
+      font-weight: var(--fw-semibold);
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      padding: 0;
+    }
+
+    &--row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-color);
+    }
+  }
+
+  &__message {
+    font-size: 0.8rem;
+    padding: 7px 10px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+
+    &--success {
+      background: var(--mint-fresh);
+      color: var(--fresh-green);
+      border: 1px solid var(--mint-fresh-border);
+    }
+
+    &--error {
+      background: var(--soft-red);
+      color: var(--bright-red);
+    }
+  }
+
+  &__audit {
+    margin: 4px 0 0;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+  }
+}
+
+.chat-agent-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 7px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-subtle);
+  }
+
+  input[type='radio'] {
+    margin-top: 3px;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+  }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    strong {
+      font-size: 0.85rem;
+      font-weight: var(--fw-semibold);
+      color: var(--text-primary);
+    }
+
+    small {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      line-height: 1.35;
+    }
+  }
+}
+
+// Small toggle switch (escalation email)
+.chat-agent-switch {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+  cursor: pointer;
+
+  input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+
+    &:checked + .chat-agent-switch__track {
+      background: var(--fresh-green);
+
+      .chat-agent-switch__thumb {
+        transform: translateX(16px);
+      }
+    }
+
+    &:disabled + .chat-agent-switch__track {
+      opacity: 0.5;
+      cursor: default;
+    }
+  }
+
+  &__track {
+    display: block;
+    width: 38px;
+    height: 22px;
+    border-radius: var(--radius-pill);
+    background: var(--text-muted);
+    transition: background 0.2s ease;
+  }
+
+  &__thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: var(--radius-pill);
+    background: #fff;
+    transition: transform 0.2s ease;
+  }
+}

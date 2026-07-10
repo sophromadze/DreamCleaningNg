@@ -46,3 +46,7 @@
 
 <!-- Live chat widget — TEMPORARILY DISABLED. Telegram bot integration is off; widget hidden site-wide. -->
 <!-- <app-live-chat-widget *ngIf="showLiveChat"></app-live-chat-widget> -->
+
+<!-- AI chat widget — server decides visibility (Disabled / AdminOnly / Public via the
+     admin chat-agent settings); showLiveChat additionally hides it on admin/cleaner pages. -->
+<app-chat-widget *ngIf="showLiveChat"></app-chat-widget>

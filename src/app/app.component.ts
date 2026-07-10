@@ -16,6 +16,8 @@ import { AuthService } from './services/auth.service';
 import { TokenRefreshService } from './services/token-refresh.service';
 // TEMPORARILY DISABLED — Telegram bot integration is off; widget is commented out in app.component.html.
 // import { LiveChatWidgetComponent } from './shared/live-chat-widget/live-chat-widget.component';
+// AI chat widget (visibility is server-controlled: Disabled / AdminOnly / Public)
+import { ChatWidgetComponent } from './chat-widget/chat-widget.component';
 import { TelClickTrackingDirective } from './directives/tel-click-tracking.directive';
 import { Subscription, combineLatest } from 'rxjs';
 import { filter, map, mergeMap } from 'rxjs/operators';
@@ -70,7 +72,8 @@ function isSocialStickyHiddenRoute(url: string): boolean {
     StickyMobileCtaComponent,
     ContinueBookingComponent,
     AuthModalComponent,
-    FirstTimeOfferPopupComponent
+    FirstTimeOfferPopupComponent,
+    ChatWidgetComponent
     // LiveChatWidgetComponent  // disabled with the widget tag in app.component.html
   ],
   hostDirectives: [TelClickTrackingDirective],

@@ -1,0 +1,150 @@
+<div class="chat-sessions">
+  <!-- Filters -->
+  <div class="chat-sessions__filters">
+    <label>
+      Status
+      <select [(ngModel)]="filterStatus" (change)="applyFilters()">
+        <option value="">All</option>
+        <option value="AiHandling">AI handling</option>
+        <option value="EscalatedToHuman">Escalated</option>
+        <option value="Resolved">Resolved</option>
+      </select>
+    </label>
+    <label>
+      From
+      <input type="date" [(ngModel)]="filterFrom" (change)="applyFilters()" />
+    </label>
+    <label>
+      To
+      <input type="date" [(ngModel)]="filterTo" (change)="applyFilters()" />
+    </label>
+    <button type="button" class="chat-sessions__clear" (click)="clearFilters()">Clear</button>
+    <span class="chat-sessions__count" *ngIf="!loading">{{ totalCount }} session{{ totalCount === 1 ? '' : 's' }}</span>
+  </div>
+
+  <div class="chat-sessions__error" *ngIf="error">{{ error }}</div>
+  <div class="chat-sessions__success" *ngIf="successMessage">{{ successMessage }}</div>
+  <div class="chat-sessions__loading" *ngIf="loading">Loading…</div>
+
+  <!-- Sessions table -->
+  <div class="chat-sessions__table-wrap" *ngIf="!loading && sessions.length > 0">
+    <table class="chat-sessions__table">
+      <thead>
+        <tr>
+          <th>Started</th>
+          <th>Customer</th>
+          <th>Status</th>
+          <th class="col-num">Msgs</th>
+          <th>Last activity</th>
+          <th class="col-actions" *ngIf="isSuperAdmin"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let s of sessions" (click)="openSession(s)" [class.row--active]="selectedSession?.id === s.id">
+          <td>{{ asLocalDate(s.createdAt) | date: 'MMM d, h:mm a' }}</td>
+          <td class="col-identity">{{ identityLabel(s) }}</td>
+          <td><span class="badge" [ngClass]="statusClass(s.status)">{{ statusLabel(s.status) }}</span></td>
+          <td class="col-num">{{ s.messageCount }}</td>
+          <td>{{ asLocalDate(s.lastMessageAt) | date: 'MMM d, h:mm a' }}</td>
+          <td class="col-actions" *ngIf="isSuperAdmin">
+            <button
+              type="button"
+              class="chat-sessions__delete"
+              (click)="deleteSession(s, $event)"
+              title="Delete conversation (permanent)"
+              aria-label="Delete conversation">
+              <i class="fas fa-trash" aria-hidden="true"></i>
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="chat-sessions__empty" *ngIf="!loading && sessions.length === 0 && !error">
+    No chat sessions match these filters.
+  </div>
+
+  <!-- Pagination -->
+  <div class="chat-sessions__pagination" *ngIf="totalPages > 1">
+    <button type="button" (click)="goToPage(page - 1)" [disabled]="page <= 1">‹ Prev</button>
+    <span>Page {{ page }} of {{ totalPages }}</span>
+    <button type="button" (click)="goToPage(page + 1)" [disabled]="page >= totalPages">Next ›</button>
+  </div>
+</div>
+
+<!-- Right slide-in transcript panel -->
+<div class="chat-transcript-backdrop" *ngIf="selectedSession" (click)="closePanel()"></div>
+<aside class="chat-transcript" *ngIf="selectedSession" aria-label="Chat transcript">
+  <header class="chat-transcript__header">
+    <div>
+      <strong>{{ identityLabel(selectedSession) }}</strong>
+      <small>
+        Started {{ asLocalDate(selectedSession.createdAt) | date: 'MMM d, y, h:mm a' }}
+        · <span class="badge" [ngClass]="statusClass(selectedSession.status)">{{ statusLabel(selectedSession.status) }}</span>
+        <ng-container *ngIf="selectedSession.telegramTopicId"> · Topic #{{ selectedSession.telegramTopicId }}</ng-container>
+      </small>
+    </div>
+    <div class="chat-transcript__actions">
+      <button
+        type="button"
+        *ngIf="selectedSession.status !== 'Resolved'"
+        (click)="resolveSelectedSession()"
+        title="Mark resolved — ends the conversation for the customer too">
+        <i class="fas fa-flag-checkered" aria-hidden="true"></i>
+      </button>
+      <button type="button" (click)="loadTranscript()" [disabled]="transcriptLoading" title="Refresh transcript">
+        <i class="fas fa-rotate-right" aria-hidden="true"></i>
+      </button>
+      <button
+        type="button"
+        *ngIf="isSuperAdmin"
+        class="chat-transcript__delete"
+        (click)="deleteSession(selectedSession)"
+        title="Delete conversation (permanent)"
+        aria-label="Delete conversation">
+        <i class="fas fa-trash" aria-hidden="true"></i>
+      </button>
+      <button type="button" (click)="closePanel()" aria-label="Close">
+        <i class="fas fa-xmark" aria-hidden="true"></i>
+      </button>
+    </div>
+  </header>
+
+  <div class="chat-transcript__error" *ngIf="transcriptError">{{ transcriptError }}</div>
+  <div class="chat-transcript__loading" *ngIf="transcriptLoading && !transcript">Loading…</div>
+
+  <div class="chat-transcript__messages" *ngIf="transcript">
+    <ng-container *ngFor="let m of transcript.messages">
+      <!-- Admin-only System audit notes (escalation reasons) -->
+      <div class="tr-note" *ngIf="m.role === 'system'">
+        {{ m.content }}
+        <time>{{ asLocalDate(m.createdAt) | date: 'MMM d, h:mm a' }}</time>
+      </div>
+
+      <div
+        class="tr-msg"
+        *ngIf="m.role !== 'system'"
+        [class.tr-msg--user]="m.role === 'user'"
+        [class.tr-msg--assistant]="m.role === 'assistant'"
+        [class.tr-msg--team]="m.role === 'humanAgent'">
+        <div class="tr-msg__label" *ngIf="m.role === 'humanAgent'">
+          <i class="fas fa-headset" aria-hidden="true"></i> Team
+        </div>
+        <div class="tr-msg__bubble">
+          <a *ngIf="m.imagePath" [href]="m.imagePath" target="_blank" rel="noopener">
+            <img [src]="m.imagePath" alt="Attached photo" loading="lazy" />
+          </a>
+          <!-- Assistant/team messages render the same lightweight markdown as the widget -->
+          <span *ngIf="m.content && m.role === 'user'">{{ m.content }}</span>
+          <span *ngIf="m.content && m.role !== 'user'" [innerHTML]="m.content | chatMarkdown"></span>
+        </div>
+        <time>{{ asLocalDate(m.createdAt) | date: 'MMM d, h:mm a' }}</time>
+      </div>
+    </ng-container>
+
+    <div class="chat-transcript__empty" *ngIf="transcript.messages.length === 0">
+      No messages in this session.
+    </div>
+  </div>
+</aside>

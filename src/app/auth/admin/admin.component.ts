@@ -12,6 +12,8 @@ import { CommunicationsComponent } from './communications/communications.compone
 import { DiscountsComponent } from './discounts/discounts.component';
 import { SchedulingComponent } from './scheduling/scheduling.component';
 import { BeforeAfterPhotosComponent } from './before-after-photos/before-after-photos.component';
+import { ChatAgentSettingsComponent } from './chat-agent-settings/chat-agent-settings.component';
+import { ChatSessionsComponent } from './chat-sessions/chat-sessions.component';
 
 @Component({
   selector: 'app-admin',
@@ -25,7 +27,9 @@ import { BeforeAfterPhotosComponent } from './before-after-photos/before-after-p
     CommunicationsComponent,
     DiscountsComponent,
     SchedulingComponent,
-    BeforeAfterPhotosComponent
+    BeforeAfterPhotosComponent,
+    ChatAgentSettingsComponent,
+    ChatSessionsComponent
   ],
   templateUrl: './admin.component.html',
   styleUrls: ['./admin.component.scss']

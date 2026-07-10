@@ -718,3 +718,10 @@
     width: 100%;
   }
 }
+
+// All room tables are rendered into the DOM for prerender/SEO (and the chat agent's
+// page-content source); only the active tab's table is visible. !important so no
+// responsive display rule can accidentally reveal a hidden tab.
+.comparison-card__table-wrap--hidden {
+  display: none !important;
+}

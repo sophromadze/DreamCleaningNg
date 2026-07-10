@@ -22,6 +22,11 @@
       {{ chatEnabled ? '💬 Disable Chat' : '💬 Enable Chat' }}
     </button>
     -->
+
+    <!-- AI chat agent settings popover (visibility + escalation email).
+         Role-gated to match the backend's [Authorize(Roles = "SuperAdmin,Admin")] —
+         deliberately NOT the canView permission, which Moderators can hold. -->
+    <app-chat-agent-settings *ngIf="userRole === 'Admin' || userRole === 'SuperAdmin'"></app-chat-agent-settings>
   </div>
 
   <!-- Tab Navigation -->
@@ -74,6 +79,14 @@
             *ngIf="userPermissions?.permissions?.canView">
       Before &amp; After
     </button>
+    <!-- Role-gated like the chat-agent settings popover (backend is SuperAdmin/Admin) —
+         deliberately NOT canView, which Moderators can hold. -->
+    <button class="tab-btn"
+            [class.active]="activeTab === 'chats'"
+            (click)="setActiveTab('chats')"
+            *ngIf="userRole === 'Admin' || userRole === 'SuperAdmin'">
+      Chats
+    </button>
   </div>
 
   <!-- Messages -->
@@ -95,6 +108,7 @@
       <app-audit-history *ngSwitchCase="'audit-history'"></app-audit-history>
       <app-communications *ngSwitchCase="'mails-sms'"></app-communications>
       <app-before-after-photos *ngSwitchCase="'before-after'"></app-before-after-photos>
+      <app-chat-sessions *ngSwitchCase="'chats'" [userRole]="userRole"></app-chat-sessions>
     </ng-container>
   </div>
 </div>

@@ -1,0 +1,602 @@
+// AI chat widget — design-system tokens only (no hardcoded hex; see styles.scss).
+// Sits above the mobile sticky CTA bar (z-index 1002) and clear of the desktop
+// floating action buttons (middle-right) and the first-time-offer popup (bottom-left).
+
+.chat-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1005;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: var(--radius-pill);
+  // --btn-primary IS a complete linear-gradient() value — use it directly.
+  // Nesting it inside another linear-gradient() is invalid CSS and silently
+  // drops the background (white icon on white surface in day mode).
+  background: var(--btn-primary);
+  color: #fff;
+  font-size: 1.35rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--btn-primary-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    background: var(--btn-primary-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--btn-primary-shadow-hover);
+  }
+
+  // Above the mobile sticky CTA bar (fixed bottom, ~35px + safe-area).
+  @media (max-width: 768px), (hover: none) {
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+    right: 16px;
+    width: 52px;
+    height: 52px;
+  }
+}
+
+.chat-panel {
+  position: fixed;
+  bottom: 92px;
+  right: 24px;
+  z-index: 1005;
+  width: 372px;
+  max-width: calc(100vw - 32px);
+  height: min(560px, calc(100vh - 130px));
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 18px 48px var(--shadow-color);
+  overflow: hidden;
+
+  @media (max-width: 768px), (hover: none) {
+    right: 16px;
+    bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+    height: min(520px, calc(100vh - 190px));
+  }
+
+  @media (max-width: 480px) {
+    left: 16px;
+    width: auto;
+  }
+}
+
+.chat-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--btn-primary); // full gradient token — never re-wrap in linear-gradient()
+  color: #fff;
+}
+
+.chat-panel__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+// Unread badge on the floating button — pulses to draw the eye when collapsed.
+.chat-fab__badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--bright-red);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: var(--fw-bold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--surface);
+  // Expanding ring + gentle throb, so an unread reply is noticeable at a glance.
+  animation: chat-badge-throb 1.6s ease-in-out infinite;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: var(--radius-pill);
+    background: var(--bright-red);
+    z-index: -1;
+    animation: chat-badge-ring 1.6s ease-out infinite;
+  }
+}
+
+@keyframes chat-badge-throb {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+@keyframes chat-badge-ring {
+  0% { transform: scale(1); opacity: 0.55; }
+  70%, 100% { transform: scale(2.1); opacity: 0; }
+}
+
+// Respect reduced-motion — keep the badge, drop the animation.
+@media (prefers-reduced-motion: reduce) {
+  .chat-fab__badge {
+    animation: none;
+
+    &::before {
+      animation: none;
+      display: none;
+    }
+  }
+}
+
+// Ended state (session Resolved)
+.chat-panel__ended {
+  padding: 14px 16px;
+  border-top: 1px solid var(--border-color);
+  background: var(--surface);
+  text-align: center;
+
+  p {
+    margin: 0 0 9px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+
+  button {
+    border: none;
+    background: var(--btn-primary); // full gradient token
+    color: #fff;
+    border-radius: var(--radius-pill);
+    padding: 8px 18px;
+    font-size: 0.85rem;
+    font-weight: var(--fw-semibold);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+
+    &:hover {
+      background: var(--btn-primary-hover);
+      transform: translateY(-1px);
+    }
+  }
+}
+
+.chat-panel__identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.chat-panel__avatar {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+}
+
+.chat-panel__titles {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  min-width: 0;
+
+  strong {
+    font-weight: var(--fw-bold);
+    font-size: 0.95rem;
+  }
+
+  small {
+    opacity: 0.85;
+    font-size: 0.75rem;
+  }
+}
+
+.chat-panel__close {
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 1.05rem;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--radius-sm);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+}
+
+.chat-panel__messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 12px;
+  background: var(--page-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  // Theme-aware scrollbar (house pattern — same tokens as extra-services-grid)
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-muted) transparent;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: var(--text-muted);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
+    background-clip: padding-box;
+  }
+}
+
+.chat-msg {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 85%;
+
+  &--user {
+    align-self: flex-end;
+    align-items: flex-end;
+  }
+}
+
+.chat-msg__label {
+  font-size: 0.7rem;
+  font-weight: var(--fw-semibold);
+  color: var(--fresh-green);
+  margin: 0 4px 3px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chat-msg__bubble {
+  padding: 9px 13px;
+  border-radius: var(--radius-lg);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px var(--shadow-color);
+  word-break: break-word;
+
+  .chat-msg--user & {
+    background: var(--btn-primary); // full gradient token
+    color: #fff;
+    border-bottom-right-radius: var(--radius-sm);
+  }
+
+  .chat-msg--assistant & {
+    border-bottom-left-radius: var(--radius-sm);
+  }
+
+  .chat-msg--team & {
+    border: 1px solid var(--mint-fresh-border);
+    background: var(--mint-fresh);
+    border-bottom-left-radius: var(--radius-sm);
+  }
+}
+
+.chat-msg__text {
+  white-space: pre-wrap;
+}
+
+// Markdown-rendered content (chatMarkdown pipe) arrives via innerHTML, which
+// escapes Angular's view-encapsulation scoping — hence ::ng-deep.
+:host ::ng-deep .chat-msg__text {
+  a {
+    color: var(--primary-text);
+    text-decoration: underline;
+    word-break: break-all;
+
+    &:hover {
+      color: var(--primary-color-hover);
+    }
+  }
+
+  // **emphasis** → accent color, normal weight (design feedback: color cue, not bold)
+  .chat-em {
+    color: var(--primary-text);
+  }
+}
+
+// Quick-reply chips (present_choices pseudo-tool)
+.chat-quick-replies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.chat-quick-reply {
+  border: 1px solid var(--primary-color);
+  background: var(--surface);
+  color: var(--primary-text);
+  border-radius: var(--radius-pill);
+  padding: 6px 13px;
+  font-size: 0.8rem;
+  font-weight: var(--fw-medium);
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--btn-primary); // full gradient token
+    color: #fff;
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+}
+
+.chat-msg__image {
+  display: block;
+  max-width: 100%;
+  max-height: 180px;
+  border-radius: var(--radius-md);
+  margin-bottom: 6px;
+}
+
+// Typing indicator (three pulsing dots)
+.chat-msg__bubble--typing {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  padding: 12px 14px;
+
+  span {
+    width: 7px;
+    height: 7px;
+    border-radius: var(--radius-pill);
+    background: var(--text-muted);
+    animation: chat-typing 1.2s infinite ease-in-out;
+
+    &:nth-child(2) { animation-delay: 0.15s; }
+    &:nth-child(3) { animation-delay: 0.3s; }
+  }
+}
+
+@keyframes chat-typing {
+  0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-msg__bubble--typing span {
+    animation: none;
+  }
+}
+
+.chat-panel__error {
+  padding: 8px 14px;
+  font-size: 0.8rem;
+  background: var(--soft-red);
+  color: var(--bright-red);
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.chat-panel__attachment {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border-color);
+  background: var(--surface-subtle);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+
+  img {
+    width: 42px;
+    height: 42px;
+    object-fit: cover;
+    border-radius: var(--radius-sm);
+  }
+
+  span {
+    flex: 1;
+  }
+
+  button {
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: var(--radius-sm);
+
+    &:hover {
+      color: var(--bright-red);
+      background: var(--soft-red);
+    }
+  }
+}
+
+.chat-panel__email {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px 0;
+  border-top: 1px solid var(--border-color);
+  background: var(--surface);
+}
+
+// When the email field is present it directly precedes the input row and owns the
+// divider, so the input drops its own border-top to avoid a double line.
+.chat-panel__email + .chat-panel__input {
+  border-top: none;
+}
+
+.chat-panel__email-field {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  padding: 9px 15px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background: var(--surface);
+  }
+}
+
+.chat-panel__email-hint {
+  padding: 0 6px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.chat-panel__paused {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 12px 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--soft-yellow);
+  color: var(--soft-yellow-text);
+  font-size: 0.82rem;
+
+  i {
+    margin-right: 4px;
+  }
+}
+
+.chat-panel__continue {
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: var(--fw-semibold);
+  background: var(--btn-primary); // full gradient token
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    background: var(--btn-primary-hover);
+    transform: translateY(-1px);
+  }
+}
+
+.chat-panel__input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border-color);
+  background: var(--surface);
+}
+
+.chat-panel__attach {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-pill);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: var(--surface-subtle);
+    color: var(--primary-text);
+  }
+
+  &--busy {
+    cursor: wait;
+  }
+
+  input {
+    display: none;
+  }
+}
+
+.chat-panel__field {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  padding: 9px 15px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    background: var(--surface);
+  }
+}
+
+.chat-panel__send {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--btn-primary); // full gradient token
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--btn-primary-hover);
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+}
