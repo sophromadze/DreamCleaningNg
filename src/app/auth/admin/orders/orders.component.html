@@ -2,7 +2,12 @@
   <div class="section-header">
     <h2>Orders Management</h2>
     <div class="header-actions">
-      <button class="action-btn refresh" 
+      <button class="action-btn export-orders" *ngIf="isSuperAdmin"
+              (click)="openExportModal()"
+              [disabled]="loadingStates.orders">
+        Export
+      </button>
+      <button class="action-btn refresh"
               (click)="loadOrders()"
               [disabled]="loadingStates.orders">
         {{ loadingStates.orders ? 'Loading...' : 'Refresh' }}
@@ -81,7 +86,17 @@
         <option value="today">Today</option>
         <option value="week">This Week</option>
         <option value="month">This Month</option>
+        <option value="custom">Specific Days</option>
       </select>
+
+      <!-- Specific-days window (both bounds inclusive; same date twice = one day) -->
+      <ng-container *ngIf="dateFilter === 'custom'">
+        <input type="date" class="filter-select date-input"
+               [(ngModel)]="customDateFrom" title="From (inclusive)">
+        <span class="date-range-sep">–</span>
+        <input type="date" class="filter-select date-input"
+               [(ngModel)]="customDateTo" title="To (inclusive)">
+      </ng-container>
 
       <!-- Service-type filter. Categories mirror the Service Type column labels;
            residential is split into Deep / Regular. -->
@@ -95,6 +110,13 @@
         <option value="custom">Custom</option>
         <option value="filthy">Filthy</option>
         <option value="heavy">Heavy</option>
+      </select>
+
+      <!-- Booked-by filter: admin-created (create-for-user) vs customer self-booked -->
+      <select [(ngModel)]="bookedByFilter" class="filter-select">
+        <option value="all">All Bookings</option>
+        <option value="user">Booked by Users</option>
+        <option value="admin">Booked by Admins</option>
       </select>
 
       <!-- Phase 1: Payment Method filter. Filters by how the order was paid, independent of
@@ -1363,6 +1385,41 @@
           {{ loadingStates.sendPaymentLink ? 'Sending…' : 'Send' }}
         </button>
         <button class="btn-secondary" (click)="closeSendPaymentLinkModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ──────────────  EXPORT ORDERS MODAL (SuperAdmin)  ────────────── -->
+<div class="modal-overlay" *ngIf="showExportModal" (click)="closeExportModal()">
+  <div class="modal-content export-orders-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Export Orders</h3>
+      <button class="close-btn" (click)="closeExportModal()" [disabled]="exporting">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="export-modal-hint">
+        Exports the <strong>currently filtered</strong> orders ({{ totalFilteredOrders }}) to an Excel file.
+        Pick which columns to include — all are selected by default.
+      </p>
+      <div class="export-modal-error" *ngIf="exportError">{{ exportError }}</div>
+      <ul class="export-column-list">
+        <li *ngFor="let col of exportColumns">
+          <label>
+            <input type="checkbox"
+                   [checked]="col.selected"
+                   (change)="toggleExportColumn(col.key)"
+                   [disabled]="exporting">
+            <span>{{ col.label }}</span>
+          </label>
+        </li>
+      </ul>
+      <div class="modal-actions">
+        <button class="btn-primary"
+                (click)="runExport()"
+                [disabled]="exporting || !hasAnyExportColumnSelected">
+          {{ exporting ? 'Exporting…' : 'Export' }}
+        </button>
+        <button class="btn-secondary" (click)="closeExportModal()" [disabled]="exporting">Cancel</button>
       </div>
     </div>
   </div>

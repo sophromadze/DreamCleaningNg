@@ -50,6 +50,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   searchTerm: string = '';
   statusFilter: string = 'all';
   roleFilter: string = 'all';
+  // Customer-type filter, based on non-cancelled order count: 'new' = exactly one order,
+  // 'returning' = two or more, 'none' = no orders yet.
+  customerTypeFilter: string = 'all';
   currentPage = 1;
   itemsPerPage = 20;
   totalPages = 1;
@@ -1161,6 +1164,18 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     }
     if (this.roleFilter !== 'all') {
       filtered = filtered.filter(user => user.role && user.role.toLowerCase() === this.roleFilter.toLowerCase());
+    }
+    if (this.customerTypeFilter !== 'all') {
+      // totalOrdersCount counts non-cancelled orders (from the users-list endpoint).
+      filtered = filtered.filter(user => {
+        const count = user.totalOrdersCount ?? 0;
+        switch (this.customerTypeFilter) {
+          case 'new': return count === 1;
+          case 'returning': return count >= 2;
+          case 'none': return count === 0;
+          default: return true;
+        }
+      });
     }
     filtered = filtered.sort((a, b) => {
       const dateA = new Date(a.createdAt).getTime();

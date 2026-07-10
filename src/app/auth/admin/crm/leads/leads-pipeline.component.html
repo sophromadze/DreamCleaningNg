@@ -30,6 +30,11 @@
       <input type="text" placeholder="Search name, phone, email, address…"
              [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()" />
     </div>
+    <select [(ngModel)]="stageFilter" (ngModelChange)="onStageFilterChange()" class="source-select">
+      <option value="">All stages</option>
+      <option *ngFor="let s of stages" [value]="s">{{ s }}</option>
+      <option value="Archived">Archived</option>
+    </select>
     <select [(ngModel)]="sourceFilter" (ngModelChange)="onSourceFilterChange()" class="source-select">
       <option value="">All sources</option>
       <option *ngFor="let s of sources" [value]="s">{{ sourceLabel(s) }}</option>
@@ -56,9 +61,10 @@
 
   <div class="error-message" *ngIf="errorMessage">{{ errorMessage }}</div>
 
-  <!-- Kanban board -->
-  <div class="board" [class.loading]="loading">
-    <div class="board-column" *ngFor="let stage of stages; trackBy: trackByStage">
+  <!-- Kanban board (hidden entirely when filtering to Archived) -->
+  <div class="board" [class.loading]="loading" *ngIf="stageFilter !== 'Archived'"
+       [class.single-stage]="visibleStages.length === 1">
+    <div class="board-column" *ngFor="let stage of visibleStages; trackBy: trackByStage">
       <div class="column-header" [ngClass]="stageClass(stage)">
         <span class="column-title">{{ stage }}</span>
         <span class="column-count">{{ columnFor(stage).count }}</span>
@@ -113,8 +119,9 @@
     </div>
   </div>
 
-  <!-- ─────────────  Archive drawer (full-width, below the board)  ───────────── -->
-  <div class="archive-drawer">
+  <!-- ─────────────  Archive drawer (full-width, below the board)  ─────────────
+       Hidden while a specific stage is selected; shown for "All stages" and "Archived". -->
+  <div class="archive-drawer" *ngIf="!stageFilter || stageFilter === 'Archived'">
     <button class="archive-toggle" (click)="toggleArchived()">
       <span class="archive-caret" [class.open]="showArchived">▸</span>
       <span class="archive-label">Archived leads</span>
@@ -235,6 +242,15 @@
         <button class="close-btn" (click)="closeAddModal()">✕</button>
       </div>
       <div class="modal-body edit-grid">
+        <label class="full">Fill from order # (optional)
+          <input type="number" min="1" placeholder="Order ID — auto-fills the fields below"
+                 [(ngModel)]="prefillOrderId" (ngModelChange)="onPrefillOrderIdChange()" />
+          <span class="prefill-hint loading" *ngIf="prefillLoading">Loading order…</span>
+          <span class="prefill-hint loaded" *ngIf="!prefillLoading && prefillLoadedOrderId">
+            ✓ Filled from order #{{ prefillLoadedOrderId }} — you can still edit any field.
+          </span>
+          <span class="prefill-hint error" *ngIf="!prefillLoading && prefillError">{{ prefillError }}</span>
+        </label>
         <label>First name<input type="text" [(ngModel)]="newLead.firstName" /></label>
         <label>Last name<input type="text" [(ngModel)]="newLead.lastName" /></label>
         <label>Phone<input type="text" [(ngModel)]="newLead.phone" /></label>

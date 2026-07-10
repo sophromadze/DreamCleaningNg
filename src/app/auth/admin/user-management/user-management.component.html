@@ -44,6 +44,13 @@
         <option value="Moderator">Moderator</option>
         <option value="Customer">Customer</option>
       </select>
+      <!-- Customer type by non-cancelled order count: new = 1, returning = 2+ -->
+      <select [(ngModel)]="customerTypeFilter" class="filter-select">
+        <option value="all">All Customers</option>
+        <option value="new">New (1 order)</option>
+        <option value="returning">Returning (2+)</option>
+        <option value="none">No Orders</option>
+      </select>
     </div>
   </div>
 

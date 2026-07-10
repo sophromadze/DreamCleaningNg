@@ -38,6 +38,8 @@ export interface AdminOrderList extends OrderList {
   companyDevelopmentTips: number;
   cancellationReason?: string;
   isLateCancellation?: boolean;
+  /** True when an admin created the order (create-for-user) rather than the customer. */
+  bookedByAdmin?: boolean;
 }
 
 @Component({
@@ -91,9 +93,43 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   searchTerm: string = '';
   statusFilter: string = 'all';
   dateFilter: string = 'all';
+  // Specific-days window, active when dateFilter === 'custom'. yyyy-MM-dd strings from the
+  // date inputs; both bounds inclusive. Same date in both = a single specific day.
+  customDateFrom: string = '';
+  customDateTo: string = '';
   // Service-type filter. Values are the canonical category keys produced by
   // getServiceTypeFilterKey() — residential splits into 'deep'/'regular'.
   serviceTypeFilter: string = 'all';
+  // Who created the order: 'admin' = created via the admin create-for-user flow,
+  // 'user' = the customer booked it themselves.
+  bookedByFilter: string = 'all';
+
+  // ── Export (SuperAdmin-only), mirrors the users-tab export ──
+  showExportModal = false;
+  exporting = false;
+  exportError = '';
+  /** Column keys must match the backend ExportOrders endpoint. */
+  exportColumns: Array<{ key: string; label: string; selected: boolean }> = [
+    { key: 'orderId',       label: 'ID',             selected: true },
+    { key: 'customer',      label: 'Customer',       selected: true },
+    { key: 'email',         label: 'Email',          selected: true },
+    { key: 'phone',         label: 'Phone',          selected: true },
+    { key: 'serviceAt',     label: 'Date & Time',    selected: true },
+    { key: 'serviceType',   label: 'Service Type',   selected: true },
+    { key: 'address',       label: 'Address',        selected: true },
+    { key: 'borough',       label: 'Borough',        selected: true },
+    { key: 'zip',           label: 'Zip',            selected: true },
+    { key: 'rooms',         label: 'Rooms',          selected: true },
+    { key: 'squareFeet',    label: 'Sq.Ft',          selected: true },
+    { key: 'maids',         label: 'Maids',          selected: true },
+    { key: 'duration',      label: 'Duration (hrs)', selected: true },
+    { key: 'subTotal',      label: 'Subtotal',       selected: true },
+    { key: 'tips',          label: 'Tips',           selected: true },
+    { key: 'tax',           label: 'Tax',            selected: true },
+    { key: 'total',         label: 'Total',          selected: true },
+    { key: 'status',        label: 'Status',         selected: true },
+    { key: 'paymentMethod', label: 'Payment',        selected: true }
+  ];
 
   // Table sort (default: latest service date first)
   sortColumn: string = 'serviceDate';
@@ -127,6 +163,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // assigned inside the filteredOrders getter and triggered NG0100).
   get totalPages(): number {
     return Math.ceil(this.filterOrders().length / this.itemsPerPage);
+  }
+  /** Count of orders matching the current filters (all pages) — shown in the export modal. */
+  get totalFilteredOrders(): number {
+    return this.filterOrders().length;
   }
   itemsPerPage = 20;
 
@@ -1002,7 +1042,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const key = [
       this.statsVersion, this.orders.length, this.searchTerm,
       this.statusFilter, this.paymentMethodFilter, this.dateFilter,
-      this.serviceTypeFilter
+      this.customDateFrom, this.customDateTo,
+      this.serviceTypeFilter, this.bookedByFilter
     ].join('|');
     if (key !== this.statsCacheKey) {
       this.statsCacheKey = key;
@@ -2088,6 +2129,80 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  // ── Export (SuperAdmin-only), mirrors the users-tab export ──
+
+  openExportModal(): void {
+    if (!this.isSuperAdmin) return;
+    this.exportColumns.forEach(c => c.selected = true);
+    this.exportError = '';
+    this.showExportModal = true;
+  }
+
+  closeExportModal(): void {
+    if (this.exporting) return;
+    this.showExportModal = false;
+    this.exportError = '';
+  }
+
+  toggleExportColumn(key: string): void {
+    const col = this.exportColumns.find(c => c.key === key);
+    if (col) col.selected = !col.selected;
+  }
+
+  get hasAnyExportColumnSelected(): boolean {
+    return this.exportColumns.some(c => c.selected);
+  }
+
+  runExport(): void {
+    if (!this.isSuperAdmin || this.exporting) return;
+    const selected = this.exportColumns.filter(c => c.selected).map(c => c.key);
+    if (selected.length === 0) {
+      this.exportError = 'Select at least one column to export.';
+      return;
+    }
+    // Export what the admin currently sees: the filtered list (all pages, not just the current one).
+    const orderIds = this.filterOrders().map(o => o.id);
+    if (orderIds.length === 0) {
+      this.exportError = 'No orders match the current filters.';
+      return;
+    }
+    this.exporting = true;
+    this.exportError = '';
+    this.adminService.exportOrders(selected, orderIds).subscribe({
+      next: (res) => {
+        const blob = res.body;
+        if (!blob) {
+          this.exportError = 'Export returned an empty file.';
+          this.exporting = false;
+          return;
+        }
+        // Try to honor the server-provided filename, fall back to a timestamped default.
+        let filename = `orders-export-${new Date().toISOString().slice(0, 10)}.xlsx`;
+        const disposition = res.headers.get('Content-Disposition');
+        if (disposition) {
+          const match = /filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i.exec(disposition);
+          if (match && match[1]) filename = decodeURIComponent(match[1]);
+        }
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        this.exporting = false;
+        this.showExportModal = false;
+        this.successMessage = 'Export downloaded.';
+        setTimeout(() => { this.successMessage = ''; }, 3000);
+      },
+      error: (err) => {
+        this.exporting = false;
+        this.exportError = err?.error?.message || err?.message || 'Failed to export orders.';
+      }
+    });
+  }
+
   // Filtering methods
   /** Current page of the filtered list. PURE — no state mutations here (NG0100). */
   get filteredOrders(): AdminOrderList[] {
@@ -2126,6 +2241,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       filtered = filtered.filter(o => this.getServiceTypeFilterKey(o) === this.serviceTypeFilter);
     }
 
+    // Booked-by filter: admin-created (create-for-user) vs customer self-booked.
+    if (this.bookedByFilter !== 'all') {
+      filtered = filtered.filter(o =>
+        this.bookedByFilter === 'admin' ? !!o.bookedByAdmin : !o.bookedByAdmin);
+    }
+
     // Date filter
     if (this.dateFilter !== 'all') {
       const now = new Date();
@@ -2135,20 +2256,35 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         const serviceDateOnly = this.getServiceDateOnly(order.serviceDate);
         if (!serviceDateOnly) return false;
         
+        // Each window is bounded on BOTH sides — "Today"/"This Week"/"This Month"
+        // must not leak future days/weeks/months into the list.
         switch (this.dateFilter) {
           case 'today':
-            return serviceDateOnly >= today;
-          case 'week':
-            // Get start of current week (Sunday)
+            return serviceDateOnly.getTime() === today.getTime();
+          case 'week': {
+            // Current week: Sunday 00:00 (inclusive) → next Sunday 00:00 (exclusive)
             const startOfWeek = new Date(today);
-            const dayOfWeek = startOfWeek.getDay(); // 0 = Sunday, 1 = Monday, etc.
-            startOfWeek.setDate(startOfWeek.getDate() - dayOfWeek);
-            startOfWeek.setHours(0, 0, 0, 0);
-            return serviceDateOnly >= startOfWeek;
-          case 'month':
-            // Get start of current month (1st day)
+            startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(endOfWeek.getDate() + 7);
+            return serviceDateOnly >= startOfWeek && serviceDateOnly < endOfWeek;
+          }
+          case 'month': {
+            // Current calendar month: the 1st (inclusive) → 1st of next month (exclusive)
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            return serviceDateOnly >= startOfMonth;
+            const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+            return serviceDateOnly >= startOfMonth && serviceDateOnly < startOfNextMonth;
+          }
+          case 'custom': {
+            // Specific days picked by the admin; both bounds inclusive. With only one bound
+            // set it acts as "from that day" / "up to that day".
+            const from = this.parseLocalDate(this.customDateFrom);
+            const to = this.parseLocalDate(this.customDateTo);
+            if (!from && !to) return true;
+            if (from && serviceDateOnly < from) return false;
+            if (to && serviceDateOnly > to) return false;
+            return true;
+          }
           default:
             return true;
         }
@@ -2234,6 +2370,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const date = new Date(serviceDate);
     if (isNaN(date.getTime())) return null;
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  }
+
+  /** Parse a date-input value (yyyy-MM-dd) as LOCAL midnight — `new Date(string)` would
+   *  parse it as UTC and shift the day for NY users. */
+  private parseLocalDate(value: string): Date | null {
+    if (!value) return null;
+    const [y, m, d] = value.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
   }
 
   getServiceTypeDisplay(order: AdminOrderList): string {

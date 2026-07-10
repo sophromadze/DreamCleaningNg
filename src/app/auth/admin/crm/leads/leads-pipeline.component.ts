@@ -35,6 +35,12 @@ export class LeadsPipelineComponent implements OnInit {
   dateFieldFilter = 'created';  // 'created' | 'activity'
   private searchDebounce: any;
 
+  // Board/stage filter: '' shows every column; a stage shows only that column;
+  // 'Archived' hides the board and opens the archive drawer instead. Purely
+  // client-side — the pipeline data is already loaded per stage.
+  stageFilter: '' | LeadStage | 'Archived' = '';
+  visibleStages: LeadStage[] = [...LEAD_STAGES];
+
   // Whether the current user may hard-delete leads (SuperAdmin only). Admins archive instead.
   isSuperAdmin = false;
 
@@ -61,6 +67,13 @@ export class LeadsPipelineComponent implements OnInit {
   showAddModal = false;
   newLead: CreateLead = { source: 'Manual', type: 'Residential' };
   creatingLead = false;
+  // Optional "fill from order" input: entering an order id fetches that order
+  // and prefills every form field (contact, address, cleaning type, value, notes).
+  prefillOrderId: number | null = null;
+  prefillLoading = false;
+  prefillError = '';
+  prefillLoadedOrderId: number | null = null;
+  private prefillDebounce: any;
 
   constructor(private leadService: CrmLeadService, private authService: AuthService) {}
 
@@ -125,6 +138,14 @@ export class LeadsPipelineComponent implements OnInit {
   onSearchChange(): void {
     clearTimeout(this.searchDebounce);
     this.searchDebounce = setTimeout(() => { this.loadPipeline(); this.loadArchived(); }, 300);
+  }
+
+  onStageFilterChange(): void {
+    this.visibleStages = this.stageFilter && this.stageFilter !== 'Archived'
+      ? [this.stageFilter]
+      : [...this.stages];
+    // Choosing "Archived" should reveal the drawer right away, not leave it collapsed.
+    if (this.stageFilter === 'Archived') this.showArchived = true;
   }
 
   onSourceFilterChange(): void {
@@ -324,11 +345,69 @@ export class LeadsPipelineComponent implements OnInit {
 
   openAddModal(): void {
     this.newLead = { source: 'Manual', type: 'Residential' };
+    this.prefillOrderId = null;
+    this.prefillLoading = false;
+    this.prefillError = '';
+    this.prefillLoadedOrderId = null;
     this.showAddModal = true;
   }
 
   closeAddModal(): void {
     this.showAddModal = false;
+    clearTimeout(this.prefillDebounce);
+  }
+
+  /** Debounced handler for the optional Order ID field — fills the form from the order. */
+  onPrefillOrderIdChange(): void {
+    clearTimeout(this.prefillDebounce);
+    this.prefillError = '';
+
+    const id = this.prefillOrderId != null ? Number(this.prefillOrderId) : null;
+    if (id == null || !Number.isFinite(id) || id <= 0) {
+      // Cleared or invalid: drop the order link but keep whatever the admin typed.
+      this.prefillLoadedOrderId = null;
+      this.newLead.sourceOrderId = undefined;
+      this.newLead.clientId = undefined;
+      return;
+    }
+
+    this.prefillDebounce = setTimeout(() => this.loadOrderPrefill(id), 400);
+  }
+
+  private loadOrderPrefill(orderId: number): void {
+    this.prefillLoading = true;
+    this.leadService.getOrderPrefill(orderId).subscribe({
+      next: p => {
+        // Stale response guard — the admin may have changed the id while loading.
+        if (Number(this.prefillOrderId) !== p.orderId) { this.prefillLoading = false; return; }
+        this.newLead = {
+          ...this.newLead,
+          firstName: p.firstName ?? '',
+          lastName: p.lastName ?? '',
+          email: p.email ?? '',
+          phone: p.phone ?? '',
+          serviceAddress: p.serviceAddress ?? '',
+          cleaningType: p.cleaningType ?? '',
+          type: p.type,
+          message: p.message ?? '',
+          estimatedValue: p.estimatedValue,
+          source: 'Booking',
+          clientId: p.clientId,
+          sourceOrderId: p.orderId
+        };
+        this.prefillLoadedOrderId = p.orderId;
+        this.prefillLoading = false;
+      },
+      error: err => {
+        this.prefillLoading = false;
+        this.prefillLoadedOrderId = null;
+        this.newLead.sourceOrderId = undefined;
+        this.newLead.clientId = undefined;
+        this.prefillError = err?.status === 404
+          ? `Order #${orderId} not found.`
+          : 'Failed to load the order.';
+      }
+    });
   }
 
   createLead(): void {

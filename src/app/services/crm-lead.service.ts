@@ -98,7 +98,24 @@ export interface CreateLead {
   estimatedValue?: number;
   assignedToAdminId?: number;
   clientId?: number;
+  /** Order the form was prefilled from (optional) — recorded in the lead's timeline. */
+  sourceOrderId?: number;
   nextFollowUpDate?: string;
+}
+
+/** Add-lead form values derived from an existing order (order-prefill endpoint). */
+export interface LeadOrderPrefill {
+  orderId: number;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  phone?: string;
+  serviceAddress?: string;
+  cleaningType?: string;
+  type: LeadType;
+  message?: string;
+  estimatedValue?: number;
+  clientId?: number;
 }
 
 export interface UpdateLead {
@@ -172,6 +189,11 @@ export class CrmLeadService {
 
   getLead(id: number): Observable<LeadDetail> {
     return this.http.get<LeadDetail>(`${this.apiUrl}/${id}`);
+  }
+
+  /** Fetch add-lead form values derived from an existing order (by order id). */
+  getOrderPrefill(orderId: number): Observable<LeadOrderPrefill> {
+    return this.http.get<LeadOrderPrefill>(`${this.apiUrl}/order-prefill/${orderId}`);
   }
 
   createLead(lead: CreateLead): Observable<LeadDetail> {

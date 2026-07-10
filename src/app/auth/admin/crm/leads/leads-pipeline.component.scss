@@ -110,6 +110,9 @@
   transition: opacity 0.15s ease;
 
   &.loading { opacity: 0.5; pointer-events: none; }
+
+  // Stage filter showing a single column: keep it card-width, not full-width.
+  &.single-stage .board-column { flex: 0 1 460px; }
 }
 
 .board-column {
@@ -425,6 +428,15 @@
       font-size: 0.86rem;
     }
     textarea { resize: vertical; }
+  }
+
+  .prefill-hint {
+    font-size: 0.74rem;
+    font-weight: var(--fw-medium);
+
+    &.loading { color: var(--text-muted); }
+    &.loaded { color: var(--fresh-green); }
+    &.error { color: var(--bright-red); }
   }
 }
 

@@ -101,6 +101,8 @@ export interface AdminOrderList {
   companyDevelopmentTips: number;
   cancellationReason?: string;
   isLateCancellation?: boolean;
+  /** True when an admin created the order (create-for-user) rather than the customer. */
+  bookedByAdmin?: boolean;
 }
 
 export interface AuditLog {
@@ -809,6 +811,16 @@ export class AdminService {
    *  (empty array exports all). Returns the raw .xlsx blob for the caller to save. */
   exportUsers(columns: string[]): Observable<HttpResponse<Blob>> {
     return this.http.post(`${this.apiUrl}/users/export`, { columns }, {
+      responseType: 'blob',
+      observe: 'response'
+    });
+  }
+
+  /** SuperAdmin-only: export orders to an .xlsx file. Pass the column keys to include (empty
+   *  array exports all) and the order ids to export (the currently filtered rows; empty = all).
+   *  Returns the raw .xlsx blob for the caller to save. */
+  exportOrders(columns: string[], orderIds: number[]): Observable<HttpResponse<Blob>> {
+    return this.http.post(`${this.apiUrl}/orders/export`, { columns, orderIds }, {
       responseType: 'blob',
       observe: 'response'
     });
