@@ -5,7 +5,9 @@ import {
   ChatAgentAdminService,
   ChatAdminTranscript,
   ChatSessionListItem,
-  ChatSessionStatus
+  ChatSessionStatus,
+  TelegramAgentDisplayName,
+  UnmappedTelegramSender
 } from '../../../services/chat-agent-admin.service';
 import { ChatMarkdownPipe } from '../../../shared/pipes/chat-markdown.pipe';
 
@@ -46,6 +48,18 @@ export class ChatSessionsComponent implements OnInit {
   transcript: ChatAdminTranscript | null = null;
   transcriptLoading = false;
   transcriptError: string | null = null;
+
+  // Agent display names panel (Telegram id → visitor-facing name; resolved at
+  // read time, so edits retroactively rename that agent's past replies).
+  showAgentNames = false;
+  agentNames: TelegramAgentDisplayName[] = [];
+  unmappedSenders: UnmappedTelegramSender[] = [];
+  agentNamesLoading = false;
+  agentNamesError: string | null = null;
+  /** Per-row edit buffers, keyed by Telegram user id (mappings + unmapped rows). */
+  nameEdits: { [telegramUserId: number]: string } = {};
+  newTelegramUserId = '';
+  newDisplayName = '';
 
   constructor(private adminService: ChatAgentAdminService) {}
 
@@ -169,6 +183,97 @@ export class ChatSessionsComponent implements OnInit {
         this.transcriptError = 'Could not load the transcript.';
       }
     });
+  }
+
+  // ===== Agent display names =====
+
+  toggleAgentNames(): void {
+    this.showAgentNames = !this.showAgentNames;
+    if (this.showAgentNames && this.agentNames.length === 0 && this.unmappedSenders.length === 0) {
+      this.loadAgentNames();
+    }
+  }
+
+  loadAgentNames(): void {
+    this.agentNamesLoading = true;
+    this.agentNamesError = null;
+    this.adminService.getAgentDisplayNames().subscribe({
+      next: response => {
+        this.agentNamesLoading = false;
+        this.agentNames = response.mappings;
+        this.unmappedSenders = response.unmappedSenders;
+        this.nameEdits = {};
+        for (const m of response.mappings) {
+          this.nameEdits[m.telegramUserId] = m.displayName;
+        }
+      },
+      error: () => {
+        this.agentNamesLoading = false;
+        this.agentNamesError = 'Could not load agent names.';
+      }
+    });
+  }
+
+  /** Upsert from a mapping row's inline edit or an unmapped sender's name input. */
+  saveAgentName(telegramUserId: number): void {
+    const name = (this.nameEdits[telegramUserId] || '').trim();
+    if (!name) return;
+    this.agentNamesError = null;
+    this.adminService.upsertAgentDisplayName(telegramUserId, name).subscribe({
+      next: () => {
+        this.loadAgentNames();
+        // Names resolve at read time — refresh an open transcript so the rename shows.
+        if (this.selectedSession) this.loadTranscript();
+      },
+      error: () => {
+        this.agentNamesError = 'Could not save the name.';
+      }
+    });
+  }
+
+  addAgentName(): void {
+    const id = Number((this.newTelegramUserId || '').trim());
+    const name = (this.newDisplayName || '').trim();
+    if (!Number.isInteger(id) || id <= 0) {
+      this.agentNamesError = 'Telegram user ID must be a positive number.';
+      return;
+    }
+    if (!name) {
+      this.agentNamesError = 'Display name is required.';
+      return;
+    }
+    this.agentNamesError = null;
+    this.adminService.upsertAgentDisplayName(id, name).subscribe({
+      next: () => {
+        this.newTelegramUserId = '';
+        this.newDisplayName = '';
+        this.loadAgentNames();
+        if (this.selectedSession) this.loadTranscript();
+      },
+      error: () => {
+        this.agentNamesError = 'Could not add the mapping.';
+      }
+    });
+  }
+
+  deleteAgentName(mapping: TelegramAgentDisplayName): void {
+    if (!confirm(`Remove the name "${mapping.displayName}"? That person's replies will show as "Team" again.`)) return;
+    this.agentNamesError = null;
+    this.adminService.deleteAgentDisplayName(mapping.telegramUserId).subscribe({
+      next: () => {
+        this.loadAgentNames();
+        if (this.selectedSession) this.loadTranscript();
+      },
+      error: () => {
+        this.agentNamesError = 'Could not remove the mapping.';
+      }
+    });
+  }
+
+  /** Save is enabled only when the buffer holds a non-empty CHANGE. */
+  isNameChanged(mapping: TelegramAgentDisplayName): boolean {
+    const edited = (this.nameEdits[mapping.telegramUserId] || '').trim();
+    return edited.length > 0 && edited !== mapping.displayName;
   }
 
   // ===== Display helpers =====

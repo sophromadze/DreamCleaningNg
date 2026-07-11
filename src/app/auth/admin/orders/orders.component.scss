@@ -4286,3 +4286,49 @@ $order-header-mobile: 60px;
     }
   }
 }
+
+// Advisory 1-per-6h staffing suggestion shown next to Cleaners Count / Maids fields.
+.suggested-maids-hint {
+  font-size: 0.85em;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+// Advisory staffing-review flags: long job whose per-cleaner load exceeds 6h with the
+// current admin-set cleaner count (auto-add-by-duration is disabled). Operational-orange
+// tokens (theme-aware) — a caution, not a hard warning.
+.staffing-review-flag {
+  display: inline-block;
+  width: fit-content;
+  margin-bottom: 2px;
+  padding: 0 0.4rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: var(--warning-orange-text);
+  background: var(--warning-orange-bg);
+  border: 1px solid var(--warning-orange-border);
+  border-radius: var(--radius-pill);
+  cursor: help;
+}
+
+.staffing-review-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.78rem;
+  font-weight: var(--fw-semibold);
+  color: var(--warning-orange-text);
+  background: var(--warning-orange-bg);
+  border: 1px solid var(--warning-orange-border);
+  border-radius: var(--radius-pill);
+  cursor: help;
+  white-space: nowrap;
+}
+
+// Tints the "suggested: N (1 per 6h)" hint next to the Maids input while the current
+// form values still exceed 6h per cleaner. !important matches the dark-mode
+// .duration-hint override above, which also uses !important.
+.duration-hint.staffing-review-hint {
+  color: var(--warning-orange-text) !important;
+  font-weight: var(--fw-semibold);
+}

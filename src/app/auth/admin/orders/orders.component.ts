@@ -34,6 +34,10 @@ export interface AdminOrderList extends OrderList {
   contactFirstName: string;
   contactLastName: string;
   totalDuration: number;
+  /** Staffing-review badge inputs: per-cleaner load > 6h warns (regular types only). */
+  maidsCount?: number;
+  /** True for cleaner+hours service types (TotalDuration is per-cleaner) — badge skips those. */
+  hasCleanersService?: boolean;
   tips: number;
   companyDevelopmentTips: number;
   cancellationReason?: string;
@@ -2844,17 +2848,21 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return DurationUtils.formatDurationRounded(Number(minutes) || 0);
   }
 
-  /** Hint text shown next to the "Duration (min)" input in the edit form: always per-cleaner.
-   *  Stored TotalDuration is total work for non-custom & custom; admin sees the per-cleaner value
-   *  here so it matches what's displayed on the order details page and what the customer saw. */
+  /** Hint text shown next to the "Duration (min)" input in the edit form.
+   *  Cleaner-hours orders store TotalDuration per-cleaner, so it's shown as-is;
+   *  everything else stores the TOTAL, shown as "X total" plus the per-cleaner
+   *  split once the admin has set more than one maid. */
   getEditDurationHintText(): string {
     const totalDuration = Number(this.editOrderForm?.totalDuration ?? 0) || 0;
     const maidsCount = Number(this.editOrderForm?.maidsCount ?? 1) || 1;
     const hasCleaners = this.selectedOrder?.hasCleanersService ?? false;
-    const perCleaner = hasCleaners
-      ? totalDuration
-      : (maidsCount > 1 ? totalDuration / maidsCount : totalDuration);
-    return DurationUtils.formatDurationRounded(perCleaner);
+    if (hasCleaners) {
+      return `${DurationUtils.formatDurationRounded(totalDuration)} per maid`;
+    }
+    const total = `${DurationUtils.formatDurationRounded(totalDuration)} total`;
+    return maidsCount > 1
+      ? `${total} · ${DurationUtils.formatDurationRounded(totalDuration / maidsCount)} per cleaner`
+      : total;
   }
 
   private readonly floorTypeDisplayNames: { [key: string]: string } = {
@@ -3262,7 +3270,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return !!st?.isCustom;
   }
 
-  /** Compute total duration from service type base + all services + extras; set totalDuration and maidsCount (1 maid per 6h). */
+  /** Compute total duration from service type base + all services + extras; maids stays
+   *  admin-set except for cleaner-hours types (explicit Cleaners row is authoritative). */
   recalcEditDurationAndMaids(): void {
     // Custom Pricing mode: maids and totalDuration are admin-managed (per-cleaner minutes).
     // Adding/removing extras must not touch either field.
@@ -3311,9 +3320,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.updateMaidsFromDuration();
   }
 
-  /** When user manually changes duration (or after recalc), set maids from duration (1 per 6h).
-   *  Skipped when the service type has explicit Cleaners + Hours rows — those are authoritative.
-   *  Also skipped for Custom Pricing mode — admin manages maids manually there. */
+  /** Keeps maids in sync ONLY for service types with explicit Cleaners + Hours rows —
+   *  those are authoritative. For everything else the count is a manual admin decision
+   *  (auto-staffing from duration is disabled; see AUTO_ADD_CLEANERS_BY_DURATION in the
+   *  shared calculator) — getSuggestedMaidsCount() still surfaces the old 1-per-6h math
+   *  as a hint next to the field. */
   updateMaidsFromDuration(): void {
     if (this.isCustomModeOrder()) return;
     if (this.isCleanerHoursOrder()) {
@@ -3323,12 +3334,64 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         ? (Number(services[cleanerIdx].quantity) || 0) : 0;
       if (cleanersQty > 0) {
         this.editOrderForm.maidsCount = cleanersQty;
-        return;
       }
     }
+  }
+
+  /** Advisory 1-per-6h staffing suggestion for admins (regular service types only).
+   *  Null when it matches the current count, so the hint only shows when actionable. */
+  getSuggestedMaidsCount(): number | null {
+    if (this.isCustomModeOrder() || this.isCleanerHoursOrder()) return null;
     const totalMin = Number(this.editOrderForm.totalDuration) || 0;
+    if (totalMin <= 0) return null;
     const totalHours = totalMin / 60;
-    this.editOrderForm.maidsCount = totalHours > 6 ? Math.ceil(totalHours / 6) : 1;
+    const suggested = totalHours > 6 ? Math.ceil(totalHours / 6) : 1;
+    const current = Number(this.editOrderForm.maidsCount) || 1;
+    return suggested === current ? null : suggested;
+  }
+
+  /** Same suggestion for the read-only details panel, from the selected order's data. */
+  getSuggestedMaidsCountForOrder(order: Order): number | null {
+    if (this.isCustomServiceType(order) || this.hasCleanersService()) return null;
+    const totalMin = Number(order.totalDuration) || 0;
+    if (totalMin <= 0) return null;
+    const totalHours = totalMin / 60;
+    const suggested = totalHours > 6 ? Math.ceil(totalHours / 6) : 1;
+    return suggested === (order.maidsCount || 1) ? null : suggested;
+  }
+
+  // ── Staffing-review badge (advisory only) ────────────────────────────────
+  // Auto-add-by-duration is disabled, so a long job stays at 1 cleaner until an
+  // admin raises the count. These flags warn when the per-cleaner load exceeds
+  // 6h (MAX_HOURS_PER_MAID) for regular service types — live-computed, they
+  // clear as soon as the admin-set count brings per-cleaner time back under 6h.
+  // Cleaner+hours and custom orders are skipped (cleaners × hours is explicit).
+
+  private static staffingReviewNeeded(totalDuration: number, maidsCount: number): boolean {
+    const total = Number(totalDuration) || 0;
+    const maids = Math.max(1, Number(maidsCount) || 1);
+    return total / maids > 6 * 60;
+  }
+
+  /** Table-row variant (list DTO carries the flags). */
+  needsStaffingReview(order: AdminOrderList): boolean {
+    if (!order || order.hasCleanersService || order.isCustomServiceType) return false;
+    return OrdersComponent.staffingReviewNeeded(order.totalDuration, order.maidsCount ?? 1);
+  }
+
+  /** Detail-panel variant (full OrderDto shapes differ from list rows). */
+  needsStaffingReviewForSelected(): boolean {
+    const order = this.selectedOrder;
+    if (!order || this.hasCleanersService() || this.isCustomServiceType(order)) return false;
+    return OrdersComponent.staffingReviewNeeded(order.totalDuration, order.maidsCount || 1);
+  }
+
+  /** Edit-form variant, from the live form values (tints the suggested-maids hint). */
+  editFormNeedsStaffingReview(): boolean {
+    if (this.isCustomModeOrder() || this.isCleanerHoursOrder()) return false;
+    return OrdersComponent.staffingReviewNeeded(
+      Number(this.editOrderForm?.totalDuration) || 0,
+      Number(this.editOrderForm?.maidsCount) || 1);
   }
 
   onEditDurationChange(): void {

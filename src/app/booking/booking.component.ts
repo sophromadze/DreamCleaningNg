@@ -54,6 +54,7 @@ import {
   mapSelectedExtraInputs,
   round2,
   SALES_TAX_RATE,
+  EXTRA_CLEANERS_NAME,
   QuoteInput
 } from '../shared/pricing/order-pricing.calculator';
 import { buildCustomServiceTypeNameOptions } from '../shared/booking/custom-service-type.util';
@@ -807,6 +808,11 @@ export class BookingComponent implements OnInit, OnDestroy {
           this.selectedExtraServices = [];
           savedExtraServices.forEach(ses => {
             const extraService = savedServiceType.extraServices.find(es => String(es.id) === String(ses.extraServiceId));
+            // Extra Cleaners is admin-only now — drop it from restored drafts so an
+            // invisible (filtered-out) extra can't keep charging the customer.
+            if (extraService && extraService.name === EXTRA_CLEANERS_NAME && extraService.hasQuantity) {
+              return;
+            }
             if (extraService) {
               this.selectedExtraServices.push({
                 extraService,
@@ -2588,7 +2594,11 @@ export class BookingComponent implements OnInit, OnDestroy {
         lines.push({ label: 'Cleaning frequency:', value: this.selectedSubscription.name || (mobile ? '' : '—'), shimmer: !mobile && this.loading.summary });
       }
       lines.push({ label: 'Duration:', value: this.formatDuration(this.calculation.totalDuration), shimmer: !mobile && this.loading.summary });
-      lines.push({ label: 'Number of Cleaners:', value: `${this.calculatedMaidsCount}`, shimmer: !mobile && this.loading.summary });
+      // Cleaner count is only a customer-facing concept for cleaner+hours service
+      // types; for regular types the team decides staffing (admin-set, never shown).
+      if (this.hasCleanerServices()) {
+        lines.push({ label: 'Number of Cleaners:', value: `${this.calculatedMaidsCount}`, shimmer: !mobile && this.loading.summary });
+      }
     }
 
     const hasDateTime = this.serviceDate.value && this.serviceTime.value;
@@ -2866,8 +2876,9 @@ export class BookingComponent implements OnInit, OnDestroy {
       total: this.calculation.total,
       calculation: this.calculation, // Add the full calculation object
       // TOTAL cleaner-minutes from the shared calculator (custom pricing included — the
-      // calculator already stores per-cleaner × cleaners with the 1h floor). Booking summary
-      // still shows per-cleaner via calculation.totalDuration / formatDuration ("per maid").
+      // calculator already stores per-cleaner × cleaners with the 1h floor). The booking
+      // summary shows this same total for regular types (auto-staffing is disabled);
+      // custom/cleaner-hours summaries still show per-cleaner.
       totalDuration: this.actualTotalDuration,
       hasActiveSubscription: this.hasActiveSubscription,
       userSubscriptionId: this.userSubscription?.subscriptionId,
@@ -3666,6 +3677,11 @@ export class BookingComponent implements OnInit, OnDestroy {
           
           order.extraServices.forEach(orderExtraService => {
             const extraService = serviceType.extraServices.find(es => es.id === orderExtraService.extraServiceId);
+            // Extra Cleaners is admin-only now — don't carry it over from a past
+            // order into a new booking (it would be selected but invisible).
+            if (extraService && extraService.name === EXTRA_CLEANERS_NAME && extraService.hasQuantity) {
+              return;
+            }
             if (extraService) {
               this.selectedExtraServices.push({
                 extraService,
@@ -4211,7 +4227,13 @@ export class BookingComponent implements OnInit, OnDestroy {
       if (extra.isDeepCleaning || extra.isSuperDeepCleaning) {
         return false;
       }
-      
+
+      // Extra Cleaners is admin-only now: the team decides staffing, so customers
+      // can't buy cleaners here (the extra stays active for the admin order editor).
+      if (extra.name === EXTRA_CLEANERS_NAME && extra.hasQuantity) {
+        return false;
+      }
+
       // Always show same day service (it will be disabled when not available)
       return true;
     });

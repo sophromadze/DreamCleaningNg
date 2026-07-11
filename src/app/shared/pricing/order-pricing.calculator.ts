@@ -30,6 +30,16 @@ export const STUDIO_DURATION = 20;
 /** A single maid can work at most this many hours; above it we add maids. */
 export const MAX_HOURS_PER_MAID = 6;
 
+/**
+ * Legacy auto-staffing rule: above MAX_HOURS_PER_MAID we used to add cleaners and show
+ * the duration divided per cleaner. Disabled 2026-07 — customers now always see the full
+ * total duration and admins set the cleaner count manually per order (the 1-per-6h math
+ * survives only as an admin-panel suggestion). Flip to true together with
+ * AutoAddCleanersByDuration in OrderPricingCalculator.cs to restore.
+ * Typed as boolean (not literal false) so gated branches don't lint as unreachable.
+ */
+export const AUTO_ADD_CLEANERS_BY_DURATION: boolean = false;
+
 /** Per-maid minimum duration in minutes. */
 export const PER_MAID_MINIMUM_MINUTES = 60;
 
@@ -297,13 +307,15 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
     displayDuration = actualTotalDuration;
   } else {
     const totalHours = totalDuration / 60;
-    baseMaidsCount = totalHours <= MAX_HOURS_PER_MAID ? 1 : Math.ceil(totalHours / MAX_HOURS_PER_MAID);
+    baseMaidsCount = AUTO_ADD_CLEANERS_BY_DURATION && totalHours > MAX_HOURS_PER_MAID
+      ? Math.ceil(totalHours / MAX_HOURS_PER_MAID)
+      : 1;
     displayDuration = totalDuration;
   }
 
   const maidsCount = baseMaidsCount + extraCleaners;
 
-  if (maidsCount > 1 && !hasCleanerService) {
+  if (AUTO_ADD_CLEANERS_BY_DURATION && maidsCount > 1 && !hasCleanerService) {
     displayDuration = Math.ceil(totalDuration / maidsCount);
   } else if (hasCleanerService && maidsCount > baseMaidsCount) {
     displayDuration = Math.ceil(actualTotalDuration / maidsCount);
@@ -320,6 +332,11 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
     ? perMaidMinMinutes
     : perMaidMinMinutes * Math.max(1, maidsCount);
   actualTotalDuration = Math.max(actualTotalDuration, totalMinMinutes);
+
+  // Auto-staffing off: customers see the full (floored) total, never a per-maid split.
+  if (!AUTO_ADD_CLEANERS_BY_DURATION && !hasCleanerService) {
+    displayDuration = actualTotalDuration;
+  }
 
   // Deep cleaning fee lands AFTER service costs.
   subTotal += deepCleaningFee;

@@ -112,17 +112,31 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
     if (!this.order) return 0;
 
     // Check for Cleaners service
-    const cleanersService = this.order.services.find(s => 
+    const cleanersService = this.order.services.find(s =>
       s.serviceName.toLowerCase().includes('cleaner')
     );
-    
+
     if (cleanersService) {
       return cleanersService.duration; // This is already in minutes
     }
-    
-    // If no cleaners service, use the fallback calculation
-    const fallbackDuration = Math.ceil(this.order.totalDuration / (this.order.maidsCount || 1));
-    return fallbackDuration;
+
+    // Custom orders store TotalDuration as per-cleaner × cleaners; customers see
+    // the per-cleaner value they agreed to (cleaners × hours is explicit there).
+    if (this.isCustomServiceType()) {
+      return Math.ceil(this.order.totalDuration / (this.order.maidsCount || 1));
+    }
+
+    // Regular orders: the full total — staffing is the team's decision and the
+    // customer never sees a per-cleaner split.
+    return this.order.totalDuration;
+  }
+
+  /** Cleaner count is customer-facing only where it's part of the customer's own
+   *  selection (cleaner+hours services, custom orders) — never for regular types. */
+  shouldShowCleanersCount(): boolean {
+    if (!this.order) return false;
+    if (this.isCustomServiceType()) return true;
+    return this.order.services.some(s => s.serviceName.toLowerCase().includes('cleaner'));
   }
 
   isCustomServiceType(): boolean {

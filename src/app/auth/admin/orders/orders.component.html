@@ -175,6 +175,10 @@
               </td>
               <!-- Assigned Cleaners Column -->
               <td class="assigned-cleaners">
+                <!-- Advisory staffing-review flag: per-cleaner load > 6h (regular types only) -->
+                <span *ngIf="needsStaffingReview(order)"
+                      class="staffing-review-flag"
+                      title="Long job — review cleaner count (over 6h per cleaner)">⚠</span>
                 <!-- Loading state: per-order, shown until this order's cleaners are loaded -->
                 <div *ngIf="!isCleanersLoaded(order.id)" class="loading-small">
                   <div class="spinner-small"></div>
@@ -418,8 +422,8 @@
                         </div>
                         <div class="edit-row"><label>Service Date</label><input type="date" [(ngModel)]="editOrderForm.serviceDate"></div>
                         <div class="edit-row"><label>Service Time (HH:mm)</label><input type="text" [(ngModel)]="editOrderForm.serviceTime" placeholder="14:30"></div>
-                        <div class="edit-row"><label>Maids</label><input type="number" [(ngModel)]="editOrderForm.maidsCount" (ngModelChange)="onEditMaidsChange()" title="Auto from duration (1 per 6h); you can override"></div>
-                        <div class="edit-row"><label>Duration (min)</label><input type="number" [(ngModel)]="editOrderForm.totalDuration" (ngModelChange)="onEditDurationChange()" min="60" placeholder="min"> <span class="duration-hint">{{ getEditDurationHintText() }} per maid</span></div>
+                        <div class="edit-row"><label>Maids</label><input type="number" [(ngModel)]="editOrderForm.maidsCount" (ngModelChange)="onEditMaidsChange()" title="Set manually — customers only see the total duration"> <span class="duration-hint" [class.staffing-review-hint]="editFormNeedsStaffingReview()" *ngIf="getSuggestedMaidsCount() as suggested">suggested: {{ suggested }} (1 per 6h)</span></div>
+                        <div class="edit-row"><label>Duration (min)</label><input type="number" [(ngModel)]="editOrderForm.totalDuration" (ngModelChange)="onEditDurationChange()" min="60" placeholder="min"> <span class="duration-hint">{{ getEditDurationHintText() }}</span></div>
                         <div class="edit-row"><label>Entry</label><input [(ngModel)]="editOrderForm.entryMethod"></div>
                         <div class="edit-row edit-row--full">
                           <label>{{ isCustomServiceType(selectedOrder) ? 'Description' : 'Instructions' }}</label>
@@ -675,16 +679,18 @@
                       <p><strong>Service Date:</strong> {{formatDateTime((selectedOrder.serviceDate || '1970-01-01'), selectedOrder.serviceTime)}}</p>
                       <p><strong>Booked On:</strong> {{formatUtcDateTime(selectedOrder.orderDate)}}</p>
                       <p><strong>Duration:</strong>
-                        <ng-container *ngIf="hasCleanersService(); else perMaid">
+                        <ng-container *ngIf="hasCleanersService(); else totalPlusPerCleaner">
                           {{formatDuration(selectedOrder.totalDuration)}}
                         </ng-container>
-                        <ng-template #perMaid>
-                          {{formatDuration(selectedOrder.totalDuration / (selectedOrder.maidsCount || 1))}}
+                        <ng-template #totalPlusPerCleaner>
+                          {{formatDuration(selectedOrder.totalDuration)}} total<ng-container *ngIf="(selectedOrder.maidsCount || 1) > 1"> · {{formatDuration(selectedOrder.totalDuration / (selectedOrder.maidsCount || 1))}} per cleaner</ng-container>
                         </ng-template>
                       </p>
                       <p *ngIf="selectedOrder.bedroomsQuantity != null || selectedOrder.bathroomsQuantity != null"><strong>Bedrooms:</strong> {{ (selectedOrder.bedroomsQuantity ?? 0) === 0 ? 'Studio' : (selectedOrder.bedroomsQuantity ?? 'N/A') }}</p>
                       <p *ngIf="selectedOrder.bedroomsQuantity != null || selectedOrder.bathroomsQuantity != null"><strong>Bathrooms:</strong> {{ selectedOrder.bathroomsQuantity ?? 'N/A' }}</p>
-                      <p><strong>Cleaners Count:</strong> {{selectedOrder.maidsCount}}</p>
+                      <p><strong>Cleaners Count:</strong> {{selectedOrder.maidsCount}}<ng-container *ngIf="getSuggestedMaidsCountForOrder(selectedOrder) as suggested"> <span class="suggested-maids-hint">(suggested: {{suggested}})</span></ng-container>
+                        <span *ngIf="needsStaffingReviewForSelected()" class="staffing-review-badge" title="Over 6h per cleaner with the current count">⚠ Long job — review cleaner count</span>
+                      </p>
                       <p><strong>Cleaner Hourly Rate:</strong> ${{selectedOrder.cleanerHourlyRate.toFixed(2)}}/hr</p>
                       <p *ngIf="isSuperAdmin"><strong>Cleaners Total Salary:</strong> ${{getDisplayCleanerTotalSalary().toFixed(2)}}</p>
                     </div>

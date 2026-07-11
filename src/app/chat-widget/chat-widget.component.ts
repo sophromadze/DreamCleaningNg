@@ -15,6 +15,8 @@ interface WidgetMessage {
   role: 'user' | 'assistant' | 'humanAgent';
   content: string | null;
   imagePath: string | null;
+  /** Admin-chosen agent name for humanAgent messages; null/absent → "Team". */
+  agentName?: string | null;
   createdAt: string | null;
   /** Quick-reply chips (transient — only rendered on the latest message, retired on use). */
   quickReplies?: string[] | null;
@@ -660,6 +662,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
       role: message.role,
       content: message.content,
       imagePath: message.imagePath,
+      agentName: message.agentName ?? null,
       createdAt: message.createdAt
     };
   }

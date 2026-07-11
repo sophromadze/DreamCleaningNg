@@ -40,6 +40,8 @@ export interface ChatAdminTranscriptMessage {
   role: 'user' | 'assistant' | 'humanAgent' | 'system';
   content: string | null;
   imagePath: string | null;
+  /** Admin-chosen agent name for humanAgent messages; null → show "Team". */
+  agentName?: string | null;
   createdAt: string;
 }
 
@@ -59,6 +61,27 @@ export interface ChatSessionFilters {
   to?: string;   // yyyy-MM-dd
   page: number;
   pageSize: number;
+}
+
+// ===== Telegram agent display names (admin-managed, never from Telegram profiles) =====
+
+export interface TelegramAgentDisplayName {
+  telegramUserId: number;
+  displayName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A Telegram sender seen in chat replies that has no mapping yet. */
+export interface UnmappedTelegramSender {
+  telegramUserId: number;
+  lastSeenAt: string;
+  messageCount: number;
+}
+
+export interface TelegramAgentDisplayNamesResponse {
+  mappings: TelegramAgentDisplayName[];
+  unmappedSenders: UnmappedTelegramSender[];
 }
 
 /** Admin API for the AI chat agent: runtime settings + chat history viewer (SuperAdmin/Admin only). */
@@ -100,5 +123,24 @@ export class ChatAgentAdminService {
 
   toggleEscalationEmail(): Observable<ChatAgentSettings> {
     return this.http.post<ChatAgentSettings>(`${this.apiUrl}/settings/toggle-escalation-email`, {});
+  }
+
+  // ===== Telegram agent display names =====
+
+  /** Mappings + Telegram senders seen in chats that have no name yet. */
+  getAgentDisplayNames(): Observable<TelegramAgentDisplayNamesResponse> {
+    return this.http.get<TelegramAgentDisplayNamesResponse>(`${this.apiUrl}/agent-names`);
+  }
+
+  /** Upsert — add-new, "name this sender" and inline edit all use this. Names are
+   * resolved at read time, so this retroactively renames the sender's past replies. */
+  upsertAgentDisplayName(telegramUserId: number, displayName: string): Observable<TelegramAgentDisplayName> {
+    return this.http.put<TelegramAgentDisplayName>(
+      `${this.apiUrl}/agent-names/${telegramUserId}`, { displayName });
+  }
+
+  /** Removes a mapping — that sender's replies fall back to "Team". */
+  deleteAgentDisplayName(telegramUserId: number): Observable<{ status: string }> {
+    return this.http.delete<{ status: string }>(`${this.apiUrl}/agent-names/${telegramUserId}`);
   }
 }

@@ -20,6 +20,80 @@
     </label>
     <button type="button" class="chat-sessions__clear" (click)="clearFilters()">Clear</button>
     <span class="chat-sessions__count" *ngIf="!loading">{{ totalCount }} session{{ totalCount === 1 ? '' : 's' }}</span>
+    <button type="button" class="chat-sessions__agent-names-toggle" (click)="toggleAgentNames()">
+      <i class="fas fa-id-badge" aria-hidden="true"></i>
+      Agent names
+      <i class="fas" [ngClass]="showAgentNames ? 'fa-chevron-up' : 'fa-chevron-down'" aria-hidden="true"></i>
+    </button>
+  </div>
+
+  <!-- Agent display names: Telegram account → visitor-facing first name. Names are
+       resolved when transcripts are read, so edits retroactively rename past replies;
+       senders without a mapping show as "Team". -->
+  <div class="agent-names" *ngIf="showAgentNames">
+    <p class="agent-names__hint">
+      Names shown to visitors for team replies from Telegram. Unnamed senders appear as “Team”.
+      Adding or changing a name also updates that person's past messages.
+    </p>
+
+    <div class="agent-names__error" *ngIf="agentNamesError">{{ agentNamesError }}</div>
+    <div class="agent-names__loading" *ngIf="agentNamesLoading">Loading…</div>
+
+    <ng-container *ngIf="!agentNamesLoading">
+      <!-- Existing mappings -->
+      <table class="agent-names__table" *ngIf="agentNames.length > 0">
+        <thead>
+          <tr><th>Telegram user ID</th><th>Display name</th><th class="col-actions"></th></tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let m of agentNames">
+            <td class="col-id">{{ m.telegramUserId }}</td>
+            <td>
+              <input type="text" maxlength="50" [(ngModel)]="nameEdits[m.telegramUserId]" placeholder="e.g. Tamar" />
+            </td>
+            <td class="col-actions">
+              <button type="button" class="agent-names__save" [disabled]="!isNameChanged(m)" (click)="saveAgentName(m.telegramUserId)">Save</button>
+              <button type="button" class="agent-names__delete" (click)="deleteAgentName(m)" title="Remove — replies fall back to 'Team'">
+                <i class="fas fa-trash" aria-hidden="true"></i>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Senders seen in chats with no name yet -->
+      <div class="agent-names__unmapped" *ngIf="unmappedSenders.length > 0">
+        <h6>Seen in chats, not named yet</h6>
+        <table class="agent-names__table">
+          <thead>
+            <tr><th>Telegram user ID</th><th>Last reply</th><th>Name</th><th class="col-actions"></th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let s of unmappedSenders">
+              <td class="col-id">{{ s.telegramUserId }}</td>
+              <td>{{ asLocalDate(s.lastSeenAt) | date: 'MMM d, h:mm a' }} ({{ s.messageCount }} msg{{ s.messageCount === 1 ? '' : 's' }})</td>
+              <td>
+                <input type="text" maxlength="50" [(ngModel)]="nameEdits[s.telegramUserId]" placeholder="e.g. Tamar" />
+              </td>
+              <td class="col-actions">
+                <button type="button" class="agent-names__save" [disabled]="!(nameEdits[s.telegramUserId] || '').trim()" (click)="saveAgentName(s.telegramUserId)">Save</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Manual add for a not-yet-seen Telegram user -->
+      <div class="agent-names__add">
+        <input type="text" inputmode="numeric" [(ngModel)]="newTelegramUserId" placeholder="Telegram user ID (number)" />
+        <input type="text" maxlength="50" [(ngModel)]="newDisplayName" placeholder="Display name, e.g. Tamar" />
+        <button type="button" class="agent-names__save" (click)="addAgentName()">Add</button>
+      </div>
+
+      <p class="agent-names__empty" *ngIf="agentNames.length === 0 && unmappedSenders.length === 0">
+        No names configured and no Telegram replies seen yet. Add a mapping manually with the fields above.
+      </p>
+    </ng-container>
   </div>
 
   <div class="chat-sessions__error" *ngIf="error">{{ error }}</div>
@@ -129,7 +203,7 @@
         [class.tr-msg--assistant]="m.role === 'assistant'"
         [class.tr-msg--team]="m.role === 'humanAgent'">
         <div class="tr-msg__label" *ngIf="m.role === 'humanAgent'">
-          <i class="fas fa-headset" aria-hidden="true"></i> Team
+          <i class="fas fa-headset" aria-hidden="true"></i> {{ m.agentName || 'Team' }}
         </div>
         <div class="tr-msg__bubble">
           <a *ngIf="m.imagePath" [href]="m.imagePath" target="_blank" rel="noopener">

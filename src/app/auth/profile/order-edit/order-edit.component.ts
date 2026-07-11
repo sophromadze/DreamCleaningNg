@@ -38,6 +38,7 @@ import {
   mapSelectedExtraInputs,
   round2,
   SALES_TAX_RATE,
+  EXTRA_CLEANERS_NAME,
   QuoteInput
 } from '../../../shared/pricing/order-pricing.calculator';
 
@@ -757,9 +758,16 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     if (!this.serviceType || !this.serviceType.extraServices) {
       return [];
     }
-    return this.serviceType.extraServices.filter(extra =>
-      !extra.isDeepCleaning && !extra.isSuperDeepCleaning
-    );
+    return this.serviceType.extraServices.filter(extra => {
+      if (extra.isDeepCleaning || extra.isSuperDeepCleaning) return false;
+      // Extra Cleaners is admin-only now (the team decides staffing) — hide it
+      // unless it's already on this order, so an existing selection stays editable
+      // instead of silently vanishing from the price.
+      if (extra.name === EXTRA_CLEANERS_NAME && extra.hasQuantity) {
+        return this.selectedExtraServices.some(s => s.extraService.id === extra.id);
+      }
+      return true;
+    });
   }
 
   removeExtraService(extraService: ExtraService) {
@@ -1322,15 +1330,20 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
   getSummaryDetailLines(): SummaryLine[] {
     const dateValue = this.orderForm.get('serviceDate')?.value;
-    return [
+    const lines: SummaryLine[] = [
       { label: 'Service Type:', value: this.serviceType?.name || '—' },
-      { label: 'Duration:', value: this.formatDuration(this.totalDurationDisplay) },
-      { label: 'Number of Cleaners:', value: `${this.calculatedMaidsCount}` },
-      {
-        label: 'Date & Time:',
-        value: `${dateValue ? formatDate(dateValue, 'MMM d', 'en-US') : ''} at ${this.formatTime(this.orderForm.get('serviceTime')?.value)}`
-      }
+      { label: 'Duration:', value: this.formatDuration(this.totalDurationDisplay) }
     ];
+    // Cleaner count is only a customer-facing concept for cleaner+hours service
+    // types; for regular types the team decides staffing (admin-set, never shown).
+    if (this.hasCleanerServices()) {
+      lines.push({ label: 'Number of Cleaners:', value: `${this.calculatedMaidsCount}` });
+    }
+    lines.push({
+      label: 'Date & Time:',
+      value: `${dateValue ? formatDate(dateValue, 'MMM d', 'en-US') : ''} at ${this.formatTime(this.orderForm.get('serviceTime')?.value)}`
+    });
+    return lines;
   }
 
   getSummaryPriceLines(): SummaryLine[] {

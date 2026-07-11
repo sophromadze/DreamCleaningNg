@@ -97,6 +97,10 @@ export interface AdminOrderList {
   city: string;
   orderDate: Date;
   totalDuration: number;
+  /** Staffing-review badge inputs: per-cleaner load > 6h warns (regular types only). */
+  maidsCount?: number;
+  /** True for cleaner+hours service types (TotalDuration is per-cleaner) — badge skips those. */
+  hasCleanersService?: boolean;
   tips: number;
   companyDevelopmentTips: number;
   cancellationReason?: string;

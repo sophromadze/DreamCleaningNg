@@ -100,7 +100,7 @@
 
       <!-- Messages -->
       <div *ngFor="let msg of messages" class="message-wrapper" [class.message-wrapper--visitor]="msg.isFromVisitor">
-        <div *ngIf="!msg.isFromVisitor" class="message-sender-label">Dream Cleaning</div>
+        <div *ngIf="!msg.isFromVisitor" class="message-sender-label">{{ msg.agentName || 'Dream Cleaning' }}</div>
         <div class="message-bubble"
           [class.message-bubble--visitor]="msg.isFromVisitor"
           [class.message-bubble--admin]="!msg.isFromVisitor"

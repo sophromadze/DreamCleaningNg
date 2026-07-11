@@ -99,15 +99,15 @@
           </div>
           <div class="info-row">
             <span class="label">Duration:</span>
-            <!-- getServiceDuration() returns per-cleaner duration for both custom and non-custom orders
-                 (it falls back to TotalDuration / MaidsCount when no cleaner-row service is present). -->
+            <!-- getServiceDuration(): full total for regular orders (staffing is the team's
+                 decision); per-cleaner only for cleaner-row and custom orders. -->
             <span class="value">{{ formatDuration(getServiceDuration()) }}</span>
           </div>
           <div class="info-row">
             <span class="label">Cleaning frequency:</span>
             <span class="value">{{ order.subscriptionName }}</span>
           </div>
-          <div class="info-row">
+          <div class="info-row" *ngIf="shouldShowCleanersCount()">
             <span class="label">Cleaners:</span>
             <span class="value">{{ order.maidsCount }}</span>
           </div>

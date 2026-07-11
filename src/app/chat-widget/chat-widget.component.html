@@ -60,7 +60,7 @@
         [class.chat-msg--assistant]="m.role === 'assistant'"
         [class.chat-msg--team]="m.role === 'humanAgent'">
         <div class="chat-msg__label" *ngIf="m.role === 'humanAgent'">
-          <i class="fas fa-headset" aria-hidden="true"></i> Team
+          <i class="fas fa-headset" aria-hidden="true"></i> {{ m.agentName || 'Team' }}
         </div>
         <div class="chat-msg__bubble">
           <img *ngIf="m.imagePath" [src]="m.imagePath" alt="Attached photo" class="chat-msg__image" loading="lazy" />

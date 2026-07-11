@@ -11,6 +11,8 @@ export interface ChatMessage {
   imageBase64?: string;
   imageMimeType?: string;
   isFromVisitor: boolean;
+  /** Admin-chosen agent name for team replies; absent → "Dream Cleaning" label. */
+  agentName?: string | null;
   timestamp: Date;
 }
 
@@ -173,6 +175,7 @@ export class LiveChatService {
         imageBase64: msg.imageBase64,
         imageMimeType: msg.imageMimeType,
         isFromVisitor: false,
+        agentName: msg.agentName ?? null,
         timestamp: new Date(msg.timestamp)
       });
       this.playNotificationSound();
@@ -220,6 +223,7 @@ export class LiveChatService {
         imageMimeType: m.imageMimeType,
         // imageBase64 intentionally omitted — binary data is too large for localStorage
         isFromVisitor: m.isFromVisitor,
+        agentName: m.agentName ?? null,
         timestamp: m.timestamp
       }));
       localStorage.setItem(MSGS_KEY(this.sessionId), JSON.stringify(serializable));

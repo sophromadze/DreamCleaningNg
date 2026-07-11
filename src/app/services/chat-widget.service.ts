@@ -27,6 +27,8 @@ export interface ChatHistoryMessage {
   role: 'user' | 'assistant' | 'humanAgent';
   content: string | null;
   imagePath: string | null;
+  /** Admin-chosen agent name for humanAgent messages; null/absent → show "Team". */
+  agentName?: string | null;
   createdAt: string;
 }
 
