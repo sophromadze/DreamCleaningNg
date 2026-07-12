@@ -200,6 +200,14 @@ export interface AssignedAdminInfo {
   displayName?: string | null;
 }
 
+/** Returned by PATCH /api/order/{id}/booked-by-admin. `bookedByAdmin` is the effective
+ *  flag after the change — legacy orders with a creation-time manual-payment stamp
+ *  stay true even when cleared (the backend fallback still counts them). */
+export interface BookedByAdminResult {
+  orderId: number;
+  bookedByAdmin: boolean;
+}
+
 /** Returned by PATCH /api/order/{id}/custom-service-name. */
 export interface CustomServiceNameResult {
   orderId: number;
@@ -240,6 +248,15 @@ export class OrderService {
 
   updateOrder(orderId: number, updateData: UpdateOrder): Observable<Order> {
     return this.http.put<Order>(`${this.apiUrl}/order/${orderId}`, updateData);
+  }
+
+  /** SuperAdmin only — mark/unmark an order as admin-booked. Backfill for orders that
+   *  predate BookedByAdminUserId (2026-07); new admin bookings are stamped automatically. */
+  setBookedByAdmin(orderId: number, bookedByAdmin: boolean): Observable<BookedByAdminResult> {
+    return this.http.patch<BookedByAdminResult>(
+      `${this.apiUrl}/order/${orderId}/booked-by-admin`,
+      { bookedByAdmin }
+    );
   }
 
   /** SuperAdmin only — change the display label of an existing custom ("Pre-Arranged") order.

@@ -175,16 +175,14 @@
               </td>
               <!-- Assigned Cleaners Column -->
               <td class="assigned-cleaners">
-                <!-- Advisory staffing-review flag: per-cleaner load > 6h (regular types only) -->
-                <span *ngIf="needsStaffingReview(order)"
-                      class="staffing-review-flag"
-                      title="Long job — review cleaner count (over 6h per cleaner)">⚠</span>
                 <!-- Loading state: per-order, shown until this order's cleaners are loaded -->
                 <div *ngIf="!isCleanersLoaded(order.id)" class="loading-small">
                   <div class="spinner-small"></div>
                 </div>
-                <!-- Cleaners display: only after this order's cleaners have been loaded -->
-                <div *ngIf="isCleanersLoaded(order.id)">
+                <!-- Cleaners display: only after this order's cleaners have been loaded.
+                     The advisory staffing-review flag (per-cleaner load > 6h, regular types
+                     only) sits to the RIGHT of the names and disappears once the order is Done. -->
+                <div *ngIf="isCleanersLoaded(order.id)" class="cleaners-cell">
                   <ng-container *ngIf="getAssignedCleaners(order.id).length > 0; else noCleaners">
                     <div class="cleaners-names" [title]="getAssignedCleaners(order.id).join(', ')">
                       ({{ getAssignedCleaners(order.id).length}})
@@ -194,6 +192,9 @@
                   <ng-template #noCleaners>
                     <span class="no-cleaners">Not assigned</span>
                   </ng-template>
+                  <span *ngIf="needsStaffingReview(order)"
+                        class="staffing-review-flag"
+                        title="Long job — review cleaner count (over 6h per cleaner)">⚠</span>
                 </div>
               </td>
               <td class="actions" *ngIf="userPermissions.permissions.canUpdate" (click)="$event.stopPropagation()">
@@ -325,6 +326,29 @@
                   <div class="order-details-header-row">
                     <h4>Order Details</h4>
 
+                    <div class="order-header-pills">
+                    <!-- Booked-by pill: who created the order (admin create-for-user vs customer
+                         self-booked). SuperAdmin clicks to toggle — exists to backfill orders that
+                         predate BookedByAdminUserId (2026-07); new orders are stamped automatically. -->
+                    <div class="assigned-admin-pill booked-by-pill" (click)="$event.stopPropagation()">
+                      <button *ngIf="isSuperAdmin"
+                              type="button"
+                              class="assigned-admin-trigger"
+                              (click)="toggleBookedByAdmin()"
+                              [disabled]="isSavingBookedBy"
+                              title="Toggle who booked this order">
+                        <span class="assigned-admin-by">Booked:</span>
+                        <span class="assigned-admin-name">{{ isSavingBookedBy ? 'Saving…' : bookedByAdminLabel() }}</span>
+                        <span class="assigned-admin-caret" aria-hidden="true">⇄</span>
+                      </button>
+
+                      <!-- Read-only variant for non-SuperAdmins -->
+                      <span *ngIf="!isSuperAdmin" class="assigned-admin-trigger assigned-admin-readonly">
+                        <span class="assigned-admin-by">Booked:</span>
+                        <span class="assigned-admin-name">{{ bookedByAdminLabel() }}</span>
+                      </span>
+                    </div>
+
                     <!-- Assigned-admin pill: who handles this order. SuperAdmin clicks to reassign;
                          Admins/Moderators see it read-only. Backend pre-formats display as
                          "F. LastName". `selectedOrder` is already narrowed to non-null by the
@@ -365,6 +389,7 @@
                         </button>
                         <div *ngIf="availableAdmins.length === 0" class="assigned-admin-empty">No admins available</div>
                       </div>
+                    </div>
                     </div>
                   </div>
 

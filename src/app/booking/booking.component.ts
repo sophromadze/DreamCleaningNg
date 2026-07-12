@@ -1769,9 +1769,8 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.contactLastName.setValidators([Validators.required]);
       this.contactLastName.updateValueAndValidity();
       
-      this.contactEmail.setValidators([Validators.required, Validators.email]);
-      this.contactEmail.updateValueAndValidity();
-      
+      this.applyContactEmailValidators();
+
       this.smsConsent.setValidators([Validators.requiredTrue]);
       this.smsConsent.updateValueAndValidity();
       
@@ -3403,6 +3402,9 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.selectedTargetUser = null;
       this.resetAdminPaymentFields();
 
+      // Restore the standard email requirement (may have been relaxed for a no-email customer).
+      this.applyContactEmailValidators();
+
       // Reload admin's subscription when admin mode is turned off
       this.loadUserSubscription();
       // Reload loyalty for the admin's own account now that there's no target user.
@@ -3432,15 +3434,10 @@ export class BookingComponent implements OnInit, OnDestroy {
       // admin can complete the booking. The backend allows a missing contact email only
       // for these accounts (create-for-user checks IsNoEmailUser server-side).
       this.contactEmail.setValue('');
-      this.contactEmail.setValidators([Validators.email]);
-      this.contactEmail.updateValueAndValidity();
-    } else {
-      if (user.email) {
-        this.contactEmail.setValue(user.email);
-      }
-      this.contactEmail.setValidators([Validators.required, Validators.email]);
-      this.contactEmail.updateValueAndValidity();
+    } else if (user.email) {
+      this.contactEmail.setValue(user.email);
     }
+    this.applyContactEmailValidators();
     if (user.phone) {
       this.contactPhone.setValue(user.phone.replace(/\D/g, '').slice(0, 10));
     }
@@ -3522,8 +3519,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.resetAdminPaymentFields();
 
     // Restore the standard email requirement (may have been relaxed for a no-email customer).
-    this.contactEmail.setValidators([Validators.required, Validators.email]);
-    this.contactEmail.updateValueAndValidity();
+    this.applyContactEmailValidators();
 
     // Restore admin's apartments
     this.userApartments = [...this.adminOriginalApartments];
@@ -3960,6 +3956,24 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.errorMessage = error.error?.message || 'Failed to submit poll. Please try again.';
       }
     });
+  }
+
+  /** True when an admin is booking for a cash customer without an email account. */
+  get isNoEmailTargetUser(): boolean {
+    return this.isAdminMode && !!this.selectedTargetUser?.isNoEmailUser;
+  }
+
+  // Single place that decides whether the contact email is required. Every code path
+  // that (re)arms email validators must go through this, otherwise a later service-type
+  // change silently restores the required rule and blocks admins booking for
+  // no-email customers at step 3.
+  private applyContactEmailValidators(): void {
+    this.contactEmail.setValidators(
+      this.isNoEmailTargetUser
+        ? [Validators.email]
+        : [Validators.required, Validators.email]
+    );
+    this.contactEmail.updateValueAndValidity();
   }
 
   // Form control getters for type safety

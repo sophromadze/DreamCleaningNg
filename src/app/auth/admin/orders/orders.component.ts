@@ -308,6 +308,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   showAssignedAdminEditor = false;
   isSavingAssignedAdmin = false;
 
+  // Booked-by pill: SuperAdmin toggle to backfill orders that predate BookedByAdminUserId.
+  isSavingBookedBy = false;
+
   // SuperAdmin-only editor for an existing custom ("Pre-Arranged") order's display name.
   showCustomServiceNameEditor = false;
   isSavingCustomServiceName = false;
@@ -522,6 +525,35 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: () => {
         this.isSavingAssignedAdmin = false;
+      }
+    });
+  }
+
+  // Booked-by pill helpers. The value lives on the LIST row (the details DTO doesn't
+  // carry it), so read/write the row in `orders` — the filter reacts immediately.
+  private get viewedOrderListRow(): AdminOrderList | null {
+    return this.orders.find(o => o.id === this.viewingOrderId) ?? null;
+  }
+
+  bookedByAdminLabel(): string {
+    return this.viewedOrderListRow?.bookedByAdmin ? 'Admin' : 'Customer';
+  }
+
+  toggleBookedByAdmin(): void {
+    if (!this.isSuperAdmin || this.isSavingBookedBy) return;
+    const row = this.viewedOrderListRow;
+    if (!row) return;
+    this.isSavingBookedBy = true;
+    this.orderService.setBookedByAdmin(row.id, !row.bookedByAdmin).subscribe({
+      next: (result) => {
+        // Effective value from the backend — legacy orders with a creation-time
+        // manual-payment stamp stay admin-booked even after clearing.
+        row.bookedByAdmin = result.bookedByAdmin;
+        this.calculateStatistics();
+        this.isSavingBookedBy = false;
+      },
+      error: () => {
+        this.isSavingBookedBy = false;
       }
     });
   }
@@ -3373,9 +3405,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return total / maids > 6 * 60;
   }
 
-  /** Table-row variant (list DTO carries the flags). */
+  /** Table-row variant (list DTO carries the flags). Hidden once the order is Done —
+   *  the advisory only matters while the job can still be re-staffed. */
   needsStaffingReview(order: AdminOrderList): boolean {
     if (!order || order.hasCleanersService || order.isCustomServiceType) return false;
+    if ((order.status || '').toLowerCase() === 'done') return false;
     return OrdersComponent.staffingReviewNeeded(order.totalDuration, order.maidsCount ?? 1);
   }
 
