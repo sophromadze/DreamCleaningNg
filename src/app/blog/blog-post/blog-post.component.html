@@ -1,0 +1,81 @@
+<div class="blog-post-page">
+  <!-- Loading: keep structure stable, shimmer the values -->
+  <div class="container" *ngIf="loading">
+    <div class="post-skeleton">
+      <div class="skeleton-line title shimmer-loading"></div>
+      <div class="skeleton-line meta shimmer-loading"></div>
+      <div class="skeleton-block shimmer-loading"></div>
+    </div>
+  </div>
+
+  <!-- Coming soon (blog master switch is OFF) -->
+  <div class="container" *ngIf="!loading && comingSoon">
+    <div class="not-found">
+      <h1>Our blog is coming soon</h1>
+      <p>We're putting the finishing touches on cleaning tips and NYC home-care guides. Check back shortly!</p>
+      <a routerLink="/booking" class="btn btn-primary">Book a Cleaning</a>
+    </div>
+  </div>
+
+  <!-- Not found -->
+  <div class="container" *ngIf="!loading && notFound">
+    <div class="not-found">
+      <h1>Article not found</h1>
+      <p>This article doesn't exist or is no longer available.</p>
+      <a routerLink="/blog" class="btn btn-primary">Browse All Articles</a>
+    </div>
+  </div>
+
+  <!-- Article -->
+  <article class="post" *ngIf="!loading && post">
+    <header class="post-hero">
+      <div class="container narrow">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
+          <a routerLink="/blog">Blog</a>
+          <span aria-hidden="true">›</span>
+          <span class="current">{{ post.category }}</span>
+        </nav>
+        <h1>{{ post.title }}</h1>
+        <div class="post-meta">
+          <span class="author">{{ post.authorName }}</span>
+          <span class="dot" aria-hidden="true">·</span>
+          <time *ngIf="post.publishedAt" [attr.datetime]="post.publishedAt">{{ formatDate(post.publishedAt) }}</time>
+        </div>
+      </div>
+    </header>
+
+    <div class="container narrow">
+      <figure class="featured-image" *ngIf="post.featuredImagePath">
+        <img [src]="post.featuredImagePath" [alt]="post.featuredImageAlt || post.title" />
+      </figure>
+
+      <!-- Server-sanitized HTML (allowlist sanitizer runs on every save) -->
+      <div class="post-content" [innerHTML]="safeContent"></div>
+
+      <div class="post-tags" *ngIf="post.tags.length > 0">
+        <span class="tag" *ngFor="let tag of post.tags">{{ tag }}</span>
+      </div>
+
+      <div class="post-cta">
+        <h2>Ready for a spotless home?</h2>
+        <p>Book a 5.0-star rated cleaning in Brooklyn, Manhattan, or Queens — online in about 2 minutes.</p>
+        <a routerLink="/booking" class="btn btn-primary">Book a Cleaning</a>
+      </div>
+
+      <section class="related" *ngIf="post.relatedPosts.length > 0">
+        <h2>Keep reading</h2>
+        <div class="related-grid">
+          <a class="related-card" *ngFor="let related of post.relatedPosts" [routerLink]="['/blog', related.slug]">
+            <div class="related-image" *ngIf="related.featuredImagePath">
+              <img [src]="related.featuredImagePath" [alt]="related.featuredImageAlt || related.title" loading="lazy" />
+            </div>
+            <div class="related-body">
+              <span class="related-category">{{ related.category }}</span>
+              <h3>{{ related.title }}</h3>
+            </div>
+          </a>
+        </div>
+      </section>
+    </div>
+  </article>
+</div>

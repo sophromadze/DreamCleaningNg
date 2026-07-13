@@ -51,6 +51,25 @@ export const routes: Routes = [
       description: `Compare Dream Cleaning's standard, deep, and move in/out cleaning checklists by room. Kitchen, bathroom, bedroom, living areas, exclusions, requirements, and add-ons.`
     }
   },
+  // Blog (public, SSR per-request — see app.routes.server.ts)
+  {
+    path: 'blog',
+    loadComponent: () => import('./blog/blog.component').then(m => m.BlogComponent),
+    data: {
+      title: 'Cleaning Tips & NYC Home Guides | Dream Cleaning Blog',
+      description: 'Practical cleaning guides for NYC apartments and homes — deep cleaning how-tos, moving checklists, Airbnb turnover tips, and seasonal advice from Dream Cleaning.'
+    }
+  },
+  {
+    // Per-post title/meta/OG/JSON-LD are set by the component once the post loads
+    // (during SSR too); route data here is only the pre-fetch fallback.
+    path: 'blog/:slug',
+    loadComponent: () => import('./blog/blog-post/blog-post.component').then(m => m.BlogPostComponent),
+    data: {
+      title: 'Dream Cleaning Blog',
+      description: 'Cleaning guides and tips for NYC homes from Dream Cleaning.'
+    }
+  },
   // Service routes
   {
     path: 'services/residential-cleaning',
@@ -344,6 +363,11 @@ export const routes: Routes = [
     path: 'admin/crm',
     canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
     loadComponent: () => import('./auth/admin/crm/crm.component').then(m => m.CrmComponent)
+  },
+  {
+    path: 'admin/blog',
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
+    loadComponent: () => import('./auth/admin/blog/admin-blog.component').then(m => m.AdminBlogComponent)
   },
 
   {

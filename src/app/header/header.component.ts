@@ -9,6 +9,8 @@ import { StickyCtaService } from '../services/sticky-cta.service';
 import { ThemeService } from '../services/theme.service';
 import { NewOrderNotificationService } from '../services/new-order-notification.service';
 import { TaskService } from '../services/task.service';
+import { BlogService } from '../services/blog.service';
+import { BlogStatusService } from '../services/blog-status.service';
 import { SignalRService } from '../services/signalr.service';
 import { PhoneClickTrackingService } from '../services/phone-click-tracking.service';
 import { PhoneNumberService } from '../services/phone-number.service';
@@ -42,6 +44,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   hasUnviewedNewOrders = false; // Track if there are new orders not viewed by admins
   hasPendingPersonalTasks = false; // Track if admin has pending personal tasks
   hasUncheckedDoneTasks = false; // Track if admin has unchecked completed tasks they created
+  pendingBlogDrafts = 0; // AI blog drafts waiting for review (staff badge)
+  blogPublicVisible = false; // Admin-driven master switch; false = "Soon" span (safe default)
   stickyCtaVisible = false; // When true, hide header mobile call icon (sticky CTA bar is shown)
   nyTime: string = ''; // Live New York time for admins/superadmins
   private nyTimeInterval: any;
@@ -58,6 +62,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private newOrderNotificationService: NewOrderNotificationService,
     private taskService: TaskService,
+    private blogService: BlogService,
+    private blogStatusService: BlogStatusService,
     private signalRService: SignalRService,
     private phoneTracking: PhoneClickTrackingService,
     public phoneNumber: PhoneNumberService,
@@ -91,6 +97,15 @@ export class HeaderComponent implements OnInit, OnDestroy {
     // Listen for real-time personal task updates
     this.setupTaskSignalR();
 
+    // Blog visibility (admin master switch). Runs on SSR too so crawlers see the
+    // real link when the blog is live; one shared cached call app-wide.
+    this.blogStatusService.publicVisible$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(visible => {
+        this.blogPublicVisible = visible;
+        this.cdr.detectChanges();
+      });
+
     // Subscribe to auth state for updates
     combineLatest([
       this.authService.isInitialized$,
@@ -117,6 +132,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
         if (this.isAdminOrSuperAdmin) {
           this.checkPendingPersonalTasks();
           this.checkUncheckedDoneTasks();
+        }
+        if (this.isInternalUser) {
+          this.checkPendingBlogDrafts();
         }
       } else if (isInitialized) {
         // Only clear user data if auth service is initialized and user is null
@@ -302,6 +320,21 @@ export class HeaderComponent implements OnInit, OnDestroy {
         error: () => {
           this.hasPendingPersonalTasks = false;
           this.hasUncheckedDoneTasks = false;
+        }
+      });
+  }
+
+  private checkPendingBlogDrafts(): void {
+    if (!this.isBrowser) return;
+    this.blogService.adminGetPendingCount()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res) => {
+          this.pendingBlogDrafts = res?.count ?? 0;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.pendingBlogDrafts = 0;
         }
       });
   }

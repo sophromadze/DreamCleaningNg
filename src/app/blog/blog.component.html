@@ -7,10 +7,78 @@
   </section>
 
   <div class="container">
-    <section class="intro">
+    <!-- Coming soon (admin master switch is OFF) -->
+    <div class="empty-state" *ngIf="!loading && comingSoon">
       <p>Our blog is on the way — soon you'll find cleaning tips, room-by-room guides, and advice for keeping your NYC home spotless.</p>
-      <p class="placeholder-note">Check back soon. In the meantime, book a cleaning or explore our services.</p>
       <a routerLink="/booking" class="btn btn-primary">Book a Cleaning</a>
-    </section>
+    </div>
+
+    <!-- Category filter -->
+    <div class="category-filter" *ngIf="!comingSoon && categories.length > 1">
+      <button
+        type="button"
+        class="category-chip"
+        [class.active]="!selectedCategory"
+        (click)="selectCategory(null)">All</button>
+      <button
+        type="button"
+        class="category-chip"
+        *ngFor="let cat of categories"
+        [class.active]="selectedCategory === cat"
+        (click)="selectCategory(cat)">{{ cat }}</button>
+    </div>
+
+    <!-- Loading skeleton: shimmer the values, keep structure stable -->
+    <div class="posts-grid" *ngIf="loading">
+      <div class="post-card skeleton" *ngFor="let i of [1, 2, 3, 4, 5, 6]">
+        <div class="card-image shimmer-loading"></div>
+        <div class="card-body">
+          <div class="skeleton-line shimmer-loading"></div>
+          <div class="skeleton-line short shimmer-loading"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Posts -->
+    <div class="posts-grid" *ngIf="!loading && posts.length > 0">
+      <a class="post-card" *ngFor="let post of posts" [routerLink]="['/blog', post.slug]">
+        <div class="card-image">
+          <img
+            *ngIf="post.featuredImagePath; else imagePlaceholder"
+            [src]="post.featuredImagePath"
+            [alt]="post.featuredImageAlt || post.title"
+            loading="lazy" />
+          <ng-template #imagePlaceholder>
+            <div class="image-placeholder" aria-hidden="true">🧼</div>
+          </ng-template>
+          <span class="category-chip-overlay">{{ post.category }}</span>
+        </div>
+        <div class="card-body">
+          <h2>{{ post.title }}</h2>
+          <p class="excerpt">{{ post.excerpt }}</p>
+          <span class="post-date" *ngIf="post.publishedAt">{{ formatDate(post.publishedAt) }}</span>
+        </div>
+      </a>
+    </div>
+
+    <!-- Empty / error -->
+    <div class="empty-state" *ngIf="!loading && !comingSoon && posts.length === 0">
+      <p *ngIf="loadFailed">We couldn't load articles right now — please try again in a moment.</p>
+      <p *ngIf="!loadFailed && selectedCategory">No articles in "{{ selectedCategory }}" yet.</p>
+      <p *ngIf="!loadFailed && !selectedCategory">Articles are coming soon — check back shortly.</p>
+      <a routerLink="/booking" class="btn btn-primary">Book a Cleaning</a>
+    </div>
+
+    <!-- Pagination -->
+    <nav class="pagination" *ngIf="!loading && totalPages > 1" aria-label="Blog pages">
+      <button type="button" class="page-btn" [disabled]="page === 1" (click)="goToPage(page - 1)">‹</button>
+      <button
+        type="button"
+        class="page-btn"
+        *ngFor="let p of pageNumbers"
+        [class.active]="p === page"
+        (click)="goToPage(p)">{{ p }}</button>
+      <button type="button" class="page-btn" [disabled]="page === totalPages" (click)="goToPage(page + 1)">›</button>
+    </nav>
   </div>
 </div>

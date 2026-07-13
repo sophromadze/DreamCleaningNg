@@ -1,0 +1,526 @@
+<div class="admin-blog-page">
+  <div class="page-header">
+    <h1>Blog</h1>
+    <p class="page-subtitle">AI-drafted articles — nothing publishes without a human pressing Publish.</p>
+  </div>
+
+  <!-- Tabs -->
+  <nav class="tabs" aria-label="Blog admin sections">
+    <button type="button" [class.active]="activeTab === 'posts'" (click)="setTab('posts')">Posts</button>
+    <button type="button" [class.active]="activeTab === 'editor'" (click)="setTab('editor')" *ngIf="editingPost">Editor</button>
+    <button type="button" [class.active]="activeTab === 'topics'" (click)="setTab('topics')">Topic Queue</button>
+    <button type="button" *ngIf="isSuperAdmin" [class.active]="activeTab === 'settings'" (click)="setTab('settings')">Settings</button>
+    <button type="button" [class.active]="activeTab === 'guide'" (click)="setTab('guide')">How It Works</button>
+  </nav>
+
+  <!-- ═══════════ POSTS ═══════════ -->
+  <section *ngIf="activeTab === 'posts'" class="tab-panel">
+    <div class="toolbar">
+      <div class="filters">
+        <button type="button" class="filter-chip" [class.active]="statusFilter === null" (click)="setStatusFilter(null)">All</button>
+        <button type="button" class="filter-chip" [class.active]="statusFilter === BlogPostStatus.PendingReview" (click)="setStatusFilter(BlogPostStatus.PendingReview)">Pending Review</button>
+        <button type="button" class="filter-chip" [class.active]="statusFilter === BlogPostStatus.Draft" (click)="setStatusFilter(BlogPostStatus.Draft)">Drafts</button>
+        <button type="button" class="filter-chip" [class.active]="statusFilter === BlogPostStatus.Published" (click)="setStatusFilter(BlogPostStatus.Published)">Published</button>
+      </div>
+      <button type="button" class="btn btn-primary" *ngIf="canManage" (click)="newPost()">+ New Post</button>
+    </div>
+
+    <div class="table-wrapper" *ngIf="!postsLoading; else postsLoadingTpl">
+      <table class="posts-table" *ngIf="posts.length > 0; else noPostsTpl">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Title</th>
+            <th>Category</th>
+            <th>Created</th>
+            <th>Published</th>
+            <th>Views</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let post of posts" [class.pending-row]="post.status === BlogPostStatus.PendingReview">
+            <td>
+              <span class="status-badge" [ngClass]="statusClass(post.status)">{{ statusLabel(post.status) }}</span>
+              <span class="ai-chip" *ngIf="post.isAiGenerated" title="Written by AI — review before publishing">AI</span>
+            </td>
+            <td class="title-cell">
+              <a href="javascript:void(0)" (click)="openEditor(post.id)">{{ post.title }}</a>
+            </td>
+            <td>{{ post.category }}</td>
+            <td>{{ formatDate(post.createdAt) }}</td>
+            <td>{{ formatDate(post.publishedAt) }}</td>
+            <td>{{ post.viewCount }}</td>
+            <td class="actions-col">
+              <button type="button" class="row-btn" (click)="openEditor(post.id)">{{ canManage ? 'Edit' : 'View' }}</button>
+              <button type="button" class="row-btn publish"
+                      *ngIf="canManage && post.status !== BlogPostStatus.Published"
+                      [disabled]="actionBusyId === post.id"
+                      (click)="publishFromList(post)">Publish</button>
+              <button type="button" class="row-btn"
+                      *ngIf="canManage && post.status === BlogPostStatus.Published"
+                      [disabled]="actionBusyId === post.id"
+                      (click)="unpublishFromList(post)">Unpublish</button>
+              <button type="button" class="row-btn danger"
+                      *ngIf="isSuperAdmin"
+                      [disabled]="actionBusyId === post.id"
+                      (click)="deletePost(post)">Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <ng-template #noPostsTpl>
+        <p class="empty-note">No posts yet. Add topics to the queue and press "Generate Now", or create one manually.</p>
+      </ng-template>
+    </div>
+    <ng-template #postsLoadingTpl>
+      <p class="empty-note">Loading posts…</p>
+    </ng-template>
+  </section>
+
+  <!-- ═══════════ EDITOR ═══════════ -->
+  <section *ngIf="activeTab === 'editor' && editingPost" class="tab-panel">
+    <div class="editor-banner ai" *ngIf="editingPost.isAiGenerated && editingPost.status === BlogPostStatus.PendingReview">
+      🤖 This draft was written by AI — read the whole article and check every fact before publishing.
+    </div>
+
+    <div class="editor-topbar">
+      <button type="button" class="btn btn-ghost" (click)="closeEditor()">‹ Back to posts</button>
+      <div class="editor-status">
+        <span class="status-badge" [ngClass]="statusClass(editingPost.status)">{{ statusLabel(editingPost.status) }}</span>
+        <a *ngIf="editingPost.status === BlogPostStatus.Published"
+           [href]="'/blog/' + editingPost.slug" target="_blank" rel="noopener">View live ↗</a>
+      </div>
+      <div class="editor-actions" *ngIf="canManage">
+        <button type="button" class="btn btn-secondary" [disabled]="editorBusy" (click)="savePost(false)">Save Draft</button>
+        <button type="button" class="btn btn-primary"
+                *ngIf="editingPost.status !== BlogPostStatus.Published"
+                [disabled]="editorBusy" (click)="savePost(true)">Publish</button>
+        <button type="button" class="btn btn-ghost"
+                *ngIf="editingPost.status === BlogPostStatus.Published"
+                [disabled]="editorBusy" (click)="unpublishFromEditor()">Unpublish</button>
+      </div>
+    </div>
+
+    <p class="editor-error" *ngIf="editorError">{{ editorError }}</p>
+
+    <div class="editor-grid">
+      <!-- Left: fields + markdown -->
+      <div class="editor-fields">
+        <label class="field">
+          <span>Title</span>
+          <input type="text" [(ngModel)]="editorForm.title" maxlength="200" placeholder="Article headline" />
+        </label>
+
+        <label class="field">
+          <span>Slug (the link) <small *ngIf="editorSlugLocked" class="locked-hint">🔒 locked — the article is published and Google has this link</small></span>
+          <input type="text" [(ngModel)]="editorForm.slug" maxlength="220" [disabled]="editorSlugLocked"
+                 placeholder="auto-generated-from-title" />
+        </label>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Category</span>
+            <select [(ngModel)]="editorForm.category">
+              <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Author</span>
+            <input type="text" [(ngModel)]="editorForm.authorName" maxlength="100" />
+          </label>
+        </div>
+
+        <label class="field">
+          <span>Meta Title
+            <small class="char-counter" [class.over]="metaTitleLength > 60">{{ metaTitleLength }}/60 {{ metaTitleLength > 60 ? '— too long, shorten it' : '✓' }}</small>
+          </span>
+          <input type="text" [(ngModel)]="editorForm.metaTitle" maxlength="70" placeholder="Shown as the headline in Google results" />
+        </label>
+
+        <label class="field">
+          <span>Meta Description
+            <small class="char-counter" [class.over]="metaDescriptionLength > 160">{{ metaDescriptionLength }}/160 {{ metaDescriptionLength > 160 ? '— too long, shorten it' : '✓' }}</small>
+          </span>
+          <textarea [(ngModel)]="editorForm.metaDescription" maxlength="200" rows="2"
+                    placeholder="Shown under the headline in Google results"></textarea>
+        </label>
+
+        <label class="field">
+          <span>Excerpt
+            <small class="char-counter" [class.over]="excerptLength > 160">{{ excerptLength }}/160</small>
+          </span>
+          <textarea [(ngModel)]="editorForm.excerpt" maxlength="300" rows="2"
+                    placeholder="Short teaser shown on the blog listing card"></textarea>
+        </label>
+
+        <label class="field">
+          <span>Tags <small>(comma-separated)</small></span>
+          <input type="text" [(ngModel)]="editorForm.tags" maxlength="500" placeholder="deep cleaning, nyc apartments" />
+        </label>
+
+        <div class="field featured-image-field">
+          <span>Featured Image</span>
+          <div class="image-row">
+            <img *ngIf="editorForm.featuredImagePath" [src]="editorForm.featuredImagePath" alt="Featured image preview" class="image-preview" />
+            <div class="image-controls">
+              <label class="btn btn-secondary upload-btn" *ngIf="canManage">
+                {{ uploadBusy ? 'Uploading…' : (editorForm.featuredImagePath ? 'Replace Image' : 'Upload Image') }}
+                <input type="file" accept="image/*" (change)="uploadFeaturedImage($event)" [disabled]="uploadBusy" hidden />
+              </label>
+              <input type="text" [(ngModel)]="editorForm.featuredImageAlt" maxlength="200"
+                     placeholder="Image description (alt text)" />
+            </div>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>Article (Markdown)</span>
+          <textarea class="markdown-input"
+                    [(ngModel)]="editorForm.contentMarkdown"
+                    (ngModelChange)="onMarkdownChanged($event)"
+                    rows="24"
+                    placeholder="## Section heading&#10;&#10;Write the article here…"></textarea>
+        </label>
+      </div>
+
+      <!-- Right: live preview -->
+      <div class="editor-preview">
+        <div class="preview-header">Preview</div>
+        <div class="preview-body" [innerHTML]="previewHtml"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ TOPIC QUEUE ═══════════ -->
+  <section *ngIf="activeTab === 'topics'" class="tab-panel">
+    <div class="topics-layout">
+      <div class="topics-main">
+        <div class="toolbar">
+          <h2>Queued Topics</h2>
+          <button type="button" class="btn btn-secondary" *ngIf="canManage" [disabled]="suggestBusy" (click)="suggestTopics()">
+            {{ suggestBusy ? 'Asking AI…' : '✨ Suggest Topics with AI' }}
+          </button>
+        </div>
+
+        <p class="hint">The scheduler always takes the topic at the top of this list. Heard a good customer question on a call or in chat? Add it — real questions make the best articles.</p>
+
+        <div *ngIf="!topicsLoading; else topicsLoadingTpl">
+          <div class="topic-card" *ngFor="let topic of queuedTopics; let i = index">
+            <div class="topic-order">
+              <button type="button" class="order-btn" *ngIf="canManage" [disabled]="i === 0" (click)="moveTopic(topic, -1)" title="Move up">▲</button>
+              <span class="order-num">{{ i + 1 }}</span>
+              <button type="button" class="order-btn" *ngIf="canManage" [disabled]="i === queuedTopics.length - 1" (click)="moveTopic(topic, 1)" title="Move down">▼</button>
+            </div>
+            <div class="topic-body">
+              <strong>{{ topic.topicTitle }}</strong>
+              <small *ngIf="topic.targetKeyword">keyword: {{ topic.targetKeyword }}</small>
+              <small *ngIf="topic.notes" class="topic-notes">{{ topic.notes }}</small>
+            </div>
+            <div class="topic-actions">
+              <button type="button" class="row-btn publish"
+                      *ngIf="canManage"
+                      [disabled]="generateBusyTopicId !== null"
+                      (click)="generateNow(topic)">
+                {{ generateBusyTopicId === topic.id ? 'Writing… (up to a minute)' : 'Generate Now' }}
+              </button>
+              <button type="button" class="row-btn" *ngIf="canManage" (click)="editTopic(topic)">Edit</button>
+              <button type="button" class="row-btn danger" *ngIf="isSuperAdmin" (click)="deleteTopic(topic)">Delete</button>
+            </div>
+          </div>
+          <p class="empty-note" *ngIf="queuedTopics.length === 0">The queue is empty — add a topic below or use AI suggestions.</p>
+
+          <details class="generated-topics" *ngIf="generatedTopics.length > 0">
+            <summary>Already generated ({{ generatedTopics.length }})</summary>
+            <div class="topic-card done" *ngFor="let topic of generatedTopics">
+              <div class="topic-body">
+                <strong>{{ topic.topicTitle }}</strong>
+                <small>generated {{ formatDate(topic.generatedAt) }}</small>
+              </div>
+              <div class="topic-actions">
+                <button type="button" class="row-btn" *ngIf="topic.generatedBlogPostId"
+                        (click)="openEditor(topic.generatedBlogPostId!)">Open Draft</button>
+                <button type="button" class="row-btn danger" *ngIf="isSuperAdmin" (click)="deleteTopic(topic)">Delete</button>
+              </div>
+            </div>
+          </details>
+        </div>
+        <ng-template #topicsLoadingTpl><p class="empty-note">Loading topics…</p></ng-template>
+
+        <!-- Add / edit topic form -->
+        <div class="topic-form" *ngIf="canManage">
+          <h3>{{ editingTopicId ? 'Edit Topic' : 'Add a Topic' }}</h3>
+          <label class="field">
+            <span>Topic</span>
+            <input type="text" [(ngModel)]="topicForm.topicTitle" maxlength="300"
+                   placeholder="e.g. How to deep clean a pre-war apartment kitchen" />
+          </label>
+          <div class="field-row">
+            <label class="field">
+              <span>Target keyword <small>(optional)</small></span>
+              <input type="text" [(ngModel)]="topicForm.targetKeyword" maxlength="200"
+                     placeholder="e.g. deep clean apartment kitchen" />
+            </label>
+          </div>
+          <label class="field">
+            <span>Notes for the writer <small>(optional)</small></span>
+            <textarea [(ngModel)]="topicForm.notes" maxlength="1000" rows="2"
+                      placeholder="Angle, things to mention, customer question that prompted this…"></textarea>
+          </label>
+          <div class="form-actions">
+            <button type="button" class="btn btn-primary" [disabled]="!topicForm.topicTitle.trim()" (click)="saveTopic()">
+              {{ editingTopicId ? 'Save Changes' : 'Add to Queue' }}
+            </button>
+            <button type="button" class="btn btn-ghost" *ngIf="editingTopicId" (click)="cancelTopicEdit()">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI suggestions panel -->
+    <div class="suggestions-overlay" *ngIf="suggestionsVisible">
+      <div class="suggestions-panel">
+        <div class="suggestions-header">
+          <h3>AI Topic Suggestions</h3>
+          <button type="button" class="btn btn-ghost" (click)="suggestionsVisible = false">✕ Close</button>
+        </div>
+        <p class="hint" *ngIf="suggestBusy">Thinking of topics that don't overlap with what you already have…</p>
+        <div class="suggestions-list" *ngIf="!suggestBusy">
+          <label class="suggestion-row" *ngFor="let suggestion of suggestions">
+            <input type="checkbox" [(ngModel)]="suggestion.selected" />
+            <span class="suggestion-text">
+              <strong>{{ suggestion.topicTitle }}</strong>
+              <small>{{ suggestion.targetKeyword }}</small>
+            </span>
+          </label>
+        </div>
+        <div class="suggestions-footer" *ngIf="!suggestBusy && suggestions.length > 0">
+          <button type="button" class="btn btn-primary"
+                  [disabled]="selectedSuggestionsCount === 0 || addSuggestionsBusy"
+                  (click)="addSelectedSuggestions()">
+            {{ addSuggestionsBusy ? 'Adding…' : 'Add ' + selectedSuggestionsCount + ' to Queue' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════ SETTINGS ═══════════ -->
+  <section *ngIf="activeTab === 'settings'" class="tab-panel">
+    <div *ngIf="!settingsLoading && settings; else settingsLoadingTpl" class="settings-panel">
+      <div class="setting-row">
+        <div class="setting-text">
+          <h3>Blog page visible to public</h3>
+          <p>The master switch. When OFF, visitors see a "coming soon" page on /blog, the header keeps the
+            "Soon" badge, and the sitemap stays empty — while drafting and publishing here keep working normally.
+            Flip it ON when the first articles are ready; the site goes live instantly, no deploy needed.</p>
+        </div>
+        <button type="button" class="toggle" [class.on]="settings.publicVisible"
+                [disabled]="settingsSaving" (click)="togglePublicVisible()"
+                [attr.aria-pressed]="settings.publicVisible">
+          <span class="knob"></span>
+          <span class="toggle-label">{{ settings.publicVisible ? 'ON' : 'OFF' }}</span>
+        </button>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-text">
+          <h3>Automatic weekly drafts</h3>
+          <p>When ON, the AI writer automatically creates one new draft from the top of the Topic Queue every
+            {{ settings.generationIntervalDays }} day(s). Drafts always wait for a human to review and publish —
+            nothing goes on the website by itself.</p>
+        </div>
+        <button type="button" class="toggle" [class.on]="settings.autoGenerateEnabled"
+                [disabled]="settingsSaving" (click)="toggleAutoGenerate()"
+                [attr.aria-pressed]="settings.autoGenerateEnabled">
+          <span class="knob"></span>
+          <span class="toggle-label">{{ settings.autoGenerateEnabled ? 'ON' : 'OFF' }}</span>
+        </button>
+      </div>
+
+      <div class="setting-row">
+        <div class="setting-text">
+          <h3>Writer model</h3>
+          <p>Which Claude model writes the drafts.</p>
+          <select class="model-select"
+                  [ngModel]="settings.generationModel"
+                  (ngModelChange)="onModelChange($event)"
+                  [disabled]="settingsSaving">
+            <option *ngFor="let option of settings.modelOptions" [value]="option.id">{{ option.label }}</option>
+          </select>
+          <p class="model-hint">Sonnet 5 is recommended for article quality — the cost difference is pennies per article at this volume.</p>
+        </div>
+      </div>
+
+      <div class="settings-facts">
+        <div class="fact">
+          <span class="fact-label">Last generation</span>
+          <span class="fact-value">{{ settings.lastRunAt ? formatDateTime(settings.lastRunAt) : 'Never ran yet' }}</span>
+        </div>
+        <div class="fact" *ngIf="settings.lastRunResult">
+          <span class="fact-label">Result</span>
+          <span class="fact-value" [class.failed]="settings.lastRunResult.startsWith('Failed')">{{ settings.lastRunResult }}</span>
+        </div>
+        <div class="fact">
+          <span class="fact-label">Topics waiting in queue</span>
+          <span class="fact-value">{{ settings.queuedTopicsCount }}</span>
+        </div>
+      </div>
+    </div>
+    <ng-template #settingsLoadingTpl><p class="empty-note">Loading settings…</p></ng-template>
+  </section>
+
+  <!-- ═══════════ HOW IT WORKS ═══════════ -->
+  <section *ngIf="activeTab === 'guide'" class="tab-panel guide">
+    <div class="lang-toggle" role="group" aria-label="Guide language">
+      <button type="button" [class.active]="guideLang === 'ka'" (click)="guideLang = 'ka'">ქართული</button>
+      <button type="button" [class.active]="guideLang === 'en'" (click)="guideLang = 'en'">EN</button>
+    </div>
+
+    <!-- ─── ქართული ─── -->
+    <ng-container *ngIf="guideLang === 'ka'">
+      <h2>როგორ მუშაობს ბლოგი — მარტივი ენით</h2>
+
+      <div class="guide-block">
+        <h3>1. რას აკეთებს ეს სისტემა</h3>
+        <p>ყოველ კვირას ჩვენი AI-მწერალი ავტომატურად წერს ახალი სტატიის მონახაზს (დრაფტს).
+        <strong>ვებსაიტზე ავტომატურად არაფერი ქვეყნდება</strong> — ნამდვილმა ადამიანმა უნდა
+        წაიკითხოს და დააჭიროს Publish-ს. წარმოიდგინე AI როგორც უმცროსი მწერალი, რომელიც მაგიდაზე
+        მონახაზს გიტოვებს: კარგი მასალაა, მაგრამ ყოველთვის შენი თვალით უნდა შემოწმდეს.</p>
+      </div>
+
+      <div class="guide-block">
+        <h3>2. სამუშაო პროცესი</h3>
+        <ol class="lifecycle">
+          <li><strong>Topic Queue</strong> — სტატიების იდეების სია, რიგის მიხედვით. სიის თავში მდგომი თემა იწერება შემდეგი.</li>
+          <li><strong>AI წერს დრაფტს</strong> — ავტომატურად, გრაფიკის მიხედვით, ან როცა "Generate Now"-ს დააჭერ.</li>
+          <li><strong>დრაფტი აქ ჩნდება როგორც "Pending Review"</strong> — Posts სიის თავში, გამოკვეთილი, და შენი ანგარიშის მენიუში "Blog"-ის გვერდით ნარინჯისფერი ნიშანი ანთია.</li>
+          <li><strong>ამოწმებ და ასწორებ</strong> — წაიკითხე, გაასწორე, დაამატე მთავარი სურათი.</li>
+          <li><strong>Publish</strong> — ერთი დაჭერა. სტატია ვებსაიტზე ჩნდება და Google მის პოვნას იწყებს.</li>
+        </ol>
+        <p class="tip">💡 კვირაში ერთხელ მაინც შეამოწმე Blog განყოფილება — ახალი დრაფტები იქ გელოდება გამოკვეთილი ნიშნით.</p>
+      </div>
+
+      <div class="guide-block">
+        <h3>3. რა უნდა შეამოწმო გამოქვეყნებამდე</h3>
+        <ul class="checklist">
+          <li>☐ <strong>წაიკითხე მთელი სტატია.</strong> ყველაფერი სიმართლეს შეესაბამება ჩვენს ბიზნესზე?</li>
+          <li>☐ <strong>არანაირი გამოგონილი ფასი, ფასდაკლება ან დაპირება.</strong> თუ კონკრეტულ ფასს დაინახავ, წაშალე ან ჩაანაცვლე Pricing გვერდის ბმულით.</li>
+          <li>☐ <strong>მუშაობს თუ არა ბმულები და აქვთ თუ არა აზრი?</strong> Preview-ში თითოეულს დააჭირე.</li>
+          <li>☐ <strong>ჩვენსავით ჟღერს?</strong> თბილად და პროფესიონალურად, არა რობოტულად.</li>
+          <li>☐ <strong>დაყენებულია მთავარი სურათი (Featured Image)</strong> და შეესაბამება თემას?</li>
+          <li>☐ <strong>Meta Title / Meta Description მრიცხველები:</strong> მწვანე ✓ კარგია; წითელი ნიშნავს, რომ ტექსტი ძალიან გრძელია — შეამოკლე, სანამ გამწვანდება.</li>
+        </ul>
+      </div>
+
+      <div class="guide-block">
+        <h3>4. როგორ გამოაქვეყნო — ნაბიჯ-ნაბიჯ</h3>
+        <ol>
+          <li>გახსენი <strong>Posts</strong> და დააჭირე სტატიის სათაურს (Pending Review დრაფტები სიის თავშია, ნარინჯისფერი ნიშნით).</li>
+          <li>მარცხენა მხარეს წაიკითხე და გაასწორე ტექსტი; მარჯვენა მხარე აჩვენებს, როგორ გამოჩნდება საიტზე.</li>
+          <li>ატვირთე <strong>Featured Image</strong> და მოკლედ აღწერე ის (ე.წ. alt ტექსტი).</li>
+          <li>დარწმუნდი, რომ <strong>Meta Title</strong> და <strong>Meta Description</strong> მრიცხველები მწვანეა.</li>
+          <li>დააჭირე <strong>Save Draft</strong>-ს, თუ მოგვიანებით დაბრუნდები, ან <strong>Publish</strong>-ს, როცა მზადაა.</li>
+          <li>გამოქვეყნების შემდეგ <strong>"View live"</strong> ბმულით ნახე სტატია საიტზე.</li>
+        </ol>
+      </div>
+
+      <div class="guide-block">
+        <h3>5. თემების დამატება</h3>
+        <p>გადადი <strong>Topic Queue</strong>-ში → "Add a Topic". კლიენტმა ზარზე ან ჩატში კარგი კითხვა დაგისვა?
+        დაამატე თემად — <strong>რეალური კითხვებისგან საუკეთესო სტატიები გამოდის.</strong> ასევე შეგიძლია
+        დააჭირო "✨ Suggest Topics with AI"-ს — მოგცემს 15–20 ახალ იდეას და მონიშნავ, რომლებიც მოგწონს.</p>
+      </div>
+
+      <div class="guide-block warning">
+        <h3>6. რას არ უნდა აკეთებდე</h3>
+        <ul>
+          <li>🚫 <strong>არ გამოაქვეყნო წაუკითხავად.</strong> Google სჯის დაბალი ხარისხის, ავტომატურად გამოქვეყნებულ კონტენტს და ამან შეიძლება მთელ ვებსაიტს ავნოს — არა მხოლოდ ბლოგს.</li>
+          <li>🚫 <strong>არ წაშალო გამოქვეყნებული სტატია დაუფიქრებლად.</strong> Google-ს ის უკვე დაინდექსებული აქვს; ჯერ ნიკას ჰკითხე — შეიძლება გადამისამართება დასჭირდეს.</li>
+          <li>🚫 <strong>არ შეცვალო გამოქვეყნებული სტატიის "slug"-ი (ბმული).</strong> ეს Google-ში არსებულ ბმულს გატეხავს. სწორედ ამიტომ იკეტება ეს ველი გამოქვეყნების შემდეგ.</li>
+          <li>🚫 <strong>არ გადმოაკოპირო ტექსტი სხვა ვებსაიტებიდან.</strong> Google ამას ამჩნევს და შესაძლოა მთელი საიტი დაჯარიმდეს.</li>
+        </ul>
+      </div>
+
+      <div class="guide-block">
+        <h3>7. რას უნდა ველოდოთ</h3>
+        <p>ბლოგის შედეგები ბუნებრივად ნელია: პირველი Google-ტრაფიკი ჩვეულებრივ დაახლოებით
+        <strong>3 თვეში</strong> ჩნდება, ნამდვილი ეფექტი კი <strong>6+ თვის</strong> შემდეგ. თანმიმდევრულობა
+        ნახტომებს ჯობია — <strong>თვეში 2–4 კარგი სტატია</strong>, ყოველ თვეს, ბევრად მეტი ღირს, ვიდრე ათი
+        სტატია ერთ კვირაში და მერე სიჩუმე.</p>
+      </div>
+    </ng-container>
+
+    <!-- ─── English ─── -->
+    <ng-container *ngIf="guideLang === 'en'">
+    <h2>How the blog works — plain and simple</h2>
+
+    <div class="guide-block">
+      <h3>1. What this system does</h3>
+      <p>Every week, our AI writer automatically writes a new blog article draft. <strong>Nothing goes on the
+      website automatically</strong> — a real person must read it and press Publish. Think of the AI
+      as a junior writer who leaves a draft on your desk: good raw material, but it always needs your eyes first.</p>
+    </div>
+
+    <div class="guide-block">
+      <h3>2. The lifecycle</h3>
+      <ol class="lifecycle">
+        <li><strong>Topic Queue</strong> — a list of article ideas, in order. The topic at the top goes next.</li>
+        <li><strong>AI writes a draft</strong> — automatically on schedule, or when you press "Generate Now".</li>
+        <li><strong>Draft appears here as "Pending Review"</strong> — highlighted at the top of the Posts list, with an orange badge next to "Blog" in your account menu.</li>
+        <li><strong>You review &amp; edit</strong> — read it, fix it, add a featured image.</li>
+        <li><strong>Publish</strong> — one click. The article appears on the website and Google starts finding it.</li>
+      </ol>
+      <p class="tip">💡 Check the Blog section about once a week — new drafts wait there with the highlighted badge.</p>
+    </div>
+
+    <div class="guide-block">
+      <h3>3. What to check before publishing</h3>
+      <ul class="checklist">
+        <li>☐ <strong>Read the whole article.</strong> Does everything sound true and accurate about our business?</li>
+        <li>☐ <strong>No made-up prices, discounts, or promises.</strong> If you see a specific price, remove it or replace it with a link to the Pricing page.</li>
+        <li>☐ <strong>Do the links work and make sense?</strong> Click each one in the Preview pane.</li>
+        <li>☐ <strong>Does it sound like us?</strong> Helpful and professional, not robotic.</li>
+        <li>☐ <strong>Is the featured image set</strong> and does it match the topic?</li>
+        <li>☐ <strong>Meta Title / Meta Description counters:</strong> a green ✓ next to the length is good; red means too long — shorten until it turns green.</li>
+      </ul>
+    </div>
+
+    <div class="guide-block">
+      <h3>4. How to publish — step by step</h3>
+      <ol>
+        <li>Open <strong>Posts</strong> and click the article's title (Pending Review drafts sit at the top with an orange badge).</li>
+        <li>Read and edit the text in the left pane; the right pane shows how it will look.</li>
+        <li>Upload a <strong>Featured Image</strong> and write a short description of it (the "alt text").</li>
+        <li>Check the <strong>Meta Title</strong> and <strong>Meta Description</strong> counters are green.</li>
+        <li>Press <strong>Save Draft</strong> if you want to come back later, or <strong>Publish</strong> when it's ready.</li>
+        <li>After publishing, use the <strong>"View live"</strong> link to see it on the website.</li>
+      </ol>
+    </div>
+
+    <div class="guide-block">
+      <h3>5. Adding topic ideas</h3>
+      <p>Go to <strong>Topic Queue</strong> → "Add a Topic". Heard a customer ask a good question on a call or in
+      chat? Add it as a topic — <strong>real customer questions make the best articles.</strong> You can also press
+      "✨ Suggest Topics with AI" to get 15–20 fresh ideas and tick the ones you like.</p>
+    </div>
+
+    <div class="guide-block warning">
+      <h3>6. What NOT to do</h3>
+      <ul>
+        <li>🚫 <strong>Don't publish without reading.</strong> Google punishes low-quality auto-published content, and it can hurt the whole website's ranking — not just the blog.</li>
+        <li>🚫 <strong>Don't delete a published article casually.</strong> Google has already indexed it; ask Nika first — it may need a redirect.</li>
+        <li>🚫 <strong>Don't change the "slug" (the link) of a published article.</strong> It breaks the Google link. That's why the field locks itself after publishing.</li>
+        <li>🚫 <strong>Don't copy text from other websites</strong> into articles. Google detects it and it can get the whole site penalized.</li>
+      </ul>
+    </div>
+
+    <div class="guide-block">
+      <h3>7. What to expect</h3>
+      <p>Blog results are slow by nature: the first Google traffic usually takes about <strong>3 months</strong>,
+      and the real effect shows after <strong>6+ months</strong>. Consistency beats bursts — <strong>2–4 good
+      articles per month</strong>, every month, is worth more than ten articles in one week and then silence.</p>
+    </div>
+    </ng-container>
+  </section>
+</div>

@@ -133,7 +133,10 @@
                     <a routerLink="/pricing-and-discounts" (click)="closeAllMenus()">Pricing &amp; Discounts</a>
                     <a routerLink="/cleaning-checklist" (click)="closeAllMenus()">Cleaning Checklist</a>
                     <a routerLink="/gift-cards" (click)="closeAllMenus()">Gift Cards</a>
-                    <span class="sub-link-disabled" aria-disabled="true" title="Coming soon">Blog <small>Soon</small></span>
+                    <!-- Driven by the admin toggle Blog → Settings → "Blog page visible
+                         to public" (BlogStatusService) — no code change to go live. -->
+                    <a *ngIf="blogPublicVisible" routerLink="/blog" (click)="closeAllMenus()">Blog</a>
+                    <span *ngIf="!blogPublicVisible" class="sub-link-disabled" aria-disabled="true" title="Coming soon">Blog <small>Soon</small></span>
                   </div>
                 </div>
                 <div class="dropdown-column">
@@ -303,6 +306,13 @@
                    (click)="closeAllMenus(); $event.stopPropagation()"
                    *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'">
                   CRM
+                </a>
+                <a routerLink="/admin/blog"
+                   (click)="closeAllMenus(); $event.stopPropagation()"
+                   *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'"
+                   class="blog-menu-item">
+                  Blog
+                  <span class="pending-drafts-badge" *ngIf="pendingBlogDrafts > 0">{{ pendingBlogDrafts }}</span>
                 </a>
                 <a routerLink="/cleaners-dashboard"
                    (click)="closeAllMenus(); $event.stopPropagation()"

@@ -1005,6 +1005,29 @@ header{
         animation: pulse-done-task 2s infinite;
       }
 
+      // Blog menu item with pending-drafts count badge
+      .blog-menu-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .pending-drafts-badge {
+        min-width: 18px;
+        height: 18px;
+        padding: 0 5px;
+        background-color: var(--warning-orange);
+        color: white;
+        border-radius: var(--radius-pill);
+        font-size: 0.7rem;
+        font-weight: var(--fw-bold);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        margin-left: 8px;
+      }
+
     }
   }
 
