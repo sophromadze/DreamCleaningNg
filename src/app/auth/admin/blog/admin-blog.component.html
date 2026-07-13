@@ -109,12 +109,14 @@
       <div class="editor-fields">
         <label class="field">
           <span>Title</span>
-          <input type="text" [(ngModel)]="editorForm.title" maxlength="200" placeholder="Article headline" />
+          <input type="text" [(ngModel)]="editorForm.title" (ngModelChange)="onTitleChanged($event)"
+                 maxlength="200" placeholder="Article headline" />
         </label>
 
         <label class="field">
           <span>Slug (the link) <small *ngIf="editorSlugLocked" class="locked-hint">🔒 locked — the article is published and Google has this link</small></span>
-          <input type="text" [(ngModel)]="editorForm.slug" maxlength="220" [disabled]="editorSlugLocked"
+          <input type="text" [(ngModel)]="editorForm.slug" (ngModelChange)="onSlugEdited($event)"
+                 maxlength="220" [disabled]="editorSlugLocked"
                  placeholder="auto-generated-from-title" />
         </label>
 

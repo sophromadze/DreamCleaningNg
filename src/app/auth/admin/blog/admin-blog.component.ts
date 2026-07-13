@@ -55,6 +55,7 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
   editingPost: BlogPostAdmin | null = null; // null = list mode; id 0 = new post
   editorForm: SaveBlogPost = this.emptyForm();
   editorSlugLocked = false;
+  editorSlugManuallyEdited = false;
   editorBusy = false;
   editorError = '';
   previewHtml: SafeHtml | null = null;
@@ -206,6 +207,7 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
     };
     this.editorForm = this.emptyForm();
     this.editorSlugLocked = false;
+    this.editorSlugManuallyEdited = false;
     this.editorError = '';
     this.previewHtml = null;
     this.activeTab = 'editor';
@@ -231,6 +233,9 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
           authorName: post.authorName
         };
         this.editorSlugLocked = post.status === BlogPostStatus.Published;
+        // Keep auto-syncing only while the slug still looks auto-generated;
+        // a slug that diverges from the title was chosen deliberately.
+        this.editorSlugManuallyEdited = !!post.slug && post.slug !== this.slugify(post.title);
         this.editorError = '';
         this.editorBusy = false;
         this.renderPreview(post.contentMarkdown);
@@ -252,6 +257,35 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
 
   onMarkdownChanged(value: string): void {
     this.previewInput$.next(value);
+  }
+
+  onTitleChanged(value: string): void {
+    if (this.editorSlugLocked || this.editorSlugManuallyEdited) return;
+    this.editorForm.slug = this.slugify(value);
+  }
+
+  onSlugEdited(value: string): void {
+    // Clearing the field hands control back to auto-generation.
+    if (!value.trim()) {
+      this.editorSlugManuallyEdited = false;
+      this.editorForm.slug = this.slugify(this.editorForm.title);
+    } else {
+      this.editorSlugManuallyEdited = true;
+    }
+  }
+
+  /** Mirrors BlogContentService.Slugify on the backend (which still has the
+   *  final word on save — uniqueness suffixes are applied server-side). */
+  private slugify(title: string): string {
+    if (!title || !title.trim()) return '';
+    const slug = title
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-{2,}/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return slug.length > 200 ? slug.slice(0, 200).replace(/-+$/, '') : slug;
   }
 
   private renderPreview(md: string): void {
@@ -299,6 +333,9 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
       next: (saved) => {
         this.editingPost = saved;
         this.editorForm.slug = saved.slug;
+        // Server may have adjusted the slug (uniqueness suffix); re-derive
+        // whether it still tracks the title so auto-sync doesn't clobber it.
+        this.editorSlugManuallyEdited = !!saved.slug && saved.slug !== this.slugify(saved.title);
 
         if (publishAfter && saved.status !== BlogPostStatus.Published) {
           this.blogService.adminPublishPost(saved.id).subscribe({
