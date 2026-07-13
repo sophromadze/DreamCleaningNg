@@ -506,7 +506,7 @@
   </section>
 
   <!-- Local service-area hero (moved to bottom). -->
-  <div class="hero-section">
+  <div class="hero-section service-area-hero">
     <div class="container">
       <div class="hero-map">
         <app-service-area-map
@@ -541,4 +541,15 @@
       </div>
     </div>
   </div>
+
+  <!-- Sticky ZIP-coverage checker: floats centered at the viewport bottom while scrolling,
+       expands the map on focus, and hides once the hero above scrolls into view. -->
+  <app-service-area-map
+    variant="sticky"
+    dockSelector=".service-area-hero"
+    borough="brooklyn"
+    [serviceZipCodes]="brooklynZips"
+    [mapCenter]="brooklynMapCenter"
+    [zoomLevel]="brooklynZoom">
+  </app-service-area-map>
 </div>

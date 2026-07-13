@@ -128,3 +128,147 @@
 :host ::ng-deep .leaflet-bottom.leaflet-right {
   display: none !important;
 }
+
+/* ============================================================
+   Sticky variant — centered coverage bar fixed to the viewport
+   bottom, expanding into a bottom-sheet map on focus.
+   ============================================================ */
+.sticky-coverage {
+  position: fixed;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  z-index: 997;
+  width: min(560px, calc(100% - 1.5rem));
+  display: flex;
+  flex-direction: column;
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+
+  /* Docked = the real hero (with its own map + search) is on screen; hide the floating bar. */
+  &.docked {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateX(-50%) translateY(1.5rem);
+  }
+}
+
+.sticky-map-sheet {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(0.5rem);
+  transition: max-height 0.35s ease, opacity 0.3s ease, transform 0.3s ease;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  box-shadow: 0 -4px 24px var(--shadow-color);
+
+  &.open {
+    max-height: 70vh;
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.9rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .sheet-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .sheet-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    font-size: 1.4rem;
+    line-height: 1;
+    color: var(--text-muted);
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+
+    &:hover {
+      background: var(--surface-subtle);
+      color: var(--text-primary);
+    }
+  }
+
+  .map-container {
+    height: 50vh;
+    max-height: 360px;
+    min-height: 220px;
+    border-top: none;
+    border-radius: 0;
+  }
+}
+
+.sticky-bar {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 6px 28px var(--shadow-color);
+  padding: 0.75rem 0.9rem;
+
+  /* When the sheet is open, square off the shared edge so bar + sheet read as one panel. */
+  .sticky-coverage.expanded & {
+    border-radius: 0 0 12px 12px;
+  }
+
+  .search-input {
+    max-width: none;
+  }
+
+  .message {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .sticky-map-sheet .map-container {
+    height: 45vh;
+    max-height: 300px;
+  }
+}
+
+/* On mobile / touch the site shows <app-sticky-mobile-cta> (a ~35px fixed bar pinned to
+   bottom:0, plus the iOS safe-area inset). Lift the coverage bar above it so it isn't
+   covered. Matches that component's own breakpoint. */
+@media (max-width: 768px), (hover: none) {
+  .sticky-coverage {
+    bottom: calc(35px + env(safe-area-inset-bottom, 0px) + 0.75rem);
+    width: min(560px, calc(100% - 1rem));
+  }
+
+  /* Slightly more compact bar on mobile. */
+  .sticky-bar {
+    padding: 0.5rem 0.6rem;
+
+    .search-row {
+      gap: 0.5rem;
+    }
+
+    .search-input {
+      padding: 0.45rem 0.7rem;
+      font-size: 0.9rem;
+    }
+
+    .search-btn {
+      padding: 0.45rem 0.9rem;
+      font-size: 0.85rem;
+    }
+  }
+}

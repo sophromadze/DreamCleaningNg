@@ -6,6 +6,8 @@ import {
   PLATFORM_ID,
   inject,
   ChangeDetectorRef,
+  ViewChild,
+  ElementRef,
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
@@ -42,6 +44,16 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
   @Input() serviceZipCodes: string[] = [];
   @Input() mapCenter: [number, number] = [40.6502, -73.9496];
   @Input() zoomLevel = 12;
+  /**
+   * `inline` (default) renders the search box above a full always-loaded map (hero usage).
+   * `sticky` renders a centered bar fixed to the viewport bottom; the map lazy-loads and
+   * expands as a bottom sheet on first focus, and the bar hides once `dockSelector` is in view.
+   */
+  @Input() variant: 'inline' | 'sticky' = 'inline';
+  /** In `sticky` mode, the bar docks (hides) while this element is on screen so it never duplicates the hero. */
+  @Input() dockSelector = '.hero-section';
+
+  @ViewChild('mapContainer') private mapContainerRef?: ElementRef<HTMLElement>;
 
   private platformId = inject(PLATFORM_ID);
   private http = inject(HttpClient);
@@ -53,6 +65,13 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
   searchMessage = '';
   searchSuccess: boolean | null = null;
   highlightedZipCode: string | null = null;
+
+  /** sticky-only UI state */
+  isExpanded = false;
+  isDocked = false;
+  private mapInitialized = false;
+  private pendingFlyZip: string | null = null;
+  private dockObserver?: IntersectionObserver;
 
   private map: import('leaflet').Map | null = null;
   private tileLayer: import('leaflet').TileLayer | null = null;
@@ -67,12 +86,53 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
     this.zipToNeighborhood = getZipToNeighborhood(this.borough);
     this.boroughZips = getAllZipsForBorough(this.borough);
     this.themeSub = this.themeService.theme$.pipe(skip(1)).subscribe(() => this.updateMapTileLayer());
-    this.loadGeoJsonAndInitMap();
+    if (this.variant === 'sticky') {
+      // Map is lazy-loaded on first focus; just wire up the dock/hide behavior now.
+      this.setupDockObserver();
+    } else {
+      this.loadGeoJsonAndInitMap();
+    }
   }
 
   ngOnDestroy(): void {
     this.themeSub?.unsubscribe();
+    this.dockObserver?.disconnect();
     this.clearMap();
+  }
+
+  /** Hide the sticky bar while the hero (which has its own map + search) is on screen. */
+  private setupDockObserver(): void {
+    if (typeof IntersectionObserver === 'undefined') return;
+    const target = document.querySelector(this.dockSelector);
+    if (!target) return;
+    this.dockObserver = new IntersectionObserver(
+      (entries) => {
+        const docked = entries.some((e) => e.isIntersecting);
+        this.isDocked = docked;
+        if (docked && this.isExpanded) this.isExpanded = false;
+        this.cdr.markForCheck();
+      },
+      { root: null, threshold: 0 }
+    );
+    this.dockObserver.observe(target);
+  }
+
+  /** Open the bottom-sheet map; lazy-init leaflet on the first open. */
+  expand(): void {
+    if (this.isDocked || this.isExpanded) return;
+    this.isExpanded = true;
+    this.cdr.markForCheck();
+    if (!this.mapInitialized) {
+      this.mapInitialized = true;
+      this.loadGeoJsonAndInitMap();
+    }
+    // Re-measure after the open transition so leaflet renders at the sheet's real size.
+    setTimeout(() => this.map?.invalidateSize(), 400);
+  }
+
+  collapse(): void {
+    this.isExpanded = false;
+    this.cdr.markForCheck();
   }
 
   private clearMap(): void {
@@ -288,7 +348,7 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
     import('leaflet').then((leafletModule: any) => {
       const L = leafletModule.default || leafletModule;
       this.clearMap();
-      const mapEl = document.getElementById('service-area-map');
+      const mapEl = this.mapContainerRef?.nativeElement;
       if (!mapEl) return;
       (mapEl as unknown as { _leaflet_id?: number })._leaflet_id = undefined;
 
@@ -308,7 +368,7 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
         console.warn('[ServiceAreaMap] No features found for this borough. Check GeoJSON file and ZIP code matching.');
       }
 
-      this.map = L.map('service-area-map', {
+      this.map = L.map(mapEl, {
         center: this.mapCenter,
         zoom: this.zoomLevel,
         zoomControl: false,
@@ -354,6 +414,14 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
           console.warn(`[ServiceAreaMap] Skipping feature with bad geometry — ZIP: ${zip}`, err);
         }
       }
+
+      // A search fired before the (lazy) map finished loading — apply it now.
+      if (this.highlightedZipCode) this.reapplyStyles();
+      if (this.pendingFlyZip) {
+        this.flyToZip(this.pendingFlyZip);
+        this.pendingFlyZip = null;
+      }
+      this.map?.invalidateSize();
 
       this.cdr.markForCheck();
     });
@@ -431,6 +499,11 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
   }
 
   private flyToZip(zip: string): void {
+    if (!this.map) {
+      // Sticky map still lazy-loading — remember the target and fly once it's ready.
+      this.pendingFlyZip = zip;
+      return;
+    }
     const layer = this.zipToLayer.get(zip);
     if (layer && this.map) {
       const leafletLayer = layer as unknown as { getBounds?: () => import('leaflet').LatLngBounds };
@@ -440,6 +513,8 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
   }
 
   onSearch(): void {
+    // In sticky mode a search should also reveal (and lazy-load) the map.
+    if (this.variant === 'sticky') this.expand();
     const raw = this.searchZip.trim().replace(/\D/g, '');
     this.searchMessage = '';
     this.searchSuccess = null;
