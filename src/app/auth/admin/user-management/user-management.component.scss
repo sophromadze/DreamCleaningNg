@@ -251,9 +251,17 @@ $app-header-height-mobile: 60px;
         }
 
         &.row-blocked {
-          color: #94a3b8;
+          background: var(--soft-red);
+          box-shadow: inset 3px 0 0 var(--bright-red);
 
-          .customer-name { color: #64748b; }
+          &:hover { background: var(--soft-red); }
+
+          .customer-name { color: var(--text-primary); }
+        }
+
+        &.row-blocked.row-selected {
+          background: var(--soft-red);
+          box-shadow: inset 3px 0 0 var(--bright-red);
         }
       }
 
@@ -387,7 +395,7 @@ $app-header-height-mobile: 60px;
   color: #64748b;
 
   &.first-time { background: #ecfdf5; color: #065f46; }
-  &.blocked { background: #fef2f2; color: #b91c1c; }
+  &.blocked { background: var(--soft-red); color: var(--bright-red); }
   &.no-email { background: var(--soft-yellow); color: var(--soft-yellow-text); }
 }
 
@@ -2021,6 +2029,16 @@ $app-header-height-mobile: 60px;
         &.row-selected {
           background: rgba(37, 99, 235, 0.18);
           box-shadow: inset 3px 0 0 #3b82f6;
+        }
+        &.row-blocked {
+          background: var(--soft-red);
+          box-shadow: inset 3px 0 0 var(--bright-red);
+
+          &:hover { background: var(--soft-red); }
+        }
+        &.row-blocked.row-selected {
+          background: var(--soft-red);
+          box-shadow: inset 3px 0 0 var(--bright-red);
         }
       }
       tbody .empty-row { color: var(--text-muted); }
