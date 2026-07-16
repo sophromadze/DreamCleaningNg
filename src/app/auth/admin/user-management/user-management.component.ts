@@ -117,6 +117,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   savingUser = false;
   togglingCommsUserId: number | null = null;
 
+  // Manual "we miss you" reminder (Admin/SuperAdmin)
+  sendingReminder = false;
+
   // Address editing (Admin/SuperAdmin)
   editingAddressId: number | null = null;
   editAddressDraft: Apartment | null = null;
@@ -1456,6 +1459,53 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       canReceiveEmails: this.userCanReceiveEmails(user),
       canReceiveMessages: this.userCanReceiveMessages(user)
     };
+  }
+
+  /** Send Reminder button: checks reminder history first, confirms (with an "already
+   *  reminded N days ago" warning when relevant), then sends the "we miss you" reminder. */
+  sendReminderToUser(): void {
+    if (!this.selectedUser || !this.canEditUserDetails(this.selectedUser) || this.sendingReminder) return;
+    const user = this.selectedUser;
+    this.sendingReminder = true;
+
+    this.adminService.getUserReminderStatus(user.id).subscribe({
+      next: (status) => {
+        // Never-ordered users get "book your first cleaning" copy instead of "we miss you".
+        const reminderKind = status.hasOrders ? '"we miss you" reminder' : '"book your first cleaning" invite';
+        let question: string;
+        if (status.daysAgo !== null && status.lastReminderSentAt) {
+          const when = status.daysAgo === 0 ? 'today'
+            : status.daysAgo === 1 ? 'yesterday'
+            : `${status.daysAgo} days ago`;
+          question = `${user.firstName} ${user.lastName} already got a reminder ${when}. Do you still want to send the ${reminderKind} again?`;
+        } else {
+          question = `Send a ${reminderKind} to ${user.firstName} ${user.lastName}?`;
+        }
+
+        if (!confirm(question)) {
+          this.sendingReminder = false;
+          return;
+        }
+
+        this.adminService.sendUserReminder(user.id).subscribe({
+          next: (res) => {
+            this.sendingReminder = false;
+            this.successMessage = res.message;
+            setTimeout(() => { this.successMessage = ''; }, 5000);
+          },
+          error: (err) => {
+            this.sendingReminder = false;
+            this.errorMessage = err.error?.message || 'Failed to send the reminder.';
+            setTimeout(() => { this.errorMessage = ''; }, 5000);
+          }
+        });
+      },
+      error: (err) => {
+        this.sendingReminder = false;
+        this.errorMessage = err.error?.message || 'Could not check this user\'s reminder history.';
+        setTimeout(() => { this.errorMessage = ''; }, 5000);
+      }
+    });
   }
 
   cancelEditUser(): void {

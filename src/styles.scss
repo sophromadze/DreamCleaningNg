@@ -994,3 +994,18 @@ gmp-place-autocomplete::part(prediction-item-selected) {
 }
 /* Apple Pay / Google Pay (Stripe Payment Request Button) container */
 .applepay-button-container { margin-bottom: 0.75rem; }
+
+/* On the borough service pages the sticky ZIP-coverage bar occupies the bottom-center
+   of the viewport. When it's present (body.has-coverage-bar, toggled by the sticky
+   ServiceAreaMap variant) lift the floating chat FAB/panel and the social banners a bit
+   so the bar doesn't crowd them. Global rules so they win over the component styles. */
+body.has-coverage-bar {
+  .chat-fab { bottom: 96px; }
+  .chat-panel { bottom: 164px; }
+
+  @media (max-width: 768px), (hover: none) {
+    .chat-fab { bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
+    .chat-panel { bottom: calc(182px + env(safe-area-inset-bottom, 0px)); }
+    .social-sticky-banners { top: 74%; }
+  }
+}

@@ -229,8 +229,17 @@
         </div>
       </div>
       <div class="detail-header__actions">
-        <button class="action-btn small" *ngIf="canEditUserDetails(selectedUser) && !editingUser" (click)="startEditUser()">Edit</button>
-        <button class="action-btn small ghost" (click)="closeDetailPanel()" aria-label="Close">✕</button>
+        <div class="actions-row">
+          <button class="action-btn small" *ngIf="canEditUserDetails(selectedUser) && !editingUser" (click)="startEditUser()">Edit</button>
+          <button class="action-btn small ghost" (click)="closeDetailPanel()" aria-label="Close">✕</button>
+        </div>
+        <button class="action-btn small"
+                *ngIf="canEditUserDetails(selectedUser) && !editingUser && selectedUser.role === 'Customer'"
+                (click)="sendReminderToUser()"
+                [disabled]="sendingReminder"
+                title="Send a reminder — &quot;we miss you&quot; for past customers, &quot;book your first cleaning&quot; for users who never ordered">
+          {{ sendingReminder ? 'Sending…' : 'Send Reminder' }}
+        </button>
       </div>
     </div>
 

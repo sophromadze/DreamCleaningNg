@@ -263,7 +263,8 @@
 
     .search-input {
       padding: 0.45rem 0.7rem;
-      font-size: 0.9rem;
+      /* Keep >=16px so iOS Safari doesn't auto-zoom the page on focus. */
+      font-size: 16px;
     }
 
     .search-btn {

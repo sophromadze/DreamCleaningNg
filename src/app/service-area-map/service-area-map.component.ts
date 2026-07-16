@@ -89,6 +89,8 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
     if (this.variant === 'sticky') {
       // Map is lazy-loaded on first focus; just wire up the dock/hide behavior now.
       this.setupDockObserver();
+      // Signal to global widgets (social banners, chat FAB) to lift above the coverage bar.
+      document.body.classList.add('has-coverage-bar');
     } else {
       this.loadGeoJsonAndInitMap();
     }
@@ -97,6 +99,9 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
   ngOnDestroy(): void {
     this.themeSub?.unsubscribe();
     this.dockObserver?.disconnect();
+    if (this.variant === 'sticky' && isPlatformBrowser(this.platformId)) {
+      document.body.classList.remove('has-coverage-bar');
+    }
     this.clearMap();
   }
 

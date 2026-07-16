@@ -802,6 +802,22 @@ export class AdminService {
     return this.http.put<{ adminNotes: string | null; message: string }>(`${this.apiUrl}/users/${userId}/admin-notes`, { adminNotes });
   }
 
+  /** Admin/SuperAdmin: when this user last received a reminder (automatic loyalty 30/60/90 or manual).
+   *  hasOrders drives the confirm-dialog wording ("we miss you" vs "book your first cleaning"). */
+  getUserReminderStatus(userId: number): Observable<{ lastReminderSentAt: string | null; daysAgo: number | null; lastReminderType: string | null; hasOrders: boolean }> {
+    return this.http.get<{ lastReminderSentAt: string | null; daysAgo: number | null; lastReminderType: string | null; hasOrders: boolean }>(
+      `${this.apiUrl}/users/${userId}/reminder-status`
+    );
+  }
+
+  /** Admin/SuperAdmin: manually send the "we miss you" reminder (same copy as the automatic 30-day one). */
+  sendUserReminder(userId: number): Observable<{ emailSent: boolean; smsSent: boolean; message: string }> {
+    return this.http.post<{ emailSent: boolean; smsSent: boolean; message: string }>(
+      `${this.apiUrl}/users/${userId}/send-reminder`,
+      {}
+    );
+  }
+
   /** SuperAdmin-only: full user update. All changes are audit-logged. */
   superAdminFullUpdateUser(userId: number, dto: SuperAdminUpdateUserDto): Observable<any> {
     return this.http.put(`${this.apiUrl}/users/${userId}/superadmin-full-update`, dto);
