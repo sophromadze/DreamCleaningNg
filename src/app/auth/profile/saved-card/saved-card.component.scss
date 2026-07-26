@@ -1,0 +1,150 @@
+// Self-contained section chrome matching the profile page's .section look (the parent's
+// scoped styles can't pierce this component). Dark mode flips at the end via :host-context.
+.saved-card-section {
+  background-color: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 10px 30px 20px;
+  margin-bottom: 1.5rem;
+
+  .section-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 5px;
+
+    h2 {
+      margin: 10px 0;
+      color: var(--primary-color);
+      font-size: 1.2rem;
+    }
+  }
+}
+
+:host-context([data-theme="dark"]) .saved-card-section {
+  background-color: var(--surface-elevated);
+  box-shadow: 0 2px 4px var(--shadow-color);
+  border: 1px solid var(--border-color);
+}
+
+.message {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+  font-weight: var(--fw-medium);
+
+  &--success {
+    background: var(--mint-fresh);
+    color: var(--fresh-green);
+    border: 1px solid var(--mint-fresh-border);
+  }
+
+  &--error {
+    background: var(--soft-red);
+    color: var(--bright-red);
+  }
+}
+
+.saved-card-loading {
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.saved-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.saved-card-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  i {
+    color: var(--primary-color);
+    font-size: 1.3rem;
+  }
+}
+
+.saved-card-name {
+  color: var(--text-primary);
+  font-weight: var(--fw-semibold);
+}
+
+.saved-card-hint {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-top: 2px;
+}
+
+.saved-card-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.saved-card-empty {
+  p {
+    color: var(--text-secondary);
+    margin: 0 0 12px;
+  }
+}
+
+.save-btn,
+.replace-btn {
+  background: var(--btn-primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 18px;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--btn-primary-hover); }
+  &:disabled { opacity: 0.55; cursor: default; }
+}
+
+.remove-btn {
+  background: transparent;
+  color: var(--bright-red);
+  border: 1px solid var(--bright-red);
+  border-radius: var(--radius-sm);
+  padding: 10px 18px;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--soft-red); }
+  &:disabled { opacity: 0.55; cursor: default; }
+}
+
+.plain-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 10px 18px;
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--surface-subtle); }
+  &:disabled { opacity: 0.55; cursor: default; }
+}
+
+.card-form {
+  margin-top: 16px;
+
+  .card-element-box {
+    padding: 14px;
+    background: var(--surface-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    margin-bottom: 12px;
+  }
+
+  .card-form-actions {
+    display: flex;
+    gap: 10px;
+  }
+}

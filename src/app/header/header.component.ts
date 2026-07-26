@@ -250,6 +250,16 @@ export class HeaderComponent implements OnInit, OnDestroy {
     return canViewAdminPage(this.currentUser, pageKey);
   }
 
+  /** Show the single "Company" dropdown entry only when the user can see at least one of its tabs. */
+  canViewCompany(): boolean {
+    return this.canViewPage('statistics')
+      || this.canViewPage('expenses')
+      || this.canViewPage('finances')
+      || this.canViewPage('ads')
+      || this.canViewPage('traffic')
+      || this.canViewPage('keywords');
+  }
+
   get isInternalUser(): boolean {
     const role = this.currentUser?.role;
     return role === 'SuperAdmin' || role === 'Admin' || role === 'Moderator';

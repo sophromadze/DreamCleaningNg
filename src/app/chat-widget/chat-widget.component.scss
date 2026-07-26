@@ -61,9 +61,29 @@
     height: min(520px, calc(100vh - 190px));
   }
 
-  @media (max-width: 480px) {
-    left: 16px;
-    width: auto;
+  // Full-screen takeover on phones — ≤550px wide (portrait) or ≤550px tall on
+  // touch devices (landscape phones). Overrides the floating-panel geometry above.
+  @media (max-width: 550px), ((max-height: 550px) and (pointer: coarse)) {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    max-width: none;
+    height: 100dvh;
+    border: none;
+    border-radius: 0;
+  }
+}
+
+// Safe-area padding while the panel is full-screen (notch top, home bar bottom).
+@media (max-width: 550px), ((max-height: 550px) and (pointer: coarse)) {
+  .chat-panel__header {
+    padding-top: calc(14px + env(safe-area-inset-top, 0px));
+  }
+
+  .chat-panel__input {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -466,6 +486,11 @@
   background: var(--surface-subtle);
   color: var(--text-primary);
 
+  // iOS Safari auto-zooms the page when a focused input is under 16px.
+  @media (max-width: 768px), (hover: none) {
+    font-size: 16px;
+  }
+
   &::placeholder {
     color: var(--text-muted);
   }
@@ -563,6 +588,11 @@
   font-family: inherit;
   background: var(--surface-subtle);
   color: var(--text-primary);
+
+  // iOS Safari auto-zooms the page when a focused input is under 16px.
+  @media (max-width: 768px), (hover: none) {
+    font-size: 16px;
+  }
 
   &::placeholder {
     color: var(--text-muted);

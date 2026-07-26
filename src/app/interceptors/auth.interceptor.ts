@@ -6,6 +6,7 @@ import { isPlatformBrowser } from '@angular/common';
 import { AuthService } from '../services/auth.service';
 import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
+import { deviceTokenHeaderValue } from '../services/two-factor.service';
 
 // Functional interceptor approach for Angular 17+
 export function authInterceptor(
@@ -36,9 +37,10 @@ export function authInterceptor(
                        || req.url.includes('/auth/verify-login-otp');
   if (isBrowser && isLoginRequest) {
     try {
-      const deviceToken = localStorage.getItem('tf_device_token');
-      if (deviceToken) {
-        req = req.clone({ setHeaders: { 'X-Device-Token': deviceToken } });
+      // All stored tokens (one per staff user of this browser), comma-joined.
+      const deviceTokens = deviceTokenHeaderValue();
+      if (deviceTokens) {
+        req = req.clone({ setHeaders: { 'X-Device-Token': deviceTokens } });
       }
     } catch { /* localStorage may be unavailable; non-fatal */ }
   }
@@ -110,9 +112,9 @@ export class AuthInterceptor implements HttpInterceptor {
                          || request.url.includes('/auth/verify-login-otp');
     if (this.isBrowser && isLoginRequest) {
       try {
-        const deviceToken = localStorage.getItem('tf_device_token');
-        if (deviceToken) {
-          request = request.clone({ setHeaders: { 'X-Device-Token': deviceToken } });
+        const deviceTokens = deviceTokenHeaderValue();
+        if (deviceTokens) {
+          request = request.clone({ setHeaders: { 'X-Device-Token': deviceTokens } });
         }
       } catch { /* non-fatal */ }
     }

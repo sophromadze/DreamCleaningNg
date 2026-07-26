@@ -16,6 +16,8 @@ import { forkJoin, of } from 'rxjs';
 import { catchError, finalize } from 'rxjs/operators';
 import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
 import { ShiftService, ShiftAdmin } from '../../../services/shift.service';
+import { CardOnFileService, OrderSavedCardInfo } from '../../../services/card-on-file.service';
+import { CARD_ON_FILE_ENABLED } from '../../../shared/card-on-file.flag';
 import { formatNy } from '../../../shared/ny-time.util';
 import {
   calculateTotals,
@@ -61,6 +63,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   orders: AdminOrderList[] = [];
   selectedOrder: Order | null = null;
+  /** User id whose flag is mid-update (disables the panel flag buttons). */
+  flaggingOrderUserId: number | null = null;
   viewingOrderId: number | null = null;
 
   // ── Order cleaning photos (shared with the per-user photo library) ──
@@ -220,8 +224,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     assigningCleaners: false,
     removingCleaner: false,
     sendAssignmentMails: false,
-    sendPaymentLink: false
+    sendPaymentLink: false,
+    chargingSavedCard: false
   };
+
+  // Card on file for the open order's owner (Charge button). Loaded when the details
+  // panel opens; null until then / when the owner has no saved card.
+  orderSavedCardInfo: OrderSavedCardInfo | null = null;
   private resendingCleanerEmailKeys = new Set<string>();
 
   // "Send Payment Link" modal — re-sends the original payment-link email/SMS to the
@@ -336,6 +345,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     public orderReminderService: OrderReminderService,
     public newOrderNotificationService: NewOrderNotificationService,
     private bubbleRewardsService: BubbleRewardsService,
+    private cardOnFileService: CardOnFileService,
     private cdr: ChangeDetectorRef,
     private shiftService: ShiftService
   ) {}
@@ -493,9 +503,97 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  // ── Card on file: explicit admin charge (never automatic) ──
+
+  private loadOrderSavedCardInfo(orderId: number): void {
+    this.orderSavedCardInfo = null;
+    if (!CARD_ON_FILE_ENABLED) return;
+    this.cardOnFileService.getOrderSavedCardInfo(orderId).subscribe({
+      next: (info) => {
+        if (this.viewingOrderId === orderId) this.orderSavedCardInfo = info;
+      },
+      error: () => { /* no Charge button — everything else still works */ }
+    });
+  }
+
+  /** Charge button shows only for a plain unpaid order whose owner has a card on file. */
+  canChargeSavedCard(): boolean {
+    const order = this.selectedOrder;
+    return CARD_ON_FILE_ENABLED &&
+      !!order &&
+      !order.isPaid &&
+      (!order.paymentMethod || order.paymentMethod === 'Normal') &&
+      (order.status || '').toLowerCase() !== 'cancelled' &&
+      this.orderSavedCardInfo?.hasCard === true;
+  }
+
+  chargeSavedCard(): void {
+    const order = this.selectedOrder;
+    if (!order || this.loadingStates.chargingSavedCard || !this.canChargeSavedCard()) return;
+
+    const cardLabel = this.orderSavedCardInfo?.last4
+      ? `card ending ${this.orderSavedCardInfo.last4}`
+      : 'saved card';
+    if (!confirm(`Charge $${order.total?.toFixed(2)} to the customer's ${cardLabel} now?`)) return;
+
+    this.loadingStates.chargingSavedCard = true;
+    this.successMessage = '';
+    this.errorMessage = '';
+
+    this.cardOnFileService.chargeOrderSavedCard(order.id).subscribe({
+      next: (res) => {
+        this.loadingStates.chargingSavedCard = false;
+        // charged=false is a clean outcome (declined / needs the customer present) —
+        // the backend message says exactly what happened and the order stays unpaid.
+        if (res.charged) {
+          this.successMessage = res.message;
+          setTimeout(() => { this.successMessage = ''; }, 8000);
+        } else {
+          this.errorMessage = res.message;
+        }
+        this.refreshSelectedOrderAfterTransfer(order.id);
+      },
+      error: (err) => {
+        this.loadingStates.chargingSavedCard = false;
+        this.errorMessage = err.error?.message || 'The charge failed unexpectedly. The order is unchanged.';
+      }
+    });
+  }
+
   // Assigned-admin pill helpers (mirror order-details.component but local to this view).
   assignedAdminLabel(): string {
     return this.selectedOrder?.assignedAdminDisplayName?.trim() || 'Unassigned';
+  }
+
+  // ── Marketing origin (attribution) ──
+
+  /** First-touch channel label, or '' when the order has no attribution (the line is hidden). */
+  originFirstTouch(order: Order | null): string {
+    return order?.acquisitionChannel?.trim() || '';
+  }
+
+  /** Converting-session channel — shown only when present AND different from first touch. */
+  originConverted(order: Order | null): string {
+    const converting = order?.convertingChannel?.trim();
+    if (!converting) return '';
+    return converting !== order?.acquisitionChannel?.trim() ? converting : '';
+  }
+
+  /** Tooltip with the source / medium / campaign detail behind each channel. */
+  originTooltip(order: Order | null): string {
+    if (!order) return '';
+    const detail = (s?: string | null, m?: string | null, c?: string | null): string =>
+      [s, m, c].map(x => (x || '').trim()).filter(x => x).join(' / ');
+    const lines: string[] = [];
+    if (order.acquisitionChannel) {
+      const d = detail(order.acquisitionSource, order.acquisitionMedium, order.acquisitionCampaign);
+      lines.push(`First touch: ${order.acquisitionChannel}${d ? ' — ' + d : ''}`);
+    }
+    if (order.convertingChannel) {
+      const d = detail(order.convertingSource, order.convertingMedium, order.convertingCampaign);
+      lines.push(`Converted: ${order.convertingChannel}${d ? ' — ' + d : ''}`);
+    }
+    return lines.join('\n');
   }
 
   toggleAssignedAdminEditor(): void {
@@ -537,6 +635,33 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   bookedByAdminLabel(): string {
     return this.viewedOrderListRow?.bookedByAdmin ? 'Admin' : 'Customer';
+  }
+
+  /**
+   * Flag the order's OWNER (single source of truth on the User). Because the flag is the
+   * customer's, we update the selected order AND every visible order that belongs to the
+   * same user, so the whole table re-tints at once. level: 'None' | 'Yellow' | 'Red'.
+   */
+  setOrderFlag(level: string): void {
+    if (!this.userPermissions.permissions.canUpdate || !this.selectedOrder) return;
+    const userId = this.selectedOrder.userId;
+    if (!userId) return;
+
+    const reason = level === 'None' ? null : (this.selectedOrder.flagReason ?? null);
+    this.flaggingOrderUserId = userId;
+    this.adminService.setUserFlag(userId, level, reason).subscribe({
+      next: () => {
+        if (this.selectedOrder && this.selectedOrder.userId === userId) {
+          this.selectedOrder.flag = level;
+          this.selectedOrder.flagReason = level === 'None' ? null : reason;
+        }
+        this.orders.forEach(o => {
+          if (o.userId === userId) { o.flag = level; o.flagReason = level === 'None' ? null : reason; }
+        });
+      },
+      complete: () => { this.flaggingOrderUserId = null; },
+      error: () => { this.flaggingOrderUserId = null; }
+    });
   }
 
   toggleBookedByAdmin(): void {
@@ -1149,6 +1274,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadingStates.orderDetails = true;
     this.resetOrderPhotoState();
     this.loadOrderPhotos(orderId);
+    this.loadOrderSavedCardInfo(orderId);
     this.resetTransferPanel();
     if (this.isSuperAdmin) this.loadOrderTransfers(orderId);
 

@@ -6,6 +6,8 @@ import { AuthService } from '../../../services/auth.service';
 import { BookingService } from '../../../services/booking.service';
 import { OrderService, Order } from '../../../services/order.service';
 import { StripeService } from '../../../services/stripe.service';
+import { CardOnFileService, SavedCard } from '../../../services/card-on-file.service';
+import { CARD_ON_FILE_ENABLED } from '../../../shared/card-on-file.flag';
 
 @Component({
   selector: 'app-order-payment',
@@ -45,6 +47,12 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   isGuestMode = false;
   private hasInitialized = false;
 
+  // Card on file: offered ONLY to the logged-in owner — never in guest/token mode, where
+  // the payer is often a relative who must not touch the owner's card. Selecting it never
+  // charges anything; the Pay button click does.
+  savedCard: SavedCard | null = null;
+  payWithSavedCard = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -52,8 +60,26 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
     private bookingService: BookingService,
     private orderService: OrderService,
     private stripeService: StripeService,
+    private cardOnFileService: CardOnFileService,
     private cdr: ChangeDetectorRef
   ) {}
+
+  get usingSavedCard(): boolean {
+    return !!this.savedCard && this.payWithSavedCard;
+  }
+
+  get savedCardLabel(): string {
+    if (!this.savedCard) return '';
+    const brand = this.savedCard.brand
+      ? this.savedCard.brand.charAt(0).toUpperCase() + this.savedCard.brand.slice(1)
+      : 'Card';
+    return this.savedCard.last4 ? `${brand} ending ${this.savedCard.last4}` : brand;
+  }
+
+  selectPaymentMethod(useSaved: boolean): void {
+    this.payWithSavedCard = useSaved;
+    this.cdr.detectChanges();
+  }
 
   ngOnInit() {
     this.guestToken = this.route.snapshot.queryParamMap.get('t');
@@ -151,6 +177,20 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         );
         this.isDeepCleaning = !!deepCleaning || !!superDeepCleaning;
         this.isCustomServiceType = this.isCustomServiceTypeOrder(order);
+
+        // Saved card — logged-in owner only (guest/token payers never see it).
+        if (CARD_ON_FILE_ENABLED && !this.isGuestMode && order.userId === this.currentUser?.id) {
+          this.cardOnFileService.getSavedCard().subscribe({
+            next: (res) => {
+              if (res.card) {
+                this.savedCard = res.card;
+                this.payWithSavedCard = true; // default to the faster path
+                this.cdr.detectChanges();
+              }
+            },
+            error: () => { /* no saved-card option — normal card form remains */ }
+          });
+        }
 
         // Create payment intent
         this.createPaymentIntent();
@@ -307,7 +347,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
 
   async processPayment() {
     if (this.isProcessing) return;
-    if (!this.fullyCovered && (this.cardError || !this.paymentClientSecret)) return;
+    if (!this.fullyCovered && ((!this.usingSavedCard && this.cardError) || !this.paymentClientSecret)) return;
 
     this.isProcessing = true;
     this.errorMessage = '';
@@ -326,12 +366,19 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
     }
 
     try {
-      // Confirm the payment. Non-null: this path only runs when !fullyCovered, where the
-      // early guard above already ensured paymentClientSecret is set.
-      const paymentIntent = await this.stripeService.confirmCardPayment(
-        this.paymentClientSecret!,
-        this.billingDetails
-      );
+      // Confirm the payment — with the saved card when selected (explicit Pay click;
+      // confirmPaymentRequest accepts any payment-method id and handles 3DS in-browser),
+      // otherwise with the entered card. Non-null: this path only runs when !fullyCovered,
+      // where the early guard above already ensured paymentClientSecret is set.
+      const paymentIntent = this.usingSavedCard && this.savedCard
+        ? await this.stripeService.confirmPaymentRequest(
+            this.paymentClientSecret!,
+            this.savedCard.paymentMethodId
+          )
+        : await this.stripeService.confirmCardPayment(
+            this.paymentClientSecret!,
+            this.billingDetails
+          );
       
       // Same as booking-confirmation: use paymentIntent.id from Stripe after confirmCardPayment
       const idForConfirm = paymentIntent?.id ?? (paymentIntent as any)?.paymentIntent?.id ?? this.paymentIntentId;

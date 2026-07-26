@@ -5,9 +5,10 @@ import { map, tap, catchError, switchMap, filter, take, first } from 'rxjs/opera
 import { Router } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
 import { environment } from '../../environments/environment';
-import { 
-  SocialAuthService, 
-  SocialUser 
+import { storeDeviceToken } from './two-factor.service';
+import {
+  SocialAuthService,
+  SocialUser
 } from '@abacritt/angularx-social-login';
 
 export interface UserDto {
@@ -313,7 +314,7 @@ export class AuthService {
     localStorage.removeItem('tf_pending_challenge');
     localStorage.removeItem('tf_requires_pin_setup');
     if (response.deviceToken) {
-      localStorage.setItem('tf_device_token', response.deviceToken);
+      storeDeviceToken(response.deviceToken);
     }
     this.currentUserSubject.next(response.user);
   }

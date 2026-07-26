@@ -1,0 +1,169 @@
+<div class="crm-ads">
+  <!-- Toolbar (shared range picker + export) -->
+  <div class="ads-toolbar">
+    <div class="preset-dropdown" [class.open]="dropdownOpen">
+      <button type="button" class="dropdown-trigger" (click)="toggleDropdown()" [attr.aria-expanded]="dropdownOpen">
+        <span>{{ rangeLabel }}</span>
+        <span class="caret" aria-hidden="true">▾</span>
+      </button>
+      <ul class="dropdown-menu" *ngIf="dropdownOpen" role="listbox">
+        <li *ngFor="let p of presets" class="dropdown-item"
+            [class.active]="period === p.key" role="option"
+            [attr.aria-selected]="period === p.key" (click)="selectPreset(p.key)">
+          {{ p.label }}
+        </li>
+      </ul>
+    </div>
+
+    <div class="custom-range">
+      <div class="filter">
+        <label for="kw-from">From</label>
+        <input id="kw-from" type="date" [(ngModel)]="fromDate" />
+      </div>
+      <div class="filter">
+        <label for="kw-to">To</label>
+        <input id="kw-to" type="date" [(ngModel)]="toDate" />
+      </div>
+      <button class="btn-light" (click)="applyCustom()" [disabled]="loadingOrganic || loadingPaid">Apply</button>
+    </div>
+
+    <div class="toolbar-spacer"></div>
+
+    <button class="btn-secondary" (click)="downloadExcel()" [disabled]="exporting || loadingOrganic || loadingPaid">
+      {{ exporting ? 'Exporting…' : 'Export Excel' }}
+    </button>
+  </div>
+
+  <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+  <div class="kw-grid">
+    <!-- ── Organic (Search Console) ── -->
+    <section class="kw-panel">
+      <div class="panel-head">
+        <div class="panel-title">
+          <span class="ch-dot ch-organic"></span>
+          <h3>Organic — Google Search</h3>
+        </div>
+        <span class="panel-sub">Queries people typed to find you in unpaid Google results</span>
+        <div class="panel-stats" *ngIf="organicTotals">
+          <span><strong>{{ organicTotals.clicks | number }}</strong> clicks</span>
+          <span><strong>{{ organicTotals.impressions | number }}</strong> impressions</span>
+          <span><strong>{{ organicTotals.ctr }}%</strong> CTR</span>
+          <span><strong>{{ organicTotals.queries | number }}</strong> queries</span>
+        </div>
+      </div>
+
+      <div class="ads-table-wrap" *ngIf="!loadingOrganic && organic.length > 0">
+        <table class="ads-table">
+          <thead>
+            <tr>
+              <th>Query</th>
+              <th class="num">Clicks</th>
+              <th class="num">Impr.</th>
+              <th class="num">CTR</th>
+              <th class="num">Avg pos.</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of organic; trackBy: trackByQuery">
+              <td class="kw-term" [title]="r.query">{{ r.query }}</td>
+              <td class="num"><span class="conv-booked">{{ r.clicks | number }}</span></td>
+              <td class="num muted">{{ r.impressions | number }}</td>
+              <td class="num muted">{{ r.ctr }}%</td>
+              <td class="num muted">{{ r.avgPosition }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="paging" *ngIf="organicTotalPages > 1">
+          <button class="btn-light" (click)="organicPrev()" [disabled]="organicPage <= 1">← Prev</button>
+          <span class="page-info">Page {{ organicPage }} of {{ organicTotalPages }} · {{ organicTotalCount }} queries</span>
+          <button class="btn-light" (click)="organicNext()" [disabled]="organicPage >= organicTotalPages">Next →</button>
+        </div>
+      </div>
+
+      <div class="state-msg" *ngIf="loadingOrganic">Loading…</div>
+      <div class="state-msg" *ngIf="!loadingOrganic && organic.length === 0">
+        No organic search data in this range yet.
+      </div>
+    </section>
+
+    <!-- ── Paid (Google Ads search terms) ── -->
+    <section class="kw-panel">
+      <div class="panel-head">
+        <div class="panel-title">
+          <span class="ch-dot ch-paid"></span>
+          <h3>Paid — Google Ads</h3>
+        </div>
+        <span class="panel-sub">Actual search terms that triggered your ads</span>
+        <div class="panel-stats" *ngIf="paidTotals">
+          <span><strong>{{ paidTotals.clicks | number }}</strong> clicks</span>
+          <span><strong>{{ paidTotals.costUsd | currency }}</strong> cost</span>
+          <span><strong>{{ paidTotals.conversions }}</strong> conv.</span>
+          <span><strong>{{ paidTotals.terms | number }}</strong> terms</span>
+        </div>
+      </div>
+
+      <div class="ads-table-wrap" *ngIf="!loadingPaid && paid.length > 0">
+        <table class="ads-table">
+          <thead>
+            <tr>
+              <th>Search term</th>
+              <th class="num">Clicks</th>
+              <th class="num">Cost</th>
+              <th class="num">Conv.</th>
+              <th class="num">Cost/click</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of paid; trackBy: trackByTerm">
+              <td class="kw-term" [title]="r.searchTerm">{{ r.searchTerm }}</td>
+              <td class="num"><span class="conv-booked">{{ r.clicks | number }}</span></td>
+              <td class="num muted">{{ r.costUsd | currency }}</td>
+              <td class="num muted">{{ r.conversions }}</td>
+              <td class="num muted">{{ r.cpc | currency }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="paging" *ngIf="paidTotalPages > 1">
+          <button class="btn-light" (click)="paidPrev()" [disabled]="paidPage <= 1">← Prev</button>
+          <span class="page-info">Page {{ paidPage }} of {{ paidTotalPages }} · {{ paidTotalCount }} terms</span>
+          <button class="btn-light" (click)="paidNext()" [disabled]="paidPage >= paidTotalPages">Next →</button>
+        </div>
+      </div>
+
+      <div class="state-msg" *ngIf="loadingPaid">Loading…</div>
+      <div class="state-msg" *ngIf="!loadingPaid && paid.length === 0">
+        No paid search-term data in this range yet.
+      </div>
+    </section>
+  </div>
+
+  <!-- ახსნა-განმარტება ადმინებისთვის (ქართულად) -->
+  <section class="ads-help">
+    <details>
+      <summary>ℹ️ Keywords — რას აჩვენებს ეს გვერდი (ინსტრუქცია)</summary>
+      <div class="help-body">
+        <div class="help-block">
+          <h4>Keywords — რით გეძებენ ხალხი</h4>
+          <p>
+            ეს გვერდი აჩვენებს, <strong>რა სიტყვებით პოულობენ თქვენს საიტს</strong> — ორ სვეტად:
+            მარცხნივ <strong>ორგანული</strong> (Google-ის უფასო შედეგები, Search Console-იდან),
+            მარჯვნივ <strong>ფასიანი</strong> (Google Ads-ის რეკლამა, რეალური საძიებო ფრაზები).
+          </p>
+          <ul>
+            <li><strong>Clicks</strong> — რამდენჯერ დააკლიკეს.</li>
+            <li><strong>Impressions</strong> — რამდენჯერ ნახეს (ჩვენება).</li>
+            <li><strong>CTR</strong> — კლიკების პროცენტი ჩვენებებთან (ორგანული).</li>
+            <li><strong>Avg pos.</strong> — საშუალო პოზიცია Google-ის შედეგებში (რაც ნაკლებია, მით უკეთესი).</li>
+            <li><strong>Cost / Conv. / Cost/click</strong> — რეკლამის ხარჯი, კონვერსიები და კლიკის ღირებულება (ფასიანი).</li>
+          </ul>
+          <p class="help-warn">
+            💡 თარიღების ფილტრი ორივე ცხრილს ეხება. „Export Excel" ორივეს ცალკე ფურცლად ჩამოტვირთავს.
+          </p>
+        </div>
+      </div>
+    </details>
+  </section>
+</div>

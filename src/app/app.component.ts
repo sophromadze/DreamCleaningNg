@@ -14,6 +14,7 @@ import { AuthModalComponent } from './auth/auth-modal/auth-modal.component';
 import { FirstTimeOfferPopupComponent } from './first-time-offer-popup/first-time-offer-popup.component';
 import { AuthService } from './services/auth.service';
 import { TokenRefreshService } from './services/token-refresh.service';
+import { AttributionService } from './services/attribution.service';
 // TEMPORARILY DISABLED — Telegram bot integration is off; widget is commented out in app.component.html.
 // import { LiveChatWidgetComponent } from './shared/live-chat-widget/live-chat-widget.component';
 // AI chat widget (visibility is server-controlled: Disabled / AdminOnly / Public)
@@ -106,6 +107,7 @@ export class AppComponent implements OnInit, OnDestroy {
   constructor(
     private authService: AuthService,
     private tokenRefreshService: TokenRefreshService,
+    private attributionService: AttributionService,
     private router: Router,
     private activatedRoute: ActivatedRoute,
     private titleService: Title,
@@ -163,6 +165,12 @@ export class AppComponent implements OnInit, OnDestroy {
     if (!this.isBrowser) {
       return;
     }
+
+    // Capture first-touch acquisition attribution (channel/source/medium/campaign) into the
+    // dc_attribution cookie before anything rewrites the URL. No-op if already captured.
+    this.attributionService.captureFirstTouch();
+    // Re-evaluate the converting session (30-min window; new campaign/referrer starts a new one).
+    this.attributionService.captureSession();
 
     // Capture referral code from URL ?ref=DREAM-XXXXX and store in localStorage
     this.captureReferralCode();

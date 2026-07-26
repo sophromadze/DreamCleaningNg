@@ -154,6 +154,28 @@ export class StripeService {
     return paymentIntent;
   }
 
+  // Confirm a SetupIntent with the mounted card element — saves a card WITHOUT charging it
+  // (profile "card on file" management). Returns the SetupIntent whose payment_method id
+  // the backend stores as the user's saved card.
+  async confirmCardSetup(clientSecret: string, billingDetails?: any): Promise<any> {
+    if (!this.stripe || !this.cardElement) {
+      throw new Error('Stripe not initialized');
+    }
+
+    const { error, setupIntent } = await this.stripe.confirmCardSetup(clientSecret, {
+      payment_method: {
+        card: this.cardElement,
+        billing_details: billingDetails
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return setupIntent;
+  }
+
   // Get payment intent
   async getPaymentIntentAsync(paymentIntentId: string): Promise<any> {
     if (!this.stripe) {

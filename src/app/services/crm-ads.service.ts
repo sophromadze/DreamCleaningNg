@@ -11,8 +11,8 @@ export interface AdsDailyRow {
   clicks: number;
   googleConversions: number;
   bookedOrders: number;
+  adBookedTimes: string[];        // NY booking times of orders that came straight from an ad
   googleConversionRate: number;   // conversions ÷ clicks, percent
-  bookedConversionRate: number;   // booked orders ÷ clicks, percent
 }
 
 export interface AdsTotals {
@@ -20,8 +20,8 @@ export interface AdsTotals {
   clicks: number;
   googleConversions: number;
   bookedOrders: number;
+  adBookedOrders: number;         // how many booked orders came straight from an ad
   googleConversionRate: number;
-  bookedConversionRate: number;
 }
 
 export interface AdsDailyResponse {

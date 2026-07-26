@@ -73,6 +73,8 @@
                 class="user-row"
                 [class.row-selected]="viewingUserId === user.id"
                 [class.row-blocked]="!user.isActive"
+                [class.row-flagged-red]="user.isActive && user.flag === 'Red'"
+                [class.row-flagged-yellow]="user.isActive && user.flag === 'Yellow'"
                 (click)="openUserDetails(user)">
 
               <!-- Customer (avatar + name + role chip) -->
@@ -101,6 +103,10 @@
                       </span>
                       <span *ngIf="user.firstTimeOrder" class="tag-chip first-time">First-time</span>
                       <span *ngIf="!user.isActive" class="tag-chip blocked">Blocked</span>
+                      <span *ngIf="user.isActive && user.flag === 'Red'" class="tag-chip flag-red"
+                            [title]="user.flagReason || 'Flagged (red)'">⚑ Red</span>
+                      <span *ngIf="user.isActive && user.flag === 'Yellow'" class="tag-chip flag-yellow"
+                            [title]="user.flagReason || 'Flagged (yellow)'">⚑ Yellow</span>
                     </span>
                   </div>
                 </div>
@@ -239,6 +245,13 @@
                 [disabled]="sendingReminder"
                 title="Send a reminder — &quot;we miss you&quot; for past customers, &quot;book your first cleaning&quot; for users who never ordered">
           {{ sendingReminder ? 'Sending…' : 'Send Reminder' }}
+        </button>
+        <button class="action-btn small warning"
+                *ngIf="isSuperAdmin && !editingUser && isStaffRole(selectedUser.role)"
+                (click)="resetStaffPin(selectedUser)"
+                [disabled]="resettingPin"
+                title="Unlock this staff account and clear their login PIN. They'll set a brand-new PIN on their next login.">
+          {{ resettingPin ? 'Resetting…' : 'Reset Login PIN' }}
         </button>
       </div>
     </div>
@@ -535,6 +548,31 @@
                         [class.disabled]="togglingCommsUserId === selectedUser.id">No</span>
                 </span>
                 <span *ngIf="!canUpdate">{{ userCanReceiveMessages(selectedUser) ? 'Yes' : 'No' }}</span>
+              </span>
+
+              <!-- Admin-only problem flag. Single source of truth (User.Flag): every order of
+                   this customer picks up the same tint. Internal — the customer never sees it. -->
+              <span class="pref-row flag-row" *ngIf="canUpdate">
+                <span class="pref-label">Flag</span>
+                <span class="flag-toggle">
+                  <span class="flag-btn none" [class.active]="(selectedUser.flag || 'None') === 'None'"
+                        [class.disabled]="flaggingUserId === selectedUser.id"
+                        (click)="setUserFlag(selectedUser, 'None', $event)">None</span>
+                  <span class="flag-btn yellow" [class.active]="selectedUser.flag === 'Yellow'"
+                        [class.disabled]="flaggingUserId === selectedUser.id"
+                        (click)="setUserFlag(selectedUser, 'Yellow', $event)">⚑ Yellow</span>
+                  <span class="flag-btn red" [class.active]="selectedUser.flag === 'Red'"
+                        [class.disabled]="flaggingUserId === selectedUser.id"
+                        (click)="setUserFlag(selectedUser, 'Red', $event)">⚑ Red</span>
+                </span>
+              </span>
+              <span class="pref-row flag-reason-row" *ngIf="canUpdate && selectedUser.flag && selectedUser.flag !== 'None'">
+                <span class="pref-label">Reason</span>
+                <input class="flag-reason-input" type="text" maxlength="500"
+                       placeholder="Why flagged? (optional)"
+                       [ngModel]="selectedUser.flagReason || ''"
+                       (blur)="saveUserFlagReason(selectedUser, $event)"
+                       (click)="$event.stopPropagation()">
               </span>
 
               <span class="pref-row" *ngIf="canModifyUserRole(selectedUser)">

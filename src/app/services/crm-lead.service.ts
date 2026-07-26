@@ -49,6 +49,10 @@ export interface Lead {
   lastActivityAt: string;
   isArchived?: boolean;
   archivedAt?: string;
+  /** Admin-only problem flag of the matched customer: 'None' | 'Yellow' | 'Red'. Derived from
+   *  User.Flag on the backend; the lead itself is never flagged. Drives the lead-card tint. */
+  flag?: string;
+  flagReason?: string | null;
 }
 
 export interface LeadActivity {

@@ -1,0 +1,8 @@
+<div class="trend-chart">
+  <div class="chart-canvas-wrap" *ngIf="hasData; else empty">
+    <canvas #canvas></canvas>
+  </div>
+  <ng-template #empty>
+    <div class="chart-empty">No data to chart in this range yet.</div>
+  </ng-template>
+</div>

@@ -1,5 +1,5 @@
 <div class="crm-ads">
-  <!-- Totals strip — sticky, stays pinned at the top while the table scrolls -->
+  <!-- Totals strip — sticky, stays pinned at the top while the table scrolls. Ad-only KPIs. -->
   <div class="stats-section" *ngIf="totals">
     <div class="stats-strip">
       <div class="stat">
@@ -12,11 +12,23 @@
       </div>
       <div class="stat stat--google">
         <span class="stat-value">{{ totals.googleConversions }}</span>
-        <span class="stat-label">Google conversions ({{ totals.googleConversionRate }}%)</span>
+        <span class="stat-label">Conversions ({{ totals.googleConversionRate }}%)</span>
       </div>
       <div class="stat stat--booked">
         <span class="stat-value">{{ totals.bookedOrders }}</span>
-        <span class="stat-label">Booked orders ({{ totals.bookedConversionRate }}%)</span>
+        <span class="stat-label">Booked orders<span class="from-ad" *ngIf="totals.adBookedOrders > 0"> · {{ totals.adBookedOrders }} from ad</span></span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ costPerClick | currency }}</span>
+        <span class="stat-label">Cost / click</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ costPerConversion | currency }}</span>
+        <span class="stat-label">Cost / conversion</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value">{{ costPerBooked | currency }}</span>
+        <span class="stat-label">Cost / booked order</span>
       </div>
     </div>
   </div>
@@ -65,40 +77,54 @@
 
   <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
 
-  <!-- Table -->
-  <div class="ads-table-wrap" *ngIf="!loading && rows.length > 0">
-    <table class="ads-table">
-      <thead>
-        <tr>
-          <th>Date</th>
-          <th>Ad spend</th>
-          <th>Clicks</th>
-          <th>Google conversions</th>
-          <th>Booked orders</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let row of rows; trackBy: trackByDate">
-          <td>{{ row.date | date: 'EEE, MMM d, y' }}</td>
-          <td>{{ row.adSpend | currency }}</td>
-          <td>{{ row.clicks }}</td>
-          <td>
-            <span class="conv-google">{{ row.googleConversions }}</span>
-            <span class="conv-rate muted" *ngIf="row.clicks > 0">{{ row.googleConversionRate }}% of clicks</span>
-          </td>
-          <td>
-            <span class="conv-booked">{{ row.bookedOrders }}</span>
-            <span class="conv-rate muted" *ngIf="row.clicks > 0">{{ row.bookedConversionRate }}% of clicks</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <!-- Daily detail (primary content) — Google Ads performance vs real booked orders, day by day -->
+  <div class="daily-section" *ngIf="!loading && rows.length > 0">
+    <div class="daily-head">
+      <h3>Daily detail</h3>
+      <span class="daily-sub">{{ totalCount }} day{{ totalCount === 1 ? '' : 's' }} · Google Ads vs real booked orders</span>
+    </div>
 
-    <!-- Paging -->
-    <div class="paging" *ngIf="totalPages > 1">
-      <button class="btn-light" (click)="prevPage()" [disabled]="page <= 1">← Prev</button>
-      <span class="page-info">Page {{ page }} of {{ totalPages }} · {{ totalCount }} days</span>
-      <button class="btn-light" (click)="nextPage()" [disabled]="page >= totalPages">Next →</button>
+    <div class="ads-table-wrap">
+      <table class="ads-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Ad spend</th>
+            <th>Clicks</th>
+            <th>Conversions</th>
+            <th>Booked orders</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of rows; trackBy: trackByDate">
+            <td>{{ row.date | date: 'EEE, MMM d, y' }}</td>
+            <td>{{ row.adSpend | currency }}</td>
+            <td>{{ row.clicks }}</td>
+            <td>
+              <span class="conv-google">{{ row.googleConversions }}</span>
+              <span class="conv-rate muted" *ngIf="row.clicks > 0">{{ row.googleConversionRate }}% of clicks</span>
+            </td>
+            <td>
+              <div class="booked-cell">
+                <span class="conv-booked">{{ row.bookedOrders }}</span>
+                <!-- Booking times of the orders that came straight from an ad (Paid Search). -->
+                <span class="ad-times" *ngIf="row.adBookedTimes.length > 0"
+                      [title]="row.adBookedTimes.length + ' order(s) booked directly from an ad'">
+                  <span class="ad-times-label">from ad:</span>
+                  <span class="ad-time" *ngFor="let t of row.adBookedTimes">{{ t }}</span>
+                </span>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Paging -->
+      <div class="paging" *ngIf="totalPages > 1">
+        <button class="btn-light" (click)="prevPage()" [disabled]="page <= 1">← Prev</button>
+        <span class="page-info">Page {{ page }} of {{ totalPages }} · {{ totalCount }} days</span>
+        <button class="btn-light" (click)="nextPage()" [disabled]="page >= totalPages">Next →</button>
+      </div>
     </div>
   </div>
 
@@ -106,4 +132,33 @@
   <div class="state-msg" *ngIf="!loading && rows.length === 0 && !errorMessage">
     No ad activity in this range.
   </div>
+
+  <!-- ახსნა-განმარტება ადმინებისთვის (ქართულად) -->
+  <section class="ads-help">
+    <details>
+      <summary>ℹ️ Ads — რას აჩვენებს ეს ცხრილი (ინსტრუქცია)</summary>
+      <div class="help-body">
+        <div class="help-block">
+          <h4>Ads — რეკლამა და შედეგი (დახარჯვა → ჯავშნები)</h4>
+          <p>
+            ეს გვერდი აჩვენებს მხოლოდ <strong>Google Ads</strong>-ის ყოველდღიურ შედეგებს — რამდენი დაიხარჯა,
+            რამდენმა დააკლიკა და რამდენი <strong>რეალური ჯავშანი</strong> გაკეთდა იმ დღეს. სხვა არხები
+            (ორგანული, პირდაპირი და ა.შ.) აქ <u>აღარ ჩანს</u> — ისინი Traffic ტაბზეა.
+          </p>
+          <ul>
+            <li><strong>Ad spend</strong> — იმ დღეს რეკლამაზე დახარჯული თანხა (მოდის Expenses-იდან).</li>
+            <li><strong>Clicks</strong> — რამდენჯერ დააკლიკეს რეკლამას.</li>
+            <li><strong>Conversions</strong> — რამდენი კონვერსია დაითვალა <u>თავად Google Ads-მა</u> (ზარი, ფორმა და ა.შ.). ეს Google-ის მონაცემია.</li>
+            <li><strong>Booked orders</strong> — რამდენი <u>რეალური შეკვეთა</u> გაკეთდა იმ დღეს (გაუქმებულის გარეშე), ყველა წყაროდან.</li>
+            <li><strong>from ad: (დრო)</strong> — რომელ საათზე გაკეთდა შეკვეთა, რომელიც <u>პირდაპირ რეკლამიდან</u> მოვიდა (Paid Search). თუ ცარიელია — იმ დღეს პირდაპირ რეკლამიდან ჯავშანი არ ყოფილა.</li>
+          </ul>
+          <p class="help-warn">
+            💡 ზედა ბარათები აჩვენებს ჯამურ ეფექტიანობას: <strong>Cost / click</strong> (ერთი კლიკის ფასი),
+            <strong>Cost / conversion</strong> (ერთი კონვერსიის ფასი) და <strong>Cost / booked order</strong>
+            (ერთი რეალური ჯავშნის ფასი). „Export Excel" იგივე დიაპაზონს გადმოწერს.
+          </p>
+        </div>
+      </div>
+    </details>
+  </section>
 </div>

@@ -1,0 +1,315 @@
+/* Traffic tab — classic acquisition matrix. Reuses the Ads tab's toolbar/table tokens so the two
+   Company tabs read as one system. Styles are copied here because component styles are scoped. */
+:host { display: block; }
+
+.crm-traffic { position: relative; }
+
+/* ── Toolbar ── */
+.ads-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+
+  .preset-dropdown {
+    position: relative;
+
+    .dropdown-trigger {
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-width: 160px;
+      padding: 8px 14px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      font-weight: var(--fw-medium);
+      cursor: pointer;
+
+      &:hover { background: var(--surface-subtle); }
+      .caret { font-size: 0.7rem; color: var(--text-muted); transition: transform 0.15s ease; }
+    }
+
+    &.open .dropdown-trigger {
+      border-color: var(--primary-color);
+      .caret { transform: rotate(180deg); }
+    }
+
+    .dropdown-menu {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      z-index: 20;
+      min-width: 100%;
+      margin: 0;
+      padding: 4px;
+      list-style: none;
+      background: var(--surface-elevated);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      box-shadow: 0 8px 24px var(--shadow-color);
+    }
+
+    .dropdown-item {
+      padding: 8px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      cursor: pointer;
+
+      &:hover { background: var(--surface-subtle); }
+      &.active { background: var(--primary-color); color: #fff; font-weight: var(--fw-semibold); }
+    }
+  }
+
+  .custom-range { display: flex; align-items: flex-end; gap: 10px; }
+
+  .filter {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+
+    label { font-size: 0.75rem; color: var(--text-muted); }
+    input {
+      padding: 8px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+  }
+
+  .toolbar-spacer { flex: 1 1 auto; }
+}
+
+.btn-secondary {
+  padding: 9px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--btn-secondary);
+  color: #fff;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--btn-secondary-hover); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.btn-light {
+  padding: 7px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--surface-subtle); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.error-banner {
+  background: var(--soft-red);
+  color: var(--bright-red);
+  border: 1px solid var(--soft-red);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+/* ── Column toggle (plain checkboxes, no colors) ── */
+.channel-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 14px;
+  margin-bottom: 10px;
+  padding: 0 2px;
+
+  .legend-title { font-size: 0.75rem; font-weight: var(--fw-semibold); color: var(--text-secondary); }
+
+  .legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    user-select: none;
+
+    input[type="checkbox"] { width: 14px; height: 14px; margin: 0; cursor: pointer; accent-color: var(--primary-color); }
+    &.off { opacity: 0.45; }
+  }
+
+  .legend-label { font-size: 0.78rem; color: var(--text-secondary); }
+
+  .legend-reset {
+    border: none;
+    background: none;
+    padding: 0;
+    font-size: 0.75rem;
+    font-weight: var(--fw-semibold);
+    color: var(--primary-text);
+    cursor: pointer;
+    &:hover { text-decoration: underline; }
+  }
+}
+
+/* ── Section headings ── */
+.daily-section, .summary-section { margin-top: 4px; }
+.summary-section { margin-top: 24px; }
+
+.daily-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 10px;
+
+  h3 { margin: 0; font-size: 1rem; font-weight: var(--fw-bold); color: var(--text-primary); }
+  .daily-sub { font-size: 0.78rem; color: var(--text-muted); }
+}
+
+/* ── Table ── */
+.ads-table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow-x: auto; /* wide matrix scrolls horizontally on small screens */
+}
+
+.ads-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border-color); }
+  th {
+    background: var(--surface-subtle);
+    color: var(--text-secondary);
+    font-weight: var(--fw-semibold);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  td { color: var(--text-primary); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* Right-align numeric columns and keep digits monospaced-width so columns line up. */
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--text-muted); }
+}
+
+/* Matrix specifics: zebra rows, a separated + emphasized Total column, and a bold range-total footer. */
+.matrix-table {
+  .date-cell { white-space: nowrap; }
+
+  tbody tr:nth-child(even) td { background: var(--surface-subtle); }
+
+  .total-col {
+    border-left: 1px solid var(--border-color);
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+  th.total-col { color: var(--text-secondary); }
+
+  tfoot .range-total td {
+    border-top: 2px solid var(--border-color);
+    border-bottom: none;
+    background: var(--surface-subtle);
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+    white-space: nowrap;
+
+    .foot-sub { font-weight: var(--fw-medium); color: var(--text-muted); font-size: 0.8rem; }
+  }
+}
+
+/* ── Paging ── */
+.paging {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 14px;
+  border-top: 1px solid var(--border-color);
+
+  .page-info { font-size: 0.85rem; color: var(--text-muted); }
+}
+
+/* ── Provisional (not-yet-reconciled) indicators ── */
+.provisional-note {
+  margin: 10px 2px 0;
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+
+  strong { color: var(--warning-orange-text); font-weight: var(--fw-semibold); }
+}
+
+.provisional-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  font-size: 0.66rem;
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--warning-orange-text);
+  background: var(--warning-orange-bg);
+  border: 1px solid var(--warning-orange-border);
+  vertical-align: middle;
+}
+
+.state-msg { padding: 32px; text-align: center; color: var(--text-muted); }
+
+/* ── ახსნა-განმარტება (Georgian help), mirrors the Ads tab ── */
+.traffic-help {
+  margin-top: 32px;
+  border-top: 1px dashed var(--border-color);
+  padding-top: 16px;
+
+  details {
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+  }
+
+  summary {
+    cursor: pointer;
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    list-style: none;
+    &::-webkit-details-marker { display: none; }
+    &:hover { color: var(--text-primary); }
+  }
+
+  .help-body { margin-top: 14px; }
+
+  .help-block {
+    h4 { margin: 0 0 6px; font-size: 0.95rem; color: var(--text-primary); }
+    p { margin: 0 0 8px; font-size: 0.86rem; line-height: 1.7; color: var(--text-secondary); }
+    ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+    li { font-size: 0.86rem; line-height: 1.6; color: var(--text-secondary); }
+    strong { color: var(--text-primary); }
+    u { text-decoration-color: var(--warning-orange); }
+
+    .help-warn {
+      background: var(--warning-orange-bg);
+      color: var(--warning-orange-text);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      margin-top: 8px;
+      font-size: 0.85rem;
+      u { text-decoration-color: currentColor; }
+      strong { color: inherit; }
+    }
+  }
+}

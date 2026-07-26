@@ -81,15 +81,29 @@
         </div>
 
         <!-- Apple Pay / Google Pay button -->
-        <div id="payment-request-button" class="applepay-button-container" *ngIf="showApplePay && !fullyCovered"></div>
+        <!-- Saved card vs. new card (owner only; selecting never charges — the Pay button does) -->
+        <div class="saved-card-choice" *ngIf="savedCard && !fullyCovered">
+          <label class="pay-option" [class.selected]="payWithSavedCard">
+            <input type="radio" name="paymentMethodChoice" [checked]="payWithSavedCard"
+                   (change)="selectPaymentMethod(true)" [disabled]="isProcessing">
+            <span>Pay with {{ savedCardLabel }}</span>
+          </label>
+          <label class="pay-option" [class.selected]="!payWithSavedCard">
+            <input type="radio" name="paymentMethodChoice" [checked]="!payWithSavedCard"
+                   (change)="selectPaymentMethod(false)" [disabled]="isProcessing">
+            <span>Enter a new card</span>
+          </label>
+        </div>
+
+        <div id="payment-request-button" class="applepay-button-container" *ngIf="showApplePay && !fullyCovered && !usingSavedCard"></div>
 
         <!-- Card Element Container -->
-        <div id="card-element" class="card-element-container" [hidden]="fullyCovered">
+        <div id="card-element" class="card-element-container" [hidden]="fullyCovered || usingSavedCard">
           <!-- Stripe Elements will be mounted here -->
         </div>
 
         <!-- Card Error Message -->
-        <div class="card-error" *ngIf="cardError && !fullyCovered">
+        <div class="card-error" *ngIf="cardError && !fullyCovered && !usingSavedCard">
           {{ cardError }}
         </div>
 
@@ -103,7 +117,7 @@
           <button
             class="pay-btn"
             (click)="processPayment()"
-            [disabled]="isProcessing || (!fullyCovered && !!cardError) || isLoading">
+            [disabled]="isProcessing || (!fullyCovered && !usingSavedCard && !!cardError) || isLoading">
             <span *ngIf="!isProcessing && fullyCovered">Complete Booking</span>
             <span *ngIf="!isProcessing && !fullyCovered">Pay ${{ orderTotal | number:'1.2-2' }}</span>
             <span *ngIf="isProcessing">Processing...</span>

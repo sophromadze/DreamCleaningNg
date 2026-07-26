@@ -66,8 +66,8 @@ export class TrustedDevicesComponent implements OnInit {
         this.pendingRevokeId = null;
         if (wasCurrent) {
           // Revoking the current device means the next login from here requires 2FA again.
-          // Clear the local token so it doesn't sit around stale.
-          this.twoFactor.clearDeviceToken();
+          // The server-side revocation is authoritative; the now-inert local token is left
+          // in place because the storage is shared with other staff users of this browser.
           this.flashNotice('Device revoked. You\'ll need 2FA the next time you sign in here.');
         } else {
           this.flashNotice('Device revoked.');

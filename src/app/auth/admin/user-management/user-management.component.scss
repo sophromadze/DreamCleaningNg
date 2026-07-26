@@ -125,6 +125,13 @@ $app-header-height-mobile: 60px;
   &.danger { background: #fee2e2; color: #b91c1c; border-color: #fecaca;
     &:hover { background: #fecaca; }
   }
+  // Operational caution (e.g. Reset Login PIN) — uses the theme-aware warning-orange tokens.
+  &.warning {
+    background: var(--warning-orange-bg);
+    color: var(--warning-orange-text);
+    border-color: var(--warning-orange-border);
+    &:hover { background: var(--warning-orange-border); }
+  }
   &.add-row { width: 100%; justify-content: center; margin-top: 0.5rem; }
   &.inline { padding: 0 0.4rem; font-size: 0.7rem; line-height: 1; }
 }
@@ -263,6 +270,22 @@ $app-header-height-mobile: 60px;
           background: var(--soft-red);
           box-shadow: inset 3px 0 0 var(--bright-red);
         }
+
+        // Admin-only problem flag tints (mirror row-blocked). Blocked wins over a flag
+        // because the .row-blocked rule above is applied when !isActive and the template
+        // only sets flag classes while active.
+        &.row-flagged-red {
+          background: var(--soft-red);
+          box-shadow: inset 3px 0 0 var(--bright-red);
+          &:hover { background: var(--soft-red); }
+        }
+        &.row-flagged-yellow {
+          background: var(--soft-yellow);
+          box-shadow: inset 3px 0 0 var(--soft-yellow-text);
+          &:hover { background: var(--soft-yellow); }
+        }
+        &.row-flagged-red.row-selected { box-shadow: inset 3px 0 0 var(--bright-red); }
+        &.row-flagged-yellow.row-selected { box-shadow: inset 3px 0 0 var(--soft-yellow-text); }
       }
 
       .empty-row {
@@ -397,6 +420,8 @@ $app-header-height-mobile: 60px;
   &.first-time { background: #ecfdf5; color: #065f46; }
   &.blocked { background: var(--soft-red); color: var(--bright-red); }
   &.no-email { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+  &.flag-red { background: var(--soft-red); color: var(--bright-red); }
+  &.flag-yellow { background: var(--soft-yellow); color: var(--soft-yellow-text); }
 }
 
 // Last cleaning
@@ -1094,6 +1119,50 @@ $app-header-height-mobile: 60px;
     }
     &.disabled { opacity: 0.6; cursor: not-allowed; }
   }
+}
+
+// Admin-only problem-flag control (None / Yellow / Red)
+.flag-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--surface-subtle);
+  font-size: 0.72rem;
+
+  .flag-btn {
+    padding: 0.3rem 0.6rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all 0.12s;
+    white-space: nowrap;
+
+    & + .flag-btn { border-left: 1px solid var(--border-color); }
+
+    // Each button always shows its own color so the choices are recognisable at rest.
+    &.yellow { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+    &.red    { background: var(--soft-red); color: var(--bright-red); }
+
+    // Dim the unselected buttons; the selected one is full-strength + bold + ringed.
+    &:not(.active) { opacity: 0.55; }
+    &.active { font-weight: 700; }
+    &.none.active   { background: var(--text-muted); color: #fff; }
+    &.yellow.active { box-shadow: inset 0 0 0 2px var(--soft-yellow-text); }
+    &.red.active    { box-shadow: inset 0 0 0 2px var(--bright-red); }
+
+    &.disabled { opacity: 0.6; cursor: not-allowed; }
+  }
+}
+
+.flag-reason-row .flag-reason-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.72rem;
 }
 
 // Edit form (SuperAdmin)

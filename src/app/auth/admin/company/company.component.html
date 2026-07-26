@@ -1,0 +1,27 @@
+<div class="company-container">
+  <div class="company-header">
+    <div class="company-title">
+      <a routerLink="/admin" class="back-link">← Admin</a>
+      <h1>Company</h1>
+    </div>
+  </div>
+
+  <div class="company-tabs">
+    <a class="company-tab" *ngIf="canView('statistics')"
+       routerLink="statistics" routerLinkActive="active">Statistics</a>
+    <a class="company-tab" *ngIf="canView('expenses')"
+       routerLink="expenses" routerLinkActive="active">Expenses</a>
+    <a class="company-tab" *ngIf="canView('finances')"
+       routerLink="finances" routerLinkActive="active">Finances</a>
+    <a class="company-tab" *ngIf="canView('ads')"
+       routerLink="ads" routerLinkActive="active">Ads</a>
+    <a class="company-tab" *ngIf="canView('traffic')"
+       routerLink="traffic" routerLinkActive="active">Traffic</a>
+    <a class="company-tab" *ngIf="canView('keywords')"
+       routerLink="keywords" routerLinkActive="active">Keywords</a>
+  </div>
+
+  <div class="company-content">
+    <router-outlet></router-outlet>
+  </div>
+</div>

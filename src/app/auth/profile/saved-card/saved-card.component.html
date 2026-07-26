@@ -1,0 +1,52 @@
+<div class="section saved-card-section" *ngIf="featureEnabled">
+  <div class="section-header">
+    <h2>Saved Card</h2>
+  </div>
+
+  <div class="message message--success" *ngIf="successMessage">{{ successMessage }}</div>
+  <div class="message message--error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+  <p class="saved-card-loading" *ngIf="loading">Loading…</p>
+
+  <ng-container *ngIf="!loading">
+    <!-- Has a card -->
+    <div class="saved-card-row" *ngIf="card">
+      <div class="saved-card-info">
+        <i class="fas fa-credit-card" aria-hidden="true"></i>
+        <div>
+          <div class="saved-card-name">{{ cardDisplay }}</div>
+          <div class="saved-card-hint">
+            Used only when you confirm a payment — never charged automatically.
+          </div>
+        </div>
+      </div>
+      <div class="saved-card-actions">
+        <button class="replace-btn" (click)="openCardForm()" [disabled]="showCardForm || removing">Replace</button>
+        <button class="remove-btn" (click)="removeCard()" [disabled]="removing || showCardForm">
+          {{ removing ? 'Removing…' : 'Remove' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- No card -->
+    <div class="saved-card-empty" *ngIf="!card">
+      <p>
+        Save a card for faster checkout. It's only ever charged when you confirm a
+        payment — never automatically.
+      </p>
+      <button class="save-btn" (click)="openCardForm()" [disabled]="showCardForm">Save a Card</button>
+    </div>
+
+    <!-- Card entry form (SetupIntent — nothing is charged) -->
+    <div class="card-form" *ngIf="showCardForm">
+      <div id="saved-card-element" class="card-element-box"></div>
+      <div class="message message--error" *ngIf="cardError">{{ cardError }}</div>
+      <div class="card-form-actions">
+        <button class="save-btn" (click)="saveCard()" [disabled]="cardSaving">
+          {{ cardSaving ? 'Saving…' : 'Save Card' }}
+        </button>
+        <button class="plain-btn" (click)="closeCardForm()" [disabled]="cardSaving">Cancel</button>
+      </div>
+    </div>
+  </ng-container>
+</div>

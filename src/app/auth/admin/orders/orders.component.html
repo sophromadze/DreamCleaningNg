@@ -155,6 +155,9 @@
             <tr [class.expanded]="viewingOrderId === order.id"
                 [class.has-reminder]="orderReminderService.hasActiveReminder(order.id)"
                 [class.is-new-order]="newOrderNotificationService.isUnviewed(order.id)"
+                [class.row-flagged-red]="order.flag === 'Red'"
+                [class.row-flagged-yellow]="order.flag === 'Yellow'"
+                [title]="order.flag && order.flag !== 'None' ? ('Flagged customer (' + order.flag + ')' + (order.flagReason ? ': ' + order.flagReason : '')) : null"
                 (click)="viewOrderDetails(order.id)" style="cursor: pointer;">
               <td>
                 <span *ngIf="orderReminderService.hasActiveReminder(order.id)" class="reminder-indicator" title="Check this order!"></span>
@@ -277,6 +280,20 @@
     <div class="order-panel-header">
       <h3>Order #{{ selectedOrder?.id }}</h3>
       <div class="order-panel-header__actions">
+        <!-- Admin-only customer flag. Flags the ORDER'S OWNER (single source of truth on the
+             User), so every one of that customer's orders picks up the same tint. Internal. -->
+        <span class="flag-toggle" *ngIf="userPermissions.permissions.canUpdate && selectedOrder"
+              (click)="$event.stopPropagation()">
+          <span class="flag-btn none" [class.active]="(selectedOrder.flag || 'None') === 'None'"
+                [class.disabled]="flaggingOrderUserId === selectedOrder.userId"
+                (click)="setOrderFlag('None')" title="No flag">None</span>
+          <span class="flag-btn yellow" [class.active]="selectedOrder.flag === 'Yellow'"
+                [class.disabled]="flaggingOrderUserId === selectedOrder.userId"
+                (click)="setOrderFlag('Yellow')" title="Flag customer yellow (caution)">⚑</span>
+          <span class="flag-btn red" [class.active]="selectedOrder.flag === 'Red'"
+                [class.disabled]="flaggingOrderUserId === selectedOrder.userId"
+                (click)="setOrderFlag('Red')" title="Flag customer red (serious)">⚑</span>
+        </span>
         <!-- View mode: Edit -->
         <button class="action-btn small edit"
                 *ngIf="canEditOrder && !editingOrder && !loadingStates.orderDetails && selectedOrder"
@@ -393,6 +410,17 @@
                     </div>
                   </div>
 
+                  <!-- Marketing origin: first-touch channel, plus the converting-session channel only
+                       when it differs (repeat visitor). Hidden entirely for orders with no attribution. -->
+                  <div class="order-origin" *ngIf="originFirstTouch(selectedOrder)"
+                       [title]="originTooltip(selectedOrder)">
+                    <span class="origin-label">Origin:</span>
+                    <span class="origin-first">{{ originFirstTouch(selectedOrder) }}</span>
+                    <span class="origin-converted" *ngIf="originConverted(selectedOrder)">
+                      · converted via {{ originConverted(selectedOrder) }}
+                    </span>
+                  </div>
+
                   <!-- Top actions: assign cleaners / send assignment emails (kept at the top) -->
                   <div class="order-top-actions" *ngIf="!editingOrder && userPermissions.permissions.canView">
                     <button class="action-btn assign-cleaners"
@@ -415,6 +443,16 @@
                             [disabled]="loadingStates.sendPaymentLink"
                             title="Re-send the payment link to the customer's current account email/phone">
                       {{ loadingStates.sendPaymentLink ? 'Sending…' : 'Send Payment Link' }}
+                    </button>
+                    <!-- Explicit charge of the owner's card on file (unpaid orders only).
+                         Fires ONLY on this click — nothing is ever charged automatically. -->
+                    <button *ngIf="canChargeSavedCard() && (isSuperAdmin || userPermissions.permissions.canUpdate)"
+                            type="button"
+                            class="action-btn charge-saved-card"
+                            (click)="chargeSavedCard()"
+                            [disabled]="loadingStates.chargingSavedCard"
+                            [title]="'Charge the customer\'s saved card ending ' + (orderSavedCardInfo?.last4 || '')">
+                      {{ loadingStates.chargingSavedCard ? 'Charging…' : ('Charge $' + (selectedOrder.total | number:'1.2-2') + ' to card •••• ' + (orderSavedCardInfo?.last4 || '')) }}
                     </button>
                   </div>
 

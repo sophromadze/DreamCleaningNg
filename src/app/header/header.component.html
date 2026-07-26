@@ -307,6 +307,14 @@
                    *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'">
                   CRM
                 </a>
+                <!-- Company shell (Statistics/Expenses/Finances/Ads) — single entry, shown only when
+                     the user can see at least one tab. Replaces the old separate Stats/Expenses/
+                     Finances links (those routes still exist as redirects for old bookmarks). -->
+                <a routerLink="/admin/company"
+                   (click)="closeAllMenus(); $event.stopPropagation()"
+                   *ngIf="canViewCompany()">
+                  Company
+                </a>
                 <a routerLink="/admin/blog"
                    (click)="closeAllMenus(); $event.stopPropagation()"
                    *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'"
@@ -332,25 +340,12 @@
                    *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin'">
                   Shifts
                 </a>
-                <a routerLink="/admin/statistics"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="canViewPage('statistics')">
-                  Statistics
-                </a>
+                <!-- Statistics / Expenses / Finances collapsed into the single "Company" entry above.
+                     Bubble Rewards is its own page (admin/rewards), not a Company tab, so it stays. -->
                 <a routerLink="/admin/rewards"
                    (click)="closeAllMenus(); $event.stopPropagation()"
                    *ngIf="canViewPage('bubble-rewards')">
                   Bubble Rewards
-                </a>
-                <a routerLink="/admin/expenses"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="canViewPage('expenses')">
-                  Expenses
-                </a>
-                <a routerLink="/admin/finances"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="canViewPage('finances')">
-                  Finances
                 </a>
                 <a (click)="logout(); closeAllMenus(); $event.stopPropagation()">Logout</a>
               </div>

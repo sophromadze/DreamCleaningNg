@@ -243,6 +243,10 @@ export interface UserAdmin {
   lastBathrooms?: number | null;
   /** Total number of non-cancelled orders this user has placed. */
   totalOrdersCount?: number;
+  /** Admin-only problem flag: 'None' | 'Yellow' | 'Red'. Drives the row/background tint. */
+  flag?: string;
+  /** Optional admin note on why this customer is flagged. */
+  flagReason?: string | null;
 }
 
 // ── Customer-care notes & photos ──
@@ -784,6 +788,14 @@ export class AdminService {
     return this.http.put(`${this.apiUrl}/users/${userId}/status`, { isActive });
   }
 
+  /**
+   * Set/clear a customer's admin-only problem flag. Single source of truth — flagging from an
+   * order passes that order's userId here. level: 'None' | 'Yellow' | 'Red'.
+   */
+  setUserFlag(userId: number, level: string, reason?: string | null): Observable<any> {
+    return this.http.put(`${this.apiUrl}/users/${userId}/flag`, { level, reason: reason ?? null });
+  }
+
   /** Admin/SuperAdmin: update user's email or messages preference. Requires canUpdate. */
   updateUserCommunicationPreference(
     userId: number,
@@ -825,6 +837,12 @@ export class AdminService {
 
   deleteUser(userId: number): Observable<{ message: string }> {
     return this.http.delete<{ message: string }>(`${this.apiUrl}/users/${userId}`);
+  }
+
+  /** SuperAdmin-only: reset a staff member's 2FA PIN + lockout. Clears the PIN and all
+   *  trusted devices so they set a fresh PIN on their next login. */
+  resetStaffTwoFactorPin(userId: number): Observable<{ message: string; wasLocked: boolean }> {
+    return this.http.post<{ message: string; wasLocked: boolean }>(`${this.apiUrl}/users/${userId}/reset-2fa-pin`, {});
   }
 
   /** SuperAdmin-only: export users list to an .xlsx file. Pass the column keys to include

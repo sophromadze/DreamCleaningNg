@@ -6,6 +6,52 @@
   position: relative;
 }
 
+/* ── ახსნა-განმარტება (Georgian help) ── */
+.ads-help {
+  margin-top: 32px;
+  border-top: 1px dashed var(--border-color);
+  padding-top: 16px;
+
+  details {
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+  }
+
+  summary {
+    cursor: pointer;
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    list-style: none;
+    &::-webkit-details-marker { display: none; }
+    &:hover { color: var(--text-primary); }
+  }
+
+  .help-body { margin-top: 14px; }
+
+  .help-block {
+    h4 { margin: 0 0 6px; font-size: 0.95rem; color: var(--text-primary); }
+    p { margin: 0 0 8px; font-size: 0.86rem; line-height: 1.7; color: var(--text-secondary); }
+    ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+    li { font-size: 0.86rem; line-height: 1.6; color: var(--text-secondary); }
+    strong { color: var(--text-primary); }
+    u { text-decoration-color: var(--warning-orange); }
+
+    .help-warn {
+      background: var(--warning-orange-bg);
+      color: var(--warning-orange-text);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      margin-top: 8px;
+      font-size: 0.85rem;
+      u { text-decoration-color: currentColor; }
+      strong { color: inherit; }
+    }
+  }
+}
+
 /* ── Totals strip (sticky) ── */
 .stats-section {
   position: sticky;
@@ -23,7 +69,7 @@
   gap: 12px;
 
   .stat {
-    flex: 1 1 140px;
+    flex: 1 1 130px;
     background: var(--surface);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
@@ -42,10 +88,16 @@
       color: var(--text-muted);
     }
 
-    /* Colored left accent: Google-reported vs real booked. */
+    /* Colored left accent: Google-reported conversions vs real booked orders. */
     &.stat--google { border-left: 4px solid var(--primary-color); }
     &.stat--booked { border-left: 4px solid var(--fresh-green); }
     &.stat--booked .stat-value { color: var(--fresh-green); }
+  }
+
+  /* "· N from ad" hint on the Booked orders card. */
+  .from-ad {
+    color: var(--primary-text);
+    font-weight: var(--fw-semibold);
   }
 }
 
@@ -188,6 +240,19 @@
   font-size: 0.9rem;
 }
 
+/* ── Daily detail (primary content) ── */
+.daily-section {
+  .daily-head {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 10px;
+
+    h3 { margin: 0; font-size: 1rem; font-weight: var(--fw-bold); color: var(--text-primary); }
+    .daily-sub { font-size: 0.78rem; color: var(--text-muted); }
+  }
+}
+
 /* ── Table ── */
 .ads-table-wrap {
   background: var(--surface);
@@ -234,6 +299,40 @@
   }
 
   .muted { color: var(--text-muted); }
+}
+
+/* Booked cell: count + the times of orders that came straight from an ad. */
+.booked-cell {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.ad-times {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+
+  .ad-times-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .ad-time {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 8px;
+    border-radius: var(--radius-pill);
+    background: var(--soft-blue);
+    color: var(--primary-color);
+    font-size: 0.74rem;
+    font-weight: var(--fw-semibold);
+    white-space: nowrap;
+  }
 }
 
 /* ── Paging ── */

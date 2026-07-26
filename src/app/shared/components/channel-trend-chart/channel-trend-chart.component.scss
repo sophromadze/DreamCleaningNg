@@ -1,0 +1,24 @@
+.trend-chart {
+  width: 100%;
+}
+
+// Fixed-height canvas box; chart.js fills it (maintainAspectRatio: false). Height steps down on
+// smaller screens so the chart never dominates the fold on mobile.
+.chart-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 320px;
+
+  @media (max-width: 768px) {
+    height: 240px;
+  }
+}
+
+.chart-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}

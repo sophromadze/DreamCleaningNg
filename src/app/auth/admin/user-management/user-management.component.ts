@@ -116,6 +116,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   editUserForm: SuperAdminUpdateUserDto = { firstName: '', lastName: '', email: '', role: 'Customer', isActive: true, firstTimeOrder: true, canReceiveCommunications: true, canReceiveEmails: true, canReceiveMessages: true };
   savingUser = false;
   togglingCommsUserId: number | null = null;
+  /** User id whose flag is mid-update (disables the flag buttons). */
+  flaggingUserId: number | null = null;
 
   // Manual "we miss you" reminder (Admin/SuperAdmin)
   sendingReminder = false;
@@ -1109,6 +1111,61 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     });
   }
 
+  /**
+   * Set/clear this customer's admin-only problem flag. The flag lives on the User (single
+   * source of truth), so every one of their orders picks up the same tint automatically.
+   * Updates both the selected copy and the matching list row. `reason` carries over when
+   * only switching level.
+   */
+  setUserFlag(user: UserAdmin, level: string, event?: Event): void {
+    if (event) (event as Event).stopPropagation();
+    if (!this.canUpdate) return;
+
+    const row = this.users.find(u => u.id === user.id);
+    const reason = level === 'None' ? null : (user.flagReason ?? row?.flagReason ?? null);
+
+    this.flaggingUserId = user.id;
+    this.errorMessage = '';
+    this.adminService.setUserFlag(user.id, level, reason).subscribe({
+      next: () => {
+        if (row) { row.flag = level; row.flagReason = level === 'None' ? null : reason; }
+        if (this.selectedUser && this.selectedUser.id === user.id) {
+          this.selectedUser.flag = level;
+          this.selectedUser.flagReason = level === 'None' ? null : reason;
+        }
+        this.successMessage = level === 'None'
+          ? `Flag cleared for ${user.firstName} ${user.lastName}.`
+          : `${user.firstName} ${user.lastName} flagged ${level}.`;
+        setTimeout(() => { this.successMessage = ''; }, 3000);
+      },
+      error: (err) => {
+        this.errorMessage = err.error?.message || 'Failed to update flag.';
+        setTimeout(() => { this.errorMessage = ''; }, 3000);
+      },
+      complete: () => { this.flaggingUserId = null; }
+    });
+  }
+
+  /** Persist an edited flag reason on blur (keeps the current level). */
+  saveUserFlagReason(user: UserAdmin, event: Event): void {
+    const value = ((event.target as HTMLInputElement)?.value || '').trim();
+    const level = user.flag || 'None';
+    if (level === 'None') return;
+    const row = this.users.find(u => u.id === user.id);
+    if ((user.flagReason ?? '') === value && (row?.flagReason ?? '') === value) return;
+
+    this.adminService.setUserFlag(user.id, level, value || null).subscribe({
+      next: () => {
+        if (row) row.flagReason = value || null;
+        if (this.selectedUser && this.selectedUser.id === user.id) this.selectedUser.flagReason = value || null;
+      },
+      error: (err) => {
+        this.errorMessage = err.error?.message || 'Failed to save flag reason.';
+        setTimeout(() => { this.errorMessage = ''; }, 3000);
+      }
+    });
+  }
+
   canModifyUserStatus(user: any): boolean {
     if (this.currentUserRole === 'Admin' && user.role === 'SuperAdmin') return false;
     return true;
@@ -1554,6 +1611,29 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
         setTimeout(() => { this.errorMessage = ''; }, 5000);
       },
       complete: () => { this.savingUser = false; }
+    });
+  }
+
+  /** SuperAdmin-only: reset a locked-out / forgotten staff PIN. Clears the PIN, the lock
+   *  and all trusted devices; the coworker sets a brand-new PIN on their next login. */
+  resettingPin = false;
+  resetStaffPin(user: any, event?: Event): void {
+    if (event) (event as Event).stopPropagation();
+    if (!this.isSuperAdmin || !this.isStaffRole(user.role) || this.resettingPin) return;
+    if (!confirm(`Reset the login PIN for ${user.firstName} ${user.lastName}? This unlocks their account and clears the PIN — they'll set a new one on their next login.`)) return;
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.resettingPin = true;
+    this.adminService.resetStaffTwoFactorPin(user.id).subscribe({
+      next: (res) => {
+        this.successMessage = res?.message || 'PIN reset. The user will set a new PIN on their next login.';
+        setTimeout(() => { this.successMessage = ''; }, 6000);
+      },
+      error: (err) => {
+        this.errorMessage = err.error?.message || 'Failed to reset PIN.';
+        setTimeout(() => { this.errorMessage = ''; }, 5000);
+      },
+      complete: () => { this.resettingPin = false; }
     });
   }
 

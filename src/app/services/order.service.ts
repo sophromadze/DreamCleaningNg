@@ -5,6 +5,12 @@ import { environment } from '../../environments/environment';
 
 export interface OrderList {
   id: number;
+  /** Owner of the order — used to flag the customer from the orders panel. */
+  userId?: number;
+  /** Owner's admin-only problem flag: 'None' | 'Yellow' | 'Red'. Drives the row tint. */
+  flag?: string;
+  /** Optional admin note on why the customer is flagged (shown in the row tooltip). */
+  flagReason?: string | null;
   serviceTypeName: string;
   isCustomServiceType: boolean;
   /** Bare admin-chosen label for custom orders (no "Cleaning" suffix), e.g. "Deep". */
@@ -50,6 +56,10 @@ export interface OrderList {
 export interface Order {
   id: number;
   userId: number;
+  /** Owner's admin-only problem flag: 'None' | 'Yellow' | 'Red'. */
+  flag?: string;
+  /** Optional admin note on why the customer is flagged. */
+  flagReason?: string | null;
   serviceTypeId: number;
   serviceTypeName: string;
   /** True when this order uses the custom ("Pre-Arranged") service type. */
@@ -129,6 +139,16 @@ export interface Order {
   assignedAdminFirstName?: string | null;
   assignedAdminLastName?: string | null;
   assignedAdminDisplayName?: string | null;
+  /** Marketing attribution (admin Origin line). First touch = how they first found us;
+   *  converting = the session that placed this order (shown only when it differs). */
+  acquisitionChannel?: string | null;
+  acquisitionSource?: string | null;
+  acquisitionMedium?: string | null;
+  acquisitionCampaign?: string | null;
+  convertingChannel?: string | null;
+  convertingSource?: string | null;
+  convertingMedium?: string | null;
+  convertingCampaign?: string | null;
 }
 
 export interface OrderService {

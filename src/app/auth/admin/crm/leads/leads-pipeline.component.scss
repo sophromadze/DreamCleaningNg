@@ -206,6 +206,19 @@
   &:hover { transform: translateY(-1px); box-shadow: 0 3px 8px var(--shadow-color); }
   &.follow-due { border-left: 3px solid var(--warning-orange); }
 
+  // Flagged-customer tint — the matched customer carries an admin problem flag (User.Flag).
+  // Placed after .follow-due so a flag's accent border wins when a card is both.
+  &.flagged-yellow {
+    background: var(--soft-yellow);
+    border-color: var(--soft-yellow-text);
+    border-left: 3px solid var(--soft-yellow-text);
+  }
+  &.flagged-red {
+    background: var(--soft-red);
+    border-color: var(--bright-red);
+    border-left: 3px solid var(--bright-red);
+  }
+
   .card-top {
     display: flex;
     flex-wrap: wrap;

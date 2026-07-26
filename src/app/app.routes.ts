@@ -9,6 +9,7 @@ import { clientOnlyGuard } from './guards/client-only.guard';
 import { realEmailGuard } from './guards/real-email.guard';
 import { bookingSuccessGuard } from './guards/booking-success.guard';
 import { pageViewGuard } from './guards/page-view.guard';
+import { companyLandingGuard } from './guards/company-landing.guard';
 import { passwordSetupGuard } from './guards/password-setup.guard';
 import { pendingVerificationGuard } from './guards/pending-verification.guard';
 import { pinSetupGuard } from './guards/pin-setup.guard';
@@ -339,30 +340,62 @@ export const routes: Routes = [
     canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
     loadComponent: () => import('./auth/shifts/shifts.component').then(m => m.ShiftsComponent)
   },
-  {
-    path: 'admin/statistics',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, pageViewGuard('statistics')],
-    loadComponent: () => import('./auth/statistics/statistics.component').then(m => m.StatisticsComponent)
-  },
+  // Statistics/Expenses/Finances moved under the Company shell (2026-07). Old paths redirect so
+  // existing bookmarks and the current dropdown links keep working; each page keeps its pageViewGuard
+  // on the child route below.
+  { path: 'admin/statistics', redirectTo: 'admin/company/statistics', pathMatch: 'full' },
   {
     path: 'admin/rewards',
     canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, pageViewGuard('bubble-rewards')],
     loadComponent: () => import('./auth/admin/rewards/admin-rewards.component').then(m => m.AdminRewardsComponent)
   },
-  {
-    path: 'admin/expenses',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, pageViewGuard('expenses')],
-    loadComponent: () => import('./auth/admin/expenses/expenses.component').then(m => m.ExpensesComponent)
-  },
-  {
-    path: 'admin/finances',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, pageViewGuard('finances')],
-    loadComponent: () => import('./auth/admin/finances/finances.component').then(m => m.FinancesComponent)
-  },
+  { path: 'admin/expenses', redirectTo: 'admin/company/expenses', pathMatch: 'full' },
+  { path: 'admin/finances', redirectTo: 'admin/company/finances', pathMatch: 'full' },
   {
     path: 'admin/crm',
     canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
     loadComponent: () => import('./auth/admin/crm/crm.component').then(m => m.CrmComponent)
+  },
+  {
+    // Company shell (money & performance): Statistics / Expenses / Finances / Ads as child tabs,
+    // each pageView-gated. Bare path lands on the first tab the user is granted (companyLandingGuard).
+    path: 'admin/company',
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard],
+    loadComponent: () => import('./auth/admin/company/company.component').then(m => m.CompanyComponent),
+    children: [
+      // Bare /admin/company → first tab the user can actually see (not hardcoded to statistics).
+      { path: '', canActivate: [companyLandingGuard], children: [] },
+      {
+        path: 'statistics',
+        canActivate: [pageViewGuard('statistics')],
+        loadComponent: () => import('./auth/statistics/statistics.component').then(m => m.StatisticsComponent)
+      },
+      {
+        path: 'expenses',
+        canActivate: [pageViewGuard('expenses')],
+        loadComponent: () => import('./auth/admin/expenses/expenses.component').then(m => m.ExpensesComponent)
+      },
+      {
+        path: 'finances',
+        canActivate: [pageViewGuard('finances')],
+        loadComponent: () => import('./auth/admin/finances/finances.component').then(m => m.FinancesComponent)
+      },
+      {
+        path: 'ads',
+        canActivate: [pageViewGuard('ads')],
+        loadComponent: () => import('./auth/admin/crm/ads/crm-ads.component').then(m => m.CrmAdsComponent)
+      },
+      {
+        path: 'traffic',
+        canActivate: [pageViewGuard('traffic')],
+        loadComponent: () => import('./auth/admin/company/traffic/traffic.component').then(m => m.TrafficComponent)
+      },
+      {
+        path: 'keywords',
+        canActivate: [pageViewGuard('keywords')],
+        loadComponent: () => import('./auth/admin/company/keywords/keywords.component').then(m => m.KeywordsComponent)
+      }
+    ]
   },
   {
     path: 'admin/blog',

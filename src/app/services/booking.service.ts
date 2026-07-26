@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
 import { AuthService } from './auth.service';
+import { AttributionService } from './attribution.service';
 
 export interface ServiceType {
   id: number;
@@ -129,7 +130,19 @@ export class BookingService {
   private apiUrl = environment.apiUrl;
 
   constructor(private http: HttpClient, private router: Router,
-    private authService: AuthService) { }
+    private authService: AuthService,
+    private attributionService: AttributionService) { }
+
+  /** Merge first-touch + converting-session attribution onto a self-service booking payload. Admin
+   *  create-for-user does NOT call this — the backend stamps those "Phone/Unknown" / null. */
+  private withAttribution(bookingData: any): any {
+    const attribution = this.attributionService.getAttribution();
+    const convertingAttribution = this.attributionService.getConvertingAttribution();
+    const merged: any = { ...bookingData };
+    if (attribution) merged.attribution = attribution;
+    if (convertingAttribution) merged.convertingAttribution = convertingAttribution;
+    return merged;
+  }
 
     private getAuthHeaders(): HttpHeaders {
       const token = this.authService.getToken();
@@ -193,7 +206,7 @@ export class BookingService {
   createBooking(bookingData: any): Observable<any> {
     return this.http.post<any>(
       `${this.apiUrl}/booking/create`,
-      bookingData,
+      this.withAttribution(bookingData),
       { headers: this.getAuthHeaders() }
     );
   }
@@ -201,7 +214,7 @@ export class BookingService {
   preparePayment(bookingData: any): Observable<any> {
     return this.http.post<any>(
       `${this.apiUrl}/booking/prepare-payment`,
-      bookingData,
+      this.withAttribution(bookingData),
       { headers: this.getAuthHeaders() }
     );
   }

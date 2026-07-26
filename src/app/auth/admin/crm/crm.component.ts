@@ -6,14 +6,14 @@ import { CrmCustomersComponent } from './customers/crm-customers.component';
 import { CrmSegmentsComponent } from './segments/crm-segments.component';
 import { CrmAutomationComponent } from './automation/crm-automation.component';
 import { CrmCallsComponent } from './calls/crm-calls.component';
-import { CrmAdsComponent } from './ads/crm-ads.component';
 
-type CrmTab = 'leads' | 'calls' | 'ads' | 'customers' | 'segments' | 'automation';
+// Ads moved to the Company shell (2026-07); it's no longer a CRM tab.
+type CrmTab = 'leads' | 'calls' | 'customers' | 'segments' | 'automation';
 
 @Component({
   selector: 'app-crm',
   standalone: true,
-  imports: [CommonModule, RouterLink, LeadsPipelineComponent, CrmCustomersComponent, CrmSegmentsComponent, CrmAutomationComponent, CrmCallsComponent, CrmAdsComponent],
+  imports: [CommonModule, RouterLink, LeadsPipelineComponent, CrmCustomersComponent, CrmSegmentsComponent, CrmAutomationComponent, CrmCallsComponent],
   templateUrl: './crm.component.html',
   styleUrls: ['./crm.component.scss']
 })
@@ -43,10 +43,13 @@ export class CrmComponent {
     this.setTab('leads');
   }
 
+  private readonly validTabs: CrmTab[] = ['leads', 'calls', 'customers', 'segments', 'automation'];
+
   constructor() {
     try {
       const saved = sessionStorage.getItem('crmActiveTab') as CrmTab | null;
-      if (saved) this.activeTab = saved;
+      // Ignore a stale 'ads' (or any unknown) value left over before Ads moved to Company.
+      if (saved && this.validTabs.includes(saved)) this.activeTab = saved;
     } catch { /* SSR / privacy mode */ }
   }
 }

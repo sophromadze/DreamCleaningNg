@@ -6,6 +6,8 @@ import { BookingService } from '../../services/booking.service';
 import { BookingDataService } from '../../services/booking-data.service';
 import { StripeService } from '../../services/stripe.service';
 import { OrderSoundService } from '../../services/order-sound.service';
+import { CardOnFileService, SavedCard } from '../../services/card-on-file.service';
+import { CARD_ON_FILE_ENABLED } from '../../shared/card-on-file.flag';
 import { calculateTotals } from '../../shared/pricing/order-pricing.calculator';
 
 @Component({
@@ -39,6 +41,11 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   // Remove the preparePayment flag - we don't need it anymore
   isPreparing = false;
 
+  // Card on file: shown as a payment option to the authenticated owner. Selecting it never
+  // charges anything by itself — the charge happens only on the explicit Pay click.
+  savedCard: SavedCard | null = null;
+  payWithSavedCard = false;
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -46,8 +53,25 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
     private bookingService: BookingService,
     private bookingDataService: BookingDataService,
     private stripeService: StripeService,
-    private orderSound: OrderSoundService
+    private orderSound: OrderSoundService,
+    private cardOnFileService: CardOnFileService
   ) {}
+
+  get usingSavedCard(): boolean {
+    return !!this.savedCard && this.payWithSavedCard;
+  }
+
+  get savedCardLabel(): string {
+    if (!this.savedCard) return '';
+    const brand = this.savedCard.brand
+      ? this.savedCard.brand.charAt(0).toUpperCase() + this.savedCard.brand.slice(1)
+      : 'Card';
+    return this.savedCard.last4 ? `${brand} ending ${this.savedCard.last4}` : brand;
+  }
+
+  selectPaymentMethod(useSaved: boolean): void {
+    this.payWithSavedCard = useSaved;
+  }
 
   ngOnInit() {
     // Get booking data from service
@@ -66,7 +90,20 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
 
     // Calculate and display the total
     this.calculateOrderTotal();
-    
+
+    // Card on file — offered only to the logged-in owner (guests haven't saved one).
+    if (CARD_ON_FILE_ENABLED && this.authService.isLoggedIn() && !this.fullyCovered) {
+      this.cardOnFileService.getSavedCard().subscribe({
+        next: (res) => {
+          if (res.card) {
+            this.savedCard = res.card;
+            this.payWithSavedCard = true; // default to the faster path; one click switches back
+          }
+        },
+        error: () => { /* no saved card option — normal card form remains */ }
+      });
+    }
+
     // Initialize Stripe Elements asynchronously
     this.initializeStripeElements();
     this.initApplePay();
@@ -174,7 +211,7 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
 
   // Prepare payment and get payment intent WITHOUT creating order
   async processPayment() {
-    if (this.isProcessing || (!this.fullyCovered && this.cardError)) return;
+    if (this.isProcessing || (!this.fullyCovered && !this.usingSavedCard && this.cardError)) return;
 
     this.isProcessing = true;
     this.errorMessage = '';
@@ -219,11 +256,18 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
           }
 
           try {
-            // Now immediately confirm the payment
-            const paymentIntent = await this.stripeService.confirmCardPayment(
-              response.paymentClientSecret,
-              this.billingDetails
-            );
+            // Confirm the payment — with the saved card when selected (explicit Pay click;
+            // confirmPaymentRequest accepts any payment-method id and handles 3DS in-browser),
+            // otherwise with the freshly entered card element.
+            const paymentIntent = this.usingSavedCard && this.savedCard
+              ? await this.stripeService.confirmPaymentRequest(
+                  response.paymentClientSecret,
+                  this.savedCard.paymentMethodId
+                )
+              : await this.stripeService.confirmCardPayment(
+                  response.paymentClientSecret,
+                  this.billingDetails
+                );
 
             // Payment successful, confirm it with backend (this will create the order)
             // Use orderId 0 and pass sessionId since order doesn't exist yet

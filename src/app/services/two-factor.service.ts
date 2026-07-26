@@ -7,8 +7,63 @@ import { environment } from '../../environments/environment';
 // Header name the backend checks for the trusted-device token.
 // Keep this in sync with AuthController.DeviceTokenHeader on the server.
 export const DEVICE_TOKEN_HEADER = 'X-Device-Token';
-const DEVICE_TOKEN_STORAGE_KEY = 'tf_device_token';
+// One browser can be trusted by SEVERAL staff users (admins sharing a machine or
+// switching accounts). Tokens are stored as a JSON array and ALL of them are sent
+// comma-separated in the header — the backend picks whichever belongs to the user
+// logging in. A single shared slot meant each login overwrote the previous user's
+// token, forcing the full 2FA challenge on every account switch.
+const DEVICE_TOKENS_STORAGE_KEY = 'tf_device_tokens';
+// Pre-multi-token key; folded into the array on read and removed on next write.
+const LEGACY_DEVICE_TOKEN_KEY = 'tf_device_token';
+const MAX_STORED_DEVICE_TOKENS = 10;
 const PIN_SETUP_PENDING_KEY = 'tf_requires_pin_setup';
+
+// Standalone helpers (not service methods) so the functional auth interceptor and
+// auth.service can share them without injecting TwoFactorService.
+export function readStoredDeviceTokens(): string[] {
+  try {
+    const tokens: string[] = [];
+    const raw = localStorage.getItem(DEVICE_TOKENS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        for (const t of parsed) {
+          if (typeof t === 'string' && t) tokens.push(t);
+        }
+      }
+    }
+    const legacy = localStorage.getItem(LEGACY_DEVICE_TOKEN_KEY);
+    if (legacy && !tokens.includes(legacy)) tokens.push(legacy);
+    return tokens;
+  } catch {
+    return [];
+  }
+}
+
+/** Value for the X-Device-Token header: every stored token, comma-joined. */
+export function deviceTokenHeaderValue(): string | null {
+  const tokens = readStoredDeviceTokens();
+  return tokens.length ? tokens.join(',') : null;
+}
+
+export function storeDeviceToken(token: string): void {
+  try {
+    const tokens = readStoredDeviceTokens().filter(t => t !== token);
+    tokens.unshift(token);
+    localStorage.setItem(
+      DEVICE_TOKENS_STORAGE_KEY,
+      JSON.stringify(tokens.slice(0, MAX_STORED_DEVICE_TOKENS))
+    );
+    localStorage.removeItem(LEGACY_DEVICE_TOKEN_KEY);
+  } catch { /* localStorage unavailable — non-fatal */ }
+}
+
+export function clearStoredDeviceTokens(): void {
+  try {
+    localStorage.removeItem(DEVICE_TOKENS_STORAGE_KEY);
+    localStorage.removeItem(LEGACY_DEVICE_TOKEN_KEY);
+  } catch { /* non-fatal */ }
+}
 
 export interface TwoFactorChallenge {
   requiresTwoFactor: true;
@@ -42,22 +97,21 @@ export class TwoFactorService {
 
   // ───── Device-token storage (browser-only) ────────────────────────────────
   // Persisted in localStorage so the same browser/device passes the 2FA gate on
-  // future logins. Cleared on logout (caller's responsibility — auth.service).
+  // future logins. Deliberately NOT cleared on logout — trust survives sessions.
 
   getDeviceToken(): string | null {
     if (!this.isBrowser) return null;
-    return localStorage.getItem(DEVICE_TOKEN_STORAGE_KEY);
+    return deviceTokenHeaderValue();
   }
 
   setDeviceToken(token: string | null | undefined): void {
     if (!this.isBrowser) return;
-    if (token) localStorage.setItem(DEVICE_TOKEN_STORAGE_KEY, token);
-    else localStorage.removeItem(DEVICE_TOKEN_STORAGE_KEY);
+    if (token) storeDeviceToken(token);
   }
 
   clearDeviceToken(): void {
     if (!this.isBrowser) return;
-    localStorage.removeItem(DEVICE_TOKEN_STORAGE_KEY);
+    clearStoredDeviceTokens();
   }
 
   // Flag set by login response when a staff user has no PIN yet. Cleared after

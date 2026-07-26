@@ -5,6 +5,7 @@ import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { HttpClientModule } from '@angular/common/http';
 import { BookingService, ServiceType, Service, ExtraService, Subscription, BookingCalculation, BlockedTimeSlot } from '../services/booking.service';
 import { PAYMENT_METHOD_OPTIONS, PaymentMethodValue } from '../shared/payment-method';
+import { CARD_ON_FILE_ENABLED } from '../shared/card-on-file.flag';
 import { AuthService } from '../services/auth.service';
 import { AuthModalService } from '../services/auth-modal.service';
 import { ProfileService } from '../services/profile.service';
@@ -127,6 +128,10 @@ export class BookingComponent implements OnInit, OnDestroy {
   selectedServices: SelectedService[] = [];
   selectedExtraServices: SelectedExtraService[] = [];
   selectedSubscription: Subscription | null = null;
+  // Card-on-file opt-in: saves the card used to pay this booking for faster checkout later.
+  // Saving only — future charges always require an explicit customer/admin action.
+  saveCardForFutureUse = false;
+  cardOnFileEnabled = CARD_ON_FILE_ENABLED;
 
   // Special offers
   userSpecialOffers: UserSpecialOffer[] = [];
@@ -2152,7 +2157,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.selectedSubscription = subscription;
     this.calculateTotal();
     this.saveFormData(); // Persist selected subscription
-    
+
     // Show mobile tooltip for subscription
     this.showMobileTooltip(subscription.id);
   }
@@ -2903,6 +2908,8 @@ export class BookingComponent implements OnInit, OnDestroy {
       referralCode: this.isBrowser
         ? (localStorage.getItem('dreamcleaning_referral') ?? undefined)
         : undefined,
+      // Card-on-file opt-in — never for admin-created (unpaid/manual) bookings.
+      saveCardForFutureUse: this.cardOnFileEnabled && this.saveCardForFutureUse && !this.isAdminMode,
     };
 
     // If admin mode, create booking for target user (unpaid). Phase 1 manual payment fields

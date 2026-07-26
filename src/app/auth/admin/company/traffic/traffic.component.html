@@ -1,0 +1,168 @@
+<div class="crm-traffic">
+  <!-- Toolbar -->
+  <div class="ads-toolbar">
+    <div class="preset-dropdown" [class.open]="dropdownOpen">
+      <button type="button" class="dropdown-trigger" (click)="toggleDropdown()" [attr.aria-expanded]="dropdownOpen">
+        <span>{{ rangeLabel }}</span>
+        <span class="caret" aria-hidden="true">▾</span>
+      </button>
+      <ul class="dropdown-menu" *ngIf="dropdownOpen" role="listbox">
+        <li *ngFor="let p of presets" class="dropdown-item"
+            [class.active]="period === p.key" role="option"
+            [attr.aria-selected]="period === p.key" (click)="selectPreset(p.key)">
+          {{ p.label }}
+        </li>
+      </ul>
+    </div>
+
+    <div class="custom-range">
+      <div class="filter">
+        <label for="traffic-from">From</label>
+        <input id="traffic-from" type="date" [(ngModel)]="fromDate" />
+      </div>
+      <div class="filter">
+        <label for="traffic-to">To</label>
+        <input id="traffic-to" type="date" [(ngModel)]="toDate" />
+      </div>
+      <button class="btn-light" (click)="applyCustom()" [disabled]="loading">Apply</button>
+    </div>
+
+    <div class="toolbar-spacer"></div>
+
+    <button class="btn-secondary" (click)="downloadExcel()" [disabled]="exporting || loading">
+      {{ exporting ? 'Exporting…' : 'Export Excel' }}
+    </button>
+  </div>
+
+  <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+  <!-- Channel filter: plain checkboxes that show/hide channel columns (no colors) -->
+  <div class="channel-legend" *ngIf="!loading && rows.length > 0">
+    <span class="legend-title">Show columns:</span>
+    <label class="legend-item" *ngFor="let ch of legendChannels" [class.off]="!isChannelSelected(ch)">
+      <input type="checkbox" [checked]="isChannelSelected(ch)" (change)="toggleChannel(ch)" />
+      <span class="legend-label">{{ displayChannel(ch) }}</span>
+    </label>
+    <button type="button" class="legend-reset" *ngIf="!allChannelsSelected" (click)="selectAllChannels()">
+      Show all
+    </button>
+  </div>
+
+  <!-- Daily matrix: one column per channel + a Total, with a range-total footer -->
+  <div class="daily-section" *ngIf="!loading && rows.length > 0">
+    <div class="daily-head">
+      <h3>Daily sessions by channel</h3>
+      <span class="daily-sub">First-party visits per day, split across channels (not bot-filtered)</span>
+    </div>
+
+    <div class="ads-table-wrap">
+      <table class="ads-table matrix-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th class="num" *ngFor="let ch of visibleColumns; trackBy: trackByChannelName">{{ displayChannel(ch) }}</th>
+            <th class="num total-col">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of rows; trackBy: trackByDate" [class.is-provisional]="row.provisional">
+            <td class="date-cell">
+              {{ row.date | date: 'EEE, MMM d, y' }}
+              <span class="provisional-tag" *ngIf="row.provisional"
+                    title="Provisional — raw first-party count, not yet reconciled to GA4.">provisional</span>
+            </td>
+            <td class="num" *ngFor="let ch of visibleColumns; trackBy: trackByChannelName">
+              {{ sessionsFor(row, ch) | number }}
+            </td>
+            <td class="num total-col">{{ filteredSessions(row) | number }}</td>
+          </tr>
+        </tbody>
+        <tfoot>
+          <tr class="range-total">
+            <td>Range total <span class="foot-sub">({{ totalCount }} day{{ totalCount === 1 ? '' : 's' }})</span></td>
+            <td class="num" *ngFor="let ch of visibleColumns; trackBy: trackByChannelName">
+              {{ channelRangeTotal(ch) | number }}
+            </td>
+            <td class="num total-col">{{ filteredSessionsTotal | number }}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="paging" *ngIf="totalPages > 1">
+        <button class="btn-light" (click)="prevPage()" [disabled]="page <= 1">← Prev</button>
+        <span class="page-info">Page {{ page }} of {{ totalPages }} · {{ totalCount }} days</span>
+        <button class="btn-light" (click)="nextPage()" [disabled]="page >= totalPages">Next →</button>
+      </div>
+    </div>
+
+    <p class="provisional-note" *ngIf="hasProvisional">
+      <strong>provisional</strong> — the most recent days are raw first-party counts that self-correct
+      toward GA4's bot-filtered numbers a couple of days later.
+    </p>
+  </div>
+
+  <!-- Summary: sessions by channel over the whole range (ranked) -->
+  <div class="summary-section" *ngIf="!loading && visibleBreakdown.length > 0">
+    <div class="daily-head">
+      <h3>Sessions by channel</h3>
+      <span class="daily-sub">Totals for the selected range, highest first</span>
+    </div>
+    <div class="ads-table-wrap">
+      <table class="ads-table">
+        <thead>
+          <tr>
+            <th>Channel</th>
+            <th class="num">Sessions</th>
+            <th class="num">% of total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let c of visibleBreakdown; trackBy: trackByChannel">
+            <td>{{ displayChannel(c.channel) }}</td>
+            <td class="num">{{ c.sessions | number }}</td>
+            <td class="num muted">{{ channelPercent(c) }}%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="state-msg" *ngIf="loading">Loading…</div>
+  <div class="state-msg" *ngIf="!loading && rows.length === 0 && !errorMessage">
+    No visits recorded in this range yet.
+  </div>
+
+  <!-- ახსნა-განმარტება ადმინებისთვის (ქართულად) -->
+  <section class="traffic-help">
+    <details>
+      <summary>ℹ️ Traffic — რას აჩვენებს ეს ცხრილი (ინსტრუქცია)</summary>
+      <div class="help-body">
+        <div class="help-block">
+          <h4>Traffic — ვიზიტები არხების მიხედვით</h4>
+          <p>
+            ეს გვერდი აჩვენებს, <strong>რამდენი ვიზიტი (session)</strong> იყო საიტზე ყოველ დღეს და
+            <strong>საიდან</strong> მოვიდნენ ხალხი. ეს არის ჩვენი <u>first-party</u> მონაცემი (ბოტებით
+            გაფილტრული არ არის), რომელიც ბოლო დღეებში ზუსტდება GA4-ის ციფრებთან.
+          </p>
+          <ul>
+            <li><strong>Organic</strong> — მოვიდნენ საძიებო სისტემიდან (Google, Bing…) რეკლამის გარეშე.</li>
+            <li><strong>Paid</strong> — მოვიდნენ ჩვენს <u>რეკლამაზე</u> დაკლიკებით (Google Ads).</li>
+            <li><strong>AI Assistant</strong> — მოვიდნენ AI-ხელსაწყოდან (ChatGPT, Gemini, Claude, Perplexity…).</li>
+            <li><strong>Direct</strong> — პირდაპირ შემოვიდნენ (მისამართი აკრიფეს ან ჩანიშნულიდან).</li>
+            <li><strong>Referral</strong> — სხვა საიტზე არსებულ ბმულზე დააკლიკეს (Yelp, Google Maps, ბლოგი, პარტნიორი…).</li>
+            <li><strong>Social</strong> — სოციალური ქსელიდან (Facebook, Instagram, TikTok, YouTube…).</li>
+            <li><strong>Email</strong> — ჩვენი ელფოსტის/newsletter-ის ბმულიდან.</li>
+            <li><strong>Unassigned</strong> — ვერ დავადგინეთ ზუსტი წყარო (უცნობი/არასტანდარტული).</li>
+            <li><strong>Total</strong> — იმ დღის ჯამური ვიზიტები (ჩვენებული არხების მიხედვით).</li>
+          </ul>
+          <p class="help-warn">
+            💡 „Show columns" — მონიშვნა/მოხსნა <strong>მალავს ან აჩვენებს სვეტს</strong>; Total-იც შესაბამისად
+            იცვლება. ცხრილის ბოლოში <strong>„Range total"</strong> აჩვენებს მთელი პერიოდის ჯამს თითო არხზე.
+            „<strong>provisional</strong>" ნიშნავს, რომ ბოლო დღეების ციფრი ჯერ დაუზუსტებელია და რამდენიმე დღეში
+            GA4-თან გასწორდება. „Export Excel" იმავე მონაცემს გადმოწერს.
+          </p>
+        </div>
+      </div>
+    </details>
+  </section>
+</div>

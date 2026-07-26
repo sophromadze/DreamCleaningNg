@@ -441,6 +441,27 @@
                 h4 { margin: 0; }
               }
 
+              /* Marketing origin line (first-touch channel + converting-when-different). */
+              .order-origin {
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 0.35rem;
+                margin: -0.25rem 0 1rem;
+                font-size: 0.82rem;
+                color: var(--text-muted);
+
+                .origin-label {
+                  font-weight: var(--fw-semibold);
+                  color: var(--text-secondary);
+                }
+
+                .origin-first { color: var(--text-primary); }
+
+                /* Converting differs from first touch — flag it with the operational-orange accent. */
+                .origin-converted { color: var(--warning-orange-text); }
+              }
+
               .assigned-admin-pill {
                 position: relative;
                 display: inline-flex;
@@ -3023,6 +3044,30 @@ tr.is-new-order {
   }
 }
 
+// ── Flagged-customer row tints (admin-only). Derived from the order owner's User.Flag.
+// Placed after the reminder/new-order rules so a flag wins the row background. ──
+tr.row-flagged-red {
+  background-color: var(--soft-red) !important;
+  box-shadow: inset 3px 0 0 var(--bright-red);
+  &:hover { background-color: var(--soft-red) !important; }
+}
+tr.row-flagged-yellow {
+  background-color: var(--soft-yellow) !important;
+  box-shadow: inset 3px 0 0 var(--soft-yellow-text);
+  &:hover { background-color: var(--soft-yellow) !important; }
+}
+
+:host-context([data-theme="dark"]) {
+  tr.row-flagged-red {
+    background-color: var(--soft-red) !important;
+    &:hover { background-color: var(--soft-red) !important; }
+  }
+  tr.row-flagged-yellow {
+    background-color: var(--soft-yellow) !important;
+    &:hover { background-color: var(--soft-yellow) !important; }
+  }
+}
+
 :host-context([data-theme="dark"]) {
   tr.has-reminder {
     background-color: rgba(231, 76, 60, 0.1) !important;
@@ -3118,6 +3163,39 @@ $order-header-mobile: 60px;
       display: flex;
       align-items: center;
       gap: 0.5rem;
+
+      // Admin-only customer-flag control (None / ⚑ yellow / ⚑ red)
+      .flag-toggle {
+        display: inline-flex;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        overflow: hidden;
+        background: var(--surface-subtle);
+        font-size: 0.72rem;
+
+        .flag-btn {
+          padding: 0.3rem 0.5rem;
+          cursor: pointer;
+          color: var(--text-muted);
+          transition: all 0.12s;
+          line-height: 1;
+
+          & + .flag-btn { border-left: 1px solid var(--border-color); }
+
+          // Each button always shows its own color so the choices are recognisable at rest.
+          &.yellow { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+          &.red    { background: var(--soft-red); color: var(--bright-red); }
+
+          // Dim the unselected buttons; the selected one is full-strength + bold + ringed.
+          &:not(.active) { opacity: 0.55; }
+          &.active { font-weight: 700; }
+          &.none.active   { background: var(--text-muted); color: #fff; }
+          &.yellow.active { box-shadow: inset 0 0 0 2px var(--soft-yellow-text); }
+          &.red.active    { box-shadow: inset 0 0 0 2px var(--bright-red); }
+
+          &.disabled { opacity: 0.6; cursor: not-allowed; }
+        }
+      }
     }
 
     .action-btn.small.edit,
@@ -3763,6 +3841,17 @@ $order-header-mobile: 60px;
             box-shadow: var(--btn-quote-shadow-hover);
           }
           &:disabled { background: var(--text-muted); border-color: var(--text-muted); }
+        }
+
+        // Explicit saved-card charge — green (money-in secondary CTA family).
+        &.charge-saved-card {
+          background: var(--btn-secondary);
+          color: #fff;
+          border-color: transparent;
+          &:hover:not(:disabled) {
+            background: var(--btn-secondary-hover);
+          }
+          &:disabled { background: var(--text-muted); }
         }
       }
     }

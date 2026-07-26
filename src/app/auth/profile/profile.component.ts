@@ -13,11 +13,12 @@ import { SpecialOfferService, UserSpecialOffer } from '../../services/special-of
 import { ShimmerDirective } from '../../shared/directives/shimmer.directive';
 import { BubbleFieldComponent } from '../../bubble-field/bubble-field.component';
 import { TrustedDevicesComponent } from '../trusted-devices/trusted-devices.component';
+import { SavedCardComponent } from './saved-card/saved-card.component';
 
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, ShimmerDirective, BubbleFieldComponent, TrustedDevicesComponent],
+  imports: [CommonModule, FormsModule, RouterModule, ShimmerDirective, BubbleFieldComponent, TrustedDevicesComponent, SavedCardComponent],
   templateUrl: './profile.component.html',
   styleUrls: ['./profile.component.scss']
 })

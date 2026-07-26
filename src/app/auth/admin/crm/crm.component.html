@@ -13,9 +13,6 @@
     <button class="crm-tab" [class.active]="activeTab === 'calls'" (click)="setTab('calls')">
       Calls
     </button>
-    <button class="crm-tab" [class.active]="activeTab === 'ads'" (click)="setTab('ads')">
-      Ads
-    </button>
     <button class="crm-tab" [class.active]="activeTab === 'customers'" (click)="setTab('customers')">
       Customers
     </button>
@@ -30,7 +27,6 @@
   <div class="crm-content">
     <app-leads-pipeline *ngIf="activeTab === 'leads'" [openLeadId]="leadToOpen"></app-leads-pipeline>
     <app-crm-calls *ngIf="activeTab === 'calls'" (openLead)="onCallLeadSelected($event)"></app-crm-calls>
-    <app-crm-ads *ngIf="activeTab === 'ads'"></app-crm-ads>
     <app-crm-customers *ngIf="activeTab === 'customers'" [segmentFilter]="customerSegmentFilter"></app-crm-customers>
     <app-crm-segments *ngIf="activeTab === 'segments'" (selectSegment)="onSegmentSelected($event)"></app-crm-segments>
     <app-crm-automation *ngIf="activeTab === 'automation'"></app-crm-automation>
@@ -116,28 +112,6 @@
             <li><strong>Churned</strong> — 180+ დღეა გაქრა.</li>
             <li><strong>Prospect</strong> — დარეგისტრირდა, მაგრამ შეკვეთა არ აქვს.</li>
           </ul>
-        </div>
-
-        <!-- ADS ტაბი -->
-        <div class="help-block" *ngIf="activeTab === 'ads'">
-          <h4>Ads — რეკლამის შედეგები (Google Ads)</h4>
-          <p>
-            ეს ტაბი აჩვენებს <strong>Google Ads</strong>-ის ყოველდღიურ შედეგებს <strong>რეალურ ჯავშნებთან</strong>
-            გვერდიგვერდ — რომ დაინახოთ, რამდენად კარგად გადაიქცევა რეკლამის კლიკები რეალურ შეკვეთებად.
-          </p>
-          <ul>
-            <li><strong>Ad spend</strong> — იმ დღეს რეკლამაზე დახარჯული თანხა (მოდის Expenses-იდან).</li>
-            <li><strong>Clicks</strong> — რამდენჯერ დააკლიკეს რეკლამას.</li>
-            <li><strong>Google conversions</strong> — რამდენი კონვერსია დაითვალა <u>თავად Google Ads-მა</u>
-              (რასაც თქვენი ანგარიში ითვლის კონვერსიად — მაგ. ზარი ან ფორმა). ეს Google-ის მონაცემია.</li>
-            <li><strong>Booked orders</strong> — რამდენი <u>რეალური შეკვეთა</u> გაკეთდა იმ დღეს
-              (გაუქმებულის გარეშე). ეს თქვენი ნამდვილი მონაცემია შეკვეთების ცხრილიდან.</li>
-            <li><strong>Conversion rate</strong> — კონვერსიები ÷ კლიკები (%).</li>
-          </ul>
-          <p class="help-warn">
-            💡 „Google conversions" და „Booked orders" შეიძლება არ ემთხვეოდეს — Google თავისებურად ითვლის.
-            რეალურ სურათს „Booked orders" აჩვენებს.
-          </p>
         </div>
 
         <!-- AUTOMATION ტაბი -->

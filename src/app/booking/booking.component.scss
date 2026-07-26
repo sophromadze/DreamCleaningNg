@@ -8097,3 +8097,12 @@
 
 }
 
+
+/* Card-on-file opt-in — same visual weight as the consent checkboxes above it */
+.save-card-section {
+  margin-top: 12px;
+
+  .checkbox-label {
+    color: var(--text-secondary);
+  }
+}

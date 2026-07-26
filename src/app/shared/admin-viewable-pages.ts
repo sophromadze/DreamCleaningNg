@@ -16,10 +16,13 @@ export interface AdminViewablePage {
 }
 
 export const ADMIN_VIEWABLE_PAGES: AdminViewablePage[] = [
-  { key: 'statistics', label: 'Statistics', route: '/admin/statistics' },
-  { key: 'expenses', label: 'Expenses', route: '/admin/expenses' },
+  { key: 'statistics', label: 'Statistics', route: '/admin/company/statistics' },
+  { key: 'expenses', label: 'Expenses', route: '/admin/company/expenses' },
   { key: 'bubble-rewards', label: 'Bubble Rewards', route: '/admin/rewards' },
-  { key: 'finances', label: 'Finances', route: '/admin/finances' },
+  { key: 'finances', label: 'Finances', route: '/admin/company/finances' },
+  { key: 'ads', label: 'Ads', route: '/admin/company/ads' },
+  { key: 'traffic', label: 'Traffic', route: '/admin/company/traffic' },
+  { key: 'keywords', label: 'Keywords', route: '/admin/company/keywords' },
 ];
 
 /**

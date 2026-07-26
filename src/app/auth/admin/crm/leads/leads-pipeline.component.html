@@ -75,7 +75,10 @@
 
       <div class="column-body">
         <div class="lead-card" *ngFor="let lead of columnFor(stage).leads; trackBy: trackByLeadId"
-             (click)="openLead(lead)" [class.follow-due]="isFollowUpDue(lead)">
+             (click)="openLead(lead)" [class.follow-due]="isFollowUpDue(lead)"
+             [class.flagged-red]="lead.flag === 'Red'"
+             [class.flagged-yellow]="lead.flag === 'Yellow'"
+             [title]="lead.flag && lead.flag !== 'None' ? ('Flagged customer (' + lead.flag + ')' + (lead.flagReason ? ': ' + lead.flagReason : '')) : null">
           <div class="card-top">
             <span class="lead-name">{{ lead.fullName || 'Unnamed lead' }}</span>
             <span class="card-badges">
@@ -134,7 +137,10 @@
 
       <div class="archive-grid" *ngIf="!loadingArchived && archivedLeads.length > 0">
         <div class="lead-card archived" *ngFor="let lead of archivedLeads; trackBy: trackByLeadId"
-             (click)="openLead(lead)">
+             (click)="openLead(lead)"
+             [class.flagged-red]="lead.flag === 'Red'"
+             [class.flagged-yellow]="lead.flag === 'Yellow'"
+             [title]="lead.flag && lead.flag !== 'None' ? ('Flagged customer (' + lead.flag + ')' + (lead.flagReason ? ': ' + lead.flagReason : '')) : null">
           <div class="card-top">
             <span class="lead-name">{{ lead.fullName || 'Unnamed lead' }}</span>
             <span class="card-badges">

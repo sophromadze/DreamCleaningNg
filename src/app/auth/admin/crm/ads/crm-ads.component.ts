@@ -29,7 +29,7 @@ export class CrmAdsComponent implements OnInit {
 
   // Paging
   page = 1;
-  pageSize = 20;
+  pageSize = 10;
   totalCount = 0;
   totalPages = 0;
 
@@ -133,6 +133,26 @@ export class CrmAdsComponent implements OnInit {
   }
 
   trackByDate(_: number, row: AdsDailyRow): string { return row.date; }
+
+  // ── Ad-efficiency KPIs (derived from the range totals) ──
+
+  /** Ad spend ÷ clicks. */
+  get costPerClick(): number {
+    if (!this.totals || this.totals.clicks <= 0) return 0;
+    return this.totals.adSpend / this.totals.clicks;
+  }
+
+  /** Ad spend ÷ Google-reported conversions. */
+  get costPerConversion(): number {
+    if (!this.totals || this.totals.googleConversions <= 0) return 0;
+    return this.totals.adSpend / this.totals.googleConversions;
+  }
+
+  /** Ad spend ÷ booked orders (all sources — the real jobs the spend ran alongside). */
+  get costPerBooked(): number {
+    if (!this.totals || this.totals.bookedOrders <= 0) return 0;
+    return this.totals.adSpend / this.totals.bookedOrders;
+  }
 
   /** Build the query for the current range. `paged` false = export (whole range, no page). */
   private buildQuery(paged: boolean): AdsQuery {
