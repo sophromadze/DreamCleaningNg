@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderTransferInfo, UserAdmin } from '../../../services/admin.service';
+import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderTransferInfo, UserAdmin, OrderRefundSummary } from '../../../services/admin.service';
 import { environment } from '../../../../environments/environment';
 import { OrderService, Order, OrderList } from '../../../services/order.service';
 import { CleanerService, AvailableCleaner } from '../../../services/cleaner.service';
@@ -337,6 +337,31 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   undoingTransferId: number | null = null;
   transferError = '';
 
+  // ── SuperAdmin refunds (money back to the customer's card) ──
+  // refundSummary.remainingRefundable comes live from the payment provider, so it already
+  // reflects refunds issued outside this panel — it is the only cap the UI trusts.
+  refundSummary: OrderRefundSummary | null = null;
+  loadingRefunds = false;
+  showRefundModal = false;
+  refundMode: 'full' | 'partial' = 'full';
+  refundAmountInput: number | null = null;
+  refundReason = '';
+  refundSendEmail = true;
+  /** Second step of the modal — the admin has to confirm before any money moves. */
+  refundConfirming = false;
+  isRefunding = false;
+  refundError = '';
+  /** Set when the modal was opened from a table row rather than the detail panel, so the
+   *  modal has an order to name and submit against without the panel being open. */
+  refundTargetOrder: AdminOrderList | null = null;
+
+  // ── SuperAdmin soft-hide (view filter only; never touches order data or revenue) ──
+  /** "Show hidden orders" filter. Visible to every admin role — all roles can VIEW hidden
+   *  orders, only SuperAdmin can hide/unhide. Toggling reloads from the server. */
+  showHiddenOrders = false;
+  hideConfirmOrder: AdminOrderList | null = null;
+  isHidingOrder = false;
+
   constructor(
     private adminService: AdminService,
     private orderService: OrderService,
@@ -485,6 +510,284 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       error: (err) => {
         this.undoingTransferId = null;
         this.transferError = err.error?.message || 'Undo failed.';
+      }
+    });
+  }
+
+  // ── SuperAdmin refunds ──
+
+  resetRefundState(): void {
+    this.refundSummary = null;
+    this.showRefundModal = false;
+    this.refundMode = 'full';
+    this.refundAmountInput = null;
+    this.refundReason = '';
+    this.refundSendEmail = true;
+    this.refundConfirming = false;
+    this.isRefunding = false;
+    this.refundError = '';
+    this.refundTargetOrder = null;
+  }
+
+  loadOrderRefunds(orderId: number): void {
+    this.loadingRefunds = true;
+    this.adminService.getOrderRefunds(orderId).subscribe({
+      next: (summary) => {
+        // Ignore late responses after the admin switched to a different order.
+        if (this.viewingOrderId === orderId) this.refundSummary = summary;
+        this.loadingRefunds = false;
+      },
+      error: () => {
+        // Non-fatal: the refund section simply stays hidden rather than breaking the panel.
+        this.loadingRefunds = false;
+      }
+    });
+  }
+
+  /** True only when the loaded summary belongs to the order currently in the detail panel.
+   *  Refunding from a table row overwrites refundSummary, so without this check the open panel
+   *  could briefly render another order's refund figures. */
+  get refundSummaryMatchesPanel(): boolean {
+    return !!this.refundSummary && !!this.selectedOrder
+      && this.refundSummary.orderId === this.selectedOrder.id;
+  }
+
+  /** Refund button shows only when the provider says there is money left to give back. */
+  get canRefundSelectedOrder(): boolean {
+    return this.isSuperAdmin && this.refundSummaryMatchesPanel && !!this.refundSummary?.canRefund;
+  }
+
+  get maxRefundable(): number {
+    return this.refundSummary?.remainingRefundable ?? 0;
+  }
+
+  /** The order the open refund modal acts on — a table row when launched from the list,
+   *  otherwise the order in the detail panel. */
+  get refundOrderId(): number | null {
+    return this.refundTargetOrder?.id ?? this.selectedOrder?.id ?? null;
+  }
+
+  get refundOrderCustomerName(): string {
+    const target = this.refundTargetOrder;
+    if (target) return `${target.contactFirstName} ${target.contactLastName}`.trim();
+    if (this.selectedOrder) return `${this.selectedOrder.contactFirstName} ${this.selectedOrder.contactLastName}`.trim();
+    return 'the customer';
+  }
+
+  get refundOrderCustomerEmail(): string {
+    return this.refundTargetOrder?.contactEmail || this.selectedOrder?.contactEmail || 'the customer';
+  }
+
+  openRefundModal(): void {
+    if (!this.canRefundSelectedOrder) return;
+    this.refundTargetOrder = null;   // detail-panel path: submit against selectedOrder
+    this.showRefundModal = true;
+    this.refundMode = 'full';
+    this.refundAmountInput = this.maxRefundable;
+    this.refundReason = '';
+    this.refundSendEmail = true;
+    this.refundConfirming = false;
+    this.refundError = '';
+  }
+
+  /**
+   * Refund straight from a table row, without opening the detail panel. The refundable ceiling
+   * is not in the list payload (it comes live from the payment provider), so it is fetched first
+   * and the modal only opens once we know there is something to refund.
+   */
+  openRefundModalForOrder(order: AdminOrderList): void {
+    if (!this.isSuperAdmin || this.loadingRefunds) return;
+
+    this.refundTargetOrder = order;
+    this.refundSummary = null;
+    this.refundError = '';
+    this.loadingRefunds = true;
+
+    this.adminService.getOrderRefunds(order.id).subscribe({
+      next: (summary) => {
+        this.loadingRefunds = false;
+        // The admin may have clicked another row while this was in flight.
+        if (this.refundTargetOrder?.id !== order.id) return;
+
+        this.refundSummary = summary;
+
+        if (!summary.canRefund) {
+          this.refundTargetOrder = null;
+          this.errorMessage = summary.unavailableReason || 'There is nothing to refund on this order.';
+          setTimeout(() => { this.errorMessage = ''; }, 6000);
+          return;
+        }
+
+        this.showRefundModal = true;
+        this.refundMode = 'full';
+        this.refundAmountInput = summary.remainingRefundable;
+        this.refundReason = '';
+        this.refundSendEmail = true;
+        this.refundConfirming = false;
+      },
+      error: () => {
+        this.loadingRefunds = false;
+        this.refundTargetOrder = null;
+        this.errorMessage = 'Could not check what is refundable on this order. Please try again.';
+        setTimeout(() => { this.errorMessage = ''; }, 6000);
+      }
+    });
+  }
+
+  closeRefundModal(): void {
+    // A request is in flight and the money may already be moving — closing now would hide the
+    // outcome from the admin.
+    if (this.isRefunding) return;
+    this.showRefundModal = false;
+    this.refundConfirming = false;
+    this.refundError = '';
+    this.refundTargetOrder = null;
+  }
+
+  onRefundModeChange(mode: 'full' | 'partial'): void {
+    this.refundMode = mode;
+    this.refundError = '';
+    // Pre-fill partial with the max so the admin edits down rather than typing from scratch.
+    this.refundAmountInput = this.maxRefundable;
+  }
+
+  /** Dollars this submission will refund. Full mode always means the whole remaining balance. */
+  get effectiveRefundAmount(): number {
+    if (this.refundMode === 'full') return this.maxRefundable;
+    return Number(this.refundAmountInput ?? 0);
+  }
+
+  get refundAmountIsValid(): boolean {
+    const amount = this.effectiveRefundAmount;
+    // Rounded before comparing so a value like 100.005 can't slip past the cap.
+    return amount > 0 && Math.round(amount * 100) <= Math.round(this.maxRefundable * 100);
+  }
+
+  /** Step 1 → step 2. Nothing is sent until the admin confirms on the second step. */
+  proceedToRefundConfirm(): void {
+    if (!this.refundAmountIsValid) {
+      this.refundError = `Enter an amount between $0.01 and $${this.maxRefundable.toFixed(2)}.`;
+      return;
+    }
+    this.refundError = '';
+    this.refundConfirming = true;
+  }
+
+  cancelRefundConfirm(): void {
+    if (this.isRefunding) return;
+    this.refundConfirming = false;
+  }
+
+  submitRefund(): void {
+    // Guarded rather than merely disabled: a double-click can land before change detection
+    // repaints the button, and a duplicate submit here means refunding real money twice.
+    const orderId = this.refundOrderId;
+    if (this.isRefunding || orderId === null || !this.refundAmountIsValid) return;
+    // Full mode sends null so the server refunds whatever is still refundable at that instant,
+    // rather than a stale number this screen read earlier.
+    const amount = this.refundMode === 'full' ? null : Number(this.refundAmountInput);
+
+    this.isRefunding = true;
+    this.refundError = '';
+
+    this.adminService.refundOrder(orderId, amount, this.refundReason.trim() || null, this.refundSendEmail).subscribe({
+      next: (result) => {
+        this.isRefunding = false;
+
+        if (result.summary && this.viewingOrderId === orderId) {
+          this.refundSummary = result.summary;
+        }
+
+        if (result.success) {
+          this.showRefundModal = false;
+          this.refundConfirming = false;
+          this.refundTargetOrder = null;
+          this.successMessage = result.message;
+          setTimeout(() => { this.successMessage = ''; }, 8000);
+          // A full refund flips the order to Refunded and changes the revenue totals, so the
+          // list and its header cards have to come back from the server.
+          this.loadOrders();
+        } else {
+          // Covers the partial case too: some money may already have moved, so the modal stays
+          // open showing exactly what happened instead of inviting a blind full retry.
+          this.refundConfirming = false;
+          this.refundError = result.message;
+        }
+      },
+      error: (err) => {
+        this.isRefunding = false;
+        this.refundConfirming = false;
+        this.refundError = err.error?.message || 'The refund could not be completed. Please try again.';
+        // The request may have reached the server before failing — re-read the authoritative
+        // state so the admin never retries against a stale balance.
+        this.loadOrderRefunds(orderId);
+      }
+    });
+  }
+
+  // ── SuperAdmin soft-hide ──
+
+  /** Reloads from the server — the hidden/visible split is decided by the API, not client-side. */
+  toggleShowHiddenOrders(): void {
+    this.showHiddenOrders = !this.showHiddenOrders;
+    this.loadOrders();
+  }
+
+  /** Only dead orders can be hidden: cancelled, or fully refunded (a full refund is exactly what
+   *  sets status to Refunded — a partial one leaves the status alone and the order is still live
+   *  money). Mirrors OrderStatuses.CanBeHidden on the server, which enforces it for real. */
+  canHideOrder(order: AdminOrderList): boolean {
+    const status = order.status?.toLowerCase();
+    return status === 'cancelled' || status === 'refunded';
+  }
+
+  openHideConfirm(order: AdminOrderList): void {
+    if (!this.isSuperAdmin || !this.canHideOrder(order)) return;
+    this.hideConfirmOrder = order;
+  }
+
+  closeHideConfirm(): void {
+    if (this.isHidingOrder) return;
+    this.hideConfirmOrder = null;
+  }
+
+  confirmHideOrder(): void {
+    if (!this.hideConfirmOrder || this.isHidingOrder) return;
+
+    const order = this.hideConfirmOrder;
+    this.isHidingOrder = true;
+
+    this.adminService.hideOrder(order.id).subscribe({
+      next: (res) => {
+        this.isHidingOrder = false;
+        this.hideConfirmOrder = null;
+        this.successMessage = res.message;
+        setTimeout(() => { this.successMessage = ''; }, 5000);
+        this.loadOrders();
+      },
+      error: (err) => {
+        this.isHidingOrder = false;
+        this.hideConfirmOrder = null;
+        this.errorMessage = err.error?.message || 'Could not hide the order.';
+      }
+    });
+  }
+
+  /** Unhide needs no confirmation — it only makes a row visible again. */
+  unhideOrder(order: AdminOrderList): void {
+    if (!this.isSuperAdmin || this.isHidingOrder) return;
+
+    this.isHidingOrder = true;
+    this.adminService.unhideOrder(order.id).subscribe({
+      next: (res) => {
+        this.isHidingOrder = false;
+        this.successMessage = res.message;
+        setTimeout(() => { this.successMessage = ''; }, 5000);
+        this.loadOrders();
+      },
+      error: (err) => {
+        this.isHidingOrder = false;
+        this.errorMessage = err.error?.message || 'Could not restore the order.';
       }
     });
   }
@@ -1064,7 +1367,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.clearMessages();
 
     if (this.userRole && this.userRole !== 'Customer') {
-      this.adminService.getAllOrders().subscribe({
+      this.adminService.getAllOrders(this.showHiddenOrders).subscribe({
         next: (orders) => {
           this.orders = orders as AdminOrderList[];
           this.preloadResidentialVariants();
@@ -1214,19 +1517,24 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private computeStats(filteredOrders: AdminOrderList[]) {
-    // Filter out pending and cancelled orders for calculations
+    // Filter out pending, cancelled and fully-refunded orders for calculations. Refunded joins
+    // cancelled because a fully-refunded order earned nothing — matching the backend statistics.
     const validOrders = filteredOrders.filter(order =>
       order.status &&
       order.status.toLowerCase() !== 'pending' &&
-      order.status.toLowerCase() !== 'cancelled'
+      order.status.toLowerCase() !== 'cancelled' &&
+      order.status.toLowerCase() !== 'refunded'
     );
 
-    // Total amount without tips (since tips don't count for taxes)
+    // Total amount without tips (since tips don't count for taxes), net of any partial refund.
+    // Subtracting the refund here is exact: this figure is tax-INCLUSIVE minus tips, the same
+    // basis the customer was charged on, so a retained $70 fee is exactly what keeps counting.
     const totalAmount = validOrders.reduce((sum, order) => {
       const orderTotal = order.total || 0;
       const orderTips = order.tips || 0;
       const orderCompanyTips = order.companyDevelopmentTips || 0;
-      return sum + (orderTotal - orderTips - orderCompanyTips);
+      const orderRefunded = order.totalRefundedAmount || 0;
+      return sum + (orderTotal - orderTips - orderCompanyTips - orderRefunded);
     }, 0);
 
     // Approximate total taxes from the tax-inclusive amount, using the shared sales-tax
@@ -1276,7 +1584,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadOrderPhotos(orderId);
     this.loadOrderSavedCardInfo(orderId);
     this.resetTransferPanel();
-    if (this.isSuperAdmin) this.loadOrderTransfers(orderId);
+    this.resetRefundState();
+    if (this.isSuperAdmin) {
+      this.loadOrderTransfers(orderId);
+      this.loadOrderRefunds(orderId);
+    }
 
     // Acknowledge any active reminders for this order
     this.orderReminderService.acknowledgeOrder(orderId);
@@ -1347,6 +1659,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.editingOrder = false;
     this.editingPaymentMethod = false;
     this.resetOrderPhotoState();
+    this.resetRefundState();
   }
 
   private resetOrderPhotoState(): void {
@@ -2800,6 +3113,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         return 'status-done';
       case 'cancelled':
         return 'status-cancelled';
+      case 'refunded':
+        // Deliberately shares the cancelled treatment: both mean "this order brought in no money".
+        return 'status-cancelled status-refunded';
       default:
         return '';
     }

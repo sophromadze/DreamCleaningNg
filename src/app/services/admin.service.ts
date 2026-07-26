@@ -107,6 +107,11 @@ export interface AdminOrderList {
   isLateCancellation?: boolean;
   /** True when an admin created the order (create-for-user) rather than the customer. */
   bookedByAdmin?: boolean;
+  /** Money already refunded. Header-card revenue totals subtract this, so a retained
+   *  cancellation fee still counts as income. */
+  totalRefundedAmount?: number;
+  /** Soft-hidden from the default list view. Only present when includeHidden was requested. */
+  isHidden?: boolean;
 }
 
 export interface AuditLog {
@@ -205,6 +210,43 @@ export interface OrderTransferInfo {
   pointsMoved: number;
   spentAmountMoved: number;
   photosMoved: number;
+}
+
+/** One recorded refund on an order. */
+export interface OrderRefundInfo {
+  id: number;
+  amount: number;
+  /** "succeeded" | "pending" | "Failed" | Stripe's own status. */
+  status: string;
+  /** Internal admin note — never shown to the customer. */
+  reason?: string;
+  failureReason?: string;
+  refundedByName: string;
+  createdAt: string;
+  emailSent: boolean;
+}
+
+/** Refund state for one order. remainingRefundable is read live from the payment provider,
+ *  so it already accounts for refunds issued outside this panel. */
+export interface OrderRefundSummary {
+  orderId: number;
+  totalCharged: number;
+  totalRefunded: number;
+  remainingRefundable: number;
+  canRefund: boolean;
+  unavailableReason?: string;
+  refunds: OrderRefundInfo[];
+}
+
+/** Outcome of a refund attempt. success=false with amountRefunded>0 means a PARTIAL refund
+ *  went through — the money already moved and must not be silently retried in full. */
+export interface RefundResult {
+  success: boolean;
+  message: string;
+  refundIds: string[];
+  amountRefunded: number;
+  emailSent: boolean;
+  summary?: OrderRefundSummary;
 }
 
 export interface UserAdmin {
@@ -895,9 +937,20 @@ export class AdminService {
   }
 
   // Orders Management
-  getAllOrders(): Observable<AdminOrderList[]> {
+  /** @param includeHidden pass true for the "Show hidden orders" view (allowed for all admin roles). */
+  getAllOrders(includeHidden = false): Observable<AdminOrderList[]> {
     // Note: Just use /orders, not /admin/orders because apiUrl already includes /admin
-    return this.http.get<AdminOrderList[]>(`${this.apiUrl}/orders`);
+    const params = includeHidden ? new HttpParams().set('includeHidden', 'true') : undefined;
+    return this.http.get<AdminOrderList[]>(`${this.apiUrl}/orders`, { params });
+  }
+
+  /** SuperAdmin-only soft-hide. View filter only — changes no order data, status or revenue. */
+  hideOrder(orderId: number): Observable<{ message: string; isHidden: boolean }> {
+    return this.http.post<{ message: string; isHidden: boolean }>(`${this.apiUrl}/orders/${orderId}/hide`, {});
+  }
+
+  unhideOrder(orderId: number): Observable<{ message: string; isHidden: boolean }> {
+    return this.http.post<{ message: string; isHidden: boolean }>(`${this.apiUrl}/orders/${orderId}/unhide`, {});
   }
 
   getOrderDetails(orderId: number): Observable<Order> {
@@ -1238,6 +1291,17 @@ export class AdminService {
 
   sendUpdatedPayment(orderId: number): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiUrl}/orders/${orderId}/send-updated-payment`, {});
+  }
+
+  // ── SuperAdmin refunds (admin-initiated only; nothing refunds automatically) ──
+
+  getOrderRefunds(orderId: number): Observable<OrderRefundSummary> {
+    return this.http.get<OrderRefundSummary>(`${this.apiUrl}/orders/${orderId}/refunds`);
+  }
+
+  /** amount omitted = refund the full remaining refundable balance. */
+  refundOrder(orderId: number, amount: number | null, reason: string | null, sendEmail: boolean): Observable<RefundResult> {
+    return this.http.post<RefundResult>(`${this.apiUrl}/orders/${orderId}/refund`, { amount, reason, sendEmail });
   }
 
   getOrderStatistics(from?: string, to?: string): Observable<OrderStatistics> {

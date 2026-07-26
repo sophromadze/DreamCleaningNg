@@ -404,11 +404,18 @@
                     &.warn { color: var(--warning-orange-text, #c2410c); }
                     &.history { color: var(--primary-text, #1d4ed8); }
                     &.danger { color: var(--bright-red, #ef4444); }
+                    // Refund = money going back. Indigo separates it from the red destructive
+                    // delete sitting right next to it, so they can't be confused at a glance.
+                    &.refund { color: var(--btn-quote, #4f46e5); }
+                    // Hide is the quietest action in the row — it destroys nothing.
+                    &.muted { color: var(--text-muted, #64748b); }
 
                     &.ok:hover:not(:disabled) { background: var(--mint-fresh, #dcfce7); }
                     &.warn:hover:not(:disabled) { background: var(--warning-orange-bg, #fff7ed); }
                     &.history:hover:not(:disabled) { background: var(--soft-blue, #dbeafe); }
                     &.danger:hover:not(:disabled) { background: var(--soft-red, #fee2e2); }
+                    &.refund:hover:not(:disabled) { background: var(--soft-lavender-background-light, #eef2ff); }
+                    &.muted:hover:not(:disabled) { background: var(--surface-subtle, #f1f5f9); }
                   }
                 }
               }
@@ -4439,4 +4446,310 @@ $order-header-mobile: 60px;
 .duration-hint.staffing-review-hint {
   color: var(--warning-orange-text) !important;
   font-weight: var(--fw-semibold);
+}
+
+// ── SuperAdmin refunds (order detail panel section + modal) ──
+// Danger-tinted throughout: every control here moves real money back to the customer
+// and cannot be undone.
+.refund-section {
+  margin: 1rem 0;
+  padding: 0.85rem 1rem;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  .refund-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+
+    h5 {
+      margin: 0;
+      color: var(--text-primary);
+    }
+  }
+
+  .refund-btn {
+    background: var(--soft-red);
+    color: var(--bright-red);
+    border: 1px solid var(--bright-red);
+    border-radius: var(--radius-pill);
+    padding: 0.25rem 0.85rem;
+    font-size: 0.8rem;
+    font-weight: var(--fw-semibold);
+    cursor: pointer;
+    transition: background 0.2s;
+
+    &:hover:not(:disabled) { background: var(--bright-red); color: var(--surface); }
+  }
+
+  .refund-totals {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1.25rem;
+    margin-top: 0.55rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+
+    .refund-available { color: var(--primary-text); }
+    .refund-unavailable { color: var(--text-muted); font-style: italic; }
+  }
+
+  .refund-history {
+    margin-top: 0.85rem;
+
+    h6 {
+      margin: 0 0 0.4rem;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .refund-entry {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid var(--border-color);
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+
+      &:last-child { border-bottom: none; }
+      &.is-failed .refund-line { opacity: 0.7; }
+    }
+
+    .refund-tags { display: inline-flex; gap: 0.3rem; }
+
+    .refund-tag {
+      background: var(--mint-fresh);
+      color: var(--fresh-green);
+      padding: 0.05rem 0.45rem;
+      border-radius: var(--radius-pill);
+      font-size: 0.72rem;
+      font-weight: var(--fw-semibold);
+      text-transform: capitalize;
+
+      &.failed { background: var(--soft-red); color: var(--bright-red); }
+      &.email { background: var(--soft-blue); color: var(--primary-color); }
+      &.muted { background: var(--surface-subtle); color: var(--text-muted); }
+    }
+
+    .refund-failure {
+      flex-basis: 100%;
+      font-size: 0.76rem;
+      color: var(--bright-red);
+    }
+  }
+}
+
+.refund-modal {
+  max-width: 520px;
+
+  .refund-modal-max {
+    margin: 0 0 0.9rem;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+  }
+
+  .refund-mode-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .refund-radio,
+  .refund-email-toggle {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    cursor: pointer;
+
+    input { margin-top: 0.2rem; flex-shrink: 0; }
+  }
+
+  .refund-amount-group {
+    margin-bottom: 1rem;
+
+    label { display: block; margin-bottom: 0.4rem; color: var(--text-primary); }
+  }
+
+  .refund-amount-input {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface-elevated);
+    padding: 0 0.6rem;
+
+    &:focus-within { border-color: var(--primary-color); }
+
+    .refund-currency { color: var(--text-muted); font-weight: var(--fw-semibold); }
+
+    input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--text-primary);
+      padding: 0.55rem 0;
+      font-size: 1rem;
+
+      &:focus { outline: none; }
+    }
+  }
+
+  .refund-amount-hint { color: var(--text-muted); font-size: 0.78rem; }
+
+  .refund-reason-group {
+    margin: 1rem 0;
+
+    label { display: block; margin-bottom: 0.4rem; color: var(--text-primary); }
+
+    textarea {
+      width: 100%;
+      padding: 0.6rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--surface-elevated);
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      font-family: inherit;
+      resize: vertical;
+      box-sizing: border-box;
+
+      &:focus { outline: none; border-color: var(--primary-color); }
+    }
+  }
+
+  .refund-confirm-box {
+    padding: 0.9rem 1rem;
+    background: var(--soft-red);
+    border: 1px solid var(--bright-red);
+    border-radius: var(--radius-md);
+
+    .refund-confirm-lead {
+      margin: 0 0 0.6rem;
+      font-size: 1rem;
+      color: var(--text-primary);
+    }
+
+    .refund-confirm-points {
+      margin: 0;
+      padding-left: 1.1rem;
+      font-size: 0.87rem;
+      color: var(--text-secondary);
+
+      li { margin-bottom: 0.25rem; }
+      li:last-child { margin-bottom: 0; }
+    }
+  }
+
+  .refund-error {
+    margin: 0.9rem 0 0;
+    padding: 0.55rem 0.7rem;
+    background: var(--soft-red);
+    color: var(--bright-red);
+    border-radius: var(--radius-sm);
+    font-size: 0.85rem;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+}
+
+// ── Refunded status + soft-hidden rows (admin orders table) ──
+
+// REFUNDED reuses the cancelled pill's colours (see getStatusClass, which emits both classes):
+// both statuses mean "this order brought in no money". Letter-spacing only, so the longer word
+// stays readable at the pill's size.
+.status-badge.status-refunded {
+  letter-spacing: 0.02em;
+}
+
+// Soft-hidden rows only ever render with "Show hidden orders" ticked. Dimmed so they can never
+// be mistaken for live orders, but still fully readable and clickable.
+tr.row-hidden-order {
+  opacity: 0.55;
+
+  &:hover { opacity: 0.8; }
+}
+
+.hidden-badge {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.05rem 0.4rem;
+  font-size: 0.62rem;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+// "Show hidden orders" checkbox — sits in the filter row alongside the selects, so it matches
+// their height rather than looking like body text.
+.show-hidden-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+
+  input { cursor: pointer; margin: 0; }
+
+  &:hover { background: var(--surface-subtle); }
+}
+
+.hide-order-modal {
+  max-width: 480px;
+
+  .hide-order-box {
+    padding: 0.9rem 1rem;
+    background: var(--surface-subtle);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+  }
+
+  .hide-order-lead {
+    margin: 0 0 0.6rem;
+    font-size: 1rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+
+  .hide-order-points {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: 0.87rem;
+    color: var(--text-secondary);
+
+    li { margin-bottom: 0.25rem; }
+    li:last-child { margin-bottom: 0; }
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
 }

@@ -79,6 +79,7 @@
         <option value="active">Active</option>
         <option value="done">Done</option>
         <option value="cancelled">Cancelled</option>
+        <option value="refunded">Refunded</option>
       </select>
       
       <select [(ngModel)]="dateFilter" class="filter-select">
@@ -129,6 +130,16 @@
         <option value="Check">Check</option>
         <option value="Other">Other</option>
       </select>
+
+      <!-- Show hidden orders: available to EVERY admin role. All roles can view hidden orders;
+           only SuperAdmin can hide/unhide them. Reloads from the server, so the totals above
+           follow the visible rows. -->
+      <label class="show-hidden-toggle" title="Include orders that were hidden from this list">
+        <input type="checkbox"
+               [checked]="showHiddenOrders"
+               (change)="toggleShowHiddenOrders()">
+        <span>Show hidden orders</span>
+      </label>
     </div>
   </div>
 
@@ -157,12 +168,15 @@
                 [class.is-new-order]="newOrderNotificationService.isUnviewed(order.id)"
                 [class.row-flagged-red]="order.flag === 'Red'"
                 [class.row-flagged-yellow]="order.flag === 'Yellow'"
+                [class.row-hidden-order]="order.isHidden"
                 [title]="order.flag && order.flag !== 'None' ? ('Flagged customer (' + order.flag + ')' + (order.flagReason ? ': ' + order.flagReason : '')) : null"
                 (click)="viewOrderDetails(order.id)" style="cursor: pointer;">
               <td>
                 <span *ngIf="orderReminderService.hasActiveReminder(order.id)" class="reminder-indicator" title="Check this order!"></span>
                 <span *ngIf="newOrderNotificationService.isUnviewed(order.id)" class="new-order-indicator" title="New order!"></span>
                 {{order.id}}
+                <span *ngIf="order.isHidden" class="hidden-badge"
+                      title="Hidden from the default list — showing because &quot;Show hidden orders&quot; is on.">HIDDEN</span>
               </td>
               <td>{{getCustomerEmail(order.id)}}</td>
               <td>{{formatDateTime(order.serviceDate, order.serviceTime)}}</td>
@@ -222,6 +236,34 @@
                           (click)="reactivateOrder(order)"
                           title="Reactivate Order">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-9.36L1 10"/></svg>
+                  </button>
+                  <!-- SuperAdmin-only hide / unhide (reversible, view-only — never deletes data).
+                       Eye-off = hide, eye = restore. Hide is offered ONLY for cancelled or fully
+                       refunded orders, so live/completed work can't be tidied out of sight;
+                       restore is always available so a reactivated order can come back. -->
+                  <button *ngIf="isSuperAdmin && !order.isHidden && canHideOrder(order)"
+                          class="icon-btn muted"
+                          (click)="openHideConfirm(order)"
+                          [disabled]="isHidingOrder"
+                          title="Hide from list (reversible)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  </button>
+                  <button *ngIf="isSuperAdmin && order.isHidden"
+                          class="icon-btn ok"
+                          (click)="unhideOrder(order)"
+                          [disabled]="isHidingOrder"
+                          title="Restore to list">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                  </button>
+                  <!-- SuperAdmin-only refund. Money icon (not a ban/trash) so it reads as
+                       "give money back", not "destroy". The modal checks what's actually
+                       refundable before it opens. -->
+                  <button *ngIf="isSuperAdmin"
+                          class="icon-btn refund"
+                          (click)="openRefundModalForOrder(order)"
+                          [disabled]="loadingRefunds || isRefunding"
+                          title="Refund money to customer">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 14 4 9 9 4"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
                   </button>
                   <!-- SuperAdmin-only hard delete (no refund) -->
                   <button *ngIf="isSuperAdmin"
@@ -1039,7 +1081,57 @@
                       <small>Loading update history...</small>
                     </div>
                   </div>
-                  
+
+                  <!-- Refunds (SuperAdmin only). Hidden entirely for orders that were never paid
+                       by card. "Available to refund" is read live from the payment provider, so it
+                       already accounts for anything refunded outside this panel. -->
+                  <div *ngIf="!editingOrder && isSuperAdmin && refundSummaryMatchesPanel && refundSummary && (refundSummary.canRefund || refundSummary.refunds.length > 0)"
+                       class="refund-section">
+                    <div class="refund-header">
+                      <h5>Refunds</h5>
+                      <button type="button" class="action-btn danger refund-btn"
+                              *ngIf="canRefundSelectedOrder"
+                              (click)="openRefundModal()">
+                        Refund…
+                      </button>
+                    </div>
+
+                    <div class="refund-totals">
+                      <span><strong>Paid by card:</strong> ${{ formatCurrency(refundSummary.totalCharged) }}</span>
+                      <span *ngIf="refundSummary.totalRefunded > 0">
+                        <strong>Already refunded:</strong> ${{ formatCurrency(refundSummary.totalRefunded) }}
+                      </span>
+                      <span class="refund-available" *ngIf="refundSummary.canRefund">
+                        <strong>Available to refund:</strong> ${{ formatCurrency(refundSummary.remainingRefundable) }}
+                      </span>
+                      <span class="refund-unavailable" *ngIf="!refundSummary.canRefund">
+                        {{ refundSummary.unavailableReason }}
+                      </span>
+                    </div>
+
+                    <div class="refund-history" *ngIf="refundSummary.refunds.length > 0">
+                      <h6>Refund history</h6>
+                      <div class="refund-entry" *ngFor="let r of refundSummary.refunds"
+                           [class.is-failed]="r.status === 'Failed'">
+                        <span class="refund-line">
+                          {{ formatUtcDateTime(r.createdAt) }} —
+                          <strong>${{ formatCurrency(r.amount) }}</strong>
+                          by {{ r.refundedByName }}
+                          <ng-container *ngIf="r.reason"> · “{{ r.reason }}”</ng-container>
+                        </span>
+                        <span class="refund-tags">
+                          <span class="refund-tag" [class.failed]="r.status === 'Failed'">{{ r.status }}</span>
+                          <span class="refund-tag email" [class.muted]="!r.emailSent">
+                            {{ r.emailSent ? 'Email sent' : 'No email' }}
+                          </span>
+                        </span>
+                        <span class="refund-failure" *ngIf="r.status === 'Failed' && r.failureReason">
+                          {{ r.failureReason }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
                   <!-- Services and Instructions Row -->
                   <div *ngIf="!editingOrder" class="services-instructions-row">
                     <!-- Services Column -->
@@ -1419,6 +1511,129 @@
         </button>
         <button class="btn-secondary" (click)="closeAdminCancelModal()">Keep Order</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hide Order Modal (SuperAdmin). Deliberately plain language — the point is that this is
+     NOT a delete and is undoable. -->
+<div class="modal-overlay" *ngIf="hideConfirmOrder" (click)="closeHideConfirm()">
+  <div class="modal-content hide-order-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Hide Order #{{ hideConfirmOrder?.id }}?</h3>
+      <button class="close-btn" (click)="closeHideConfirm()" [disabled]="isHidingOrder">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="hide-order-box">
+        <p class="hide-order-lead">This only removes the order from this list.</p>
+        <ul class="hide-order-points">
+          <li>Nothing is deleted — this is not the same as the delete button.</li>
+          <li>The order keeps its <strong>{{ hideConfirmOrder?.status }}</strong> status and your reports don't change.</li>
+          <li>You can bring it back any time: tick <strong>“Show hidden orders”</strong>, then click the restore icon.</li>
+        </ul>
+      </div>
+      <div class="modal-actions">
+        <button class="btn-danger" (click)="confirmHideOrder()" [disabled]="isHidingOrder">
+          {{ isHidingOrder ? 'Hiding…' : 'Hide this order' }}
+        </button>
+        <button class="btn-secondary" (click)="closeHideConfirm()" [disabled]="isHidingOrder">Keep it visible</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Refund Modal (SuperAdmin). Two deliberate steps: choose the amount, then confirm.
+     Nothing is sent to the payment provider until the second step is confirmed.
+     Opens from either the detail panel or a table row — refundOrderId resolves which. -->
+<div class="modal-overlay" *ngIf="showRefundModal" (click)="closeRefundModal()">
+  <div class="modal-content refund-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Refund Order #{{ refundOrderId }}</h3>
+      <button class="close-btn" (click)="closeRefundModal()" [disabled]="isRefunding">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <!-- Step 1: pick the amount -->
+      <ng-container *ngIf="!refundConfirming">
+        <p class="refund-modal-max">
+          Available to refund: <strong>${{ formatCurrency(maxRefundable) }}</strong>
+        </p>
+
+        <div class="refund-mode-group">
+          <label class="refund-radio">
+            <input type="radio" name="refundMode" value="full"
+                   [checked]="refundMode === 'full'"
+                   (change)="onRefundModeChange('full')">
+            <span>Full refund — give back the entire ${{ formatCurrency(maxRefundable) }}</span>
+          </label>
+          <label class="refund-radio">
+            <input type="radio" name="refundMode" value="partial"
+                   [checked]="refundMode === 'partial'"
+                   (change)="onRefundModeChange('partial')">
+            <span>Partial refund — give back part of it</span>
+          </label>
+        </div>
+
+        <div class="refund-amount-group" *ngIf="refundMode === 'partial'">
+          <label for="refundAmount"><strong>Amount to refund</strong></label>
+          <div class="refund-amount-input">
+            <span class="refund-currency">$</span>
+            <input id="refundAmount" type="number" min="0.01" step="0.01"
+                   [max]="maxRefundable"
+                   [(ngModel)]="refundAmountInput"
+                   placeholder="0.00">
+          </div>
+          <small class="refund-amount-hint">Maximum: ${{ formatCurrency(maxRefundable) }}</small>
+        </div>
+
+        <div class="refund-reason-group">
+          <label for="refundReason"><strong>Reason (optional)</strong></label>
+          <textarea id="refundReason" rows="2" maxlength="500"
+                    [(ngModel)]="refundReason"
+                    placeholder="Internal note — the customer never sees this."></textarea>
+        </div>
+
+        <label class="refund-email-toggle">
+          <input type="checkbox" [(ngModel)]="refundSendEmail">
+          <span>Send confirmation email to the customer</span>
+        </label>
+
+        <p class="refund-error" *ngIf="refundError">{{ refundError }}</p>
+
+        <div class="modal-actions">
+          <button class="btn-danger" (click)="proceedToRefundConfirm()">Continue</button>
+          <button class="btn-secondary" (click)="closeRefundModal()">Cancel</button>
+        </div>
+      </ng-container>
+
+      <!-- Step 2: confirm. Spells out exactly what is about to happen — this cannot be undone. -->
+      <ng-container *ngIf="refundConfirming">
+        <div class="refund-confirm-box">
+          <p class="refund-confirm-lead">
+            Refund <strong>${{ formatCurrency(effectiveRefundAmount) }}</strong>
+            to {{ refundOrderCustomerName }}?
+          </p>
+          <ul class="refund-confirm-points">
+            <li>The money goes back to the card used for this order.</li>
+            <li>It usually reaches the customer in 5–10 business days.</li>
+            <li>
+              {{ refundSendEmail
+                  ? 'A confirmation email will be sent to ' + refundOrderCustomerEmail + '.'
+                  : 'No email will be sent to the customer.' }}
+            </li>
+            <li><strong>This cannot be undone.</strong></li>
+          </ul>
+        </div>
+
+        <p class="refund-error" *ngIf="refundError">{{ refundError }}</p>
+
+        <div class="modal-actions">
+          <button class="btn-danger" (click)="submitRefund()" [disabled]="isRefunding">
+            {{ isRefunding ? 'Refunding…' : 'Yes, refund $' + formatCurrency(effectiveRefundAmount) }}
+          </button>
+          <button class="btn-secondary" (click)="cancelRefundConfirm()" [disabled]="isRefunding">Back</button>
+        </div>
+      </ng-container>
     </div>
   </div>
 </div>
