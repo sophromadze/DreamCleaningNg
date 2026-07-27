@@ -12,13 +12,22 @@
     </span>
   </div>
   <div class="floor-type-other-wrapper" [class.visible]="showOtherInput()">
-    <input
-      *ngIf="showOtherInput()"
-      type="text"
-      class="floor-type-other-input"
-      [(ngModel)]="otherText"
-      (ngModelChange)="onOtherTextChange()"
-      placeholder="Please specify your floor type..."
-      maxlength="100">
+    <ng-container *ngIf="showOtherInput()">
+      <input
+        type="text"
+        class="floor-type-other-input"
+        [(ngModel)]="otherText"
+        (ngModelChange)="onOtherTextChange()"
+        placeholder="Please specify your floor type..."
+        [attr.maxlength]="maxOtherLength"
+        aria-describedby="floorTypeOtherCount">
+      <div
+        id="floorTypeOtherCount"
+        class="floor-type-other-count"
+        [class.at-limit]="otherLength >= maxOtherLength"
+        aria-live="polite">
+        {{ otherLength }}/{{ maxOtherLength }} characters
+      </div>
+    </ng-container>
   </div>
 </div>

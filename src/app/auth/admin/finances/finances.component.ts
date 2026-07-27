@@ -25,7 +25,11 @@ interface CostLine {
   /** Same line in the previous period (null when there is no comparison window). */
   prevAmount: number | null;
   included: boolean;
-  /** Chart token slot ('--chart-cat-N'). Assigned by entity in fixed order, never re-shuffled. */
+  /**
+   * Chart token slot ('--chart-cat-N'), or null to fold into the muted "Other
+   * expenses" slice. The four fixed lines always keep slots 1–4; expense
+   * categories compete for 5–8 by size (see CATEGORY_CHART_SLOTS).
+   */
   colorVar: string | null;
   /** Individual expense entries (only for expense-category rows) — expandable detail. */
   items?: ExpenseBreakdownItem[];
@@ -46,6 +50,14 @@ interface DateWindow {
   prevTo?: string;
   compareLabel: string;
 }
+
+/**
+ * Donut slots available to expense categories. The categorical palette has 8
+ * validated hues (--chart-cat-1..8) and the four fixed cost lines hold 1–4, so
+ * four are left. Raising this needs new validated tokens in styles.scss, not
+ * generated hues — and a donut past ~9 slices stops being readable anyway.
+ */
+const CATEGORY_CHART_SLOTS = 4;
 
 type CompareUnit = 'day' | 'week' | 'month' | 'year';
 
@@ -377,7 +389,22 @@ export class FinancesComponent implements OnInit, OnDestroy {
     const prevCategories = new Map(
       (prev?.expensesBreakdown?.byCategory ?? []).map(c => [c.categoryId, c.total]));
 
-    categories.forEach((cat, i) => {
+    // The four fixed lines above hold chart slots 1–4, so only slots 5–8 are left
+    // for expense categories — the rest fold into the muted "Other expenses"
+    // slice. Which four get a slot is decided by how much they cost in this
+    // period, NOT by category id: the old rule handed slots to the four
+    // lowest-id categories, so big spends that happen to sort late (Salaries is
+    // id 4, Google Ads is created on first sync and lands higher still) were
+    // permanently buried in "Other expenses" no matter how large they were.
+    // Ranking also stops a $0 category from holding a slot it can't use.
+    const slotByCategoryId = new Map<number, string>(
+      [...categories]
+        .sort((a, b) => b.total - a.total)
+        .slice(0, CATEGORY_CHART_SLOTS)
+        .map((cat, i) => [cat.categoryId, `--chart-cat-${5 + i}`] as const)
+    );
+
+    categories.forEach(cat => {
       const key = `cat-${cat.categoryId}`;
       lines.push({
         key,
@@ -386,9 +413,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
         amount: cat.total,
         prevAmount: prev ? (prevCategories.get(cat.categoryId) ?? 0) : null,
         included: !this.excludedKeys.has(key),
-        // Only 8 chart slots exist; entities beyond slot 8 render as the muted
-        // "Other" slice in the donut (their receipt rows are unaffected).
-        colorVar: i < 4 ? `--chart-cat-${5 + i}` : null,
+        colorVar: slotByCategoryId.get(cat.categoryId) ?? null,
         items: cat.items,
         expanded: false
       });
