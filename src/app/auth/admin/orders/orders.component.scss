@@ -4753,3 +4753,72 @@ tr.row-hidden-order {
     margin-top: 1.5rem;
   }
 }
+
+// ── Stripe reconciliation ("Sync from Stripe") ──
+.refund-section {
+  .refund-header-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+
+  // Neutral, not danger-tinted: syncing only reads Stripe and records what it finds.
+  .refund-sync-btn {
+    background: var(--surface-elevated);
+    color: var(--primary-text);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-pill);
+    padding: 0.25rem 0.85rem;
+    font-size: 0.8rem;
+    font-weight: var(--fw-semibold);
+    cursor: pointer;
+    transition: background 0.2s;
+
+    &:hover:not(:disabled) { background: var(--soft-blue); }
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+  }
+
+  // Chargebacks are invisible in Stripe's refunded totals, so this warning is the only
+  // place the admin learns the order isn't actually settled.
+  .refund-dispute-warning {
+    margin-top: 0.6rem;
+    padding: 0.55rem 0.7rem;
+    background: var(--warning-orange-bg);
+    color: var(--warning-orange-text);
+    border: 1px solid var(--warning-orange-border);
+    border-radius: var(--radius-sm);
+    font-size: 0.83rem;
+  }
+
+  .refund-unrecorded-note {
+    margin-top: 0.6rem;
+    padding: 0.55rem 0.7rem;
+    background: var(--soft-yellow);
+    color: var(--soft-yellow-text);
+    border-radius: var(--radius-sm);
+    font-size: 0.83rem;
+  }
+
+  .refund-history {
+    .refund-tag.stripe {
+      background: var(--soft-lavender-background-light);
+      color: var(--btn-quote);
+    }
+
+    .refund-send-email-btn {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-pill);
+      padding: 0.05rem 0.5rem;
+      font-size: 0.72rem;
+      font-weight: var(--fw-semibold);
+      color: var(--primary-text);
+      cursor: pointer;
+      transition: background 0.2s;
+
+      &:hover:not(:disabled) { background: var(--soft-blue); }
+      &:disabled { opacity: 0.5; cursor: not-allowed; }
+    }
+  }
+}

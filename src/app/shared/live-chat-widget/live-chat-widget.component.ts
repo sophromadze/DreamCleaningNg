@@ -37,6 +37,7 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
 
   private chatAutoStarted = false;
   private subscriptions: Subscription[] = [];
+  private detachViewportSync?: () => void;
 
   constructor(
     private chatService: LiveChatService,
@@ -65,7 +66,10 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
       this.chatService.chatEnabled$.subscribe(enabled => {
         this.chatEnabled = enabled;
         // Close the window if admin disables while visitor has it open
-        if (!enabled && this.isOpen) this.isOpen = false;
+        if (!enabled && this.isOpen) {
+          this.isOpen = false;
+          this.stopViewportSync();
+        }
       }),
       this.authService.currentUser.subscribe(user => {
         this.currentUser = user;
@@ -103,13 +107,17 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subscriptions.forEach(s => s.unsubscribe());
+    this.stopViewportSync();
   }
 
   toggleChat(): void {
     this.isOpen = !this.isOpen;
     if (this.isOpen) {
       this.unreadCount = 0;
+      this.startViewportSync();
       setTimeout(() => this.scrollToBottom(), 150);
+    } else {
+      this.stopViewportSync();
     }
   }
 
@@ -182,6 +190,7 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
     this.chatAutoStarted = false;
     this.messages = [];
     this.isOpen = false;
+    this.stopViewportSync();
   }
 
   getImageSrc(msg: ChatMessage): string {
@@ -193,6 +202,59 @@ export class LiveChatWidgetComponent implements OnInit, OnDestroy {
 
   openImageInTab(src: string): void {
     window.open(src, '_blank');
+  }
+
+  // ─── Mobile keyboard handling ──────────────────────────────────────────────
+  // On mobile the chat window is fullscreen. When the on-screen keyboard opens the
+  // browser shrinks the visual viewport (and often scrolls the page) while a
+  // position:fixed element stays glued to the unchanged layout viewport — which left
+  // a strip of the website visible between the chat input and the keyboard. We mirror
+  // the visual viewport into CSS vars so the window covers exactly what's on screen.
+
+  private startViewportSync(): void {
+    if (!this.isBrowser || this.detachViewportSync) return;
+
+    const vv = window.visualViewport;
+    if (!vv) return; // CSS fallbacks (100vw/100dvh) already cover unsupported browsers
+
+    const sync = () => this.syncViewportVars(vv);
+    vv.addEventListener('resize', sync);
+    vv.addEventListener('scroll', sync);
+    this.detachViewportSync = () => {
+      vv.removeEventListener('resize', sync);
+      vv.removeEventListener('scroll', sync);
+    };
+    sync();
+  }
+
+  private stopViewportSync(): void {
+    this.detachViewportSync?.();
+    this.detachViewportSync = undefined;
+    if (!this.isBrowser) return;
+    const style = document.documentElement.style;
+    ['--chat-vv-top', '--chat-vv-left', '--chat-vv-width', '--chat-vv-height']
+      .forEach(prop => style.removeProperty(prop));
+  }
+
+  private syncViewportVars(vv: VisualViewport): void {
+    const style = document.documentElement.style;
+    const wasAtBottom = this.isScrolledToBottom();
+
+    style.setProperty('--chat-vv-top', `${vv.offsetTop}px`);
+    style.setProperty('--chat-vv-left', `${vv.offsetLeft}px`);
+    style.setProperty('--chat-vv-width', `${vv.width}px`);
+    style.setProperty('--chat-vv-height', `${vv.height}px`);
+
+    // Keep the newest message in view as the keyboard eats vertical space
+    if (wasAtBottom) {
+      requestAnimationFrame(() => this.scrollToBottom());
+    }
+  }
+
+  private isScrolledToBottom(): boolean {
+    const container = this.messagesContainer?.nativeElement;
+    if (!container) return true;
+    return container.scrollHeight - container.scrollTop - container.clientHeight < 40;
   }
 
   private scrollToBottom(): void {

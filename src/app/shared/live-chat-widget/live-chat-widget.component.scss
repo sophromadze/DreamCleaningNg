@@ -271,7 +271,10 @@ $z-base: 9999;
 
 .messages-area {
   flex: 1;
+  min-height: 0; // lets the list shrink when the mobile keyboard shortens the window,
+                 // instead of pushing the input area past the bottom edge
   overflow-y: auto;
+  overscroll-behavior: contain; // don't chain scroll to the page behind the chat
   overflow-x: hidden;
   padding: 12px 12px 8px;
   background: $bg-light;
@@ -633,12 +636,17 @@ $z-base: 9999;
 
   .chat-window {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100vw;
-    height: 100dvh;
+    // Pinned to the VISUAL viewport, not the layout viewport: when the on-screen
+    // keyboard opens the browser shrinks the visual viewport (and may scroll the
+    // page), which used to leave a strip of the website showing between the chat
+    // input and the keyboard. --chat-vv-* are written by the component from
+    // window.visualViewport; the fallbacks keep it fullscreen when unsupported.
+    top: var(--chat-vv-top, 0px);
+    left: var(--chat-vv-left, 0px);
+    right: auto;
+    bottom: auto;
+    width: var(--chat-vv-width, 100vw);
+    height: var(--chat-vv-height, 100dvh);
     border-radius: 0;
     max-height: none;
   }

@@ -588,6 +588,40 @@ export function getSquareFeetForBedrooms(bedrooms: number): number {
   }
 }
 
+/**
+ * The Sq.ft values a customer may pick for a given bedroom minimum.
+ *
+ * A range input anchors its steps to `min`, so a 1-bedroom minimum of 650 with the
+ * catalog step of 100 only ever produced 650 / 750 / 850… — round values like 700
+ * or 900 were unreachable. The slider is therefore driven by an index into this
+ * list instead of by a raw step: the bedroom minimum is the first entry, and every
+ * entry after it is a plain multiple of the step, so a `…50` minimum is the only
+ * off-round value that ever appears.
+ *
+ *   650 → 650, 700, 800, 900, 1000…
+ *   850 → 850, 900, 1000, 1100…
+ *   400 → 400, 500, 600…            (minimum already on the grid)
+ */
+export function getSquareFeetOptions(
+  minSquareFeet: number,
+  maxSquareFeet?: number | null,
+  configuredStep?: number | null
+): number[] {
+  const step = Math.max(1, Math.round(configuredStep || 100));
+  const min = Math.max(0, Math.round(minSquareFeet) || 0);
+  const max = Math.max(min, Math.round(maxSquareFeet || 0) || min);
+
+  const options = [min];
+  // First multiple of the step strictly above the minimum (min + step when the
+  // minimum already sits on the grid, so the first entry is never duplicated).
+  let next = Math.floor(min / step) * step + step;
+  while (next <= max) {
+    options.push(next);
+    next += step;
+  }
+  return options;
+}
+
 // ===== Per-item display helpers (shared by booking + order-edit templates) =====
 
 /** Display price for one service at a given quantity (studio rule included). */

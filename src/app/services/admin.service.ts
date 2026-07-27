@@ -221,6 +221,8 @@ export interface OrderRefundInfo {
   /** Internal admin note — never shown to the customer. */
   reason?: string;
   failureReason?: string;
+  /** "Crm" = issued here. "Stripe" = found by reconciling against Stripe (Dashboard refund). */
+  source: string;
   refundedByName: string;
   createdAt: string;
   emailSent: boolean;
@@ -235,7 +237,36 @@ export interface OrderRefundSummary {
   remainingRefundable: number;
   canRefund: boolean;
   unavailableReason?: string;
+  /** A chargeback exists on one of this order's charges. Disputes are NOT refunds and never
+   *  show up in the refunded totals — this drives a warning, not an amount. */
+  hasDispute: boolean;
+  /** Refunded at Stripe but with no record here — money refunded outside the CRM.
+   *  Non-zero is what prompts "Sync from Stripe". */
+  unrecordedRefundAmount: number;
   refunds: OrderRefundInfo[];
+}
+
+/** Result of reconciling one order against Stripe. */
+export interface RefundSyncResult {
+  success: boolean;
+  message: string;
+  refundsImported: number;
+  amountImported: number;
+  hasDispute: boolean;
+  summary?: OrderRefundSummary;
+}
+
+/** Result of the paged backfill sweep. Keep calling with lastOrderId while hasMore is true. */
+export interface RefundBackfillResult {
+  ordersScanned: number;
+  ordersWithImports: number;
+  refundsImported: number;
+  amountImported: number;
+  failures: number;
+  disputesFound: number;
+  lastOrderId?: number;
+  hasMore: boolean;
+  message: string;
 }
 
 /** Outcome of a refund attempt. success=false with amountRefunded>0 means a PARTIAL refund
@@ -1302,6 +1333,23 @@ export class AdminService {
   /** amount omitted = refund the full remaining refundable balance. */
   refundOrder(orderId: number, amount: number | null, reason: string | null, sendEmail: boolean): Observable<RefundResult> {
     return this.http.post<RefundResult>(`${this.apiUrl}/orders/${orderId}/refund`, { amount, reason, sendEmail });
+  }
+
+  /** Import refunds issued outside the CRM (Stripe Dashboard). Idempotent; sends no email. */
+  syncOrderRefunds(orderId: number): Observable<RefundSyncResult> {
+    return this.http.post<RefundSyncResult>(`${this.apiUrl}/orders/${orderId}/sync-refunds`, {});
+  }
+
+  /** One-time sweep across orders with a card charge. Page through with afterOrderId. */
+  backfillRefunds(limit = 200, afterOrderId?: number): Observable<RefundBackfillResult> {
+    let params = new HttpParams().set('limit', String(limit));
+    if (afterOrderId != null) params = params.set('afterOrderId', String(afterOrderId));
+    return this.http.post<RefundBackfillResult>(`${this.apiUrl}/orders/sync-refunds/backfill`, {}, { params });
+  }
+
+  /** Manually send (or re-send) the customer's refund confirmation for one recorded refund. */
+  sendRefundEmail(orderId: number, refundId: number): Observable<RefundResult> {
+    return this.http.post<RefundResult>(`${this.apiUrl}/orders/${orderId}/refunds/${refundId}/send-email`, {});
   }
 
   getOrderStatistics(from?: string, to?: string): Observable<OrderStatistics> {

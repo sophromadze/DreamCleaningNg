@@ -90,12 +90,13 @@
                 <div class="service-input slider-input" *ngIf="selected.service.isRangeInput">
                   <div class="slider-container">
                     <span class="slider-quantity">{{ getServiceControl(i).value }}</span>
+                    <!-- Index-based, same as the booking page (see getSquareFeetOptions). -->
                     <input type="range"
-                          [formControl]="getServiceControl(i)"
-                          [min]="getSquareFeetMinForBedrooms()"
-                          [max]="selected.service.maxValue"
-                          [step]="selected.service.stepValue"
-                          (input)="updateServiceQuantity(selected.service, +getServiceControl(i).value)">
+                          min="0"
+                          step="1"
+                          [max]="getSquareFeetSliderMaxIndex(selected.service)"
+                          [value]="getSquareFeetSliderIndex(selected.service, getServiceControl(i).value)"
+                          (input)="onSquareFeetSliderChange(selected.service, $any($event.target).value)">
                   </div>
                 </div>
               </div>

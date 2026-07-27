@@ -1082,18 +1082,41 @@
                     </div>
                   </div>
 
-                  <!-- Refunds (SuperAdmin only). Hidden entirely for orders that were never paid
-                       by card. "Available to refund" is read live from the payment provider, so it
-                       already accounts for anything refunded outside this panel. -->
-                  <div *ngIf="!editingOrder && isSuperAdmin && refundSummaryMatchesPanel && refundSummary && (refundSummary.canRefund || refundSummary.refunds.length > 0)"
+                  <!-- Refunds (SuperAdmin only). Shown for any order that took a card payment —
+                       NOT gated on there being something left to refund, because a fully-refunded
+                       order with no history rows is exactly the case "Sync from Stripe" exists to
+                       repair. "Available to refund" is read live from the payment provider. -->
+                  <div *ngIf="!editingOrder && isSuperAdmin && refundSummaryMatchesPanel && refundSummary && (refundSummary.totalCharged > 0 || refundSummary.refunds.length > 0)"
                        class="refund-section">
                     <div class="refund-header">
                       <h5>Refunds</h5>
-                      <button type="button" class="action-btn danger refund-btn"
-                              *ngIf="canRefundSelectedOrder"
-                              (click)="openRefundModal()">
-                        Refund…
-                      </button>
+                      <div class="refund-header-actions">
+                        <button type="button" class="action-btn small refund-sync-btn"
+                                (click)="syncRefundsFromStripe()"
+                                [disabled]="isSyncingRefunds"
+                                title="Check Stripe for refunds that were issued outside this panel and record them here">
+                          {{ isSyncingRefunds ? 'Checking Stripe…' : 'Sync from Stripe' }}
+                        </button>
+                        <button type="button" class="action-btn danger refund-btn"
+                                *ngIf="canRefundSelectedOrder"
+                                (click)="openRefundModal()">
+                          Refund…
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- A chargeback never shows up in Stripe's refunded amount, so without this
+                         the order would read as "nothing refunded, all settled". -->
+                    <div class="refund-dispute-warning" *ngIf="refundSummary.hasDispute">
+                      ⚠ This order has a <strong>disputed charge (chargeback)</strong>. A dispute is not a
+                      refund — it is not counted in the totals below and was not imported. Review it in the
+                      Stripe Dashboard.
+                    </div>
+
+                    <!-- Money refunded at Stripe with no record here — the prompt to hit Sync. -->
+                    <div class="refund-unrecorded-note" *ngIf="refundSummary.unrecordedRefundAmount > 0">
+                      ${{ formatCurrency(refundSummary.unrecordedRefundAmount) }} was refunded in Stripe but
+                      isn't recorded here yet. Click <strong>Sync from Stripe</strong> to import it.
                     </div>
 
                     <div class="refund-totals">
@@ -1121,9 +1144,22 @@
                         </span>
                         <span class="refund-tags">
                           <span class="refund-tag" [class.failed]="r.status === 'Failed'">{{ r.status }}</span>
+                          <!-- Marks rows that came from reconciling with Stripe rather than being
+                               issued here — those have no admin behind them. -->
+                          <span class="refund-tag stripe" *ngIf="r.source === 'Stripe'"
+                                title="Issued in Stripe, imported by Sync from Stripe">Stripe</span>
                           <span class="refund-tag email" [class.muted]="!r.emailSent">
                             {{ r.emailSent ? 'Email sent' : 'No email' }}
                           </span>
+                          <!-- Stripe-imported refunds never mail automatically; a CRM refund whose
+                               email failed needs a retry. Same button serves both. -->
+                          <button type="button" class="refund-send-email-btn"
+                                  *ngIf="!r.emailSent && r.status !== 'Failed'"
+                                  (click)="sendRefundEmail(r)"
+                                  [disabled]="sendingRefundEmailId !== null"
+                                  title="Send the customer a refund confirmation email now">
+                            {{ sendingRefundEmailId === r.id ? 'Sending…' : 'Send email' }}
+                          </button>
                         </span>
                         <span class="refund-failure" *ngIf="r.status === 'Failed' && r.failureReason">
                           {{ r.failureReason }}
@@ -1520,7 +1556,7 @@
 <div class="modal-overlay" *ngIf="hideConfirmOrder" (click)="closeHideConfirm()">
   <div class="modal-content hide-order-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>Hide Order #{{ hideConfirmOrder?.id }}?</h3>
+      <h3>Hide Order #{{ hideConfirmOrder.id }}?</h3>
       <button class="close-btn" (click)="closeHideConfirm()" [disabled]="isHidingOrder">&times;</button>
     </div>
     <div class="modal-body">
@@ -1528,7 +1564,7 @@
         <p class="hide-order-lead">This only removes the order from this list.</p>
         <ul class="hide-order-points">
           <li>Nothing is deleted — this is not the same as the delete button.</li>
-          <li>The order keeps its <strong>{{ hideConfirmOrder?.status }}</strong> status and your reports don't change.</li>
+          <li>The order keeps its <strong>{{ hideConfirmOrder.status }}</strong> status and your reports don't change.</li>
           <li>You can bring it back any time: tick <strong>“Show hidden orders”</strong>, then click the restore icon.</li>
         </ul>
       </div>

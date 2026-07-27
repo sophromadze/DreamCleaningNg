@@ -23,6 +23,12 @@ export class StripeService {
     private themeService: ThemeService
   ) {
     this.initializeStripe();
+
+    // The card field lives in a Stripe iframe, so CSS can't reach it — its colors are baked
+    // in at create() time. Re-push them whenever the theme flips, otherwise a field mounted
+    // in light mode keeps dark navy text on the dark surface (unreadable, and the guest
+    // payment pages are where it shows up most).
+    this.themeService.theme$.subscribe(() => this.applyCardElementTheme());
   }
 
   private getCardElementStyle(): { base: any; invalid: any } {
@@ -32,6 +38,7 @@ export class StripeService {
         fontSize: '16px',
         color: isDark ? '#ffffff' : '#32325d',
         fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+        iconColor: isDark ? '#e2e8f0' : '#32325d',
         '::placeholder': {
           color: isDark ? '#b0b0b0' : '#aab7c4'
         }
@@ -41,6 +48,16 @@ export class StripeService {
         iconColor: '#fa755a'
       }
     };
+  }
+
+  // Re-apply the theme-dependent style to the mounted card element (no-op when none is mounted).
+  private applyCardElementTheme(): void {
+    if (!this.cardElement) return;
+    try {
+      this.cardElement.update({ style: this.getCardElementStyle() });
+    } catch {
+      // Element was destroyed between the theme change and this call — nothing to restyle.
+    }
   }
 
   private async initializeStripe() {

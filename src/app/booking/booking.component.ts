@@ -51,6 +51,7 @@ import {
   getExtraServiceDisplayPrice,
   getServiceDisplayDuration,
   getSquareFeetForBedrooms,
+  getSquareFeetOptions,
   buildQuoteInputFromSelections,
   mapSelectedExtraInputs,
   round2,
@@ -1899,6 +1900,45 @@ export class BookingComponent implements OnInit, OnDestroy {
       return this.getSquareFeetForBedrooms(bedroomsService.quantity);
     }
     return 400; // Default minimum
+  }
+
+  // ===== Sq.ft slider =====
+  // The slider runs over an INDEX into the allowed values rather than over raw
+  // square feet: a range input steps from its `min`, which made round values
+  // unreachable whenever the bedroom minimum ended in 50 (650 → 750 → 850…).
+  // See getSquareFeetOptions — the minimum is the only off-round value in the list.
+  private sqftOptionsCache: { key: string; options: number[] } | null = null;
+
+  private getSquareFeetOptionsFor(service: Service): number[] {
+    const min = this.getSquareFeetMinForBedrooms();
+    const max = service.maxValue || 5000;
+    const step = service.stepValue || 100;
+    const key = `${min}|${max}|${step}`;
+    if (this.sqftOptionsCache?.key !== key) {
+      this.sqftOptionsCache = { key, options: getSquareFeetOptions(min, max, step) };
+    }
+    return this.sqftOptionsCache.options;
+  }
+
+  getSquareFeetSliderMaxIndex(service: Service): number {
+    return this.getSquareFeetOptionsFor(service).length - 1;
+  }
+
+  /** Nearest allowed value for the current quantity — saved orders may sit off the grid. */
+  getSquareFeetSliderIndex(service: Service, quantity: number): number {
+    const options = this.getSquareFeetOptionsFor(service);
+    const q = Number(quantity) || 0;
+    let best = 0;
+    for (let i = 1; i < options.length; i++) {
+      if (Math.abs(options[i] - q) < Math.abs(options[best] - q)) best = i;
+    }
+    return best;
+  }
+
+  onSquareFeetSliderChange(service: Service, index: any): void {
+    const options = this.getSquareFeetOptionsFor(service);
+    const i = Math.min(Math.max(Math.round(Number(index) || 0), 0), options.length - 1);
+    this.updateServiceQuantity(service, options[i]);
   }
 
   updateServiceQuantity(service: Service, quantity: number) {

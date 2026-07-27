@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderTransferInfo, UserAdmin, OrderRefundSummary } from '../../../services/admin.service';
+import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderTransferInfo, UserAdmin, OrderRefundSummary, OrderRefundInfo } from '../../../services/admin.service';
 import { environment } from '../../../../environments/environment';
 import { OrderService, Order, OrderList } from '../../../services/order.service';
 import { CleanerService, AvailableCleaner } from '../../../services/cleaner.service';
@@ -46,6 +46,12 @@ export interface AdminOrderList extends OrderList {
   isLateCancellation?: boolean;
   /** True when an admin created the order (create-for-user) rather than the customer. */
   bookedByAdmin?: boolean;
+  /** Money already refunded. Header-card revenue totals subtract this, so a retained
+   *  cancellation fee still counts as income. Keep in sync with the same-named interface
+   *  in admin.service.ts — loadOrders() casts between them. */
+  totalRefundedAmount?: number;
+  /** Soft-hidden from the default list view. Only populated when includeHidden was requested. */
+  isHidden?: boolean;
 }
 
 @Component({
@@ -354,6 +360,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** Set when the modal was opened from a table row rather than the detail panel, so the
    *  modal has an order to name and submit against without the panel being open. */
   refundTargetOrder: AdminOrderList | null = null;
+  /** "Sync from Stripe" — imports refunds issued in the Stripe Dashboard. */
+  isSyncingRefunds = false;
+  /** Per-refund-row manual email send; holds the row id in flight. */
+  sendingRefundEmailId: number | null = null;
 
   // ── SuperAdmin soft-hide (view filter only; never touches order data or revenue) ──
   /** "Show hidden orders" filter. Visible to every admin role — all roles can VIEW hidden
@@ -516,8 +526,73 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // ── SuperAdmin refunds ──
 
+  /**
+   * Reconcile this order against Stripe. Picks up refunds issued in the Stripe Dashboard (or
+   * before the CRM refund flow existed) and records them here. Deliberately manual — there is no
+   * webhook. Safe to run repeatedly: a second run imports nothing.
+   */
+  syncRefundsFromStripe(): void {
+    const orderId = this.selectedOrder?.id;
+    if (!this.isSuperAdmin || orderId == null || this.isSyncingRefunds) return;
+
+    this.isSyncingRefunds = true;
+    this.refundError = '';
+
+    this.adminService.syncOrderRefunds(orderId).subscribe({
+      next: (result) => {
+        this.isSyncingRefunds = false;
+
+        if (result.summary && this.viewingOrderId === orderId) {
+          this.refundSummary = result.summary;
+        }
+
+        if (result.success) {
+          this.successMessage = result.message;
+          // Longer than usual: the dispute warning is appended to this message and is worth reading.
+          setTimeout(() => { this.successMessage = ''; }, result.hasDispute ? 15000 : 8000);
+          // An import can flip the order to Refunded and move the revenue totals.
+          if (result.refundsImported > 0) this.loadOrders();
+        } else {
+          this.refundError = result.message;
+        }
+      },
+      error: (err) => {
+        this.isSyncingRefunds = false;
+        this.refundError = err.error?.message || 'Could not reach Stripe. Please try again.';
+      }
+    });
+  }
+
+  /** Send the customer's refund confirmation for one history row, on explicit request. */
+  sendRefundEmail(refund: OrderRefundInfo): void {
+    const orderId = this.selectedOrder?.id;
+    if (!this.isSuperAdmin || orderId == null || this.sendingRefundEmailId !== null) return;
+
+    this.sendingRefundEmailId = refund.id;
+    this.refundError = '';
+
+    this.adminService.sendRefundEmail(orderId, refund.id).subscribe({
+      next: (result) => {
+        this.sendingRefundEmailId = null;
+        if (result.summary && this.viewingOrderId === orderId) this.refundSummary = result.summary;
+        if (result.success) {
+          this.successMessage = result.message;
+          setTimeout(() => { this.successMessage = ''; }, 6000);
+        } else {
+          this.refundError = result.message;
+        }
+      },
+      error: (err) => {
+        this.sendingRefundEmailId = null;
+        this.refundError = err.error?.message || 'The email could not be sent.';
+      }
+    });
+  }
+
   resetRefundState(): void {
     this.refundSummary = null;
+    this.isSyncingRefunds = false;
+    this.sendingRefundEmailId = null;
     this.showRefundModal = false;
     this.refundMode = 'full';
     this.refundAmountInput = null;

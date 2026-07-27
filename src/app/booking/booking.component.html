@@ -566,12 +566,14 @@
                   <div class="service-input slider-input" *ngIf="selected.service.isRangeInput" [shimmer]="loading.serviceDetails">
                     <div class="slider-container">
                       <span class="slider-quantity">{{ selected.quantity }}</span>
+                      <!-- Index-based: the allowed Sq.ft values are a list, not a fixed step
+                           (a range input steps from its min, which hid round values). -->
                       <input type="range"
-                            [(ngModel)]="selected.quantity"
-                            [min]="getSquareFeetMinForBedrooms()"
-                            [max]="selected.service.maxValue"
-                            [step]="selected.service.stepValue"
-                            (input)="updateServiceQuantity(selected.service, +selected.quantity)">
+                            min="0"
+                            step="1"
+                            [max]="getSquareFeetSliderMaxIndex(selected.service)"
+                            [value]="getSquareFeetSliderIndex(selected.service, selected.quantity)"
+                            (input)="onSquareFeetSliderChange(selected.service, $any($event.target).value)">
                         <!-- Removed cost display -->
                     </div>                  
                   </div>
