@@ -64,13 +64,20 @@
   // Full-screen takeover on phones — ≤550px wide (portrait) or ≤550px tall on
   // touch devices (landscape phones). Overrides the floating-panel geometry above.
   @media (max-width: 550px), ((max-height: 550px) and (pointer: coarse)) {
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
+    // Pinned to the VISUAL viewport, not the layout viewport. When the on-screen
+    // keyboard opens, the browser shrinks the visual viewport and scrolls the page,
+    // while a position:fixed element stays glued to the (unchanged) layout viewport —
+    // that dragged the panel upward (header + close button off screen) and exposed the
+    // website in the strip above the keyboard. --chat-vv-* are written from
+    // window.visualViewport by the component; the fallbacks reproduce the old
+    // fullscreen geometry when visualViewport is unavailable.
+    top: var(--chat-vv-top, 0px);
+    left: var(--chat-vv-left, 0px);
+    right: auto;
+    bottom: auto;
+    width: var(--chat-vv-width, 100%);
     max-width: none;
-    height: 100dvh;
+    height: var(--chat-vv-height, 100dvh);
     border: none;
     border-radius: 0;
   }
@@ -240,7 +247,10 @@
 
 .chat-panel__messages {
   flex: 1;
+  min-height: 0;                // lets the list shrink when the mobile keyboard shortens
+                                // the panel, instead of pushing the composer off-screen
   overflow-y: auto;
+  overscroll-behavior: contain; // don't chain scrolling into the page behind the panel
   padding: 14px 12px;
   background: var(--page-bg);
   display: flex;

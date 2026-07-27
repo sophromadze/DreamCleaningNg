@@ -49,6 +49,11 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
    *  tabs left open indefinitely with nobody watching). Resumed by Continue/send/reopen. */
   private static readonly IDLE_TIMEOUT_MS = 15 * 60 * 1000;
   private static readonly MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+  /** Mirrors the full-screen-takeover media query in chat-widget.component.scss —
+   *  keep the two in sync. Only in that mode do we pin to the visual viewport and
+   *  lock the page behind; the desktop floating panel needs neither. */
+  private static readonly FULLSCREEN_QUERY =
+    '(max-width: 550px), ((max-height: 550px) and (pointer: coarse))';
   /** localStorage key (AuthService house pattern for persisted client state). */
   private static readonly STORAGE_KEY = 'chatWidgetSession';
   /** Client-side sliding resume windows — server rows are never touched. */
@@ -91,6 +96,11 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   private routerSub?: Subscription;
   private lastAuthKey = 'uninitialized';
   private readonly isBrowser: boolean;
+  /** Full-screen-mode plumbing (see the mobile keyboard section at the bottom). */
+  private fullscreenQuery?: MediaQueryList;
+  private detachViewportSync?: () => void;
+  /** Page scroll position saved while the background is locked; null = not locked. */
+  private scrollLockOffset: number | null = null;
 
   @ViewChild('messageList') private messageList?: ElementRef<HTMLDivElement>;
   @ViewChild('messageInput') private messageInput?: ElementRef<HTMLInputElement>;
@@ -142,6 +152,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     this.stopBackgroundPolling();
     this.authSub?.unsubscribe();
     this.routerSub?.unsubscribe();
+    this.exitFullscreenMode(); // never leave the page scroll-locked behind us
     if (this.isBrowser) {
       document.removeEventListener('visibilitychange', this.onVisibilityChange);
       document.removeEventListener('click', this.onDocumentClick);
@@ -160,6 +171,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
 
   toggleOpen(): void {
     this.isOpen = !this.isOpen;
+    this.isOpen ? this.enterFullscreenMode() : this.exitFullscreenMode();
     if (this.isOpen) {
       // Opening is activity — resets the idle clock and clears a closed idle-pause so
       // the catch-up below and foreground polling resume normally.
@@ -382,6 +394,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
       next: result => {
         this.visible = result.visible;
         if (!result.visible) {
+          if (this.isOpen) this.exitFullscreenMode();
           this.isOpen = false;
           this.stopPolling();
           this.stopBackgroundPolling();
@@ -695,5 +708,115 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
       const el = this.messageList?.nativeElement;
       if (el) el.scrollTop = el.scrollHeight;
     });
+  }
+
+  // ===== Mobile keyboard / full-screen mode =====
+  // On phones the panel is a full-screen takeover. Two browser behaviours broke it:
+  //  1. Opening the keyboard shrinks the VISUAL viewport and scrolls the page, but a
+  //     position:fixed element is anchored to the LAYOUT viewport — so the panel was
+  //     dragged up (header and close button off-screen) and the website showed through
+  //     the strip left above the keyboard. Fixed by mirroring window.visualViewport
+  //     into the --chat-vv-* CSS vars the stylesheet positions against.
+  //  2. Scrolling inside the panel chained through to the document, scrolling the site
+  //     behind it. Fixed by locking the body while the takeover is active
+  //     (overscroll-behavior in the SCSS handles the in-panel half of this).
+  // Both apply ONLY while the full-screen media query matches; the desktop floating
+  // panel is untouched, and rotating in or out of the query re-evaluates.
+
+  private enterFullscreenMode(): void {
+    if (!this.isBrowser || this.fullscreenQuery) return;
+    this.fullscreenQuery = window.matchMedia(ChatWidgetComponent.FULLSCREEN_QUERY);
+    this.fullscreenQuery.addEventListener('change', this.onFullscreenQueryChange);
+    this.syncFullscreenMode();
+  }
+
+  private exitFullscreenMode(): void {
+    this.fullscreenQuery?.removeEventListener('change', this.onFullscreenQueryChange);
+    this.fullscreenQuery = undefined;
+    this.stopViewportSync();
+    this.unlockBackgroundScroll();
+  }
+
+  private readonly onFullscreenQueryChange = (): void => this.syncFullscreenMode();
+
+  private syncFullscreenMode(): void {
+    if (this.fullscreenQuery?.matches) {
+      this.startViewportSync();
+      this.lockBackgroundScroll();
+    } else {
+      this.stopViewportSync();
+      this.unlockBackgroundScroll();
+    }
+  }
+
+  private startViewportSync(): void {
+    if (this.detachViewportSync) return;
+    const viewport = window.visualViewport;
+    if (!viewport) return; // CSS fallbacks (100%/100dvh) cover unsupported browsers
+
+    const sync = () => this.ngZone.run(() => this.syncViewportVars(viewport));
+    // Outside Angular: these fire on every keyboard animation frame and only write
+    // CSS vars — the zone re-entry above happens only for the scroll-to-bottom.
+    this.ngZone.runOutsideAngular(() => {
+      viewport.addEventListener('resize', sync);
+      viewport.addEventListener('scroll', sync);
+    });
+    this.detachViewportSync = () => {
+      viewport.removeEventListener('resize', sync);
+      viewport.removeEventListener('scroll', sync);
+    };
+    this.syncViewportVars(viewport);
+  }
+
+  private stopViewportSync(): void {
+    this.detachViewportSync?.();
+    this.detachViewportSync = undefined;
+    if (!this.isBrowser) return;
+    const style = document.documentElement.style;
+    ['--chat-vv-top', '--chat-vv-left', '--chat-vv-width', '--chat-vv-height']
+      .forEach(name => style.removeProperty(name));
+  }
+
+  private syncViewportVars(viewport: VisualViewport): void {
+    const style = document.documentElement.style;
+    const wasAtBottom = this.isScrolledToBottom();
+
+    style.setProperty('--chat-vv-top', `${viewport.offsetTop}px`);
+    style.setProperty('--chat-vv-left', `${viewport.offsetLeft}px`);
+    style.setProperty('--chat-vv-width', `${viewport.width}px`);
+    style.setProperty('--chat-vv-height', `${viewport.height}px`);
+
+    // Keep the newest message visible as the keyboard eats vertical space — but only
+    // if they were already at the bottom, so it can't yank them out of the history.
+    if (wasAtBottom) this.scrollToBottom();
+  }
+
+  private isScrolledToBottom(): boolean {
+    const el = this.messageList?.nativeElement;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  }
+
+  /** Freeze the page behind the full-screen panel. position:fixed on <body> (rather
+   *  than overflow:hidden, which iOS Safari ignores) with the scroll offset preserved
+   *  and restored on unlock, so closing the chat returns to the same spot. */
+  private lockBackgroundScroll(): void {
+    if (this.scrollLockOffset !== null) return;
+    this.scrollLockOffset = window.scrollY;
+    const body = document.body.style;
+    body.position = 'fixed';
+    body.top = `-${this.scrollLockOffset}px`;
+    body.left = '0';
+    body.right = '0';
+    body.width = '100%';
+  }
+
+  private unlockBackgroundScroll(): void {
+    if (this.scrollLockOffset === null) return;
+    const offset = this.scrollLockOffset;
+    this.scrollLockOffset = null;
+    const body = document.body.style;
+    ['position', 'top', 'left', 'right', 'width'].forEach(p => body.removeProperty(p));
+    window.scrollTo(0, offset);
   }
 }
