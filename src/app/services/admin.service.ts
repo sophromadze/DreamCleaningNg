@@ -59,6 +59,14 @@ export interface OrderStatistics {
   adminBonusesUsd: number;
   /** The same admin bonuses in raw GEL, for reference. */
   adminBonusesGel: number;
+  /**
+   * Booked orders in the window that have not happened yet (Active/Pending). Always
+   * reported, so a caller can label an "include unfinished cleanings" toggle before
+   * turning it on.
+   */
+  upcomingOrders: number;
+  /** True when every figure above is a projection that already folds in those orders. */
+  includesUpcoming: boolean;
 }
 
 export interface DailyStatistics {
@@ -1363,10 +1371,16 @@ export class AdminService {
     return this.http.post<RefundResult>(`${this.apiUrl}/orders/${orderId}/refunds/${refundId}/send-email`, {});
   }
 
-  getOrderStatistics(from?: string, to?: string): Observable<OrderStatistics> {
+  /**
+   * @param includeUpcoming folds the window's not-yet-performed orders (Active/Pending) into
+   *   every total, turning the response into a projection of the period once everything
+   *   already booked is done. Off = the confirmed, performed-orders-only report.
+   */
+  getOrderStatistics(from?: string, to?: string, includeUpcoming = false): Observable<OrderStatistics> {
     let params = new HttpParams();
     if (from) params = params.set('from', from);
     if (to) params = params.set('to', to);
+    if (includeUpcoming) params = params.set('includeUpcoming', 'true');
     return this.http.get<OrderStatistics>(`${this.apiUrl}/statistics`, { params });
   }
 

@@ -136,7 +136,7 @@ export class FaqComponent implements OnInit, OnDestroy {
           'name': 'When do I pay for the service?',
           'acceptedAnswer': {
             '@type': 'Answer',
-            'text': 'We accept credit and debit cards only. All payments are securely processed through Stripe. Your card will only be charged after the cleaning has been completed.'
+            'text': 'We accept credit and debit cards only. All payments are securely processed through Stripe. Your card is charged in full at the time you book — there\'s nothing to pay on the day of your cleaning.'
           }
         },
         {
@@ -184,7 +184,7 @@ export class FaqComponent implements OnInit, OnDestroy {
           'name': 'How do I book a cleaning service with Dream Cleaning?',
           'acceptedAnswer': {
             '@type': 'Answer',
-            'text': 'Book online at dreamcleaningnyc.com/booking in under 2 minutes — select your home size, cleaning type, preferred date and time, and get an instant estimate. You can also call (929) 930-1525. Payment is processed securely through Stripe after service completion.'
+            'text': 'Book online at dreamcleaningnyc.com/booking in under 2 minutes — select your home size, cleaning type, preferred date and time, and get an instant estimate. You can also call (929) 930-1525. Payment is processed securely through Stripe at the time of booking.'
           }
         },
         {

@@ -179,6 +179,61 @@
   }
 }
 
+// ── View options ────────────────────────────────────────────────────────────
+
+.view-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-bottom: 16px;
+}
+
+.option-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  cursor: pointer;
+
+  input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+
+    &:disabled {
+      cursor: default;
+    }
+  }
+
+  .option-hint {
+    color: var(--text-muted);
+  }
+}
+
+// The projection is a materially different report, so it gets an operational-orange
+// banner rather than a quiet note — it must never be mistaken for the real figures.
+.projection-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--warning-orange-border);
+  border-radius: var(--radius-md);
+  background: var(--warning-orange-bg);
+  color: var(--warning-orange-text);
+  font-size: 0.86rem;
+  line-height: 1.45;
+
+  i {
+    margin-top: 3px;
+    color: var(--warning-orange);
+  }
+}
+
 // ── Error ───────────────────────────────────────────────────────────────────
 
 .error-state {
@@ -333,60 +388,121 @@
   }
 }
 
-// ── Receipt ─────────────────────────────────────────────────────────────────
+.main-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+// ── The P&L chain ───────────────────────────────────────────────────────────
 
 .receipt-card {
   background: var(--surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 8px 20px 20px;
+  padding: 18px 20px;
 }
 
-.receipt-section-title {
+.card-head {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  margin: 18px 0 6px;
-  font-size: 0.82rem;
-  font-weight: var(--fw-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
 
-  &.in {
-    color: var(--fresh-green);
-  }
-
-  &.out {
-    color: var(--bright-red);
-  }
-
-  &.info {
-    color: var(--text-muted);
-  }
-
-  .section-hint {
-    text-transform: none;
-    letter-spacing: normal;
-    font-weight: var(--fw-medium);
-    font-size: 0.8rem;
-    color: var(--text-muted);
+  .viz-title {
+    margin: 0;
   }
 }
 
-.receipt-row {
+// One line of the chain. The four kinds carry the whole visual hierarchy: the base
+// and the subtotals are the structure, the deductions hang off them, and the result
+// is the answer. Rows are label + number only — no explanatory copy — so they stay
+// compact and vertically centered.
+.pnl-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
-  padding: 12px 0;
+  padding: 9px 0;
   border-bottom: 1px solid var(--border-color);
 
   &:last-child {
     border-bottom: none;
   }
 
+  // Deductions read as a running cost list — quieter than the totals they feed.
+  &.kind-deduction {
+    .row-label {
+      font-weight: var(--fw-medium);
+      color: var(--text-secondary);
+    }
+
+    .row-amount {
+      color: var(--text-primary);
+    }
+  }
+
+  // Indented deductions belong to the subtotal directly above them.
+  &.indented {
+    padding-left: 18px;
+    border-left: 2px solid var(--border-color);
+
+    .row-label {
+      font-size: 0.92rem;
+    }
+  }
+
+  // Base, subtotals and the result: ruled off and set heavier than the costs.
+  &.kind-base,
+  &.kind-subtotal,
+  &.kind-result {
+    border-top: 1px solid var(--border-color);
+    background: var(--surface-subtle);
+    margin: 0 -20px;
+    padding-left: 20px;
+    padding-right: 20px;
+
+    .row-label {
+      font-weight: var(--fw-bold);
+      color: var(--text-primary);
+    }
+
+    .row-amount {
+      font-weight: var(--fw-extrabold);
+    }
+  }
+
+  &.kind-base {
+    border-top: none;
+
+    .row-amount {
+      color: var(--fresh-green);
+    }
+  }
+
+  &.kind-result {
+    border-bottom: none;
+    border-top: 2px solid var(--border-color);
+
+    .row-label {
+      font-size: 1.05rem;
+    }
+
+    .row-amount {
+      font-size: 1.25rem;
+      color: var(--fresh-green);
+    }
+
+    .row-percent {
+      font-size: 0.86rem;
+      font-weight: var(--fw-bold);
+    }
+  }
+
   &.excluded {
     .row-label,
-    .row-explanation {
+    .row-percent {
       opacity: 0.45;
     }
 
@@ -398,6 +514,42 @@
 
   &.expandable .row-main {
     cursor: pointer;
+  }
+}
+
+// A negative bottom line has to read as a loss, not as green income.
+.pnl-row.kind-result .row-amount.negative,
+.pnl-row.kind-base .row-amount.negative {
+  color: var(--bright-red);
+}
+
+.row-side {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.row-percent {
+  margin-top: 2px;
+  font-size: 0.78rem;
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.row-delta {
+  margin-top: 3px;
+  font-size: 0.76rem;
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+
+  &.up {
+    color: var(--fresh-green);
+  }
+
+  &.down {
+    color: var(--bright-red);
   }
 }
 
@@ -439,33 +591,16 @@
   }
 }
 
-.row-explanation {
-  margin-top: 2px;
-  font-size: 0.84rem;
-  color: var(--text-muted);
-  line-height: 1.35;
-}
-
 .row-amount {
   font-weight: var(--fw-bold);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-
-  &.plus {
-    color: var(--fresh-green);
-  }
-
-  &.minus {
-    color: var(--text-primary);
-  }
-
-  &.neutral {
-    color: var(--text-secondary);
-    font-weight: var(--fw-semibold);
-  }
+  color: var(--text-primary);
 
   &.shimmer-loading {
+    display: inline-block;
     min-width: 84px;
+    min-height: 1.2rem;
     color: transparent;
     border-radius: var(--radius-sm);
   }
@@ -509,46 +644,6 @@
   }
 }
 
-// Totals
-.receipt-total {
-  margin-top: 14px;
-  border-top: 2px solid var(--border-color);
-  padding-top: 12px;
-}
-
-.total-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 6px 0;
-  color: var(--text-secondary);
-  font-weight: var(--fw-semibold);
-
-  .total-amount {
-    font-variant-numeric: tabular-nums;
-
-    &.shimmer-loading {
-      min-width: 96px;
-      color: transparent;
-      border-radius: var(--radius-sm);
-    }
-  }
-
-  &.result {
-    font-size: 1.15rem;
-    font-weight: var(--fw-extrabold);
-    color: var(--text-primary);
-
-    .total-amount {
-      color: var(--fresh-green);
-    }
-
-    &.negative .total-amount {
-      color: var(--bright-red);
-    }
-  }
-}
-
 // ── Visuals ─────────────────────────────────────────────────────────────────
 
 .side-col {
@@ -569,93 +664,6 @@
   font-size: 1rem;
   font-weight: var(--fw-bold);
   color: var(--text-primary);
-
-  .viz-subtitle {
-    margin-left: 6px;
-    font-size: 0.78rem;
-    font-weight: var(--fw-medium);
-    color: var(--text-muted);
-  }
-}
-
-// ── Label/value rows: per-cleaning averages and the margins card ────────────
-
-.stat-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-
-  li {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border-color);
-
-    &:last-child {
-      border-bottom: none;
-    }
-  }
-}
-
-.stat-main {
-  min-width: 0;
-}
-
-.stat-label {
-  font-size: 0.9rem;
-  font-weight: var(--fw-semibold);
-  color: var(--text-primary);
-}
-
-.stat-hint {
-  margin-top: 2px;
-  font-size: 0.78rem;
-  color: var(--text-muted);
-  line-height: 1.35;
-}
-
-.stat-side {
-  text-align: right;
-  flex-shrink: 0;
-}
-
-.stat-value {
-  font-weight: var(--fw-bold);
-  color: var(--text-primary);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-
-  &.shimmer-loading {
-    min-width: 72px;
-    min-height: 1.2rem;
-    display: inline-block;
-    color: transparent;
-    border-radius: var(--radius-sm);
-  }
-}
-
-.stat-delta {
-  margin-top: 3px;
-  font-size: 0.76rem;
-  font-weight: var(--fw-semibold);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-
-  &.up {
-    color: var(--fresh-green);
-  }
-
-  &.down {
-    color: var(--bright-red);
-  }
-}
-
-.stat-empty {
-  padding: 14px 0;
-  font-size: 0.86rem;
-  color: var(--text-muted);
 }
 
 .bars {
@@ -922,31 +930,6 @@
   flex-wrap: wrap;
 }
 
-.share-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin-bottom: 14px;
-  font-size: 0.84rem;
-  font-weight: var(--fw-medium);
-  color: var(--text-secondary);
-  cursor: pointer;
-
-  input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    accent-color: var(--primary-color);
-    cursor: pointer;
-  }
-}
-
-.compare-hint {
-  margin: 0 0 14px;
-  font-size: 0.84rem;
-  color: var(--text-muted);
-  line-height: 1.4;
-}
-
 .compare-table-wrap {
   overflow-x: auto;
 }
@@ -1057,6 +1040,26 @@
     font-weight: var(--fw-extrabold);
   }
 
+  // Same hierarchy as the single-period card: computed subtotals are ruled off and
+  // set heavier, the deductions feeding them are indented under their header.
+  tr.subtotal {
+    td,
+    .metric-col {
+      background: var(--surface-subtle);
+      font-weight: var(--fw-bold);
+    }
+
+    .metric-col {
+      color: var(--text-primary);
+    }
+  }
+
+  tr.indented .metric-col {
+    padding-left: 26px;
+    font-size: 0.88rem;
+  }
+
+
   td.neg {
     color: var(--bright-red);
   }
@@ -1084,12 +1087,6 @@
     letter-spacing: 0.04em;
     vertical-align: middle;
   }
-}
-
-.compare-footnote {
-  margin: 12px 0 0;
-  font-size: 0.82rem;
-  color: var(--text-muted);
 }
 
 // ── Compare modal ───────────────────────────────────────────────────────────

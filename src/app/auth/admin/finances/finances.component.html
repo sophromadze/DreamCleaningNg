@@ -35,6 +35,32 @@
     </div>
   </div>
 
+  <!-- View options. The projection toggle changes WHICH ORDERS COUNT, so it refetches;
+       the % toggle is display-only. -->
+  <div class="view-options">
+    <label class="option-check">
+      <input type="checkbox"
+             [(ngModel)]="includeUpcoming"
+             (ngModelChange)="onIncludeUpcomingChange()"
+             [disabled]="isLoading || isComparing" />
+      <span>
+        Include cleanings that haven't happened yet
+        <span class="option-hint" *ngIf="!includeUpcoming && upcomingCount > 0">
+          ({{ upcomingCount | number }} still booked{{ compareMode ? ' across these periods' : ' in this period' }})
+        </span>
+      </span>
+    </label>
+    <label class="option-check">
+      <input type="checkbox" [(ngModel)]="showPercents" />
+      <span>Show percentages</span>
+    </label>
+  </div>
+
+  <div class="projection-banner" *ngIf="includeUpcoming">
+    <i class="fas fa-clock"></i>
+    <span><b>Projection</b> — counts cleanings that haven't happened yet.</span>
+  </div>
+
   <!-- Error -->
   <div class="error-state" *ngIf="error && !isLoading && !compareMode">
     <p>{{ error }}</p>
@@ -44,11 +70,11 @@
 
     <!-- Hero: the answer -->
     <div class="hero-card" [class.negative]="!isLoading && profit < 0">
-      <div class="hero-label">Net income — what's left for the company</div>
+      <div class="hero-label">Net Company Income — what's left for the company</div>
       <div class="hero-value" [class.shimmer-loading]="isLoading">{{ profit | currency:'USD' }}</div>
 
       <div class="hero-margin" *ngIf="!isLoading">
-        <span class="margin-value">{{ grossMargin | number:'1.1-1' }}% gross</span>
+        <span class="margin-value">{{ grossMarginPercent | number:'1.1-1' }}% gross</span>
         <span class="margin-sep">·</span>
         <span class="margin-value">{{ profitMargin | number:'1.1-1' }}% net margin</span>
         <span class="margin-delta"
@@ -85,126 +111,98 @@
 
     <div class="content-grid">
 
-      <!-- The receipt -->
-      <div class="receipt-card">
+      <div class="main-col">
 
-        <div class="receipt-section-title in">
-          <i class="fas fa-arrow-down"></i> Money in
-        </div>
-        <div class="receipt-row money-in">
-          <div class="row-main">
-            <div class="row-label">Company revenue</div>
-            <div class="row-explanation">What customers paid for cleanings in this period, after any discount — before tax, without tips.</div>
+        <!-- Card 1: the profit-and-loss chain, top to bottom -->
+        <div class="receipt-card">
+          <div class="card-head">
+            <h3 class="viz-title">Where the money went</h3>
           </div>
-          <div class="row-amount plus" [class.shimmer-loading]="isLoading">{{ moneyIn | currency:'USD' }}</div>
-        </div>
 
-        <div class="receipt-section-title out">
-          <i class="fas fa-arrow-up"></i> Money out
-          <span class="section-hint">uncheck anything to see the numbers without it</span>
-        </div>
+          <div class="pnl-row"
+               *ngFor="let row of pnlRows; trackBy: trackByLabel"
+               [ngClass]="'kind-' + row.kind"
+               [class.indented]="row.indent"
+               [class.excluded]="!row.included"
+               [class.expandable]="!!row.items?.length">
 
-        <div class="receipt-row cost"
-             *ngFor="let line of costLines; trackBy: trackByKey"
-             [class.excluded]="!line.included"
-             [class.expandable]="!!line.items?.length">
-          <label class="row-check">
-            <input type="checkbox" [checked]="line.included" (change)="toggleLine(line)" />
-          </label>
-          <div class="row-main" (click)="toggleExpand(line)">
-            <div class="row-label">
-              {{ line.label }}
-              <i class="fas fa-chevron-down expand-caret"
-                 *ngIf="line.items?.length"
-                 [class.open]="line.expanded"></i>
+            <label class="row-check" *ngIf="row.kind === 'deduction'">
+              <input type="checkbox"
+                     [checked]="row.included"
+                     (change)="toggleLine(row.line)"
+                     [attr.aria-label]="'Count ' + row.label + ' in the totals'" />
+            </label>
+            <span class="row-check spacer" *ngIf="row.kind !== 'deduction'"></span>
+
+            <div class="row-main" (click)="toggleExpand(row)">
+              <div class="row-label">
+                {{ row.label }}
+                <i class="fas fa-chevron-down expand-caret"
+                   *ngIf="row.items?.length"
+                   [class.open]="row.expanded"></i>
+              </div>
+
+              <!-- Per-expense detail for category rows -->
+              <div class="row-items" *ngIf="row.expanded && row.items?.length">
+                <div class="row-item" *ngFor="let item of row.items">
+                  <span class="item-name">{{ item.name }}<span class="item-recurring" *ngIf="item.isRecurring"> (subscription)</span></span>
+                  <span class="item-date">{{ item.date | date:'MMM d, y' }}</span>
+                  <span class="item-amount">{{ item.amount | currency:'USD' }}</span>
+                </div>
+              </div>
             </div>
-            <div class="row-explanation">{{ line.explanation }}</div>
 
-            <!-- Per-expense detail for category rows -->
-            <div class="row-items" *ngIf="line.expanded && line.items?.length">
-              <div class="row-item" *ngFor="let item of line.items">
-                <span class="item-name">{{ item.name }}<span class="item-recurring" *ngIf="item.isRecurring"> (subscription)</span></span>
-                <span class="item-date">{{ item.date | date:'MMM d, y' }}</span>
-                <span class="item-amount">{{ item.amount | currency:'USD' }}</span>
+            <div class="row-side">
+              <div class="row-amount"
+                   [class.shimmer-loading]="isLoading"
+                   [class.negative]="!isLoading && row.amount < 0">
+                <span *ngIf="row.kind === 'deduction'">− </span>{{ row.amount | currency:'USD' }}
+              </div>
+              <div class="row-percent" *ngIf="showPercents && !isLoading">
+                {{ row.percent | number:'1.1-1' }}%
               </div>
             </div>
           </div>
-          <div class="row-amount minus" [class.shimmer-loading]="isLoading">
-            − {{ line.amount | currency:'USD' }}
-          </div>
         </div>
 
-        <!-- Totals -->
-        <div class="receipt-total">
-          <div class="total-row">
-            <span>Money out (checked)</span>
-            <span class="total-amount" [class.shimmer-loading]="isLoading">− {{ moneyOut | currency:'USD' }}</span>
+        <!-- Card 2: totals, averages and the pass-throughs -->
+        <div class="receipt-card">
+          <div class="card-head">
+            <h3 class="viz-title">Totals &amp; averages</h3>
           </div>
-          <div class="total-row result" [class.negative]="!isLoading && profit < 0">
-            <span>Net income</span>
-            <span class="total-amount" [class.shimmer-loading]="isLoading">{{ profit | currency:'USD' }}</span>
-          </div>
-        </div>
 
-        <!-- Info rows: shown for context, never part of the math -->
-        <div class="receipt-section-title info">
-          <i class="fas fa-info-circle"></i> Good to know
-          <span class="section-hint">these never change the numbers above</span>
-        </div>
+          <div class="pnl-row kind-summary"
+               *ngFor="let row of summaryRows; trackBy: trackByRowKey"
+               [class.excluded]="row.key === 'tips' && !showTips">
+            <label class="row-check" *ngIf="row.key === 'tips'">
+              <input type="checkbox" [(ngModel)]="showTips" aria-label="Show tips" />
+            </label>
+            <span class="row-check spacer" *ngIf="row.key !== 'tips'"></span>
 
-        <!-- Sales tax is charged ON TOP of the price, so it was never inside "Cleaning
-             revenue" above — it is money we hold for the state, not a cost against us. -->
-        <div class="receipt-row info-row">
-          <span class="row-check spacer"></span>
-          <div class="row-main">
-            <div class="row-label">Sales tax collected</div>
-            <div class="row-explanation">
-              8.875% charged to customers on top of the price. It never counts as our money, so it is
-              not part of the revenue above and not a cost either — we simply hand it to the state.
+            <div class="row-main">
+              <div class="row-label">{{ row.label }}</div>
+            </div>
+
+            <div class="row-side">
+              <div class="row-amount" [class.shimmer-loading]="isLoading">
+                <ng-container *ngIf="row.format === 'money'">{{ row.value | currency:'USD' }}</ng-container>
+                <ng-container *ngIf="row.format === 'count'">{{ row.value | number }}</ng-container>
+              </div>
+              <div class="row-percent" *ngIf="showPercents && !isLoading && row.percent !== null">
+                {{ row.percent | number:'1.1-1' }}%
+              </div>
+              <div class="row-delta"
+                   *ngIf="!isLoading && row.delta !== null && row.betterWhen !== 'none'"
+                   [class.up]="isDeltaGood(row)"
+                   [class.down]="!isDeltaGood(row)">
+                {{ deltaArrow(row) }}
+                <ng-container *ngIf="row.format === 'money'">{{ deltaAbs(row) | currency:'USD' }}</ng-container>
+                <ng-container *ngIf="row.format === 'count'">{{ deltaAbs(row) | number }}</ng-container>
+              </div>
             </div>
           </div>
-          <div class="row-amount neutral" [class.shimmer-loading]="isLoading">
-            {{ (stats?.totalTaxes ?? 0) | currency:'USD' }}
-          </div>
-        </div>
 
-        <div class="receipt-row info-row">
-          <span class="row-check spacer"></span>
-          <div class="row-main">
-            <div class="row-label">Discounts given</div>
-            <div class="row-explanation">
-              Promo codes, the first-time discount, recurring-plan discounts and loyalty discounts.
-              Already deducted from the company revenue above — shown here so you can see how much
-              was given away.
-            </div>
-          </div>
-          <div class="row-amount neutral" [class.shimmer-loading]="isLoading">
-            − {{ (stats?.totalDiscounts ?? 0) | currency:'USD' }}
-          </div>
-        </div>
-
-        <div class="receipt-row info-row" [class.excluded]="!showTips">
-          <label class="row-check">
-            <input type="checkbox" [(ngModel)]="showTips" />
-          </label>
-          <div class="row-main">
-            <div class="row-label">Tips</div>
-            <div class="row-explanation">Tips go to the cleaners and the company-development fund — they pass through us and are not company profit.</div>
-          </div>
-          <div class="row-amount neutral" [class.shimmer-loading]="isLoading" *ngIf="showTips">
-            {{ (stats?.totalTips ?? 0) | currency:'USD' }}
-          </div>
-        </div>
-
-        <div class="receipt-row info-row">
-          <span class="row-check spacer"></span>
-          <div class="row-main">
-            <div class="row-label">Completed cleanings</div>
-            <div class="row-explanation">Finished, paid orders inside this period.</div>
-          </div>
-          <div class="row-amount neutral" [class.shimmer-loading]="isLoading">
-            {{ (stats?.totalOrders ?? 0) | number }}
-          </div>
+          <p class="viz-hint" *ngIf="!isLoading && hasComparison">Arrows compare {{ compareLabel }}.</p>
         </div>
       </div>
 
@@ -212,12 +210,12 @@
       <div class="side-col">
 
         <div class="viz-card">
-          <h3 class="viz-title">Money in vs money out</h3>
+          <h3 class="viz-title">Revenue vs money out</h3>
           <div class="bars">
             <div class="bar-row">
               <div class="bar-head">
-                <span>Money in</span>
-                <span class="bar-amount" [class.shimmer-loading]="isLoading">{{ moneyIn | currency:'USD' }}</span>
+                <span>Total Revenue</span>
+                <span class="bar-amount" [class.shimmer-loading]="isLoading">{{ totalRevenue | currency:'USD' }}</span>
               </div>
               <div class="bar-track">
                 <div class="bar-fill in" [style.width.%]="isLoading ? 0 : moneyInBarWidth"></div>
@@ -233,99 +231,6 @@
               </div>
             </div>
           </div>
-          <p class="viz-hint" *ngIf="!isLoading">
-            The gap between the two bars is what the company keeps.
-          </p>
-        </div>
-
-        <!-- Gross margin is the only figure on this page that ignores the checkboxes:
-             it always subtracts exactly the cleaner salaries. The gap between the two
-             margins is the company's overhead. -->
-        <div class="viz-card">
-          <h3 class="viz-title">Margins</h3>
-
-          <ul class="stat-list">
-            <li>
-              <div class="stat-main">
-                <div class="stat-label">Gross margin</div>
-                <div class="stat-hint">
-                  What a cleaning leaves after paying the cleaner, before any overhead.
-                </div>
-              </div>
-              <div class="stat-side">
-                <div class="stat-value" [class.shimmer-loading]="isLoading">
-                  {{ grossMargin | number:'1.1-1' }}%
-                </div>
-                <div class="stat-delta"
-                     *ngIf="!isLoading && hasGrossMarginComparison"
-                     [class.up]="grossMarginDelta >= 0"
-                     [class.down]="grossMarginDelta < 0">
-                  {{ grossMarginDelta >= 0 ? '▲' : '▼' }} {{ grossMarginDeltaAbs | number:'1.1-1' }} pts
-                </div>
-              </div>
-            </li>
-            <li>
-              <div class="stat-main">
-                <div class="stat-label">Net margin</div>
-                <div class="stat-hint">
-                  What is left after every checked cost — the share of money in that becomes net income.
-                </div>
-              </div>
-              <div class="stat-side">
-                <div class="stat-value" [class.shimmer-loading]="isLoading">
-                  {{ profitMargin | number:'1.1-1' }}%
-                </div>
-                <div class="stat-delta"
-                     *ngIf="!isLoading && hasMarginComparison"
-                     [class.up]="marginDelta >= 0"
-                     [class.down]="marginDelta < 0">
-                  {{ marginDelta >= 0 ? '▲' : '▼' }} {{ marginDeltaAbs | number:'1.1-1' }} pts
-                </div>
-              </div>
-            </li>
-          </ul>
-
-          <p class="viz-hint" *ngIf="!isLoading">
-            Gross margin always counts the cleaner salaries ({{ cleanerSalaries | currency:'USD' }}),
-            whatever is checked on the receipt — the gap down to the net margin is your overhead.
-            <ng-container *ngIf="hasComparison">Arrows compare {{ compareLabel }}.</ng-container>
-          </p>
-        </div>
-
-        <div class="viz-card">
-          <h3 class="viz-title">
-            Per cleaning
-            <span class="viz-subtitle" *ngIf="!isLoading && completedCleanings > 0">
-              across {{ completedCleanings | number }} cleaning{{ completedCleanings === 1 ? '' : 's' }}
-            </span>
-          </h3>
-
-          <div class="stat-empty" *ngIf="!isLoading && completedCleanings === 0">
-            No completed cleanings in this period.
-          </div>
-
-          <ul class="stat-list" *ngIf="isLoading || completedCleanings > 0">
-            <li *ngFor="let s of perCleaningStats; trackBy: trackByStatLabel">
-              <div class="stat-main">
-                <div class="stat-label">{{ s.label }}</div>
-                <div class="stat-hint">{{ s.hint }}</div>
-              </div>
-              <div class="stat-side">
-                <div class="stat-value" [class.shimmer-loading]="isLoading">{{ s.value | currency:'USD' }}</div>
-                <div class="stat-delta"
-                     *ngIf="!isLoading && s.delta !== null"
-                     [class.up]="isDeltaGood(s)"
-                     [class.down]="!isDeltaGood(s)">
-                  {{ deltaArrow(s) }} {{ deltaAbs(s) | currency:'USD' }}
-                </div>
-              </div>
-            </li>
-          </ul>
-
-          <p class="viz-hint" *ngIf="!isLoading && completedCleanings > 0">
-            These follow the checkboxes too — uncheck a cost and the cost per cleaning drops.
-            <ng-container *ngIf="hasComparison">Arrows compare {{ compareLabel }}.</ng-container>
-          </p>
         </div>
 
         <div class="viz-card">
@@ -382,7 +287,7 @@
     </div>
 
     <div class="compare-card">
-      <h3 class="viz-title">Net income</h3>
+      <h3 class="viz-title">Net Company Income</h3>
       <div class="bars">
         <div class="bar-row" *ngFor="let r of compareResults; let i = index">
           <div class="bar-head">
@@ -399,79 +304,73 @@
           </div>
         </div>
       </div>
-      <p class="viz-hint">
-        The green bar is the period that kept the most money. Margin is what's left as a share of
-        money in — it compares fairly even when one period is much bigger than the other.
-      </p>
     </div>
 
+    <!-- Card 1: the P&L chain, one column per period — mirrors the single-period card -->
     <div class="compare-card">
       <div class="compare-card-head">
-        <h3 class="viz-title">Everything, side by side</h3>
-        <label class="share-toggle">
-          <input type="checkbox" [(ngModel)]="showCostShares" />
-          Show each cost as % of money in
-        </label>
+        <h3 class="viz-title">Where the money went</h3>
       </div>
-      <p class="compare-hint">
-        Uncheck any cost to take it out of "money out", the net income and the net margin — useful
-        when a one-off purchase makes a period look worse than it really was. Gross margin is the
-        exception: it always counts exactly the cleaner salaries, so it stays comparable across
-        periods no matter what is checked.
-      </p>
-      <div class="compare-table-wrap">
-        <table class="compare-table">
-          <thead>
-            <tr>
-              <th class="check-col"></th>
-              <th class="metric-col"></th>
-              <th *ngFor="let r of compareResults">
-                <div class="col-label">{{ r.label }}</div>
-                <div class="col-range" *ngIf="r.rangeLabel">{{ r.rangeLabel }}</div>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let row of compareRows"
-                [class.emphasize]="row.emphasize"
-                [class.excluded]="!row.included">
-              <td class="check-col">
-                <input type="checkbox"
-                       *ngIf="row.key"
-                       [checked]="row.included"
-                       (change)="toggleCompareRow(row)"
-                       [attr.aria-label]="'Count ' + row.label + ' in the totals'" />
-              </td>
-              <td class="metric-col">{{ row.label }}</td>
-              <td *ngFor="let v of row.values; let i = index"
-                  [class.best]="isBest(row, i)"
-                  [class.neg]="row.format !== 'count' && v < 0">
-                <span class="cell-value">
-                  <ng-container [ngSwitch]="row.format">
-                    <ng-container *ngSwitchCase="'money'">{{ v | currency:'USD' }}</ng-container>
-                    <ng-container *ngSwitchCase="'percent'">{{ v | number:'1.1-1' }}%</ng-container>
-                    <ng-container *ngSwitchDefault>{{ v | number }}</ng-container>
-                  </ng-container>
-                </span>
-                <span class="best-chip" *ngIf="isBest(row, i)">best</span>
-                <span class="cell-share" *ngIf="showCostShares && row.sharePercents">
-                  {{ row.sharePercents[i] | number:'1.1-1' }}% of money in
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <ng-container *ngTemplateOutlet="compareTable; context: { rows: compareChainRows }"></ng-container>
+    </div>
+
+    <!-- Card 2: totals, averages and pass-throughs -->
+    <div class="compare-card">
+      <div class="compare-card-head">
+        <h3 class="viz-title">Totals &amp; averages</h3>
       </div>
-      <p class="compare-footnote">
-        Green marks the best period for each row: the most company revenue, the most net income,
-        the best gross and net margins, the most earned and kept per cleaning, the lowest cost per
-        cleaning, and the most completed cleanings. Total cost rows carry no mark — a busier period
-        simply costs more.
-        Unchecked rows stay visible but are crossed out and left out of the math. Tips never count
-        toward profit.
-      </p>
+      <ng-container *ngTemplateOutlet="compareTable; context: { rows: compareSummaryRows }"></ng-container>
     </div>
   </div>
+
+  <!-- One table shape, used by both comparison cards. -->
+  <ng-template #compareTable let-rows="rows">
+    <div class="compare-table-wrap">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th class="check-col"></th>
+            <th class="metric-col"></th>
+            <th *ngFor="let r of compareResults">
+              <div class="col-label">{{ r.label }}</div>
+              <div class="col-range" *ngIf="r.rangeLabel">{{ r.rangeLabel }}</div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of rows"
+              [class.emphasize]="row.emphasize"
+              [class.subtotal]="row.subtotal"
+              [class.indented]="row.indent"
+              [class.excluded]="!row.included">
+            <td class="check-col">
+              <input type="checkbox"
+                     *ngIf="row.key"
+                     [checked]="row.included"
+                     (change)="toggleCompareRow(row)"
+                     [attr.aria-label]="'Count ' + row.label + ' in the totals'" />
+            </td>
+            <td class="metric-col">{{ row.label }}</td>
+            <td *ngFor="let v of row.values; let i = index"
+                [class.best]="isBest(row, i)"
+                [class.neg]="row.format !== 'count' && v < 0">
+              <span class="cell-value">
+                <ng-container [ngSwitch]="row.format">
+                  <ng-container *ngSwitchCase="'money'">{{ v | currency:'USD' }}</ng-container>
+                  <ng-container *ngSwitchCase="'percent'">{{ v | number:'1.1-1' }}%</ng-container>
+                  <ng-container *ngSwitchDefault>{{ v | number }}</ng-container>
+                </ng-container>
+              </span>
+              <span class="best-chip" *ngIf="isBest(row, i)">best</span>
+              <span class="cell-share" *ngIf="showPercents && row.sharePercents">
+                {{ row.sharePercents[i] | number:'1.1-1' }}%
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </ng-template>
 
   <!-- Compare periods modal -->
   <div class="modal-overlay" *ngIf="showCompareModal" (click)="closeCompareModal()">
