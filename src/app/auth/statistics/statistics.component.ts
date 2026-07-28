@@ -29,6 +29,30 @@ interface RateRow extends MonthlyFinancialRate {
   saving: boolean;
 }
 
+/**
+ * One expense rolled up to a single month. The API returns every OCCURRENCE with its own
+ * bill date, which is right for the daily chart but unreadable in this list: Google Ads
+ * syncs a row per day, so a single month rendered ~30 near-identical lines and buried the
+ * expenses that only bill once. Here each expense collapses to one line per month.
+ */
+interface MonthlyExpenseRow {
+  name: string;
+  /** yyyy-MM — sort key only, never displayed. */
+  monthKey: string;
+  monthLabel: string;
+  amount: number;
+  /** True when any occurrence in the month came from a recurring expense. */
+  isRecurring: boolean;
+  /** How many daily occurrences were folded into this line (1 = billed once). */
+  occurrences: number;
+}
+
+interface MonthlyExpenseCategory {
+  categoryName: string;
+  total: number;
+  items: MonthlyExpenseRow[];
+}
+
 @Component({
   selector: 'app-statistics',
   standalone: true,
@@ -54,8 +78,11 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   customTo = '';
   chartGrouping: ChartGrouping = 'months';
 
-  // Click-to-expand state for the Company Revenue breakdown panel.
+  // Click-to-expand state for the Net Income breakdown panel.
   revenueBreakdownExpanded = false;
+
+  /** Expense itemisation for the breakdown panel, rolled up to one line per month. */
+  expenseCategories: MonthlyExpenseCategory[] = [];
 
   // Exchange / bonus rates panel (per-month GEL→USD, SuperAdmin-overridable).
   ratesExpanded = false;
@@ -202,6 +229,7 @@ export class StatisticsComponent implements OnInit, OnDestroy {
       next: ({ stats, daily }) => {
         this.stats = stats;
         this.dailyData = daily;
+        this.expenseCategories = this.rollUpExpensesByMonth(stats);
         this.isLoading = false;
         this.cdr.detectChanges();
         this.processChartData();
@@ -216,6 +244,62 @@ export class StatisticsComponent implements OnInit, OnDestroy {
         this.isLoading = false;
       }
     });
+  }
+
+  /**
+   * Collapses each category's per-occurrence expense list into one line per expense per
+   * month. Daily-billed integrations (Google Ads syncs one row a day) otherwise flooded
+   * this panel with ~30 lines a month and hid everything else.
+   *
+   * Grouping is by expense NAME + month, not by expense id, so a spend that was re-created
+   * under the same name still reads as one line. Totals are untouched — the category total
+   * comes from the API and the rolled-up lines always add back up to it.
+   */
+  private rollUpExpensesByMonth(stats: OrderStatistics): MonthlyExpenseCategory[] {
+    const categories = stats.expensesBreakdown?.byCategory ?? [];
+
+    return categories.map(cat => {
+      const byNameAndMonth = new Map<string, MonthlyExpenseRow>();
+
+      for (const item of cat.items ?? []) {
+        // Dates arrive as ISO strings; slicing beats parsing here because it cannot be
+        // shifted into the previous month by the browser's timezone.
+        const monthKey = (item.date ?? '').substring(0, 7);
+        const key = `${monthKey}::${item.name}`;
+        const existing = byNameAndMonth.get(key);
+
+        if (existing) {
+          existing.amount += item.amount;
+          existing.occurrences++;
+          existing.isRecurring = existing.isRecurring || item.isRecurring;
+          continue;
+        }
+
+        byNameAndMonth.set(key, {
+          name: item.name,
+          monthKey,
+          monthLabel: this.formatMonthLabel(monthKey),
+          amount: item.amount,
+          isRecurring: item.isRecurring,
+          occurrences: 1
+        });
+      }
+
+      const items = [...byNameAndMonth.values()].sort((a, b) =>
+        a.monthKey === b.monthKey
+          ? b.amount - a.amount            // within a month, biggest spend first
+          : a.monthKey.localeCompare(b.monthKey));
+
+      return { categoryName: cat.categoryName, total: cat.total, items };
+    });
+  }
+
+  /** "2026-07" → "Jul 2026". Falls back to the raw key if the date was missing. */
+  private formatMonthLabel(monthKey: string): string {
+    const [year, month] = monthKey.split('-').map(Number);
+    if (!year || !month) return monthKey;
+    return new Date(year, month - 1, 1)
+      .toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   }
 
   private getDateRange(fromOverride?: string, toOverride?: string): { from?: string; to?: string } {
@@ -441,7 +525,7 @@ export class StatisticsComponent implements OnInit, OnDestroy {
       data: {
         labels,
         datasets: [{
-          label: 'Revenue',
+          label: 'Net Income',
           data: this.chartData.map(d => d.companyRevenue),
           borderColor: '#20c997',
           backgroundColor: 'rgba(32, 201, 151, 0.15)',

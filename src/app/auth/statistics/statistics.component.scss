@@ -190,6 +190,16 @@
     border-color: var(--primary-color);
     background: var(--surface-elevated, var(--surface));
   }
+
+  // Caption under a card's value (e.g. "after discounts, before tax"). Lives on the base
+  // card so every stat can carry one, not just the clickable revenue card.
+  .stat-sub {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-transform: none;
+    letter-spacing: normal;
+  }
 }
 
 .stat-label {
@@ -214,7 +224,7 @@
   &.amount { color: #28a745; }
   &.taxes { color: #fd7e14; }
   &.tips { color: #6f42c1; }
-  &.salary { color: #17a2b8; }
+  &.discounts { color: var(--warning-orange-text); }
 
   &.revenue {
     color: #28a745;
@@ -226,7 +236,7 @@
   }
 }
 
-// ───── Clickable Company Revenue card + breakdown panel ─────
+// ───── Clickable Net Income card + breakdown panel ─────
 
 .stat-card.clickable {
   cursor: pointer;
@@ -252,12 +262,6 @@
   }
 
   &.is-expanded .stat-card-caret { transform: rotate(180deg); }
-
-  .stat-sub {
-    margin-top: 0.4rem;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-  }
 }
 
 .revenue-breakdown {
@@ -394,6 +398,18 @@
         }
       }
       .recurring-tag { color: var(--text-muted); margin-left: 0.3rem; font-size: 0.9rem; }
+
+      // Only appears when several daily charges were folded into one monthly line —
+      // it is the receipt for why the amount is bigger than a single bill.
+      .expense-item-count {
+        margin-left: 0.4rem;
+        padding: 0.05rem 0.4rem;
+        border-radius: var(--radius-pill);
+        background: var(--surface-subtle);
+        color: var(--text-muted);
+        font-size: 0.72rem;
+        white-space: nowrap;
+      }
       .expense-item-amount {
         color: var(--text-primary);
         font-weight: var(--fw-semibold);
@@ -413,6 +429,17 @@
     font-style: italic;
     text-align: center;
     padding: 1rem 0;
+  }
+
+  // Why tax and tips sit outside the formula above.
+  .breakdown-note {
+    margin: 1rem 0 0 0;
+    padding: 0.75rem 1rem;
+    background: var(--surface-subtle);
+    border-radius: var(--radius-sm);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    line-height: 1.5;
   }
 }
 

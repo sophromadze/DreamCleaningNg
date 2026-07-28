@@ -31,13 +31,24 @@ export interface ExpenseBreakdown {
 
 export interface OrderStatistics {
   totalOrders: number;
+  /**
+   * Taxable cleaning revenue — order subtotals AFTER discounts, before tax, without tips,
+   * net of refunds. Backend: OrderRevenueMath.Split.
+   */
   totalAmount: number;
+  /**
+   * Sales tax collected. Always exactly 8.875% of totalAmount — both come from the same
+   * post-discount base and shrink together when an order is refunded. It is charged on top
+   * of the price, so it is a pass-through owed to the state, NOT a cost against totalAmount.
+   */
   totalTaxes: number;
   totalTips: number;
+  /** Promo/first-time + subscription + loyalty discounts granted. Informational only. */
+  totalDiscounts: number;
   totalCleanersSalary: number;
   /** Company expenses inside the window (recurring expanded into per-occurrence amounts). */
   totalExpenses: number;
-  /** Pre-expense revenue. Kept for reference when the breakdown is expanded. */
+  /** Pre-expense revenue (totalAmount − salaries). Kept for reference in the breakdown. */
   totalCompanyRevenueGross: number;
   /** NET — gross minus expenses. The headline number. */
   totalCompanyRevenue: number;

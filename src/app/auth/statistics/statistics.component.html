@@ -42,13 +42,23 @@
     </div>
 
     <div class="stat-card">
-      <div class="stat-label">Total Amount (without tips)</div>
+      <div class="stat-label">Company Revenue</div>
       <div class="stat-value amount">{{ stats.totalAmount | currency:'USD' }}</div>
+      <div class="stat-sub">after discounts, before tax, without tips</div>
     </div>
 
+    <!-- Always exactly 8.875% of Company Revenue: both sides use the same post-discount
+         base, and a refund shrinks them together. -->
     <div class="stat-card">
       <div class="stat-label">Total Taxes</div>
       <div class="stat-value taxes">{{ stats.totalTaxes | currency:'USD' }}</div>
+      <div class="stat-sub">8.875% — collected for the state</div>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-label">Discounts Given</div>
+      <div class="stat-value discounts">− {{ stats.totalDiscounts | currency:'USD' }}</div>
+      <div class="stat-sub">promo, first-time, subscription, loyalty</div>
     </div>
 
     <div class="stat-card">
@@ -56,12 +66,11 @@
       <div class="stat-value tips">{{ stats.totalTips | currency:'USD' }}</div>
     </div>
 
-    <div class="stat-card">
-      <div class="stat-label">Total Cleaners Salary</div>
-      <div class="stat-value salary">{{ stats.totalCleanersSalary | currency:'USD' }}</div>
-    </div>
+    <!-- Cleaner salary has no card of its own: it is not a headline figure, it is the first
+         cost subtracted from Company Revenue. It appears once, inside the breakdown below. -->
 
-    <!-- Company Revenue now shows NET (gross − expenses). Click to expand the full breakdown. -->
+    <!-- Net Income = gross − expenses: what the company actually keeps once every cost is
+         counted. Click to expand the full breakdown. -->
     <div class="stat-card highlight clickable"
          [class.is-expanded]="revenueBreakdownExpanded"
          (click)="toggleRevenueBreakdown()"
@@ -69,7 +78,7 @@
          tabindex="0"
          (keydown.enter)="toggleRevenueBreakdown()">
       <div class="stat-label">
-        Company Revenue
+        Net Income
         <i class="fas fa-chevron-down stat-card-caret"></i>
       </div>
       <div class="stat-value revenue">{{ stats.totalCompanyRevenue | currency:'USD' }}</div>
@@ -79,21 +88,18 @@
     </div>
   </div>
 
-  <!-- Company Revenue breakdown — opens when the card is clicked. Walks through the formula
+  <!-- Net Income breakdown — opens when the card is clicked. Walks through the formula
        with every number labelled, then itemises expenses by category. -->
   <div class="revenue-breakdown" *ngIf="stats && revenueBreakdownExpanded">
-    <h3 class="breakdown-title">How Company Revenue is calculated</h3>
+    <h3 class="breakdown-title">How Net Income is calculated</h3>
 
     <div class="breakdown-formula">
       <div class="breakdown-line">
         <span class="breakdown-amount">{{ stats.totalAmount | currency:'USD' }}</span>
-        <span class="breakdown-label">(Subtotal — sum of order subtotals)</span>
+        <span class="breakdown-label">(Company Revenue — order subtotals after discounts, before tax)</span>
       </div>
-      <div class="breakdown-line subtract">
-        <span class="breakdown-op">−</span>
-        <span class="breakdown-amount">{{ stats.totalTaxes | currency:'USD' }}</span>
-        <span class="breakdown-label">(Taxes)</span>
-      </div>
+      <!-- Sales tax is NOT subtracted here. It is charged on top of the price, so it was never
+           inside the amount above — it is money collected for the state, shown separately. -->
       <div class="breakdown-line subtract">
         <span class="breakdown-op">−</span>
         <span class="breakdown-amount">{{ stats.totalCleanersSalary | currency:'USD' }}</span>
@@ -102,7 +108,7 @@
       <div class="breakdown-line subtotal">
         <span class="breakdown-op">=</span>
         <span class="breakdown-amount">{{ stats.totalCompanyRevenueGross | currency:'USD' }}</span>
-        <span class="breakdown-label">(Gross Company Revenue — before expenses)</span>
+        <span class="breakdown-label">(Net Income before expenses)</span>
       </div>
       <div class="breakdown-line subtract">
         <span class="breakdown-op">−</span>
@@ -124,24 +130,36 @@
       <div class="breakdown-line total">
         <span class="breakdown-op">=</span>
         <span class="breakdown-amount">{{ stats.totalCompanyRevenue | currency:'USD' }}</span>
-        <span class="breakdown-label">(Company Revenue — net)</span>
+        <span class="breakdown-label">(Net Income — after every cost)</span>
       </div>
     </div>
 
-    <!-- Per-category expense itemisation. Each occurrence is shown with its bill date. -->
-    <div class="breakdown-expenses" *ngIf="stats.expensesBreakdown && stats.expensesBreakdown.byCategory.length > 0">
-      <h4 class="breakdown-section-title">Expenses by category</h4>
-      <div class="expense-category" *ngFor="let cat of stats.expensesBreakdown.byCategory">
+    <p class="breakdown-note">
+      Sales tax ({{ stats.totalTaxes | currency:'USD' }}) and tips ({{ stats.totalTips | currency:'USD' }})
+      are deliberately outside this formula — customers pay them on top of the price and they pass
+      straight through to the state and the cleaners. Discounts ({{ stats.totalDiscounts | currency:'USD' }})
+      are already deducted from the Company Revenue on the first line.
+    </p>
+
+    <!-- Per-category expense itemisation, rolled up to ONE line per expense per month.
+         Daily-billed integrations (Google Ads syncs a row a day) used to render ~30 near
+         identical lines a month here and bury everything else. -->
+    <div class="breakdown-expenses" *ngIf="expenseCategories.length > 0">
+      <h4 class="breakdown-section-title">Expenses by category — monthly</h4>
+      <div class="expense-category" *ngFor="let cat of expenseCategories">
         <div class="expense-category-header">
           <span class="expense-category-name">{{ cat.categoryName }}</span>
           <span class="expense-category-total">{{ cat.total | currency:'USD' }}</span>
         </div>
         <ul class="expense-items">
           <li *ngFor="let item of cat.items">
-            <span class="expense-item-date">{{ item.date | date:'mediumDate' }}</span>
+            <span class="expense-item-date">{{ item.monthLabel }}</span>
             <span class="expense-item-name">
               {{ item.name }}
-              <span class="recurring-tag" *ngIf="item.isRecurring" title="Recurring occurrence">↻</span>
+              <span class="recurring-tag" *ngIf="item.isRecurring" title="Recurring expense">↻</span>
+              <span class="expense-item-count" *ngIf="item.occurrences > 1">
+                {{ item.occurrences }} charges
+              </span>
             </span>
             <span class="expense-item-amount">{{ item.amount | currency:'USD' }}</span>
           </li>
@@ -149,7 +167,7 @@
       </div>
     </div>
 
-    <div class="breakdown-empty" *ngIf="!stats.expensesBreakdown || stats.expensesBreakdown.byCategory.length === 0">
+    <div class="breakdown-empty" *ngIf="expenseCategories.length === 0">
       No expenses recorded in this window.
     </div>
   </div>
@@ -230,7 +248,7 @@
   <div class="chart-section" *ngIf="stats && !isLoading">
     <div class="chart-header">
       <div class="chart-header-left">
-        <h2>Revenue</h2>
+        <h2>Net Income</h2>
         <div class="chart-group-toggles">
           <button class="group-btn" [class.active]="chartGrouping === 'days'" (click)="setGrouping('days')">Days</button>
           <button class="group-btn" [class.active]="chartGrouping === 'weeks'" (click)="setGrouping('weeks')">Weeks</button>

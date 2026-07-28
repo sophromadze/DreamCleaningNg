@@ -1612,9 +1612,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       return sum + (orderTotal - orderTips - orderCompanyTips - orderRefunded);
     }, 0);
 
-    // Approximate total taxes from the tax-inclusive amount, using the shared sales-tax
-    // rate (the order list DTO doesn't carry per-order tax, so this stays an estimate).
-    const totalTaxes = totalAmount * this.salesTaxRate;
+    // Approximate total taxes. The order list DTO carries no per-order tax, so this stays
+    // an estimate — but totalAmount above is tax-INCLUSIVE (order.total already contains the
+    // tax), so the tax has to be EXTRACTED with r/(1+r), not applied with r. Multiplying by
+    // the bare rate overstated it by ~8.9% and correspondingly understated the "no tips & tax"
+    // card. The exact, discount-aware figures live on the Statistics/Finances pages, which
+    // read Order.Tax directly (see OrderRevenueMath on the backend).
+    const totalTaxes = totalAmount * (this.salesTaxRate / (1 + this.salesTaxRate));
 
     return {
       totalOrders: validOrders.length,

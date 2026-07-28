@@ -233,6 +233,45 @@
   }
 }
 
+.hero-margin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+
+  .margin-value {
+    font-size: 1.05rem;
+    font-weight: var(--fw-bold);
+    color: var(--text-secondary);
+  }
+
+  // Separates the gross and net margins; the flex gap already spaces them, so the
+  // dot only needs to be quieter than the values it sits between.
+  .margin-sep {
+    color: var(--text-muted);
+    margin: 0 -4px;
+  }
+
+  .margin-delta {
+    font-size: 0.82rem;
+    font-weight: var(--fw-semibold);
+    padding: 3px 10px;
+    border-radius: var(--radius-pill);
+
+    &.up {
+      background: var(--mint-fresh);
+      color: var(--mint-fresh-text);
+    }
+
+    &.down {
+      background: var(--soft-red);
+      color: var(--bright-red);
+    }
+  }
+}
+
 .hero-compare {
   display: inline-flex;
   align-items: center;
@@ -530,6 +569,93 @@
   font-size: 1rem;
   font-weight: var(--fw-bold);
   color: var(--text-primary);
+
+  .viz-subtitle {
+    margin-left: 6px;
+    font-size: 0.78rem;
+    font-weight: var(--fw-medium);
+    color: var(--text-muted);
+  }
+}
+
+// ── Label/value rows: per-cleaning averages and the margins card ────────────
+
+.stat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+}
+
+.stat-main {
+  min-width: 0;
+}
+
+.stat-label {
+  font-size: 0.9rem;
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.stat-hint {
+  margin-top: 2px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.stat-side {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.stat-value {
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+
+  &.shimmer-loading {
+    min-width: 72px;
+    min-height: 1.2rem;
+    display: inline-block;
+    color: transparent;
+    border-radius: var(--radius-sm);
+  }
+}
+
+.stat-delta {
+  margin-top: 3px;
+  font-size: 0.76rem;
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+
+  &.up {
+    color: var(--fresh-green);
+  }
+
+  &.down {
+    color: var(--bright-red);
+  }
+}
+
+.stat-empty {
+  padding: 14px 0;
+  font-size: 0.86rem;
+  color: var(--text-muted);
 }
 
 .bars {
@@ -744,11 +870,81 @@
   }
 }
 
+// Mirrors the receipt's hero-note: says what the unchecked costs are doing to
+// the numbers, and offers the one-click way back to the official figures.
+.compare-note {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: var(--soft-yellow);
+  border: 1px solid var(--soft-yellow-text);
+  color: var(--soft-yellow-text);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  font-size: 0.9rem;
+
+  i {
+    flex-shrink: 0;
+  }
+
+  .link-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    font-weight: var(--fw-bold);
+    cursor: pointer;
+    text-decoration: underline;
+    font-size: inherit;
+  }
+}
+
+.bar-margin {
+  margin-left: 8px;
+  font-size: 0.78rem;
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+}
+
 .compare-card {
   background: var(--surface);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
   padding: 18px 20px;
+}
+
+.compare-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.share-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 14px;
+  font-size: 0.84rem;
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+  cursor: pointer;
+
+  input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+  }
+}
+
+.compare-hint {
+  margin: 0 0 14px;
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  line-height: 1.4;
 }
 
 .compare-table-wrap {
@@ -784,12 +980,64 @@
     color: var(--text-muted);
   }
 
+  // With many periods compared the table scrolls sideways, so the checkbox and
+  // the metric name stay pinned — otherwise you lose track of which row you're
+  // reading. The offset below matches .check-col's width.
+  .check-col,
   .metric-col {
+    position: sticky;
+    background: var(--surface);
+    z-index: 1;
+  }
+
+  .metric-col {
+    left: 34px;
     text-align: left;
     color: var(--text-secondary);
     font-weight: var(--fw-medium);
     white-space: normal;
     min-width: 160px;
+  }
+
+  .check-col {
+    left: 0;
+    width: 34px;
+    padding-left: 0;
+    padding-right: 6px;
+    text-align: center;
+
+    input[type="checkbox"] {
+      width: 17px;
+      height: 17px;
+      accent-color: var(--primary-color);
+      cursor: pointer;
+      vertical-align: middle;
+    }
+  }
+
+  // Unchecked cost rows stay readable — the value is still there, just crossed
+  // out, so it's obvious what was taken out of the totals.
+  tr.excluded {
+    .metric-col {
+      opacity: 0.5;
+    }
+
+    td .cell-value {
+      opacity: 0.5;
+      text-decoration: line-through;
+    }
+
+    td .cell-share {
+      opacity: 0.5;
+    }
+  }
+
+  .cell-share {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.72rem;
+    font-weight: var(--fw-medium);
+    color: var(--text-muted);
   }
 
   tbody td {
@@ -816,6 +1064,11 @@
   td.best {
     background: var(--mint-fresh);
     color: var(--mint-fresh-text);
+
+    .cell-share {
+      color: inherit;
+      opacity: 0.75;
+    }
   }
 
   .best-chip {
@@ -921,10 +1174,43 @@
   }
 }
 
+.quick-fill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+
+  .quick-fill-label {
+    font-size: 0.84rem;
+    color: var(--text-muted);
+  }
+
+  button {
+    padding: 5px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-pill);
+    background: var(--surface-subtle);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: var(--fw-semibold);
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--primary-color);
+      color: var(--primary-text);
+    }
+  }
+}
+
+// The period count is unlimited, so a long list scrolls inside the modal instead
+// of pushing the Compare button off-screen.
 .pick-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  max-height: 42vh;
+  overflow-y: auto;
 }
 
 .pick-row {
@@ -1019,9 +1305,16 @@
 
 .modal-footer {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 18px;
+
+  .pick-count {
+    margin-right: auto;
+    font-size: 0.84rem;
+    color: var(--text-muted);
+  }
 
   .cancel-btn {
     padding: 9px 16px;

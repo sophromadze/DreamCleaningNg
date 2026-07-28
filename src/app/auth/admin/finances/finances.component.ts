@@ -1,8 +1,8 @@
 import { Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, ChangeDetectorRef } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { forkJoin, of, Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { forkJoin, from, of, Subject } from 'rxjs';
+import { map, mergeMap, takeUntil, toArray } from 'rxjs/operators';
 import Chart from 'chart.js/auto';
 import { AdminService, OrderStatistics, ExpenseBreakdownItem } from '../../../services/admin.service';
 import { ThemeService } from '../../../services/theme.service';
@@ -13,7 +13,7 @@ type QuickFilter = 'today' | 'week' | 'month' | 'lastMonth' | 'year' | 'lastYear
  * One money-out row of the receipt. Every row can be checked/unchecked; the profit
  * number recomputes live from whatever is checked. Rows are built from the same
  * /api/admin/statistics response the Statistics page uses, so with everything
- * checked the result always equals the official Company Revenue.
+ * checked the result always equals the official Net Income.
  */
 interface CostLine {
   /** Stable key: 'taxes' | 'salaries' | 'stripeFees' | 'adminBonuses' | 'cat-<categoryId>' */
@@ -36,6 +36,17 @@ interface CostLine {
   expanded?: boolean;
 }
 
+/** One "per cleaning" tile: a size-independent average for the chosen period. */
+interface PerCleaningStat {
+  label: string;
+  hint: string;
+  value: number;
+  /** Change vs the previous window with the same rows checked (null when none). */
+  delta: number | null;
+  /** Costs read better when they fall; revenue and what's left when they rise. */
+  betterWhen: 'high' | 'low';
+}
+
 interface DonutSlice {
   label: string;
   amount: number;
@@ -53,11 +64,18 @@ interface DateWindow {
 
 /**
  * Donut slots available to expense categories. The categorical palette has 8
- * validated hues (--chart-cat-1..8) and the four fixed cost lines hold 1–4, so
- * four are left. Raising this needs new validated tokens in styles.scss, not
+ * validated hues (--chart-cat-1..8) and the three fixed cost lines hold 1–3, so
+ * five are left. Raising this needs new validated tokens in styles.scss, not
  * generated hues — and a donut past ~9 slices stops being readable anyway.
  */
-const CATEGORY_CHART_SLOTS = 4;
+const CATEGORY_CHART_SLOTS = 5;
+
+/**
+ * How many statistics calls the compare run keeps in flight. The number of
+ * compared periods is unlimited, and each call is a heavy aggregate over orders
+ * + expenses, so they go out a few at a time rather than all at once.
+ */
+const MAX_PARALLEL_STAT_REQUESTS = 4;
 
 type CompareUnit = 'day' | 'week' | 'month' | 'year';
 
@@ -81,12 +99,28 @@ interface ComparePeriod {
 }
 
 interface CompareRow {
+  /**
+   * Cost key ('taxes' | 'salaries' | 'stripeFees' | 'adminBonuses' | 'cat-<id>')
+   * when the row can be checked/unchecked, null for fixed/info rows. Keys are the
+   * SAME ones the receipt uses, so unchecking a cost in either view holds in both.
+   */
+  key: string | null;
   label: string;
   /** Which direction is "best" for this row — costs are best when lowest. */
   betterWhen: 'high' | 'low' | 'none';
-  isMoney: boolean;
+  format: 'money' | 'count' | 'percent';
   emphasize?: boolean;
+  /**
+   * The on-screen-only "what it would be with every cost counted" row. It exists
+   * to keep the official figure one glance away while costs are unchecked, and is
+   * deliberately kept OUT of the export, which only carries the selection.
+   */
+  isOfficialTotal?: boolean;
+  /** Cost rows only: false when the user unchecked it (left out of money out). */
+  included: boolean;
   values: number[];
+  /** Each value as a share of that period's money in — the per-cost margin view. */
+  sharePercents: number[] | null;
   /** The value to highlight as best (null when the row ties everywhere or is info-only). */
   bestValue: number | null;
 }
@@ -126,6 +160,12 @@ export class FinancesComponent implements OnInit, OnDestroy {
   comparePicks: ComparePick[] = [];
   compareResults: ComparePeriod[] = [];
   compareRows: CompareRow[] = [];
+  /** Per-period "what's left", recomputed from the CHECKED cost rows only. */
+  compareProfits: number[] = [];
+  /** Per-period profit margin (what's left ÷ money in), in percent. */
+  compareMargins: number[] = [];
+  /** Shows each cost as a share of that period's money in, next to the dollar value. */
+  showCostShares = false;
   /** Index of the period that kept the most money (-1 when every period ties). */
   winnerIndex = -1;
   winnerLine = '';
@@ -176,6 +216,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
     totalAmount: 0,
     totalTaxes: 0,
     totalTips: 0,
+    totalDiscounts: 0,
     totalCleanersSalary: 0,
     totalExpenses: 0,
     totalCompanyRevenueGross: 0,
@@ -231,7 +272,10 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   // ── Receipt math (all client-side, recomputed on every toggle) ───────────
 
-  /** Money in — order subtotals, same base the Statistics page uses. */
+  /**
+   * Money in — company revenue after discounts, before tax, without tips (net of refunds).
+   * The same figure the Statistics page shows as "Company Revenue".
+   */
   get moneyIn(): number {
     return this.stats?.totalAmount ?? 0;
   }
@@ -241,7 +285,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
     return this.costLines.reduce((sum, l) => sum + (l.included ? l.amount : 0), 0);
   }
 
-  /** The headline: money in minus whatever costs are checked. */
+  /** The headline "Net income": money in minus whatever costs are checked. */
   get profit(): number {
     return this.moneyIn - this.moneyOut;
   }
@@ -290,20 +334,171 @@ export class FinancesComponent implements OnInit, OnDestroy {
     return ((this.profit - prev) / Math.abs(prev)) * 100;
   }
 
+  // ── Margin & per-cleaning averages ───────────────────────────────────────
+  // Same measures the comparison shows, for the single period. These follow the
+  // checkboxes: uncheck a cost and the margin rises, the cost per cleaning drops.
+  // Previous-window figures use the SAME checked rows. (Gross margin below is the
+  // one deliberate exception — see its own note.)
+
+  /** Net income as a share of money in. */
+  get profitMargin(): number {
+    return this.moneyIn > 0 ? (this.profit / this.moneyIn) * 100 : 0;
+  }
+
+  private get prevMargin(): number | null {
+    const prevIn = this.prevStats?.totalAmount ?? null;
+    const prevLeft = this.prevProfit;
+    if (prevIn === null || prevLeft === null || prevIn <= 0) return null;
+    return (prevLeft / prevIn) * 100;
+  }
+
+  get hasMarginComparison(): boolean {
+    return this.prevMargin !== null;
+  }
+
+  /** Margin change in percentage POINTS — a percent-of-a-percent would mislead. */
+  get marginDelta(): number {
+    const prev = this.prevMargin;
+    return prev === null ? 0 : this.profitMargin - prev;
+  }
+
+  get marginDeltaAbs(): number {
+    return Math.abs(this.marginDelta);
+  }
+
+  // ── Gross margin ─────────────────────────────────────────────────────────
+  // The one measure on this page that does NOT follow the checkboxes. Gross margin
+  // answers "how much does a cleaning leave before overhead", so it always subtracts
+  // exactly one cost — the cleaner's wage, the only direct cost of delivering the
+  // service. Everything else (card fees, admin bonuses, ads, phone, …) is overhead and
+  // shows up only in the net margin; the GAP between the two margins is that overhead.
+  // Letting the checkboxes move it would make it read 100% the moment salaries are
+  // unchecked, which is not a margin anyone can act on.
+
+  /** Direct cost of delivering the cleanings — the only cost gross margin subtracts. */
+  get cleanerSalaries(): number {
+    return this.stats?.totalCleanersSalary ?? 0;
+  }
+
+  /** Company revenue minus cleaner salaries, before any overhead. */
+  get grossProfit(): number {
+    return this.moneyIn - this.cleanerSalaries;
+  }
+
+  get grossMargin(): number {
+    return this.moneyIn > 0 ? (this.grossProfit / this.moneyIn) * 100 : 0;
+  }
+
+  private get prevGrossMargin(): number | null {
+    const prevIn = this.prevStats?.totalAmount ?? null;
+    if (prevIn === null || prevIn <= 0) return null;
+    return ((prevIn - this.prevStats!.totalCleanersSalary) / prevIn) * 100;
+  }
+
+  get hasGrossMarginComparison(): boolean {
+    return this.prevGrossMargin !== null;
+  }
+
+  /** Percentage POINTS, like marginDelta — a percent-of-a-percent would mislead. */
+  get grossMarginDelta(): number {
+    const prev = this.prevGrossMargin;
+    return prev === null ? 0 : this.grossMargin - prev;
+  }
+
+  get grossMarginDeltaAbs(): number {
+    return Math.abs(this.grossMarginDelta);
+  }
+
+  get completedCleanings(): number {
+    return this.stats?.totalOrders ?? 0;
+  }
+
+  get perCleaningStats(): PerCleaningStat[] {
+    const orders = this.completedCleanings;
+    const prevOrders = this.prevStats?.totalOrders ?? 0;
+    const per = (v: number) => (orders > 0 ? v / orders : 0);
+    const prevPer = (v: number | null) =>
+      v !== null && prevOrders > 0 ? v / prevOrders : null;
+    const delta = (current: number, previous: number | null) =>
+      previous === null ? null : current - previous;
+
+    const prevIn = this.prevStats?.totalAmount ?? null;
+    const prevOut = this.prevStats
+      ? this.costLines.reduce((sum, l) => sum + (l.included ? (l.prevAmount ?? 0) : 0), 0)
+      : null;
+
+    const moneyIn = per(this.moneyIn);
+    const cost = per(this.moneyOut);
+    const left = per(this.profit);
+
+    return [
+      {
+        label: 'Money in per cleaning',
+        hint: 'What one cleaning brought in, on average.',
+        value: moneyIn,
+        delta: delta(moneyIn, prevPer(prevIn)),
+        betterWhen: 'high'
+      },
+      {
+        label: 'Cost per cleaning',
+        hint: 'The checked costs, split across the cleanings in this period.',
+        value: cost,
+        delta: delta(cost, prevPer(prevOut)),
+        betterWhen: 'low'
+      },
+      {
+        label: 'Net income per cleaning',
+        hint: 'What one cleaning left the company after those costs.',
+        value: left,
+        delta: delta(left, prevPer(this.prevProfit)),
+        betterWhen: 'high'
+      }
+    ];
+  }
+
+  /** Green when the change went the way this measure wants (costs: down is good). */
+  isDeltaGood(stat: PerCleaningStat): boolean {
+    const d = stat.delta ?? 0;
+    return stat.betterWhen === 'high' ? d >= 0 : d <= 0;
+  }
+
+  deltaArrow(stat: PerCleaningStat): string {
+    return (stat.delta ?? 0) >= 0 ? '▲' : '▼';
+  }
+
+  deltaAbs(stat: PerCleaningStat): number {
+    return Math.abs(stat.delta ?? 0);
+  }
+
   toggleLine(line: CostLine): void {
-    line.included = !line.included;
-    if (line.included) {
-      this.excludedKeys.delete(line.key);
-    } else {
-      this.excludedKeys.add(line.key);
-    }
-    this.refreshDonut();
+    this.setIncluded(line.key, !line.included);
+    this.afterInclusionChange();
   }
 
   includeEverything(): void {
     this.excludedKeys.clear();
     this.costLines.forEach(l => (l.included = true));
-    this.refreshDonut();
+    this.afterInclusionChange();
+  }
+
+  /** Single place that flips a cost on/off, so the receipt and the comparison agree. */
+  private setIncluded(key: string, included: boolean): void {
+    if (included) {
+      this.excludedKeys.delete(key);
+    } else {
+      this.excludedKeys.add(key);
+    }
+    const line = this.costLines.find(l => l.key === key);
+    if (line) line.included = included;
+  }
+
+  private afterInclusionChange(): void {
+    if (this.compareMode) {
+      // The comparison recomputes from the already-loaded stats — no refetch.
+      this.buildCompareView();
+    } else {
+      this.refreshDonut();
+    }
   }
 
   toggleExpand(line: CostLine): void {
@@ -343,18 +538,12 @@ export class FinancesComponent implements OnInit, OnDestroy {
   }
 
   private buildCostLines(stats: OrderStatistics, prev: OrderStatistics | null): CostLine[] {
-    // Fixed rows take chart slots 1–4; expense categories take 5+ in ascending
+    // Fixed rows take chart slots 1–3; expense categories take 4+ in ascending
     // categoryId (creation) order so a category keeps its color across periods.
+    // Sales tax is deliberately NOT a cost row. Money in is the price BEFORE tax, and the
+    // tax the customer pays on top never entered it — deducting it here subtracted money
+    // that was never counted as income. It now sits in "Good to know" as a pass-through.
     const lines: CostLine[] = [
-      {
-        key: 'taxes',
-        label: 'Sales tax',
-        explanation: 'Collected from customers on top of the price. This money goes to the state — it was never ours.',
-        amount: stats.totalTaxes,
-        prevAmount: prev ? prev.totalTaxes : null,
-        included: !this.excludedKeys.has('taxes'),
-        colorVar: '--chart-cat-1'
-      },
       {
         key: 'salaries',
         label: 'Cleaner salaries',
@@ -362,7 +551,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
         amount: stats.totalCleanersSalary,
         prevAmount: prev ? prev.totalCleanersSalary : null,
         included: !this.excludedKeys.has('salaries'),
-        colorVar: '--chart-cat-2'
+        colorVar: '--chart-cat-1'
       },
       {
         key: 'stripeFees',
@@ -371,7 +560,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
         amount: stats.stripeFees,
         prevAmount: prev ? prev.stripeFees : null,
         included: !this.excludedKeys.has('stripeFees'),
-        colorVar: '--chart-cat-3'
+        colorVar: '--chart-cat-2'
       },
       {
         key: 'adminBonuses',
@@ -380,7 +569,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
         amount: stats.adminBonusesUsd,
         prevAmount: prev ? prev.adminBonusesUsd : null,
         included: !this.excludedKeys.has('adminBonuses'),
-        colorVar: '--chart-cat-4'
+        colorVar: '--chart-cat-3'
       }
     ];
 
@@ -389,19 +578,19 @@ export class FinancesComponent implements OnInit, OnDestroy {
     const prevCategories = new Map(
       (prev?.expensesBreakdown?.byCategory ?? []).map(c => [c.categoryId, c.total]));
 
-    // The four fixed lines above hold chart slots 1–4, so only slots 5–8 are left
+    // The three fixed lines above hold chart slots 1–3, so only slots 4–8 are left
     // for expense categories — the rest fold into the muted "Other expenses"
-    // slice. Which four get a slot is decided by how much they cost in this
-    // period, NOT by category id: the old rule handed slots to the four
-    // lowest-id categories, so big spends that happen to sort late (Salaries is
-    // id 4, Google Ads is created on first sync and lands higher still) were
+    // slice. Which ones get a slot is decided by how much they cost in this
+    // period, NOT by category id: the old rule handed slots to the lowest-id
+    // categories, so big spends that happen to sort late (Salaries is id 4,
+    // Google Ads is created on first sync and lands higher still) were
     // permanently buried in "Other expenses" no matter how large they were.
     // Ranking also stops a $0 category from holding a slot it can't use.
     const slotByCategoryId = new Map<number, string>(
       [...categories]
         .sort((a, b) => b.total - a.total)
         .slice(0, CATEGORY_CHART_SLOTS)
-        .map((cat, i) => [cat.categoryId, `--chart-cat-${5 + i}`] as const)
+        .map((cat, i) => [cat.categoryId, `--chart-cat-${4 + i}`] as const)
     );
 
     categories.forEach(cat => {
@@ -643,15 +832,62 @@ export class FinancesComponent implements OnInit, OnDestroy {
   }
 
   addPick(): void {
-    if (this.comparePicks.length < 4) {
-      this.comparePicks.push(this.mkPick(new Date()));
-    }
+    // The next period back from the last one, so adding is one click per period
+    // instead of hunting through the dropdowns.
+    const last = this.comparePicks[this.comparePicks.length - 1];
+    this.comparePicks.push(last ? this.stepBack(last) : this.mkPick(new Date()));
   }
 
   removePick(index: number): void {
     if (this.comparePicks.length > 2) {
       this.comparePicks.splice(index, 1);
     }
+  }
+
+  /** One whole unit earlier than the given pick. */
+  private stepBack(pick: ComparePick): ComparePick {
+    switch (this.compareUnit) {
+      case 'day':
+        return this.mkPick(this.addDays(new Date(pick.date + 'T00:00:00'), -1));
+      case 'week':
+        return this.mkPick(this.addDays(new Date(pick.date + 'T00:00:00'), -7));
+      case 'month':
+        return this.mkPick(new Date(pick.year, pick.month - 1, 1));
+      case 'year':
+      default:
+        return this.mkPick(new Date(pick.year - 1, 0, 1));
+    }
+  }
+
+  /** Quick-fill sizes offered for the active unit (years are capped by the dropdown). */
+  get quickFillCounts(): number[] {
+    return this.compareUnit === 'year' ? [3, 5] : [6, 12];
+  }
+
+  /** Fills the list with the last N whole units, oldest first. */
+  quickFill(count: number): void {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const picks: ComparePick[] = [];
+    for (let back = count - 1; back >= 0; back--) {
+      switch (this.compareUnit) {
+        case 'day':
+          picks.push(this.mkPick(this.addDays(today, -back)));
+          break;
+        case 'week':
+          picks.push(this.mkPick(this.addDays(today, -back * 7)));
+          break;
+        case 'month':
+          picks.push(this.mkPick(new Date(today.getFullYear(), today.getMonth() - back, 1)));
+          break;
+        case 'year':
+        default:
+          picks.push(this.mkPick(new Date(today.getFullYear() - back, 0, 1)));
+          break;
+      }
+    }
+    this.comparePicks = picks;
+    this.compareError = '';
   }
 
   get unitNoun(): string {
@@ -697,8 +933,17 @@ export class FinancesComponent implements OnInit, OnDestroy {
     this.compareError = '';
     this.isComparing = true;
 
-    forkJoin(resolved.map(r => this.adminService.getOrderStatistics(r.from, r.to))).subscribe({
-      next: (statsList) => {
+    // The period count is unlimited, so the statistics calls are throttled instead
+    // of fired all at once — each one is a heavy multi-query aggregate. Results
+    // carry their index because mergeMap completes out of order.
+    from(resolved.map((r, i) => ({ r, i }))).pipe(
+      mergeMap(({ r, i }) => this.adminService.getOrderStatistics(r.from, r.to)
+        .pipe(map(stats => ({ i, stats }))), MAX_PARALLEL_STAT_REQUESTS),
+      toArray()
+    ).subscribe({
+      next: (loaded) => {
+        const statsList: OrderStatistics[] = [];
+        loaded.forEach(({ i, stats }) => (statsList[i] = stats));
         this.compareResults = resolved.map((r, i) => ({ ...r, stats: statsList[i] }));
         this.buildCompareView();
         this.isComparing = false;
@@ -721,19 +966,31 @@ export class FinancesComponent implements OnInit, OnDestroy {
     this.refreshDonut();
   }
 
-  profitOf(period: ComparePeriod): number {
-    return period.stats.totalCompanyRevenue;
-  }
-
   /** Bar width for the "what's left" side-by-side bars (negatives render as empty). */
-  compareBarWidth(period: ComparePeriod): number {
-    const max = Math.max(...this.compareResults.map(r => r.stats.totalCompanyRevenue));
+  compareBarWidth(index: number): number {
+    const max = Math.max(...this.compareProfits);
     if (max <= 0) return 0;
-    return (Math.max(0, period.stats.totalCompanyRevenue) / max) * 100;
+    return (Math.max(0, this.compareProfits[index]) / max) * 100;
   }
 
   isBest(row: CompareRow, index: number): boolean {
     return row.bestValue !== null && row.values[index] === row.bestValue;
+  }
+
+  /** Cost rows the user unchecked — they stay visible but sit outside the math. */
+  get compareExcludedCount(): number {
+    return this.compareRows.filter(r => r.key !== null && !r.included).length;
+  }
+
+  /** Official "what's left" per period (every cost counted), for the unchecked-costs note. */
+  get compareOfficialProfits(): number[] {
+    return this.compareResults.map(r => r.stats.totalCompanyRevenue);
+  }
+
+  toggleCompareRow(row: CompareRow): void {
+    if (!row.key) return;
+    this.setIncluded(row.key, !row.included);
+    this.buildCompareView();
   }
 
   private mkPick(d: Date): ComparePick {
@@ -800,21 +1057,44 @@ export class FinancesComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Builds the comparison table from the already-loaded per-period stats. Called
+   * again (without refetching) whenever a cost row is checked or unchecked, so
+   * "what's left" and the margins always reflect the CHECKED rows only.
+   */
   private buildCompareView(): void {
     const results = this.compareResults;
     const vals = (f: (s: OrderStatistics) => number) => results.map(r => f(r.stats));
+    const moneyIn = vals(s => s.totalAmount);
+
     const row = (
       label: string,
       betterWhen: 'high' | 'low' | 'none',
       values: number[],
-      isMoney = true,
-      emphasize = false
+      opts: {
+        key?: string;
+        format?: 'money' | 'count' | 'percent';
+        emphasize?: boolean;
+        withShare?: boolean;
+        officialTotal?: boolean;
+      } = {}
     ): CompareRow => {
       let bestValue: number | null = null;
       if (betterWhen !== 'none' && !values.every(v => v === values[0])) {
         bestValue = betterWhen === 'high' ? Math.max(...values) : Math.min(...values);
       }
-      return { label, betterWhen, values, isMoney, emphasize, bestValue };
+      return {
+        key: opts.key ?? null,
+        label,
+        betterWhen,
+        format: opts.format ?? 'money',
+        emphasize: opts.emphasize ?? false,
+        isOfficialTotal: opts.officialTotal ?? false,
+        included: opts.key ? !this.excludedKeys.has(opts.key) : true,
+        values,
+        sharePercents: opts.withShare ? values.map((v, i) => this.share(v, moneyIn[i])) : null,
+        bestValue
+      };
     };
 
     // Every expense category gets its own named row (Google Ads, Salaries, …) —
@@ -823,29 +1103,89 @@ export class FinancesComponent implements OnInit, OnDestroy {
     results.forEach(r => (r.stats.expensesBreakdown?.byCategory ?? []).forEach(c => {
       if (!categoryNames.has(c.categoryId)) categoryNames.set(c.categoryId, c.categoryName);
     }));
-    const categoryRows = [...categoryNames.entries()]
-      .sort((a, b) => a[0] - b[0])
-      .map(([id, name]) => row(name, 'none',
-        vals(s => (s.expensesBreakdown?.byCategory ?? []).find(c => c.categoryId === id)?.total ?? 0)));
 
-    // Green "best" marks only where more = better for the business: revenue,
-    // profit, and completed cleanings. Cost rows carry no judgment.
-    this.compareRows = [
-      row('Money in (cleaning revenue)', 'high', vals(s => s.totalAmount)),
-      row('Sales tax', 'none', vals(s => s.totalTaxes)),
-      row('Cleaner salaries', 'none', vals(s => s.totalCleanersSalary)),
-      row('Card processing fees', 'none', vals(s => s.stripeFees)),
-      row('Admin bonuses', 'none', vals(s => s.adminBonusesUsd)),
-      ...categoryRows,
-      row('Money out (all costs together)', 'none', vals(s => s.totalAmount - s.totalCompanyRevenue)),
-      row('What’s left for the company', 'high', vals(s => s.totalCompanyRevenue), true, true),
-      row('Tips (pass-through, not profit)', 'none', vals(s => s.totalTips)),
-      row('Completed cleanings', 'high', vals(s => s.totalOrders), false)
+    // Cost rows carry the receipt's keys so a row unchecked on one screen stays
+    // unchecked on the other, and each one can be left out of the math here too.
+    const costRows: CompareRow[] = [
+      row('Cleaner salaries', 'none', vals(s => s.totalCleanersSalary), { key: 'salaries', withShare: true }),
+      row('Card processing fees', 'none', vals(s => s.stripeFees), { key: 'stripeFees', withShare: true }),
+      row('Admin bonuses', 'none', vals(s => s.adminBonusesUsd), { key: 'adminBonuses', withShare: true }),
+      ...[...categoryNames.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([id, name]) => row(name, 'none',
+          vals(s => (s.expensesBreakdown?.byCategory ?? []).find(c => c.categoryId === id)?.total ?? 0),
+          { key: `cat-${id}`, withShare: true }))
     ];
 
-    // Plain-language winner line, based on the official "what's left" number.
-    const profits = results.map(r => r.stats.totalCompanyRevenue);
+    // Only the checked cost rows count toward money out — same rule as the receipt.
+    const moneyOut = results.map((_, i) =>
+      costRows.reduce((sum, r) => sum + (r.included ? r.values[i] : 0), 0));
+    this.compareProfits = moneyIn.map((v, i) => v - moneyOut[i]);
+    this.compareMargins = this.compareProfits.map((p, i) => this.share(p, moneyIn[i]));
+
+    // Gross margin ignores the checkboxes entirely (see the getters above): it always
+    // subtracts exactly the cleaner salaries, so periods stay comparable on the one
+    // measure that is about the service itself rather than that period's overhead.
+    const grossMargins = results.map((r, i) =>
+      this.share(moneyIn[i] - r.stats.totalCleanersSalary, moneyIn[i]));
+
+    // Per-cleaning averages — the size-independent view: how much a single
+    // cleaning brought in, what it cost us, and what it left behind.
+    const orders = vals(s => s.totalOrders);
+    const perOrder = (values: number[]) =>
+      values.map((v, i) => (orders[i] > 0 ? v / orders[i] : 0));
+    // A period with no cleanings averages 0 everywhere; letting that win "lowest
+    // cost per cleaning" would be nonsense, so no period is marked best then.
+    const rank = (dir: 'high' | 'low'): 'high' | 'low' | 'none' =>
+      orders.every(o => o > 0) ? dir : 'none';
+
+    // Green "best" marks only where the direction is genuinely better for the
+    // business. Total-cost rows carry no judgment (a bigger month costs more);
+    // per-cleaning cost does, because it is size-independent.
+    this.compareRows = [
+      row('Money in (company revenue)', 'high', moneyIn),
+      ...costRows,
+      row('Money out (checked costs)', 'none', moneyOut, { withShare: true }),
+      row('Net income', 'high', this.compareProfits, { emphasize: true }),
+      row('Gross margin (after cleaner salaries only)', 'high', grossMargins,
+        { format: 'percent' }),
+      row('Net margin (net income ÷ money in)', 'high', this.compareMargins,
+        { format: 'percent', emphasize: true }),
+      // Only while something is unchecked: the official figure stays one glance
+      // away instead of being buried in a note that grows with the period count.
+      ...(costRows.some(r => !r.included)
+        ? [row('… if every cost were counted', 'none', this.compareOfficialProfits,
+          { officialTotal: true })]
+        : []),
+      row('Average money in per cleaning', rank('high'), perOrder(moneyIn)),
+      row('Average cost per cleaning (checked costs)', rank('low'), perOrder(moneyOut)),
+      row('Average net income per cleaning', rank('high'), perOrder(this.compareProfits),
+        { emphasize: true }),
+      // Pass-throughs and give-aways: never part of money in or money out, but they
+      // explain why one period's revenue moved against another's.
+      row('Sales tax collected (goes to the state)', 'none', vals(s => s.totalTaxes)),
+      // 'none': a bigger discount bill is not automatically worse — discounts buy bookings.
+      row('Discounts given to customers', 'none', vals(s => s.totalDiscounts)),
+      row('Tips (pass-through, not profit)', 'none', vals(s => s.totalTips)),
+      row('Completed cleanings', 'high', orders, { format: 'count' })
+    ];
+
+    this.buildWinnerLine();
+  }
+
+  /** Percent of money in — 0 when the period took no money (no meaningful share). */
+  private share(value: number, moneyIn: number): number {
+    return moneyIn > 0 ? (value / moneyIn) * 100 : 0;
+  }
+
+  private buildWinnerLine(): void {
+    const results = this.compareResults;
+    const profits = this.compareProfits;
     const max = Math.max(...profits);
+    // Margin decides ties and colors the sentence: on unequal-sized periods the
+    // bigger dollar figure can still be the worse-run period.
+    const marginOf = (i: number) => `${this.compareMargins[i].toFixed(1)}% margin`;
+
     if (profits.every(p => p === profits[0])) {
       this.winnerIndex = -1;
       this.winnerLine = `It’s a tie — every period left the company ${this.usd(max)}.`;
@@ -856,12 +1196,14 @@ export class FinancesComponent implements OnInit, OnDestroy {
     const diff = sortedDesc[0] - sortedDesc[1];
     const winner = results[this.winnerIndex];
     if (diff === 0) {
-      this.winnerLine = `${winner.label} ties for the best result — the company kept ${this.usd(max)}.`;
-    } else {
-      const runnerIdx = profits.findIndex((p, i) => i !== this.winnerIndex && p === sortedDesc[1]);
-      this.winnerLine = `${winner.label} comes out on top — the company kept ${this.usd(max)}, `
-        + `${this.usd(diff)} more than ${results[runnerIdx].label}.`;
+      this.winnerLine = `${winner.label} ties for the best result — the company kept `
+        + `${this.usd(max)} (${marginOf(this.winnerIndex)}).`;
+      return;
     }
+    const runnerIdx = profits.findIndex((p, i) => i !== this.winnerIndex && p === sortedDesc[1]);
+    this.winnerLine = `${winner.label} comes out on top — the company kept ${this.usd(max)} `
+      + `(${marginOf(this.winnerIndex)}), ${this.usd(diff)} more than ${results[runnerIdx].label} `
+      + `(${marginOf(runnerIdx)}).`;
   }
 
   private usd(v: number): string {
@@ -882,6 +1224,9 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   /** Money cells get a real Excel number format so sums/filters work out of the box. */
   private static readonly MONEY_FMT = '$#,##0.00';
+
+  /** Margin cells are stored as plain numbers (34.2), so the % is part of the format. */
+  private static readonly PERCENT_FMT = '0.0"%"';
 
   /** The header button exports whatever is on screen: the receipt or the comparison. */
   get canExport(): boolean {
@@ -904,6 +1249,14 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   private exportFileName(): string {
     if (this.compareMode) {
+      // Naming every period is only readable for a handful of them; past that the
+      // filename would run to hundreds of characters.
+      if (this.compareResults.length > 4) {
+        const first = this.compareResults[0];
+        const last = this.compareResults[this.compareResults.length - 1];
+        return `finances_compare_${this.compareResults.length}_periods_`
+          + `${first.from}_to_${last.to}.xlsx`;
+      }
       const labels = this.compareResults
         .map(r => r.label.replace(/[^\w]+/g, '-'))
         .join('_vs_');
@@ -935,32 +1288,59 @@ export class FinancesComponent implements OnInit, OnDestroy {
     const win = this.getDateWindow();
     const period = win.from && win.to ? `${win.from} to ${win.to}` : 'All time';
 
+    // The export is a document of the CURRENT selection: unchecked costs are not
+    // written at all — no greyed row, no "counted?" column — so every number in
+    // the file adds up to the totals at the bottom.
+    const includedLines = this.costLines.filter(l => l.included);
+
     const rows: (string | number)[][] = [
       ['Dream Cleaning — Finances export', period],
       [],
-      ['Section', 'Item', 'Amount (USD)', 'Counted in profit'],
-      ['Money in', 'Cleaning revenue (order subtotals)', this.moneyIn, 'Yes'],
-      ...this.costLines.map(l =>
-        ['Money out', l.label, l.amount, l.included ? 'Yes' : 'No'] as (string | number)[]),
-      ['Info', 'Tips (pass-through, not company money)', stats.totalTips, 'No'],
-      ['Info', 'Completed paid orders', stats.totalOrders, ''],
+      ['Section', 'Item', 'Amount (USD)'],
+      ['Money in', 'Company revenue (after discounts, before tax, without tips)', this.moneyIn],
+      ...includedLines.map(l => ['Money out', l.label, l.amount] as (string | number)[]),
+      // Pass-throughs: charged on top of the price, so they were never in money in
+      // and must not appear under money out.
+      ['Info', 'Sales tax collected (owed to the state)', stats.totalTaxes],
+      ['Info', 'Discounts given to customers', stats.totalDiscounts],
+      // Tips follow their own checkbox in the "Good to know" section.
+      ...(this.showTips
+        ? [['Info', 'Tips (pass-through, not company money)', stats.totalTips] as (string | number)[]]
+        : []),
+      ['Info', 'Completed paid orders', stats.totalOrders],
       [],
-      ['Totals', 'Money out (checked items)', this.moneyOut, ''],
-      ['Totals', 'Profit (money in − checked money out)', this.profit, ''],
-      ['Totals', 'Official company revenue (everything counted)', this.officialRevenue, '']
+      ['Totals', 'Money out', this.moneyOut],
+      ['Totals', 'Net income (money in − money out)', this.profit],
+      // Gross margin subtracts ONLY the cleaner salaries and ignores the checkbox
+      // selection, so it exports the same value whatever the on-screen selection is.
+      ['Totals', 'Gross margin (after cleaner salaries only)', this.grossMargin],
+      ['Totals', 'Net margin', this.profitMargin],
+      // The size-independent view — also computed from the selected costs only.
+      ...(this.completedCleanings > 0
+        ? this.perCleaningStats.map(s => ['Per cleaning', s.label, s.value] as (string | number)[])
+        : [])
     ];
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws['!cols'] = [{ wch: 12 }, { wch: 48 }, { wch: 16 }, { wch: 18 }];
-    // Everything in the amount column is money except the order count.
+    ws['!cols'] = [{ wch: 12 }, { wch: 48 }, { wch: 16 }];
+    // Everything in the amount column is money except the order count and the margins.
     const countRow = rows.findIndex(r => r[1] === 'Completed paid orders');
-    this.formatMoneyColumn(XLSX, ws, 2, new Set([countRow]));
+    const marginRows = [
+      rows.findIndex(r => r[1] === 'Gross margin (after cleaner salaries only)'),
+      rows.findIndex(r => r[1] === 'Net margin')
+    ];
+    this.formatMoneyColumn(XLSX, ws, 2, new Set([countRow, ...marginRows]));
+    for (const marginRow of marginRows) {
+      const marginCell = ws[XLSX.utils.encode_cell({ r: marginRow, c: 2 })];
+      if (marginCell && marginCell.t === 'n') marginCell.z = FinancesComponent.PERCENT_FMT;
+    }
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Receipt');
 
-    // Per-expense detail so an accountant can verify every category total.
-    const detailLines = this.costLines.filter(l => l.items?.length);
+    // Per-expense detail so an accountant can verify every category total —
+    // again only for the categories that made it into the sheet above.
+    const detailLines = includedLines.filter(l => l.items?.length);
     if (detailLines.length > 0) {
       const detailRows: (string | number)[][] = [
         ['Category', 'Expense', 'Date', 'Amount (USD)'],
@@ -979,12 +1359,18 @@ export class FinancesComponent implements OnInit, OnDestroy {
   /** Mirrors the on-screen "Everything, side by side" table, one column per period. */
   private buildCompareWorkbook(XLSX: typeof import('xlsx')): import('xlsx').WorkBook {
     const results = this.compareResults;
+    // Same rule as the receipt sheet: only the selected rows are written. An
+    // unchecked cost leaves no trace, and the on-screen "if every cost were
+    // counted" reference row is not part of the selection either.
+    const exportRows = this.compareRows.filter(row =>
+      (row.key === null || row.included) && !row.isOfficialTotal);
+
     const rows: (string | number)[][] = [
       ['Dream Cleaning — Side-by-side comparison'],
       [],
       ['Metric', ...results.map(r => r.label)],
       ['Period', ...results.map(r => r.rangeLabel || `${r.from} to ${r.to}`)],
-      ...this.compareRows.map(row => [row.label, ...row.values] as (string | number)[])
+      ...exportRows.map(row => [row.label, ...row.values] as (string | number)[])
     ];
     if (this.winnerLine) {
       rows.push([]);
@@ -993,14 +1379,20 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws['!cols'] = [{ wch: 36 }, ...results.map(() => ({ wch: 18 }))];
-    // Non-money rows (e.g. completed cleanings) keep their plain number format.
+
+    // Each metric row carries its own number format: money, percent, or a plain
+    // count (completed cleanings), so Excel shows what the screen shows.
     const compareRowsStart = 4;
-    const skip = new Set(this.compareRows
-      .map((row, i) => (row.isMoney ? -1 : compareRowsStart + i))
-      .filter(i => i >= 0));
-    for (let c = 1; c <= results.length; c++) {
-      this.formatMoneyColumn(XLSX, ws, c, skip);
-    }
+    exportRows.forEach((row, i) => {
+      const fmt = row.format === 'money' ? FinancesComponent.MONEY_FMT
+        : row.format === 'percent' ? FinancesComponent.PERCENT_FMT
+          : null;
+      if (!fmt) return;
+      for (let c = 1; c <= results.length; c++) {
+        const cell = ws[XLSX.utils.encode_cell({ r: compareRowsStart + i, c })];
+        if (cell && cell.t === 'n') cell.z = fmt;
+      }
+    });
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Comparison');
@@ -1015,5 +1407,10 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   trackByKey(_: number, line: CostLine): string {
     return line.key;
+  }
+
+  /** perCleaningStats rebuilds each cycle by design — keyed so the DOM is reused. */
+  trackByStatLabel(_: number, stat: PerCleaningStat): string {
+    return stat.label;
   }
 }
