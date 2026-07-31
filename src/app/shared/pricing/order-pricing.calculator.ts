@@ -40,6 +40,14 @@ export const MAX_HOURS_PER_MAID = 6;
  */
 export const AUTO_ADD_CLEANERS_BY_DURATION: boolean = false;
 
+/**
+ * Scheduling/billing granularity for durations, in minutes. Durations shown to
+ * customers/admins and the per-cleaner duration used for salary are rounded to this.
+ * Mirrored by OrderPricingCalculator.DurationRoundingMinutes and DURATION_ROUNDING_MINUTES
+ * in utils/duration.utils.ts.
+ */
+export const DURATION_ROUNDING_MINUTES = 30;
+
 /** Per-maid minimum duration in minutes. */
 export const PER_MAID_MINIMUM_MINUTES = 60;
 
@@ -473,7 +481,7 @@ export function getDefaultCleanerHourlyRate(deepCleaningFee: number): number {
 }
 
 /**
- * Per-cleaner duration rounded to 15 minutes, then perCleaner/60 × maids × rate.
+ * Per-cleaner duration rounded to DURATION_ROUNDING_MINUTES, then perCleaner/60 × maids × rate.
  * Only cleaner-hours service types store TotalDuration as per-cleaner; everything
  * else (including Custom Pricing) stores it as TOTAL across all maids and we divide.
  */
@@ -489,7 +497,8 @@ export function calculateCleanerTotalSalary(
     : maids > 1
       ? totalDuration / maids
       : totalDuration;
-  const roundedPerCleaner = Math.round(perCleanerDuration / 15) * 15;
+  const roundedPerCleaner =
+    Math.round(perCleanerDuration / DURATION_ROUNDING_MINUTES) * DURATION_ROUNDING_MINUTES;
   return round2((roundedPerCleaner / 60) * maids * hourlyRate);
 }
 

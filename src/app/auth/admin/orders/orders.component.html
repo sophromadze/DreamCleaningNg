@@ -1445,7 +1445,7 @@
                  class="salary-input">
           <span class="salary-hint" *ngIf="selectedOrder">
             Est. Total: ${{ getEstimatedTotalSalary().toFixed(2) }}
-            ({{ formatDuration(roundToQuarter(selectedOrder.totalDuration)) }} × ${{ cleanerHourlySalary }})
+            ({{ formatDuration(roundToIncrement(selectedOrder.totalDuration)) }} × ${{ cleanerHourlySalary }})
           </span>
         </div>
       </div>

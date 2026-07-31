@@ -2269,9 +2269,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return 20;
   }
 
-  /** Round duration to nearest 15 minutes (same as DurationUtils) */
-  roundToQuarter(minutes: number): number {
-    return Math.round(minutes / 15) * 15;
+  /** Round duration to the nearest scheduling increment (same as DurationUtils) */
+  roundToIncrement(minutes: number): number {
+    return DurationUtils.roundToNearestIncrement(minutes);
   }
 
   /** Calculate estimated total salary for display in modal (shared calculator). */

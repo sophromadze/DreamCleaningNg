@@ -1712,7 +1712,8 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     if (serviceName.includes('folding') || serviceName.includes('folding / organizing')) return 'fas fa-layer-group';
     if (serviceName.includes('laundry')) return 'fas fa-camera-retro';
     if (serviceName.includes('balcony')) return 'fas fa-store';
-    if (serviceName.includes('office')) return 'fas fa-building';
+    // Home Office ('cabinet' is the former name, kept as an alias).
+    if (serviceName.includes('office') || serviceName.includes('cabinet')) return 'fas fa-desktop';
     if (serviceName.includes('couches')) return 'fas fa-couch';
     
     // Default icon for unknown services

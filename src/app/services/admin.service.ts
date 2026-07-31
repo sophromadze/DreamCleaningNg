@@ -67,6 +67,20 @@ export interface OrderStatistics {
   upcomingOrders: number;
   /** True when every figure above is a projection that already folds in those orders. */
   includesUpcoming: boolean;
+  /** Google Ads spend actually recorded in the window (never includes the forecast below). */
+  googleAdsSpend: number;
+  /** Elapsed days of the window — the average's denominator ($0 days count). */
+  googleAdsCoveredDays: number;
+  /** googleAdsSpend ÷ googleAdsCoveredDays. */
+  googleAdsDailyAverage: number;
+  /** Days of the window still to come (0 for a period entirely in the past). */
+  googleAdsProjectedDays: number;
+  /**
+   * Forecast ad spend for those remaining days — 0 unless includeUpcoming was set. When
+   * non-zero it is ALREADY inside the Google Ads category, totalExpenses and
+   * totalCompanyRevenue; never add it a second time.
+   */
+  googleAdsProjectedSpend: number;
 }
 
 export interface DailyStatistics {
@@ -1375,12 +1389,21 @@ export class AdminService {
    * @param includeUpcoming folds the window's not-yet-performed orders (Active/Pending) into
    *   every total, turning the response into a projection of the period once everything
    *   already booked is done. Off = the confirmed, performed-orders-only report.
+   * @param upcomingTo end date for the not-yet-performed COUNT only. A running period reports
+   *   money up to today but its unfinished cleanings all sit after today, so the count needs
+   *   the real period end. Defaults to `to`.
    */
-  getOrderStatistics(from?: string, to?: string, includeUpcoming = false): Observable<OrderStatistics> {
+  getOrderStatistics(
+    from?: string,
+    to?: string,
+    includeUpcoming = false,
+    upcomingTo?: string
+  ): Observable<OrderStatistics> {
     let params = new HttpParams();
     if (from) params = params.set('from', from);
     if (to) params = params.set('to', to);
     if (includeUpcoming) params = params.set('includeUpcoming', 'true');
+    if (upcomingTo) params = params.set('upcomingTo', upcomingTo);
     return this.http.get<OrderStatistics>(`${this.apiUrl}/statistics`, { params });
   }
 

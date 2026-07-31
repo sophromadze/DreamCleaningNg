@@ -58,7 +58,12 @@
 
   <div class="projection-banner" *ngIf="includeUpcoming">
     <i class="fas fa-clock"></i>
-    <span><b>Projection</b> — counts cleanings that haven't happened yet.</span>
+    <span>
+      <b>Projection</b> — counts cleanings that haven't happened yet<ng-container
+        *ngIf="!compareMode && projectedAdSpend > 0">, plus
+        {{ projectedAdSpend | currency:'USD' }} of forecast Google Ads spend for the remaining
+        {{ projectedAdDays | number }} day{{ projectedAdDays === 1 ? '' : 's' }}</ng-container>.
+    </span>
   </div>
 
   <!-- Error -->
@@ -365,6 +370,8 @@
               <span class="cell-share" *ngIf="showPercents && row.sharePercents">
                 {{ row.sharePercents[i] | number:'1.1-1' }}%
               </span>
+              <!-- Percentages are shares of the Net Revenue Baseline, which therefore always
+                   reads 100% and Total Revenue reads 100% + the sales-tax rate. -->
             </td>
           </tr>
         </tbody>

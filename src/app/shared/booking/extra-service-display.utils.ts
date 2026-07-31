@@ -27,10 +27,10 @@ export function getExtraServiceImage(extraService: { name: string }, isSelected:
   if (serviceName.includes('folding') || serviceName.includes('folding / organizing')) return `/images/folding${suffix}.png`;
   if (serviceName.includes('laundry')) return `/images/laundry${suffix}.png`;
   if (serviceName.includes('balcony')) return `/images/balcony${suffix}.png`;
-  // Superset of the two previous mappings: booking matched 'cabinet', order-edit
-  // matched 'office' — both land on the office icon. ('kitchen cabinets' is
-  // matched earlier, so plain Cabinet extras end up here.)
-  if (serviceName.includes('cabinet') || serviceName.includes('office')) return `/images/office${suffix}.png`;
+  // Home Office. 'cabinet' is the extra's former name, kept as an alias so a
+  // catalog row that hasn't been renamed yet still gets the right icon.
+  // ('kitchen cabinets' is matched earlier, so it never reaches here.)
+  if (serviceName.includes('office') || serviceName.includes('cabinet')) return `/images/office${suffix}.png`;
   if (serviceName.includes('couches')) return `/images/couches${suffix}.png`;
   if (serviceName.includes('chandelier')) return `/images/chandelier${suffix}.png`;
   if (serviceName.includes('ceiling fan')) return `/images/ceiling_fan${suffix}.png`;

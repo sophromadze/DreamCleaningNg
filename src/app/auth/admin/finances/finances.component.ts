@@ -52,7 +52,7 @@ interface PnlRow {
   key: string | null;
   label: string;
   amount: number;
-  /** Share of Total Revenue — shown on every row while "Show %" is on. */
+  /** Share of the Net Revenue Baseline — shown on every row while "Show %" is on. */
   percent: number;
   included: boolean;
   /** Deduction rows that sit under a subtotal header (expenses, additional deductions). */
@@ -77,7 +77,7 @@ interface SummaryRow {
   delta: number | null;
   /** Costs read better when they fall; revenue and what's left when they rise. */
   betterWhen: 'high' | 'low' | 'none';
-  /** Share of Total Revenue, or null where a share carries no meaning (averages, counts). */
+  /** Share of the Net Revenue Baseline, or null where a share carries no meaning (averages, counts). */
   percent: number | null;
 }
 
@@ -91,6 +91,11 @@ interface DonutSlice {
 interface DateWindow {
   from?: string;
   to?: string;
+  /**
+   * The period's real end, ignoring the "stop at today" clamp the running filters apply to
+   * the money window. Unfinished cleanings all sit after today, so counting them needs this.
+   */
+  fullTo?: string;
   prevFrom?: string;
   prevTo?: string;
   compareLabel: string;
@@ -157,7 +162,7 @@ interface CompareRow {
   /** Cost rows only: false when the user unchecked it (left out of money out). */
   included: boolean;
   values: number[];
-  /** Each value as a share of that period's Total Revenue — the per-row margin view. */
+  /** Each value as a share of that period's Net Revenue Baseline — the per-row margin view. */
   sharePercents: number[] | null;
   /** The value to highlight as best (null when the row ties everywhere or is info-only). */
   bestValue: number | null;
@@ -278,7 +283,12 @@ export class FinancesComponent implements OnInit, OnDestroy {
     adminBonusesUsd: 0,
     adminBonusesGel: 0,
     upcomingOrders: 0,
-    includesUpcoming: false
+    includesUpcoming: false,
+    googleAdsSpend: 0,
+    googleAdsCoveredDays: 0,
+    googleAdsDailyAverage: 0,
+    googleAdsProjectedDays: 0,
+    googleAdsProjectedSpend: 0
   };
 
   ngOnInit(): void {
@@ -401,12 +411,21 @@ export class FinancesComponent implements OnInit, OnDestroy {
     return this.costLines.reduce((sum, l) => sum + (l.included ? l.amount : 0), 0);
   }
 
-  /** Share of Total Revenue — the denominator every percentage on this page uses. */
+  /**
+   * Share of the NET REVENUE BASELINE — the denominator every percentage on this page uses.
+   *
+   * The baseline, not Total Revenue, because the sales tax was never the company's money: a
+   * margin measured against a figure that includes the state's cut understates every margin by
+   * the tax rate. So the baseline reads 100%, Total Revenue reads 100% + the tax rate (≈108.9%),
+   * and every cost below is a share of what the company actually earned. Unchecking sales tax
+   * collapses the baseline onto Total Revenue and both simply read 100%.
+   */
   percentOfRevenue(value: number): number {
-    return this.totalRevenue > 0 ? (value / this.totalRevenue) * 100 : 0;
+    const base = this.netRevenueBaseline;
+    return base > 0 ? (value / base) * 100 : 0;
   }
 
-  /** Net income as a share of Total Revenue. */
+  /** Net income as a share of the Net Revenue Baseline. */
   get profitMargin(): number {
     return this.percentOfRevenue(this.netCompanyIncome);
   }
@@ -483,6 +502,19 @@ export class FinancesComponent implements OnInit, OnDestroy {
     return this.stats?.totalCompanyRevenue ?? 0;
   }
 
+  /**
+   * Forecast ad spend the backend added for the period's remaining days (0 unless the
+   * projection is on). Already inside the Google Ads cost line — surfaced only so the banner
+   * can name it.
+   */
+  get projectedAdSpend(): number {
+    return this.stats?.googleAdsProjectedSpend ?? 0;
+  }
+
+  get projectedAdDays(): number {
+    return this.stats?.googleAdsProjectedDays ?? 0;
+  }
+
   /** How many booked cleanings in this window have not happened yet. */
   get upcomingCount(): number {
     return this.compareMode
@@ -529,8 +561,16 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
   // ── Margins vs the previous window ───────────────────────────────────────
 
+  /** The previous window's baseline — same denominator rule as percentOfRevenue. */
+  private get prevNetRevenueBaseline(): number | null {
+    if (!this.prevStats) return null;
+    const taxLine = this.costLines.find(l => l.key === 'salesTax');
+    const prevTax = taxLine?.included ? (taxLine.prevAmount ?? 0) : 0;
+    return this.prevStats.totalAmount + this.prevStats.totalTaxes - prevTax;
+  }
+
   private get prevMargin(): number | null {
-    const prevIn = this.prevTotalRevenue;
+    const prevIn = this.prevNetRevenueBaseline;
     const prevLeft = this.prevProfit;
     if (prevIn === null || prevLeft === null || prevIn <= 0) return null;
     return (prevLeft / prevIn) * 100;
@@ -609,6 +649,19 @@ export class FinancesComponent implements OnInit, OnDestroy {
         format: 'money',
         delta: delta(leftPer, prevPer(this.prevProfit)),
         betterWhen: 'high',
+        percent: null
+      },
+      {
+        key: 'googleAdsPerDay',
+        // Ad spend is the one expense with a real per-day rate (one synced row per day), and
+        // it is what the projection extrapolates the remaining days from.
+        label: 'Average Google Ads cost per day',
+        value: this.stats?.googleAdsDailyAverage ?? 0,
+        format: 'money',
+        delta: this.prevStats
+          ? (this.stats?.googleAdsDailyAverage ?? 0) - this.prevStats.googleAdsDailyAverage
+          : null,
+        betterWhen: 'none',
         percent: null
       },
       {
@@ -704,7 +757,8 @@ export class FinancesComponent implements OnInit, OnDestroy {
     this.compareLabel = win.compareLabel;
 
     forkJoin({
-      current: this.adminService.getOrderStatistics(win.from, win.to, this.includeUpcoming),
+      current: this.adminService.getOrderStatistics(
+        win.from, win.to, this.includeUpcoming, win.fullTo),
       previous: win.prevFrom && win.prevTo
         ? this.adminService.getOrderStatistics(win.prevFrom, win.prevTo, this.includeUpcoming)
         : of(null as OrderStatistics | null)
@@ -852,10 +906,12 @@ export class FinancesComponent implements OnInit, OnDestroy {
       }
       case 'week': {
         const start = this.addDays(today, -today.getDay());
+        const end = this.addDays(start, 6);
         const prevStart = this.addDays(start, -7);
         return {
           from: fmt(start),
-          to: fmt(this.includeUpcoming ? this.addDays(start, 6) : today),
+          to: fmt(this.includeUpcoming ? end : today),
+          fullTo: fmt(end),
           prevFrom: fmt(prevStart),
           prevTo: fmt(this.includeUpcoming ? this.addDays(prevStart, 6) : this.addDays(today, -7)),
           compareLabel: this.includeUpcoming ? 'vs the whole week before' : 'vs the same days last week'
@@ -873,6 +929,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
         return {
           from: fmt(start),
           to: fmt(this.includeUpcoming ? monthEnd : today),
+          fullTo: fmt(monthEnd),
           prevFrom: fmt(prevStart),
           prevTo: fmt(this.includeUpcoming ? prevMonthEnd : prevSameDay),
           compareLabel: this.includeUpcoming ? 'vs the whole month before' : 'vs the same days last month'
@@ -891,11 +948,13 @@ export class FinancesComponent implements OnInit, OnDestroy {
       }
       case 'year': {
         const start = new Date(today.getFullYear(), 0, 1);
+        const yearEnd = new Date(today.getFullYear(), 11, 31);
         const prevStart = new Date(today.getFullYear() - 1, 0, 1);
         const prevSameDay = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate());
         return {
           from: fmt(start),
-          to: fmt(this.includeUpcoming ? new Date(today.getFullYear(), 11, 31) : today),
+          to: fmt(this.includeUpcoming ? yearEnd : today),
+          fullTo: fmt(yearEnd),
           prevFrom: fmt(prevStart),
           prevTo: fmt(this.includeUpcoming ? new Date(today.getFullYear() - 1, 11, 31) : prevSameDay),
           compareLabel: this.includeUpcoming ? 'vs the whole year before' : 'vs the same period last year'
@@ -1300,9 +1359,11 @@ export class FinancesComponent implements OnInit, OnDestroy {
   private buildCompareView(): void {
     const results = this.compareResults;
     const vals = (f: (s: OrderStatistics) => number) => results.map(r => f(r.stats));
-    // Same tax-inclusive basis as the single-period card, and the denominator for
-    // every percentage in the table.
+    // Same tax-inclusive basis as the single-period card.
     const totalRevenue = results.map(r => r.stats.totalAmount + r.stats.totalTaxes);
+    // Percentages are shares of the NET REVENUE BASELINE, not of Total Revenue — see
+    // percentOfRevenue. Filled in below, once the sales-tax checkbox has been applied.
+    const percentBase: number[] = [];
 
     const row = (
       label: string,
@@ -1334,7 +1395,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
         included: opts.key ? !this.excludedKeys.has(opts.key) : true,
         values,
         sharePercents: opts.withShare !== false
-          ? values.map((v, i) => this.share(v, totalRevenue[i]))
+          ? values.map((v, i) => this.share(v, percentBase[i]))
           : null,
         bestValue
       };
@@ -1361,6 +1422,9 @@ export class FinancesComponent implements OnInit, OnDestroy {
 
     // The chain, computed per period from the CHECKED rows only.
     const netBaseline = totalRevenue.map((v, i) => v - counted('salesTax', salesTax)[i]);
+    // Every percentage in the table hangs off the baseline, so it has to exist before the
+    // first row() call — row() reads percentBase when it builds sharePercents.
+    percentBase.push(...netBaseline);
     const grossMargin = netBaseline.map((v, i) => v - counted('salaries', salaries)[i]);
     const operatingExpenses = totalRevenue.map((_, i) => categoryIds.reduce(
       (sum, id) => sum + counted(`cat-${id}`, categoryValues.get(id)!)[i], 0));
@@ -1368,7 +1432,8 @@ export class FinancesComponent implements OnInit, OnDestroy {
       counted('stripeFees', stripeFees)[i] + counted('adminBonuses', adminBonuses)[i]);
 
     this.compareProfits = grossMargin.map((v, i) => v - operatingExpenses[i] - additional[i]);
-    this.compareMargins = this.compareProfits.map((p, i) => this.share(p, totalRevenue[i]));
+    // Margin against the baseline, matching profitMargin on the single-period card.
+    this.compareMargins = this.compareProfits.map((p, i) => this.share(p, netBaseline[i]));
 
     // Money out is the mirror image of the chain: Total Revenue − Net Company Income.
     const moneyOut = totalRevenue.map((v, i) => v - this.compareProfits[i]);
@@ -1415,6 +1480,8 @@ export class FinancesComponent implements OnInit, OnDestroy {
       row('Average cost per cleaning (checked costs)', rank('low'), perOrder(moneyOut), { withShare: false }),
       row('Average net income per cleaning', rank('high'), perOrder(this.compareProfits),
         { emphasize: true, withShare: false }),
+      row('Average Google Ads cost per day', 'none', vals(s => s.googleAdsDailyAverage),
+        { withShare: false }),
       // 'none': a bigger discount bill is not automatically worse — discounts buy bookings.
       row('Discounts given to customers', 'none', vals(s => s.totalDiscounts)),
       row('Tips (pass-through, not profit)', 'none', vals(s => s.totalTips)),
@@ -1426,9 +1493,9 @@ export class FinancesComponent implements OnInit, OnDestroy {
     this.buildWinnerLine();
   }
 
-  /** Percent of Total Revenue — 0 when the period took no money (no meaningful share). */
-  private share(value: number, totalRevenue: number): number {
-    return totalRevenue > 0 ? (value / totalRevenue) * 100 : 0;
+  /** Percent of the Net Revenue Baseline — 0 when the period took no money. */
+  private share(value: number, baseline: number): number {
+    return baseline > 0 ? (value / baseline) * 100 : 0;
   }
 
   private buildWinnerLine(): void {
@@ -1555,7 +1622,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
         ? [['PROJECTION — includes cleanings that have not happened yet']]
         : []),
       [],
-      ['Item', 'Amount (USD)', '% of Total Revenue'],
+      ['Item', 'Amount (USD)', '% of Net Revenue Baseline'],
       ...chain.map(r => [
         r.indent ? `    ${r.label}` : r.label,
         r.kind === 'deduction' ? -r.amount : r.amount,
