@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
-import { ServiceType, Service, ExtraService, Subscription } from './booking.service';
+import { ServiceType, Service, ExtraService, Subscription, ServiceThreshold, ServiceRateTier } from './booking.service';
 import { Order, OrderList } from './order.service';
 import { Apartment, CreateApartment } from './profile.service';
 import { UserSpecialOffer } from './special-offer.service';
@@ -486,8 +486,10 @@ export interface CreateServiceType {
   description?: string;
   displayOrder: number;
   timeDuration: number;
-  hasPoll?: boolean; 
+  hasPoll?: boolean;
   isCustom?: boolean;
+  /** Floor for base price + services. 0 = no floor. */
+  minimumPrice?: number;
 }
 
 export interface UpdateServiceType {
@@ -496,8 +498,10 @@ export interface UpdateServiceType {
   description?: string;
   displayOrder: number;
   timeDuration: number;
-  hasPoll?: boolean; 
+  hasPoll?: boolean;
   isCustom?: boolean;
+  /** Floor for base price + services. 0 = no floor. */
+  minimumPrice?: number;
 }
 
 export interface CreateService {
@@ -514,6 +518,10 @@ export interface CreateService {
   unit?: string;
   serviceRelationType?: string;
   displayOrder: number;
+  // Threshold / tier billing. Nested rows are managed through their own endpoints.
+  chargeAboveThreshold?: boolean;
+  zeroQuantityCost?: number | null;
+  zeroQuantityDuration?: number | null;
 }
 
 export interface UpdateService {
@@ -530,6 +538,108 @@ export interface UpdateService {
   unit?: string;
   serviceRelationType?: string; // Make sure this is included
   displayOrder: number;
+  chargeAboveThreshold?: boolean;
+  zeroQuantityCost?: number | null;
+  zeroQuantityDuration?: number | null;
+}
+
+/** Create/update payload for one included-amount row. */
+export interface SaveServiceThreshold {
+  sourceServiceId: number;
+  sourceQuantity: number;
+  includedQuantity: number;
+}
+
+/** Create/update payload for one rate tier. */
+export interface SaveServiceRateTier {
+  fromQuantity: number;
+  cost: number;
+  timeDuration: number;
+  displayOrder: number;
+}
+
+// ===== Pricing configuration export / import =====
+// Resolves by (serviceTypeName, serviceKey) only — never by Id, because production and local
+// have diverged on surrogate keys.
+
+export interface PricingConfigurationRateTier {
+  fromQuantity: number;
+  cost: number;
+  timeDuration: number;
+  displayOrder: number;
+}
+
+export interface PricingConfigurationThreshold {
+  sourceServiceKey: string;
+  sourceQuantity: number;
+  includedQuantity: number;
+}
+
+export interface PricingConfigurationService {
+  serviceKey: string;
+  name?: string;
+  cost: number;
+  timeDuration: number;
+  chargeAboveThreshold: boolean;
+  zeroQuantityCost?: number | null;
+  zeroQuantityDuration?: number | null;
+  thresholds: PricingConfigurationThreshold[];
+  rateTiers: PricingConfigurationRateTier[];
+}
+
+export interface PricingConfigurationServiceType {
+  serviceTypeName: string;
+  basePrice: number;
+  timeDuration: number;
+  minimumPrice: number;
+  services: PricingConfigurationService[];
+}
+
+export interface PricingConfiguration {
+  formatVersion: string;
+  exportedAt: string;
+  sourceNote?: string;
+  serviceTypes: PricingConfigurationServiceType[];
+}
+
+export interface PricingFieldChange {
+  field: string;
+  oldValue: string;
+  newValue: string;
+  isChanged: boolean;
+}
+
+export interface PricingConfigurationServiceDiff {
+  serviceKey: string;
+  name?: string;
+  resolvedServiceId?: number | null;
+  changes: PricingFieldChange[];
+  thresholdChanges: string[];
+  rateTierChanges: string[];
+}
+
+export interface PricingConfigurationServiceTypeDiff {
+  serviceTypeName: string;
+  resolvedServiceTypeId?: number | null;
+  changes: PricingFieldChange[];
+  services: PricingConfigurationServiceDiff[];
+}
+
+export interface PricingConfigurationDiff {
+  canApply: boolean;
+  errors: string[];
+  warnings: string[];
+  isNoOp: boolean;
+  serviceTypes: PricingConfigurationServiceTypeDiff[];
+}
+
+export interface ApplyPricingConfigurationResult {
+  success: boolean;
+  message: string;
+  serviceTypesUpdated: number;
+  servicesUpdated: number;
+  thresholdsWritten: number;
+  rateTiersWritten: number;
 }
 
 export interface CreateExtraService {
@@ -755,6 +865,55 @@ export class AdminService {
 
   deleteService(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/services/${id}`);
+  }
+
+  // Included amounts (thresholds) — the free allowance a service gets at a given
+  // quantity of a source service, e.g. sqft included per bedroom count.
+  getServiceThresholds(serviceId: number): Observable<ServiceThreshold[]> {
+    return this.http.get<ServiceThreshold[]>(`${this.apiUrl}/services/${serviceId}/thresholds`);
+  }
+
+  createServiceThreshold(serviceId: number, row: SaveServiceThreshold): Observable<ServiceThreshold> {
+    return this.http.post<ServiceThreshold>(`${this.apiUrl}/services/${serviceId}/thresholds`, row);
+  }
+
+  updateServiceThreshold(serviceId: number, id: number, row: SaveServiceThreshold): Observable<ServiceThreshold> {
+    return this.http.put<ServiceThreshold>(`${this.apiUrl}/services/${serviceId}/thresholds/${id}`, row);
+  }
+
+  deleteServiceThreshold(serviceId: number, id: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/services/${serviceId}/thresholds/${id}`);
+  }
+
+  // Rate tiers — marginal bands over the BILLABLE quantity (after the allowance).
+  getServiceRateTiers(serviceId: number): Observable<ServiceRateTier[]> {
+    return this.http.get<ServiceRateTier[]>(`${this.apiUrl}/services/${serviceId}/rate-tiers`);
+  }
+
+  createServiceRateTier(serviceId: number, row: SaveServiceRateTier): Observable<ServiceRateTier> {
+    return this.http.post<ServiceRateTier>(`${this.apiUrl}/services/${serviceId}/rate-tiers`, row);
+  }
+
+  updateServiceRateTier(serviceId: number, id: number, row: SaveServiceRateTier): Observable<ServiceRateTier> {
+    return this.http.put<ServiceRateTier>(`${this.apiUrl}/services/${serviceId}/rate-tiers/${id}`, row);
+  }
+
+  deleteServiceRateTier(serviceId: number, id: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/services/${serviceId}/rate-tiers/${id}`);
+  }
+
+  // Pricing configuration export / import (import is SuperAdmin-only, enforced server-side)
+  exportPricingConfiguration(serviceTypeId?: number): Observable<PricingConfiguration> {
+    const query = serviceTypeId ? `?serviceTypeId=${serviceTypeId}` : '';
+    return this.http.get<PricingConfiguration>(`${this.apiUrl}/pricing-configuration/export${query}`);
+  }
+
+  previewPricingConfiguration(payload: PricingConfiguration): Observable<PricingConfigurationDiff> {
+    return this.http.post<PricingConfigurationDiff>(`${this.apiUrl}/pricing-configuration/preview`, payload);
+  }
+
+  applyPricingConfiguration(payload: PricingConfiguration): Observable<ApplyPricingConfigurationResult> {
+    return this.http.post<ApplyPricingConfigurationResult>(`${this.apiUrl}/pricing-configuration/apply`, payload);
   }
 
   // Extra Services

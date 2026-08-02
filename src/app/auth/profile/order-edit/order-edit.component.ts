@@ -533,7 +533,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       if (service.serviceKey === 'bedrooms') {
         const sqftIndex = this.selectedServices.findIndex(s => s.service.serviceKey === 'sqft');
         if (sqftIndex !== -1) {
-          this.selectedServices[sqftIndex].quantity = getSquareFeetForBedrooms(quantity);
+          this.selectedServices[sqftIndex].quantity = this.getSquareFeetForBedroomsConfigured(quantity);
           this.serviceControls.at(sqftIndex).setValue(this.selectedServices[sqftIndex].quantity);
         }
       }
@@ -542,7 +542,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       if (service.serviceKey === 'sqft') {
         const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
         if (bedroomsService) {
-          const minSquareFeet = getSquareFeetForBedrooms(bedroomsService.quantity);
+          const minSquareFeet = this.getSquareFeetForBedroomsConfigured(bedroomsService.quantity);
           if (quantity < minSquareFeet) {
             this.selectedServices[index].quantity = minSquareFeet;
             this.serviceControls.at(index).setValue(minSquareFeet);
@@ -736,8 +736,10 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   getServicePrice(service: Service, quantity: number): number {
-    // Studio rule + multiplier live in the shared calculator.
-    return getServiceDisplayPrice(service, quantity, this.getSelectedPriceMultiplier());
+    // Zero-quantity rule, thresholds, tiers and the multiplier all live in the shared
+    // calculator. selectedServices is passed so threshold sources (e.g. bedrooms for sqft)
+    // resolve exactly as they do in the summary.
+    return getServiceDisplayPrice(service, quantity, this.getSelectedPriceMultiplier(), this.selectedServices);
   }
 
   getServiceQuantity(service: Service): number {
@@ -1456,10 +1458,10 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   getServiceDuration(service: Service): number {
-    // Per-service display duration scales with the cleaning-type multiplier (shared
-    // calculator — same behavior as the booking page).
+    // Per-service display duration is NOT multiplier-scaled (bug B1) — it now matches the
+    // summary exactly, same behavior as the booking page.
     const quantity = this.getServiceQuantity(service);
-    return getServiceDisplayDuration(service, quantity, this.getSelectedPriceMultiplier());
+    return getServiceDisplayDuration(service, quantity, this.getSelectedPriceMultiplier(), this.selectedServices);
   }
 
   loadBlockedTimeSlots() {
@@ -1612,11 +1614,26 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     this.entryMethodDropdownOpen = false;
   }
 
+  /**
+   * Included square feet for a bedroom count, read from the Sq.ft service's configured
+   * allowances — the same data that drives billing, so the slider minimum and the free
+   * allowance can never disagree. Falls back to the shared defaults before the catalog loads.
+   */
+  private getSquareFeetForBedroomsConfigured(bedrooms: number): number {
+    const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+    const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    return getSquareFeetForBedrooms(
+      bedrooms,
+      sqftService?.service?.thresholds,
+      bedroomsService?.service?.id
+    );
+  }
+
   /** Sq.ft slider minimum follows the current bedroom count (shared mapping with booking). */
   getSquareFeetMinForBedrooms(): number {
     const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
     if (bedroomsService) {
-      return getSquareFeetForBedrooms(bedroomsService.quantity);
+      return this.getSquareFeetForBedroomsConfigured(bedroomsService.quantity);
     }
     return 400;
   }

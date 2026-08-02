@@ -1,8 +1,12 @@
 import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminService, CreateService, CreateExtraService, UserPermissions } from '../../../services/admin.service';
-import { ServiceType, Service, ExtraService } from '../../../services/booking.service';
+import {
+  AdminService, CreateService, CreateExtraService, UserPermissions,
+  SaveServiceThreshold, SaveServiceRateTier,
+  PricingConfiguration, PricingConfigurationDiff
+} from '../../../services/admin.service';
+import { ServiceType, Service, ExtraService, ServiceThreshold, ServiceRateTier } from '../../../services/booking.service';
 
 export interface PollQuestion {
   id: number;
@@ -68,9 +72,10 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     displayOrder: 1,
     timeDuration: 90,
     hasPoll: false,
-    isCustom: false
+    isCustom: false,
+    minimumPrice: 0
   };
-  
+
   // Services
   isAddingService = false;
   editingServiceId: number | null = null;
@@ -87,10 +92,34 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     isRangeInput: false,
     unit: '',
     serviceRelationType: '',
-    displayOrder: 1
+    displayOrder: 1,
+    chargeAboveThreshold: false,
+    zeroQuantityCost: null,
+    zeroQuantityDuration: null
   };
   selectedExistingServiceId: number | null = null;
   showExistingServices = false;
+
+  // ===== Pricing configuration: included amounts + rate tiers =====
+  // One service row expands at a time; its threshold and tier editors live inside that row.
+  expandedPricingServiceId: number | null = null;
+  pricingRowMessage: { error: string; success: string } = { error: '', success: '' };
+
+  editingThresholdId: number | null = null;
+  newThreshold: SaveServiceThreshold = { sourceServiceId: 0, sourceQuantity: 0, includedQuantity: 0 };
+  isAddingThreshold = false;
+
+  editingRateTierId: number | null = null;
+  newRateTier: SaveServiceRateTier = { fromQuantity: 0, cost: 0, timeDuration: 0, displayOrder: 0 };
+  isAddingRateTier = false;
+
+  // ===== Export / import =====
+  showPricingConfigPanel = false;
+  pricingConfigJson = '';
+  pricingConfigDiff: PricingConfigurationDiff | null = null;
+  pricingConfigBusy = false;
+  pricingConfigMessage: { error: string; success: string } = { error: '', success: '' };
+  private pendingPricingConfig: PricingConfiguration | null = null;
   
   // Extra Services  
   isAddingExtraService = false;
@@ -564,7 +593,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       displayOrder: this.serviceTypes.length + 1,
       timeDuration: 90,
       hasPoll: false,
-      isCustom: false
+      isCustom: false,
+      minimumPrice: 0
     };
   }
 
@@ -577,7 +607,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       displayOrder: 1,
       timeDuration: 90,
       hasPoll: false,
-      isCustom: false
+      isCustom: false,
+      minimumPrice: 0
     };
   }
 
@@ -593,7 +624,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
           displayOrder: 1,
           timeDuration: 90,
           hasPoll: false,
-          isCustom: false
+          isCustom: false,
+          minimumPrice: 0
         };
         this.serviceTypeMessage.success = 'Service type added successfully.';
       },
@@ -640,7 +672,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
         displayOrder: this.selectedServiceType.displayOrder || 1,
         timeDuration: this.selectedServiceType.timeDuration,
         hasPoll: this.selectedServiceType.hasPoll,
-        isCustom: this.selectedServiceType.isCustom
+        isCustom: this.selectedServiceType.isCustom,
+        minimumPrice: this.selectedServiceType.minimumPrice ?? 0
       };
       this.adminService.updateServiceType(this.selectedServiceType.id, updateData).subscribe({
         next: (response) => {
@@ -787,6 +820,11 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       this.serviceMessage.error = 'You do not have permission to create services';
       return;
     }
+    // Blank zero-quantity inputs must travel as null, not 0 — "leave blank" and "costs 0"
+    // are different settings.
+    this.newService.zeroQuantityCost = this.emptyToNull(this.newService.zeroQuantityCost);
+    this.newService.zeroQuantityDuration = this.emptyToNull(this.newService.zeroQuantityDuration);
+
     this.adminService.createService(this.newService).subscribe({
       next: (response) => {
         if (this.selectedServiceType) {
@@ -830,7 +868,10 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       isRangeInput: service.isRangeInput,
       unit: service.unit,
       serviceRelationType: service.serviceRelationType,
-      displayOrder: service.displayOrder || 1
+      displayOrder: service.displayOrder || 1,
+      chargeAboveThreshold: service.chargeAboveThreshold ?? false,
+      zeroQuantityCost: this.emptyToNull(service.zeroQuantityCost),
+      zeroQuantityDuration: this.emptyToNull(service.zeroQuantityDuration)
     }).subscribe({
       next: (response) => {
         if (this.selectedServiceType) {
@@ -848,6 +889,19 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
         this.serviceMessage.error = 'Failed to update service';
       }
     });
+  }
+
+  /**
+   * An emptied number input yields '' or null, which must reach the API as null (meaning
+   * "not applicable") rather than 0 — a zero-quantity cost of 0 is a real, different setting
+   * from leaving it blank.
+   */
+  private emptyToNull(value: number | null | undefined): number | null {
+    if (value === null || value === undefined) return null;
+    const asString = String(value).trim();
+    if (asString === '') return null;
+    const parsed = Number(value);
+    return isNaN(parsed) ? null : parsed;
   }
 
   deleteService(service: Service) {
@@ -874,6 +928,382 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
         }
       });
     }
+  }
+
+  // ==========================================================================
+  // Included amounts (thresholds) and rate tiers
+  // ==========================================================================
+
+  togglePricingRow(service: Service) {
+    this.expandedPricingServiceId = this.expandedPricingServiceId === service.id ? null : service.id;
+    this.resetPricingRowEditors();
+    this.pricingRowMessage = { error: '', success: '' };
+  }
+
+  private resetPricingRowEditors() {
+    this.isAddingThreshold = false;
+    this.editingThresholdId = null;
+    this.isAddingRateTier = false;
+    this.editingRateTierId = null;
+    this.newThreshold = { sourceServiceId: 0, sourceQuantity: 0, includedQuantity: 0 };
+    this.newRateTier = { fromQuantity: 0, cost: 0, timeDuration: 0, displayOrder: 0 };
+  }
+
+  /** Services that may act as an allowance source — same service type, and not the service itself. */
+  getThresholdSourceCandidates(service: Service): Service[] {
+    if (!this.selectedServiceType) return [];
+    return this.selectedServiceType.services.filter(s => s.id !== service.id);
+  }
+
+  /** Reloads one service's rows in place so the row doesn't collapse on every change. */
+  private refreshPricingRow(service: Service) {
+    this.adminService.getServiceThresholds(service.id).subscribe({
+      next: rows => service.thresholds = rows
+    });
+    this.adminService.getServiceRateTiers(service.id).subscribe({
+      next: rows => service.rateTiers = rows
+    });
+  }
+
+  private handlePricingRowError(error: any, fallback: string) {
+    this.pricingRowMessage.error = error?.error?.message || fallback;
+    this.pricingRowMessage.success = '';
+  }
+
+  // ----- Thresholds -----
+
+  startAddingThreshold(service: Service) {
+    this.isAddingThreshold = true;
+    this.editingThresholdId = null;
+    const candidates = this.getThresholdSourceCandidates(service);
+    this.newThreshold = {
+      sourceServiceId: candidates.length ? candidates[0].id : 0,
+      sourceQuantity: 0,
+      includedQuantity: 0
+    };
+  }
+
+  cancelAddingThreshold() {
+    this.isAddingThreshold = false;
+  }
+
+  addThreshold(service: Service) {
+    if (!this.newThreshold.sourceServiceId) {
+      this.pricingRowMessage.error = 'Choose which service the included amount is based on.';
+      return;
+    }
+    this.adminService.createServiceThreshold(service.id, this.newThreshold).subscribe({
+      next: () => {
+        this.pricingRowMessage = { error: '', success: 'Included amount added.' };
+        this.isAddingThreshold = false;
+        this.refreshPricingRow(service);
+      },
+      error: err => this.handlePricingRowError(err, 'Failed to add the included amount.')
+    });
+  }
+
+  startEditingThreshold(row: ServiceThreshold) {
+    this.editingThresholdId = row.id;
+    this.isAddingThreshold = false;
+  }
+
+  saveThreshold(service: Service, row: ServiceThreshold) {
+    this.adminService.updateServiceThreshold(service.id, row.id, {
+      sourceServiceId: row.sourceServiceId,
+      sourceQuantity: row.sourceQuantity,
+      includedQuantity: row.includedQuantity
+    }).subscribe({
+      next: () => {
+        this.pricingRowMessage = { error: '', success: 'Included amount updated.' };
+        this.editingThresholdId = null;
+        this.refreshPricingRow(service);
+      },
+      error: err => {
+        this.handlePricingRowError(err, 'Failed to update the included amount.');
+        this.refreshPricingRow(service); // discard the rejected edit
+      }
+    });
+  }
+
+  cancelEditingThreshold(service: Service) {
+    this.editingThresholdId = null;
+    this.refreshPricingRow(service);
+  }
+
+  deleteThreshold(service: Service, row: ServiceThreshold) {
+    const label = row.sourceServiceName || row.sourceServiceKey || 'this source';
+    if (!confirm(`Remove the included amount for ${label} = ${row.sourceQuantity}?`)) return;
+
+    this.adminService.deleteServiceThreshold(service.id, row.id).subscribe({
+      next: () => {
+        this.pricingRowMessage = { error: '', success: 'Included amount removed.' };
+        this.refreshPricingRow(service);
+      },
+      error: err => this.handlePricingRowError(err, 'Failed to remove the included amount.')
+    });
+  }
+
+  // ----- Rate tiers -----
+
+  startAddingRateTier(service: Service) {
+    this.isAddingRateTier = true;
+    this.editingRateTierId = null;
+    const tiers = service.rateTiers || [];
+    this.newRateTier = {
+      // First tier must anchor at 0; afterwards default to just past the current top band.
+      fromQuantity: tiers.length === 0 ? 0 : Math.max(...tiers.map(t => t.fromQuantity)) + 100,
+      cost: service.cost || 0,
+      timeDuration: service.timeDuration || 0,
+      displayOrder: tiers.length + 1
+    };
+  }
+
+  cancelAddingRateTier() {
+    this.isAddingRateTier = false;
+  }
+
+  addRateTier(service: Service) {
+    this.adminService.createServiceRateTier(service.id, this.newRateTier).subscribe({
+      next: () => {
+        this.pricingRowMessage = { error: '', success: 'Rate tier added.' };
+        this.isAddingRateTier = false;
+        this.refreshPricingRow(service);
+      },
+      error: err => this.handlePricingRowError(err, 'Failed to add the rate tier.')
+    });
+  }
+
+  startEditingRateTier(row: ServiceRateTier) {
+    this.editingRateTierId = row.id;
+    this.isAddingRateTier = false;
+  }
+
+  saveRateTier(service: Service, row: ServiceRateTier) {
+    this.adminService.updateServiceRateTier(service.id, row.id, {
+      fromQuantity: row.fromQuantity,
+      cost: row.cost,
+      timeDuration: row.timeDuration,
+      displayOrder: row.displayOrder
+    }).subscribe({
+      next: () => {
+        this.pricingRowMessage = { error: '', success: 'Rate tier updated.' };
+        this.editingRateTierId = null;
+        this.refreshPricingRow(service);
+      },
+      error: err => {
+        this.handlePricingRowError(err, 'Failed to update the rate tier.');
+        this.refreshPricingRow(service); // discard the rejected edit
+      }
+    });
+  }
+
+  cancelEditingRateTier(service: Service) {
+    this.editingRateTierId = null;
+    this.refreshPricingRow(service);
+  }
+
+  deleteRateTier(service: Service, row: ServiceRateTier) {
+    if (!confirm(`Remove the rate tier starting at ${row.fromQuantity}?`)) return;
+
+    this.adminService.deleteServiceRateTier(service.id, row.id).subscribe({
+      next: () => {
+        this.pricingRowMessage = { error: '', success: 'Rate tier removed.' };
+        this.refreshPricingRow(service);
+      },
+      error: err => this.handlePricingRowError(err, 'Failed to remove the rate tier.')
+    });
+  }
+
+  /** Sorted ascending — the tier bands only make sense read in order. */
+  getSortedRateTiers(service: Service): ServiceRateTier[] {
+    return [...(service.rateTiers || [])].sort((a, b) => a.fromQuantity - b.fromQuantity);
+  }
+
+  getSortedThresholds(service: Service): ServiceThreshold[] {
+    return [...(service.thresholds || [])].sort((a, b) => a.sourceQuantity - b.sourceQuantity);
+  }
+
+  /**
+   * Plain-language range for one tier, e.g. "first 400 above included" / "next 800 above
+   * included" / "everything past 1,200 above included". The "above included" wording is the
+   * whole point: a bare "From 1200" reads as absolute square footage, which is the wrong base.
+   */
+  getRateTierAppliesTo(service: Service, tier: ServiceRateTier): string {
+    const tiers = this.getSortedRateTiers(service);
+    const index = tiers.findIndex(t => t.id === tier.id);
+    const unit = service.unit?.replace(/^per\s+/i, '') || 'units';
+    const next = index >= 0 && index + 1 < tiers.length ? tiers[index + 1] : null;
+
+    if (!next) {
+      return tier.fromQuantity === 0
+        ? `all ${unit} above the included amount`
+        : `everything past ${tier.fromQuantity.toLocaleString()} above included`;
+    }
+    const width = next.fromQuantity - tier.fromQuantity;
+    return tier.fromQuantity === 0
+      ? `first ${width.toLocaleString()} ${unit} above included`
+      : `next ${width.toLocaleString()} (${tier.fromQuantity.toLocaleString()}–${next.fromQuantity.toLocaleString()} above included)`;
+  }
+
+  /** Shown as a caution, not an error — the service still prices, just from zero. */
+  hasThresholdWarning(service: Service): boolean {
+    return !!service.chargeAboveThreshold && (service.thresholds?.length ?? 0) === 0;
+  }
+
+  // ==========================================================================
+  // Pricing configuration export / import
+  //
+  // The payload resolves by (service type NAME, service KEY) — never by Id — because this
+  // environment's Ids differ from production's. Import is SuperAdmin-only and always shows a
+  // diff before writing anything.
+  // ==========================================================================
+
+  togglePricingConfigPanel() {
+    this.showPricingConfigPanel = !this.showPricingConfigPanel;
+    if (!this.showPricingConfigPanel) this.resetPricingConfigPanel();
+  }
+
+  private resetPricingConfigPanel() {
+    this.pricingConfigJson = '';
+    this.pricingConfigDiff = null;
+    this.pendingPricingConfig = null;
+    this.pricingConfigMessage = { error: '', success: '' };
+  }
+
+  get isSuperAdmin(): boolean {
+    return this.userRole === 'SuperAdmin';
+  }
+
+  exportPricingConfiguration(allTypes: boolean) {
+    this.pricingConfigBusy = true;
+    this.pricingConfigMessage = { error: '', success: '' };
+
+    const scope = allTypes ? undefined : (this.selectedServiceType?.id ?? undefined);
+    this.adminService.exportPricingConfiguration(scope).subscribe({
+      next: config => {
+        this.pricingConfigJson = JSON.stringify(config, null, 2);
+        this.pricingConfigDiff = null;
+        this.pendingPricingConfig = null;
+        this.pricingConfigBusy = false;
+        this.pricingConfigMessage.success = allTypes
+          ? `Exported ${config.serviceTypes.length} service type(s). Copy the JSON below, or download it.`
+          : `Exported "${this.selectedServiceType?.name}". Copy the JSON below, or download it.`;
+      },
+      error: () => {
+        this.pricingConfigBusy = false;
+        this.pricingConfigMessage.error = 'Failed to export the configuration.';
+      }
+    });
+  }
+
+  downloadPricingConfiguration() {
+    if (!this.pricingConfigJson) return;
+    const blob = new Blob([this.pricingConfigJson], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `pricing-configuration-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  onPricingConfigFileSelected(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.pricingConfigJson = String(reader.result ?? '');
+      this.pricingConfigDiff = null;
+      this.pendingPricingConfig = null;
+      this.pricingConfigMessage = { error: '', success: '' };
+    };
+    reader.readAsText(file);
+    input.value = ''; // allow re-selecting the same file
+  }
+
+  previewPricingConfiguration() {
+    this.pricingConfigMessage = { error: '', success: '' };
+    this.pricingConfigDiff = null;
+
+    let parsed: PricingConfiguration;
+    try {
+      parsed = JSON.parse(this.pricingConfigJson);
+    } catch {
+      this.pricingConfigMessage.error = 'That is not valid JSON. Paste the exported file exactly as it was produced.';
+      return;
+    }
+
+    this.pricingConfigBusy = true;
+    this.adminService.previewPricingConfiguration(parsed).subscribe({
+      next: diff => {
+        this.pricingConfigDiff = diff;
+        this.pendingPricingConfig = diff.canApply ? parsed : null;
+        this.pricingConfigBusy = false;
+        if (diff.isNoOp) {
+          this.pricingConfigMessage.success = 'This configuration matches what is already here — nothing would change.';
+        }
+      },
+      error: err => {
+        this.pricingConfigBusy = false;
+        this.pricingConfigMessage.error = err?.error?.message || 'Failed to preview the configuration.';
+      }
+    });
+  }
+
+  applyPricingConfiguration() {
+    if (!this.pendingPricingConfig || !this.pricingConfigDiff?.canApply) return;
+
+    const typeCount = this.pricingConfigDiff.serviceTypes.length;
+    if (!confirm(
+      `Apply this configuration to ${typeCount} service type(s)?\n\n` +
+      'Prices, durations, included amounts and rate tiers will be overwritten with the values shown in the preview.'
+    )) return;
+
+    this.pricingConfigBusy = true;
+    this.adminService.applyPricingConfiguration(this.pendingPricingConfig).subscribe({
+      next: result => {
+        this.pricingConfigBusy = false;
+        this.pricingConfigMessage = { error: '', success: result.message };
+        this.pricingConfigDiff = null;
+        this.pendingPricingConfig = null;
+        this.loadServiceTypes();
+        this.loadAllServices();
+      },
+      error: err => {
+        this.pricingConfigBusy = false;
+        this.pricingConfigMessage.error = err?.error?.message || 'Failed to apply the configuration. Nothing was changed.';
+      }
+    });
+  }
+
+  /** Only fields that actually differ — the preview is for spotting changes, not reading a dump. */
+  getChangedFields(changes: { isChanged: boolean }[]): any[] {
+    return (changes || []).filter(c => c.isChanged);
+  }
+
+  serviceDiffHasChanges(serviceDiff: { changes: { isChanged: boolean }[]; thresholdChanges: string[]; rateTierChanges: string[] }): boolean {
+    return this.getChangedFields(serviceDiff.changes).length > 0
+      || (serviceDiff.thresholdChanges?.length ?? 0) > 0
+      || (serviceDiff.rateTierChanges?.length ?? 0) > 0;
+  }
+
+  /** A worked example so the "above included" base is unmistakable. */
+  getTierExample(service: Service): string | null {
+    const thresholds = this.getSortedThresholds(service);
+    const tiers = this.getSortedRateTiers(service);
+    if (!service.chargeAboveThreshold || thresholds.length === 0 || tiers.length === 0) return null;
+
+    const sample = thresholds[Math.min(2, thresholds.length - 1)];
+    const included = sample.includedQuantity;
+    const total = included + (tiers.length > 1 ? tiers[1].fromQuantity + 100 : 200);
+    const billable = total - included;
+    const sourceLabel = sample.sourceServiceName || sample.sourceServiceKey || 'source';
+
+    return `Example: ${sourceLabel} = ${sample.sourceQuantity} includes ${included.toLocaleString()}. `
+      + `A booking at ${total.toLocaleString()} therefore bills ${billable.toLocaleString()}, `
+      + `and the tiers below apply to that ${billable.toLocaleString()} — not to ${total.toLocaleString()}.`;
   }
 
   deactivateService(service: Service) {

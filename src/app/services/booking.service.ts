@@ -18,6 +18,33 @@ export interface ServiceType {
   hasPoll: boolean;
   isCustom?: boolean;
   timeDuration: number;
+  /** Floor for base price + services. 0 = no floor. Consumed by the shared pricing calculator. */
+  minimumPrice?: number;
+}
+
+/**
+ * One included allowance: at `sourceQuantity` of the source service, this service gets
+ * `includedQuantity` units free. Doubles as the Sq.ft slider minimum.
+ */
+export interface ServiceThreshold {
+  id: number;
+  serviceId: number;
+  sourceServiceId: number;
+  /** Informational; resolution is always by sourceServiceId. */
+  sourceServiceKey?: string;
+  sourceServiceName?: string;
+  sourceQuantity: number;
+  includedQuantity: number;
+}
+
+/** One marginal rate band, measured ABOVE the included allowance rather than in absolute units. */
+export interface ServiceRateTier {
+  id: number;
+  serviceId: number;
+  fromQuantity: number;
+  cost: number;
+  timeDuration: number;
+  displayOrder: number;
 }
 
 export interface Service {
@@ -36,6 +63,13 @@ export interface Service {
   serviceRelationType?: string;
   isActive: boolean;
   displayOrder?: number;
+
+  // Threshold / tier billing. Absent or empty means "price exactly as before".
+  chargeAboveThreshold?: boolean;
+  zeroQuantityCost?: number | null;
+  zeroQuantityDuration?: number | null;
+  thresholds?: ServiceThreshold[];
+  rateTiers?: ServiceRateTier[];
 }
 
 export interface ExtraService {

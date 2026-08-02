@@ -40,11 +40,23 @@
         </div>
         <div class="form-group">
           <label for="newServiceTypeTimeDuration">Time Duration (minutes) *</label>
-          <input type="number" 
-                 id="newServiceTypeTimeDuration" 
-                 [(ngModel)]="newServiceType.timeDuration" 
-                 name="timeDuration" 
+          <input type="number"
+                 id="newServiceTypeTimeDuration"
+                 [(ngModel)]="newServiceType.timeDuration"
+                 name="timeDuration"
                  required>
+        </div>
+        <div class="form-group">
+          <label for="newServiceTypeMinimumPrice">Min Price</label>
+          <input type="number"
+                 id="newServiceTypeMinimumPrice"
+                 step="0.01"
+                 min="0"
+                 [(ngModel)]="newServiceType.minimumPrice"
+                 name="minimumPrice">
+          <small class="form-note">
+            Lowest price for the cleaning itself. Extras are added on top. 0 means no minimum.
+          </small>
         </div>
         <div class="form-group">
           <label for="newServiceTypeDisplayOrder">Display Order:</label>
@@ -110,6 +122,7 @@
             <th>ID</th>
             <th>Name</th>
             <th>Price</th>
+            <th>Min Price</th>
             <th>Time</th>
             <th>Type</th>
             <th>Description</th>
@@ -144,10 +157,22 @@
             </td>
             <td>
               <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
+                <span *ngIf="type.minimumPrice">{{type.minimumPrice | currency}}</span>
+                <span *ngIf="!type.minimumPrice" class="muted-cell">none</span>
+              </ng-container>
+              <input *ngIf="isEditingServiceType && selectedServiceType?.id === type.id"
+                     type="number"
+                     step="0.01"
+                     min="0"
+                     [(ngModel)]="type.minimumPrice"
+                     class="edit-input">
+            </td>
+            <td>
+              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
                 {{type.timeDuration}} min
               </ng-container>
-              <input *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
-                     type="number" 
+              <input *ngIf="isEditingServiceType && selectedServiceType?.id === type.id"
+                     type="number"
                      [(ngModel)]="type.timeDuration"
                      class="edit-input">
             </td>
@@ -436,13 +461,19 @@
       <!-- Services Subsection -->
       <div class="subsection">
         <div class="subsection-header">
-          <h3>Services</h3>
-          <button *ngIf="userPermissions.permissions.canCreate" 
-                  class="action-btn add" 
+          <!-- The service type name is part of the heading on purpose: two service types can
+               each have a service keyed "sqft" with completely different pricing, and without
+               this there is nothing on screen saying which one you are editing. -->
+          <h3>
+            Services
+            <span class="subsection-context">— {{ selectedServiceType.name }}</span>
+          </h3>
+          <button *ngIf="userPermissions.permissions.canCreate"
+                  class="action-btn add"
                   (click)="startAddingService()">
             Add Service
           </button>
-        </div>  
+        </div>
 
         <!-- Services Messages -->
         <div *ngIf="serviceMessage.error" class="alert alert-danger">
@@ -535,6 +566,22 @@
                 Is Range Input
               </label>
             </div>
+            <div class="form-group">
+              <label>
+                <input type="checkbox" [(ngModel)]="newService.chargeAboveThreshold">
+                Charge only above included amount
+              </label>
+              <small class="form-note">Add the included amounts after creating the service.</small>
+            </div>
+            <div class="form-group">
+              <label>Cost when quantity is 0</label>
+              <input type="number" step="0.01" [(ngModel)]="newService.zeroQuantityCost" placeholder="leave blank">
+              <small class="form-note">Used for Studio (0 bedrooms). Leave blank if not applicable.</small>
+            </div>
+            <div class="form-group">
+              <label>Minutes when quantity is 0</label>
+              <input type="number" step="0.01" [(ngModel)]="newService.zeroQuantityDuration" placeholder="leave blank">
+            </div>
           </div>
           <div class="form-actions">
             <button class="save-btn" (click)="addService()" *ngIf="!showExistingServices">Create</button>
@@ -553,6 +600,7 @@
                 <th>ID</th>
                 <th>Name</th>
                 <th>Service Key</th>
+                <th>Service Type</th>
                 <th>Cost</th>
                 <th>Duration</th>
                 <th>Type</th>
@@ -562,10 +610,14 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let service of selectedServiceType.services">
+              <ng-container *ngFor="let service of selectedServiceType.services">
+              <tr>
                 <td *ngIf="editingServiceId !== service.id">{{ service.id }}</td>
                 <td *ngIf="editingServiceId !== service.id">{{ service.name }}</td>
                 <td *ngIf="editingServiceId !== service.id">{{ service.serviceKey }}</td>
+                <td *ngIf="editingServiceId !== service.id" class="service-type-cell">
+                  {{ getServiceTypeNameById(service.serviceTypeId) }}
+                </td>
                 <td *ngIf="editingServiceId !== service.id">${{ service.cost }}</td>
                 <td *ngIf="editingServiceId !== service.id">{{ service.timeDuration }}min</td>
                 <td *ngIf="editingServiceId !== service.id">{{ service.inputType }}</td>
@@ -576,14 +628,20 @@
                   </span>
                 </td>
                 <td *ngIf="editingServiceId !== service.id && userRole !== 'Moderator'">
+                  <button class="action-btn pricing"
+                          [class.expanded]="expandedPricingServiceId === service.id"
+                          (click)="togglePricingRow(service); $event.stopPropagation()">
+                    {{ expandedPricingServiceId === service.id ? 'Hide pricing' : 'Pricing' }}
+                    <span class="pricing-warning-dot" *ngIf="hasThresholdWarning(service)" title="Charges above an included amount, but none are configured">!</span>
+                  </button>
                   <button class="action-btn edit" *ngIf="userPermissions.permissions.canUpdate" (click)="editService(service); $event.stopPropagation()">Edit</button>
                   <button class="action-btn activate" *ngIf="userPermissions.permissions.canActivate && !service.isActive" (click)="activateService(service); $event.stopPropagation()">Enable</button>
                   <button class="action-btn deactivate" *ngIf="userPermissions.permissions.canDeactivate && service.isActive" (click)="deactivateService(service); $event.stopPropagation()">Disable</button>
                   <button class="action-btn delete" *ngIf="userPermissions.permissions.canDelete" (click)="deleteService(service); $event.stopPropagation()">Delete</button>
                 </td>
-                
+
                 <!-- Edit mode -->
-                <td class="edit-mode-td" colspan="8" *ngIf="editingServiceId === service.id">
+                <td class="edit-mode-td" colspan="10" *ngIf="editingServiceId === service.id">
                   <div class="inline-edit-form">
                     <div class="form-row">
                       <div class="form-group">
@@ -649,6 +707,28 @@
                         </label>
                       </div>
                     </div>
+                    <div class="form-row threshold-fields">
+                      <div class="form-group checkbox-group">
+                        <label>
+                          <input type="checkbox" [(ngModel)]="service.chargeAboveThreshold">
+                          Charge only above included amount
+                        </label>
+                        <small class="form-note">
+                          When on, the included amounts below are subtracted before pricing, so only
+                          the excess is charged.
+                        </small>
+                      </div>
+                      <div class="form-group">
+                        <label>Cost when quantity is 0</label>
+                        <input type="number" step="0.01" [(ngModel)]="service.zeroQuantityCost" placeholder="leave blank">
+                        <small class="form-note">Used for Studio (0 bedrooms). Leave blank if not applicable.</small>
+                      </div>
+                      <div class="form-group">
+                        <label>Minutes when quantity is 0</label>
+                        <input type="number" step="0.01" [(ngModel)]="service.zeroQuantityDuration" placeholder="leave blank">
+                        <small class="form-note">Leave blank to keep the built-in Studio default.</small>
+                      </div>
+                    </div>
                     <div class="form-actions">
                       <button class="save-btn" (click)="saveService(service)">Save</button>
                       <button class="cancel-btn" (click)="cancelEditService()">Cancel</button>
@@ -656,11 +736,305 @@
                   </div>
                 </td>
               </tr>
+
+              <!-- Included amounts + rate tiers, expanded per service -->
+              <tr class="pricing-config-row" *ngIf="expandedPricingServiceId === service.id">
+                <td [attr.colspan]="userRole !== 'Moderator' ? 10 : 9">
+                  <div class="pricing-config">
+
+                    <div class="alert alert-danger" *ngIf="pricingRowMessage.error">{{ pricingRowMessage.error }}</div>
+                    <div class="alert alert-success" *ngIf="pricingRowMessage.success">{{ pricingRowMessage.success }}</div>
+                    <div class="alert alert-warning" *ngIf="hasThresholdWarning(service)">
+                      This service is set to charge only above an included amount, but no included
+                      amounts are configured — it will bill from zero.
+                    </div>
+
+                    <!-- ===== Included amounts ===== -->
+                    <div class="pricing-block">
+                      <div class="pricing-block-header">
+                        <h4>Included amounts</h4>
+                        <button class="action-btn add"
+                                *ngIf="userPermissions.permissions.canCreate && !isAddingThreshold"
+                                (click)="startAddingThreshold(service)">Add</button>
+                      </div>
+                      <p class="pricing-hint">
+                        How much of <strong>{{ service.name }}</strong> is included at no charge, based on
+                        another service's quantity. This is also the lowest value a customer can pick.
+                      </p>
+
+                      <table class="nested-table">
+                        <thead>
+                          <tr>
+                            <th>Based on</th>
+                            <th>When quantity is</th>
+                            <th>Included amount</th>
+                            <th *ngIf="userRole !== 'Moderator'">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr *ngIf="getSortedThresholds(service).length === 0 && !isAddingThreshold">
+                            <td colspan="4" class="empty-row">No included amounts — this service bills from the first unit.</td>
+                          </tr>
+
+                          <tr *ngFor="let row of getSortedThresholds(service)">
+                            <ng-container *ngIf="editingThresholdId !== row.id">
+                              <td>{{ row.sourceServiceName || row.sourceServiceKey }}</td>
+                              <td>{{ row.sourceQuantity }}</td>
+                              <td>{{ row.includedQuantity }}</td>
+                              <td *ngIf="userRole !== 'Moderator'">
+                                <button class="action-btn edit" *ngIf="userPermissions.permissions.canUpdate" (click)="startEditingThreshold(row)">Edit</button>
+                                <button class="action-btn delete" *ngIf="userPermissions.permissions.canDelete" (click)="deleteThreshold(service, row)">Delete</button>
+                              </td>
+                            </ng-container>
+                            <ng-container *ngIf="editingThresholdId === row.id">
+                              <td>
+                                <select [(ngModel)]="row.sourceServiceId">
+                                  <option *ngFor="let candidate of getThresholdSourceCandidates(service)" [ngValue]="candidate.id">
+                                    {{ candidate.name }}
+                                  </option>
+                                </select>
+                              </td>
+                              <td><input type="number" [(ngModel)]="row.sourceQuantity" min="0"></td>
+                              <td><input type="number" [(ngModel)]="row.includedQuantity" min="0" step="0.01"></td>
+                              <td>
+                                <button class="save-btn" (click)="saveThreshold(service, row)">Save</button>
+                                <button class="cancel-btn" (click)="cancelEditingThreshold(service)">Cancel</button>
+                              </td>
+                            </ng-container>
+                          </tr>
+
+                          <tr *ngIf="isAddingThreshold" class="new-row">
+                            <td>
+                              <select [(ngModel)]="newThreshold.sourceServiceId">
+                                <option [ngValue]="0" disabled>Choose a service…</option>
+                                <option *ngFor="let candidate of getThresholdSourceCandidates(service)" [ngValue]="candidate.id">
+                                  {{ candidate.name }}
+                                </option>
+                              </select>
+                            </td>
+                            <td><input type="number" [(ngModel)]="newThreshold.sourceQuantity" min="0"></td>
+                            <td><input type="number" [(ngModel)]="newThreshold.includedQuantity" min="0" step="0.01"></td>
+                            <td>
+                              <button class="save-btn" (click)="addThreshold(service)">Add</button>
+                              <button class="cancel-btn" (click)="cancelAddingThreshold()">Cancel</button>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <!-- ===== Rate tiers ===== -->
+                    <div class="pricing-block">
+                      <div class="pricing-block-header">
+                        <h4>Rate tiers</h4>
+                        <button class="action-btn add"
+                                *ngIf="userPermissions.permissions.canCreate && !isAddingRateTier"
+                                (click)="startAddingRateTier(service)">Add</button>
+                      </div>
+                      <p class="pricing-hint">
+                        <strong>Tiers measure the amount ABOVE the included allowance, not the total.</strong>
+                        A rate only applies to the slice of the excess that falls inside its own band.
+                        With no tiers at all, the service simply uses its own Cost and Duration for every unit.
+                      </p>
+                      <p class="pricing-hint pricing-example" *ngIf="getTierExample(service)">
+                        {{ getTierExample(service) }}
+                      </p>
+
+                      <table class="nested-table">
+                        <thead>
+                          <tr>
+                            <th>Starts at (above included)</th>
+                            <th>Applies to</th>
+                            <th>Cost per unit</th>
+                            <th>Minutes per unit</th>
+                            <th *ngIf="userRole !== 'Moderator'">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr *ngIf="getSortedRateTiers(service).length === 0 && !isAddingRateTier">
+                            <td colspan="5" class="empty-row">
+                              No tiers — this service charges {{ service.cost }} and {{ service.timeDuration }} minutes per unit.
+                            </td>
+                          </tr>
+
+                          <tr *ngFor="let tier of getSortedRateTiers(service)">
+                            <ng-container *ngIf="editingRateTierId !== tier.id">
+                              <td>{{ tier.fromQuantity }}</td>
+                              <td class="applies-to">{{ getRateTierAppliesTo(service, tier) }}</td>
+                              <td>${{ tier.cost }}</td>
+                              <td>{{ tier.timeDuration }}</td>
+                              <td *ngIf="userRole !== 'Moderator'">
+                                <button class="action-btn edit" *ngIf="userPermissions.permissions.canUpdate" (click)="startEditingRateTier(tier)">Edit</button>
+                                <button class="action-btn delete" *ngIf="userPermissions.permissions.canDelete" (click)="deleteRateTier(service, tier)">Delete</button>
+                              </td>
+                            </ng-container>
+                            <ng-container *ngIf="editingRateTierId === tier.id">
+                              <td><input type="number" [(ngModel)]="tier.fromQuantity" min="0" step="0.01"></td>
+                              <td class="applies-to">{{ getRateTierAppliesTo(service, tier) }}</td>
+                              <td><input type="number" [(ngModel)]="tier.cost" min="0" step="0.0001"></td>
+                              <td><input type="number" [(ngModel)]="tier.timeDuration" min="0" step="0.0001"></td>
+                              <td>
+                                <button class="save-btn" (click)="saveRateTier(service, tier)">Save</button>
+                                <button class="cancel-btn" (click)="cancelEditingRateTier(service)">Cancel</button>
+                              </td>
+                            </ng-container>
+                          </tr>
+
+                          <tr *ngIf="isAddingRateTier" class="new-row">
+                            <td><input type="number" [(ngModel)]="newRateTier.fromQuantity" min="0" step="0.01"></td>
+                            <td class="applies-to">—</td>
+                            <td><input type="number" [(ngModel)]="newRateTier.cost" min="0" step="0.0001"></td>
+                            <td><input type="number" [(ngModel)]="newRateTier.timeDuration" min="0" step="0.0001"></td>
+                            <td>
+                              <button class="save-btn" (click)="addRateTier(service)">Add</button>
+                              <button class="cancel-btn" (click)="cancelAddingRateTier()">Cancel</button>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                  </div>
+                </td>
+              </tr>
+              </ng-container>
             </tbody>
                   </table>
                 </div>
               </div>
             </div>
+        </div>
+      </div>
+
+      <!-- ===== Pricing configuration export / import ===== -->
+      <div class="subsection">
+        <div class="subsection-header">
+          <h3>Pricing configuration</h3>
+          <button class="action-btn add" (click)="togglePricingConfigPanel()">
+            {{ showPricingConfigPanel ? 'Close' : 'Export / Import' }}
+          </button>
+        </div>
+
+        <div class="pricing-config-panel" *ngIf="showPricingConfigPanel">
+          <p class="pricing-hint">
+            Move a pricing setup between environments. Services are matched by
+            <strong>service type name and service key</strong>, never by ID — so an export taken here
+            applies correctly even though the IDs differ elsewhere.
+          </p>
+
+          <div class="alert alert-danger" *ngIf="pricingConfigMessage.error">{{ pricingConfigMessage.error }}</div>
+          <div class="alert alert-success" *ngIf="pricingConfigMessage.success">{{ pricingConfigMessage.success }}</div>
+
+          <div class="pricing-config-actions">
+            <!-- selectedServiceType is non-null here: this whole panel sits inside the
+                 *ngIf="selectedServiceType" section, so no optional chain or guard is needed. -->
+            <button class="action-btn" [disabled]="pricingConfigBusy"
+                    (click)="exportPricingConfiguration(false)">
+              Export "{{ selectedServiceType.name }}"
+            </button>
+            <button class="action-btn" [disabled]="pricingConfigBusy"
+                    (click)="exportPricingConfiguration(true)">
+              Export all service types
+            </button>
+            <button class="action-btn" [disabled]="!pricingConfigJson" (click)="downloadPricingConfiguration()">
+              Download as file
+            </button>
+            <label class="action-btn file-btn">
+              Load from file
+              <input type="file" accept="application/json,.json" (change)="onPricingConfigFileSelected($event)" hidden>
+            </label>
+          </div>
+
+          <textarea class="pricing-config-json"
+                    rows="12"
+                    spellcheck="false"
+                    placeholder="Paste an exported configuration here, or use Export above."
+                    [(ngModel)]="pricingConfigJson"></textarea>
+
+          <div class="pricing-config-actions" *ngIf="isSuperAdmin">
+            <button class="action-btn" [disabled]="pricingConfigBusy || !pricingConfigJson"
+                    (click)="previewPricingConfiguration()">
+              Preview changes
+            </button>
+            <button class="save-btn"
+                    [disabled]="pricingConfigBusy || !pricingConfigDiff?.canApply || pricingConfigDiff?.isNoOp"
+                    (click)="applyPricingConfiguration()">
+              Apply
+            </button>
+          </div>
+          <p class="pricing-hint" *ngIf="!isSuperAdmin">
+            Importing a configuration is restricted to SuperAdmin. You can still export.
+          </p>
+
+          <!-- ===== Diff preview ===== -->
+          <div class="pricing-diff" *ngIf="pricingConfigDiff">
+            <div class="alert alert-danger" *ngIf="pricingConfigDiff.errors.length">
+              <strong>This configuration cannot be applied:</strong>
+              <ul>
+                <li *ngFor="let error of pricingConfigDiff.errors">{{ error }}</li>
+              </ul>
+            </div>
+            <div class="alert alert-warning" *ngIf="pricingConfigDiff.warnings.length">
+              <ul>
+                <li *ngFor="let warning of pricingConfigDiff.warnings">{{ warning }}</li>
+              </ul>
+            </div>
+            <div class="alert alert-success" *ngIf="pricingConfigDiff.isNoOp">
+              Nothing would change — this matches the current configuration exactly.
+            </div>
+
+            <div class="diff-type" *ngFor="let typeDiff of pricingConfigDiff.serviceTypes">
+              <h4>
+                {{ typeDiff.serviceTypeName }}
+                <span class="diff-target" *ngIf="typeDiff.resolvedServiceTypeId">
+                  → matched service type #{{ typeDiff.resolvedServiceTypeId }}
+                </span>
+                <span class="diff-unmatched" *ngIf="!typeDiff.resolvedServiceTypeId">not matched</span>
+              </h4>
+
+              <table class="nested-table" *ngIf="getChangedFields(typeDiff.changes).length">
+                <thead><tr><th>Field</th><th>Current</th><th>New</th></tr></thead>
+                <tbody>
+                  <tr *ngFor="let change of getChangedFields(typeDiff.changes)">
+                    <td>{{ change.field }}</td>
+                    <td class="diff-old">{{ change.oldValue }}</td>
+                    <td class="diff-new">{{ change.newValue }}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="diff-service" *ngFor="let serviceDiff of typeDiff.services">
+                <ng-container *ngIf="serviceDiffHasChanges(serviceDiff)">
+                  <h5>
+                    {{ serviceDiff.name || serviceDiff.serviceKey }}
+                    <span class="diff-target" *ngIf="serviceDiff.resolvedServiceId">
+                      → matched service #{{ serviceDiff.resolvedServiceId }}
+                    </span>
+                  </h5>
+
+                  <table class="nested-table" *ngIf="getChangedFields(serviceDiff.changes).length">
+                    <thead><tr><th>Field</th><th>Current</th><th>New</th></tr></thead>
+                    <tbody>
+                      <tr *ngFor="let change of getChangedFields(serviceDiff.changes)">
+                        <td>{{ change.field }}</td>
+                        <td class="diff-old">{{ change.oldValue }}</td>
+                        <td class="diff-new">{{ change.newValue }}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  <div class="diff-rows" *ngIf="serviceDiff.thresholdChanges.length">
+                    <strong>Included amounts</strong>
+                    <ul><li *ngFor="let line of serviceDiff.thresholdChanges">{{ line }}</li></ul>
+                  </div>
+                  <div class="diff-rows" *ngIf="serviceDiff.rateTierChanges.length">
+                    <strong>Rate tiers</strong>
+                    <ul><li *ngFor="let line of serviceDiff.rateTierChanges">{{ line }}</li></ul>
+                  </div>
+                </ng-container>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

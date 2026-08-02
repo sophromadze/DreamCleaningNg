@@ -1888,10 +1888,18 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.saveFormData(); // Save the selection
   }
 
-  // Single definition shared with the order edits (user + admin) so the
-  // bedrooms→sqft linkage prices identically everywhere.
+  // Single definition shared with the order edits (user + admin) so the bedrooms→sqft linkage
+  // prices identically everywhere. Reads the Sq.ft service's configured allowances so the
+  // slider minimum and the billing allowance are the SAME data — a customer can never sit
+  // below their included amount. Falls back to the shared defaults before the catalog loads.
   private getSquareFeetForBedrooms(bedrooms: number): number {
-    return getSquareFeetForBedrooms(bedrooms);
+    const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+    const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    return getSquareFeetForBedrooms(
+      bedrooms,
+      sqftService?.service?.thresholds,
+      bedroomsService?.service?.id
+    );
   }
 
   getSquareFeetMinForBedrooms(): number {
@@ -2187,8 +2195,10 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   getServicePrice(service: Service, quantity: number): number {
-    // Studio rule + multiplier live in the shared calculator.
-    return getServiceDisplayPrice(service, quantity, this.getSelectedPriceMultiplier());
+    // Zero-quantity rule, thresholds, tiers and the multiplier all live in the shared
+    // calculator. selectedServices is passed so threshold sources (e.g. bedrooms for sqft)
+    // resolve exactly as they do in the summary.
+    return getServiceDisplayPrice(service, quantity, this.getSelectedPriceMultiplier(), this.selectedServices);
   }
 
 
@@ -2735,9 +2745,10 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   getServiceDuration(service: Service): number {
-    // Per-service display duration scales with the cleaning-type multiplier (shared calculator).
+    // Per-service display duration is NOT multiplier-scaled (bug B1) — it now matches the
+    // summary exactly. The multiplier is still passed for signature symmetry.
     const quantity = this.getServiceQuantity(service);
-    return getServiceDisplayDuration(service, quantity, this.getSelectedPriceMultiplier());
+    return getServiceDisplayDuration(service, quantity, this.getSelectedPriceMultiplier(), this.selectedServices);
   }
 
   getServiceQuantity(service: Service): number {

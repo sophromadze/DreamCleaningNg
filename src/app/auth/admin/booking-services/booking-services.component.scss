@@ -1508,3 +1508,251 @@
   // Checkbox group labels
   .checkbox-group label { color: var(--text-primary) !important; }
 }
+// =============================================================================
+// Pricing configuration: included amounts, rate tiers, export/import
+// Tokens only — no hardcoded hex, per the design system.
+// =============================================================================
+
+// The service type name beside the "Services" heading. Two service types can each own a
+// service keyed "sqft" with different pricing, so the context has to be visible.
+.subsection-context {
+  color: var(--text-muted);
+  font-weight: var(--fw-medium);
+}
+
+.service-type-cell {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.muted-cell {
+  color: var(--text-muted);
+}
+
+.action-btn.pricing {
+  position: relative;
+
+  &.expanded {
+    background: var(--soft-blue);
+    color: var(--primary-color);
+  }
+}
+
+// Caution marker on the Pricing button when a service charges above an included amount
+// but has none configured.
+.pricing-warning-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--warning-orange-bg);
+  color: var(--warning-orange-text);
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+}
+
+.pricing-config-row > td {
+  background: var(--surface-subtle);
+  padding: 0;
+}
+
+.pricing-config {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  .alert-warning {
+    background: var(--warning-orange-bg);
+    color: var(--warning-orange-text);
+    border: 1px solid var(--warning-orange-border);
+    border-radius: var(--radius-sm);
+    padding: 10px 14px;
+  }
+}
+
+.pricing-block-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+
+  h4 {
+    margin: 0;
+    color: var(--text-primary);
+    font-weight: var(--fw-semibold);
+  }
+}
+
+.pricing-hint {
+  margin: 0 0 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+
+  strong { color: var(--text-secondary); }
+}
+
+// The worked example that pins down what "above included" measures from.
+.pricing-example {
+  background: var(--soft-blue);
+  color: var(--primary-color);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+}
+
+.nested-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+
+  th, td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 13px;
+  }
+
+  th {
+    color: var(--text-secondary);
+    font-weight: var(--fw-semibold);
+    white-space: nowrap;
+  }
+
+  td { color: var(--text-primary); }
+
+  tr:last-child td { border-bottom: none; }
+
+  input, select {
+    width: 100%;
+    min-width: 90px;
+    padding: 5px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+  }
+
+  .empty-row {
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  .applies-to {
+    color: var(--text-secondary);
+  }
+
+  .new-row {
+    background: var(--mint-fresh);
+  }
+}
+
+// ---- Export / import ----
+
+.pricing-config-panel {
+  padding: 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pricing-config-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.action-btn.file-btn {
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.pricing-config-json {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  resize: vertical;
+}
+
+.pricing-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  .diff-type {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 14px;
+    background: var(--surface);
+
+    h4 {
+      margin: 0 0 10px;
+      color: var(--text-primary);
+    }
+  }
+
+  .diff-service {
+    margin-top: 12px;
+    padding-left: 12px;
+    border-left: 2px solid var(--border-color);
+
+    h5 {
+      margin: 0 0 8px;
+      color: var(--text-secondary);
+      font-weight: var(--fw-semibold);
+    }
+  }
+
+  .diff-target {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: var(--fw-medium);
+  }
+
+  .diff-unmatched {
+    color: var(--bright-red);
+    font-size: 12px;
+    font-weight: var(--fw-semibold);
+  }
+
+  // Old value struck through, new value in the success colour — the whole point of the
+  // preview is spotting "$96.00 -> $90.00" at a glance.
+  .diff-old {
+    color: var(--text-muted);
+    text-decoration: line-through;
+  }
+
+  .diff-new {
+    color: var(--fresh-green);
+    font-weight: var(--fw-semibold);
+  }
+
+  .diff-rows {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+
+    ul { margin: 4px 0 0; padding-left: 20px; }
+    li { color: var(--text-primary); }
+  }
+}
+
+.threshold-fields {
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+  margin-top: 4px;
+}

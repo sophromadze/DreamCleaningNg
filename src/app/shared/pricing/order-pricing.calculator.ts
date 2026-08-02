@@ -21,10 +21,17 @@
 /** NYC sales tax. The only place this rate may be defined on the frontend. */
 export const SALES_TAX_RATE = 0.08875;
 
-/** Flat price for a studio (bedrooms quantity = 0), before the cleaning-type multiplier. */
+/**
+ * @deprecated LEGACY fallback only. Studio pricing is now admin-editable per service via
+ * Service.zeroQuantityCost / Service.zeroQuantityDuration; this constant is used solely when
+ * BOTH of those are null, so a missing seed can't zero out a studio booking.
+ */
 export const STUDIO_PRICE = 10;
 
-/** Base duration in minutes for a studio, before the cleaning-type multiplier. */
+/**
+ * @deprecated LEGACY fallback only — see {@link STUDIO_PRICE}. Superseded by
+ * Service.zeroQuantityDuration.
+ */
 export const STUDIO_DURATION = 20;
 
 /** A single maid can work at most this many hours; above it we add maids. */
@@ -68,6 +75,27 @@ export function round2(value: number): number {
 
 // ===== Inputs =====
 
+/**
+ * One marginal rate band over the BILLABLE quantity (i.e. after the included allowance
+ * has been subtracted), NOT over the raw selected quantity.
+ */
+export interface RateTierInput {
+  /** Billable quantity at which this band starts. The lowest band must be 0. */
+  fromQuantity: number;
+  cost: number;
+  timeDuration: number;
+}
+
+/**
+ * Maps a source service's selected quantity to units of THIS service that are included
+ * at no charge (e.g. bedrooms = 2 → 850 sqft included).
+ */
+export interface ThresholdInput {
+  sourceServiceId: number;
+  sourceQuantity: number;
+  includedQuantity: number;
+}
+
 /** One selected service (bedrooms, bathrooms, cleaners, hours, sqft, ...). */
 export interface ServiceLineInput {
   serviceId?: number;
@@ -76,6 +104,21 @@ export interface ServiceLineInput {
   serviceRelationType?: string | null;
   serviceKey?: string | null;
   quantity: number;
+
+  /** When true, the included allowance is subtracted before billing. */
+  chargeAboveThreshold?: boolean;
+
+  /** Cost when the selected quantity is 0 (e.g. Studio). null/undefined = not applicable. */
+  zeroQuantityCost?: number | null;
+
+  /** Minutes when the selected quantity is 0 (e.g. Studio). null/undefined = not applicable. */
+  zeroQuantityDuration?: number | null;
+
+  /** Empty = flat `cost`/`timeDuration` across the whole billable quantity. */
+  rateTiers?: RateTierInput[];
+
+  /** Empty = no allowance, i.e. bill from zero. */
+  thresholds?: ThresholdInput[];
 }
 
 /** One selected extra service. */
@@ -103,6 +146,12 @@ export interface QuoteInput {
   baseDuration: number;
   services: ServiceLineInput[];
   extraServices: ExtraServiceLineInput[];
+
+  /**
+   * Floor for the base-price + services portion of the subtotal (ServiceType.minimumPrice).
+   * Extras and the deep-cleaning fee stack ON TOP of the floor. 0/omitted = no floor.
+   */
+  minimumPrice?: number;
 
   /** Custom pricing (admin-entered amount/cleaners/duration) bypasses the service math. */
   isCustomPricing?: boolean;
@@ -146,6 +195,13 @@ export interface QuoteResult {
   displayDuration: number;
   maidsCount: number;
   hasCleanerService: boolean;
+  /** True when `minimumPrice` actually raised the subtotal. */
+  minimumPriceApplied: boolean;
+  /**
+   * Non-fatal pricing anomalies for the caller to log — currently only the
+   * missing-threshold-source fallback. Never surfaced to customers.
+   */
+  warnings: string[];
   serviceLines: ServiceLineResult[];
   extraServiceLines: ExtraServiceLineResult[];
 }
@@ -168,6 +224,110 @@ export function resolvePriceMultiplier(
   return { multiplier: 1, deepCleaningFee: 0 };
 }
 
+// ===== Threshold + tier resolution (mirror: OrderPricingCalculator.cs) =====
+
+/**
+ * Resolves how many units of `service` are included at no charge, based on the
+ * quantities of its configured source services.
+ *
+ * Lookup is a FLOOR match: the highest configured row whose sourceQuantity is <= the
+ * selected source quantity. A source quantity below every row uses the lowest row; above
+ * every row uses the highest. That subsumes exact-match and handles gaps in the config.
+ *
+ * When several source services are configured, the MAXIMUM included value wins — never
+ * the sum. Summing would let two sources grant more free area than the home has.
+ */
+export function resolveIncludedQuantity(
+  service: ServiceLineInput,
+  allServices: ServiceLineInput[],
+  warnings: string[]
+): number {
+  if (!service.chargeAboveThreshold) return 0;
+  const thresholds = service.thresholds ?? [];
+  if (thresholds.length === 0) return 0;
+
+  const bySource = new Map<number, ThresholdInput[]>();
+  for (const t of thresholds) {
+    const rows = bySource.get(t.sourceServiceId);
+    if (rows) rows.push(t);
+    else bySource.set(t.sourceServiceId, [t]);
+  }
+
+  let included = 0;
+
+  for (const [sourceServiceId, group] of bySource) {
+    const rows = [...group].sort((a, b) => a.sourceQuantity - b.sourceQuantity);
+    if (rows.length === 0) continue;
+
+    const source = allServices.find(s => s.serviceId === sourceServiceId);
+    if (!source) {
+      // Fail toward the customer: treat a missing source as quantity 0, which resolves to
+      // the smallest configured allowance rather than to "no allowance". Billing a large
+      // home from zero would be a severe overcharge.
+      warnings.push(
+        `Threshold source service ${sourceServiceId} was not present in the selection for ` +
+        `service ${service.serviceId} ('${service.serviceKey}'); treated its quantity as 0.`
+      );
+    }
+
+    const sourceQuantity = source?.quantity ?? 0;
+    let match = rows[0];
+    for (const row of rows) {
+      if (row.sourceQuantity <= sourceQuantity) match = row;
+    }
+    included = Math.max(included, match.includedQuantity);
+  }
+
+  return included;
+}
+
+/**
+ * Prices one ordinary service line: subtract the included allowance, then apply the rate
+ * tiers MARGINALLY over what remains (each tier bills only the slice of the billable
+ * quantity that falls inside its own band — never the top tier applied to everything).
+ *
+ * No tiers configured → flat `cost`/`timeDuration` across the whole billable quantity,
+ * which is exactly the pre-refactor behaviour every other service still relies on.
+ *
+ * Cost takes the cleaning-type multiplier; duration does not.
+ */
+export function calculateTieredLine(
+  service: ServiceLineInput,
+  allServices: ServiceLineInput[],
+  priceMultiplier: number,
+  warnings: string[]
+): { cost: number; duration: number } {
+  const included = resolveIncludedQuantity(service, allServices, warnings);
+  const billable = Math.max(0, service.quantity - included);
+
+  let cost = 0;
+  let duration = 0;
+
+  const rateTiers = service.rateTiers ?? [];
+  if (rateTiers.length === 0) {
+    cost = service.cost * billable;
+    duration = service.timeDuration * billable;
+  } else {
+    const tiers = [...rateTiers].sort((a, b) => a.fromQuantity - b.fromQuantity);
+    for (let i = 0; i < tiers.length; i++) {
+      const from = tiers[i].fromQuantity;
+      if (billable <= from) break;
+
+      const upperBound = i + 1 < tiers.length
+        ? Math.min(billable, tiers[i + 1].fromQuantity)
+        : billable;
+
+      const width = upperBound - from;
+      if (width <= 0) continue;
+
+      cost += width * tiers[i].cost;
+      duration += width * tiers[i].timeDuration;
+    }
+  }
+
+  return { cost: cost * priceMultiplier, duration };
+}
+
 // ===== Step 2: subtotal + duration + maids =====
 
 /**
@@ -187,6 +347,8 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
       totalDuration: Math.max(perCleaner * maidsCount, PER_MAID_MINIMUM_MINUTES),
       maidsCount,
       hasCleanerService: false,
+      minimumPriceApplied: false,
+      warnings: [],
       serviceLines: [],
       extraServiceLines: []
     };
@@ -205,6 +367,7 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
 
   const serviceLines: ServiceLineResult[] = [];
   const extraServiceLines: ExtraServiceLineResult[] = [];
+  const warnings: string[] = [];
 
   // Base price always contributes; base duration only when hours aren't explicit.
   subTotal += input.basePrice * priceMultiplier;
@@ -233,21 +396,39 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
         line.duration = hoursService.quantity * 60;
         subTotal += line.cost;
       }
-    } else if (service.serviceKey === 'bedrooms' && service.quantity === 0) {
-      // Studio: flat price and duration, both scaled by cleaning type.
-      line.cost = STUDIO_PRICE * priceMultiplier;
-      line.duration = Math.round(STUDIO_DURATION * priceMultiplier);
+    } else if (service.serviceRelationType === 'hours') {
+      // Folded into the cleaner line above; never priced on its own. Checked before the
+      // zero-quantity branches so an hours line can never be hijacked by them.
+      line.shouldAddToOrder = false;
+    } else if (
+      service.quantity === 0 &&
+      (service.zeroQuantityCost != null || service.zeroQuantityDuration != null)
+    ) {
+      // Generic zero-quantity rule (Studio is just bedrooms = 0). Cost takes the
+      // cleaning-type multiplier; duration does NOT — no duration anywhere in the quote is
+      // multiplier-scaled, and Deep Cleaning contributes its own minutes through its
+      // ExtraService row.
+      line.cost = (service.zeroQuantityCost ?? 0) * priceMultiplier;
+      line.duration = service.zeroQuantityDuration ?? 0;
       subTotal += line.cost;
       if (!useExplicitHours) {
         totalDuration += line.duration;
         actualTotalDuration += line.duration;
       }
-    } else if (service.serviceRelationType === 'hours') {
-      // Folded into the cleaner line above; never priced on its own.
-      line.shouldAddToOrder = false;
+    } else if (service.serviceKey === 'bedrooms' && service.quantity === 0) {
+      // Legacy studio fallback — only reachable when BOTH zero-quantity fields are null,
+      // so a missing seed can't silently price a studio at $0.
+      line.cost = STUDIO_PRICE * priceMultiplier;
+      line.duration = STUDIO_DURATION;
+      subTotal += line.cost;
+      if (!useExplicitHours) {
+        totalDuration += line.duration;
+        actualTotalDuration += line.duration;
+      }
     } else {
-      line.cost = service.cost * service.quantity * priceMultiplier;
-      line.duration = service.timeDuration * service.quantity;
+      const tiered = calculateTieredLine(service, input.services, priceMultiplier, warnings);
+      line.cost = tiered.cost;
+      line.duration = tiered.duration;
       subTotal += line.cost;
       if (!useExplicitHours) {
         totalDuration += line.duration;
@@ -256,6 +437,15 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
     }
 
     serviceLines.push(line);
+  }
+
+  // Minimum price floor. Applies to base price + services ONLY, so extras and the
+  // deep-cleaning fee stack on top of the floor rather than being absorbed by it.
+  const minimumPrice = input.minimumPrice ?? 0;
+  let minimumPriceApplied = false;
+  if (minimumPrice > 0 && subTotal < minimumPrice) {
+    subTotal = minimumPrice;
+    minimumPriceApplied = true;
   }
 
   // Extra services
@@ -362,6 +552,8 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
     displayDuration,
     maidsCount,
     hasCleanerService,
+    minimumPriceApplied,
+    warnings,
     serviceLines,
     extraServiceLines
   };
@@ -512,6 +704,11 @@ export interface SelectedServiceLike {
     timeDuration: number;
     serviceRelationType?: string | null;
     serviceKey?: string | null;
+    chargeAboveThreshold?: boolean;
+    zeroQuantityCost?: number | null;
+    zeroQuantityDuration?: number | null;
+    rateTiers?: RateTierInput[];
+    thresholds?: ThresholdInput[];
   };
   quantity: number;
 }
@@ -557,34 +754,78 @@ export function mapSelectedExtraInputs(selected: SelectedExtraServiceLike[]): Ex
  * knows how booking/order-edit selections map to the quote input.
  */
 export function buildQuoteInputFromSelections(
-  serviceType: { basePrice?: number | null; timeDuration?: number | null } | null | undefined,
+  serviceType:
+    | { basePrice?: number | null; timeDuration?: number | null; minimumPrice?: number | null }
+    | null
+    | undefined,
   selectedServices: SelectedServiceLike[],
   selectedExtraServices: SelectedExtraServiceLike[]
 ): QuoteInput {
   return {
     basePrice: serviceType?.basePrice ?? 0,
     baseDuration: serviceType?.timeDuration ?? 0,
-    services: selectedServices.map(s => ({
-      serviceId: s.service.id,
-      cost: s.service.cost,
-      timeDuration: s.service.timeDuration,
-      serviceRelationType: s.service.serviceRelationType,
-      serviceKey: s.service.serviceKey,
-      quantity: s.quantity
-    })),
+    minimumPrice: serviceType?.minimumPrice ?? 0,
+    services: selectedServices.map(mapSelectedServiceInput),
     extraServices: mapSelectedExtraInputs(selectedExtraServices)
+  };
+}
+
+/**
+ * Maps one component selection to a calculator service input. Separate from
+ * buildQuoteInputFromSelections so the per-item display helpers can price a line through
+ * exactly the same shape the quote uses — that equivalence is what keeps the summary and
+ * the per-service chips in agreement.
+ */
+export function mapSelectedServiceInput(s: SelectedServiceLike): ServiceLineInput {
+  return {
+    serviceId: s.service.id,
+    cost: s.service.cost,
+    timeDuration: s.service.timeDuration,
+    serviceRelationType: s.service.serviceRelationType,
+    serviceKey: s.service.serviceKey,
+    quantity: s.quantity,
+    chargeAboveThreshold: s.service.chargeAboveThreshold ?? false,
+    zeroQuantityCost: s.service.zeroQuantityCost ?? null,
+    zeroQuantityDuration: s.service.zeroQuantityDuration ?? null,
+    rateTiers: s.service.rateTiers ?? [],
+    thresholds: s.service.thresholds ?? []
   };
 }
 
 // ===== Quantity linkage (shared by booking + order edits) =====
 
 /**
- * Default square-feet for a bedroom count — the booking page auto-raises the
- * Sq.ft service to this when bedrooms change, and it doubles as the Sq.ft
- * minimum for that bedroom count. One definition for booking, user order edit,
- * and admin order edit so the linked pricing behaves identically everywhere.
+ * Default/minimum square-feet for a bedroom count.
+ *
+ * This is now the SAME data that drives billing: the Sq.ft service's ServiceThreshold rows
+ * are both the free allowance and the slider minimum, so a customer can never sit below the
+ * included amount and the default configuration always costs exactly 0 extra sqft.
+ *
+ * Pass the sqft service's `thresholds`. Lookup is the same FLOOR match the calculator uses.
+ * The hardcoded switch survives ONLY as a fallback for when the catalog hasn't loaded yet
+ * (first paint / prerender) — it mirrors the shipped seed values.
  */
-export function getSquareFeetForBedrooms(bedrooms: number): number {
+export function getSquareFeetForBedrooms(
+  bedrooms: number,
+  thresholds?: ThresholdInput[] | null,
+  sourceServiceId?: number | null
+): number {
+  // Restrict to the rows driven by the bedrooms service when the caller knows its id. A
+  // service can in principle carry allowances from several sources, and mixing them here
+  // would produce a minimum that doesn't correspond to any single one of them.
+  const rows = (thresholds ?? []).filter(
+    t => sourceServiceId == null || t.sourceServiceId === sourceServiceId
+  );
+
+  if (rows.length > 0) {
+    const sorted = [...rows].sort((a, b) => a.sourceQuantity - b.sourceQuantity);
+    let match = sorted[0];
+    for (const row of sorted) {
+      if (row.sourceQuantity <= bedrooms) match = row;
+    }
+    return match.includedQuantity;
+  }
+
   switch (bedrooms) {
     case 0: return 400;  // Studio
     case 1: return 650;
@@ -633,16 +874,51 @@ export function getSquareFeetOptions(
 
 // ===== Per-item display helpers (shared by booking + order-edit templates) =====
 
-/** Display price for one service at a given quantity (studio rule included). */
-export function getServiceDisplayPrice(
-  service: { cost: number; serviceKey?: string | null },
+/**
+ * Prices ONE service line exactly as calculateQuote's services loop would, so a
+ * per-service chip can never disagree with the summary. Both the zero-quantity rule and
+ * the threshold/tier math live in one place; this just replays the same branches.
+ *
+ * `allSelected` supplies the threshold source quantities (e.g. bedrooms for sqft). Pass the
+ * component's live selection array.
+ */
+function calculateServiceLineDisplay(
+  service: SelectedServiceLike['service'],
   quantity: number,
-  priceMultiplier: number
-): number {
-  if (service.serviceKey === 'bedrooms' && quantity === 0) {
-    return STUDIO_PRICE * priceMultiplier;
+  priceMultiplier: number,
+  allSelected: SelectedServiceLike[]
+): { cost: number; duration: number } {
+  const line: SelectedServiceLike = { service, quantity };
+  const input = mapSelectedServiceInput(line);
+
+  if (input.serviceRelationType === 'cleaner' || input.serviceRelationType === 'hours') {
+    // Cleaner-hours pairs are priced together in the quote; the chip shows the raw unit.
+    return { cost: input.cost * priceMultiplier, duration: input.timeDuration };
   }
-  return service.cost * quantity * priceMultiplier;
+
+  if (quantity === 0 && (input.zeroQuantityCost != null || input.zeroQuantityDuration != null)) {
+    return {
+      cost: (input.zeroQuantityCost ?? 0) * priceMultiplier,
+      duration: input.zeroQuantityDuration ?? 0
+    };
+  }
+
+  if (input.serviceKey === 'bedrooms' && quantity === 0) {
+    return { cost: STUDIO_PRICE * priceMultiplier, duration: STUDIO_DURATION };
+  }
+
+  // Warnings are irrelevant for a display chip — the quote already collected them.
+  return calculateTieredLine(input, allSelected.map(mapSelectedServiceInput), priceMultiplier, []);
+}
+
+/** Display price for one service at a given quantity (zero-quantity + tier rules included). */
+export function getServiceDisplayPrice(
+  service: SelectedServiceLike['service'],
+  quantity: number,
+  priceMultiplier: number,
+  allSelected: SelectedServiceLike[] = []
+): number {
+  return calculateServiceLineDisplay(service, quantity, priceMultiplier, allSelected).cost;
 }
 
 /** Display price for one extra service (same-day exemption included). */
@@ -668,20 +944,20 @@ export function getExtraServiceDisplayPrice(
 }
 
 /**
- * Display duration for one service. Unlike the quote's internal duration math,
- * the per-service chip scales with the cleaning-type multiplier (booking page
- * behavior — getServiceDuration).
+ * Display duration for one service.
+ *
+ * NOTE (bug B1, fixed 2026-07): this used to multiply by the cleaning-type multiplier while
+ * the quote did not, so a Deep Cleaning booking showed chips that summed to more than the
+ * summary's duration (2BR read 90m per the chip vs 60m in the quote). No duration anywhere
+ * is multiplier-scaled now — Deep Cleaning contributes its own minutes through its
+ * ExtraService row. The multiplier parameter is retained for signature symmetry with
+ * getServiceDisplayPrice and is deliberately unused for duration.
  */
 export function getServiceDisplayDuration(
-  service: { timeDuration: number; serviceKey?: string | null; serviceRelationType?: string | null },
+  service: SelectedServiceLike['service'],
   quantity: number,
-  durationMultiplier: number
+  _durationMultiplier: number,
+  allSelected: SelectedServiceLike[] = []
 ): number {
-  if (service.serviceKey === 'bedrooms' && quantity === 0) {
-    return Math.round(STUDIO_DURATION * durationMultiplier);
-  }
-  if (service.serviceRelationType === 'cleaner' || service.serviceRelationType === 'hours') {
-    return Math.round(service.timeDuration * durationMultiplier);
-  }
-  return Math.round(service.timeDuration * quantity * durationMultiplier);
+  return calculateServiceLineDisplay(service, quantity, 1, allSelected).duration;
 }

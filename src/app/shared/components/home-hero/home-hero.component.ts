@@ -17,7 +17,10 @@ import { SpecialOfferService, PublicSpecialOffer } from '../../../services/speci
 import { BookingService, ServiceType, Service } from '../../../services/booking.service';
 import { FormPersistenceService } from '../../../services/form-persistence.service';
 import { ShimmerDirective } from '../../directives/shimmer.directive';
-import { calculateQuote, QuoteInput, ExtraServiceLineInput } from '../../pricing/order-pricing.calculator';
+import {
+  calculateQuote, QuoteInput, ExtraServiceLineInput,
+  mapSelectedServiceInput, getSquareFeetForBedrooms
+} from '../../pricing/order-pricing.calculator';
 import { PhoneNumberService } from '../../../services/phone-number.service';
 
 /**
@@ -304,17 +307,19 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
     this.saveMainPageFormData();
   }
 
+  /**
+   * Included square feet for a bedroom count, read from the Sq.ft service's configured
+   * allowances rather than a hardcoded table. Falls back to the shared defaults when the
+   * catalog hasn't loaded yet (first paint / prerender).
+   */
   private getSquareFeetForBedrooms(bedrooms: number): number {
-    switch (bedrooms) {
-      case 0: return 400;  // Studio
-      case 1: return 650;
-      case 2: return 850;
-      case 3: return 1000;
-      case 4: return 1500;
-      case 5: return 1800;
-      case 6: return 2000;
-      default: return Math.max(400, bedrooms * 300); // Fallback for 7+
-    }
+    const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+    const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    return getSquareFeetForBedrooms(
+      bedrooms,
+      sqftService?.service?.thresholds,
+      bedroomsService?.service?.id
+    );
   }
 
   getSquareFeetMinForBedrooms(): number {
@@ -463,12 +468,10 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
 
     const services = this.selectedServices.map(selected => {
       const minQty = selected.service.serviceKey === 'bedrooms' ? 0 : (selected.service.minValue ?? 1);
+      // Threshold / tier / zero-quantity fields must come along or the homepage prices sqft
+      // from zero at a flat rate while the booking page prices only the overage in tiers.
       return {
-        serviceId: selected.service.id,
-        cost: selected.service.cost || 0,
-        timeDuration: selected.service.timeDuration || 0,
-        serviceRelationType: selected.service.serviceRelationType,
-        serviceKey: selected.service.serviceKey,
+        ...mapSelectedServiceInput(selected),
         quantity: useMinQuantities ? minQty : (selected.quantity ?? minQty)
       };
     });
@@ -476,6 +479,9 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
     return {
       basePrice: this.selectedServiceType.basePrice ?? 0,
       baseDuration: this.selectedServiceType.timeDuration ?? 0,
+      // Without the floor the homepage advertises a "from" price below what the booking page
+      // actually charges — e.g. $112.50 against $125.00.
+      minimumPrice: this.selectedServiceType.minimumPrice ?? 0,
       services,
       extraServices
     };

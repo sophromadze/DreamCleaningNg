@@ -25,7 +25,9 @@ import {
   getSquareFeetForBedrooms,
   resolveGiftCardAmountToUse,
   round2,
-  SALES_TAX_RATE
+  SALES_TAX_RATE,
+  STUDIO_PRICE,
+  STUDIO_DURATION
 } from '../../../shared/pricing/order-pricing.calculator';
 import { buildCustomServiceTypeNameOptions } from '../../../shared/booking/custom-service-type.util';
 
@@ -3266,6 +3268,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return st?.services?.find(s => s.id === orderService.serviceId) ?? null;
   }
 
+  /**
+   * Included square feet for a bedroom count, read from the Sq.ft service's configured
+   * allowances — the same data that drives billing everywhere else. Falls back to the shared
+   * defaults when the service type hasn't loaded.
+   */
+  private getEditSquareFeetForBedrooms(bedroomsQty: number): number {
+    const st = this.getEditOrderServiceType();
+    const sqftDef = st?.services?.find(s => s.serviceKey === 'sqft');
+    const bedroomsDef = st?.services?.find(s => s.serviceKey === 'bedrooms');
+    return getSquareFeetForBedrooms(bedroomsQty, sqftDef?.thresholds, bedroomsDef?.id);
+  }
+
   getEditExtraDefinition(row: { orderExtraServiceId?: number | null; extraServiceId?: number }, _index: number): ExtraService | null {
     const orderId = row.orderExtraServiceId ?? 0;
     let extraId: number | undefined;
@@ -3282,8 +3296,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   getEditServiceDurationMin(s: { quantity: number }, index: number): number {
     const def = this.getEditServiceDefinition(index);
     if (!def) return 0;
-    if (def.serviceKey === 'bedrooms' && (Number(s.quantity) || 0) === 0) return 20; // studio (matches booking + backend)
-    return def.timeDuration * (Number(s.quantity) || 0);
+    const qty = Number(s.quantity) || 0;
+    // Zero-quantity rule, in the same branch order the shared calculator uses: the configured
+    // value wins, and the legacy Studio constant is only a fallback for an unconfigured service.
+    if (qty === 0 && (def.zeroQuantityCost != null || def.zeroQuantityDuration != null)) {
+      return def.zeroQuantityDuration ?? 0;
+    }
+    if (def.serviceKey === 'bedrooms' && qty === 0) return STUDIO_DURATION;
+    return def.timeDuration * qty;
   }
 
   /** Display duration for a service row. When catalog timeDuration is 0 (e.g. Cleaners), show order total. */
@@ -3967,7 +3987,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /** Studio (bedrooms = 0) has its own cost like in order-edit. */
-  private readonly studioBaseCost = 10;
+  // Studio cost/duration now come from the service's ZeroQuantityCost/ZeroQuantityDuration,
+  // falling back to the shared STUDIO_PRICE/STUDIO_DURATION constants. The old local
+  // `studioBaseCost = 10` field was removed — it would have kept the admin order editor at $10
+  // while the booking page used the configured value.
 
   onEditServiceQuantityChange(s: { quantity: number; cost: number }, index: number): void {
     let q = Number(s.quantity) || 0;
@@ -3983,7 +4006,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       const bedroomsIdx = this.findEditServiceIndexByKey('bedrooms');
       if (bedroomsIdx >= 0) {
         const bedroomsQty = Number(this.editOrderForm.services?.[bedroomsIdx]?.quantity) || 0;
-        const minSquareFeet = getSquareFeetForBedrooms(bedroomsQty);
+        const minSquareFeet = this.getEditSquareFeetForBedrooms(bedroomsQty);
         if (q < minSquareFeet) {
           q = minSquareFeet;
           s.quantity = minSquareFeet;
@@ -3992,9 +4015,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     const prevQ = this.editOrderFormPrevServiceQuantities[index] ?? 1;
     const prevCost = Number(s.cost) || 0;
-    // Studio: bedrooms quantity 0 has fixed cost and duration (handled in getEditServiceDurationMin)
-    if (def?.serviceKey === 'bedrooms' && q === 0) {
-      s.cost = this.studioBaseCost;
+    // Zero-quantity rule (Studio is bedrooms = 0). Duration is handled in
+    // getEditServiceDurationMin; both follow the shared calculator's branch order, so an
+    // admin-configured value wins over the legacy constant.
+    const isZeroQuantityLine = q === 0 &&
+      (def?.zeroQuantityCost != null || def?.zeroQuantityDuration != null ||
+       def?.serviceKey === 'bedrooms');
+    if (isZeroQuantityLine) {
+      s.cost = (def?.zeroQuantityCost != null || def?.zeroQuantityDuration != null)
+        ? (def?.zeroQuantityCost ?? 0)
+        : STUDIO_PRICE;
       this.editOrderFormPrevServiceQuantities[index] = 0;
       this.syncEditSqftWithBedrooms(0);
       this.recalcSubtotalFromServicesAndExtras();
@@ -4042,7 +4072,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const row = this.editOrderForm.services?.[sqftIdx];
     if (!row) return;
 
-    const newQty = getSquareFeetForBedrooms(bedroomsQty);
+    const newQty = this.getEditSquareFeetForBedrooms(bedroomsQty);
     const def = this.getEditServiceDefinition(sqftIdx);
     const prevQ = this.editOrderFormPrevServiceQuantities[sqftIdx] ?? 0;
     const prevCost = Number(row.cost) || 0;
