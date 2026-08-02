@@ -20,15 +20,18 @@ import { CardOnFileService, OrderSavedCardInfo } from '../../../services/card-on
 import { CARD_ON_FILE_ENABLED } from '../../../shared/card-on-file.flag';
 import { formatNy } from '../../../shared/ny-time.util';
 import {
+  calculateQuote,
   calculateTotals,
   calculateCleanerTotalSalary,
+  getServiceDisplayDuration,
   getSquareFeetForBedrooms,
   resolveGiftCardAmountToUse,
   round2,
+  QuoteResult,
   SALES_TAX_RATE,
-  STUDIO_PRICE,
-  STUDIO_DURATION
+  STUDIO_PRICE
 } from '../../../shared/pricing/order-pricing.calculator';
+import { buildAdminEditQuoteInput } from '../../../shared/pricing/admin-order-edit.pricing';
 import { buildCustomServiceTypeNameOptions } from '../../../shared/booking/custom-service-type.util';
 
 // Extended interface for admin orders with additional properties
@@ -3293,17 +3296,23 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.editOrderAvailableExtras.find(x => x.id === extraId) ?? null;
   }
 
+  /**
+   * Per-row duration shown in the edit form. Routed through the shared display helper so a row's
+   * minutes match what the same selection contributes to the total — a linear timeDuration x
+   * quantity here would disagree with the tiered figure for sqft.
+   */
   getEditServiceDurationMin(s: { quantity: number }, index: number): number {
     const def = this.getEditServiceDefinition(index);
     if (!def) return 0;
-    const qty = Number(s.quantity) || 0;
-    // Zero-quantity rule, in the same branch order the shared calculator uses: the configured
-    // value wins, and the legacy Studio constant is only a fallback for an unconfigured service.
-    if (qty === 0 && (def.zeroQuantityCost != null || def.zeroQuantityDuration != null)) {
-      return def.zeroQuantityDuration ?? 0;
-    }
-    if (def.serviceKey === 'bedrooms' && qty === 0) return STUDIO_DURATION;
-    return def.timeDuration * qty;
+
+    const allSelected = (this.editOrderForm.services ?? [])
+      .map((row, i) => {
+        const definition = this.getEditServiceDefinition(i);
+        return definition ? { service: definition, quantity: Number(row.quantity) || 0 } : null;
+      })
+      .filter((entry): entry is { service: Service; quantity: number } => entry !== null);
+
+    return getServiceDisplayDuration(def, Number(s.quantity) || 0, 1, allSelected);
   }
 
   /** Display duration for a service row. When catalog timeDuration is 0 (e.g. Cleaners), show order total. */
@@ -3789,13 +3798,79 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Recompute subtotal from base price + the stored per-line costs (which the backend
    *  writes from the shared calculator). */
-  recalcSubtotalFromServicesAndExtras(): void {
+  /**
+   * Prices the current edit-form state through the SHARED calculator — the same path the
+   * booking page and customer order edit use — so included allowances, rate tiers and the
+   * service type's minimum price all apply.
+   *
+   * Returns null ONLY for custom ("Pre-Arranged") orders, where the admin sets the amount and
+   * duration by hand. That matches the shared calculator itself, whose custom-pricing branch
+   * returns before the services loop and before the minimum-price floor — so falling back to the
+   * row sum there mirrors the calculator rather than diverging from it.
+   *
+   * Cleaner+hours orders DO get a quote. Their rows are not rewritten from it (see
+   * recalcSubtotalFromServicesAndExtras) because the calculator folds the hours line into the
+   * cleaner line, but the SUBTOTAL comes from the quote so a threshold/tier-configured service on
+   * such a service type can never be priced linearly. Nothing structurally prevents an admin from
+   * adding one — Service.ServiceTypeId is a plain FK — so this closes the exposure rather than
+   * leaving it contingent on configuration.
+   */
+  private buildEditQuote(): { quote: QuoteResult; serviceRowIndices: number[]; extraRowIndices: number[] } | null {
+    if (this.isCustomModeOrder()) return null;
+
     const st = this.getEditOrderServiceType();
-    const priceMultiplier = Number((this.selectedOrder?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
-    let sum = (Number(st?.basePrice ?? 0) || 0) * priceMultiplier;
-    (this.editOrderForm.services ?? []).forEach(s => { sum += Number(s.cost ?? 0) || 0; });
-    (this.editOrderForm.extraServices ?? []).forEach(e => { sum += Number(e.cost ?? 0) || 0; });
-    this.editOrderForm.subTotal = round2(sum);
+    if (!st) return null;
+
+    const built = buildAdminEditQuoteInput(
+      st,
+      (this.editOrderForm.services ?? []).map((row, index) => ({
+        row, definition: this.getEditServiceDefinition(index)
+      })),
+      (this.editOrderForm.extraServices ?? []).map((row, index) => ({
+        row, definition: this.getEditExtraDefinition(row, index)
+      }))
+    );
+    if (!built) return null;
+
+    return {
+      quote: calculateQuote(built.input),
+      serviceRowIndices: built.serviceRowIndices,
+      extraRowIndices: built.extraRowIndices
+    };
+  }
+
+  recalcSubtotalFromServicesAndExtras(): void {
+    const built = this.buildEditQuote();
+
+    if (built) {
+      // Per-line costs come from the tiered calculation. Skipped for cleaner+hours orders only:
+      // there the calculator folds the hours line into the cleaner line, so writing back would
+      // blank a row the admin is looking at. Their rows keep the existing per-row math.
+      if (!this.isCleanerHoursOrder()) {
+        built.quote.serviceLines.forEach((line, i) => {
+          const row = this.editOrderForm.services?.[built.serviceRowIndices[i]];
+          if (row) row.cost = round2(line.cost);
+        });
+        built.quote.extraServiceLines.forEach((line, i) => {
+          const row = this.editOrderForm.extraServices?.[built.extraRowIndices[i]];
+          if (row) row.cost = round2(line.cost);
+        });
+      }
+
+      // The subtotal ALWAYS comes from the quote, including for cleaner+hours, so it carries the
+      // MinimumPrice floor and any tiered service cost. This value is what the admin sees AND
+      // what gets posted as dto.SubTotal — the SuperAdmin save path persists it verbatim.
+      this.editOrderForm.subTotal = built.quote.subTotal;
+    } else {
+      // Custom ("Pre-Arranged") orders only: sum the rows as before.
+      const st = this.getEditOrderServiceType();
+      const priceMultiplier = Number((this.selectedOrder?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
+      let sum = (Number(st?.basePrice ?? 0) || 0) * priceMultiplier;
+      (this.editOrderForm.services ?? []).forEach(s => { sum += Number(s.cost ?? 0) || 0; });
+      (this.editOrderForm.extraServices ?? []).forEach(e => { sum += Number(e.cost ?? 0) || 0; });
+      this.editOrderForm.subTotal = round2(sum);
+    }
+
     this.recalculateEditPricing();
     this.recalcEditDurationAndMaids();
     // Salary depends on duration/maids/rate; refresh after duration recalc so adding/removing
@@ -3875,14 +3950,22 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    // Duration comes from the shared calculator so sqft contributes its TIERED minutes over the
+    // overage rather than a linear timeDuration x quantity. Falls back to the per-row sum when
+    // the quote is unavailable (custom-pricing / cleaner+hours handled above, or catalog not loaded).
+    const built = this.buildEditQuote();
     const baseOnly = st?.timeDuration ?? 0;
     let totalMin = baseOnly;
-    services.forEach((s, i) => {
-      totalMin += this.getEditServiceDurationMin(s, i);
-    });
-    (this.editOrderForm.extraServices ?? []).forEach((e, i) => {
-      totalMin += this.getEditExtraDurationMin(e, i);
-    });
+    if (built) {
+      totalMin = built.quote.displayDuration;
+    } else {
+      services.forEach((s, i) => {
+        totalMin += this.getEditServiceDurationMin(s, i);
+      });
+      (this.editOrderForm.extraServices ?? []).forEach((e, i) => {
+        totalMin += this.getEditExtraDurationMin(e, i);
+      });
+    }
     const currentFormDuration = Number(this.editOrderForm.totalDuration) || 0;
     // When services contribute nothing (e.g. custom Cleaners with timeDuration 0), don't overwrite order's duration
     if (totalMin <= baseOnly && currentFormDuration > baseOnly) {
@@ -4072,18 +4155,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const row = this.editOrderForm.services?.[sqftIdx];
     if (!row) return;
 
-    const newQty = this.getEditSquareFeetForBedrooms(bedroomsQty);
-    const def = this.getEditServiceDefinition(sqftIdx);
-    const prevQ = this.editOrderFormPrevServiceQuantities[sqftIdx] ?? 0;
-    const prevCost = Number(row.cost) || 0;
-    // Per-unit price derived from the existing line (keeps any cleaning-type multiplier
-    // the calculator baked in), falling back to the catalog cost.
-    let unitPrice = def?.cost ?? 0;
-    if (prevQ > 0 && prevCost > 0) unitPrice = prevCost / prevQ;
-
-    row.quantity = newQty;
-    row.cost = round2(unitPrice * newQty);
-    this.editOrderFormPrevServiceQuantities[sqftIdx] = newQty;
+    // Quantity follows the CONFIGURED allowance for this bedroom count (same resolution the
+    // booking page and customer order edit use). The cost is deliberately NOT computed here:
+    // recalcSubtotalFromServicesAndExtras reprices every line through the shared calculator, so
+    // the tiered rate applies. The previous unitPrice x quantity here was linear and ignored
+    // both the allowance and the tiers.
+    row.quantity = this.getEditSquareFeetForBedrooms(bedroomsQty);
+    this.editOrderFormPrevServiceQuantities[sqftIdx] = row.quantity;
   }
 
   onEditServiceCostChange(): void {
