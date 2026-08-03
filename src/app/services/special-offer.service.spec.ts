@@ -2,11 +2,15 @@ import { TestBed } from '@angular/core/testing';
 
 import { SpecialOfferService } from './special-offer.service';
 
+import { testProviders } from '../../testing/test-providers';
+
 describe('SpecialOfferService', () => {
   let service: SpecialOfferService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    TestBed.configureTestingModule({
+      providers: [...testProviders],
+    });
     service = TestBed.inject(SpecialOfferService);
   });
 

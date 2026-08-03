@@ -2,12 +2,15 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { OrderHistoryComponent } from './order-history.component';
 
+import { testProviders } from '../../../../testing/test-providers';
+
 describe('OrderHistoryComponent', () => {
   let component: OrderHistoryComponent;
   let fixture: ComponentFixture<OrderHistoryComponent>;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      providers: [...testProviders],
       imports: [OrderHistoryComponent]
     })
     .compileComponents();

@@ -1,5 +1,8 @@
 <div class="booking-confirmation-container">
-  <div class="confirmation-content" *ngIf="!paymentCompleted">
+  <!-- bookingData is null on a refresh/deep-link (BookingDataService is in-memory only).
+       ngOnInit redirects in that case, but router.navigate is async, so this block would
+       still render once and crash on bookingData.serviceDate below. -->
+  <div class="confirmation-content" *ngIf="!paymentCompleted && bookingData">
     <h1>Complete Your Booking</h1>
     
     <!-- Booking Summary Section -->
