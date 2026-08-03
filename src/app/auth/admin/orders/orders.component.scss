@@ -628,14 +628,6 @@
             color: #dc3545;
             font-weight: 600;
           }
-
-          .tips-cleaner-label,
-          .tips-cleaner-value {
-            background: #f5d76e;
-            color: #333 !important;
-            padding: 2px 6px;
-            border-radius: 3px;
-          }
         }
 
         .total-line {
@@ -2733,11 +2725,6 @@
   .pricing-column .pricing-content p strong {
     color: var(--text-primary) !important;
   }
-  .pricing-column .pricing-content p .tips-cleaner-label,
-  .pricing-column .pricing-content p .tips-cleaner-value {
-    background: #f5d76e !important;
-    color: #333 !important;
-  }
   .pricing-column .pricing-content .total-line,
   .pricing-column .pricing-content .total-line strong {
     color: var(--text-primary) !important;
@@ -3285,6 +3272,15 @@ $order-header-mobile: 60px;
         font-weight: 700;
         color: var(--text-primary, #1e293b);
       }
+
+      // Tips for Cleaners — the only place tips are shown now, so keep the amber
+      // highlight it had in the pricing breakdown.
+      .summary-value.tips-cleaner-value {
+        background: var(--soft-yellow);
+        color: var(--soft-yellow-text);
+        padding: 0 0.4rem;
+        border-radius: var(--radius-sm, 8px);
+      }
     }
   }
 
@@ -3350,27 +3346,6 @@ $order-header-mobile: 60px;
     }
 
     .services-list { margin: 0; padding-left: 1.1rem; color: var(--text-secondary, #475569); font-size: 0.875rem; li { margin: 0.25rem 0; } }
-
-    // Tips for Cleaners — highlighted as a gold banner across the whole line so it
-    // stands out in the pricing breakdown (theme-stable highlighter colour).
-    .pricing-content p:has(.tips-cleaner-label) {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 0.5rem;
-      background: #f5d76e;
-      border-radius: 6px;
-      padding: 0.3rem 0.55rem;
-      margin: 0.35rem 0;
-      strong,
-      span,
-      .tips-cleaner-label,
-      .tips-cleaner-value {
-        color: #333 !important;
-        background: transparent;
-        padding: 0;
-      }
-    }
 
     // ── Update history (slide-in panel) ──
     // The base styling lives under .orders-section, which does NOT wrap this panel, so the
@@ -4261,6 +4236,24 @@ $order-header-mobile: 60px;
       }
     }
   }
+}
+
+// ── "View User" button (details panel, Customer Information) ──
+// Self-contained like .pm-change-btn — .detail-section styles only h5/p, so the button
+// brings its own look.
+.view-user-btn {
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: var(--fw-semibold);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--primary-text);
+  cursor: pointer;
+  transition: background 0.2s;
+
+  &:hover { background: var(--soft-blue); }
 }
 
 // ── SuperAdmin payment-method editor (details panel "Payment:" line) ──

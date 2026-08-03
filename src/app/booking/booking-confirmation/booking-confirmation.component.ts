@@ -8,7 +8,7 @@ import { StripeService } from '../../services/stripe.service';
 import { OrderSoundService } from '../../services/order-sound.service';
 import { CardOnFileService, SavedCard } from '../../services/card-on-file.service';
 import { CARD_ON_FILE_ENABLED } from '../../shared/card-on-file.flag';
-import { calculateTotals } from '../../shared/pricing/order-pricing.calculator';
+import { calculateTotals, splitTaxInclusiveAmount } from '../../shared/pricing/order-pricing.calculator';
 
 @Component({
   selector: 'app-booking-confirmation',
@@ -190,8 +190,15 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
       // Fallback calculation through the shared calculator — only fires when
       // bookingData.total is missing, but must match the booking page exactly
       // (loyalty included) so we don't quietly drop a discount and overcharge.
+      // Custom Pricing splits its tax out of the admin-entered tax-inclusive amount, so the
+      // fallback has to reuse that split rather than taxing the subtotal again.
+      const taxOverride = this.bookingData.isCustomPricing && this.bookingData.customAmount > 0
+        ? splitTaxInclusiveAmount(this.bookingData.customAmount).tax
+        : null;
+
       const totals = calculateTotals({
         subTotal: this.bookingData.subTotal || 0,
+        taxOverride,
         discountAmount: this.bookingData.discountAmount || 0,
         subscriptionDiscountAmount: this.bookingData.subscriptionDiscountAmount || 0,
         loyaltyDiscountAmount: this.bookingData.loyaltyDiscountAmount || 0,

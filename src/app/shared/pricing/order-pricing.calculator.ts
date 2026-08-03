@@ -61,9 +61,14 @@ export const PER_MAID_MINIMUM_MINUTES = 60;
 /** Per-maid minimum when the Extra Cleaners extra is selected (2h30m floor). */
 export const EXTRA_CLEANERS_PER_MAID_MINIMUM_MINUTES = 150;
 
-/** Default cleaner hourly rates: regular vs deep/super-deep orders. */
+/**
+ * Default cleaner hourly rates. Regular residential is the base; deep/super-deep and
+ * move in/out pay the mid rate; heavy-condition and post-construction pay the top rate.
+ * Mirrored by *CleanerHourlyRate in OrderPricingCalculator.cs.
+ */
 export const REGULAR_CLEANER_HOURLY_RATE = 20;
 export const DEEP_CLEANING_CLEANER_HOURLY_RATE = 21;
+export const HEAVY_DUTY_CLEANER_HOURLY_RATE = 25;
 
 /** The extra service that adds cleaners is identified by name, like the booking page does. */
 export const EXTRA_CLEANERS_NAME = 'Extra Cleaners';
@@ -71,6 +76,29 @@ export const EXTRA_CLEANERS_NAME = 'Extra Cleaners';
 /** Round to cents, half-up — the rounding used in every price step on both sides. */
 export function round2(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/**
+ * Splits a TAX-INCLUSIVE amount into its pre-tax subtotal and the sales tax inside it,
+ * such that `subTotal + tax === amount` EXACTLY, for every amount.
+ *
+ * Used by Custom Pricing: the admin types what the customer should pay in total, so both
+ * halves are derived from it instead of the tax being added on top.
+ *
+ * The returned `tax` must be carried through as `TotalsInput.taxOverride` — re-deriving it
+ * as `round2(subTotal × SALES_TAX_RATE)` reintroduces a cent of drift on roughly one amount
+ * in twenty, because no cent-valued subtotal exists for those amounts (nothing satisfies
+ * `S + round2(S × 8.875%) === 300.00`; 275.55 gives 300.01 and 275.54 gives 299.99).
+ * Deriving the tax from the entered amount instead makes the split exact — the trade is that
+ * the tax is up to half a cent off the literal 8.875% of the subtotal, which is the normal
+ * and expected behaviour of tax-inclusive pricing.
+ */
+export function splitTaxInclusiveAmount(amountWithTax: number): { subTotal: number; tax: number } {
+  const amount = round2(amountWithTax);
+  if (!(amount > 0)) return { subTotal: 0, tax: 0 };
+
+  const tax = round2((amount * SALES_TAX_RATE) / (1 + SALES_TAX_RATE));
+  return { subTotal: round2(amount - tax), tax };
 }
 
 // ===== Inputs =====
@@ -155,6 +183,7 @@ export interface QuoteInput {
 
   /** Custom pricing (admin-entered amount/cleaners/duration) bypasses the service math. */
   isCustomPricing?: boolean;
+  /** TAX-INCLUSIVE total the admin typed; the subtotal is derived from it. */
   customAmount?: number | null;
   customCleaners?: number | null;
   /** Per-cleaner minutes. */
@@ -197,6 +226,12 @@ export interface QuoteResult {
   hasCleanerService: boolean;
   /** True when `minimumPrice` actually raised the subtotal. */
   minimumPriceApplied: boolean;
+  /**
+   * Custom Pricing only: the exact sales tax contained in the admin-entered tax-inclusive
+   * amount. Pass it to calculateTotals as `taxOverride` so the charged total matches what
+   * was typed to the cent. null for every ordinary quote (tax is derived from the subtotal).
+   */
+  taxOverride: number | null;
   /**
    * Non-fatal pricing anomalies for the caller to log — currently only the
    * missing-threshold-source fallback. Never surfaced to customers.
@@ -338,8 +373,12 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
   if (input.isCustomPricing) {
     const perCleaner = input.customDuration ?? input.baseDuration;
     const maidsCount = Math.max(1, input.customCleaners ?? 1);
+    // The admin-entered amount is the TAX-INCLUSIVE total: the subtotal and the tax are both
+    // split out of it (they add back to it exactly) rather than the tax landing on top.
+    const split = splitTaxInclusiveAmount(input.customAmount ?? input.basePrice);
     return {
-      subTotal: round2(input.customAmount ?? input.basePrice),
+      subTotal: split.subTotal,
+      taxOverride: split.tax,
       priceMultiplier: 1,
       deepCleaningFee: 0,
       displayDuration: perCleaner,
@@ -546,6 +585,7 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
 
   return {
     subTotal: round2(subTotal),
+    taxOverride: null,
     priceMultiplier,
     deepCleaningFee,
     totalDuration: actualTotalDuration,
@@ -618,6 +658,15 @@ export interface TotalsInput {
   giftCardAmountUsed?: number;
   pointsRedeemedDiscount?: number;
   rewardBalanceUsed?: number;
+  /**
+   * Custom Pricing only (see {@link splitTaxInclusiveAmount}): the exact tax contained in the
+   * tax-inclusive amount the admin typed, used verbatim so the total matches it to the cent.
+   *
+   * Honoured ONLY while no discount has reduced the subtotal. Once one does, the entered
+   * total no longer describes what is owed, so tax reverts to the normal
+   * `round2(discountedSubTotal × SALES_TAX_RATE)`.
+   */
+  taxOverride?: number | null;
 }
 
 export interface TotalsResult {
@@ -641,7 +690,12 @@ export function calculateTotals(input: TotalsInput): TotalsResult {
     (input.loyaltyDiscountAmount ?? 0);
   if (discountedSubTotal < 0) discountedSubTotal = 0;
 
-  const tax = round2(discountedSubTotal * SALES_TAX_RATE);
+  // The override is only meaningful against the subtotal it was split out of, so any
+  // discount hands the tax back to the standard rate math.
+  const useOverride =
+    input.taxOverride != null && discountedSubTotal === round2(input.subTotal);
+
+  const tax = useOverride ? round2(input.taxOverride!) : round2(discountedSubTotal * SALES_TAX_RATE);
   const totalBeforeGiftCard =
     discountedSubTotal + tax + (input.tips ?? 0) + (input.companyDevelopmentTips ?? 0);
 
@@ -667,9 +721,39 @@ export function resolveGiftCardAmountToUse(giftCardBalance: number, totalBeforeG
 
 // ===== Step 5: cleaner salary =====
 
-/** Deep/super-deep orders pay cleaners the higher rate. */
-export function getDefaultCleanerHourlyRate(deepCleaningFee: number): number {
+/**
+ * Default cleaner hourly rate for an order, matched on the EFFECTIVE service-type name
+ * (i.e. the custom "Pre-Arranged" label when there is one) and, for residential, on whether
+ * the deep-cleaning extra was picked:
+ *   heavy condition / post construction → 25, move in/out → 21,
+ *   residential deep / super-deep → 21, everything else → 20.
+ * The rate is only a DEFAULT — admins can override it per order in the orders panel.
+ * Mirrored by GetDefaultCleanerHourlyRate in OrderPricingCalculator.cs.
+ */
+export function getDefaultCleanerHourlyRate(
+  deepCleaningFee: number,
+  serviceTypeName?: string | null
+): number {
+  const name = normalizeServiceTypeName(serviceTypeName);
+
+  if (name.includes('heavy') || name.includes('post construction')) {
+    return HEAVY_DUTY_CLEANER_HOURLY_RATE;
+  }
+
+  if (name.includes('move')) {
+    return DEEP_CLEANING_CLEANER_HOURLY_RATE;
+  }
+
   return deepCleaningFee > 0 ? DEEP_CLEANING_CLEANER_HOURLY_RATE : REGULAR_CLEANER_HOURLY_RATE;
+}
+
+/** Lowercased, hyphen/underscore-flattened service-type name for keyword matching. */
+function normalizeServiceTypeName(serviceTypeName?: string | null): string {
+  return (serviceTypeName ?? '')
+    .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**

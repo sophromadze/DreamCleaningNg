@@ -371,13 +371,19 @@
         <span class="summary-label">Duration</span>
         <span class="summary-value">{{ formatDuration(editingOrder ? (editOrderForm.totalDuration || 0) : selectedOrder.totalDuration) }}</span>
       </div>
+      <!-- Tips for Cleaners lives ONLY here (removed from the pricing breakdown) so admins
+           always see it, and it stays out of the totals below — which are all tip-free. -->
+      <div class="summary-item">
+        <span class="summary-label">Tips for Cleaners</span>
+        <span class="summary-value tips-cleaner-value">${{ formatCurrency(getSummaryTips()) }}</span>
+      </div>
       <div class="summary-item">
         <span class="summary-label">Subtotal</span>
         <span class="summary-value">${{ formatCurrency(editingOrder ? (editOrderForm.subTotal || 0) : selectedOrder.subTotal) }}</span>
       </div>
       <div class="summary-item">
         <span class="summary-label">Total</span>
-        <span class="summary-value">${{ formatCurrency(editingOrder ? (editOrderForm.total || 0) : getCurrentTotalWithoutTips()) }}</span>
+        <span class="summary-value">${{ formatCurrency(getSummaryTotalWithoutTips()) }}</span>
       </div>
     </div>
 
@@ -598,7 +604,9 @@
                           <label>Gift Card{{ editGiftCardAvailableBalance > 0 ? ' (bal. $' + (editGiftCardAvailableBalance - editGiftCardAmountToUse).toFixed(2) + ' left)' : '' }}</label>
                           <input type="number" [value]="editGiftCardAmountToUse.toFixed(2)" readonly>
                         </div>
-                        <div class="edit-row"><label>Total</label><input type="number" step="1" [(ngModel)]="editOrderForm.total" readonly></div>
+                        <!-- This is the value PERSISTED on save, which includes tips — unlike the
+                             summary bar's tip-free Total. Labelled so the two don't read as a bug. -->
+                        <div class="edit-row"><label>Total (incl. tips)</label><input type="number" step="1" [(ngModel)]="editOrderForm.total" readonly></div>
                         <div class="edit-row edit-row--pts-preview" *ngIf="pointsEnabled && editEstimatedPoints > 0">
                           <label>🫧 Est. Points Earned</label>
                           <span class="pts-preview-val">~{{ editEstimatedPoints | number }} pts</span>
@@ -699,6 +707,13 @@
                       <p><strong>Name:</strong> {{selectedOrder.contactFirstName}} {{selectedOrder.contactLastName}}</p>
                       <p><strong>Email:</strong> {{selectedOrder.contactEmail || '— (no email)'}}</p>
                       <p><strong>Phone:</strong> {{selectedOrder.contactPhone}}</p>
+
+                      <!-- Opens the Users tab in a new browser tab with this customer's detail panel expanded -->
+                      <button type="button" class="view-user-btn"
+                              *ngIf="selectedOrder.userId"
+                              (click)="openUserInAdmin(selectedOrder.userId)">
+                        View User
+                      </button>
 
                       <!-- SuperAdmin-only: move this order (and everything it earned) to another customer -->
                       <div class="order-transfer" *ngIf="isSuperAdmin">
@@ -827,12 +842,8 @@
                           ${{formatCurrency(selectedOrder.initialTotal > 0 ? selectedOrder.initialTax :
                                            (orderUpdateHistory && orderUpdateHistory.length > 0 ? orderUpdateHistory[0].originalTax : 0))}}
                         </p>
-                        <p *ngIf="(selectedOrder.initialTotal > 0 ? selectedOrder.initialTips :
-                                   (orderUpdateHistory && orderUpdateHistory.length > 0 ? orderUpdateHistory[0].originalTips : 0)) > 0">
-                          <strong class="tips-cleaner-label">Tips for Cleaners:</strong>
-                          <span class="tips-cleaner-value">${{formatCurrency(selectedOrder.initialTotal > 0 ? selectedOrder.initialTips :
-                                           (orderUpdateHistory && orderUpdateHistory.length > 0 ? orderUpdateHistory[0].originalTips : 0))}}</span>
-                        </p>
+                        <!-- Tips for Cleaners is intentionally NOT shown here — it lives in the
+                             summary bar at the top of the panel. -->
                         <p *ngIf="(selectedOrder.initialTotal > 0 ? selectedOrder.initialCompanyDevelopmentTips :
                                    (orderUpdateHistory && orderUpdateHistory.length > 0 ? orderUpdateHistory[0].originalCompanyDevelopmentTips : 0)) > 0">
                           <strong>Tips for Company:</strong>
@@ -858,9 +869,8 @@
                       <div class="pricing-content">
                         <p><strong>Subtotal:</strong> ${{formatCurrency(selectedOrder.subTotal)}}</p>
                         <p><strong>Tax:</strong> ${{formatCurrency(selectedOrder.tax)}}</p>
-                        <p *ngIf="selectedOrder.tips > 0">
-                          <strong class="tips-cleaner-label">Tips for Cleaners:</strong> <span class="tips-cleaner-value">${{formatCurrency(selectedOrder.tips)}}</span>
-                        </p>
+                        <!-- Tips for Cleaners is intentionally NOT shown here — it lives in the
+                             summary bar at the top of the panel. -->
                         <p *ngIf="selectedOrder.companyDevelopmentTips > 0">
                           <strong>Tips for Company:</strong> ${{formatCurrency(selectedOrder.companyDevelopmentTips)}}
                         </p>

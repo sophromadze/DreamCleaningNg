@@ -101,7 +101,7 @@
   <div class="tab-content">
     <ng-container [ngSwitch]="activeTab">
       <app-orders *ngSwitchCase="'orders'" [openOrderId]="pendingOrderId"></app-orders>
-      <app-user-management *ngSwitchCase="'users'"></app-user-management>
+      <app-user-management *ngSwitchCase="'users'" [openUserId]="pendingUserId"></app-user-management>
       <app-booking-services *ngSwitchCase="'booking-services'"></app-booking-services>
       <app-discounts *ngSwitchCase="'discounts'" [initialSubTab]="selectedDiscountSubTab"></app-discounts>
       <app-scheduling *ngSwitchCase="'scheduling'"></app-scheduling>

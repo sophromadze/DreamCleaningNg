@@ -53,6 +53,7 @@ export class AdminComponent implements OnInit {
   activeTab: string = 'orders';
   selectedDiscountSubTab: 'promo-codes' | 'special-offers' | 'subscriptions' | 'gift-cards' = 'promo-codes';
   pendingOrderId: number | null = null;
+  pendingUserId: number | null = null;
   errorMessage = '';
   successMessage = '';
 
@@ -74,11 +75,19 @@ export class AdminComponent implements OnInit {
   ngOnInit() {
     // If orderId query param is present, go straight to orders tab and auto-open that order
     const orderIdParam = this.route.snapshot.queryParamMap.get('orderId');
+    // Same idea in reverse: userId opens the users tab with that customer's detail panel expanded
+    const userIdParam = this.route.snapshot.queryParamMap.get('userId');
     if (orderIdParam) {
       const id = parseInt(orderIdParam, 10);
       if (!isNaN(id)) {
         this.activeTab = 'orders';
         this.pendingOrderId = id;
+      }
+    } else if (userIdParam) {
+      const id = parseInt(userIdParam, 10);
+      if (!isNaN(id)) {
+        this.activeTab = 'users';
+        this.pendingUserId = id;
       }
     } else {
       // Restore last active tab from sessionStorage if available

@@ -2453,6 +2453,9 @@ export class BookingComponent implements OnInit, OnDestroy {
 
     const totals = calculateTotals({
       subTotal,
+      // Custom Pricing: keeps the quoted total equal to the tax-inclusive amount the admin
+      // typed (null for every other quote).
+      taxOverride: quote.taxOverride,
       discountAmount: this.promoOrFirstTimeDiscountAmount,
       subscriptionDiscountAmount: this.subscriptionDiscountAmount,
       loyaltyDiscountAmount: this.loyaltyDiscountAmount,

@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -35,6 +35,9 @@ type DetailTab = 'overview' | 'details' | 'history' | 'photos' | 'notes' | 'task
 export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
   @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
+
+  /** Set from the ?userId= query param (e.g. the orders panel's "View User" button) — auto-opens that user. */
+  @Input() openUserId: number | null = null;
 
   users: UserAdmin[] = [];
   loadingUsers = false;
@@ -461,6 +464,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       next: (response) => {
         this.users = Array.isArray(response) ? response : response.users;
         this.resolveUserLastCleaningVariants(this.users);
+        this.openPendingUserDetails();
       },
       error: (error) => {
         console.error('Failed to load users', error);
@@ -480,6 +484,30 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   // ── Detail panel ──
+
+  /**
+   * Opens the detail panel for the ?userId= deep link once the list has loaded, then forgets it
+   * so a later refresh doesn't re-open the panel. Also jumps the list to the page holding that
+   * user so the highlighted row is visible behind the panel.
+   */
+  private openPendingUserDetails(): void {
+    const pendingId = this.openUserId;
+    if (!pendingId) return;
+    this.openUserId = null;
+
+    const user = this.users.find(u => u.id === pendingId);
+    if (!user) {
+      this.errorMessage = `User #${pendingId} was not found.`;
+      return;
+    }
+
+    const index = this.matchingUsers.findIndex(u => u.id === pendingId);
+    if (index >= 0) {
+      this.currentPage = Math.floor(index / this.itemsPerPage) + 1;
+    }
+
+    setTimeout(() => this.openUserDetails(user), 100);
+  }
 
   openUserDetails(user: UserAdmin): void {
     if (this.viewingUserId === user.id) {
@@ -1205,7 +1233,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     });
   }
 
-  get filteredUsers(): UserAdmin[] {
+  /** Every user matching the current filters, sorted — before pagination slices it. */
+  private get matchingUsers(): UserAdmin[] {
     let filtered = this.users;
     if (this.searchTerm) {
       const search = this.searchTerm.toLowerCase();
@@ -1237,11 +1266,15 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
         }
       });
     }
-    filtered = filtered.sort((a, b) => {
+    return [...filtered].sort((a, b) => {
       const dateA = new Date(a.createdAt).getTime();
       const dateB = new Date(b.createdAt).getTime();
       return dateB - dateA;
     });
+  }
+
+  get filteredUsers(): UserAdmin[] {
+    const filtered = this.matchingUsers;
     this.totalPages = Math.ceil(filtered.length / this.itemsPerPage);
     const start = (this.currentPage - 1) * this.itemsPerPage;
     return filtered.slice(start, start + this.itemsPerPage);

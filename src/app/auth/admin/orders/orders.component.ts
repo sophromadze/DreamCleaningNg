@@ -23,11 +23,13 @@ import {
   calculateQuote,
   calculateTotals,
   calculateCleanerTotalSalary,
+  getDefaultCleanerHourlyRate,
   getServiceDisplayDuration,
   getSquareFeetForBedrooms,
   resolveGiftCardAmountToUse,
   round2,
   QuoteResult,
+  REGULAR_CLEANER_HOURLY_RATE,
   SALES_TAX_RATE,
   STUDIO_PRICE
 } from '../../../shared/pricing/order-pricing.calculator';
@@ -226,7 +228,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   cleanersLoadedSet: Set<number> = new Set();
   /** Cached resolved residential variant for list rows (without opening details). */
   residentialVariantCache: Map<number, 'Deep' | 'Regular'> = new Map();
-  cleanerHourlySalary: number = 20; // Default hourly rate shown in assign modal
+  // Hourly rate shown in the assign modal; set per order from getDefaultHourlyRate() on open.
+  cleanerHourlySalary: number = REGULAR_CLEANER_HOURLY_RATE;
 
   loadingStates = {
     orders: false,
@@ -1439,6 +1442,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /** Mirror of the Users tab's openOrderInAdmin — opens the Users tab with this customer expanded. */
+  openUserInAdmin(userId: number): void {
+    window.open('/admin?userId=' + userId, '_blank');
+  }
+
   loadOrders() {
     this.loadingStates.orders = true;
     this.assignedCleanersCache.clear();
@@ -2208,7 +2216,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.availableCleaners = [];
     this.cleanerAssignmentSearchQuery = '';
     this.showBusyCleaners = false;
-    this.cleanerHourlySalary = 20;
+    this.cleanerHourlySalary = REGULAR_CLEANER_HOURLY_RATE;
   }
 
   /**
@@ -2262,16 +2270,30 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return slugs[String(ranking ?? '1')] ?? 'good';
   }
 
-  /** Get default hourly rate based on whether order has deep cleaning extra service */
+  /**
+   * Default hourly rate shown in the assign-cleaners modal, from the shared calculator:
+   * heavy condition / post construction pay the top rate, move in/out and residential deep
+   * cleaning the mid rate, everything else the base rate. Only a fallback — a rate already
+   * stored on the order (including an admin override) always wins.
+   */
   getDefaultHourlyRate(orderId: number): number {
-    if (this.selectedOrder && this.selectedOrder.id === orderId) {
-      const hasDeepCleaning = this.selectedOrder.extraServices?.some(
-        es => es.extraServiceName?.toLowerCase().includes('deep cleaning') &&
-              !es.extraServiceName?.toLowerCase().includes('super')
-      );
-      return hasDeepCleaning ? 21 : 20;
-    }
-    return 20;
+    const details = this.selectedOrder?.id === orderId ? this.selectedOrder : null;
+    const listed = this.orders.find(o => o.id === orderId);
+
+    // Residential deep cleaning is signalled by the extra service (but not "super deep").
+    const hasDeepCleaning = !!details?.extraServices?.some(
+      es => es.extraServiceName?.toLowerCase().includes('deep cleaning') &&
+            !es.extraServiceName?.toLowerCase().includes('super')
+    );
+
+    // Custom ("Pre-Arranged") orders match on their per-order label, like every other
+    // human-facing surface — the details DTO already resolves serviceTypeName to it.
+    const serviceTypeName = details?.serviceTypeName
+      ?? (listed?.isCustomServiceType ? listed?.customServiceDisplayName : listed?.serviceTypeName)
+      ?? '';
+
+    // The calculator takes the deep-cleaning FEE; here we only know whether it applies.
+    return getDefaultCleanerHourlyRate(hasDeepCleaning ? 1 : 0, serviceTypeName);
   }
 
   /** Round duration to the nearest scheduling increment (same as DurationUtils) */
@@ -3168,6 +3190,25 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.round((t - tips - companyTips) * 100) / 100;
   }
 
+  /** Cleaner tips for the panel summary bar — live edit value while editing, saved value otherwise. */
+  getSummaryTips(): number {
+    if (this.editingOrder) return Number(this.editOrderForm.tips ?? 0) || 0;
+    return Number(this.selectedOrder?.tips ?? 0) || 0;
+  }
+
+  /**
+   * Total for the panel summary bar, always excluding tips. `editOrderForm.total` INCLUDES tips
+   * (it mirrors what the backend persists), so edit mode has to subtract them here to match the
+   * tip-free total shown in view mode.
+   */
+  getSummaryTotalWithoutTips(): number {
+    if (!this.editingOrder) return this.getCurrentTotalWithoutTips();
+    const t = Number(this.editOrderForm.total ?? 0) || 0;
+    const tips = Number(this.editOrderForm.tips ?? 0) || 0;
+    const companyTips = Number(this.editOrderForm.companyDevelopmentTips ?? 0) || 0;
+    return Math.round(Math.max(0, t - tips - companyTips) * 100) / 100;
+  }
+
   /**
    * Original subscription discount: derived from current discount rate applied to original subtotal.
    * (Backend does not send initialSubscriptionDiscountAmount, so we use rate: currentDiscount/currentSubTotal * originalSubTotal.)
@@ -3599,7 +3640,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       discountAmount: this.selectedOrder.discountAmount,
       subscriptionDiscountAmount: (this.selectedOrder as any).subscriptionDiscountAmount ?? 0,
       loyaltyDiscountAmount: this.selectedOrder.loyaltyDiscountAmount ?? 0,
-      cleanerHourlyRate: this.selectedOrder.cleanerHourlyRate ?? 20,
+      cleanerHourlyRate: this.selectedOrder.cleanerHourlyRate ?? this.getDefaultHourlyRate(this.selectedOrder.id),
       cleanerTotalSalary: this.selectedOrder.cleanerTotalSalary ?? 0,
       customServiceDisplayName: (this.selectedOrder as any).customServiceDisplayName ?? null,
       services: this.selectedOrder.services?.map(s => ({ orderServiceId: s.id, quantity: s.quantity, cost: s.cost })) ?? null,
