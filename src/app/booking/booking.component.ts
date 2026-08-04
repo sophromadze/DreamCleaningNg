@@ -2774,6 +2774,7 @@ export class BookingComponent implements OnInit, OnDestroy {
              this.smsConsent.value === true &&
              this.cancellationConsent.value === true &&
              this.termsConsent.value === true &&
+             this.customServiceName.valid &&
              this.customAmount.valid &&
              this.customCleaners.valid &&
              this.customDuration.valid &&
@@ -3048,6 +3049,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     
     // Also mark custom pricing controls if applicable
     if (this.showCustomPricing) {
+      this.customServiceName.markAsTouched();
       this.customAmount.markAsTouched();
       this.customCleaners.markAsTouched();
       this.customDuration.markAsTouched();
@@ -3106,6 +3108,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     
     // Also mark custom pricing controls if applicable
     if (this.showCustomPricing) {
+      this.customServiceName.markAsTouched();
       this.customAmount.markAsTouched();
       this.customCleaners.markAsTouched();
       this.customDuration.markAsTouched();
@@ -5209,6 +5212,7 @@ export class BookingComponent implements OnInit, OnDestroy {
 
     if (this.showCustomPricing) {
       return this.serviceTypeControl.valid &&
+             this.customServiceName.valid &&
              this.customAmount.valid &&
              this.customCleaners.valid &&
              this.customDuration.valid;
@@ -5291,6 +5295,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     
     // Mark custom pricing controls as untouched if applicable
     if (this.showCustomPricing) {
+      this.customServiceName.markAsUntouched();
       this.customAmount.markAsUntouched();
       this.customCleaners.markAsUntouched();
       this.customDuration.markAsUntouched();
