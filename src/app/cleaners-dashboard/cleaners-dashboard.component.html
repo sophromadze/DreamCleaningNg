@@ -272,6 +272,24 @@
         </section>
 
         <section class="orders-section">
+          <div *ngIf="upcomingOrders.length > 0" class="upcoming-section">
+            <h4>Upcoming / Active ({{ upcomingOrders.length }})</h4>
+            <ul class="upcoming-list">
+              <li *ngFor="let order of upcomingOrders; trackBy: trackOrder" class="upcoming-row">
+                <a [routerLink]="['/admin']" [queryParams]="{ orderId: order.orderId }">#{{ order.orderId }}</a>
+                <span class="job-date-time">
+                  {{ order.serviceDate | date:'MMM d, y' }} · {{ formatServiceTime(order.serviceTime) }}
+                </span>
+                <span>{{ order.serviceTypeName || '—' }}</span>
+                <span class="status">{{ order.status }}</span>
+                <span class="mail-state">
+                  <ng-container *ngIf="order.assignmentNotificationSentAt; else pending">✉ Sent</ng-container>
+                  <ng-template #pending>⏳ Pending email</ng-template>
+                </span>
+              </li>
+            </ul>
+          </div>
+
           <div class="jobs-header">
             <h3>Jobs Completed</h3>
             <div class="jobs-stats">
@@ -320,24 +338,6 @@
             </li>
             <li *ngIf="completedOrders.length === 0" class="empty-state">No completed jobs yet.</li>
           </ul>
-
-          <div *ngIf="upcomingOrders.length > 0" class="upcoming-section">
-            <h4>Upcoming / Active ({{ upcomingOrders.length }})</h4>
-            <ul class="upcoming-list">
-              <li *ngFor="let order of upcomingOrders; trackBy: trackOrder" class="upcoming-row">
-                <a [routerLink]="['/admin']" [queryParams]="{ orderId: order.orderId }">#{{ order.orderId }}</a>
-                <span class="job-date-time">
-                  {{ order.serviceDate | date:'MMM d, y' }} · {{ formatServiceTime(order.serviceTime) }}
-                </span>
-                <span>{{ order.serviceTypeName || '—' }}</span>
-                <span class="status">{{ order.status }}</span>
-                <span class="mail-state">
-                  <ng-container *ngIf="order.assignmentNotificationSentAt; else pending">✉ Sent</ng-container>
-                  <ng-template #pending>⏳ Pending email</ng-template>
-                </span>
-              </li>
-            </ul>
-          </div>
         </section>
       </ng-container>
     </aside>

@@ -18,6 +18,9 @@ import type { Feature, FeatureCollection } from 'geojson';
 import {
   getZipToNeighborhood,
   getAllZipsForBorough,
+  findBoroughForZip,
+  ALL_SERVICE_ZIPS,
+  BOROUGH_LABELS,
   type BoroughType,
 } from '../data/zip-code-data';
 import { ThemeService } from '../services/theme.service';
@@ -79,6 +82,8 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
   private zipToLayer = new Map<string, import('leaflet').Layer>();
   private zipToNeighborhood: Record<string, string> = {};
   private boroughZips: string[] = [];
+  /** Every NYC feature from the GeoJSON, so a serviced ZIP outside this borough can be added on demand. */
+  private allFeatures: Feature[] = [];
   private L: typeof import('leaflet') | null = null;
 
   ngAfterViewInit(): void {
@@ -360,6 +365,7 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
       this.L = L;
       const boroughZipSet = new Set(this.boroughZips);
       const rawFeatures = Array.isArray(geojson?.features) ? geojson.features : [];
+      this.allFeatures = rawFeatures;
       const filtered = rawFeatures.filter((f: Feature) => {
         const zip = this.getZipFromFeature((f.properties || {}) as Record<string, unknown>);
         return zip != null && boroughZipSet.has(zip);
@@ -394,7 +400,7 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
           const zip = this.getZipFromFeature((feature.properties || {}) as Record<string, unknown>);
           if (zip) this.zipToLayer.set(zip, layer);
 
-          const neighborhood = this.zipToNeighborhood[zip || ''] || '';
+          const neighborhood = this.neighborhoodFor(zip || '');
           const label = zip ? `${zip}${neighborhood ? ` — ${neighborhood}` : ''}` : '';
 
           layer.bindTooltip(label, {
@@ -411,16 +417,12 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
         },
       }).addTo(this.map);
 
-      for (const feature of validFeatures) {
-        try {
-          this.geoJsonLayer!.addData(feature as any);
-        } catch (err) {
-          const zip = this.getZipFromFeature((feature.properties || {}) as Record<string, unknown>);
-          console.warn(`[ServiceAreaMap] Skipping feature with bad geometry — ZIP: ${zip}`, err);
-        }
-      }
+      this.addFeaturesToLayer(validFeatures);
 
       // A search fired before the (lazy) map finished loading — apply it now.
+      if (this.pendingFlyZip) {
+        this.ensureZipOnMap(this.pendingFlyZip);
+      }
       if (this.highlightedZipCode) this.reapplyStyles();
       if (this.pendingFlyZip) {
         this.flyToZip(this.pendingFlyZip);
@@ -430,6 +432,42 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
 
       this.cdr.markForCheck();
     });
+  }
+
+  private addFeaturesToLayer(features: Feature[]): void {
+    for (const feature of features) {
+      try {
+        this.geoJsonLayer!.addData(feature as any);
+      } catch (err) {
+        const zip = this.getZipFromFeature((feature.properties || {}) as Record<string, unknown>);
+        console.warn(`[ServiceAreaMap] Skipping feature with bad geometry — ZIP: ${zip}`, err);
+      }
+    }
+  }
+
+  /**
+   * Draw a ZIP that isn't part of this page's borough (the map only loads its own borough).
+   * Lets a Brooklyn ZIP searched on the Manhattan page still be highlighted and flown to.
+   */
+  private ensureZipOnMap(zip: string): void {
+    if (!this.geoJsonLayer || this.zipToLayer.has(zip)) return;
+    const matching = this.allFeatures.filter(
+      (f) => this.getZipFromFeature((f.properties || {}) as Record<string, unknown>) === zip
+    );
+    if (matching.length === 0) return;
+    const picked = this.pickFeaturesPerZip(matching);
+    const filteredParts = picked.map((f) => this.maybeFilterSmallPolygonParts(f));
+    const expanded = this.expandMultiPolygonToPolygons(filteredParts);
+    this.addFeaturesToLayer(expanded.filter((f) => this.hasValidGeometry(f)));
+  }
+
+  private neighborhoodFor(zip: string): string {
+    return this.zipToNeighborhood[zip] || ALL_SERVICE_ZIPS[zip] || '';
+  }
+
+  /** Serviced = in this page's list, or a ZIP from another borough we cover (added on demand by search). */
+  private isServiceZip(zip: string, serviceSet: Set<string>): boolean {
+    return serviceSet.has(zip) || (!this.boroughZips.includes(zip) && zip in ALL_SERVICE_ZIPS);
   }
 
   private getTileUrl(): string {
@@ -458,7 +496,7 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
       return { fillColor: '#555', color: '#666', weight: 1, opacity: 0.5, fillOpacity: 0.15 };
     }
     const zip = this.getZipFromFeature((feature.properties || {}) as Record<string, unknown>);
-    const isService = zip != null && serviceSet.has(zip);
+    const isService = zip != null && this.isServiceZip(zip, serviceSet);
     const isHighlighted = zip === this.highlightedZipCode;
 
     if (isHighlighted) {
@@ -492,7 +530,7 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
     if (!this.geoJsonLayer) return;
     const serviceSet = new Set(this.serviceZipCodes);
     this.zipToLayer.forEach((layer, zip) => {
-      const isService = serviceSet.has(zip);
+      const isService = this.isServiceZip(zip, serviceSet);
       const isHighlighted = zip === this.highlightedZipCode;
       const opts: import('leaflet').PathOptions = isHighlighted
         ? { fillColor: '#4ade80', color: '#4ade80', weight: 2, opacity: 0.8, fillOpacity: 0.5 }
@@ -533,27 +571,27 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    if (!this.boroughZips.includes(raw)) {
+    // Coverage is company-wide: a ZIP from any borough we service counts here, not just this page's.
+    const borough = findBoroughForZip(raw);
+    if (!borough) {
       this.searchMessage = `Sorry, we don't currently service ${raw}. Contact us to request service in your area.`;
       this.searchSuccess = false;
       this.cdr.markForCheck();
       return;
     }
 
-    const neighborhood = this.zipToNeighborhood[raw] || '';
-    const isServiced = this.serviceZipCodes.includes(raw);
+    const neighborhood = this.neighborhoodFor(raw);
+    // Name the borough when it isn't this page's, so the answer doesn't look like a mistake.
+    const where = [neighborhood, borough === this.borough ? '' : BOROUGH_LABELS[borough]]
+      .filter(Boolean)
+      .join(', ');
 
-    if (isServiced) {
-      this.searchMessage = `Great news! We service ${raw} — ${neighborhood}! Book your cleaning today.`;
-      this.searchSuccess = true;
-      this.highlightedZipCode = raw;
-      this.reapplyStyles();
-      this.flyToZip(raw);
-    } else {
-      this.searchMessage = `Sorry, we don't currently service ${raw}. Contact us to request service in your area.`;
-      this.searchSuccess = false;
-      this.flyToZip(raw);
-    }
+    this.searchMessage = `Great news! We service ${raw}${where ? ` — ${where}` : ''}! Book your cleaning today.`;
+    this.searchSuccess = true;
+    this.highlightedZipCode = raw;
+    this.ensureZipOnMap(raw);
+    this.reapplyStyles();
+    this.flyToZip(raw);
     this.cdr.markForCheck();
   }
 

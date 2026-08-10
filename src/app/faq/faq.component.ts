@@ -1,7 +1,13 @@
 import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser, DOCUMENT } from '@angular/common';
+import { Subscription } from 'rxjs';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
 import { SERVICE_PRICING } from '../shared/service-pricing.data';
+import { BookingService, ExtraService } from '../services/booking.service';
+
+/** Extra-service names (lowercased, substring match) whose live DB price the FAQ quotes. */
+const SUPPLIES_EXTRA_NAME = 'cleaning supplies';
+const VACUUM_EXTRA_NAME = 'vacuum cleaner';
 
 @Component({
   selector: 'app-faq',
@@ -13,24 +19,79 @@ import { SERVICE_PRICING } from '../shared/service-pricing.data';
 export class FaqComponent implements OnInit, OnDestroy {
   openItems: Set<number> = new Set();
   readonly pricing = SERVICE_PRICING;
+
+  /** Live prices for the "Cleaning Supplies" / "Vacuum Cleaner" extras (from the DB catalog). */
+  suppliesPrice: number | null = null;
+  vacuumPrice: number | null = null;
+  extraPricesLoaded = false;
+
   private schemaElement: HTMLScriptElement | null = null;
+  private extrasSub?: Subscription;
 
   constructor(
     @Inject(PLATFORM_ID) private platformId: Object,
-    @Inject(DOCUMENT) private document: Document
+    @Inject(DOCUMENT) private document: Document,
+    private bookingService: BookingService
   ) { }
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
       window.scrollTo(0, 0);
     }
-    this.injectFaqSchema();
+    // The schema is injected only once the extra prices resolve, so the JSON-LD answer
+    // always matches the visible answer.
+    this.loadExtraPrices();
   }
 
   ngOnDestroy(): void {
+    this.extrasSub?.unsubscribe();
     if (this.schemaElement && this.schemaElement.parentNode) {
       this.schemaElement.parentNode.removeChild(this.schemaElement);
     }
+  }
+
+  /** True once both extras resolved to a real price — otherwise the copy drops the amounts. */
+  get hasExtraPrices(): boolean {
+    return this.suppliesPrice !== null && this.vacuumPrice !== null;
+  }
+
+  get suppliesPriceLabel(): string {
+    return this.formatPrice(this.suppliesPrice);
+  }
+
+  get vacuumPriceLabel(): string {
+    return this.formatPrice(this.vacuumPrice);
+  }
+
+  private formatPrice(price: number | null): string {
+    if (price === null) return '';
+    return Number.isInteger(price) ? `$${price}` : `$${price.toFixed(2)}`;
+  }
+
+  private loadExtraPrices(): void {
+    this.extrasSub = this.bookingService.getServiceTypes().subscribe({
+      next: (serviceTypes) => {
+        const extras = (serviceTypes ?? []).flatMap((st) => st.extraServices ?? []);
+        this.suppliesPrice = this.findExtraPrice(extras, SUPPLIES_EXTRA_NAME);
+        this.vacuumPrice = this.findExtraPrice(extras, VACUUM_EXTRA_NAME);
+        this.extraPricesLoaded = true;
+        this.injectFaqSchema();
+      },
+      error: () => {
+        // Backend unreachable (e.g. during the build-time prerender pass) — render the
+        // answer without amounts rather than quoting a stale hardcoded price.
+        this.extraPricesLoaded = true;
+        this.injectFaqSchema();
+      }
+    });
+  }
+
+  private findExtraPrice(extras: ExtraService[], nameFragment: string): number | null {
+    const matches = extras.filter((es) => (es?.name ?? '').toLowerCase().includes(nameFragment));
+    // Supplies/vacuum are universal extras; if a service-type-specific copy exists too,
+    // the universal one is the price the FAQ should quote.
+    const match = matches.find((es) => es.isAvailableForAll) ?? matches[0];
+    return match && match.price != null ? match.price : null;
   }
 
   toggleItem(index: number): void {
@@ -72,7 +133,9 @@ export class FaqComponent implements OnInit, OnDestroy {
           'name': 'Do you bring your own cleaning supplies?',
           'acceptedAnswer': {
             '@type': 'Answer',
-            'text': 'Dream Cleaning can bring cleaning solutions for $35 and a vacuum for $100. Please let us know in advance which supplies you may need.'
+            'text': this.hasExtraPrices
+              ? `Dream Cleaning can bring cleaning solutions for ${this.suppliesPriceLabel} and a vacuum for ${this.vacuumPriceLabel}. Please let us know in advance which supplies you may need.`
+              : 'Dream Cleaning can bring cleaning solutions and a vacuum on request. Please let us know in advance which supplies you may need.'
           }
         },
         {
@@ -206,7 +269,16 @@ export class FaqComponent implements OnInit, OnDestroy {
       ]
     };
 
+    // Drop any earlier copy first — hydration re-runs this after the prerendered
+    // markup already carried one, and two FAQPage blocks would disagree once the
+    // client resolves live prices.
+    const existing = this.document.head.querySelector('script#faq-schema');
+    if (existing?.parentNode) {
+      existing.parentNode.removeChild(existing);
+    }
+
     this.schemaElement = this.document.createElement('script');
+    this.schemaElement.id = 'faq-schema';
     this.schemaElement.type = 'application/ld+json';
     this.schemaElement.textContent = JSON.stringify(schema);
     this.document.head.appendChild(this.schemaElement);

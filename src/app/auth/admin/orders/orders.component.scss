@@ -3825,6 +3825,19 @@ $order-header-mobile: 60px;
           &:disabled { background: var(--text-muted); border-color: var(--text-muted); }
         }
 
+        // Re-send of the confirmation with the order's current details — brand blue, since it's
+        // an informational customer notification rather than a money action.
+        &.resend-confirmation {
+          background: var(--btn-primary);
+          color: #fff;
+          border-color: transparent;
+          &:hover:not(:disabled) {
+            background: var(--btn-primary-hover);
+            box-shadow: var(--btn-primary-shadow-hover);
+          }
+          &:disabled { background: var(--text-muted); }
+        }
+
         // Explicit saved-card charge — green (money-in secondary CTA family).
         &.charge-saved-card {
           background: var(--btn-secondary);

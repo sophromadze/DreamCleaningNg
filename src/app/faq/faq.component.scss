@@ -275,3 +275,17 @@
     }
   }
 }
+
+// Inline price pulled from the extra-services catalog. Empty while loading, so the
+// shimmer placeholder needs its own box (shimmer the VALUE, not the sentence).
+.faq-price {
+  font-weight: var(--fw-semibold);
+
+  &.shimmer-loading {
+    display: inline-block;
+    width: 3rem;
+    height: 1em;
+    vertical-align: text-bottom;
+    border-radius: var(--radius-sm);
+  }
+}

@@ -492,6 +492,18 @@
                             title="Re-send the payment link to the customer's current account email/phone">
                       {{ loadingStates.sendPaymentLink ? 'Sending…' : 'Send Payment Link' }}
                     </button>
+                    <!-- Re-send the booking confirmation with the order's CURRENT details. The
+                         template reads live order values, so after a reschedule this is the
+                         customer's corrected confirmation. Manual by design — admins edit orders
+                         for internal reasons that shouldn't generate customer mail. -->
+                    <button *ngIf="selectedOrder.status !== 'Cancelled'"
+                            type="button"
+                            class="action-btn resend-confirmation"
+                            (click)="resendConfirmation()"
+                            [disabled]="loadingStates.resendingConfirmation"
+                            title="Email and text the customer an updated confirmation showing this order's current date, time and address">
+                      {{ loadingStates.resendingConfirmation ? 'Sending…' : 'Send Updated Confirmation' }}
+                    </button>
                     <!-- Explicit charge of the owner's card on file (unpaid orders only).
                          Fires ONLY on this click — nothing is ever charged automatically. -->
                     <button *ngIf="canChargeSavedCard() && (isSuperAdmin || userPermissions.permissions.canUpdate)"
@@ -579,7 +591,11 @@
                         <div class="edit-row"><label>SubTotal</label><input type="number" step="1" [(ngModel)]="editOrderForm.subTotal" (ngModelChange)="recalculateEditPricing()"></div>
                         <div class="edit-row"><label>Tax</label><input type="number" step="1" [(ngModel)]="editOrderForm.tax" readonly></div>
                         <div class="edit-row"><label>Tips</label><input type="number" step="1" [(ngModel)]="editOrderForm.tips" (ngModelChange)="recalculateEditPricing()"></div>
-                        <div class="edit-row"><label>Company Tips</label><input type="number" step="1" [(ngModel)]="editOrderForm.companyDevelopmentTips" (ngModelChange)="recalculateEditPricing()"></div>
+                        <!-- Company Tips is HIDDEN (no longer offered to customers). The field is
+                             deliberately left out of the form only — editOrderForm.companyDevelopmentTips
+                             is still loaded from the order, still feeds recalculateEditPricing() and is
+                             still sent on save, so legacy orders that carry a value keep it untouched. -->
+                        <!-- <div class="edit-row"><label>Company Tips</label><input type="number" step="1" [(ngModel)]="editOrderForm.companyDevelopmentTips" (ngModelChange)="recalculateEditPricing()"></div> -->
                         <div class="edit-row"><label>Discount (promo/special)</label><input type="number" step="1" [(ngModel)]="editOrderForm.discountAmount" (ngModelChange)="recalculateEditPricing()"></div>
                         <div class="edit-row"><label>Subscription Discount</label><input type="number" step="1" [(ngModel)]="editOrderForm.subscriptionDiscountAmount" (ngModelChange)="recalculateEditPricing()"></div>
                         <!-- Loyalty Discount in admin edit: read-only display because the $ amount
@@ -604,9 +620,10 @@
                           <label>Gift Card{{ editGiftCardAvailableBalance > 0 ? ' (bal. $' + (editGiftCardAvailableBalance - editGiftCardAmountToUse).toFixed(2) + ' left)' : '' }}</label>
                           <input type="number" [value]="editGiftCardAmountToUse.toFixed(2)" readonly>
                         </div>
-                        <!-- This is the value PERSISTED on save, which includes tips — unlike the
-                             summary bar's tip-free Total. Labelled so the two don't read as a bug. -->
-                        <div class="edit-row"><label>Total (incl. tips)</label><input type="number" step="1" [(ngModel)]="editOrderForm.total" readonly></div>
+                        <!-- Displayed tip-free so it matches the summary bar's Total. The value
+                             PERSISTED on save is still editOrderForm.total (which includes tips);
+                             this input is a read-only projection of it, not a binding. -->
+                        <div class="edit-row"><label>Total</label><input type="number" step="1" [value]="getSummaryTotalWithoutTips()" readonly></div>
                         <div class="edit-row edit-row--pts-preview" *ngIf="pointsEnabled && editEstimatedPoints > 0">
                           <label>🫧 Est. Points Earned</label>
                           <span class="pts-preview-val">~{{ editEstimatedPoints | number }} pts</span>
@@ -844,12 +861,15 @@
                         </p>
                         <!-- Tips for Cleaners is intentionally NOT shown here — it lives in the
                              summary bar at the top of the panel. -->
-                        <p *ngIf="(selectedOrder.initialTotal > 0 ? selectedOrder.initialCompanyDevelopmentTips :
+                        <!-- Tips for Company is HIDDEN (no longer offered). Markup kept so the row can
+                             be restored; the underlying data is untouched and still excluded from the
+                             tip-free totals below. -->
+                        <!-- <p *ngIf="(selectedOrder.initialTotal > 0 ? selectedOrder.initialCompanyDevelopmentTips :
                                    (orderUpdateHistory && orderUpdateHistory.length > 0 ? orderUpdateHistory[0].originalCompanyDevelopmentTips : 0)) > 0">
                           <strong>Tips for Company:</strong>
                           ${{formatCurrency(selectedOrder.initialTotal > 0 ? selectedOrder.initialCompanyDevelopmentTips :
                                            (orderUpdateHistory && orderUpdateHistory.length > 0 ? orderUpdateHistory[0].originalCompanyDevelopmentTips : 0))}}
-                        </p>
+                        </p> -->
                         <!-- Original subscription discount (derived from discount rate × original subtotal) -->
                         <p *ngIf="getOriginalSubscriptionDiscountAmount() > 0">
                           <strong>Subscription Discount ({{selectedOrder.subscriptionName}}):</strong>
@@ -871,9 +891,12 @@
                         <p><strong>Tax:</strong> ${{formatCurrency(selectedOrder.tax)}}</p>
                         <!-- Tips for Cleaners is intentionally NOT shown here — it lives in the
                              summary bar at the top of the panel. -->
-                        <p *ngIf="selectedOrder.companyDevelopmentTips > 0">
+                        <!-- Tips for Company is HIDDEN (no longer offered). Markup kept so the row can
+                             be restored; the underlying data is untouched and still excluded from the
+                             tip-free total below. -->
+                        <!-- <p *ngIf="selectedOrder.companyDevelopmentTips > 0">
                           <strong>Tips for Company:</strong> ${{formatCurrency(selectedOrder.companyDevelopmentTips)}}
-                        </p>
+                        </p> -->
 
                         <!-- Subscription Discount -->
                         <p *ngIf="selectedOrder.subscriptionDiscountAmount && selectedOrder.subscriptionDiscountAmount > 0">

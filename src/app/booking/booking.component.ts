@@ -60,6 +60,10 @@ import {
   QuoteInput
 } from '../shared/pricing/order-pricing.calculator';
 import { buildCustomServiceTypeNameOptions } from '../shared/booking/custom-service-type.util';
+import {
+  BookingDiagnosticsSnapshot,
+  logBookingBlockers
+} from '../shared/booking/booking-blockers.diagnostics';
 
 interface SelectedService {
   service: Service;
@@ -373,6 +377,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   isAdminMode = false;
   // Search box UI lives in AdminUserSearchComponent; the page owns the selection.
   selectedTargetUser: UserAdmin | null = null;
+  /** True after an admin-mode / target-user change wiped applied discounts, so the admin is told to re-apply. */
+  discountsClearedForAccountSwitch = false;
 
   // Phase 1 manual payment tracking — admin-only. Reset to defaults whenever admin mode is
   // toggled off or the target user changes so a previous selection doesn't leak across users.
@@ -641,6 +647,9 @@ export class BookingComponent implements OnInit, OnDestroy {
     
     // Setup click outside handler for dropdown
     this.setupDropdownClickOutside();
+
+    // Expose window.bookingWhyDisabled() for on-demand "why is the button grey?" checks
+    this.registerBookingDiagnosticsHelper();
   }
 
   ngOnDestroy() {
@@ -652,6 +661,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (this.isBrowser) {
       window.removeEventListener('resize', this.resizeHandler);
       window.removeEventListener('scroll', this.summaryScrollCloseHandler);
+      delete (window as any).bookingWhyDisabled;
     }
     if (this.addressFallbackTimer) {
       clearTimeout(this.addressFallbackTimer);
@@ -2270,6 +2280,8 @@ export class BookingComponent implements OnInit, OnDestroy {
             this.promoCode.setValue(code, { emitEvent: false });
           }
 
+          this.discountsClearedForAccountSwitch = false;
+
           if (validation.isGiftCard) {
             // Handle gift card
             this.isGiftCard = true;
@@ -2791,7 +2803,79 @@ export class BookingComponent implements OnInit, OnDestroy {
            this.termsConsent.value === true;
   }
 
+  /**
+   * Builds the read-only snapshot the blocker diagnostics work from.
+   * Kept next to isFormValid()/isStepNValid() so the two stay in sync.
+   */
+  private buildBookingDiagnosticsSnapshot(
+    trigger: BookingDiagnosticsSnapshot['trigger']
+  ): BookingDiagnosticsSnapshot {
+    return {
+      trigger,
+      currentStep: this.currentStep,
+      bookingForm: this.bookingForm,
+      serviceTypeControl: this.serviceTypeControl,
+      customPricingControls: this.showCustomPricing
+        ? {
+            customServiceName: this.customServiceName,
+            customAmount: this.customAmount,
+            customCleaners: this.customCleaners,
+            customDuration: this.customDuration
+          }
+        : null,
+      selectedServiceType: this.selectedServiceType,
+      selectedSubscription: this.selectedSubscription,
+      showPollForm: this.showPollForm,
+      showCustomPricing: this.showCustomPricing,
+      pollQuestions: this.pollQuestions,
+      pollAnswers: this.pollAnswers,
+      isAdminMode: this.isAdminMode,
+      selectedTargetUser: this.selectedTargetUser,
+      sameDayFullyBooked: this.isSameDaySelected && this.isSameDayFullyBooked(),
+      dateTimeBlocked: this.isSelectedDateTimeBlocked(),
+      minTipAmount: this.minTipAmount,
+      minCompanyTipAmount: this.minCompanyTipAmount,
+      gates: {
+        isFormValid: this.isFormValid(),
+        canProceedToNextStep: this.canProceedToNextStep(),
+        isStep1Valid: this.isStep1Valid(),
+        isStep2Valid: this.isStep2Valid(),
+        isStep3Valid: this.isStep3Valid()
+      }
+    };
+  }
+
+  /**
+   * Console explanation of why Book Now / Continue is greyed out. Fires automatically when an
+   * admin clicks a button the gate has disabled — admins kept reporting "everything is filled
+   * in and it still won't submit", which is usually a required control no step renders
+   * (see booking-blockers.diagnostics.ts). Customers never see this log.
+   */
+  private logWhyButtonDisabled(trigger: BookingDiagnosticsSnapshot['trigger']): void {
+    if (!this.isBrowser || !this.isAdmin) return;
+    logBookingBlockers(this.buildBookingDiagnosticsSnapshot(trigger));
+  }
+
+  /**
+   * Registers window.bookingWhyDisabled() so the reasons can be printed at any time without
+   * having to click the disabled button first. Available to anyone who types it deliberately.
+   */
+  private registerBookingDiagnosticsHelper(): void {
+    if (!this.isBrowser) return;
+    (window as any).bookingWhyDisabled = () => {
+      logBookingBlockers(
+        this.buildBookingDiagnosticsSnapshot(
+          this.currentStep === 3 || this.showPollForm ? 'Book Now' : 'Continue'
+        )
+      );
+    };
+  }
+
   onSubmit() {
+    if (!this.isFormValid()) {
+      this.logWhyButtonDisabled(this.showPollForm ? 'Send for Quote' : 'Book Now');
+    }
+
     if (this.showPollForm) {
       this.submitPollForm();
       return;
@@ -3443,7 +3527,56 @@ export class BookingComponent implements OnInit, OnDestroy {
     }
   }
 
+  /**
+   * Discounts are ACCOUNT-scoped, so they cannot survive a change of order owner.
+   * A special offer is a `UserSpecialOffer` row belonging to one account, a gift card was
+   * balance-checked for one account, and promo/loyalty stacking is resolved against the order
+   * owner. Toggling admin mode or picking/changing the target user changes that owner, so every
+   * applied discount is dropped and the admin re-applies from the new account's own list.
+   *
+   * Without this, the summary keeps rendering the previous account's discount AND the payload
+   * still carries its ids — `BookingCreationService.ResolveDiscountsAsync` then rejects the
+   * order with "The selected special offer is not available on this account."
+   */
+  private clearAppliedDiscountsForAccountSwitch() {
+    const hadDiscount = this.specialOfferApplied || this.promoCodeApplied || this.giftCardApplied
+      || this.firstTimeDiscountApplied || this.selectedPointsToRedeem > 0 || this.useCredits;
+
+    // Special offer (+ the legacy first-time marker it also sets)
+    this.selectedSpecialOffer = null;
+    this.specialOfferApplied = false;
+    this.firstTimeDiscountApplied = false;
+
+    // Promo code
+    this.promoCodeApplied = false;
+    this.promoDiscount = 0;
+    this.promoIsPercentage = true;
+
+    // Gift card
+    this.giftCardApplied = false;
+    this.isGiftCard = false;
+    this.giftCardBalance = 0;
+    this.giftCardAmountToUse = 0;
+
+    // Bubble points / credits are balances on the previous account too
+    this.selectedPointsToRedeem = 0;
+    this.pointsDiscountAmount = 0;
+    this.useCredits = false;
+
+    // Re-enable the promo input first (it is disabled while a special offer is applied),
+    // then blank it — setting a disabled control would leave a stale value behind.
+    this.updatePromoCodeDisabledState();
+    this.promoCode.setValue('', { emitEvent: false });
+
+    this.errorMessage = '';
+    this.discountsClearedForAccountSwitch = hadDiscount;
+    this.calculateTotal();
+    this.cdr.markForCheck();
+  }
+
   toggleAdminMode() {
+    // Admin mode changes who the order belongs to — drop discounts before anything else.
+    this.clearAppliedDiscountsForAccountSwitch();
     this.isAdminMode = !this.isAdminMode;
     // (User search/list loading is owned by AdminUserSearchComponent, which
     // initializes itself when admin mode renders it.)
@@ -3477,10 +3610,21 @@ export class BookingComponent implements OnInit, OnDestroy {
       // Reload admin's own previous orders
       this.previousOrders = [];
       this.loadOrders();
+
+      // The offer list on screen belongs to the customer that was selected — swap it back to
+      // the admin's own offers/points so nothing from that account stays clickable.
+      this.loadSpecialOffers();
+      this.bubblePointsOptions = [];
+      if (this.isBrowser) this.loadBubblePointsOptions();
     }
   }
 
   selectUser(user: UserAdmin) {
+    // Picking (or switching) a customer changes the order owner: every discount applied so far
+    // belongs to the admin (or the previously selected customer) and must be re-applied from
+    // this user's own offers.
+    this.clearAppliedDiscountsForAccountSwitch();
+
     this.selectedTargetUser = user;
 
     // Store admin's original apartments before loading user's apartments
@@ -3579,6 +3723,10 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   clearSelectedUser() {
+    // Order owner reverts to the admin — drop the customer's discounts (see
+    // clearAppliedDiscountsForAccountSwitch).
+    this.clearAppliedDiscountsForAccountSwitch();
+
     this.selectedTargetUser = null;
     this.resetAdminPaymentFields();
 
@@ -3826,7 +3974,8 @@ export class BookingComponent implements OnInit, OnDestroy {
 
     // Clear any previous error
     this.errorMessage = '';
-  
+    this.discountsClearedForAccountSwitch = false;
+
     // Apply the special offer
     this.selectedSpecialOffer = offer;
     this.specialOfferApplied = true;
@@ -5120,7 +5269,8 @@ export class BookingComponent implements OnInit, OnDestroy {
       }
       this.nextStep();
     } else {
-      // If step is invalid, scroll to first error in current step
+      // If step is invalid, log why (admins only) and scroll to first error in current step
+      this.logWhyButtonDisabled('Continue');
       this.scrollToFirstErrorInCurrentStep();
     }
   }

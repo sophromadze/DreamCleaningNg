@@ -1484,6 +1484,14 @@ export class AdminService {
     );
   }
 
+  // Re-send the booking confirmation (email + SMS) with the order's CURRENT date/time/address.
+  // Used when an admin reschedules an order and the customer asks for an updated confirmation.
+  resendConfirmation(orderId: number): Observable<{ message: string; emailSent: boolean; smsSent: boolean }> {
+    return this.http.post<{ message: string; emailSent: boolean; smsSent: boolean }>(
+      `${this.apiUrl}/orders/${orderId}/resend-confirmation`, {}
+    );
+  }
+
   /** Send payment reminder (email + SMS) for unpaid additional payment. */
   sendPaymentReminder(orderId: number): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiUrl}/orders/${orderId}/send-payment-reminder`, {});

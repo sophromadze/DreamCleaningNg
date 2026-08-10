@@ -73,7 +73,8 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     { value: 'Subscription', label: 'Subscriptions' },
     { value: 'PromoCode', label: 'Promo Codes' },
     { value: 'GiftCard', label: 'Gift Cards' },
-    { value: 'UserLoyaltyDiscount', label: 'Loyalty Discount' }
+    { value: 'UserLoyaltyDiscount', label: 'Loyalty Discount' },
+    { value: 'OrderNotification', label: 'Order Notifications' }
   ];
 
   constructor(private adminService: AdminService) {}

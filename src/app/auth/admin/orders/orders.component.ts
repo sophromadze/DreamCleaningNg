@@ -239,7 +239,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     removingCleaner: false,
     sendAssignmentMails: false,
     sendPaymentLink: false,
-    chargingSavedCard: false
+    chargingSavedCard: false,
+    resendingConfirmation: false
   };
 
   // Card on file for the open order's owner (Charge button). Loaded when the details
@@ -2500,6 +2501,35 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  // Re-send the booking confirmation with the order's CURRENT date/time/address — the flow for
+  // "please send me an updated confirmation" after an admin reschedules. Confirmed first because
+  // it puts real mail in the customer's inbox; the date is spelled out so a wrong order can't be
+  // notified silently.
+  resendConfirmation() {
+    if (!this.selectedOrder || this.loadingStates.resendingConfirmation) return;
+    const order = this.selectedOrder;
+
+    const when = `${this.formatDate(order.serviceDate)} at ${order.serviceTime}`;
+    if (!confirm(`Email and text the customer an updated confirmation for order #${order.id} — ${when}?`)) return;
+
+    this.loadingStates.resendingConfirmation = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    this.adminService.resendConfirmation(order.id).subscribe({
+      next: (res) => {
+        this.successMessage = res?.message || 'Updated confirmation sent.';
+        this.clearMessagesAfterDelay();
+      },
+      error: (err) => {
+        this.errorMessage = err.error?.message || 'Failed to send the updated confirmation.';
+      },
+      complete: () => {
+        this.loadingStates.resendingConfirmation = false;
+      }
+    });
+  }
+
   openSendPaymentLinkModal() {
     if (!this.selectedOrder) return;
     // Reset to both channels checked each time the modal opens.
@@ -2661,7 +2691,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   reactivateOrder(order: AdminOrderList) {
     const previousStatus = order.status;
-    const newStatus = order.isPaid ? 'Active' : 'Pending';
+    // Pending means "waiting on a Stripe payment". A manual-payment order (Cash/Zelle/Check/
+    // Other) is never waiting on one — it is settled on site — so it goes back to Active even
+    // with IsPaid=false. Mirrors how such orders are CREATED in BookingController
+    // (initialStatus = paymentMethod == Normal ? "Pending" : "Active").
+    const manualPayment = !!order.paymentMethod && order.paymentMethod !== 'Normal';
+    const newStatus = (order.isPaid || manualPayment) ? 'Active' : 'Pending';
     if (confirm(`Are you sure you want to reactivate order #${order.id} from ${previousStatus} status?`)) {
       this.updateOrderStatus(order, newStatus);
     }
@@ -3054,6 +3089,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     normalized = normalized.replace(/\bin out\b/g, 'in/out');
     normalized = normalized.replace(/\bheavy condition(al)?\b/g, 'heavy');
     normalized = normalized.replace(/\bpre arranged\b/g, 'arranged');
+    normalized = normalized.replace(/\bpost construction\b/g, 'construction');
 
     if (!normalized) return 'N/A';
 
@@ -3399,6 +3435,21 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       return Math.round((Number(this.editOrderForm?.totalDuration) || 0) / 60 * 10) / 10;
     }
     return 0;
+  }
+
+  /**
+   * Hours to price a cleaner line with when the order carries no hours row — which is always,
+   * since hours lines are folded into the cleaner line and never persisted. The edit form's
+   * totalDuration is the live value here: it is per-cleaner minutes for cleaner+hours service
+   * types, and onEditServiceHoursChange writes hours x 60 into it whenever the admin edits Hours.
+   *
+   * Orders that are not cleaner+hours also return a value here; the adapter discards it, because
+   * it only ever synthesises an hours line for a quote that already contains a cleaner line.
+   */
+  private getEditFallbackHours(): number {
+    if (this.getEditHoursRowIndex() >= 0) return 0; // a real hours row is already in the quote
+    const minutes = Number(this.editOrderForm?.totalDuration) || 0;
+    return minutes > 0 ? minutes / 60 : 0;
   }
 
   /** Index of the 'hours' service row for the current order's service type, or -1. */
@@ -3849,12 +3900,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * returns before the services loop and before the minimum-price floor — so falling back to the
    * row sum there mirrors the calculator rather than diverging from it.
    *
-   * Cleaner+hours orders DO get a quote. Their rows are not rewritten from it (see
-   * recalcSubtotalFromServicesAndExtras) because the calculator folds the hours line into the
-   * cleaner line, but the SUBTOTAL comes from the quote so a threshold/tier-configured service on
-   * such a service type can never be priced linearly. Nothing structurally prevents an admin from
-   * adding one — Service.ServiceTypeId is a plain FK — so this closes the exposure rather than
-   * leaving it contingent on configuration.
+   * Cleaner+hours orders DO get a quote, and getEditFallbackHours() supplies the hours the order
+   * never persisted so their cleaner line is actually priced. Without it the calculator's cleaner
+   * branch found no paired hours line, left that line at $0, and the subtotal collapsed to the
+   * extras alone (order #305: $345 -> $165) — a number SuperAdminFullUpdateOrder then persists
+   * verbatim.
    */
   private buildEditQuote(): { quote: QuoteResult; serviceRowIndices: number[]; extraRowIndices: number[] } | null {
     if (this.isCustomModeOrder()) return null;
@@ -3869,7 +3919,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       })),
       (this.editOrderForm.extraServices ?? []).map((row, index) => ({
         row, definition: this.getEditExtraDefinition(row, index)
-      }))
+      })),
+      this.getEditFallbackHours()
     );
     if (!built) return null;
 
@@ -3884,19 +3935,21 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const built = this.buildEditQuote();
 
     if (built) {
-      // Per-line costs come from the tiered calculation. Skipped for cleaner+hours orders only:
-      // there the calculator folds the hours line into the cleaner line, so writing back would
-      // blank a row the admin is looking at. Their rows keep the existing per-row math.
-      if (!this.isCleanerHoursOrder()) {
-        built.quote.serviceLines.forEach((line, i) => {
-          const row = this.editOrderForm.services?.[built.serviceRowIndices[i]];
-          if (row) row.cost = round2(line.cost);
-        });
-        built.quote.extraServiceLines.forEach((line, i) => {
-          const row = this.editOrderForm.extraServices?.[built.extraRowIndices[i]];
-          if (row) row.cost = round2(line.cost);
-        });
-      }
+      // Per-line costs come from the tiered calculation. Two lines are deliberately not written
+      // back: an hours line (shouldAddToOrder = false — its cost is folded into the cleaner line,
+      // so writing it back would blank a row the admin is looking at) and the synthetic hours line
+      // buildAdminEditQuoteInput appends, which has no originating row at all.
+      built.quote.serviceLines.forEach((line, i) => {
+        if (!line.shouldAddToOrder) return;
+        const rowIndex = built.serviceRowIndices[i];
+        if (rowIndex == null) return;
+        const row = this.editOrderForm.services?.[rowIndex];
+        if (row) row.cost = round2(line.cost);
+      });
+      built.quote.extraServiceLines.forEach((line, i) => {
+        const row = this.editOrderForm.extraServices?.[built.extraRowIndices[i]];
+        if (row) row.cost = round2(line.cost);
+      });
 
       // The subtotal ALWAYS comes from the quote, including for cleaner+hours, so it carries the
       // MinimumPrice floor and any tiered service cost. This value is what the admin sees AND

@@ -2149,7 +2149,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     }
     if (s.includes('deep')) return 'Deep';
     if (s.includes('regular') || s.includes('standard')) return 'Regular';
-    if (s.includes('post')) return 'Post-construction';
+    if (s.includes('post')) return 'Construction';
 
     return raw
       .replace(/cleaning/gi, '')

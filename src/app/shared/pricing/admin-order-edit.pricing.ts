@@ -49,11 +49,16 @@ const toNumber = (value: number | string | null | undefined): number => Number(v
  * Builds the calculator input plus the index maps needed to write per-line results back onto the
  * originating rows. Returns null when the service type is unknown, in which case the caller must
  * leave the form alone rather than pricing against a partial catalog.
+ *
+ * `fallbackHours` re-supplies the hours of a cleaner+hours order — see the synthetic-line comment
+ * below. Callers pass the form's hours (totalDuration / 60); it is ignored unless the rows contain
+ * a cleaner line with no hours line beside it.
  */
 export function buildAdminEditQuoteInput(
   serviceType: ServiceType | null | undefined,
   serviceRows: ResolvedRow<AdminEditServiceRow, Service>[],
-  extraRows: ResolvedRow<AdminEditExtraRow, ExtraService>[]
+  extraRows: ResolvedRow<AdminEditExtraRow, ExtraService>[],
+  fallbackHours?: number | string | null
 ): AdminEditQuoteInput | null {
   if (!serviceType) return null;
 
@@ -83,9 +88,31 @@ export function buildAdminEditQuoteInput(
     []
   );
 
-  return {
-    input: buildQuoteInputFromSelections(serviceType, selectedServices, selectedExtras),
-    serviceRowIndices,
-    extraRowIndices
-  };
+  const input = buildQuoteInputFromSelections(serviceType, selectedServices, selectedExtras);
+
+  // An hours line is never PERSISTED on an order: the calculator folds it into the cleaner line
+  // (shouldAddToOrder = false) and AddOrderLinesFromQuote skips it. So an edit form built from the
+  // order's own rows holds a cleaner row with no hours row beside it, and the calculator's cleaner
+  // branch — which prices only when a paired hours line is present — would leave that line at $0,
+  // silently collapsing the subtotal to the extras alone. Re-add the hours as a synthetic line,
+  // mirroring OrderPricingInputBuilder.FromUpdateDtoAsync's original-hours fallback on the backend.
+  //
+  // It is appended AFTER the real rows and gets no entry in serviceRowIndices, so the index maps
+  // stay aligned and nothing is written back onto a row that does not exist.
+  const hours = toNumber(fallbackHours);
+  if (
+    hours > 0 &&
+    input.services.some(s => s.serviceRelationType === 'cleaner') &&
+    !input.services.some(s => s.serviceRelationType === 'hours')
+  ) {
+    input.services.push({
+      serviceId: 0,
+      cost: 0,
+      timeDuration: 0,
+      serviceRelationType: 'hours',
+      quantity: hours
+    });
+  }
+
+  return { input, serviceRowIndices, extraRowIndices };
 }

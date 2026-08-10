@@ -132,17 +132,38 @@ export const QUEENS_ZIPS: Record<string, string> = {
 
 export type BoroughType = 'brooklyn' | 'manhattan' | 'queens';
 
+export const BOROUGH_LABELS: Record<BoroughType, string> = {
+  brooklyn: 'Brooklyn',
+  manhattan: 'Manhattan',
+  queens: 'Queens',
+};
+
+const ZIPS_BY_BOROUGH: Record<BoroughType, Record<string, string>> = {
+  brooklyn: BROOKLYN_ZIPS,
+  manhattan: MANHATTAN_ZIPS,
+  queens: QUEENS_ZIPS,
+};
+
+/**
+ * Every ZIP we service, across all boroughs. Coverage is company-wide, not per-page:
+ * a Brooklyn ZIP entered on the Manhattan page is still serviced.
+ */
+export const ALL_SERVICE_ZIPS: Record<string, string> = {
+  ...BROOKLYN_ZIPS,
+  ...MANHATTAN_ZIPS,
+  ...QUEENS_ZIPS,
+};
+
 export function getZipToNeighborhood(borough: BoroughType): Record<string, string> {
-  switch (borough) {
-    case 'brooklyn':
-      return BROOKLYN_ZIPS;
-    case 'manhattan':
-      return MANHATTAN_ZIPS;
-    case 'queens':
-      return QUEENS_ZIPS;
-    default:
-      return {};
+  return ZIPS_BY_BOROUGH[borough] ?? {};
+}
+
+/** Which borough a ZIP belongs to, or null if we don't service it at all. */
+export function findBoroughForZip(zip: string): BoroughType | null {
+  for (const borough of Object.keys(ZIPS_BY_BOROUGH) as BoroughType[]) {
+    if (zip in ZIPS_BY_BOROUGH[borough]) return borough;
   }
+  return null;
 }
 
 /** All ZIP codes we consider valid for each borough (for validation). */

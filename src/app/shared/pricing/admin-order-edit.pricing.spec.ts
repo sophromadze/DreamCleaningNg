@@ -163,6 +163,87 @@ describe('admin order edit pricing', () => {
     expect(buildAdminEditQuoteInput(null, [], [])).toBeNull();
   });
 
+  /**
+   * REGRESSION — order #305 (Heavy Conditional Cleaning, 1 cleaner x 3h @ $60 + $165 of extras).
+   *
+   * Hours lines are never persisted on an order (the calculator folds them into the cleaner line),
+   * so the edit form holds a cleaner row with no hours row. The calculator's cleaner branch prices
+   * only when a paired hours line is present, so it left that line at $0 and the subtotal collapsed
+   * from $345 to $165 — the extras alone — the moment any field was touched. Editing cleaners,
+   * hours or cost then moved nothing, because the cleaner line contributed nothing either way.
+   * SuperAdminFullUpdateOrder persists dto.SubTotal verbatim, so the wrong number was saveable.
+   */
+  describe('cleaner + hours orders (no persisted hours row)', () => {
+    const CLEANERS: Service = {
+      id: 40, name: 'Cleaners', serviceKey: 'cleaners', serviceRelationType: 'cleaner',
+      cost: 60, timeDuration: 0, serviceTypeId: 2, inputType: 'dropdown',
+      isRangeInput: false, isActive: true, thresholds: [], rateTiers: []
+    } as unknown as Service;
+
+    const SUPPLIES: ExtraService = {
+      id: 2, name: 'Cleaning Supplies', price: 35, duration: 0, priceMultiplier: 1,
+      isDeepCleaning: false, isSuperDeepCleaning: false, isSameDayService: false,
+      hasQuantity: true, hasHours: false, isAvailableForAll: true, isActive: true
+    } as ExtraService;
+
+    const VACUUM: ExtraService = {
+      id: 3, name: 'Vacuum Cleaner', price: 130, duration: 0, priceMultiplier: 1,
+      isDeepCleaning: false, isSuperDeepCleaning: false, isSameDayService: false,
+      hasQuantity: true, hasHours: false, isAvailableForAll: true, isActive: true
+    } as ExtraService;
+
+    const HEAVY: ServiceType = {
+      id: 2, name: 'Heavy Conditional Cleaning', basePrice: 0, timeDuration: 0,
+      minimumPrice: 0, services: [CLEANERS], extraServices: [SUPPLIES, VACUUM],
+      isActive: true, hasPoll: false
+    } as unknown as ServiceType;
+
+    const build = (cleaners: number, hours: number) => buildAdminEditQuoteInput(
+      HEAVY,
+      [{ row: { quantity: cleaners }, definition: CLEANERS }],
+      [
+        { row: { quantity: 1, hours: 0 }, definition: SUPPLIES },
+        { row: { quantity: 1, hours: 0 }, definition: VACUUM }
+      ],
+      hours
+    );
+
+    it('prices the cleaner line from the form hours instead of dropping it', () => {
+      const quote = calculateQuote(build(1, 3)!.input);
+
+      expect(quote.subTotal).toBe(345.00); // 1 x 3h x $60 + $35 + $130 — NOT the $165 extras alone
+      expect(quote.serviceLines[0].cost).toBe(180.00);
+      expect(quote.displayDuration).toBe(180);
+      expect(quote.maidsCount).toBe(1);
+    });
+
+    it('moves the subtotal when cleaners or hours change', () => {
+      expect(calculateQuote(build(2, 3)!.input).subTotal).toBe(525.00); // 2 x 3h x $60 + 165
+      expect(calculateQuote(build(1, 4)!.input).subTotal).toBe(405.00); // 1 x 4h x $60 + 165
+      expect(calculateQuote(build(1, 2.5)!.input).subTotal).toBe(315.00); // half-hour steps
+    });
+
+    it('keeps the synthetic hours line out of the row index map', () => {
+      const built = build(1, 3)!;
+
+      expect(built.input.services.length).toBe(2);            // cleaner + synthetic hours
+      expect(built.serviceRowIndices).toEqual([0]);            // only the real row is writable
+      expect(built.input.services[1].serviceRelationType).toBe('hours');
+      expect(calculateQuote(built.input).serviceLines[1].shouldAddToOrder).toBeFalse();
+    });
+
+    it('does not synthesise an hours line for orders without a cleaner service', () => {
+      const built = buildAdminEditQuoteInput(
+        serviceType('Residential Cleaning'),
+        [{ row: { quantity: 2 }, definition: serviceType('Residential Cleaning').services[0] }],
+        [],
+        3
+      );
+
+      expect(built!.input.services.every(s => s.serviceRelationType !== 'hours')).toBeTrue();
+    });
+  });
+
   it('prices the Studio floor for both service types', () => {
     const residential = calculateQuote(buildAdminEditQuoteInput(
       serviceType('Residential Cleaning'),

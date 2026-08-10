@@ -376,6 +376,27 @@
     font-weight: 400;
   }
 
+  // Admin-only: discounts were dropped because the order owner changed.
+  .admin-discount-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    background-color: var(--soft-yellow);
+    color: var(--soft-yellow-text);
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius-md);
+    margin-bottom: 0.5rem;
+    font-family: 'Poppins', sans-serif;
+    font-weight: var(--fw-medium);
+    font-size: 0.9rem;
+    line-height: 1.4;
+
+    i {
+      margin-top: 0.15rem;
+      flex-shrink: 0;
+    }
+  }
+
   .blocked-date-warning {
     background-color: #fee2e2;
     color: #991b1b;

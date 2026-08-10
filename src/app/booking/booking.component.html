@@ -81,6 +81,15 @@
       </div>
     </div>
 
+    <!-- Discounts are account-scoped: switching admin mode / customer clears them. -->
+    <div class="admin-discount-notice" *ngIf="discountsClearedForAccountSwitch">
+      <i class="fas fa-triangle-exclamation"></i>
+      <span>
+        Applied discounts (special offer, promo code, gift card, points) were removed because the
+        customer changed. Re-apply them from this account's own offers.
+      </span>
+    </div>
+
     <div class="error-message" *ngIf="errorMessage">
       {{ errorMessage }}
     </div>

@@ -40,7 +40,16 @@
         </button>
         <div class="faq-answer" [class.open]="isOpen(2)">
           <div class="faq-answer-content">
-            <p>We can bring cleaning solutions for $35 and a vacuum for $100. Please let us know in advance which location(s) may require them.</p>
+            <p *ngIf="hasExtraPrices || !extraPricesLoaded; else supplyAnswerNoPrices">
+              We can bring cleaning solutions for
+              <span class="faq-price" [class.shimmer-loading]="!extraPricesLoaded">{{ suppliesPriceLabel }}</span>
+              and a vacuum for
+              <span class="faq-price" [class.shimmer-loading]="!extraPricesLoaded">{{ vacuumPriceLabel }}</span>.
+              Please let us know in advance which location(s) may require them.
+            </p>
+            <ng-template #supplyAnswerNoPrices>
+              <p>We can bring cleaning solutions and a vacuum on request. Please let us know in advance which location(s) may require them.</p>
+            </ng-template>
           </div>
         </div>
       </div>
