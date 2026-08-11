@@ -21,9 +21,20 @@ export class DurationUtils {
    * @returns Formatted string like "2h 30m" or "30m"
    */
   static formatDurationRounded(totalMinutes: number): string {
-    const roundedMinutes = this.roundToNearestIncrement(totalMinutes);
-    const hours = Math.floor(roundedMinutes / 60);
-    const mins = roundedMinutes % 60;
+    return this.formatMinutes(this.roundToNearestIncrement(totalMinutes));
+  }
+
+  /**
+   * Formats a minute count AS-IS, with no rounding. Use this for values that were already
+   * snapped to an increment by someone else — notably the per-cleaner share from
+   * calculatePerCleanerBillableMinutes, which rounds DOWN. Re-rounding it to the nearest
+   * increment here would put the label back out of step with the salary it explains.
+   * @param totalMinutes Minutes to format
+   * @returns Formatted string like "2h 30m" or "30m"
+   */
+  static formatMinutes(totalMinutes: number): string {
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = Math.round(totalMinutes % 60);
 
     if (hours === 0) {
       return `${mins}m`;

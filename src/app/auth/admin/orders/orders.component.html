@@ -820,7 +820,7 @@
                           {{formatDuration(selectedOrder.totalDuration)}}
                         </ng-container>
                         <ng-template #totalPlusPerCleaner>
-                          {{formatDuration(selectedOrder.totalDuration)}} total<ng-container *ngIf="(selectedOrder.maidsCount || 1) > 1"> · {{formatDuration(selectedOrder.totalDuration / (selectedOrder.maidsCount || 1))}} per cleaner</ng-container>
+                          {{formatDuration(selectedOrder.totalDuration)}} total<ng-container *ngIf="(selectedOrder.maidsCount || 1) > 1"> · {{getPerCleanerDurationText(selectedOrder.totalDuration, selectedOrder.maidsCount || 1, false)}} per cleaner</ng-container>
                         </ng-template>
                       </p>
                       <p *ngIf="selectedOrder.bedroomsQuantity != null || selectedOrder.bathroomsQuantity != null"><strong>Bedrooms:</strong> {{ (selectedOrder.bedroomsQuantity ?? 0) === 0 ? 'Studio' : (selectedOrder.bedroomsQuantity ?? 'N/A') }}</p>
@@ -1478,7 +1478,7 @@
                  class="salary-input">
           <span class="salary-hint" *ngIf="selectedOrder">
             Est. Total: ${{ getEstimatedTotalSalary().toFixed(2) }}
-            ({{ formatDuration(roundToIncrement(selectedOrder.totalDuration)) }} × ${{ cleanerHourlySalary }})
+            ({{ getEstimatedSalaryBreakdown() }})
           </span>
         </div>
       </div>

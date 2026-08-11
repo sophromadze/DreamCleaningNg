@@ -757,9 +757,45 @@ function normalizeServiceTypeName(serviceTypeName?: string | null): string {
 }
 
 /**
- * Per-cleaner duration rounded to DURATION_ROUNDING_MINUTES, then perCleaner/60 × maids × rate.
+ * Billable minutes ONE cleaner is paid for, snapped to DURATION_ROUNDING_MINUTES.
+ * SINGLE source for both the payroll figure and the "· X per cleaner" label admins see —
+ * they must never disagree. Mirrors OrderPricingCalculator.CalculatePerCleanerBillableMinutes.
+ *
  * Only cleaner-hours service types store TotalDuration as per-cleaner; everything
  * else (including Custom Pricing) stores it as TOTAL across all maids and we divide.
+ *
+ * The split rounds DOWN, and that is the whole point. Rounding each share to the NEAREST
+ * increment and then multiplying back by the cleaner count inflated payroll purely because
+ * an admin raised the count: a 456-minute job paid 450 min (7h30) at 1 cleaner but
+ * 2 × 240 min (2 × 4h) at 2 cleaners, +$10.50 for identical work. Flooring makes the paid
+ * total a multiple of the increment that is always ≤ the raw total, so raising maidsCount
+ * can never increase what we pay out.
+ */
+export function calculatePerCleanerBillableMinutes(
+  totalDuration: number,
+  maidsCount: number,
+  hasCleanerService: boolean
+): number {
+  const maids = Math.max(1, maidsCount);
+
+  // Already per-cleaner (cleaner-hours types), or nothing to split: keep the historical
+  // nearest-increment behaviour so single-cleaner orders are untouched.
+  if (hasCleanerService || maids === 1) {
+    return Math.round(totalDuration / DURATION_ROUNDING_MINUTES) * DURATION_ROUNDING_MINUTES;
+  }
+
+  const floored =
+    Math.floor(totalDuration / maids / DURATION_ROUNDING_MINUTES) * DURATION_ROUNDING_MINUTES;
+
+  // Never floor a real job down to zero pay: with more cleaners than there are half-hours of
+  // work (6 cleaners on a 1h job) the share floors to 0. Pay one increment instead. This is
+  // the ONE case where the never-raises guarantee can be exceeded, and $0 payroll is worse.
+  return totalDuration > 0 && floored <= 0 ? DURATION_ROUNDING_MINUTES : floored;
+}
+
+/**
+ * Per-cleaner billable minutes / 60 × maids × rate. See calculatePerCleanerBillableMinutes
+ * for why the split rounds down.
  */
 export function calculateCleanerTotalSalary(
   totalDuration: number,
@@ -768,14 +804,8 @@ export function calculateCleanerTotalSalary(
   hourlyRate: number
 ): number {
   const maids = Math.max(1, maidsCount);
-  const perCleanerDuration = hasCleanerService
-    ? totalDuration
-    : maids > 1
-      ? totalDuration / maids
-      : totalDuration;
-  const roundedPerCleaner =
-    Math.round(perCleanerDuration / DURATION_ROUNDING_MINUTES) * DURATION_ROUNDING_MINUTES;
-  return round2((roundedPerCleaner / 60) * maids * hourlyRate);
+  const perCleaner = calculatePerCleanerBillableMinutes(totalDuration, maidsCount, hasCleanerService);
+  return round2((perCleaner / 60) * maids * hourlyRate);
 }
 
 // ===== Input builders (shared by booking + order edit) =====

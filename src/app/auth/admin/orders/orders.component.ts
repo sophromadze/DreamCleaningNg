@@ -23,6 +23,7 @@ import {
   calculateQuote,
   calculateTotals,
   calculateCleanerTotalSalary,
+  calculatePerCleanerBillableMinutes,
   getDefaultCleanerHourlyRate,
   getServiceDisplayDuration,
   getSquareFeetForBedrooms,
@@ -2297,9 +2298,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return getDefaultCleanerHourlyRate(hasDeepCleaning ? 1 : 0, serviceTypeName);
   }
 
-  /** Round duration to the nearest scheduling increment (same as DurationUtils) */
-  roundToIncrement(minutes: number): number {
-    return DurationUtils.roundToNearestIncrement(minutes);
+  /** The "(3h 30m × 2 × $21)" working shown under Est. Total in the assign-cleaners modal.
+   *  Built from the same per-cleaner minutes the salary uses — showing the raw total
+   *  duration here would contradict the figure above it whenever maids > 1. */
+  getEstimatedSalaryBreakdown(): string {
+    const order = this.selectedOrder;
+    if (!order) return '';
+    const maids = Math.max(1, Number(order.maidsCount) || 1);
+    const perCleaner = DurationUtils.formatMinutes(
+      calculatePerCleanerBillableMinutes(Number(order.totalDuration) || 0, maids, order.hasCleanersService)
+    );
+    const rate = `$${this.cleanerHourlySalary}`;
+    return maids > 1 ? `${perCleaner} × ${maids} × ${rate}` : `${perCleaner} × ${rate}`;
   }
 
   /** Calculate estimated total salary for display in modal (shared calculator). */
@@ -3522,6 +3532,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return DurationUtils.formatDurationRounded(Number(minutes) || 0);
   }
 
+  /** The per-cleaner duration an admin sees, straight from the shared calculator so the
+   *  label always matches the salary it explains — the split rounds DOWN (see
+   *  calculatePerCleanerBillableMinutes), so it must NOT be re-rounded for display. */
+  getPerCleanerDurationText(totalDuration: number, maidsCount: number, hasCleanerService: boolean): string {
+    return DurationUtils.formatMinutes(
+      calculatePerCleanerBillableMinutes(Number(totalDuration) || 0, Number(maidsCount) || 1, hasCleanerService)
+    );
+  }
+
   /** Hint text shown next to the "Duration (min)" input in the edit form.
    *  Cleaner-hours orders store TotalDuration per-cleaner, so it's shown as-is;
    *  everything else stores the TOTAL, shown as "X total" plus the per-cleaner
@@ -3535,7 +3554,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     const total = `${DurationUtils.formatDurationRounded(totalDuration)} total`;
     return maidsCount > 1
-      ? `${total} · ${DurationUtils.formatDurationRounded(totalDuration / maidsCount)} per cleaner`
+      ? `${total} · ${this.getPerCleanerDurationText(totalDuration, maidsCount, false)} per cleaner`
       : total;
   }
 
