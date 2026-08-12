@@ -2,12 +2,7 @@
 import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
-
-declare global {
-  interface Window {
-    gtag?: (...args: any[]) => void;
-  }
-}
+import { AnalyticsService } from '../../services/analytics.service';
 
 @Component({
   selector: 'app-poll-success',
@@ -132,28 +127,27 @@ export class PollSuccessComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private router: Router,
+    private analytics: AnalyticsService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
   ngOnInit() {
     this.serviceType = this.route.snapshot.queryParams['serviceType'] || 'your service';
 
-    if (isPlatformBrowser(this.platformId) && typeof window.gtag === 'function') {
-      // Guard against duplicate firing on page refresh within the same session
+    if (isPlatformBrowser(this.platformId)) {
+      // Guard against duplicate firing on page refresh within the same session.
       const dedupeKey = `poll_conversion_fired_${this.serviceType}_${new Date().toISOString().slice(0, 10)}`;
       if (!sessionStorage.getItem(dedupeKey)) {
-        try {
-          window.gtag('event', 'poll_form_submit', {
-            event_category: 'lead',
-            event_label: 'poll_form_request',
-            service_type: this.serviceType,
-            value: 35,
-            currency: 'USD'
-          });
-          sessionStorage.setItem(dedupeKey, '1');
-        } catch {
-          // Silent fail — never break UI over tracking
-        }
+        // GA4 / Google Ads lead conversion, via the GTM dataLayer.
+        this.analytics.pushEvent('poll_form_submit', {
+          event_category: 'lead',
+          event_label: 'poll_form_request',
+          service_type: this.serviceType,
+          value: 35,
+          currency: 'USD'
+        });
+
+        sessionStorage.setItem(dedupeKey, '1');
       }
     }
   }

@@ -252,27 +252,11 @@
     }
   </script>
   
-  <!-- Google tag (gtag.js) - Google Analytics & Google Ads -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=G-M7S3LFJJ36"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    
-    // Google Analytics
-    gtag('config', 'G-M7S3LFJJ36');
-    
-    // Google Ads (add your AW- ID here)
-    gtag('config', 'AW-16660459036');
+  <!-- GA4 (G-M7S3LFJJ36) and Google Ads (AW-16660459036) are loaded and configured entirely
+       by the Google Tag Manager container above (GTM-PMSDXVF3), including the website call
+       conversion / number swap. The app pushes conversion events to the dataLayer through
+       AnalyticsService; there is deliberately no hardcoded gtag.js snippet here anymore. -->
 
-    // Google Ads website call conversion — lets Google swap the displayed main
-    // number with its own forwarding number for ad visitors so calls are attributed.
-    // The number below MUST match the static number rendered on the page.
-    gtag('config', 'AW-16660459036/hQCtCNH7zcccEJzcqYg-', {
-      'phone_conversion_number': '(929) 930-1525'
-    });
-  </script>
-  
   <!-- Google Maps is loaded dynamically by GoogleMapsLoaderService with the frontend API key -->
 
   <!-- Meta Pixel Code -->

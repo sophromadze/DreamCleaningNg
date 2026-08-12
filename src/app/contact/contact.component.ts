@@ -1,5 +1,5 @@
-import { Component, OnInit, Inject, PLATFORM_ID, inject } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { Component, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
@@ -7,12 +7,7 @@ import { AuthService } from '../services/auth.service';
 import { PhoneNumberService } from '../services/phone-number.service';
 import { environment } from '../../environments/environment';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
-
-declare global {
-  interface Window {
-    gtag?: (...args: any[]) => void;
-  }
-}
+import { AnalyticsService } from '../services/analytics.service';
 
 @Component({
   selector: 'app-contact',
@@ -29,12 +24,12 @@ export class ContactComponent implements OnInit {
   errorMessage = '';
   currentUser: any;
   protected readonly phoneNumber = inject(PhoneNumberService);
+  private readonly analytics = inject(AnalyticsService);
 
   constructor(
     private fb: FormBuilder,
     private http: HttpClient,
-    private authService: AuthService,
-    @Inject(PLATFORM_ID) private platformId: Object
+    private authService: AuthService
   ) {
     this.contactForm = this.fb.group({
       fullName: ['', [Validators.required]],
@@ -111,19 +106,14 @@ export class ContactComponent implements OnInit {
             this.showSuccess = true;
             this.showError = false;
 
-            if (isPlatformBrowser(this.platformId) && typeof window.gtag === 'function') {
-              try {
-                window.gtag('event', 'contact_form_submit', {
-                  event_category: 'lead',
-                  event_label: 'contact_page_form',
-                  value: 15,
-                  currency: 'USD'
-                });
-              } catch {
-                // Silent fail
-              }
-            }
-            
+            // GA4 / Google Ads lead conversion, via the GTM dataLayer.
+            this.analytics.pushEvent('contact_form_submit', {
+              event_category: 'lead',
+              event_label: 'contact_page_form',
+              value: 15,
+              currency: 'USD'
+            });
+
             // Reset form but keep user info if logged in
             if (this.currentUser) {
               this.contactForm.patchValue({

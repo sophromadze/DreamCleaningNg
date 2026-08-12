@@ -1,5 +1,5 @@
-import { Component, OnInit, Inject, PLATFORM_ID, inject } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { Component, OnInit, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
@@ -7,6 +7,7 @@ import { environment } from '../../environments/environment';
 import { PhoneNumberService } from '../services/phone-number.service';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
 import { OrderSoundService } from '../services/order-sound.service';
+import { AnalyticsService } from '../services/analytics.service';
 
 @Component({
   selector: 'app-free-quote',
@@ -22,12 +23,12 @@ export class FreeQuoteComponent implements OnInit {
   showError = false;
   errorMessage = '';
   protected readonly phoneNumber = inject(PhoneNumberService);
+  private readonly analytics = inject(AnalyticsService);
 
   constructor(
     private fb: FormBuilder,
     private http: HttpClient,
-    private orderSound: OrderSoundService,
-    @Inject(PLATFORM_ID) private platformId: Object
+    private orderSound: OrderSoundService
   ) {
     this.quoteForm = this.fb.group({
       firstName: ['', [Validators.required]],
@@ -92,19 +93,13 @@ export class FreeQuoteComponent implements OnInit {
           // Confirmation cue — quote request sent.
           this.orderSound.playFormSubmit();
 
-          // GA4 conversion event for Google Ads (only in browser, not SSR)
-          if (isPlatformBrowser(this.platformId) && typeof window.gtag === 'function') {
-            try {
-              window.gtag('event', 'quote_form_submit', {
-                event_category: 'lead',
-                event_label: 'free_quote_request',
-                value: 30
-              });
-            } catch {
-              // Ignore tracking errors
-            }
-          }
-          
+          // GA4 / Google Ads lead conversion, via the GTM dataLayer.
+          this.analytics.pushEvent('quote_form_submit', {
+            event_category: 'lead',
+            event_label: 'free_quote_request',
+            value: 30
+          });
+
           // Reset form
           this.quoteForm.reset();
           this.quoteForm.markAsUntouched();

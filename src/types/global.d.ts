@@ -1,5 +1,8 @@
 /**
- * Global declaration for Google Tag (gtag.js) - used for GA4 and Google Ads.
- * The gtag function is injected by the script in index.html.
+ * Google Tag Manager dataLayer - created by the GTM snippet in index.html before Angular
+ * boots. Declared once here rather than per-component; AnalyticsService is the only thing
+ * that should push to it.
  */
-declare var gtag: (...args: any[]) => void;
+interface Window {
+  dataLayer?: any[];
+}

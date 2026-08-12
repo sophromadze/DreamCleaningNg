@@ -12,7 +12,6 @@ import { TaskService } from '../services/task.service';
 import { BlogService } from '../services/blog.service';
 import { BlogStatusService } from '../services/blog-status.service';
 import { SignalRService } from '../services/signalr.service';
-import { PhoneClickTrackingService } from '../services/phone-click-tracking.service';
 import { PhoneNumberService } from '../services/phone-number.service';
 import { canViewAdminPage } from '../shared/admin-viewable-pages';
 import { combineLatest, Subject, fromEvent } from 'rxjs';
@@ -65,16 +64,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private blogService: BlogService,
     private blogStatusService: BlogStatusService,
     private signalRService: SignalRService,
-    private phoneTracking: PhoneClickTrackingService,
     public phoneNumber: PhoneNumberService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
-  }
-
-  /** Fire the GA4/Google Ads phone-click conversion before the tel: link navigates. */
-  onPhoneClick() {
-    this.phoneTracking.trackPhoneClick();
   }
 
   ngOnInit() {

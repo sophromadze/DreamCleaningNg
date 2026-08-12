@@ -5,12 +5,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { OrderService, Order } from '../../services/order.service';
 import { AuthService } from '../../services/auth.service';
 import { BubbleRewardsService } from '../../services/bubble-rewards.service';
-
-declare global {
-  interface Window {
-    gtag?: (...args: any[]) => void;
-  }
-}
+import { AnalyticsService, AnalyticsUserData } from '../../services/analytics.service';
 
 @Component({
   selector: 'app-booking-success',
@@ -47,6 +42,7 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
     private orderService: OrderService,
     private authService: AuthService,
     private bubbleRewardsService: BubbleRewardsService,
+    private analytics: AnalyticsService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {}
 
@@ -197,62 +193,92 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Fire Google Ads / GA4 purchase conversion with Enhanced Conversions user data.
-   * Enhanced Conversions: gtag hashes email/phone client-side (SHA-256) and sends
-   * to Google, enabling attribution for users whose cookies expired or were blocked.
-   * Deduplicates via sessionStorage using orderId as key.
+   * Push the GA4 / Google Ads purchase conversion to the GTM dataLayer, including Enhanced
+   * Conversions user data. The GTM tags own the actual send.
+   *
+   * `transaction_id` lets Google drop a duplicate if the same order is somehow reported
+   * twice; the sessionStorage guard below stops us reporting it twice in the first place.
    */
   private trackPurchaseConversion(order: Order): void {
     if (!isPlatformBrowser(this.platformId)) return;
-    if (typeof window.gtag !== 'function') return;
     if (!order || !order.id) return;
 
     const dedupeKey = `booking_conversion_fired_${order.id}`;
     if (sessionStorage.getItem(dedupeKey)) return;
 
     try {
-      // Enhanced Conversions: provide identity signals for cross-device matching.
-      // gtag will hash these client-side before sending.
-      const userData: any = {};
+      const userData = this.buildEnhancedConversionsUserData(order);
 
-      if (order.contactEmail) {
-        userData.email = String(order.contactEmail).trim().toLowerCase();
-      }
-
-      if (order.contactPhone) {
-        // Normalize to E.164 (assume US). Strip all non-digits first.
-        const digits = String(order.contactPhone).replace(/\D/g, '');
-        if (digits.length === 10) {
-          userData.phone_number = `+1${digits}`;
-        } else if (digits.length === 11 && digits.startsWith('1')) {
-          userData.phone_number = `+${digits}`;
-        }
-      }
-
-      if (order.contactFirstName || order.contactLastName) {
-        userData.address = {
-          first_name: String(order.contactFirstName || '').trim().toLowerCase(),
-          last_name: String(order.contactLastName || '').trim().toLowerCase()
-        };
-      }
-
-      if (Object.keys(userData).length > 0) {
-        window.gtag('set', 'user_data', userData);
-      }
-
-      // Fire the purchase event. transaction_id prevents Google from counting
-      // the same order twice if the user refreshes the page (also guarded above).
-      window.gtag('event', 'purchase', {
+      this.analytics.pushEvent('purchase', {
         transaction_id: String(order.id),
         value: Number(order.total) || 0,
         currency: 'USD',
         event_category: 'ecommerce',
-        event_label: 'booking_completed'
+        event_label: 'booking_completed',
+        user_data: Object.keys(userData).length > 0 ? userData : undefined
       });
 
       sessionStorage.setItem(dedupeKey, '1');
     } catch {
       // Silent fail — never break UI over tracking
     }
+  }
+
+  /**
+   * Identity signals for Enhanced Conversions, in Google's `user_data` shape.
+   *
+   * PLAIN TEXT by design — Google's tag hashes these client-side before transmission, so do
+   * NOT hash them here. Any field the order doesn't carry is omitted rather than sent empty,
+   * because an empty string is a value Google would try (and fail) to match on.
+   *
+   * Notes on the mapping: `street` is `serviceAddress` only — `aptSuite` is deliberately left
+   * out. `country` is the constant 'US' rather than an order field (the business serves NYC
+   * only) and is attached only when there is at least one other address field to match on.
+   */
+  private buildEnhancedConversionsUserData(order: Order): AnalyticsUserData {
+    const clean = (value: string | null | undefined) => String(value ?? '').trim();
+
+    const userData: AnalyticsUserData = {};
+
+    const email = clean(order.contactEmail).toLowerCase();
+    if (email) userData.email_address = email;
+
+    const phone = this.toE164(order.contactPhone);
+    if (phone) userData.phone_number = phone;
+
+    const address: NonNullable<AnalyticsUserData['address']> = {};
+
+    const firstName = clean(order.contactFirstName).toLowerCase();
+    if (firstName) address.first_name = firstName;
+
+    const lastName = clean(order.contactLastName).toLowerCase();
+    if (lastName) address.last_name = lastName;
+
+    const street = clean(order.serviceAddress);
+    if (street) address.street = street;
+
+    const city = clean(order.city);
+    if (city) address.city = city;
+
+    const region = clean(order.state);
+    if (region) address.region = region;
+
+    const postalCode = clean(order.zipCode);
+    if (postalCode) address.postal_code = postalCode;
+
+    if (Object.keys(address).length > 0) {
+      address.country = 'US';
+      userData.address = address;
+    }
+
+    return userData;
+  }
+
+  /** US phone number to E.164 (+1XXXXXXXXXX). Returns null when the digits don't fit. */
+  private toE164(raw: string | null | undefined): string | null {
+    const digits = String(raw ?? '').replace(/\D/g, '');
+    if (digits.length === 10) return `+1${digits}`;
+    if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+    return null;
   }
 }

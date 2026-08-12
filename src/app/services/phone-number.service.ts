@@ -11,9 +11,10 @@ export interface PhoneNumberInfo {
 /**
  * Main business number — the single number shown to every visitor and the only
  * number rendered anywhere (SSR/prerender and client). It MUST be present in the
- * server-rendered HTML because Google's website-call-conversion snippet (in
- * index.html) swaps it client-side with a forwarding number for ad visitors.
- * Change the number here to update it everywhere.
+ * server-rendered HTML because Google's call-reporting tag (in GTM container
+ * GTM-PMSDXVF3) swaps it client-side with a forwarding number for ad visitors.
+ * Change the number here to update it everywhere — and update the number configured
+ * on that GTM tag to match, or the swap stops working.
  */
 export const MAIN_NUMBER: PhoneNumberInfo = {
   display: '(929) 930-1525',
@@ -25,8 +26,8 @@ export const MAIN_NUMBER: PhoneNumberInfo = {
  * to the `displayNumber()` / `telHref()` signals instead of hardcoding the number.
  *
  * The site no longer swaps numbers itself — every visitor sees {@link MAIN_NUMBER}.
- * Ad attribution is handled entirely by Google's website-call-conversion snippet in
- * index.html, which replaces the displayed main number client-side for ad visitors.
+ * Ad attribution is handled entirely by Google's call-reporting tag in the GTM container,
+ * which replaces the displayed main number client-side for ad visitors.
  */
 @Injectable({ providedIn: 'root' })
 export class PhoneNumberService {
