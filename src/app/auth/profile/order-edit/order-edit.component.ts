@@ -35,6 +35,8 @@ import {
   getServiceDisplayDuration,
   getSquareFeetForBedrooms,
   getSquareFeetOptions,
+  resolveSquareFeetForBedroomChange,
+  rescaleDiscountToSubTotal,
   buildQuoteInputFromSelections,
   mapSelectedExtraInputs,
   round2,
@@ -42,6 +44,7 @@ import {
   EXTRA_CLEANERS_NAME,
   QuoteInput
 } from '../../../shared/pricing/order-pricing.calculator';
+import { normalizeTipAmount } from '../../../shared/booking/tip-amount.utils';
 
 interface SelectedService {
   service: Service;
@@ -221,7 +224,6 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       state: ['', Validators.required],
       zipCode: ['', Validators.required],
       tips: [0],
-      companyDevelopmentTips: [0],
       cleaningType: ['normal', Validators.required]
     });
 
@@ -283,11 +285,6 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     
     // Listen to tips changes
     this.orderForm.get('tips')?.valueChanges.subscribe(() => {
-      this.calculateNewTotal();
-    });
-
-    // Listen to company development tips changes
-    this.orderForm.get('companyDevelopmentTips')?.valueChanges.subscribe(() => {
       this.calculateNewTotal();
     });
 
@@ -391,8 +388,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       city: order.city,
       state: order.state,
       zipCode: order.zipCode,
-      tips: order.tips,
-      companyDevelopmentTips: order.companyDevelopmentTips || 0
+      tips: normalizeTipAmount(order.tips)
     });
 
     // Initialize floor types from order data
@@ -525,15 +521,23 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   updateServiceQuantity(service: Service, quantity: number) {
     const index = this.selectedServices.findIndex(s => s.service.id === service.id);
     if (index !== -1) {
+      // Captured BEFORE the write below — the bedrooms→sqft rule needs the floor of the
+      // OUTGOING bedroom count to tell an inherited sqft from a chosen one.
+      const previousQuantity = this.selectedServices[index].quantity;
       this.selectedServices[index].quantity = quantity;
       this.serviceControls.at(index).setValue(quantity);
 
-      // Bedrooms→sqft linkage (same behavior as the booking page): changing bedrooms
-      // auto-sets the Sq.ft service to the default for that bedroom count.
+      // Bedrooms→sqft linkage (same behavior as the booking page): a Sq.ft still sitting on
+      // the old bedroom's included amount follows the new one; anything the customer raised
+      // above it is preserved, and only lifted if the new floor overtakes it.
       if (service.serviceKey === 'bedrooms') {
         const sqftIndex = this.selectedServices.findIndex(s => s.service.serviceKey === 'sqft');
         if (sqftIndex !== -1) {
-          this.selectedServices[sqftIndex].quantity = this.getSquareFeetForBedroomsConfigured(quantity);
+          this.selectedServices[sqftIndex].quantity = resolveSquareFeetForBedroomChange(
+            this.selectedServices[sqftIndex].quantity,
+            this.getSquareFeetForBedroomsConfigured(previousQuantity),
+            this.getSquareFeetForBedroomsConfigured(quantity)
+          );
           this.serviceControls.at(sqftIndex).setValue(this.selectedServices[sqftIndex].quantity);
         }
       }
@@ -835,20 +839,18 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     const rawSubTotal = quote.subTotal;
 
     // Edit flows re-scale the ORIGINAL discounts: promo/subscription by ratio of the raw
-    // subtotal, loyalty by the locked percentage snapshot from the order.
-    if (this.originalRawSubTotal > 0) {
-      this.appliedSubscriptionDiscountAmount = round2(rawSubTotal * (this.originalSubscriptionDiscountAmount / this.originalRawSubTotal));
-      this.appliedDiscountAmount = round2(rawSubTotal * (this.originalDiscountAmount / this.originalRawSubTotal));
-    } else {
-      this.appliedSubscriptionDiscountAmount = 0;
-      this.appliedDiscountAmount = 0;
-    }
+    // subtotal, loyalty by the locked percentage snapshot from the order. The ratio math is
+    // shared with the admin order editor (rescaleDiscountToSubTotal) — it existed as two
+    // copies, and the copies had already drifted into different behaviour.
+    this.appliedSubscriptionDiscountAmount = rescaleDiscountToSubTotal(
+      this.originalSubscriptionDiscountAmount, this.originalRawSubTotal, rawSubTotal);
+    this.appliedDiscountAmount = rescaleDiscountToSubTotal(
+      this.originalDiscountAmount, this.originalRawSubTotal, rawSubTotal);
     this.appliedLoyaltyDiscountAmount = this.originalLoyaltyDiscountPercentage > 0
       ? round2(rawSubTotal * (this.originalLoyaltyDiscountPercentage / 100))
       : 0;
 
-    const tips = this.orderForm.get('tips')?.value || 0;
-    const companyDevelopmentTips = this.orderForm.get('companyDevelopmentTips')?.value || 0;
+    const tips = this.tipsAmount;
 
     const totals = calculateTotals({
       subTotal: rawSubTotal,
@@ -856,7 +858,11 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       subscriptionDiscountAmount: this.appliedSubscriptionDiscountAmount,
       loyaltyDiscountAmount: this.appliedLoyaltyDiscountAmount,
       tips,
-      companyDevelopmentTips
+      // Company tips are retired and always 0 on new orders, but a legacy order that carries
+      // one still had it in the total the customer paid. Carry the STORED value through
+      // untouched (it is not editable anywhere) so editing such an order doesn't silently
+      // show a refund for a tip that was never removed.
+      companyDevelopmentTips: this.legacyCompanyDevelopmentTips
     });
 
     this.newSubTotal = totals.discountedSubTotal;
@@ -885,9 +891,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
   updateEstimatedPoints(): void {
     if (!this.pointsEnabled || this.pointsPerDollar <= 0) { this.estimatedPoints = 0; return; }
-    const tips = this.orderForm?.get('tips')?.value ?? 0;
-    const companyTips = this.orderForm?.get('companyDevelopmentTips')?.value ?? 0;
-    const base = this.newTotal - this.newTax - tips - companyTips;
+    const base = this.newTotal - this.newTax - this.tipsAmount - this.legacyCompanyDevelopmentTips;
     this.estimatedPoints = Math.floor(Math.max(0, base) * this.pointsPerDollar);
   }
 
@@ -940,8 +944,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
         quantity: s.quantity,
         hours: s.hours
       })),
-      tips: formValue.tips || 0,
-      companyDevelopmentTips: formValue.companyDevelopmentTips || 0,
+      tips: this.tipsAmount,
       totalDuration: this.actualTotalDuration,
       maidsCount: this.calculatedMaidsCount,
       calculatedSubTotal: this.newSubTotal + this.appliedDiscountAmount + this.appliedSubscriptionDiscountAmount + this.appliedLoyaltyDiscountAmount,
@@ -982,8 +985,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       this.order.city !== formValue.city ||
       this.order.state !== formValue.state ||
       this.order.zipCode !== formValue.zipCode ||
-      this.order.tips !== (formValue.tips || 0) ||
-      this.order.companyDevelopmentTips !== (formValue.companyDevelopmentTips || 0);
+      this.order.tips !== this.tipsAmount;
   
     if (basicFieldsChanged) return true;
   
@@ -1391,8 +1393,8 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
     lines.push({ label: 'Sales Tax (8.875%):', value: `$${this.newTax.toFixed(2)}` });
 
-    if (this.tips.value > 0) {
-      lines.push({ label: 'Tips for Cleaners:', value: `$${this.tips.value.toFixed(2)}` });
+    if (this.tipsAmount > 0) {
+      lines.push({ label: 'Tips for Cleaners:', value: `$${this.tipsAmount.toFixed(2)}` });
     }
 
     return lines;
@@ -1432,10 +1434,32 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     return this.orderForm.get('tips') as FormControl;
   }
 
-  get companyDevelopmentTips(): FormControl {
-    return this.orderForm.get('companyDevelopmentTips') as FormControl;
+  /**
+   * The tip in dollars, always a number. Read this instead of `tips.value` — the raw
+   * control is null whenever the number input is cleared.
+   */
+  get tipsAmount(): number {
+    return normalizeTipAmount(this.tips?.value);
   }
-  
+
+  /** Snap a cleared tip box back to 0 on blur so "no tip" never sits in the form as null. */
+  normalizeTipsOnBlur(): void {
+    const normalized = this.tipsAmount;
+    if (this.tips.value !== normalized) {
+      this.tips.setValue(normalized);
+    }
+  }
+
+  /**
+   * Read-only carry-over of a retired field. New orders are always 0; only orders placed
+   * while "Tips for Company Development" existed can be non-zero, and that amount is part
+   * of what the customer already paid, so the edit math must keep counting it.
+   */
+  get legacyCompanyDevelopmentTips(): number {
+    return normalizeTipAmount(this.order?.companyDevelopmentTips);
+  }
+
+
   get totalDurationDisplay(): number {
     return this.totalDuration;
   }

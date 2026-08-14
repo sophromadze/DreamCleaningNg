@@ -52,6 +52,8 @@ import {
   getServiceDisplayDuration,
   getSquareFeetForBedrooms,
   getSquareFeetOptions,
+  resolveSquareFeetForBedroomChange,
+  clampRestoredSquareFeet,
   buildQuoteInputFromSelections,
   mapSelectedExtraInputs,
   round2,
@@ -60,10 +62,23 @@ import {
   QuoteInput
 } from '../shared/pricing/order-pricing.calculator';
 import { buildCustomServiceTypeNameOptions } from '../shared/booking/custom-service-type.util';
+import { normalizeTipAmount } from '../shared/booking/tip-amount.utils';
+import { extraServiceNamesOf, requiresOvenCleaner } from '../shared/booking/supply-checklist.utils';
 import {
   BookingDiagnosticsSnapshot,
   logBookingBlockers
 } from '../shared/booking/booking-blockers.diagnostics';
+
+/** Address-name presets. Anything that isn't one of the fixed labels is "Other" (free text). */
+type AddressNameType = 'Home' | 'Office' | 'Other';
+/** Preset labels, and the value a fresh/cleared address falls back to. */
+const ADDRESS_NAME_PRESETS: readonly string[] = ['Home', 'Office'];
+const DEFAULT_ADDRESS_NAME = 'Home';
+
+/** Naming the address is optional: leaving the "Other" field blank books it as "Other". */
+function resolveAddressName(name: string | null | undefined): string {
+  return (name ?? '').trim() || 'Other';
+}
 
 interface SelectedService {
   service: Service;
@@ -309,9 +324,16 @@ export class BookingComponent implements OnInit, OnDestroy {
   // Tip dropdown state
   tipDropdownOpen = false;
 
-  // Address name: show as text until user clicks Edit; auto-fill from address fields unless user customized
-  addressNameEditing = false;
-  addressNameIsCustomized = false;
+  // Address name: a Home / Office / Other picker sitting next to Zip Code. Home is the default;
+  // "Other" swaps in a free-text field. The select is DERIVED from the apartmentName control
+  // (see syncAddressNameType) because that control is also written programmatically by the
+  // saved-address fill, reorder and the restored session — none of which fire (change).
+  addressNameType: AddressNameType = 'Home';
+  addressNameDropdownOpen = false;
+  cityDropdownOpen = false;
+  stateDropdownOpen = false;
+  savedAddressDropdownOpen = false;
+  @ViewChild('addressNameOtherInput') addressNameOtherInput?: ElementRef<HTMLInputElement>;
   
   // Booking summary collapse state
   isSummaryCollapsed = true;
@@ -331,8 +353,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   // Constants
   salesTaxRate = SALES_TAX_RATE;
   minDate = new Date();
-  minTipAmount = 10; 
-  minCompanyTipAmount = 10;
+  minTipAmount = 10;
   
   // Entry methods
   entryMethods = [
@@ -426,26 +447,22 @@ export class BookingComponent implements OnInit, OnDestroy {
       useApartmentAddress: [false],
       selectedApartmentId: [''],
       serviceAddress: ['', Validators.required],
-      apartmentName: ['', Validators.required],
+      // Optional: an empty custom name is booked as "Other" (see resolveAddressName).
+      apartmentName: [DEFAULT_ADDRESS_NAME],
       aptSuite: [''],
       city: ['', Validators.required],
       state: ['', Validators.required],
       zipCode: ['', [Validators.required, Validators.pattern(/^\d{5}$/)]],
       promoCode: [''],
+      // A number input yields null (not 0) when cleared, and `reset()`/restored form data can
+      // put null here too. An empty tip means "no tip" — it must NEVER invalidate the form,
+      // or Book Now silently locks up. Only a typed, non-empty amount is held to the minimum.
       tips: [0, [
         Validators.min(0),
         (control: AbstractControl): ValidationErrors | null => {
-          const value = control.value;
-          if (value === 0) return null; // Allow 0 as default
+          const value = normalizeTipAmount(control.value);
+          if (value === 0) return null; // Empty / cleared / 0 is always valid
           return value >= this.minTipAmount ? null : { minTipAmount: true };
-        }
-      ]],
-      companyDevelopmentTips: [0, [
-        Validators.min(0),
-        (control: AbstractControl): ValidationErrors | null => {
-          const value = control.value;
-          if (value === 0) return null; // Allow 0 as default
-          return value >= this.minCompanyTipAmount ? null : { minCompanyTipAmount: true };
         }
       ]],
       cleaningType: ['normal', Validators.required], // Add new form control for cleaning type
@@ -696,6 +713,19 @@ export class BookingComponent implements OnInit, OnDestroy {
       if (!target.closest('.tip-dropdown')) {
         this.tipDropdownOpen = false;
       }
+      // Clicks INSIDE this menu (including the "Other" text field) must not close it.
+      if (!target.closest('.address-name-dropdown')) {
+        this.addressNameDropdownOpen = false;
+      }
+      if (!target.closest('.city-dropdown')) {
+        this.cityDropdownOpen = false;
+      }
+      if (!target.closest('.state-dropdown')) {
+        this.stateDropdownOpen = false;
+      }
+      if (!target.closest('.saved-address-dropdown')) {
+        this.savedAddressDropdownOpen = false;
+      }
     });
   }
 
@@ -731,14 +761,17 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (savedData.contactPhone) formValues.contactPhone = savedData.contactPhone;
     if (savedData.selectedApartmentId) formValues.selectedApartmentId = savedData.selectedApartmentId;
     if (savedData.serviceAddress) formValues.serviceAddress = savedData.serviceAddress;
-    if (savedData.apartmentName) formValues.apartmentName = savedData.apartmentName;
+    // Restored even when empty: a blank name is the customer's "Other, unnamed" choice, and
+    // the truthiness check used to throw it away and silently snap the picker back to Home.
+    if (savedData.apartmentName !== undefined) formValues.apartmentName = savedData.apartmentName;
     if (savedData.aptSuite) formValues.aptSuite = savedData.aptSuite;
     if (savedData.city) formValues.city = savedData.city;
     if (savedData.state) formValues.state = savedData.state;
     if (savedData.zipCode) formValues.zipCode = savedData.zipCode;
     if (savedData.promoCode) formValues.promoCode = savedData.promoCode;
-    if (savedData.tips !== undefined) formValues.tips = savedData.tips;
-    if (savedData.companyDevelopmentTips !== undefined) formValues.companyDevelopmentTips = savedData.companyDevelopmentTips;
+    // Normalize on the way in: older persisted sessions can hold a null tip, which used to
+    // come back as an unfixable "minimum $10" error on a form the customer never touched.
+    if (savedData.tips !== undefined) formValues.tips = normalizeTipAmount(savedData.tips);
     if (savedData.cleaningType) formValues.cleaningType = savedData.cleaningType;
     if (savedData.smsConsent !== undefined) formValues.smsConsent = savedData.smsConsent;
     if (savedData.cancellationConsent !== undefined) formValues.cancellationConsent = savedData.cancellationConsent;
@@ -812,13 +845,13 @@ export class BookingComponent implements OnInit, OnDestroy {
               const existingIndex = this.selectedServices.findIndex(s => String(s.service.id) === String(service.id));
               if (existingIndex >= 0) {
                 this.selectedServices[existingIndex].quantity = ss.quantity;
-                if (service.serviceKey === 'bedrooms') {
-                  const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
-                  if (sqftService) sqftService.quantity = this.getSquareFeetForBedrooms(ss.quantity);
-                }
               }
             }
           });
+          // Restore is NOT a bedroom change: the saved Sq.ft is an explicit customer value and
+          // there is no previous bedroom count. Floor it once, after every quantity has landed,
+          // so the result doesn't depend on whether bedrooms happened to precede sqft here.
+          this.clampSquareFeetToBedroomMinimum();
         }
         if (savedExtraServices.length > 0) {
           this.selectedExtraServices = [];
@@ -923,10 +956,16 @@ export class BookingComponent implements OnInit, OnDestroy {
     ).subscribe({
       next: (states) => {
         this.states = states;
+        if (states.length === 0) return;
+
         const savedState = this.bookingForm.get('state')?.value;
+        // A saved state we don't serve (restored from a previous session where the customer
+        // picked an out-of-area address) must fall back to the default. Leaving it in place
+        // used to match neither branch here, so the city list was never loaded and the City
+        // dropdown rendered with nothing but its placeholder.
         if (savedState && states.includes(savedState)) {
           this.loadCities(savedState);
-        } else if (states.length > 0 && !savedState) {
+        } else {
           this.bookingForm.patchValue({ state: states[0] });
           this.loadCities(states[0]);
         }
@@ -1044,42 +1083,107 @@ export class BookingComponent implements OnInit, OnDestroy {
     });
   }
 
-  onStateChange(state: string) {
+  /**
+   * Point the City options at the given state. Driven by the `state` control's valueChanges so
+   * it covers every writer — the select, Google Places, the saved-address fill, reorder and the
+   * restored session — not just user interaction with the dropdown.
+   */
+  private syncCitiesToState(state: string | null | undefined) {
+    if (!state) {
+      this.cities = [];
+      return;
+    }
+
+    // An address outside our service area (Google Places happily returns e.g. "New Jersey").
+    // Offer no cities rather than querying for a state we don't serve: City is required and
+    // its only valid answers are boroughs, so an empty list is what blocks the booking. Also
+    // drop a stale borough left over from a previous address, or the form would stay valid
+    // claiming e.g. Brooklyn for a New Jersey street.
+    if (this.states.length > 0 && !this.states.includes(state)) {
+      this.cities = [];
+      if (this.bookingForm.get('city')?.value) {
+        this.bookingForm.patchValue({ city: '' });
+      }
+      return;
+    }
+
     this.loadCities(state);
+  }
+
+  /**
+   * User picked a State from the dropdown. Cities reload via the `state` valueChanges
+   * subscription; this handler only clears the now-stale city choice, which is deliberately
+   * NOT done there — the Places autocomplete sets city and state together, and clearing on
+   * every state change would wipe the city it just filled in.
+   */
+  onStateChange(state: string) {
     this.bookingForm.patchValue({ city: '' });
   }
 
+  toggleStateDropdown(): void {
+    this.stateDropdownOpen = !this.stateDropdownOpen;
+    this.cityDropdownOpen = false;
+  }
+
+  /** Only ever called from a click on an option, so onStateChange's city reset stays user-driven. */
+  selectState(value: string): void {
+    this.stateDropdownOpen = false;
+    this.state.markAsDirty();
+    this.state.markAsTouched();
+    if (this.state.value === value) return;
+    this.state.setValue(value);
+    this.onStateChange(value);
+    this.cdr.markForCheck();
+  }
+
+  toggleCityDropdown(): void {
+    this.cityDropdownOpen = !this.cityDropdownOpen;
+    this.stateDropdownOpen = false;
+  }
+
+  selectCity(value: string): void {
+    this.cityDropdownOpen = false;
+    this.city.setValue(value);
+    this.city.markAsDirty();
+    this.city.markAsTouched();
+    this.cdr.markForCheck();
+  }
+
   private setupFormListeners() {
-    // Listen to apartment selection changes: address name is always required; when saved apartment selected, set name from it
+    // Listen to apartment selection changes: address name is always required; a saved apartment
+    // brings its stored name, a new address falls back to the default preset.
     this.bookingForm.get('selectedApartmentId')?.valueChanges.subscribe(apartmentId => {
       const apartmentNameControl = this.bookingForm.get('apartmentName');
       if (!apartmentNameControl) return;
       if (apartmentId) {
         const apartment = this.userApartments.find(a => a.id === +apartmentId);
-        apartmentNameControl.setValue(apartment?.name ?? '');
-        this.addressNameIsCustomized = true; // saved address name is custom
+        apartmentNameControl.setValue(apartment?.name || DEFAULT_ADDRESS_NAME);
       } else {
-        apartmentNameControl.setValue('');
-        this.addressNameIsCustomized = false; // new address: auto-fill from fields
+        apartmentNameControl.setValue(DEFAULT_ADDRESS_NAME);
       }
       apartmentNameControl.updateValueAndValidity();
     });
 
-    // Auto-fill address name from address field only; clear when address is fully deleted
-    this.bookingForm.get('serviceAddress')?.valueChanges
-      .pipe(startWith(this.bookingForm.get('serviceAddress')?.value), takeUntil(this.destroy$))
-      .subscribe(() => this.syncAddressNameFromFields());
-    
+    // Keep the Home/Office/Other select in step with the control, no matter who wrote it —
+    // the saved-address fill, reorder and the restored session all patch it programmatically.
+    this.bookingForm.get('apartmentName')?.valueChanges
+      .pipe(startWith(this.bookingForm.get('apartmentName')?.value), takeUntil(this.destroy$))
+      .subscribe(name => this.syncAddressNameType(name));
+
+    // Keep the City options in sync with whatever the State control holds, no matter who set
+    // it. Google Places, the saved-address fill, reorder and the restored session all patch
+    // `state` programmatically, which does NOT fire the select's (change) handler — so before
+    // this, picking an out-of-area address left the City dropdown empty and even re-entering a
+    // valid New York address could not repopulate it.
+    this.bookingForm.get('state')?.valueChanges
+      .pipe(distinctUntilChanged(), takeUntil(this.destroy$))
+      .subscribe(state => this.syncCitiesToState(state));
+
     // Listen to tips changes
     this.bookingForm.get('tips')?.valueChanges.subscribe(() => {
       this.calculateTotal();
     });
 
-    // Listen to company development tips changes
-    this.bookingForm.get('companyDevelopmentTips')?.valueChanges.subscribe(() => {
-      this.calculateTotal();
-    });
-    
     // Listen to service date changes
     this.bookingForm.get('serviceDate')?.valueChanges.subscribe(newDate => {
       // Admins / SuperAdmins may keep Same Day Service on any date — never auto-remove it for them.
@@ -1141,7 +1245,11 @@ export class BookingComponent implements OnInit, OnDestroy {
       
       // Form Values
       ...this.bookingForm.value,
-      
+
+      // Tips last, normalized: the spread above would otherwise persist a cleared number
+      // input as null, and every later visit would restore that null into the form.
+      tips: normalizeTipAmount(this.tips.value),
+
       // Selected Subscription
       selectedSubscriptionId: this.selectedSubscription?.id ? String(this.selectedSubscription.id) : undefined,
       
@@ -1241,7 +1349,6 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.serviceTime.setValue('08:00');
       this.cleaningType.setValue('normal');
       this.tips.setValue(0);
-      this.companyDevelopmentTips.setValue(0);
       this.smsConsent.setValue(false);
       this.cancellationConsent.setValue(false);
       this.termsConsent.setValue(false);
@@ -1307,15 +1414,50 @@ export class BookingComponent implements OnInit, OnDestroy {
     return h * 60 + m;
   }
 
-  onApartmentSelect(event: any) {
-    const apartmentId = event.target.value;
-    if (apartmentId) {
-      this.fillApartmentAddress(apartmentId);
+  /** "Name — Street" for a saved address, falling back to whichever half exists. */
+  getSavedAddressLabel(apt: { name?: string; address?: string }): string {
+    const name = (apt?.name ?? '').trim();
+    const address = (apt?.address ?? '').trim();
+    if (name && address && address !== name) return `${name} — ${address}`;
+    return name || address;
+  }
+
+  /** Closed toggle text: the chosen saved address, or the "new address" placeholder. */
+  get savedAddressLabel(): string {
+    const selectedId = this.selectedApartmentId.value;
+    if (!selectedId) return 'Enter new address';
+    const apartment = this.userApartments.find(a => a.id === +selectedId);
+    return apartment ? this.getSavedAddressLabel(apartment) : 'Enter new address';
+  }
+
+  toggleSavedAddressDropdown(): void {
+    this.savedAddressDropdownOpen = !this.savedAddressDropdownOpen;
+  }
+
+  /**
+   * Picking an option mirrors what the old <select> did: the control is set (which resets the
+   * address name through its subscription) and a real apartment also fills the address fields.
+   * Passing '' is the "Enter new address" option — it clears the selection only, exactly as
+   * before; wiping the typed address stays the Clear button's job.
+   */
+  selectSavedAddress(apartmentId: number | string): void {
+    this.savedAddressDropdownOpen = false;
+    const value = apartmentId === '' ? '' : String(apartmentId);
+    this.selectedApartmentId.setValue(value);
+    this.selectedApartmentId.markAsDirty();
+    this.selectedApartmentId.markAsTouched();
+    if (value) {
+      this.fillApartmentAddress(value);
+    } else {
+      // Back to "new address": the Places widget was torn down when the saved address took
+      // over, so bring it back instead of leaving the fallback input in its place.
+      this.reinitAddressAutocomplete();
     }
+    this.cdr.markForCheck();
   }
 
   clearApartmentSelection() {
-    this.addressNameIsCustomized = false; // allow auto-fill from new address
+    // apartmentName resets to the default preset through the selectedApartmentId subscription.
     this.bookingForm.patchValue({
       selectedApartmentId: '',
       serviceAddress: '',
@@ -1330,18 +1472,25 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.loadCities(this.states[0]);
     }
 
-    // Re-enable Google Places Autocomplete when switching to "new address"
-    if (this.isBrowser && this.currentStep === 3) {
-      this.autocompleteLoaded = false;
-      this.autocompleteError = false;
-      this.autocompleteInitRetryCount = 0;
-      const container = this.addressContainer?.nativeElement;
-      if (container) {
-        container.innerHTML = '';
-      }
-      this.autocompleteElement = null;
-      setTimeout(() => this.initAddressAutocomplete(), 100);
+    this.reinitAddressAutocomplete();
+  }
+
+  /**
+   * Re-arm Google Places after switching back to "new address". Without this the widget stays
+   * torn down and the customer is left with the plain fallback input.
+   */
+  private reinitAddressAutocomplete(): void {
+    if (!this.isBrowser || this.currentStep !== 3) return;
+    this.autocompleteLoaded = false;
+    this.autocompleteError = false;
+    this.showAddressFallbackAfterDelay = false;
+    this.autocompleteInitRetryCount = 0;
+    const container = this.addressContainer?.nativeElement;
+    if (container) {
+      container.innerHTML = '';
     }
+    this.autocompleteElement = null;
+    setTimeout(() => this.initAddressAutocomplete(), 100);
   }
 
   /** Monkey-patch attachShadow so gmp-place-autocomplete uses open Shadow DOM and we can inject styles. Must run before creating the element. */
@@ -1387,10 +1536,14 @@ export class BookingComponent implements OnInit, OnDestroy {
             background-color: var(--surface-elevated) !important;
             border: var(--address-field-border, 1px solid var(--border-color)) !important;
             outline: none !important;
-            border-radius: 58px !important;
+            /* Same radius as every other address field — custom properties inherit through
+               the shadow boundary, so the token resolves from :root. */
+            border-radius: var(--radius-md) !important;
             box-shadow: none !important;
-            min-height: 44px !important;
-            height: 44px !important;
+            /* 3rem matches the height pinned on every other address control in
+               booking.component.scss — change both together. */
+            min-height: 3rem !important;
+            height: 3rem !important;
             transition: border-color 0.3s ease, box-shadow 0.3s ease !important;
             box-sizing: border-box !important;
             width: 100% !important;
@@ -1419,8 +1572,8 @@ export class BookingComponent implements OnInit, OnDestroy {
             background: transparent !important;
             color: var(--text-primary) !important;
             text-align: left !important;
-            min-height: 44px !important;
-            height: 44px !important;
+            min-height: 3rem !important;
+            height: 3rem !important;
             padding: 10px 12px !important;
             padding-left: 0px !important;
             padding-right: 5px !important;
@@ -1592,40 +1745,76 @@ export class BookingComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** Build address name from address field only (no apt/suite, city, state, zip). */
-  getBuiltAddressString(): string {
-    return (this.serviceAddress.value ?? '').trim();
+  /**
+   * Derives the select's position from whatever the apartmentName control holds. A value that
+   * isn't one of the presets — including the empty string the user starts with after picking
+   * "Other" — is "Other", so the free-text field stays open while they type.
+   */
+  private syncAddressNameType(name: string | null | undefined): void {
+    const value = (name ?? '').trim();
+    const next: AddressNameType = ADDRESS_NAME_PRESETS.includes(value)
+      ? (value as AddressNameType)
+      : 'Other';
+    if (next === this.addressNameType) return;
+    this.addressNameType = next;
+    this.cdr.markForCheck();
   }
 
-  /** Sync address name from address field when user has not customized it. Clear name when address is fully deleted. */
-  private syncAddressNameFromFields() {
-    if (this.addressNameIsCustomized) return;
-    const built = this.getBuiltAddressString();
-    const nameControl = this.bookingForm.get('apartmentName');
-    if (!nameControl) return;
-    const newValue = built || '';
-    if (nameControl.value !== newValue) {
-      nameControl.setValue(newValue);
-      nameControl.updateValueAndValidity();
+  toggleAddressNameDropdown(): void {
+    this.addressNameDropdownOpen = !this.addressNameDropdownOpen;
+  }
+
+  /**
+   * User picked Home / Office / Other from the menu. The menu always closes; the presets write
+   * their own label into the control, while "Other" empties it and reveals the free-text field
+   * sitting next to the dropdown. Leaving that field blank is fine — it books as "Other".
+   */
+  selectAddressNameType(type: AddressNameType): void {
+    this.addressNameType = type;
+    this.addressNameDropdownOpen = false;
+    // Picking from the menu IS interacting with the field — setValue() alone would leave the
+    // control pristine/untouched, so it looked untouched however many times it was changed.
+    this.apartmentName.markAsDirty();
+    this.apartmentName.markAsTouched();
+
+    if (type === 'Other') {
+      this.apartmentName.setValue('');
+      this.cdr.markForCheck();
+      this.focusAddressNameInput();
+      return;
     }
+
+    this.apartmentName.setValue(type);
+    this.cdr.markForCheck();
+    this.persistAddressNameToSavedApartment();
   }
 
-  startEditAddressName() {
-    this.addressNameEditing = true;
-    this.cdr.markForCheck();
+  /** Waits a tick so *ngIf has rendered the field before it takes focus. */
+  private focusAddressNameInput(): void {
+    if (!this.isBrowser) return;
+    setTimeout(() => this.addressNameOtherInput?.nativeElement.focus(), 0);
   }
 
-  finishEditAddressName() {
-    this.addressNameEditing = false;
-    const built = this.getBuiltAddressString();
-    const newName = (this.apartmentName.value ?? '').trim();
-    if (newName && newName !== built) this.addressNameIsCustomized = true;
-    this.apartmentName.updateValueAndValidity();
-    this.cdr.markForCheck();
+  /**
+   * Custom name finished: trim it and, for a saved address, push the rename to the profile.
+   * A blank field is left blank (the placeholder keeps reading better than the word "Other"
+   * typed into the box) — the booking itself is named "Other" via resolveAddressName.
+   */
+  onAddressNameBlur(): void {
+    const trimmed = (this.apartmentName.value ?? '').trim();
+    if (trimmed !== this.apartmentName.value) this.apartmentName.setValue(trimmed);
+    this.persistAddressNameToSavedApartment();
+  }
 
-    // If user has a saved address selected, persist the new address name to the database
+  /**
+   * When the booking uses one of the customer's SAVED addresses, renaming it here renames the
+   * saved address itself — same behaviour the old inline Edit/Done field had.
+   */
+  private persistAddressNameToSavedApartment(): void {
+    // Blank resolves to "Other" here too, so the saved address and the order never disagree.
+    const newName = resolveAddressName(this.apartmentName.value);
     const selectedId = this.bookingForm.get('selectedApartmentId')?.value;
-    if (!selectedId || !newName) return;
+    if (!selectedId) return;
     const apartment = this.userApartments.find((a: { id: number }) => a.id === +selectedId);
     if (!apartment || apartment.name === newName) return;
     const updated = { ...apartment, name: newName };
@@ -1920,6 +2109,20 @@ export class BookingComponent implements OnInit, OnDestroy {
     return 400; // Default minimum
   }
 
+  /**
+   * Floor the restored Sq.ft to the current bedroom minimum without ever lowering it.
+   * Call ONCE after a restore loop has written every quantity — never per-item, or the
+   * result depends on the order the saved services happen to arrive in.
+   */
+  private clampSquareFeetToBedroomMinimum(): void {
+    const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+    if (!sqftService) return;
+    sqftService.quantity = clampRestoredSquareFeet(
+      sqftService.quantity,
+      this.getSquareFeetMinForBedrooms()
+    );
+  }
+
   // ===== Sq.ft slider =====
   // The slider runs over an INDEX into the allowed values rather than over raw
   // square feet: a range input steps from its `min`, which made round values
@@ -1962,16 +2165,23 @@ export class BookingComponent implements OnInit, OnDestroy {
   updateServiceQuantity(service: Service, quantity: number) {
     const selectedService = this.selectedServices.find(s => s.service.id === service.id);
     if (selectedService) {
+      // Captured BEFORE the write below — the bedrooms→sqft rule needs the floor of the
+      // OUTGOING bedroom count to tell an inherited sqft from a chosen one.
+      const previousQuantity = selectedService.quantity;
       selectedService.quantity = quantity;
-      
+
       // Update square feet when bedrooms change
       if (service.serviceKey === 'bedrooms') {
         const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
         if (sqftService) {
-          sqftService.quantity = this.getSquareFeetForBedrooms(quantity);
+          sqftService.quantity = resolveSquareFeetForBedroomChange(
+            sqftService.quantity,
+            this.getSquareFeetForBedrooms(previousQuantity),
+            this.getSquareFeetForBedrooms(quantity)
+          );
         }
       }
-      
+
       // If updating square feet, ensure it's not below minimum for current bedrooms
       if (service.serviceKey === 'sqft') {
         const minSquareFeet = this.getSquareFeetMinForBedrooms();
@@ -2382,12 +2592,11 @@ export class BookingComponent implements OnInit, OnDestroy {
           // Now set all address fields including city and address name (required)
           this.bookingForm.patchValue({
             serviceAddress: apartment.address,
-            apartmentName: apartment.name || '',
+            apartmentName: apartment.name || DEFAULT_ADDRESS_NAME,
             aptSuite: apartment.aptSuite || '',
             city: apartment.city,
             zipCode: apartment.postalCode
           });
-          this.addressNameIsCustomized = true; // saved address uses its stored name
         }
       });
     }
@@ -2459,9 +2668,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     // Total discount is the sum of all three slots; after stacking at most two are non-zero.
     const totalDiscountAmount = this.subscriptionDiscountAmount + this.promoOrFirstTimeDiscountAmount + this.loyaltyDiscountAmount;
 
-    const tips = this.tips.value || 0;
-    const companyDevelopmentTips = this.companyDevelopmentTips.value || 0;
-    const totalTips = tips + companyDevelopmentTips;
+    const tips = this.tipsAmount;
 
     const totals = calculateTotals({
       subTotal,
@@ -2471,8 +2678,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       discountAmount: this.promoOrFirstTimeDiscountAmount,
       subscriptionDiscountAmount: this.subscriptionDiscountAmount,
       loyaltyDiscountAmount: this.loyaltyDiscountAmount,
-      tips,
-      companyDevelopmentTips
+      tips
     });
 
     // Gift card / bubble points / bubble credits come off the very end.
@@ -2492,7 +2698,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       subTotal: round2(subTotal),
       tax: totals.tax,
       discountAmount: totalDiscountAmount,
-      tips: totalTips,
+      tips,
       total: round2(finalTotal),
       totalDuration: quote.displayDuration
     };
@@ -2741,12 +2947,8 @@ export class BookingComponent implements OnInit, OnDestroy {
 
     lines.push({ label: 'Sales Tax (8.875%):', value: `$${this.calculation.tax.toFixed(2)}`, shimmer });
 
-    if (this.tips.value > 0) {
-      lines.push({ label: 'Tips for Cleaners:', value: `$${(this.tips.value || 0).toFixed(2)}`, shimmer });
-    }
-
-    if (this.companyDevelopmentTips.value > 0) {
-      lines.push({ label: 'Tips for Company Development:', value: `$${(this.companyDevelopmentTips.value || 0).toFixed(2)}`, shimmer });
+    if (this.tipsAmount > 0) {
+      lines.push({ label: 'Tips for Cleaners:', value: `$${this.tipsAmount.toFixed(2)}`, shimmer });
     }
 
     return lines;
@@ -2834,7 +3036,6 @@ export class BookingComponent implements OnInit, OnDestroy {
       sameDayFullyBooked: this.isSameDaySelected && this.isSameDayFullyBooked(),
       dateTimeBlocked: this.isSelectedDateTimeBlocked(),
       minTipAmount: this.minTipAmount,
-      minCompanyTipAmount: this.minCompanyTipAmount,
       gates: {
         isFormValid: this.isFormValid(),
         canProceedToNextStep: this.canProceedToNextStep(),
@@ -2944,23 +3145,14 @@ export class BookingComponent implements OnInit, OnDestroy {
       return;
     }
     
-    // Determine apartmentId and apartmentName based on whether using saved apartment
-    let apartmentId: number | null = null;
-    let apartmentName: string | undefined = undefined;
-    
-    if (formValue.selectedApartmentId) {
-      // Using a saved apartment
-      apartmentId = Number(formValue.selectedApartmentId);
-      // Find the apartment name from the selected apartment
-      const selectedApartment = this.userApartments.find(a => a.id === apartmentId);
-      if (selectedApartment) {
-        apartmentName = selectedApartment.name;
-      }
-    } else if (formValue.apartmentName) {
-      // Entering a new apartment
-      apartmentName = formValue.apartmentName;
-      // apartmentId remains null for new apartments
-    }
+    // The Home/Office/Other picker is the source of truth for the name whether or not a saved
+    // address is in use — reading the stored name off the saved apartment instead meant a
+    // customer who picked "Other" still booked it as whatever it was called before.
+    // apartmentId stays null for a newly typed address.
+    const apartmentName: string = resolveAddressName(formValue.apartmentName);
+    const apartmentId: number | null = formValue.selectedApartmentId
+      ? Number(formValue.selectedApartmentId)
+      : null;
 
     const shouldApplySubscriptionDiscount = this.hasActiveSubscription && 
     this.userSubscription && 
@@ -3004,8 +3196,9 @@ export class BookingComponent implements OnInit, OnDestroy {
          (this.firstTimeDiscountApplied && !formValue.promoCode ? 'firstUse' : formValue.promoCode)),
       specialOfferId: this.specialOfferApplied ? this.selectedSpecialOffer?.specialOfferId : undefined,
       userSpecialOfferId: this.specialOfferApplied && this.selectedSpecialOffer && this.authService.isLoggedIn() ? this.selectedSpecialOffer.id : undefined,
-      tips: formValue.tips,
-      companyDevelopmentTips: formValue.companyDevelopmentTips,
+      // Normalized, never raw: the API's Tips is a non-nullable decimal, so a cleared
+      // number input would otherwise post null and fail model binding with a 400.
+      tips: this.tipsAmount,
       maidsCount: this.showCustomPricing ? parseInt(this.customCleaners.value) : this.calculatedMaidsCount,
       discountAmount: this.promoOrFirstTimeDiscountAmount,
       subscriptionDiscountAmount: shouldApplySubscriptionDiscount ? this.subscriptionDiscountAmount : 0,
@@ -3385,13 +3578,12 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.calculateTotal();
   }
 
-  /** Estimated points for this booking: (total - tax - tips - companyTips) * pointsPerDollar */
+  /** Estimated points for this booking: (total - tax - tips) * pointsPerDollar */
   get estimatedPoints(): number {
     if (!this.bubblePointsEnabled || this.bubblePointsPerDollar <= 0) return 0;
     const base = (this.calculation?.total ?? 0)
       - (this.calculation?.tax ?? 0)
-      - (this.tips?.value ?? 0)
-      - (this.companyDevelopmentTips?.value ?? 0);
+      - this.tipsAmount;
     return Math.floor(Math.max(0, base) * this.bubblePointsPerDollar);
   }
 
@@ -3700,7 +3892,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.bookingForm.patchValue({
       selectedApartmentId: '',
       serviceAddress: '',
-      apartmentName: '',
+      apartmentName: DEFAULT_ADDRESS_NAME,
       aptSuite: '',
       city: '',
       state: this.states.length > 0 ? this.states[0] : '',
@@ -3826,15 +4018,14 @@ export class BookingComponent implements OnInit, OnDestroy {
           contactPhone: order.contactPhone || '',
           serviceAddress: order.serviceAddress || '',
           aptSuite: order.aptSuite || '',
-          apartmentName: '',
+          apartmentName: DEFAULT_ADDRESS_NAME,
           city: order.city || '',
           state: order.state || '',
           zipCode: order.zipCode || '',
           entryMethod: order.entryMethod || '',
           specialInstructions: order.specialInstructions || '',
           // Copy tips from previous order but not promo codes, gift cards, or special offers
-          tips: order.tips || 0,
-          companyDevelopmentTips: order.companyDevelopmentTips || 0,
+          tips: normalizeTipAmount(order.tips),
           hasStartedBooking: true,
           bookingProgress: 'started' as const
         };
@@ -3865,17 +4056,14 @@ export class BookingComponent implements OnInit, OnDestroy {
               const existingIndex = this.selectedServices.findIndex(s => s.service.id === service.id);
               if (existingIndex >= 0) {
                 this.selectedServices[existingIndex].quantity = orderService.quantity;
-                
-                // Update square feet when bedrooms are restored
-                if (service.serviceKey === 'bedrooms') {
-                  const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
-                  if (sqftService) {
-                    sqftService.quantity = this.getSquareFeetForBedrooms(orderService.quantity);
-                  }
-                }
               }
             }
           });
+          // Same rule as the session restore: the reordered order's Sq.ft is what the customer
+          // actually bought, so it is floored and never lowered. Doing it here rather than
+          // inside the loop matters — order.services arrives in DB order, so a sqft row ahead
+          // of the bedrooms row used to have its value overwritten and never put back.
+          this.clampSquareFeetToBedroomMinimum();
         }
 
         // Restore selected extra services
@@ -3919,8 +4107,7 @@ export class BookingComponent implements OnInit, OnDestroy {
           zipCode: order.zipCode || '',
           // Don't copy promo codes or gift cards from previous order, but keep tips
           promoCode: '',
-          tips: order.tips || 0,
-          companyDevelopmentTips: order.companyDevelopmentTips || 0,
+          tips: normalizeTipAmount(order.tips),
           cleaningType: cleaningTypeToApply
         });
 
@@ -4217,7 +4404,20 @@ export class BookingComponent implements OnInit, OnDestroy {
   get zipCode() { return this.bookingForm.get('zipCode') as FormControl; }
   get promoCode() { return this.bookingForm.get('promoCode') as FormControl; }
   get tips() { return this.bookingForm.get('tips') as FormControl; }
-  get companyDevelopmentTips() { return this.bookingForm.get('companyDevelopmentTips') as FormControl; }
+
+  /**
+   * The tip in dollars, always a number. Read this instead of `tips.value` — the raw
+   * control is null whenever the number input is cleared or the form has been reset.
+   */
+  get tipsAmount(): number { return normalizeTipAmount(this.tips?.value); }
+
+  /** Snap a cleared tip box back to 0 on blur so the UI and the stored value agree. */
+  normalizeTipsOnBlur() {
+    const normalized = this.tipsAmount;
+    if (this.tips.value !== normalized) {
+      this.tips.setValue(normalized);
+    }
+  }
   get cleaningType() { return this.bookingForm.get('cleaningType') as FormControl; }
   get smsConsent() { return this.bookingForm.get('smsConsent') as FormControl; }
   get cancellationConsent() { return this.bookingForm.get('cancellationConsent') as FormControl; }
@@ -5298,6 +5498,18 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   get cleaningSuppliesCleaningTypeLabel(): string {
     return this.cleaningType?.value === 'deep' ? 'Deep Cleaning' : 'Standard Cleaning';
+  }
+
+  /**
+   * Oven Cleaner liquid rides along with Deep Cleaning — and also with the Oven Cleaning extra
+   * on its own, which the supplies list used to ignore. Same rule as the confirmation
+   * email/SMS (see shared/booking/supply-checklist.utils).
+   */
+  get suppliesRequireOvenCleaner(): boolean {
+    if (this.cleaningType?.value === 'deep') return true;
+    return requiresOvenCleaner(
+      extraServiceNamesOf(this.selectedExtraServices.map(s => s.extraService))
+    );
   }
 
   get cleaningSuppliesExtraCost(): number | null {

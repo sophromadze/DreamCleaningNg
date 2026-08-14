@@ -367,9 +367,16 @@
                 border-right: none;
               }
 
+              // Both stay on one line at any width — the "$" used to wrap off the number,
+              // and the service date's AM/PM used to drop under the time.
               &.amount {
                 font-weight: 700;
                 color: #1e293b;
+                white-space: nowrap;
+              }
+
+              &.service-date {
+                white-space: nowrap;
               }
 
               &.actions {
@@ -2045,8 +2052,8 @@
 
 /* Assigned Cleaners Column Styles */
 .assigned-cleaners {
-  min-width: 150px;
-  max-width: 200px;
+  min-width: 90px;
+  max-width: 180px;
 }
 
 /* Names/"Not assigned" with the advisory staffing flag on the right. min-width: 0 lets
@@ -2430,25 +2437,27 @@
 
 /* Responsive Improvements */
 @media (max-width: 1200px) {
-  .cleaners-names {
-    max-width: 120px;
-  }
-  
+  // Column steps down with the viewport; the names track it so the ellipsis
+  // lands at the cell edge instead of well before it.
   .assigned-cleaners {
-    min-width: 120px;
-    max-width: 150px;
+    min-width: 80px;
+    max-width: 145px;
+  }
+
+  .cleaners-names {
+    max-width: 145px;
   }
 }
 
 @media (max-width: 768px) {
   .assigned-cleaners {
-    min-width: 100px;
-    max-width: 120px;
+    min-width: 70px;
+    max-width: 115px;
   }
-  
+
   .cleaners-names {
     font-size: 11px;
-    max-width: 100px;
+    max-width: 115px;
   }
   
   .cleaners-count {

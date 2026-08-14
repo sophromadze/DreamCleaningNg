@@ -5,10 +5,9 @@ import { AbstractControl, FormControl, FormGroup, ValidationErrors } from '@angu
  * ---------------
  * Admins regularly hit "I filled in everything and Book Now is still grey". The gate
  * (`isFormValid()` / `canProceedToNextStep()`) is a big boolean, so when it returns false
- * nothing on screen says which piece is missing — and some of the controls it checks are
- * NOT rendered on any step (`apartmentName` is `Validators.required` but only appears when
- * the address name is being edited; `tips` fails its minimum silently). Those are the cases
- * that look impossible from the outside.
+ * nothing on screen says which piece is missing — and some of the controls it checks can be
+ * invalid without anything visible being wrong (`tips` fails its minimum silently). Those are
+ * the cases that look impossible from the outside.
  *
  * This module turns the gate back into a list of named reasons and prints it to the console.
  * It is read-only: it never mutates a control, so calling it is always safe.
@@ -69,7 +68,6 @@ export interface BookingDiagnosticsSnapshot {
   dateTimeBlocked: boolean;
 
   minTipAmount: number;
-  minCompanyTipAmount: number;
 
   /** The gate results themselves, so the log can show the boolean the button actually reads. */
   gates: {
@@ -95,14 +93,13 @@ const CONTROL_LABELS: Record<string, string> = {
   useApartmentAddress: 'Use saved address toggle',
   selectedApartmentId: 'Saved address selection',
   serviceAddress: 'Street address',
-  apartmentName: 'Address name (the small label under the address, auto-filled from it)',
+  apartmentName: 'Address name (Home / Office / Other dropdown beside the ZIP code)',
   aptSuite: 'Apt / Suite',
   city: 'City',
   state: 'State',
   zipCode: 'ZIP code',
   promoCode: 'Promo code',
   tips: 'Tip for the cleaners',
-  companyDevelopmentTips: 'Tip for the company',
   cleaningType: 'Cleaning type (standard / deep)',
   smsConsent: 'SMS consent checkbox',
   cancellationConsent: 'Cancellation policy checkbox',
@@ -128,7 +125,6 @@ const CONTROL_STEPS: Record<string, number> = {
   customEntryMethod: 2,
   specialInstructions: 2,
   tips: 2,
-  companyDevelopmentTips: 2,
   contactFirstName: 3,
   contactLastName: 3,
   contactEmail: 3,
@@ -231,9 +227,7 @@ function describeErrors(errors: ValidationErrors | null, snapshot: BookingDiagno
         case 'max':
           return `is above the maximum of ${detail?.max}`;
         case 'minTipAmount':
-          return `is below the $${snapshot.minTipAmount} minimum tip (set it to 0 or at least $${snapshot.minTipAmount})`;
-        case 'minCompanyTipAmount':
-          return `is below the $${snapshot.minCompanyTipAmount} minimum tip (set it to 0 or at least $${snapshot.minCompanyTipAmount})`;
+          return `is below the $${snapshot.minTipAmount} minimum tip (clear it or set at least $${snapshot.minTipAmount})`;
         default:
           return `failed the "${key}" rule`;
       }

@@ -135,6 +135,7 @@ export interface AdminOrderList {
   /** True for cleaner+hours service types (TotalDuration is per-cleaner) — badge skips those. */
   hasCleanersService?: boolean;
   tips: number;
+  /** RETIRED, read-only. 0 on new orders; legacy orders keep theirs inside `total`. */
   companyDevelopmentTips: number;
   cancellationReason?: string;
   isLateCancellation?: boolean;
@@ -320,6 +321,8 @@ export interface UserAdmin {
   email: string;
   /** True for admin-created cash customers with no email; email arrives blank from the API. */
   isNoEmailUser?: boolean;
+  /** Avatar image (Google/Apple photo from social login, or an uploaded one). Missing = show initials. */
+  profilePictureUrl?: string | null;
   phone?: string;
   role: string;
   authProvider?: string;
@@ -437,7 +440,8 @@ export interface SuperAdminUpdateOrderDto {
   floorTypes?: string | null;
   floorTypeOther?: string | null;
   tips?: number | null;
-  companyDevelopmentTips?: number | null;
+  // companyDevelopmentTips is deliberately absent: the field is retired and the backend
+  // preserves whatever a legacy order already stores. Do not re-add it here.
   status?: string | null;
   cancellationReason?: string | null;
   subTotal?: number | null;

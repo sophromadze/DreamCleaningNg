@@ -179,7 +179,7 @@
                       title="Hidden from the default list — showing because &quot;Show hidden orders&quot; is on.">HIDDEN</span>
               </td>
               <td>{{getCustomerEmail(order.id)}}</td>
-              <td>{{formatDateTime(order.serviceDate, order.serviceTime)}}</td>
+              <td class="service-date">{{formatDateTime(order.serviceDate, order.serviceTime)}}</td>
               <td>{{getServiceTypeDisplay(order)}}</td>
               <td>{{order.city || '—'}}</td>
               <td class="amount">$ {{formatCurrency(getOrderTotalWithoutTips(order))}}</td>
@@ -201,9 +201,11 @@
                      only) sits to the RIGHT of the names and disappears once the order is Done. -->
                 <div *ngIf="isCleanersLoaded(order.id)" class="cleaners-cell">
                   <ng-container *ngIf="getAssignedCleaners(order.id).length > 0; else noCleaners">
+                    <!-- Short form ("John Smi.") keeps the narrow column readable; the title
+                         tooltip still shows the full names. -->
                     <div class="cleaners-names" [title]="getAssignedCleaners(order.id).join(', ')">
                       ({{ getAssignedCleaners(order.id).length}})
-                      {{ getAssignedCleaners(order.id).join(', ') }}
+                      {{ getAssignedCleanersShort(order.id) }}
                     </div>
                   </ng-container>
                   <ng-template #noCleaners>
@@ -588,14 +590,15 @@
                       </div>
                       <div class="edit-group edit-group--pricing">
                         <h6>Pricing & Status</h6>
-                        <div class="edit-row"><label>SubTotal</label><input type="number" step="1" [(ngModel)]="editOrderForm.subTotal" (ngModelChange)="recalculateEditPricing()"></div>
+                        <!-- Typing a subtotal MOVES the subtotal, so the discounts re-scale (same rule as a
+                             quantity change). The Discount / Subscription Discount inputs below deliberately
+                             do not, or they would overwrite what the admin is typing into them. -->
+                        <div class="edit-row"><label>SubTotal</label><input type="number" step="1" [(ngModel)]="editOrderForm.subTotal" (ngModelChange)="recalculateEditPricing(true)"></div>
                         <div class="edit-row"><label>Tax</label><input type="number" step="1" [(ngModel)]="editOrderForm.tax" readonly></div>
                         <div class="edit-row"><label>Tips</label><input type="number" step="1" [(ngModel)]="editOrderForm.tips" (ngModelChange)="recalculateEditPricing()"></div>
-                        <!-- Company Tips is HIDDEN (no longer offered to customers). The field is
-                             deliberately left out of the form only — editOrderForm.companyDevelopmentTips
-                             is still loaded from the order, still feeds recalculateEditPricing() and is
-                             still sent on save, so legacy orders that carry a value keep it untouched. -->
-                        <!-- <div class="edit-row"><label>Company Tips</label><input type="number" step="1" [(ngModel)]="editOrderForm.companyDevelopmentTips" (ngModelChange)="recalculateEditPricing()"></div> -->
+                        <!-- Company Tips is RETIRED: no form field, no editOrderForm entry, and it is
+                             no longer sent on save. The stored value on a legacy order is read-only
+                             (see legacyCompanyDevelopmentTips) and the backend preserves it. -->
                         <div class="edit-row"><label>Discount (promo/special)</label><input type="number" step="1" [(ngModel)]="editOrderForm.discountAmount" (ngModelChange)="recalculateEditPricing()"></div>
                         <div class="edit-row"><label>Subscription Discount</label><input type="number" step="1" [(ngModel)]="editOrderForm.subscriptionDiscountAmount" (ngModelChange)="recalculateEditPricing()"></div>
                         <!-- Loyalty Discount in admin edit: read-only display because the $ amount
@@ -891,12 +894,8 @@
                         <p><strong>Tax:</strong> ${{formatCurrency(selectedOrder.tax)}}</p>
                         <!-- Tips for Cleaners is intentionally NOT shown here — it lives in the
                              summary bar at the top of the panel. -->
-                        <!-- Tips for Company is HIDDEN (no longer offered). Markup kept so the row can
-                             be restored; the underlying data is untouched and still excluded from the
-                             tip-free total below. -->
-                        <!-- <p *ngIf="selectedOrder.companyDevelopmentTips > 0">
-                          <strong>Tips for Company:</strong> ${{formatCurrency(selectedOrder.companyDevelopmentTips)}}
-                        </p> -->
+                        <!-- Tips for Company is RETIRED and never displayed. Any stored value on a
+                             legacy order is still excluded from the tip-free total below. -->
 
                         <!-- Subscription Discount -->
                         <p *ngIf="selectedOrder.subscriptionDiscountAmount && selectedOrder.subscriptionDiscountAmount > 0">

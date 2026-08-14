@@ -203,7 +203,6 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
         subscriptionDiscountAmount: this.bookingData.subscriptionDiscountAmount || 0,
         loyaltyDiscountAmount: this.bookingData.loyaltyDiscountAmount || 0,
         tips: this.bookingData.tips || 0,
-        companyDevelopmentTips: this.bookingData.companyDevelopmentTips || 0,
         giftCardAmountUsed: this.bookingData.giftCardAmountToUse || 0
       });
       total = totals.total;

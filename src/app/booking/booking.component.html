@@ -885,31 +885,11 @@
 
 
 
-            <!-- Step 10: Tips for Company Development -->
-            <section class="booking-section" style="display: none;">
-              <h2>Tips for Company Development</h2>
-              <div class="tips-section">
-                <p>Support our company's growth and improvement initiatives!</p>
-                <div class="tip-options">
-                  <button [class.selected]="companyDevelopmentTips.value === 0" 
-                          (click)="companyDevelopmentTips.setValue(0)">$0</button>
-                  <button [class.selected]="companyDevelopmentTips.value === 10" 
-                          (click)="companyDevelopmentTips.setValue(10)">$10</button>
-                  <button [class.selected]="companyDevelopmentTips.value === 15" 
-                          (click)="companyDevelopmentTips.setValue(15)">$15</button>
-                  <button [class.selected]="companyDevelopmentTips.value === 20" 
-                          (click)="companyDevelopmentTips.setValue(20)">$20</button>
-                  <button [class.selected]="companyDevelopmentTips.value === 25" 
-                          (click)="companyDevelopmentTips.setValue(25)">$25</button>
-                  <div class="custom-tip">
-                    <input type="number" [formControl]="companyDevelopmentTips" min="0" placeholder="Custom amount">
-                    <div class="error-message" *ngIf="companyDevelopmentTips.errors?.['minCompanyTipAmount']">
-                      Custom tip amount must be at least $10
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
+            <!-- "Tips for Company Development" was removed here. It used to live in a
+                 style="display:none" section whose form control kept a min-$10 validator,
+                 so whenever its value went null the whole form went invalid over a field
+                 nobody could see or fix, permanently disabling Book Now. Do not reintroduce
+                 a hidden-but-validated control. -->
 
             <!-- Step 11: Special Instructions (hidden when custom pricing uses the same field earlier) -->
             <section class="booking-section" *ngIf="!showCustomPricing">
@@ -1138,14 +1118,30 @@
             <div class="address-options" *ngIf="userApartments.length > 0">
               <div class="saved-address-container">
                 <div class="dropdown-with-clear">
-                  <select [formControl]="selectedApartmentId" (change)="onApartmentSelect($event)">
-                    <option value="">Enter new address</option>
-                    <option *ngFor="let apt of userApartments" [value]="apt.id">
-                      {{ apt.name }}{{ apt.address && apt.address !== apt.name ? ' — ' + apt.address : '' }}
-                    </option>
-                  </select>
-                  <button type="button" 
-                          class="clear-btn" 
+                  <div class="service-type-dropdown compact-dropdown saved-address-dropdown">
+                    <button type="button"
+                            class="dropdown-toggle"
+                            (click)="toggleSavedAddressDropdown()"
+                            aria-label="Saved address">
+                      <span [class.is-placeholder]="!selectedApartmentId.value">{{ savedAddressLabel }}</span>
+                      <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="dropdown-menu" *ngIf="savedAddressDropdownOpen">
+                      <button type="button"
+                              class="dropdown-item"
+                              [class.is-active]="!selectedApartmentId.value"
+                              (click)="selectSavedAddress('')">Enter new address</button>
+                      <button *ngFor="let apt of userApartments"
+                              type="button"
+                              class="dropdown-item"
+                              [class.is-active]="selectedApartmentId.value == apt.id"
+                              (click)="selectSavedAddress(apt.id)">
+                        {{ getSavedAddressLabel(apt) }}
+                      </button>
+                    </div>
+                  </div>
+                  <button type="button"
+                          class="clear-btn"
                           *ngIf="selectedApartmentId.value"
                           (click)="clearApartmentSelection()">
                     Clear
@@ -1161,7 +1157,13 @@
                   <input *ngIf="selectedApartmentId.value" type="text" [formControl]="serviceAddress" placeholder="Address *" id="serviceAddress">
                   <!-- New address: Google Places Autocomplete or fallback -->
                   <ng-container *ngIf="!selectedApartmentId.value">
-                    <div class="address-autocomplete-wrapper" #addressAutocompleteContainer>
+                    <!-- [hidden], not *ngIf: the widget is injected into this element via
+                         @ViewChild, so it must stay in the DOM. Left visible while the
+                         fallback input shows, its empty 3rem box stacked above that input
+                         and knocked the address field out of line with Apt/Suite. -->
+                    <div class="address-autocomplete-wrapper"
+                         #addressAutocompleteContainer
+                         [hidden]="autocompleteError || showAddressFallbackAfterDelay">
                     </div>
                     <input *ngIf="autocompleteError || showAddressFallbackAfterDelay"
                            [formControl]="serviceAddress"
@@ -1178,19 +1180,52 @@
                 </div>
               </div>
               <div class="form-group">
-                <select [formControl]="city" id="city">
-                  <option value="">City *</option>
-                  <option *ngFor="let city of cities" [value]="city">{{ city }}</option>
-                </select>
+                <!-- City list follows the `state` control (see syncCitiesToState); an unserved
+                     state deliberately leaves it empty, which the empty-menu note explains. -->
+                <div class="service-type-dropdown compact-dropdown city-dropdown">
+                  <button type="button"
+                          class="dropdown-toggle"
+                          [class.pulsate-soft-red]="!city.value && (city.touched || formSubmitted)"
+                          (click)="toggleCityDropdown()"
+                          id="city"
+                          aria-label="City">
+                    <span [class.is-placeholder]="!city.value">{{ city.value || 'City *' }}</span>
+                    <i class="fas fa-chevron-down"></i>
+                  </button>
+                  <div class="dropdown-menu" *ngIf="cityDropdownOpen">
+                    <button *ngFor="let cityOption of cities"
+                            type="button"
+                            class="dropdown-item"
+                            [class.is-active]="city.value === cityOption"
+                            (click)="selectCity(cityOption)">{{ cityOption }}</button>
+                    <div class="dropdown-empty" *ngIf="cities.length === 0">
+                      {{ state.value ? 'We do not serve this state yet' : 'Choose a state first' }}
+                    </div>
+                  </div>
+                </div>
                 <div class="error-message" *ngIf="city.invalid && city.touched">
                   <div *ngIf="city.errors?.['required']">City is required</div>
                 </div>
               </div>
               <div class="form-group">
-                <select [formControl]="state" (change)="onStateChange(state.value)" id="state">
-                  <option value="">State *</option>
-                  <option *ngFor="let state of states" [value]="state">{{ state }}</option>
-                </select>
+                <div class="service-type-dropdown compact-dropdown state-dropdown">
+                  <button type="button"
+                          class="dropdown-toggle"
+                          [class.pulsate-soft-red]="!state.value && (state.touched || formSubmitted)"
+                          (click)="toggleStateDropdown()"
+                          id="state"
+                          aria-label="State">
+                    <span [class.is-placeholder]="!state.value">{{ state.value || 'State *' }}</span>
+                    <i class="fas fa-chevron-down"></i>
+                  </button>
+                  <div class="dropdown-menu" *ngIf="stateDropdownOpen">
+                    <button *ngFor="let stateOption of states"
+                            type="button"
+                            class="dropdown-item"
+                            [class.is-active]="state.value === stateOption"
+                            (click)="selectState(stateOption)">{{ stateOption }}</button>
+                  </div>
+                </div>
                 <div class="error-message" *ngIf="state.invalid && state.touched">
                   <div *ngIf="state.errors?.['required']">State is required</div>
                 </div>
@@ -1202,30 +1237,44 @@
                   <div *ngIf="zipCode.errors?.['pattern']">Please enter a valid 5-digit zip code</div>
                 </div>
               </div>
-            </div>
-            
-            <!-- Address name: looks like other fields but read-only until Edit; placeholder "Address Name"; centered, 50% width -->
-            <div class="address-name-block">
-              <div class="address-name-block-inner">
-                <ng-container *ngIf="!addressNameEditing">
-                  <div class="address-name-display-field">
-                    <span class="address-name-text" [class.placeholder]="!apartmentName.value">{{ apartmentName.value || 'Address Name' }}</span>
+              <!-- Address name: Home (default) / Office / Other. Picking "Other" closes the
+                   menu and puts a free-text field right next to the dropdown. -->
+              <div class="form-group address-name-group">
+                <div class="address-name-row" [class.has-custom]="addressNameType === 'Other'">
+                  <div class="service-type-dropdown compact-dropdown address-name-dropdown">
+                    <button type="button"
+                            class="dropdown-toggle"
+                            (click)="toggleAddressNameDropdown()"
+                            title="Address name"
+                            aria-label="Address name">
+                      <span>{{ addressNameType }}</span>
+                      <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="dropdown-menu" *ngIf="addressNameDropdownOpen">
+                      <button type="button"
+                              class="dropdown-item"
+                              [class.is-active]="addressNameType === 'Home'"
+                              (click)="selectAddressNameType('Home')">Home</button>
+                      <button type="button"
+                              class="dropdown-item"
+                              [class.is-active]="addressNameType === 'Office'"
+                              (click)="selectAddressNameType('Office')">Office</button>
+                      <button type="button"
+                              class="dropdown-item"
+                              [class.is-active]="addressNameType === 'Other'"
+                              (click)="selectAddressNameType('Other')">Other</button>
+                    </div>
                   </div>
-                  <button type="button" class="address-name-edit-btn" (click)="startEditAddressName()">Edit</button>
-                </ng-container>
-                <ng-container *ngIf="addressNameEditing">
-                  <input type="text"
+                  <input *ngIf="addressNameType === 'Other'"
+                         type="text"
+                         class="address-name-custom-input"
                          [formControl]="apartmentName"
-                         placeholder="e.g. Home, Office or keep address"
+                         placeholder="Address name"
                          maxlength="100"
                          id="apartmentName"
-                         (blur)="finishEditAddressName()"
-                         class="address-name-input">
-                  <button type="button" class="address-name-done-btn" (click)="finishEditAddressName()">Done</button>
-                </ng-container>
-              </div>
-              <div class="error-message" *ngIf="apartmentName.invalid && apartmentName.touched">
-                <div *ngIf="apartmentName.errors?.['required']">Address name is required</div>
+                         #addressNameOtherInput
+                         (blur)="onAddressNameBlur()">
+                </div>
               </div>
             </div>
           </section>
@@ -1299,48 +1348,51 @@
                     <button type="button" 
                             class="tip-dropdown-toggle"
                             (click)="toggleTipDropdown()">
-                      ${{ tips.value || 0 }}
+                      ${{ tipsAmount }}
                       <span class="dropdown-arrow">▼</span>
                     </button>
                     <div class="tip-dropdown-menu" *ngIf="tipDropdownOpen">
                       <button type="button"
                               class="tip-dropdown-item"
-                              [class.selected]="tips.value === 0"
+                              [class.selected]="tipsAmount === 0"
                               (click)="selectTipPreset(0)">
                         $0
                       </button>
                       <button type="button"
                               class="tip-dropdown-item"
-                              [class.selected]="tips.value === 10"
+                              [class.selected]="tipsAmount === 10"
                               (click)="selectTipPreset(10)">
                         $10
                       </button>
                       <button type="button"
                               class="tip-dropdown-item"
-                              [class.selected]="tips.value === 25"
+                              [class.selected]="tipsAmount === 25"
                               (click)="selectTipPreset(25)">
                         $25
                       </button>
                       <button type="button"
                               class="tip-dropdown-item"
-                              [class.selected]="tips.value === 50"
+                              [class.selected]="tipsAmount === 50"
                               (click)="selectTipPreset(50)">
                         $50
                       </button>
                       <button type="button"
                               class="tip-dropdown-item"
-                              [class.selected]="tips.value === 100"
+                              [class.selected]="tipsAmount === 100"
                               (click)="selectTipPreset(100)">
                         $100
                       </button>
                     </div>
                   </div>
                   <div class="tip-custom-input">
-                    <input type="number" 
-                           [formControl]="tips" 
-                           min="0" 
+                    <!-- (blur) snaps a cleared box back to 0 so "no tip" can never sit in the
+                         form as null. Typing is left alone while the field has focus. -->
+                    <input type="number"
+                           [formControl]="tips"
+                           min="0"
                            placeholder="Or enter custom amount"
-                           class="tip-input">
+                           class="tip-input"
+                           (blur)="normalizeTipsOnBlur()">
                     <div class="error-message" *ngIf="tips.errors?.['minTipAmount']">
                       Custom tip amount must be at least $10
                     </div>
@@ -1614,6 +1666,8 @@
                 <li>Mop</li>
               </ul>
 
+              <p><strong>Oven Cleaning extra:</strong> if you add Oven Cleaning to any service, Oven Cleaner Liquid is included in the list above.</p>
+
               <p><strong>If you skip this option, please have the above items ready for our team.</strong></p>
 
               <p><strong>Always required (you provide):</strong></p>
@@ -1688,7 +1742,7 @@
                         <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
                       </svg>
                     </span>
-                    <span>Zep liquids: Green, Floor<ng-container *ngIf="cleaningType.value === 'deep'">, Oven Cleaner</ng-container></span>
+                    <span>Zep liquids: Green, Floor<ng-container *ngIf="suppliesRequireOvenCleaner">, Oven Cleaner</ng-container></span>
                   </li>
                   <li>
                     <span class="dc-li-icon" aria-hidden="true">

@@ -73,6 +73,8 @@ export interface Order {
   subTotal: number;
   tax: number;
   tips: number;
+  /** RETIRED field, read-only. Always 0 on new orders; non-zero only on legacy orders,
+   *  where it is still part of `total`. Never displayed, never editable, never sent. */
   companyDevelopmentTips: number;
   total: number;
   discountAmount: number;
@@ -191,7 +193,6 @@ export interface UpdateOrder {
   services: { serviceId: number; quantity: number }[];
   extraServices: { extraServiceId: number; quantity: number; hours: number }[];
   tips: number;
-  companyDevelopmentTips: number;
   maidsCount: number;
   totalDuration: number;
   bedroomsQuantity?: number;

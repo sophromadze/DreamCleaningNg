@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { OrderService, OrderList, Order } from '../../../services/order.service';
 import { FormPersistenceService } from '../../../services/form-persistence.service';
 import { formatNyDate } from '../../../shared/ny-time.util';
+import { normalizeTipAmount } from '../../../shared/booking/tip-amount.utils';
 
 
 @Component({
@@ -144,8 +145,7 @@ export class OrderHistoryComponent implements OnInit {
           zipCode: order.zipCode || '',
           entryMethod: order.entryMethod || '',
           specialInstructions: order.specialInstructions || '',
-          tips: order.tips || 0,
-          companyDevelopmentTips: order.companyDevelopmentTips || 0,
+          tips: normalizeTipAmount(order.tips),
           promoCode: order.promoCode || '',
           hasStartedBooking: true,
           bookingProgress: 'started' as const

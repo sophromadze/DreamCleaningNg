@@ -27,6 +27,8 @@ import {
   getDefaultCleanerHourlyRate,
   getServiceDisplayDuration,
   getSquareFeetForBedrooms,
+  resolveSquareFeetForBedroomChange,
+  rescaleDiscountToSubTotal,
   resolveGiftCardAmountToUse,
   round2,
   QuoteResult,
@@ -49,6 +51,7 @@ export interface AdminOrderList extends OrderList {
   /** True for cleaner+hours service types (TotalDuration is per-cleaner) — badge skips those. */
   hasCleanersService?: boolean;
   tips: number;
+  /** RETIRED, read-only. 0 on new orders; legacy orders keep theirs inside `total`. */
   companyDevelopmentTips: number;
   cancellationReason?: string;
   isLateCancellation?: boolean;
@@ -2471,6 +2474,22 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return cleaners.map(c => c.name);
   }
 
+  /**
+   * Names for the narrow orders-table column: "John Smithson" → "John Smi.".
+   * The cell's title tooltip still carries the full names.
+   */
+  getAssignedCleanersShort(orderId: number): string {
+    return this.getAssignedCleaners(orderId).map(n => this.shortenCleanerName(n)).join(', ');
+  }
+
+  /** Last name trimmed to 3 characters + a dot. Names already 3 chars or shorter are left alone. */
+  private shortenCleanerName(fullName: string): string {
+    const parts = (fullName || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length < 2) return parts[0] || '';
+    const last = parts[parts.length - 1];
+    return `${parts[0]} ${last.length > 3 ? last.slice(0, 3) + '.' : last}`;
+  }
+
   getAssignedCleanersWithIds(orderId: number): AssignedCleanerAdmin[] {
     return this.assignedCleanersCache.get(orderId) || [];
   }
@@ -3236,6 +3255,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.round((t - tips - companyTips) * 100) / 100;
   }
 
+  /**
+   * "Tips for Company Development" is retired: no form, no input, no API field. Only orders
+   * placed while it existed can be non-zero, and that money is part of what was charged, so
+   * the panel's tip-free totals and price previews still subtract/include the STORED value.
+   */
+  get legacyCompanyDevelopmentTips(): number {
+    return Number(this.selectedOrder?.companyDevelopmentTips ?? 0) || 0;
+  }
+
   /** Cleaner tips for the panel summary bar — live edit value while editing, saved value otherwise. */
   getSummaryTips(): number {
     if (this.editingOrder) return Number(this.editOrderForm.tips ?? 0) || 0;
@@ -3251,8 +3279,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.editingOrder) return this.getCurrentTotalWithoutTips();
     const t = Number(this.editOrderForm.total ?? 0) || 0;
     const tips = Number(this.editOrderForm.tips ?? 0) || 0;
-    const companyTips = Number(this.editOrderForm.companyDevelopmentTips ?? 0) || 0;
-    return Math.round(Math.max(0, t - tips - companyTips) * 100) / 100;
+    return Math.round(Math.max(0, t - tips - this.legacyCompanyDevelopmentTips) * 100) / 100;
   }
 
   /**
@@ -3701,7 +3728,6 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       floorTypes: this.selectedOrder.floorTypes ?? null,
       floorTypeOther: this.selectedOrder.floorTypeOther ?? null,
       tips: this.selectedOrder.tips,
-      companyDevelopmentTips: this.selectedOrder.companyDevelopmentTips,
       status: this.selectedOrder.status,
       cancellationReason: this.selectedOrder.cancellationReason ?? null,
       subTotal: this.selectedOrder.subTotal,
@@ -3848,7 +3874,25 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  recalculateEditPricing(): void {
+  /**
+   * @param rederiveDiscountsFromSubTotal Re-scale the discounts to the current subtotal. ONLY
+   * recalcSubtotalFromServicesAndExtras passes true — it is the single place the subtotal is
+   * recomputed from services/extras, so it is the only caller for which the recorded discounts
+   * are stale.
+   *
+   * This used to be inferred from `subTotal !== editOrderFormOriginalSubTotal`, which was wrong
+   * in both directions. The re-scale writes back to editOrderForm.discountAmount, the same field
+   * read at the top of this method, so once the subtotal returned to its original value the
+   * comparison went false, the re-scale was skipped, and the PREVIOUS step's discount survived —
+   * bathrooms 2→1→2 left a 20% promo at 108.10 on a 563.00 subtotal instead of 112.60, one step
+   * behind. Re-scaling unconditionally instead would have been worse: the Discount field is
+   * admin-editable and calls this method on every keystroke, so a hand-typed amount would be
+   * overwritten as fast as it was entered.
+   *
+   * The resulting rule, which is the intended one: the ratio is the authority once the subtotal
+   * moves, and a hand-typed discount survives exactly as long as the subtotal does not.
+   */
+  recalculateEditPricing(rederiveDiscountsFromSubTotal = false): void {
     if (!this.selectedOrder || !this.editingOrder) return;
 
     let subTotal = Number(this.editOrderForm.subTotal ?? 0) || 0;
@@ -3856,12 +3900,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     let subscriptionDiscountAmount = Number(this.editOrderForm.subscriptionDiscountAmount ?? 0) || 0;
     let loyaltyDiscountAmount = Number(this.editOrderForm.loyaltyDiscountAmount ?? 0) || 0;
 
-    if (this.editOrderFormOriginalSubTotal > 0 && subTotal !== this.editOrderFormOriginalSubTotal) {
-      const ratioDiscount = this.editOrderFormOriginalDiscount / this.editOrderFormOriginalSubTotal;
-      const ratioSub = this.editOrderFormOriginalSubscriptionDiscount / this.editOrderFormOriginalSubTotal;
-      discountAmount = round2(subTotal * ratioDiscount);
-      subscriptionDiscountAmount = round2(subTotal * ratioSub);
+    if (this.editOrderFormOriginalSubTotal > 0 && rederiveDiscountsFromSubTotal) {
+      // Derived from the ORIGINAL snapshot every time, never from the current value — that is
+      // what makes a round trip land back on the exact starting numbers.
+      discountAmount = rescaleDiscountToSubTotal(
+        this.editOrderFormOriginalDiscount, this.editOrderFormOriginalSubTotal, subTotal);
+      subscriptionDiscountAmount = rescaleDiscountToSubTotal(
+        this.editOrderFormOriginalSubscriptionDiscount, this.editOrderFormOriginalSubTotal, subTotal);
       if (this.editOrderFormOriginalLoyaltyPercentage > 0) {
+        // Loyalty locks a PERCENTAGE at booking time, so it scales off that, not off a ratio.
         loyaltyDiscountAmount = round2(subTotal * (this.editOrderFormOriginalLoyaltyPercentage / 100));
       }
       this.editOrderForm.discountAmount = discountAmount;
@@ -3870,7 +3917,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     const tips = Number(this.editOrderForm.tips ?? 0) || 0;
-    const companyTips = Number(this.editOrderForm.companyDevelopmentTips ?? 0) || 0;
+    // Retired field, read straight off the saved order and never editable. A legacy order that
+    // carries one still had it in the total the customer paid, so the preview must keep counting
+    // it or opening and saving an untouched old order would look like a price drop.
+    const companyTips = this.legacyCompanyDevelopmentTips;
 
     const pointsRedeemedDiscount = Number((this.selectedOrder as any).pointsRedeemedDiscount ?? 0) || 0;
     const rewardBalanceUsed = Number((this.selectedOrder as any).rewardBalanceUsed ?? 0) || 0;
@@ -3984,7 +4034,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       this.editOrderForm.subTotal = round2(sum);
     }
 
-    this.recalculateEditPricing();
+    // The one caller that moved the subtotal, so the one caller that re-scales the discounts.
+    this.recalculateEditPricing(true);
     this.recalcEditDurationAndMaids();
     // Salary depends on duration/maids/rate; refresh after duration recalc so adding/removing
     // extras (e.g. Extra Minutes) keeps cleanerTotalSalary in sync with the new totalDuration.
@@ -4222,7 +4273,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         ? (def?.zeroQuantityCost ?? 0)
         : STUDIO_PRICE;
       this.editOrderFormPrevServiceQuantities[index] = 0;
-      this.syncEditSqftWithBedrooms(0);
+      // Only a BEDROOMS row drives the Sq.ft linkage. This used to fire for any row that
+      // dropped to zero and happened to carry a zero-quantity cost, re-syncing Sq.ft as
+      // though the order had become a studio.
+      if (def?.serviceKey === 'bedrooms') {
+        this.syncEditSqftWithBedrooms(0, prevQ);
+      }
       this.recalcSubtotalFromServicesAndExtras();
       return;
     }
@@ -4244,10 +4300,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     s.cost = round2(unitPrice * q);
     this.editOrderFormPrevServiceQuantities[index] = q;
-    // Bedrooms→sqft linkage (same behavior as the booking page): changing bedrooms
-    // auto-sets the Sq.ft row to the default for that bedroom count.
+    // Bedrooms→sqft linkage (same behavior as the booking page): changing bedrooms moves the
+    // Sq.ft row only if it was still sitting on the old bedroom's allowance.
     if (def?.serviceKey === 'bedrooms') {
-      this.syncEditSqftWithBedrooms(q);
+      this.syncEditSqftWithBedrooms(q, prevQ);
     }
     this.recalcSubtotalFromServicesAndExtras();
   }
@@ -4261,19 +4317,25 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return -1;
   }
 
-  /** Auto-set the Sq.ft row to the shared default for a bedroom count and reprice it. */
-  private syncEditSqftWithBedrooms(bedroomsQty: number): void {
+  /** Re-derive the Sq.ft row after a bedroom change and reprice it. */
+  private syncEditSqftWithBedrooms(bedroomsQty: number, prevBedroomsQty: number): void {
     const sqftIdx = this.findEditServiceIndexByKey('sqft');
     if (sqftIdx < 0) return;
     const row = this.editOrderForm.services?.[sqftIdx];
     if (!row) return;
 
-    // Quantity follows the CONFIGURED allowance for this bedroom count (same resolution the
-    // booking page and customer order edit use). The cost is deliberately NOT computed here:
-    // recalcSubtotalFromServicesAndExtras reprices every line through the shared calculator, so
-    // the tiered rate applies. The previous unitPrice x quantity here was linear and ignored
-    // both the allowance and the tiers.
-    row.quantity = this.getEditSquareFeetForBedrooms(bedroomsQty);
+    // Quantity follows the shared bedrooms→sqft rule against the CONFIGURED allowances (same
+    // resolution the booking page and customer order edit use): a Sq.ft still sitting on the
+    // outgoing bedroom's allowance tracks the new one, while a value the admin or customer
+    // raised above it survives. Resetting it unconditionally used to discard that value.
+    // The cost is deliberately NOT computed here: recalcSubtotalFromServicesAndExtras reprices
+    // every line through the shared calculator, so the tiered rate applies. The previous
+    // unitPrice x quantity here was linear and ignored both the allowance and the tiers.
+    row.quantity = resolveSquareFeetForBedroomChange(
+      Number(row.quantity) || 0,
+      this.getEditSquareFeetForBedrooms(prevBedroomsQty),
+      this.getEditSquareFeetForBedrooms(bedroomsQty)
+    );
     this.editOrderFormPrevServiceQuantities[sqftIdx] = row.quantity;
   }
 
@@ -4545,7 +4607,6 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     push('SubTotal', cur.subTotal, prop.subTotal);
     push('Tax', cur.tax, prop.tax);
     push('Tips', cur.tips, prop.tips);
-    push('Company Tips', cur.companyDevelopmentTips, prop.companyDevelopmentTips);
     push('Total', cur.total, prop.total);
     push('Discount', cur.discountAmount, prop.discountAmount);
     push('Subscription Discount', cur.subscriptionDiscountAmount, prop.subscriptionDiscountAmount);
@@ -4669,7 +4730,6 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       floorTypes: this.editOrderForm.floorTypes ?? undefined,
       floorTypeOther: this.editOrderForm.floorTypeOther ?? undefined,
       tips: this.editOrderForm.tips ?? undefined,
-      companyDevelopmentTips: this.editOrderForm.companyDevelopmentTips ?? undefined,
       status: this.editOrderForm.status ?? undefined,
       cancellationReason: this.editOrderForm.cancellationReason ?? undefined,
       subTotal: this.editOrderForm.subTotal ?? undefined,

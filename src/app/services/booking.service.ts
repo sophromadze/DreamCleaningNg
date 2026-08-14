@@ -133,7 +133,6 @@ export interface BookingData {
   promoCode?: string;
   userSpecialOfferId?: number;
   tips: number;
-  companyDevelopmentTips: number;
   maidsCount: number;
   totalDuration: number;
   discountAmount: number;

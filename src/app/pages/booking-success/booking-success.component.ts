@@ -6,6 +6,12 @@ import { OrderService, Order } from '../../services/order.service';
 import { AuthService } from '../../services/auth.service';
 import { BubbleRewardsService } from '../../services/bubble-rewards.service';
 import { AnalyticsService, AnalyticsUserData } from '../../services/analytics.service';
+import {
+  extraServiceNamesOf,
+  hasCleaningSuppliesExtra,
+  requiresOvenCleaner,
+  zepLiquidsText as zepLiquids
+} from '../../shared/booking/supply-checklist.utils';
 
 @Component({
   selector: 'app-booking-success',
@@ -18,7 +24,8 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
   orderId: string = '';
   order: Order | null = null;
   hasCleaningSupplies = false;
-  isDeepCleaning = false;
+  /** Deep/Super Deep Cleaning OR the Oven Cleaning extra — see supply-checklist.utils. */
+  needsOvenCleaner = false;
   isCustomServiceType = false;
   suppliesLoaded = false;
 
@@ -60,20 +67,10 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
         this.orderService.getOrderById(id).subscribe({
           next: (order) => {
             this.order = order;
-            const extras = order.extraServices ?? [];
+            const extraNames = extraServiceNamesOf(order.extraServices ?? []);
 
-            this.hasCleaningSupplies = extras.some(es =>
-              (es.extraServiceName ?? '').toLowerCase().includes('cleaning supplies')
-            );
-
-            const deepCleaning = extras.find(s =>
-              (s.extraServiceName ?? '').toLowerCase().includes('deep cleaning') &&
-              !(s.extraServiceName ?? '').toLowerCase().includes('super')
-            );
-            const superDeepCleaning = extras.find(s =>
-              (s.extraServiceName ?? '').toLowerCase().includes('super deep cleaning')
-            );
-            this.isDeepCleaning = !!deepCleaning || !!superDeepCleaning;
+            this.hasCleaningSupplies = hasCleaningSuppliesExtra(extraNames);
+            this.needsOvenCleaner = requiresOvenCleaner(extraNames);
             this.isCustomServiceType = this.isCustomServiceTypeOrder(order);
             this.suppliesLoaded = true;
             this.loadEstimatedPoints(order);
@@ -91,6 +88,10 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     if (this.resendTimer) clearInterval(this.resendTimer);
+  }
+
+  get zepLiquidsText(): string {
+    return zepLiquids(this.needsOvenCleaner);
   }
 
   viewOrderNow() {

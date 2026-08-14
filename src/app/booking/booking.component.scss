@@ -689,45 +689,6 @@
       }
     }
 
-    /* Address name block – night mode: field look and Edit button white text */
-    .address-name-block {
-      .address-name-display-field {
-        background: var(--surface-elevated);
-        border: 1px solid var(--border-color);
-      }
-      .address-name-text {
-        color: var(--text-primary);
-        &.placeholder {
-          color: var(--text-muted);
-        }
-      }
-      .address-name-edit-btn {
-        background: #e0b040;
-        color: #ffffff;
-        &:hover {
-          background: #d4a030;
-          color: #ffffff;
-        }
-      }
-      .address-name-done-btn {
-        background: #2e7d32;
-        color: #ffffff;
-        border: none;
-        &:hover {
-          background: #1b5e20;
-          color: #ffffff;
-        }
-      }
-      .address-name-input {
-        background: var(--surface-elevated);
-        color: var(--text-primary);
-        border: 1px solid var(--border-color);
-        &::placeholder {
-          color: var(--text-muted);
-        }
-      }
-    }
-
     .booking-form .service-type-selection .form-group label,
     .booking-form .service-type-selection .dropdown-toggle {
       color: var(--text-primary);
@@ -909,11 +870,6 @@
     /* Saved address dropdown */
     .saved-address-container label {
       color: var(--text-primary);
-    }
-    .saved-address-container .dropdown-with-clear select {
-      background: var(--surface-elevated) !important;
-      color: var(--text-primary) !important;
-      border: 1px solid var(--border-color) !important;
     }
 
     /* Tips: dropdown menu and custom input */
@@ -4061,18 +4017,19 @@
       grid-template-columns: 2fr 1fr;
       gap: 1rem;
       @media (max-width: 768px) {
-        gap: 0.75rem;
-      }
-      @media (max-width: 500px) {
-        grid-template-columns: 1fr;
-        gap: 0.5rem;
+        gap: 0.85rem;
       }
     }
 
     .address-autocomplete-wrapper {
       width: 100%;
       position: relative;
-      min-height: 44px;
+      min-height: 3rem; // same control height as the rest of the address grid
+
+      // min-height would otherwise keep reserving a 3rem gap while [hidden] is set.
+      &[hidden] {
+        display: none;
+      }
       --gmp-color-scheme: light;
       --gmp-dropdown-bg: #ffffff;
       --gmp-dropdown-text: #1a1a1a;
@@ -4080,7 +4037,9 @@
       gmp-place-autocomplete {
         width: 100% !important;
         display: block !important;
-        border-radius: 58px;
+        // Host clip must match the .input-container radius injected into its shadow root
+        // (see setupShadowDOMStyling), or the corners get squared off again.
+        border-radius: var(--radius-md);
         overflow: hidden;
         background: transparent !important;
         box-shadow: none !important;
@@ -4094,129 +4053,31 @@
     }
   }
   
-  .address-name-display {
-    margin-bottom: 0.75rem;
-    font-size: 0.9rem;
-    .address-name-label {
-      color: #666;
-      margin-right: 0.35rem;
+  /* Address name (Home / Office / Other) — sits beside Zip Code in the form grid and reuses
+     the service-type dropdown's toggle/menu styling. Picking "Other" puts a free-text field
+     next to the dropdown on the same row (sizing overrides live at the end of this file). */
+  .address-name-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+
+    // Alone in the cell the dropdown fills it; once "Other" adds the text field it steps
+    // aside to a fixed width (a flex-basis, because the dropdown carries width: 100%).
+    .address-name-dropdown {
+      flex: 1 1 auto;
+      min-width: 0;
     }
-    .address-name-value {
-      font-weight: 500;
+
+    &.has-custom .address-name-dropdown {
+      flex: 0 0 7.5rem;
+    }
+
+    .address-name-custom-input {
+      flex: 1 1 auto;
+      min-width: 0;
     }
   }
 
-  /* Address name block: below city/state/zip; field and input same size, Edit/Done button same place */
-  .address-name-block {
-    width: 50%;
-    margin: 1rem auto 0;
-    text-align: center;
-    .address-name-block-inner {
-      display: flex;
-      align-items: stretch;
-      justify-content: center;
-      gap: 0.5rem;
-      flex-wrap: nowrap;
-      width: 100%;
-      max-width: 100%;
-    }
-    /* Shared dimensions: field, input and both buttons use exact same height */
-    $addr-field-padding: 0.75rem;
-    $addr-field-radius: 58px;
-    $addr-row-height: 2.75rem;
-    $addr-btn-min-width: 5rem;
-    $addr-btn-padding: 0 1rem;
-    .address-name-display-field,
-    .address-name-input {
-      flex: 1;
-      min-width: 12rem;
-      height: $addr-row-height;
-      padding: 0.375rem $addr-field-padding;
-      border-radius: $addr-field-radius;
-      border: none;
-      background: #ffffff;
-      font-size: 1rem;
-      line-height: 1.25;
-      font-family: 'Poppins', sans-serif;
-      font-weight: 400;
-      box-sizing: border-box;
-    }
-    .address-name-display-field {
-      display: flex;
-      align-items: center;
-    }
-    .address-name-text {
-      font-size: 1rem;
-      line-height: 1.25;
-      color: #333;
-      font-weight: 400;
-      &.placeholder {
-        color: #999;
-      }
-    }
-    .address-name-edit-btn,
-    .address-name-done-btn {
-      min-width: $addr-btn-min-width;
-      height: $addr-row-height;
-      padding: $addr-btn-padding;
-      box-sizing: border-box;
-      font-size: 0.9rem;
-      border-radius: $addr-field-radius;
-      border: none;
-      cursor: pointer;
-      font-family: 'Poppins', sans-serif;
-      font-weight: 500;
-      flex-shrink: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .address-name-edit-btn {
-      background: #f0c050;
-      color: #1a1a1a;
-      &:hover {
-        background: #e0b040;
-      }
-    }
-    .address-name-done-btn {
-      background: #2e7d32;
-      color: #ffffff;
-      &:hover {
-        background: #1b5e20;
-      }
-    }
-    .error-message {
-      margin-top: 0.35rem;
-      text-align: center;
-    }
-    @media (max-width: 768px) {
-      width: 90%;
-      margin-top: 0.75rem;
-      .address-name-display-field,
-      .address-name-input {
-        height: 2.5rem;
-        padding: 0.375rem 0.625rem;
-        font-size: 0.95rem;
-      }
-      .address-name-edit-btn,
-      .address-name-done-btn {
-        height: 2.5rem;
-      }
-    }
-    @media (max-width: 534px) {
-      .address-name-display-field,
-      .address-name-input {
-        min-width: 8rem;
-        height: 2.25rem;
-        padding: 0.25rem 0.5rem;
-      }
-      .address-name-edit-btn,
-      .address-name-done-btn {
-        min-width: 4rem;
-        height: 2.25rem;
-      }
-    }
-  }
 
   .contact-privacy-note {
     margin-bottom: 1rem;
@@ -4239,15 +4100,7 @@
   // Address Options
 
   .address-options {
-    margin-bottom: 1.5rem;
-    
-    @media (max-width: 768px) {
-      margin-bottom: 1.25rem;
-    }
-    
-    @media (max-width: 534px) {
-      margin-bottom: 1rem;
-    }
+    margin-bottom: 1rem;
     
     @media (max-width: 500px) {
       margin-bottom: 0.75rem;
@@ -4290,41 +4143,19 @@
           gap: 0.25rem;
         }
         
-        select {
+        // Takes the row minus the Clear button; the toggle's own look comes from the shared
+        // .compact-dropdown rules at the end of this file.
+        .saved-address-dropdown {
           flex: 1;
-          padding: 0.75rem;
-          border: none;
-          border-radius: 58px;
-          font-size: 1rem;
-          background-color: white;
-          
-          @media (max-width: 768px) {
-            padding: 0.625rem;
-            font-size: 0.95rem;
-          }
-          
-          @media (max-width: 534px) {
-            padding: 0.5rem;
-            font-size: 0.9rem;
-          }
-          
-          @media (max-width: 500px) {
-            padding: 0.5rem;
-            font-size: 0.85rem;
-          }
-          
-          &:focus {
-            outline: none;
-            border-color: var(--primary-color);
-          }
+          min-width: 0;
         }
-        
+
         .clear-btn {
           padding: 0.75rem 1rem;
           background: var(--btn-danger);
           color: white;
           border: none;
-          border-radius: 31px;
+          border-radius: var(--radius-md);
           cursor: pointer;
           font-size: 0.9rem;
           transition: background-color 0.3s ease;
@@ -6469,12 +6300,12 @@
   padding: 1rem 1.25rem;
   background: var(--surface);
   border: 1px solid var(--border-color);
-  border-radius: var(--radius-pill);
+  // Same radius as the form controls below it, at every width.
+  border-radius: var(--radius-md);
   box-shadow: 0 4px 16px var(--shadow-color);
   max-width: 580px;
 
   @media (max-width: 580px) {
-    border-radius: var(--radius-xl);
     padding: 0.75rem 0.875rem;
     gap: 0.375rem;
   }
@@ -7451,7 +7282,6 @@
 .booking-form .form-grid .form-group input,
 .booking-form .form-grid .form-group select,
 .booking-form .form-grid .form-group textarea,
-.booking-form .address-options .saved-address-container select,
 .booking-form .custom-pricing-form .amount-input,
 .booking-form .custom-pricing-form .form-group select,
 .booking-form .promo-code-input-section .promo-code-group input,
@@ -8133,4 +7963,101 @@
   .checkbox-label {
     color: var(--text-secondary);
   }
+}
+
+/* ---- Compact address dropdowns (City / State / Address name) ----------
+   These reuse the service-type dropdown's markup, so they inherit that control's oversized
+   toggle. Scale it back to the address inputs it shares the grid with. */
+.booking-form .compact-dropdown .dropdown-toggle {
+  padding: 0.75rem 1rem !important;
+  font-size: 0.9375rem !important;
+  font-weight: var(--fw-medium);
+  background: var(--surface-elevated) !important;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    border-color: var(--primary-color) !important;
+  }
+}
+
+/* One explicit height for every control in the address grid — the toggle is a <button> and
+   the others are <input>/<select>, and those never resolve to the same intrinsic height from
+   matching padding/font-size/line-height alone (UA metrics differ per element type). With
+   border-box the declared height is the rendered height, so they line up exactly.
+   $addr-control-height also drives the Google Places field (see setupShadowDOMStyling). */
+.booking-form .form-grid .form-group input,
+.booking-form .form-grid .form-group select,
+.booking-form .compact-dropdown .dropdown-toggle,
+.booking-form .saved-address-container .clear-btn {
+  height: 3rem;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .booking-form .compact-dropdown .dropdown-toggle {
+    font-size: 0.9375rem !important;
+  }
+}
+
+/* The legacy `position: relative` / `position: absolute` pair for these dropdowns is nested
+   inside the form-group scope, which the saved-address container sits OUTSIDE of — so its
+   menu was laid out in flow and shoved the address fields down instead of overlaying them.
+   Pin the positioning here, where it covers every compact dropdown. */
+.booking-form .compact-dropdown {
+  position: relative;
+}
+
+.booking-form .compact-dropdown .dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 0.375rem;
+}
+
+/* Menu sits on the elevated surface in both themes; the options are square — both the legacy
+   and redesign dropdown rules round them, and only the menu itself should carry a radius. */
+.booking-form .compact-dropdown .dropdown-menu {
+  background: var(--surface-elevated) !important;
+
+  .dropdown-item {
+    border-radius: 0 !important;
+    cursor: pointer;
+
+    /* Night mode's generic item hover is --surface-elevated, which is exactly what this menu
+       is painted with, so hovering did nothing there. --soft-blue / --primary-color are a
+       theme-aware pair and stay visible against the menu in both modes. */
+    &:hover,
+    &.is-active {
+      background: var(--soft-blue) !important;
+      color: var(--primary-color) !important;
+    }
+  }
+
+  /* City with no options: the state isn't served (or isn't chosen yet). */
+  .dropdown-empty {
+    padding: 0.625rem 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+  }
+}
+
+/* Unselected City/State/saved address read as placeholder text, like the inputs' placeholders. */
+.booking-form .compact-dropdown .dropdown-toggle .is-placeholder {
+  color: var(--text-muted);
+  font-weight: var(--fw-medium);
+}
+
+/* A saved address can be long ("Home — 1234 Somewhere Blvd"): keep it on one line in the
+   toggle and in the menu rather than letting it wrap the control taller. */
+.booking-form .compact-dropdown .dropdown-toggle > span,
+.booking-form .compact-dropdown .dropdown-menu .dropdown-item {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
 }

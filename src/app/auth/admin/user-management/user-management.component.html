@@ -83,10 +83,17 @@
                   <span class="avatar"
                         [style.background]="getAvatarColor(user.id)"
                         [attr.title]="user.firstName + ' ' + user.lastName">
-                    {{ getInitials(user.firstName, user.lastName) }}
-                    <span class="online-dot"
-                          [class.online]="user.isOnline"
-                          [class.offline]="!user.isOnline"></span>
+                    <!-- Social-login/uploaded photo when we have one (same source the header
+                         user-menu avatar uses); initials are the fallback. -->
+                    <img *ngIf="user.profilePictureUrl" class="avatar-img"
+                         [src]="user.profilePictureUrl"
+                         [alt]="user.firstName + ' ' + user.lastName"
+                         referrerpolicy="no-referrer"
+                         (error)="onAvatarError(user)">
+                    <span *ngIf="!user.profilePictureUrl" class="avatar-initials">{{ getInitials(user.firstName, user.lastName) }}</span>
+                    <!-- Only rendered while the user is actually online — an "offline" grey dot
+                         was indistinguishable from the online one at this size. -->
+                    <span *ngIf="user.isOnline" class="online-dot" title="Online"></span>
                   </span>
                   <div class="customer-meta">
                     <span class="customer-name">
@@ -210,10 +217,13 @@
       <div class="detail-header__main">
         <div class="detail-avatar"
              [style.background]="getAvatarColor(selectedUser.id)">
-          {{ getInitials(selectedUser.firstName, selectedUser.lastName) }}
-          <span class="online-dot"
-                [class.online]="selectedUser.isOnline"
-                [class.offline]="!selectedUser.isOnline"></span>
+          <img *ngIf="selectedUser.profilePictureUrl" class="avatar-img"
+               [src]="selectedUser.profilePictureUrl"
+               [alt]="selectedUser.firstName + ' ' + selectedUser.lastName"
+               referrerpolicy="no-referrer"
+               (error)="onAvatarError(selectedUser)">
+          <span *ngIf="!selectedUser.profilePictureUrl" class="avatar-initials">{{ getInitials(selectedUser.firstName, selectedUser.lastName) }}</span>
+          <span *ngIf="selectedUser.isOnline" class="online-dot" title="Online"></span>
         </div>
         <div class="detail-identity">
           <h3 class="detail-name">
@@ -427,7 +437,6 @@
     <!-- Tabs -->
     <nav class="detail-tabs" *ngIf="!editingUser">
       <button class="tab" [class.active]="detailTab === 'details'" (click)="setDetailTab('details')">Details</button>
-      <button class="tab" [class.active]="detailTab === 'overview'" (click)="setDetailTab('overview')">Overview</button>
       <button class="tab" [class.active]="detailTab === 'notes'" (click)="setDetailTab('notes')">Notes
         <span class="badge" *ngIf="generalNotes.length > 0">{{ generalNotes.length }}</span>
       </button>
@@ -439,72 +448,6 @@
 
     <!-- Tab body scrolls -->
     <div class="detail-body" *ngIf="!editingUser">
-
-      <!-- ─── OVERVIEW ─── -->
-      <section *ngIf="detailTab === 'overview'" class="tab-pane">
-        <div class="overview-layout">
-          <div class="overview-left">
-            <div class="info-card">
-              <h6>Notes Timeline</h6>
-              <div class="history-list overview-timeline-list">
-                <div *ngFor="let item of overviewTimelineItems; let isLast = last"
-                     class="history-row"
-                     [class.last]="isLast">
-                  <div class="timeline-rail">
-                    <span class="timeline-icon" [ngClass]="item.iconClass">
-                      <i [class]="getTimelineFaIcon(item.iconClass)"></i>
-                    </span>
-                    <span class="timeline-line" [ngClass]="item.iconClass"></span>
-                  </div>
-                  <div class="timeline-content">
-                    <div class="history-row__main overview-timeline-main">
-                      <span class="history-date">{{ formatDateTime(item.date) }}</span>
-                      <span class="timeline-title">{{ item.typeLabel }} by {{ item.admin }}</span>
-                    </div>
-                    <div class="history-row__meta overview-timeline-meta">
-                      <span class="muted" *ngIf="item.body">{{ truncate(item.body, 88) }}</span>
-                    </div>
-                  </div>
-                </div>
-                <div *ngIf="overviewTimelineItems.length === 0" class="muted center">No timeline entries yet.</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="overview-right">
-            <div class="info-card">
-              <h6>House Photos</h6>
-              <div class="overview-photo-grid">
-                <div *ngFor="let p of overviewPhotoThumbs" class="overview-photo-thumb">
-                  <img [src]="resolvePhotoUrl(p)"
-                       [alt]="p.caption || 'Cleaning photo'"
-                       (click)="openLightbox(p)">
-                </div>
-              </div>
-              <div *ngIf="overviewPhotoThumbs.length === 0" class="muted center">No photos yet.</div>
-              <button class="action-btn small ghost add-row" (click)="setDetailTab('photos')">View all photos</button>
-            </div>
-
-            <div class="info-card">
-              <h6>Cleaning History</h6>
-              <div class="history-list overview-cleaning-list">
-                <div *ngFor="let order of overviewRecentOrders" class="history-row" (click)="openOrderInAdmin(order.id)">
-                  <div class="history-row__main">
-                    <span class="history-date">{{ formatShortDate(order.serviceDate) }}</span>
-                    <span class="history-type"
-                          [title]="getCompactServiceType(order.serviceTypeName, order)">{{ getCompactServiceType(order.serviceTypeName, order) }}</span>
-                  </div>
-                  <div class="history-row__meta">
-                    <span class="history-amount">{{ formatCurrency(order.total) }}</span>
-                  </div>
-                </div>
-                <div *ngIf="overviewRecentOrders.length === 0" class="muted center">No orders yet.</div>
-              </div>
-              <button class="action-btn small ghost add-row" (click)="setDetailTab('history')">View all jobs</button>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <!-- ─── DETAILS ─── -->
       <section *ngIf="detailTab === 'details'" class="tab-pane">
@@ -689,7 +632,8 @@
             <div class="info-grid">
               <div><span>Date</span><strong>{{ formatShortDate($any(selectedUser).lastCleaningDate) }}</strong></div>
               <div><span>Type</span><strong>{{ $any(selectedUser).lastCleaningServiceType || '—' }}</strong></div>
-              <div *ngIf="$any(selectedUser).lastBedrooms != null"><span>Bedrooms</span><strong>{{ $any(selectedUser).lastBedrooms }}</strong></div>
+              <!-- Bedrooms = 0 is a Studio, not "no bedrooms" (same label the booking and orders panels use). -->
+              <div *ngIf="$any(selectedUser).lastBedrooms != null"><span>Bedrooms</span><strong>{{ $any(selectedUser).lastBedrooms === 0 ? 'Studio' : $any(selectedUser).lastBedrooms }}</strong></div>
               <div *ngIf="$any(selectedUser).lastBathrooms != null"><span>Bathrooms</span><strong>{{ $any(selectedUser).lastBathrooms }}</strong></div>
             </div>
             <p class="muted hint-line">House size shown above is from the last order — future bookings may differ.</p>

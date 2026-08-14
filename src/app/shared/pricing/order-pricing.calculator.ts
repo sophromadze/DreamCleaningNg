@@ -646,6 +646,42 @@ export function resolveLoyaltyStacking(
   return { loyaltyAmount: loyalty, loyaltyPercentage: loyaltyPct, subscriptionAmount, promoAmount };
 }
 
+/**
+ * Re-scale a discount recorded on an order to a NEW subtotal, keeping the same proportion.
+ *
+ * Used by both edit surfaces (admin order editor and customer order-edit) when a quantity
+ * change moves the subtotal. It is a PURE function of the three inputs: the same new subtotal
+ * always yields the same discount, so any sequence of edits that returns the order to a given
+ * subtotal returns the discount to its exact original value. Never derive the next discount
+ * from the current one — that made the admin editor lag a step behind, so bathrooms 2→1→2 left
+ * a 20% promo at 108.10 on a 563.00 subtotal instead of 112.60.
+ *
+ * KNOWN LIMITATION — this scales a FIXED-amount promo ("$50 off") proportionally, which is
+ * wrong for that promo type. Both surfaces have always behaved this way. The component cannot
+ * do better today: the order DTO exposes the promo CODE and the resulting dollar amount, but
+ * not whether the code is a percentage or a flat amount, so the original ratio is the only
+ * available signal. Fixing it properly means exposing the promo type on the order DTO and is
+ * deliberately out of scope here.
+ *
+ * MIRRORED IN C#, but inline rather than as a named function: OrderService.UpdateOrder
+ * (~line 447) and CalculateAdditionalAmount (~line 745) run the same
+ * `round2(newSubTotal × (storedDiscount / storedSubTotal))` server-side, from the STORED
+ * order values, and deliberately ignore the client's discount figures. Change this and those
+ * together — the customer order-edit page previews a number the backend then re-derives, so
+ * any drift shows up as a total that changes the moment the customer saves.
+ *
+ * The admin SuperAdmin save path is the exception: it persists the posted discount verbatim
+ * without re-deriving anything.
+ */
+export function rescaleDiscountToSubTotal(
+  originalDiscount: number,
+  originalSubTotal: number,
+  newSubTotal: number
+): number {
+  if (!(originalSubTotal > 0)) return 0;
+  return round2(newSubTotal * (originalDiscount / originalSubTotal));
+}
+
 // ===== Step 4: tax + total =====
 
 export interface TotalsInput {
@@ -654,6 +690,14 @@ export interface TotalsInput {
   subscriptionDiscountAmount?: number;
   loyaltyDiscountAmount?: number;
   tips?: number;
+  /**
+   * RETIRED — "Tips for Company Development" is no longer offered anywhere. No form, no
+   * input DTO, and no caller may set it from user input; new orders are always 0.
+   *
+   * It survives here only so a LEGACY order that stored a non-zero amount still recomputes
+   * to the total its customer actually paid. Pass the order's STORED value when re-pricing
+   * an existing order, and nothing at all otherwise.
+   */
   companyDevelopmentTips?: number;
   giftCardAmountUsed?: number;
   pointsRedeemedDiscount?: number;
@@ -950,6 +994,52 @@ export function getSquareFeetForBedrooms(
     case 6: return 2000;
     default: return Math.max(400, bedrooms * 300); // Fallback for 7+
   }
+}
+
+/**
+ * Sq.ft to use after the bedroom count changed.
+ *
+ * The old behaviour reset Sq.ft to the new bedroom's included amount unconditionally, which
+ * threw away a value the customer had deliberately chosen: 2 bedrooms at 2650 sq.ft became
+ * 1000 the moment they picked a third bedroom.
+ *
+ * The rule distinguishes a value that was *chosen* from one that was merely *inherited*:
+ *   - sitting exactly on the previous floor  → never explicitly chosen, so it keeps tracking
+ *     the floor, in BOTH directions (4bd 1500 → 3bd gives 1000, not 1500).
+ *   - anything above the previous floor      → a deliberate customer value; preserve it, and
+ *     only raise it when the new floor overtakes it.
+ *
+ * Pass the floors resolved by the caller's own configured-threshold lookup (see
+ * getSquareFeetForBedrooms) — this helper is pure arithmetic and never reads the catalog.
+ *
+ * NOTE: this is UI quantity linkage, not price math, so it has no C# mirror. The backend
+ * takes the submitted Sq.ft as given; OrderPricingInputBuilder.GetSquareFeetForBedrooms is
+ * only a fallback for a DTO with no Sq.ft line at all.
+ */
+export function resolveSquareFeetForBedroomChange(
+  currentSquareFeet: number,
+  oldMinSquareFeet: number,
+  newMinSquareFeet: number
+): number {
+  const current = Number(currentSquareFeet) || 0;
+  if (current === oldMinSquareFeet) return newMinSquareFeet;
+  return Math.max(current, newMinSquareFeet);
+}
+
+/**
+ * Sq.ft to use when RESTORING a stored value (session draft, reorder, saved order).
+ *
+ * Deliberately not the bedroom-change rule above: there is no "previous bedroom count" during
+ * a restore, and the stored figure is by definition an explicit customer choice. So it is
+ * floored and never lowered — the only thing this guards against is an allowance that grew
+ * after the value was stored, which would otherwise leave the customer below their included
+ * amount.
+ */
+export function clampRestoredSquareFeet(
+  storedSquareFeet: number,
+  minSquareFeet: number
+): number {
+  return Math.max(Number(storedSquareFeet) || 0, minSquareFeet);
 }
 
 /**

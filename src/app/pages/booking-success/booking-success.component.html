@@ -37,12 +37,7 @@
             <li>Broom or vacuum cleaner</li>
             <li>Toilet brush</li>
             <li *ngIf="!isCustomServiceType">
-              Zep liquids:
-              {{
-                isDeepCleaning
-                  ? 'Green, Floor (or similar), Oven Cleaner (or similar)'
-                  : 'Green, Floor (or similar)'
-              }}
+              Zep liquids: {{ zepLiquidsText }}
             </li>
             <li *ngIf="!isCustomServiceType">Windex liquid (or similar)</li>
             <li *ngIf="!isCustomServiceType">Cleaning cloths, Sponge and Mop</li>

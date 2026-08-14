@@ -19,7 +19,8 @@ import { FormPersistenceService } from '../../../services/form-persistence.servi
 import { ShimmerDirective } from '../../directives/shimmer.directive';
 import {
   calculateQuote, QuoteInput, ExtraServiceLineInput,
-  mapSelectedServiceInput, getSquareFeetForBedrooms
+  mapSelectedServiceInput, getSquareFeetForBedrooms,
+  resolveSquareFeetForBedroomChange, clampRestoredSquareFeet
 } from '../../pricing/order-pricing.calculator';
 import { PhoneNumberService } from '../../../services/phone-number.service';
 
@@ -179,11 +180,12 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
       if (savedData.contactEmail) this.emailControl.setValue(savedData.contactEmail);
       if (savedData.contactPhone) this.phoneControl.setValue(savedData.contactPhone || '');
 
-      // Restore service type (this calls saveMainPageFormData() at the end)
+      // Restore service type. Passed as a RESTORE so it neither seeds Sq.ft from bedrooms nor
+      // persists — the stored quantities are applied just below and saved from there.
       if (savedData.selectedServiceTypeId) {
         const serviceType = this.serviceTypes.find(st => st.id.toString() === savedData.selectedServiceTypeId);
         if (serviceType) {
-          this.selectServiceType(serviceType);
+          this.selectServiceType(serviceType, true);
         }
       }
 
@@ -195,20 +197,17 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
           const selectedService = this.selectedServices.find(ss => ss.service.id === service.id);
           if (selectedService) {
             selectedService.quantity = savedService.quantity;
-
-            // Update square feet when bedrooms are restored
-            if (service.serviceKey === 'bedrooms') {
-              const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
-              if (sqftService) {
-                sqftService.quantity = this.getSquareFeetForBedrooms(savedService.quantity);
-              }
-            }
           }
         }
       });
+      // Restore is NOT a bedroom change: the persisted Sq.ft is the value the customer chose
+      // on /booking, so it is floored and never lowered. Done once after the loop so the
+      // result doesn't depend on whether bedrooms happens to precede sqft in storage.
+      this.clampSquareFeetToBedroomMinimum();
       // Sync form controls (bedrooms, bathrooms, sqft) from restored selectedServices so "Get Exact Price" reads correct values
       this.updateFormControlsFromServices();
-      // Persist restored quantities; selectServiceType() already saved defaults above, so overwrite with correct values
+      // The only write of this hydration — selectServiceType deliberately skipped saving, so
+      // storage is never touched until the restored quantities are actually in place.
       this.saveMainPageFormData();
     }
 
@@ -258,7 +257,14 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
     return 'fa-broom';
   }
 
-  selectServiceType(serviceType: ServiceType) {
+  /**
+   * @param isRestore True when re-selecting the PERSISTED service type during hydration. The
+   * stored quantities are about to be restored over these defaults, so seeding Sq.ft from
+   * bedrooms here (and persisting it) would destroy the customer's value before the restore
+   * loop ever runs — the same side effect that was removed from updateFormControlsFromServices,
+   * just one call earlier. Seeding is only correct for a service type the user actively picks.
+   */
+  selectServiceType(serviceType: ServiceType, isRestore = false) {
     this.selectedServiceType = serviceType;
     this.serviceTypeControl.setValue(serviceType.id.toString());
     this.serviceTypeDropdownOpen = false;
@@ -291,20 +297,27 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
         }
       });
 
-      // Set square feet based on bedrooms after all services are initialized
-      const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
-      const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
-      if (bedroomsService && sqftService) {
-        sqftService.quantity = this.getSquareFeetForBedrooms(bedroomsService.quantity);
+      // Seed Sq.ft from bedrooms ONLY for a service type the user actively picked — there is
+      // no customer value for it yet. During a restore the persisted quantities land moments
+      // later, so seeding here would just be a value we then have to undo.
+      if (!isRestore) {
+        const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+        const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+        if (bedroomsService && sqftService) {
+          sqftService.quantity = this.getSquareFeetForBedrooms(bedroomsService.quantity);
+        }
       }
     }
 
-    // Update form controls based on services
-    // When initializing, don't pass a service key so square feet gets set based on bedrooms
+    // Sync the controls only — this never re-derives Sq.ft.
     this.updateFormControlsFromServices();
 
     this.normalizeCleaningTypeForSelectedServiceType();
-    this.saveMainPageFormData();
+    // Restores persist once, from the caller, after the stored quantities are in place.
+    // Saving here would write the seeded defaults into the storage /booking shares.
+    if (!isRestore) {
+      this.saveMainPageFormData();
+    }
   }
 
   /**
@@ -330,44 +343,68 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
     return 400; // Default minimum
   }
 
-  private updateFormControlsFromServices(updatingServiceKey?: string) {
+  /**
+   * Sync the form controls FROM the current selections. Read-only with respect to the
+   * selections themselves — in particular it must never re-derive Sq.ft.
+   *
+   * It used to recompute Sq.ft from bedrooms whenever it was called with no service key,
+   * which included the initial load. Since the hero shares formPersistenceService storage
+   * with /booking and then persists what it holds, merely rendering the homepage silently
+   * rewrote a Sq.ft the customer had chosen on the booking page — a field the hero does not
+   * even display. Callers that genuinely change bedrooms now apply the linkage themselves.
+   */
+  private updateFormControlsFromServices() {
     const bedroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
     const bathroomsService = this.selectedServices.find(s => s.service.serviceKey === 'bathrooms');
     const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
 
     if (bedroomsService) {
       this.bedroomsControl.setValue(bedroomsService.quantity);
-
-      // Update square feet based on bedrooms ONLY when:
-      // 1. Bedrooms are being updated (updatingServiceKey === 'bedrooms')
-      // 2. Initial load (updatingServiceKey is undefined)
-      // Don't recalculate if square feet is being manually updated
-      if (sqftService && (updatingServiceKey === 'bedrooms' || updatingServiceKey === undefined)) {
-        const newSquareFeet = this.getSquareFeetForBedrooms(bedroomsService.quantity);
-        sqftService.quantity = newSquareFeet;
-        this.squareFeetControl.setValue(newSquareFeet);
-      } else if (sqftService && updatingServiceKey === 'sqft') {
-        // When square feet is being manually updated, just sync the control without recalculating
-        this.squareFeetControl.setValue(sqftService.quantity);
-      } else if (sqftService) {
-        // For other service updates, just sync the control
-        this.squareFeetControl.setValue(sqftService.quantity);
-      }
     }
     if (bathroomsService) {
       this.bathroomsControl.setValue(bathroomsService.quantity);
     }
-    if (sqftService && !bedroomsService) {
-      // Only update if bedrooms wasn't processed (to avoid double update)
+    if (sqftService) {
       this.squareFeetControl.setValue(sqftService.quantity);
     }
+  }
+
+  /**
+   * Apply the shared bedrooms→sqft rule after the hero's bedroom stepper moved.
+   * `previousQuantity` is the bedroom count BEFORE the change.
+   */
+  private syncSquareFeetForBedroomChange(previousQuantity: number, newQuantity: number): void {
+    const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+    if (!sqftService) return;
+    sqftService.quantity = resolveSquareFeetForBedroomChange(
+      sqftService.quantity,
+      this.getSquareFeetForBedrooms(previousQuantity),
+      this.getSquareFeetForBedrooms(newQuantity)
+    );
+  }
+
+  /**
+   * Floor a restored Sq.ft to the current bedroom minimum without ever lowering it.
+   * Call ONCE after a restore loop, never per-item.
+   */
+  private clampSquareFeetToBedroomMinimum(): void {
+    const sqftService = this.selectedServices.find(s => s.service.serviceKey === 'sqft');
+    if (!sqftService) return;
+    sqftService.quantity = clampRestoredSquareFeet(
+      sqftService.quantity,
+      this.getSquareFeetMinForBedrooms()
+    );
   }
 
   incrementServiceQuantity(service: Service) {
     const selectedService = this.selectedServices.find(s => s.service.id === service.id);
     if (selectedService && selectedService.quantity < (service.maxValue || 10)) {
+      const previousQuantity = selectedService.quantity;
       selectedService.quantity++;
-      this.updateFormControlsFromServices(service.serviceKey);
+      if (service.serviceKey === 'bedrooms') {
+        this.syncSquareFeetForBedroomChange(previousQuantity, selectedService.quantity);
+      }
+      this.updateFormControlsFromServices();
       this.saveMainPageFormData();
     }
   }
@@ -375,8 +412,12 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   decrementServiceQuantity(service: Service) {
     const selectedService = this.selectedServices.find(s => s.service.id === service.id);
     if (selectedService && selectedService.quantity > (service.minValue ?? 0)) {
+      const previousQuantity = selectedService.quantity;
       selectedService.quantity--;
-      this.updateFormControlsFromServices(service.serviceKey);
+      if (service.serviceKey === 'bedrooms') {
+        this.syncSquareFeetForBedroomChange(previousQuantity, selectedService.quantity);
+      }
+      this.updateFormControlsFromServices();
       this.saveMainPageFormData();
     }
   }
@@ -384,7 +425,12 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   updateServiceQuantity(service: Service, quantity: number) {
     const selectedService = this.selectedServices.find(s => s.service.id === service.id);
     if (selectedService) {
+      const previousQuantity = selectedService.quantity;
       selectedService.quantity = quantity;
+
+      if (service.serviceKey === 'bedrooms') {
+        this.syncSquareFeetForBedroomChange(previousQuantity, quantity);
+      }
 
       // If updating square feet, ensure it's not below minimum for current bedrooms
       if (service.serviceKey === 'sqft') {
@@ -395,8 +441,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
         }
       }
 
-      // Pass the service key to prevent unwanted recalculation
-      this.updateFormControlsFromServices(service.serviceKey);
+      this.updateFormControlsFromServices();
       this.saveMainPageFormData();
     }
   }

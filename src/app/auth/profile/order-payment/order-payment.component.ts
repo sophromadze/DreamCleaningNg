@@ -8,6 +8,12 @@ import { OrderService, Order } from '../../../services/order.service';
 import { StripeService } from '../../../services/stripe.service';
 import { CardOnFileService, SavedCard } from '../../../services/card-on-file.service';
 import { CARD_ON_FILE_ENABLED } from '../../../shared/card-on-file.flag';
+import {
+  extraServiceNamesOf,
+  hasCleaningSuppliesExtra,
+  requiresOvenCleaner,
+  zepLiquidsText as zepLiquids
+} from '../../../shared/booking/supply-checklist.utils';
 
 @Component({
   selector: 'app-order-payment',
@@ -28,7 +34,8 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   orderTotal: number = 0;
   paymentType: 'order' | 'update' = 'order';
   hasCleaningSupplies = false;
-  isDeepCleaning = false;
+  /** Deep/Super Deep Cleaning OR the Oven Cleaning extra — see supply-checklist.utils. */
+  needsOvenCleaner = false;
   isCustomServiceType = false;
   currentUser: any;
   cardError: string | null = null;
@@ -163,19 +170,9 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
           return;
         }
 
-        const extras = order.extraServices ?? [];
-        this.hasCleaningSupplies = extras.some(es =>
-          (es.extraServiceName ?? '').toLowerCase().includes('cleaning supplies')
-        );
-
-        const deepCleaning = extras.find(s =>
-          (s.extraServiceName ?? '').toLowerCase().includes('deep cleaning') &&
-          !(s.extraServiceName ?? '').toLowerCase().includes('super')
-        );
-        const superDeepCleaning = extras.find(s =>
-          (s.extraServiceName ?? '').toLowerCase().includes('super deep cleaning')
-        );
-        this.isDeepCleaning = !!deepCleaning || !!superDeepCleaning;
+        const extraNames = extraServiceNamesOf(order.extraServices ?? []);
+        this.hasCleaningSupplies = hasCleaningSuppliesExtra(extraNames);
+        this.needsOvenCleaner = requiresOvenCleaner(extraNames);
         this.isCustomServiceType = this.isCustomServiceTypeOrder(order);
 
         // Saved card — logged-in owner only (guest/token payers never see it).
@@ -204,6 +201,10 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         console.error('Error loading order:', error);
       }
     });
+  }
+
+  get zepLiquidsText(): string {
+    return zepLiquids(this.needsOvenCleaner);
   }
 
   private isCustomServiceTypeOrder(order: Order): boolean {

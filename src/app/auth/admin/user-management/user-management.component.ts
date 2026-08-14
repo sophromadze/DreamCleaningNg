@@ -16,14 +16,14 @@ import {
 } from '../../../services/admin.service';
 import { OrderService, OrderList } from '../../../services/order.service';
 import { Apartment, CreateApartment } from '../../../services/profile.service';
-import { formatNy, parseUtcDate } from '../../../shared/ny-time.util';
+import { formatNy } from '../../../shared/ny-time.util';
 import { BubbleRewardsService } from '../../../services/bubble-rewards.service';
 import { AdminBonusService, AdminBonusSummary } from '../../../services/admin-bonus.service';
 import { environment } from '../../../../environments/environment';
 import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
 import { ADMIN_VIEWABLE_PAGES } from '../../../shared/admin-viewable-pages';
 
-type DetailTab = 'overview' | 'details' | 'history' | 'photos' | 'notes' | 'tasks';
+type DetailTab = 'details' | 'history' | 'photos' | 'notes' | 'tasks';
 
 @Component({
   selector: 'app-user-management',
@@ -112,7 +112,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   selectedUser: DetailedUser | null = null;
   viewingUserId: number | null = null;
   loadingUserDetails = false;
-  detailTab: DetailTab = 'overview';
+  detailTab: DetailTab = 'details';
 
   // SuperAdmin full edit
   editingUser = false;
@@ -177,17 +177,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   // ── Customer-care: tasks ──
   userTasks: any[] = [];
   loadingTasks = false;
-  private residentialVariantCache: Map<number, 'Deep' | 'Regular'> = new Map();
   private userLastCleaningVariantCache: Map<number, 'Deep' | 'Regular'> = new Map();
-  overviewTimelineItems: Array<{
-    date: Date;
-    typeLabel: string;
-    admin: string;
-    body: string;
-    iconClass: string;
-  }> = [];
-  overviewPhotoThumbs: UserCleaningPhoto[] = [];
-  overviewRecentOrders: OrderList[] = [];
 
   // Admin bonus stats — only loaded when the user being viewed has the Admin role.
   adminBonusAllTime: AdminBonusSummary | null = null;
@@ -537,7 +527,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.loadUserTasksList(user.id);
     this.loadCleaningPhotos(user.id);
     this.loadAdminBonusStats(user);
-    this.refreshOverviewCollections();
   }
 
   // Only fetched for users with the Admin role — the bonus system doesn't apply to others.
@@ -624,8 +613,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
           );
 
           this.selectedUser.orders = orders;
-          this.residentialVariantCache.clear();
-          this.resolveResidentialVariantsForOverview(orders);
           this.selectedUser.totalOrders = validOrders.length;
           this.selectedUser.totalSpent = validOrders.reduce((sum, order) => sum + (order.total || 0), 0);
           this.selectedUser.registrationDate = new Date(this.selectedUser.createdAt);
@@ -637,7 +624,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
             this.selectedUser.lastOrderDate = new Date(sorted[0].orderDate);
           }
         }
-        this.refreshOverviewCollections();
         this.loadingUserDetails = false;
       },
       error: (error) => {
@@ -647,7 +633,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
           this.selectedUser.totalOrders = 0;
           this.selectedUser.totalSpent = 0;
         }
-        this.refreshOverviewCollections();
         this.loadingUserDetails = false;
       }
     });
@@ -780,7 +765,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
         if (this.selectedUser?.id !== userId) return;
         // Only general notes exist now — follow-up notes were removed.
         this.generalNotes = notes.filter(n => n.type === 'General');
-        this.refreshOverviewCollections();
         this.loadingNotes = false;
       },
       error: () => { this.loadingNotes = false; }
@@ -804,7 +788,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
         this.newNoteContent = '';
         this.savingNote = false;
         this.successMessage = 'Note added.';
-        this.refreshOverviewCollections();
         setTimeout(() => this.successMessage = '', 2500);
       },
       error: (err) => {
@@ -837,7 +820,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
         const idx = this.generalNotes.findIndex(n => n.id === updated.id);
         if (idx >= 0) this.generalNotes[idx] = updated;
         this.cancelEditNote();
-        this.refreshOverviewCollections();
       },
       error: (err) => {
         this.errorMessage = err?.error?.message || 'Failed to update note.';
@@ -851,7 +833,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.adminService.deleteUserCareNote(note.id).subscribe({
       next: () => {
         this.generalNotes = this.generalNotes.filter(n => n.id !== note.id);
-        this.refreshOverviewCollections();
       }
     });
   }
@@ -864,7 +845,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       next: (groups) => {
         if (this.selectedUser?.id !== userId) return;
         this.cleaningPhotoGroups = groups;
-        this.refreshOverviewCollections();
         this.loadingPhotos = false;
       },
       error: () => { this.loadingPhotos = false; }
@@ -1349,6 +1329,19 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     const l = (lastName || '').trim().charAt(0);
     const combined = (f + l).toUpperCase();
     return combined || '?';
+  }
+
+  /**
+   * A social-login photo URL can 404 (Google rotates them) — drop it so the coloured
+   * initials bubble takes over instead of leaving a broken-image glyph in the circle.
+   * Clears it on the list row and the open detail panel, which are separate objects.
+   */
+  onAvatarError(user: UserAdmin | DetailedUser | null): void {
+    if (!user) return;
+    user.profilePictureUrl = null;
+    const listRow = this.users.find(u => u.id === user.id);
+    if (listRow) listRow.profilePictureUrl = null;
+    if (this.selectedUser && this.selectedUser.id === user.id) this.selectedUser.profilePictureUrl = null;
   }
 
   /** Deterministic avatar bg color from user id. */
@@ -1996,60 +1989,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     return parts.join(', ') || 'No saved address';
   }
 
-  private formatAdminShortName(name: string | undefined | null): string {
-    const full = (name || '').trim();
-    if (!full) return 'Admin';
-    const parts = full.split(/\s+/).filter(Boolean);
-    if (parts.length === 1) return parts[0];
-    return `${parts[0]} ${parts[1].charAt(0).toUpperCase()}.`;
-  }
-
-  getOverviewTimeline(limit = 6): Array<{
-    date: Date;
-    typeLabel: string;
-    admin: string;
-    body: string;
-    iconClass: string;
-  }> {
-    // Timeline shows general notes only — calls history was removed.
-    const noteItems = this.generalNotes.map((n) => ({
-      date: parseUtcDate(n.createdAt) || new Date(),
-      typeLabel: 'General',
-      admin: this.formatAdminShortName(n.createdByAdminName || 'Admin'),
-      body: n.content || '',
-      iconClass: 'general'
-    }));
-    return noteItems
-      .sort((a, b) => b.date.getTime() - a.date.getTime())
-      .slice(0, limit);
-  }
-
-  private refreshOverviewCollections(): void {
-    this.overviewTimelineItems = this.getOverviewTimeline(6);
-    this.overviewPhotoThumbs = this.getOverviewPhotoThumbs(4);
-    this.overviewRecentOrders = this.getRecentOrders(5);
-  }
-
-  getTimelineFaIcon(iconClass: string): string {
-    switch (iconClass) {
-      case 'general': return 'fa-solid fa-note-sticky';
-      default: return 'fa-solid fa-circle-info';
-    }
-  }
-
-  getOverviewPhotoThumbs(limit = 4): UserCleaningPhoto[] {
-    const all = this.cleaningPhotoGroups.flatMap((g) => g.photos || []);
-    return all.slice(0, limit);
-  }
-
-  getRecentOrders(limit = 5): OrderList[] {
-    if (!this.selectedUser?.orders?.length) return [];
-    return [...this.selectedUser.orders]
-      .filter(order => (order.status || '').toLowerCase() !== 'cancelled')
-      .sort((a, b) => new Date(b.serviceDate || b.orderDate).getTime() - new Date(a.serviceDate || a.orderDate).getTime())
-      .slice(0, limit);
-  }
-
   private resolveIsDeepResidential(orderLike: any, detailsLike?: any): boolean {
     const normalize = (value: string | null | undefined): string =>
       (value || '').toLowerCase().trim().replace(/[_\s]+/g, '-');
@@ -2075,27 +2014,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     return services.some((service: any) => {
       const name = normalize(service?.serviceName || service?.name);
       return name.includes('deep-cleaning') && !name.includes('super-deep');
-    });
-  }
-
-  private isResidentialServiceType(serviceTypeName: string | null | undefined): boolean {
-    const normalized = (serviceTypeName || '').toLowerCase().trim().replace(/[_\s]+/g, '-');
-    return normalized === 'residential-cleaning' || normalized === 'residentialcleaning';
-  }
-
-  private resolveResidentialVariantsForOverview(orders: OrderList[]): void {
-    const residentialOrders = orders.filter(o => this.isResidentialServiceType(o.serviceTypeName));
-    residentialOrders.forEach(order => {
-      this.adminService.getOrderDetails(order.id).subscribe({
-        next: (details: any) => {
-          const isDeep = this.resolveIsDeepResidential(order as any, details as any);
-          this.residentialVariantCache.set(order.id, isDeep ? 'Deep' : 'Regular');
-        },
-        error: () => {
-          const fallbackDeep = this.resolveIsDeepResidential(order as any);
-          this.residentialVariantCache.set(order.id, fallbackDeep ? 'Deep' : 'Regular');
-        }
-      });
     });
   }
 
@@ -2142,9 +2060,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       if (order?.lastCleaningServiceType !== undefined && order?.id && this.userLastCleaningVariantCache.has(order.id)) {
         return this.userLastCleaningVariantCache.get(order.id) || 'Regular';
       }
-      if (order?.id && this.residentialVariantCache.has(order.id)) {
-        return this.residentialVariantCache.get(order.id) || 'Regular';
-      }
       return this.resolveIsDeepResidential(order as any) || s.includes('deep') ? 'Deep' : 'Regular';
     }
     if (s.includes('deep')) return 'Deep';
@@ -2155,11 +2070,5 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       .replace(/cleaning/gi, '')
       .replace(/\s+/g, ' ')
       .trim() || 'Service';
-  }
-
-  /** Truncate text for display in compact table cells. */
-  truncate(text: string | undefined | null, max = 38): string {
-    if (!text) return '';
-    return text.length <= max ? text : text.slice(0, max - 1) + '…';
   }
 }

@@ -60,14 +60,7 @@
         <li>Garbage bags</li>
         <li>Broom or vacuum cleaner</li>
         <li>Toilet brush</li>
-        <li>
-          Zep liquids:
-          {{
-            isDeepCleaningOrder()
-              ? 'Green, Floor (or similar), Oven Cleaner (or similar)'
-              : 'Green, Floor (or similar)'
-          }}
-        </li>
+        <li>Zep liquids: {{ zepLiquidsText }}</li>
         <li>Windex liquid (or similar)</li>
         <li>Cleaning cloths, Sponge and Mop</li>
       </ul>
@@ -276,11 +269,9 @@
             <span>${{ order.tips.toFixed(2) }}</span>
           </div>
           
-          <div class="price-row" *ngIf="order.companyDevelopmentTips > 0">
-            <span>Tips for Company Development:</span>
-            <span>${{ order.companyDevelopmentTips.toFixed(2) }}</span>
-          </div>
-          
+          <!-- "Tips for Company Development" is retired and never shown. Legacy orders keep the
+               stored amount inside their Total; it is simply not broken out as its own row. -->
+
           <div class="price-row total">
             <span>Total:</span>
             <span>${{ order.total.toFixed(2) }}</span>

@@ -200,48 +200,51 @@
                     <button type="button"
                             class="tip-dropdown-toggle"
                             (click)="toggleTipDropdown()">
-                      ${{ tips.value || 0 }}
+                      ${{ tipsAmount }}
                       <span class="dropdown-arrow">▼</span>
                     </button>
                     <div class="tip-dropdown-menu" *ngIf="tipDropdownOpen">
                       <button type="button"
                               class="tip-dropdown-item"
-                              [class.selected]="tips.value === 0"
+                              [class.selected]="tipsAmount === 0"
                               (click)="selectTipPreset(0)">
                         $0
                       </button>
                       <button type="button"
                               class="tip-dropdown-item"
-                              [class.selected]="tips.value === 10"
+                              [class.selected]="tipsAmount === 10"
                               (click)="selectTipPreset(10)">
                         $10
                       </button>
                       <button type="button"
                               class="tip-dropdown-item"
-                              [class.selected]="tips.value === 25"
+                              [class.selected]="tipsAmount === 25"
                               (click)="selectTipPreset(25)">
                         $25
                       </button>
                       <button type="button"
                               class="tip-dropdown-item"
-                              [class.selected]="tips.value === 50"
+                              [class.selected]="tipsAmount === 50"
                               (click)="selectTipPreset(50)">
                         $50
                       </button>
                       <button type="button"
                               class="tip-dropdown-item"
-                              [class.selected]="tips.value === 100"
+                              [class.selected]="tipsAmount === 100"
                               (click)="selectTipPreset(100)">
                         $100
                       </button>
                     </div>
                   </div>
                   <div class="tip-custom-input">
+                    <!-- (blur) snaps a cleared box back to 0 so "no tip" can never sit in the
+                         form as null. Typing is left alone while the field has focus. -->
                     <input type="number"
                            [formControl]="tips"
                            min="0"
                            placeholder="Or enter custom amount"
-                           class="tip-input">
+                           class="tip-input"
+                           (blur)="normalizeTipsOnBlur()">
                   </div>
                 </div>
               </div>

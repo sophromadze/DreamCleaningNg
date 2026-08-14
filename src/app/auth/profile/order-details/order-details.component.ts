@@ -8,6 +8,12 @@ import { DurationUtils } from '../../../utils/duration.utils';
 import { formatNyDate } from '../../../shared/ny-time.util';
 import { AuthService } from '../../../services/auth.service';
 import { ShiftService, ShiftAdmin } from '../../../services/shift.service';
+import {
+  extraServiceNamesOf,
+  hasCleaningSuppliesExtra,
+  requiresOvenCleaner,
+  zepLiquidsText as zepLiquids
+} from '../../../shared/booking/supply-checklist.utils';
 
 @Component({
   selector: 'app-order-details',
@@ -99,13 +105,16 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
     if (!this.order) return false;
     // Custom service types don't use the cleaning-supplies workflow; always show essentials only.
     if (this.isCustomServiceType()) return true;
-    const extras = this.order.extraServices ?? [];
-    return extras.some(es => (es.extraServiceName ?? '').toLowerCase().includes('cleaning supplies'));
+    return hasCleaningSuppliesExtra(extraServiceNamesOf(this.order.extraServices ?? []));
   }
 
-  isDeepCleaningOrder(): boolean {
-    const type = this.getCleaningTypeText();
-    return type === 'Deep Cleaning' || type === 'Super Deep Cleaning';
+  /**
+   * Oven Cleaner liquid is needed for Deep/Super Deep Cleaning AND for the Oven Cleaning extra
+   * on its own — the checklist used to only look at the cleaning type. Same rule as the
+   * confirmation email/SMS (see shared/booking/supply-checklist.utils).
+   */
+  get zepLiquidsText(): string {
+    return zepLiquids(requiresOvenCleaner(extraServiceNamesOf(this.order?.extraServices ?? [])));
   }
 
   getServiceDuration(): number {
