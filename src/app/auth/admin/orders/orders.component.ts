@@ -3823,7 +3823,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   addEditExtraService(extra: ExtraService): void {
     const list = this.editOrderForm.extraServices ?? [];
     const hours = extra.hasHours ? 1 : 0;
-    const cost = extra.hasHours ? extra.price * hours : extra.price * 1;
+    // Custom Pricing ("Pre-Arranged") orders: extras are informational only. The admin-entered
+    // amount and duration are the whole quote, so the row is priced at $0 — same rule the shared
+    // calculator applies on the booking side (AddInformationalExtraLines).
+    const cost = this.isCustomModeOrder()
+      ? 0
+      : (extra.hasHours ? extra.price * hours : extra.price * 1);
     list.push({
       orderExtraServiceId: 0,
       extraServiceId: extra.id,
@@ -3966,8 +3971,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    *
    * Returns null ONLY for custom ("Pre-Arranged") orders, where the admin sets the amount and
    * duration by hand. That matches the shared calculator itself, whose custom-pricing branch
-   * returns before the services loop and before the minimum-price floor — so falling back to the
-   * row sum there mirrors the calculator rather than diverging from it.
+   * returns before the services loop and before the minimum-price floor. The caller leaves the
+   * subtotal ALONE in that case — see recalcSubtotalFromServicesAndExtras.
    *
    * Cleaner+hours orders DO get a quote, and getEditFallbackHours() supplies the hours the order
    * never persisted so their cleaner line is actually priced. Without it the calculator's cleaner
@@ -4024,8 +4029,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       // MinimumPrice floor and any tiered service cost. This value is what the admin sees AND
       // what gets posted as dto.SubTotal — the SuperAdmin save path persists it verbatim.
       this.editOrderForm.subTotal = built.quote.subTotal;
-    } else {
-      // Custom ("Pre-Arranged") orders only: sum the rows as before.
+    } else if (!this.isCustomModeOrder()) {
+      // No quote available (service type missing from the cache): sum the rows as before.
       const st = this.getEditOrderServiceType();
       const priceMultiplier = Number((this.selectedOrder?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
       let sum = (Number(st?.basePrice ?? 0) || 0) * priceMultiplier;
@@ -4033,6 +4038,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       (this.editOrderForm.extraServices ?? []).forEach(e => { sum += Number(e.cost ?? 0) || 0; });
       this.editOrderForm.subTotal = round2(sum);
     }
+    // Custom ("Pre-Arranged") orders deliberately fall through with subTotal untouched: the
+    // amount is what the admin agreed with the customer and is edited directly in the SubTotal
+    // field. Extras there are informational ($0), so adding or removing one must not move it —
+    // the old row-sum fallback rebuilt it from the service type's base price and wiped the
+    // agreed amount the moment an extra row changed.
 
     // The one caller that moved the subtotal, so the one caller that re-scales the discounts.
     this.recalculateEditPricing(true);
@@ -4074,8 +4084,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.findCleanerRowIndexRobust() >= 0 && this.findHoursRowIndexRobust() >= 0;
   }
 
-  /** True when the selected order's service type is in Custom Pricing mode (ServiceType.isCustom). */
-  private isCustomModeOrder(): boolean {
+  /** True when the selected order's service type is in Custom Pricing mode (ServiceType.isCustom).
+   *  Public because the edit template hides the per-extra Duration/Cost fields on these orders —
+   *  their extras are informational only (see addEditExtraService). */
+  isCustomModeOrder(): boolean {
     const stId = this.selectedOrder?.serviceTypeId;
     if (stId == null) return false;
     const st = this.serviceTypesCache.find(s => s.id === stId);
@@ -4346,6 +4358,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   onEditExtraQuantityChange(e: { orderExtraServiceId?: number | null; quantity: number; hours: number; cost: number }, index: number): void {
     const q = Number(e.quantity) || 0;
     const def = this.getEditExtraDefinition(e, index);
+    // Custom Pricing: the quantity is descriptive ("Windows × 5"), never billable — keep the
+    // row at $0 so raising it can't move the admin-entered total.
+    if (this.isCustomModeOrder()) {
+      e.cost = 0;
+      this.editOrderFormPrevExtraQuantities[index] = q;
+      this.recalcSubtotalFromServicesAndExtras();
+      return;
+    }
     if (def?.hasQuantity) {
       // Same rule as the shared calculator: deep-cleaning multiplier applies, Same Day is exempt.
       const priceMultiplier = Number((this.selectedOrder?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;
@@ -4370,6 +4390,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   onEditExtraHoursChange(e: { orderExtraServiceId?: number | null; quantity: number; hours: number; cost: number }, index: number): void {
     const h = Number(e.hours) ?? 0;
     const def = this.getEditExtraDefinition(e, index);
+    // Custom Pricing: hours describe the job, they don't buy time — see onEditExtraQuantityChange.
+    if (this.isCustomModeOrder()) {
+      e.cost = 0;
+      this.editOrderFormPrevExtraHours[index] = h;
+      this.recalcSubtotalFromServicesAndExtras();
+      return;
+    }
     if (def?.hasHours) {
       // Same rule as the shared calculator: deep-cleaning multiplier applies, Same Day is exempt.
       const priceMultiplier = Number((this.selectedOrder?.services?.[0] as any)?.priceMultiplier ?? 1) || 1;

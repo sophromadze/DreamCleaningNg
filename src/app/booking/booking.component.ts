@@ -65,6 +65,11 @@ import { buildCustomServiceTypeNameOptions } from '../shared/booking/custom-serv
 import { normalizeTipAmount } from '../shared/booking/tip-amount.utils';
 import { extraServiceNamesOf, requiresOvenCleaner } from '../shared/booking/supply-checklist.utils';
 import {
+  SMS_CONSENT_LEAD,
+  CANCELLATION_CONSENT_TEXT,
+  TERMS_CONSENT_LEAD
+} from '../shared/booking/consent-texts';
+import {
   BookingDiagnosticsSnapshot,
   logBookingBlockers
 } from '../shared/booking/booking-blockers.diagnostics';
@@ -396,6 +401,12 @@ export class BookingComponent implements OnInit, OnDestroy {
   isSuperAdmin = false;
   isModerator = false;
   isAdminMode = false;
+
+  // Consent copy — shared with the payment page's gate for admin-created orders, so both
+  // surfaces always show the same wording (see shared/booking/consent-texts.ts).
+  readonly smsConsentLead = SMS_CONSENT_LEAD;
+  readonly cancellationConsentText = CANCELLATION_CONSENT_TEXT;
+  readonly termsConsentLead = TERMS_CONSENT_LEAD;
   // Search box UI lives in AdminUserSearchComponent; the page owns the selection.
   selectedTargetUser: UserAdmin | null = null;
   /** True after an admin-mode / target-user change wiped applied discounts, so the admin is told to re-apply. */
@@ -2606,12 +2617,20 @@ export class BookingComponent implements OnInit, OnDestroy {
   // ALL price math AND the selection→input mapping live in
   // shared/pricing/order-pricing.calculator.ts (mirrored by the backend).
   private buildQuoteInput(): QuoteInput {
-    if (this.showCustomPricing && this.customAmount.value) {
+    // Gated on the MODE alone, never on the amount being filled in. It used to also require
+    // customAmount, so an empty (or cleared) Total Amount fell through to the ordinary path and
+    // priced the selections normally — which is how informational extras started charging the
+    // customer in the summary. A custom order with no amount typed is simply $0 until one is.
+    if (this.showCustomPricing) {
       return {
         basePrice: this.selectedServiceType?.basePrice ?? 0,
         baseDuration: this.selectedServiceType?.timeDuration ?? 0,
         services: [],
-        extraServices: [],
+        // Extras ARE passed on a custom-priced order even though they cost nothing: the
+        // calculator's custom branch turns them into $0 / 0-minute lines so they get persisted
+        // for the admin panel and the cleaner's job email. Passing [] here would diverge from
+        // the backend, which prices the same DTO with its extras attached.
+        extraServices: mapSelectedExtraInputs(this.selectedExtraServices),
         isCustomPricing: true,
         customAmount: parseFloat(this.customAmount.value) || 0,
         customCleaners: parseInt(this.customCleaners.value) || 1,
@@ -4648,16 +4667,29 @@ export class BookingComponent implements OnInit, OnDestroy {
   // Get filtered extra services (excluding deep cleaning and super deep cleaning)
   getFilteredExtraServices(): ExtraService[] {
     if (!this.selectedServiceType) return [];
-    
+
     return this.selectedServiceType.extraServices.filter(extra => {
-      // Show all extra services except deep cleaning and super deep cleaning
+      // Show all extra services except deep cleaning and super deep cleaning — those are a
+      // cleaning TYPE, presented as the Cleaning Type buttons, never as an extras card. That
+      // holds for Custom Pricing too, where the agreed cleaning type belongs in the service-type
+      // name and the description, not in a $0 informational card.
       if (extra.isDeepCleaning || extra.isSuperDeepCleaning) {
         return false;
       }
 
       // Extra Cleaners is admin-only now: the team decides staffing, so customers
       // can't buy cleaners here (the extra stays active for the admin order editor).
+      // Custom Pricing has its own "Number of Cleaners" field, which is what sets MaidsCount —
+      // a second, informational cleaner count would contradict it.
       if (extra.name === EXTRA_CLEANERS_NAME && extra.hasQuantity) {
+        return false;
+      }
+
+      // Custom Pricing ("Pre-Arranged"): extras are informational only — they describe work for
+      // the admin panel and the cleaner's job email and are priced at $0 / 0 min. Same Day
+      // Service is neither of those: it is a scheduling modifier that forces the calendar to
+      // today, and the admin already picks the exact date here, so it has no meaning at $0.
+      if (this.showCustomPricing && extra.isSameDayService) {
         return false;
       }
 
@@ -4744,6 +4776,11 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   private getActiveDeepCleaningExtraService(): ExtraService | null {
     if (!this.selectedServiceType?.extraServices) return null;
+    // A Custom Pricing type is served the WHOLE extras catalogue (it records extras purely as
+    // information), so it "has" a deep-cleaning row even though it offers no Cleaning Type
+    // buttons and no deep-cleaning card. Reporting that as available would let the restore path
+    // push a deep extra the admin can neither see nor remove — the hidden-but-active pattern.
+    if (this.showCustomPricing) return null;
     return (
       this.selectedServiceType.extraServices.find(
         (extra) => extra.isDeepCleaning && extra.isActive !== false

@@ -356,4 +356,79 @@ describe('BookingComponent', () => {
       expect(component.discountsClearedForAccountSwitch).toBeFalse();
     });
   });
+
+  /**
+   * Extras on a Custom Pricing ("Pre-Arranged") service type are INFORMATIONAL: they are
+   * recorded for the admin panel and the cleaner's job email at $0 / 0 min, and must never
+   * move the summary. Two regressions this pins:
+   *   - the quote input was gated on `showCustomPricing && customAmount.value`, so an empty
+   *     Total Amount fell through to the ordinary path and charged for the selections;
+   *   - Deep / Super Deep briefly appeared as cards here, but they are a cleaning TYPE.
+   */
+  describe('custom pricing extras are informational', () => {
+    const customServiceType = {
+      id: 9, name: 'Pre-Arranged Cleaning', basePrice: 150, timeDuration: 60,
+      isCustom: true, isActive: true, services: [], extraServices: []
+    } as any;
+
+    const extra = (id: number, name: string, overrides: any = {}) => ({
+      id, name, price: 40, duration: 45, priceMultiplier: 1,
+      isDeepCleaning: false, isSuperDeepCleaning: false, isSameDayService: false,
+      hasQuantity: false, hasHours: false, isActive: true, displayOrder: id,
+      ...overrides
+    }) as any;
+
+    const fridge = extra(1, 'Inside the Fridge');
+    const deep = extra(2, 'Deep Cleaning', { isDeepCleaning: true, priceMultiplier: 1.5 });
+    const sameDay = extra(3, 'Same Day Service', { isSameDayService: true });
+    const extraCleaners = extra(4, 'Extra Cleaners', { hasQuantity: true });
+
+    beforeEach(() => {
+      component.selectedServiceType = { ...customServiceType, extraServices: [fridge, deep, sameDay, extraCleaners] };
+      component.showCustomPricing = true;
+      component.selectedServices = [];
+      component.selectedExtraServices = [{ extraService: fridge, quantity: 1, hours: 0 }] as any;
+      component.customCleaners.setValue(2);
+      component.customDuration.setValue(240);
+    });
+
+    it('keeps the summary at zero when no amount has been entered', () => {
+      component.customAmount.setValue('');
+
+      component.calculateTotal();
+
+      expect(component.calculation.subTotal).toBe(0);
+      expect(component.calculation.tax).toBe(0);
+      expect(component.calculation.total).toBe(0);
+    });
+
+    it('charges exactly the entered amount, extras included', () => {
+      component.customAmount.setValue('300');
+
+      component.calculateTotal();
+
+      expect(component.calculation.subTotal + component.calculation.tax).toBe(300);
+
+      // Same amount with no extras selected — the extras contributed nothing.
+      const withExtras = component.calculation.subTotal;
+      component.selectedExtraServices = [];
+      component.calculateTotal();
+      expect(component.calculation.subTotal).toBe(withExtras);
+    });
+
+    it('reports the entered duration, not the extras durations', () => {
+      component.customAmount.setValue('300');
+
+      component.calculateTotal();
+
+      // 2 cleaners x 240 min, with the 45-min extra adding nothing.
+      expect(component.actualTotalDuration).toBe(480);
+    });
+
+    it('offers ordinary extras but not the cleaning type, same-day or cleaner-count cards', () => {
+      const offered = component.getFilteredExtraServices().map(e => e.name);
+
+      expect(offered).toEqual(['Inside the Fridge']);
+    });
+  });
 });

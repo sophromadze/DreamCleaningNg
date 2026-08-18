@@ -668,7 +668,10 @@
                       </div>
                     </div>
                     <div class="edit-group edit-group--extras">
-                      <h6>Extra Services (Qty or Hrs, Duration, Cost)</h6>
+                      <!-- Custom Pricing ("Pre-Arranged") orders: extras carry no duration and no
+                           cost — they exist so this panel and the cleaner's job email know what
+                           work was agreed, so both fields are hidden rather than shown as 0. -->
+                      <h6>{{ isCustomModeOrder() ? 'Extra Services (informational — no time or price)' : 'Extra Services (Qty or Hrs, Duration, Cost)' }}</h6>
                       <div class="mini-table" *ngIf="editOrderForm.extraServices && editOrderForm.extraServices.length > 0">
                         <div *ngFor="let e of editOrderForm.extraServices; let i = index" class="mini-row">
                           <span class="minilabel">{{ getExtraServiceName(selectedOrder, i, e) }}</span>
@@ -691,8 +694,8 @@
                                 </span>
                               </label>
                             </ng-template>
-                            <span class="mini-duration">{{ getEditExtraDurationMin(e, i) }} min</span>
-                            <label class="mini-field mini-field--cost">
+                            <span class="mini-duration" *ngIf="!isCustomModeOrder()">{{ getEditExtraDurationMin(e, i) }} min</span>
+                            <label class="mini-field mini-field--cost" *ngIf="!isCustomModeOrder()">
                               <span class="mini-field__label">Cost</span>
                               <input type="number" step="1" [(ngModel)]="e.cost" (ngModelChange)="onEditExtraCostChange()" class="mini-cost-input" placeholder="Cost">
                             </label>
@@ -1227,16 +1230,18 @@
                       <h5>Extra Services</h5>
                       <div class="services-content">
                         <ul class="services-list">
+                          <!-- Custom Pricing orders price every extra at $0 (informational only),
+                               so the cost is omitted there rather than printing "- $0.00". -->
                           <li *ngFor="let extra of selectedOrder.extraServices">
                             <ng-container *ngIf="extra.hours > 0 && extra.quantity > 0; else singleDisplay">
-                              {{extra.extraServiceName}} - Qty: {{extra.quantity}} - Hours: {{extra.hours}} - ${{formatCurrency(extra.cost)}}
+                              {{extra.extraServiceName}} - Qty: {{extra.quantity}} - Hours: {{extra.hours}}<ng-container *ngIf="!isCustomServiceType(selectedOrder)"> - ${{formatCurrency(extra.cost)}}</ng-container>
                             </ng-container>
                             <ng-template #singleDisplay>
                               <ng-container *ngIf="extra.hours > 0; else quantityOnly">
-                                {{extra.extraServiceName}} - Hours: {{extra.hours}} - ${{formatCurrency(extra.cost)}}
+                                {{extra.extraServiceName}} - Hours: {{extra.hours}}<ng-container *ngIf="!isCustomServiceType(selectedOrder)"> - ${{formatCurrency(extra.cost)}}</ng-container>
                               </ng-container>
                               <ng-template #quantityOnly>
-                                {{extra.extraServiceName}} - Qty: {{extra.quantity}} - ${{formatCurrency(extra.cost)}}
+                                {{extra.extraServiceName}} - Qty: {{extra.quantity}}<ng-container *ngIf="!isCustomServiceType(selectedOrder)"> - ${{formatCurrency(extra.cost)}}</ng-container>
                               </ng-template>
                             </ng-template>
                           </li>

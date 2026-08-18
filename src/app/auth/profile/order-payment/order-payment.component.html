@@ -70,8 +70,82 @@
         </div>
       </div>
 
+      <!-- Consent gate — admin-created orders only. Their customer never saw the booking
+           form's checkboxes (an admin ticked them during the call), so the same three
+           agreements are collected here. No card form is rendered and the backend issues no
+           client secret until this is accepted. Wording: shared/booking/consent-texts.ts. -->
+      <div class="consent-section" *ngIf="consentRequired && !consentAccepted">
+        <h2>Before You Pay</h2>
+        <p class="consent-intro">Please review and accept the following to confirm your booking.</p>
+
+        <div class="checkbox-group">
+          <input
+            type="checkbox"
+            id="payment-sms-consent"
+            class="form-checkbox"
+            [(ngModel)]="smsConsent"
+            [disabled]="consentSubmitting">
+          <label for="payment-sms-consent" class="checkbox-label">
+            {{ smsConsentLead }}
+            <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> and
+            <a routerLink="/terms-and-conditions" target="_blank">Terms of Service</a>. <span class="required">*</span>
+          </label>
+        </div>
+
+        <div class="checkbox-group">
+          <input
+            type="checkbox"
+            id="payment-cancellation-consent"
+            class="form-checkbox"
+            [(ngModel)]="cancellationConsent"
+            [disabled]="consentSubmitting">
+          <label for="payment-cancellation-consent" class="checkbox-label">
+            {{ cancellationConsentText }} <span class="required">*</span>
+          </label>
+        </div>
+
+        <div class="checkbox-group">
+          <input
+            type="checkbox"
+            id="payment-terms-consent"
+            class="form-checkbox"
+            [(ngModel)]="termsConsent"
+            [disabled]="consentSubmitting">
+          <label for="payment-terms-consent" class="checkbox-label">
+            {{ termsConsentLead }}
+            <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> and
+            <a routerLink="/terms-and-conditions" target="_blank">Terms of Service</a>. <span class="required">*</span>
+          </label>
+        </div>
+
+        <div class="error-message" *ngIf="consentError">{{ consentError }}</div>
+
+        <div class="consent-actions">
+          <button
+            class="consent-btn"
+            (click)="acceptConsentAndContinue()"
+            [disabled]="!allConsentsChecked || consentSubmitting">
+            <span *ngIf="!consentSubmitting">Agree &amp; Continue to Payment</span>
+            <span *ngIf="consentSubmitting">Saving...</span>
+          </button>
+
+          <button class="cancel-btn" (click)="cancelPayment()" [disabled]="consentSubmitting">
+            Cancel
+          </button>
+        </div>
+        <p class="consent-hint" *ngIf="!allConsentsChecked">
+          All three boxes must be checked before payment can be made.
+        </p>
+      </div>
+
+      <!-- Already accepted (page reloaded, or the link opened a second time). -->
+      <div class="consent-accepted" *ngIf="consentRequired && consentAccepted">
+        <i class="fas fa-check-circle"></i>
+        <span>Terms accepted{{ consentAcceptedAt ? ' on ' + formatDateTime(consentAcceptedAt) : '' }}.</span>
+      </div>
+
       <!-- Payment Form Section -->
-      <div class="payment-section">
+      <div class="payment-section" *ngIf="showPaymentSection">
         <h2>Payment Information</h2>
 
         <!-- Fully covered by gift card: no charge required -->

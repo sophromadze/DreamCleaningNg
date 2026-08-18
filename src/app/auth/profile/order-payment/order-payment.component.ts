@@ -1,12 +1,18 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { FormsModule } from '@angular/forms';
 import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { BookingService } from '../../../services/booking.service';
 import { OrderService, Order } from '../../../services/order.service';
 import { StripeService } from '../../../services/stripe.service';
 import { CardOnFileService, SavedCard } from '../../../services/card-on-file.service';
+import {
+  SMS_CONSENT_LEAD,
+  CANCELLATION_CONSENT_TEXT,
+  TERMS_CONSENT_LEAD
+} from '../../../shared/booking/consent-texts';
 import { CARD_ON_FILE_ENABLED } from '../../../shared/card-on-file.flag';
 import {
   extraServiceNamesOf,
@@ -18,7 +24,7 @@ import {
 @Component({
   selector: 'app-order-payment',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './order-payment.component.html',
   styleUrls: ['./order-payment.component.scss']
 })
@@ -53,6 +59,25 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
    *  the order loads. */
   isGuestMode = false;
   private hasInitialized = false;
+
+  // ── Consent gate (admin-created orders only) ──────────────────────────────────────────
+  // A customer who books themselves ticks SMS / cancellation-fee / terms on /booking before
+  // the order exists. When an admin books for them over the phone the admin ticks those boxes,
+  // so the customer has agreed to nothing — they just get a payment link. Those orders collect
+  // the same three consents here, and the backend refuses to create a PaymentIntent until it
+  // has them, so no card can be charged first. Initial payment only.
+  consentRequired = false;
+  consentAccepted = false;
+  consentAcceptedAt: string | null = null;
+  consentSubmitting = false;
+  consentError = '';
+  smsConsent = false;
+  cancellationConsent = false;
+  termsConsent = false;
+  // Same wording as the booking form — one source, two surfaces.
+  readonly smsConsentLead = SMS_CONSENT_LEAD;
+  readonly cancellationConsentText = CANCELLATION_CONSENT_TEXT;
+  readonly termsConsentLead = TERMS_CONSENT_LEAD;
 
   // Card on file: offered ONLY to the logged-in owner — never in guest/token mode, where
   // the payer is often a relative who must not touch the owner's card. Selecting it never
@@ -175,6 +200,12 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         this.needsOvenCleaner = requiresOvenCleaner(extraNames);
         this.isCustomServiceType = this.isCustomServiceTypeOrder(order);
 
+        // Consent gate — see the field block above. Only the INITIAL payment of an
+        // admin-created order asks; a pending additional amount never does.
+        this.consentRequired = this.paymentType === 'order' && !!order.bookedByAdmin;
+        this.consentAccepted = !!order.paymentConsentAcceptedAt;
+        this.consentAcceptedAt = order.paymentConsentAcceptedAt ?? null;
+
         // Saved card — logged-in owner only (guest/token payers never see it).
         if (CARD_ON_FILE_ENABLED && !this.isGuestMode && order.userId === this.currentUser?.id) {
           this.cardOnFileService.getSavedCard().subscribe({
@@ -187,6 +218,15 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
             },
             error: () => { /* no saved-card option — normal card form remains */ }
           });
+        }
+
+        // Consent still owed: don't ask the backend for a PaymentIntent — it would refuse,
+        // and the payer would see an error instead of the checkboxes. The card form (and
+        // Apple Pay, which needs the client secret) appear once they agree.
+        if (this.consentRequired && !this.consentAccepted) {
+          this.isLoading = false;
+          this.cdr.detectChanges();
+          return;
         }
 
         // Create payment intent
@@ -245,6 +285,15 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         });
       },
       error: (error) => {
+        // Server says consent is still owed (stale tab, or an order that became admin-booked
+        // after this page loaded) — fall back to the checkboxes instead of a dead-end error.
+        if (error.status === 400 && error.error?.requiresConsent) {
+          this.consentRequired = true;
+          this.consentAccepted = false;
+          this.isLoading = false;
+          this.cdr.detectChanges();
+          return;
+        }
         this.errorMessage = error.error?.message || 'Failed to create payment intent';
         this.isLoading = false;
         console.error('Error creating payment intent:', error);
@@ -346,7 +395,60 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
     });
   }
 
+
+  /** All three consents ticked — the only state from which the payer may continue. */
+  get allConsentsChecked(): boolean {
+    return this.smsConsent && this.cancellationConsent && this.termsConsent;
+  }
+
+  /** The card form / Apple Pay / Pay button are shown only once consent is settled. */
+  get showPaymentSection(): boolean {
+    return !this.consentRequired || this.consentAccepted;
+  }
+
+  /**
+   * Records the agreement, then asks for the PaymentIntent. Kept in this order deliberately:
+   * the backend will not issue a client secret before the consent row exists, so a failure
+   * here leaves the payer on the checkboxes with nothing charged.
+   */
+  acceptConsentAndContinue(): void {
+    if (!this.allConsentsChecked || this.consentSubmitting) return;
+
+    this.consentSubmitting = true;
+    this.consentError = '';
+    this.bookingService.acceptPaymentConsent(
+      this.orderId,
+      { smsConsent: true, cancellationConsent: true, termsConsent: true },
+      this.isGuestMode ? this.guestToken! : undefined
+    ).subscribe({
+      next: (res) => {
+        this.consentSubmitting = false;
+        this.consentAccepted = true;
+        this.consentAcceptedAt = res?.acceptedAt ?? new Date().toISOString();
+        this.isLoading = true;
+        this.cdr.detectChanges();
+        this.createPaymentIntent();
+      },
+      error: (err) => {
+        this.consentSubmitting = false;
+        this.consentError = err.error?.message
+          || 'Could not record your agreement. Please try again.';
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  /** "August 18, 2026, 3:04 PM" for the accepted-on note. */
+  formatDateTime(value: string | null): string {
+    if (!value) return '';
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? '' : d.toLocaleString();
+  }
+
   async processPayment() {
+    // Belt and braces: the template hides the Pay button until consent is recorded, and the
+    // backend never issued a client secret without it — but never let a click through here.
+    if (this.consentRequired && !this.consentAccepted) return;
     if (this.isProcessing) return;
     if (!this.fullyCovered && ((!this.usingSavedCard && this.cardError) || !this.paymentClientSecret)) return;
 

@@ -273,13 +273,16 @@ export class HeaderComponent implements OnInit, OnDestroy {
   }
 
   private updateNyTime(): void {
-    const now = new Date();
-    this.nyTime = now.toLocaleTimeString('en-GB', {
+    // 12-hour clock, but without the AM/PM suffix — so 13:12 reads as 1:12
+    const parts = new Intl.DateTimeFormat('en-US', {
       timeZone: 'America/New_York',
-      hour: '2-digit',
+      hour: 'numeric',
       minute: '2-digit',
-      hour12: false
-    });
+      hour12: true
+    }).formatToParts(new Date());
+    const hour = parts.find(p => p.type === 'hour')?.value ?? '';
+    const minute = parts.find(p => p.type === 'minute')?.value ?? '';
+    this.nyTime = `${hour}:${minute}`;
   }
 
   private checkUnpaidOrders() {

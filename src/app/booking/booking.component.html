@@ -615,29 +615,41 @@
               </div>
             </section>
 
-            <!-- Step 5: Extra Services -->
-            <section class="booking-section">
-              <!-- Floor Type (Optional) — moved from step 2, sits right above Extra Services -->
-              <app-floor-type-selector
-                [selectedTypes]="floorTypes"
-                [otherText]="floorTypeOther"
-                (selectionChange)="onFloorTypeSelectionChange($event)">
-              </app-floor-type-selector>
-
-              <app-extra-services-grid
-                [extras]="getExtraServicesToDisplay()"
-                [selections]="selectedExtraServices"
-                [tooltips]="mobileTooltips"
-                [sameDayServiceAvailable]="isSameDayServiceAvailable || isAdminOrSuperAdmin"
-                [sameDayDisabledReason]="sameDayServiceDisabledReason"
-                [loading]="loading.extras"
-                [containerMaxWidth]="extraServicesContainerMaxWidth"
-                (cardClick)="onExtraServiceCardClick($event)"
-                (quantityChange)="updateExtraServiceQuantity($event.extra, $event.quantity)"
-                (hoursChange)="updateExtraServiceHours($event.extra, $event.hours)">
-              </app-extra-services-grid>
-            </section>
           </ng-container>
+
+          <!-- Step 5: Extra Services.
+               Deliberately OUTSIDE the regular-booking container: Custom Pricing
+               ("Pre-Arranged") service types show the same grid, where the selections are
+               informational only — they cost $0 and add 0 minutes, and exist so the admin panel
+               and the cleaner's job email know what work was agreed. The floor-type picker stays
+               regular-booking-only, so this section renders identically to before on that path. -->
+          <section class="booking-section" *ngIf="loading.serviceTypes || (selectedServiceType && !showPollForm)">
+            <!-- Floor Type (Optional) — moved from step 2, sits right above Extra Services -->
+            <app-floor-type-selector
+              *ngIf="!showCustomPricing"
+              [selectedTypes]="floorTypes"
+              [otherText]="floorTypeOther"
+              (selectionChange)="onFloorTypeSelectionChange($event)">
+            </app-floor-type-selector>
+
+            <p class="custom-extras-note" *ngIf="showCustomPricing">
+              Selected extras are recorded for the admin panel and the cleaners' job details.
+              They do not change the total amount or the duration set above.
+            </p>
+
+            <app-extra-services-grid
+              [extras]="getExtraServicesToDisplay()"
+              [selections]="selectedExtraServices"
+              [tooltips]="mobileTooltips"
+              [sameDayServiceAvailable]="isSameDayServiceAvailable || isAdminOrSuperAdmin"
+              [sameDayDisabledReason]="sameDayServiceDisabledReason"
+              [loading]="loading.extras"
+              [containerMaxWidth]="extraServicesContainerMaxWidth"
+              (cardClick)="onExtraServiceCardClick($event)"
+              (quantityChange)="updateExtraServiceQuantity($event.extra, $event.quantity)"
+              (hoursChange)="updateExtraServiceHours($event.extra, $event.hours)">
+            </app-extra-services-grid>
+          </section>
 
           <!-- Same-day fully booked warning -->
           <div class="blocked-date-warning" *ngIf="isSameDaySelected && isSameDayFullyBooked()">
@@ -1443,7 +1455,7 @@
                 class="form-checkbox"
                 [class.error]="smsConsent.invalid && smsConsent.touched">
               <label for="smsConsent" class="checkbox-label">
-                I consent to receive Customer care text messages from Dream Cleaning. Reply STOP to opt-out; Reply HELP for support; Message and data rates apply; Messaging frequency may vary. Visit 
+                {{ smsConsentLead }}
                 <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> and 
                 <a routerLink="/terms-and-conditions" target="_blank">Terms of Service</a>. <span class="required">*</span>
               </label>
@@ -1463,7 +1475,7 @@
                 class="form-checkbox"
                 [class.error]="cancellationConsent.invalid && cancellationConsent.touched">
               <label for="cancellationConsent" class="checkbox-label">
-                I understand that I will be charged a $70 cancellation fee if I cancel or reschedule my appointment less than 48 hours before the scheduled service. I also confirm that the booking details accurately reflect the cleaning requirements. If the actual condition differs from the described details, Dream Cleaning Team reserves the right to either leave or adjust the services to match the actual condition. I understand, that cleaning lady may arrive within a 30-60 minute window of the scheduled cleaning time. <span class="required">*</span>
+                {{ cancellationConsentText }} <span class="required">*</span>
               </label>
             </div>
             <div class="error-message" *ngIf="cancellationConsent.invalid && cancellationConsent.touched">
@@ -1481,7 +1493,7 @@
                 class="form-checkbox"
                 [class.error]="termsConsent.invalid && termsConsent.touched">
               <label for="termsConsent" class="checkbox-label">
-                I have read and agree to Dream Cleaning's
+                {{ termsConsentLead }}
                 <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> and
                 <a routerLink="/terms-and-conditions" target="_blank">Terms of Service</a>. <span class="required">*</span>
               </label>

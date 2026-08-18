@@ -241,6 +241,28 @@ export interface QuoteResult {
   extraServiceLines: ExtraServiceLineResult[];
 }
 
+/**
+ * Custom Pricing only: records the selected extras as $0 / 0-minute lines.
+ *
+ * On a custom-priced ("Pre-Arranged") order the admin-entered amount and duration ARE the
+ * quote, so an extra must never move either number. Extras still get persisted, because they
+ * are how the admin panel and the cleaner assignment email/SMS learn what work was agreed —
+ * they are informational, not billable. Quantity and hours are kept (they describe the job:
+ * "Windows × 5"); cost and duration are hard 0 and must NOT be re-derived from the catalog
+ * price/duration anywhere downstream.
+ *
+ * Mirror: OrderPricingCalculator.AddInformationalExtraLines.
+ */
+function informationalExtraLines(extraServices: ExtraServiceLineInput[]): ExtraServiceLineResult[] {
+  return extraServices.map(extra => ({
+    extraServiceId: extra.extraServiceId ?? 0,
+    quantity: extra.quantity,
+    hours: extra.hours,
+    cost: 0,
+    duration: 0
+  }));
+}
+
 // ===== Step 1: multiplier =====
 
 /**
@@ -389,7 +411,7 @@ export function calculateQuote(input: QuoteInput): QuoteResult {
       minimumPriceApplied: false,
       warnings: [],
       serviceLines: [],
-      extraServiceLines: []
+      extraServiceLines: informationalExtraLines(input.extraServices)
     };
   }
 

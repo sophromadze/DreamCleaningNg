@@ -116,6 +116,13 @@ export interface Order {
   bathroomsQuantity?: number;
   isPaid: boolean;
   paidAt?: Date;
+  /** True when an admin created this order (create-for-user) instead of the customer booking
+   *  it themselves. Such an order's customer never saw the /booking consent checkboxes, so the
+   *  payment page collects them before the first payment. */
+  bookedByAdmin?: boolean;
+  /** When the payer accepted the SMS / cancellation-fee / terms consents on the payment page.
+   *  Null/undefined on an admin-created order means it cannot be paid yet. */
+  paymentConsentAcceptedAt?: string | null;
   /** Sum of unpaid additional payments created by order updates (e.g. admin increased total). */
   pendingUpdateAmount?: number;
   /** Latest unpaid update-history id (if any). */

@@ -275,6 +275,24 @@ export class BookingService {
     );
   }
 
+  /**
+   * Records the payer's SMS / cancellation-fee / terms consents for an admin-created order.
+   * Must succeed BEFORE createPaymentIntentForOrder, which refuses to issue a client secret
+   * without it — that ordering is what makes the gate un-bypassable rather than cosmetic.
+   */
+  acceptPaymentConsent(
+    orderId: number,
+    consents: { smsConsent: boolean; cancellationConsent: boolean; termsConsent: boolean },
+    guestToken?: string
+  ): Observable<{ orderId: number; acceptedAt: string }> {
+    const query = guestToken ? `?guestToken=${encodeURIComponent(guestToken)}` : '';
+    return this.http.post<{ orderId: number; acceptedAt: string }>(
+      `${this.apiUrl}/booking/accept-payment-consent/${orderId}${query}`,
+      consents,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
   createPaymentIntentForOrder(orderId: number, guestToken?: string): Observable<any> {
     const query = guestToken ? `?guestToken=${encodeURIComponent(guestToken)}` : '';
     return this.http.post<any>(
