@@ -71,8 +71,66 @@
               <p class="pricing-text" [innerHTML]="getCleanerPricingText()"></p>
             </div>
 
+            <!-- Property type. Same block as the booking page, styled by booking.component.scss
+                 (listed first in this component's styleUrls). A legacy order arrives with
+                 nothing selected and may be answered now, or left alone. -->
+            <div class="property-type-section" *ngIf="showPropertyTypeSelector()">
+              <h3 class="property-type-heading">What kind of place is it?</h3>
+              <div class="property-type-options">
+                <button
+                  type="button"
+                  class="property-type-card"
+                  [class.selected]="isPropertyTypeSelected(propertyTypeApartment)"
+                  [attr.aria-pressed]="isPropertyTypeSelected(propertyTypeApartment)"
+                  (click)="selectPropertyType(propertyTypeApartment)">
+                  <svg class="property-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16"></path>
+                    <path d="M15 10h4a1 1 0 0 1 1 1v10"></path>
+                    <path d="M2 21h20"></path>
+                    <path d="M7 7h2M7 11h2M7 15h2M11 7h1M11 11h1M11 15h1"></path>
+                  </svg>
+                  <span class="property-type-label">Apartment / Condo</span>
+                </button>
+
+                <button
+                  type="button"
+                  class="property-type-card"
+                  [class.selected]="isPropertyTypeSelected(propertyTypeHouse)"
+                  [attr.aria-pressed]="isPropertyTypeSelected(propertyTypeHouse)"
+                  (click)="selectPropertyType(propertyTypeHouse)">
+                  <svg class="property-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 10.5 12 3l9 7.5"></path>
+                    <path d="M5 9.5V21h14V9.5"></path>
+                    <path d="M10 21v-6h4v6"></path>
+                  </svg>
+                  <span class="property-type-label">House / Townhouse</span>
+                </button>
+              </div>
+
+              <div class="levels-block" *ngIf="showLevelsSelector()">
+                <h4 class="levels-heading">How many levels need cleaning?</h4>
+                <div class="levels-options" role="group" aria-label="Number of levels">
+                  <button
+                    type="button"
+                    class="level-chip"
+                    *ngFor="let level of levelOptions"
+                    [class.selected]="isLevelsSelected(level)"
+                    [attr.aria-pressed]="isLevelsSelected(level)"
+                    (click)="selectLevels(level)">
+                    {{ level }}
+                  </button>
+                </div>
+                <p class="levels-hint">Count the basement if it needs cleaning.</p>
+              </div>
+            </div>
+
             <div class="services">
-              <div class="service-item" *ngFor="let selected of selectedServices; let i = index">
+              <!-- Levels is excluded: it has its own block above. The entry stays in
+                   selectedServices so the FormArray of controls remains index-aligned. -->
+              <ng-container *ngFor="let selected of selectedServices; let i = index">
+              <div class="service-item" *ngIf="!isLevelsService(selected.service)">
                 <label>{{ selected.service.name }}</label>
 
                 <!-- Quantity Control Input -->
@@ -100,6 +158,7 @@
                   </div>
                 </div>
               </div>
+              </ng-container>
             </div>
           </section>
 
@@ -377,8 +436,8 @@
             <div class="step-buttons-container">
               <a [routerLink]="['/order', order.id]" class="back-btn discard-btn">Discard</a>
               <button type="submit" class="book-now-btn"
-                      [disabled]="!orderForm.valid || isSaving || additionalAmount < 0"
-                      [class.disabled]="!orderForm.valid || isSaving || additionalAmount < 0">
+                      [disabled]="!orderForm.valid || isSaving || additionalAmount < 0 || isPropertyTypeAnswerIncomplete()"
+                      [class.disabled]="!orderForm.valid || isSaving || additionalAmount < 0 || isPropertyTypeAnswerIncomplete()">
                 {{ isSaving ? 'Saving...' : 'Save Changes' }}
               </button>
             </div>

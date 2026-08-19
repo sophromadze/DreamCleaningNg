@@ -67,6 +67,18 @@ export interface BookingDiagnosticsSnapshot {
   /** Selected date/time falls inside an admin-blocked slot (blocks steps 1 and 2). */
   dateTimeBlocked: boolean;
 
+  /**
+   * Property type asked but not answered (blocks step 1).
+   *
+   * A bespoke field rather than a control, because propertyType and levelsQuantity are plain
+   * component fields, not FormControls - the form-walking part of this module cannot see them.
+   * Leaving them out is exactly why a blocked Continue reported three step-3 consent fields and
+   * never named the thing actually blocking it.
+   */
+  propertyTypeMissing: boolean;
+  /** House chosen on a room-priced service type but no level count picked (blocks step 1). */
+  levelsMissing: boolean;
+
   minTipAmount: number;
 
   /** The gate results themselves, so the log can show the boolean the button actually reads. */
@@ -324,6 +336,30 @@ export function collectBookingBlockers(snapshot: BookingDiagnosticsSnapshot): Bo
     });
   }
 
+  if (snapshot.propertyTypeMissing) {
+    push({
+      field: 'Property type',
+      key: 'propertyType',
+      problem: 'neither Apartment / Condo nor House / Townhouse has been selected',
+      value: null,
+      step: 1,
+      onScreen: 'yes',
+      hidden: false
+    });
+  }
+
+  if (snapshot.levelsMissing) {
+    push({
+      field: 'Levels',
+      key: 'levelsQuantity',
+      problem: 'House is selected but no level count has been chosen',
+      value: null,
+      step: 1,
+      onScreen: 'yes',
+      hidden: false
+    });
+  }
+
   // --- Poll (quote request) questions --------------------------------------
   if (snapshot.showPollForm) {
     for (const question of snapshot.pollQuestions) {
@@ -437,6 +473,8 @@ export function logBookingBlockers(snapshot: BookingDiagnosticsSnapshot): void {
       : null,
     sameDayFullyBooked: snapshot.sameDayFullyBooked,
     dateTimeBlocked: snapshot.dateTimeBlocked,
+    propertyTypeMissing: snapshot.propertyTypeMissing,
+    levelsMissing: snapshot.levelsMissing,
     url: typeof location !== 'undefined' ? location.href : null
   });
   console.groupEnd();

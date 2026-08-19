@@ -22,6 +22,15 @@ import {
   mapSelectedServiceInput, getSquareFeetForBedrooms,
   resolveSquareFeetForBedroomChange, clampRestoredSquareFeet
 } from '../../pricing/order-pricing.calculator';
+import {
+  MIN_LEVELS,
+  PROPERTY_TYPE_APARTMENT,
+  PROPERTY_TYPE_HOUSE,
+  PropertyType,
+  isLevelsService,
+  normalizePropertyType,
+  serviceTypeCollectsPropertyType
+} from '../../booking/property-type.utils';
 import { PhoneNumberService } from '../../../services/phone-number.service';
 
 /**
@@ -206,6 +215,8 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
       this.clampSquareFeetToBedroomMinimum();
       // Sync form controls (bedrooms, bathrooms, sqft) from restored selectedServices so "Get Exact Price" reads correct values
       this.updateFormControlsFromServices();
+      // Property type round-trips through the same store the booking page uses.
+      this.propertyType = normalizePropertyType(savedData?.propertyType);
       // The only write of this hydration — selectServiceType deliberately skipped saving, so
       // storage is never touched until the restored quantities are actually in place.
       this.saveMainPageFormData();
@@ -464,6 +475,9 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
         quantity: ss.quantity
       })),
       cleaningType: this.cleaningTypeControl.value || 'normal',
+      // Carried through the SAME key the booking page reads, so a property type picked here is
+      // already answered on step 1. levelsQuantity is deliberately never written by the hero.
+      propertyType: this.propertyType ?? undefined,
       contactFirstName: this.firstNameControl.value || '',
       contactLastName: this.lastNameControl.value || '',
       contactEmail: this.emailControl.value || '',
@@ -515,10 +529,25 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
       const minQty = selected.service.serviceKey === 'bedrooms' ? 0 : (selected.service.minValue ?? 1);
       // Threshold / tier / zero-quantity fields must come along or the homepage prices sqft
       // from zero at a flat rate while the booking page prices only the overage in tiers.
-      return {
+      const mapped = {
         ...mapSelectedServiceInput(selected),
         quantity: useMinQuantities ? minQty : (selected.quantity ?? minQty)
       };
+
+      // LEVELS IS ALWAYS PRICED AS ONE HERE, whatever was restored.
+      //
+      // The hero and the booking page share FormPersistenceService. A customer who configures a
+      // 3-level house on /booking and then comes back to the homepage restores levels = 3 into
+      // this component - and the hero has no levels control, so the estimate would jump by $105
+      // with nothing on screen accounting for it, while bedrooms, bathrooms, sq.ft and cleaning
+      // type all read identical. That looks like a broken estimator.
+      //
+      // The entry stays in selectedServices so saveMainPageFormData round-trips it and the
+      // booking page gets its level count back untouched; only the ESTIMATE neutralises it.
+      // One level costs exactly zero, so this is the apartment-equivalent number.
+      if (isLevelsService(selected.service)) mapped.quantity = MIN_LEVELS;
+
+      return mapped;
     });
 
     return {
@@ -547,6 +576,49 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   }
 
   // Helper methods for template
+  /** Template helper: the levels row is never rendered here. See buildEstimateQuoteInput. */
+  isLevelsService(service: Service): boolean {
+    return isLevelsService(service);
+  }
+
+  // ===== Property type =====
+  //
+  // PROPERTY TYPE ONLY. The Levels chips are deliberately never rendered on the hero, so this
+  // component never writes a level count and its estimate can never carry a stair charge. The
+  // restore-path neutralisation in buildEstimateQuoteInput stays regardless, because a level
+  // count persisted by the BOOKING page in an earlier session can still arrive here.
+
+  propertyType: PropertyType | null = null;
+
+  readonly propertyTypeApartment = PROPERTY_TYPE_APARTMENT;
+  readonly propertyTypeHouse = PROPERTY_TYPE_HOUSE;
+
+  /**
+   * Fills the slot the Regular/Deep choice occupies on Residential.
+   *
+   * canSelectDeepCleaning is the existing, data-driven Residential discriminator (does this type
+   * have an active deep-cleaning extra), so this renders exactly where that slot is otherwise
+   * empty. The exclusion rule itself is shared with every other surface.
+   */
+  showPropertyTypeSelector(): boolean {
+    if (this.isLoadingServiceTypes || this.canSelectDeepCleaning) return false;
+    return serviceTypeCollectsPropertyType(this.selectedServiceType);
+  }
+
+  isPropertyTypeSelected(type: PropertyType): boolean {
+    return this.propertyType === type;
+  }
+
+  /**
+   * Records the choice and persists it. No price recalculation is triggered because property type
+   * has zero price impact anywhere in this system - only the level count moves money, and the
+   * hero never collects one.
+   */
+  selectPropertyType(type: PropertyType): void {
+    this.propertyType = type;
+    this.saveMainPageFormData();
+  }
+
   hasBedroomsService(): boolean {
     return !!this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
   }
@@ -615,6 +687,10 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
         quantity: ss.quantity
       })),
       cleaningType: this.cleaningTypeControl.value || 'normal',
+      // MUST be repeated here: this path calls saveFormData, which REPLACES the stored object
+      // rather than merging it like saveMainPageFormData's updateFormData. Omitting it would
+      // wipe the property type on the way to /booking - the exact field the customer just set.
+      propertyType: this.propertyType ?? undefined,
       contactFirstName: this.firstNameControl.value || '',
       contactLastName: this.lastNameControl.value || '',
       contactEmail: this.emailControl.value || '',

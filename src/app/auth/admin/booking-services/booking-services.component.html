@@ -204,6 +204,15 @@
                          (change)="setServiceTypeMode('custom')">
                   Custom
                 </label>
+                <!-- Independent of the three-way mode above: any mode may or may not ask the
+                     customer whether the place is an apartment or a house. Unchecking this is how
+                     an hourly commercial type (Office) opts out without a deploy. -->
+                <label class="service-type-flag">
+                  <input type="checkbox"
+                         [checked]="selectedServiceType.collectsPropertyType !== false"
+                         (change)="setCollectsPropertyType($any($event.target).checked)">
+                  Ask apartment / house
+                </label>
               </div>
             </td>
             <td>

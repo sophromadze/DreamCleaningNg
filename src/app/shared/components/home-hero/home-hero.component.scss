@@ -1695,3 +1695,57 @@
   }
 }
 
+
+/* ── Property type cards ───────────────────────────────────────────────────────────────
+   Fills the slot Residential uses for its Regular/Deep choice. Visually matched to the
+   booking page's cards (booking.component.scss), duplicated rather than imported because
+   this component does not pull in that stylesheet. Keep the two in step.
+
+   No levels chips here by design - the hero collects property type only. */
+.property-type-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+
+.property-type-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-weight: var(--fw-medium);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    border-color: var(--primary-color);
+  }
+
+  /* Selection carried by border AND background, never colour alone. */
+  &.selected {
+    border-color: var(--primary-color);
+    background: var(--soft-blue);
+    color: var(--primary-color);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+}
+
+.property-type-icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+}
+
+.property-type-label {
+  min-width: 0;
+}

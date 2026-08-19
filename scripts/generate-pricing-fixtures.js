@@ -69,11 +69,25 @@ const DEEP = {
   hasHours: false, hasQuantity: false, quantity: 1, hours: 0
 };
 
-const BED_ID = 10, BATH_ID = 20, SQFT_ID = 30;
+const BED_ID = 10, BATH_ID = 20, SQFT_ID = 30, LEVELS_ID = 40;
+
+// Levels: an ordinary service row whose ONE self-referencing threshold makes the first level
+// free, so billable = max(0, levels - 1). Seeded identically on both residential-shaped types
+// by AddOrderPropertyTypeAndLevelsService.
+const LEVELS = { cost: 35, timeDuration: 25, includedLevels: 1 };
 
 const FIXTURE_SETS = {
   'Residential Cleaning': [[0, 400], [0, 900], [1, 650], [1, 1200], [2, 850], [3, 1000], [3, 2400], [6, 2000], [6, 5000]],
   'Move in/out Cleaning': [[0, 400], [1, 650], [1, 1200], [2, 850], [3, 1000], [4, 1500], [6, 2000], [6, 3000]]
+};
+
+// A second, focused matrix for houses. Kept separate from FIXTURE_SETS on purpose: crossing
+// every existing row with four level counts would quadruple the suite to prove one thing four
+// times over. These pairs are chosen to exercise a level count against both a zero-overage
+// sq.ft selection and one deep into the rate tiers.
+const LEVELS_FIXTURE_SETS = {
+  'Residential Cleaning': [[2, 850], [3, 2400]],
+  'Move in/out Cleaning': [[2, 850], [3, 1000]]
 };
 
 function compileCalculator() {
@@ -97,11 +111,18 @@ function includedFor(bedrooms) {
   return match[1];
 }
 
-function buildInput(serviceTypeName, bedrooms, bathrooms, sqft, deep) {
+function buildInput(serviceTypeName, bedrooms, bathrooms, sqft, deep, levels) {
   const cfg = CONFIG[serviceTypeName];
   // The server clamps sqft up to the included allowance before pricing; mirror that so both
   // sides are given the same effective selection.
   const clamped = Math.max(sqft, includedFor(bedrooms));
+
+  const levelsLine = levels == null ? [] : [{
+    serviceId: LEVELS_ID, cost: LEVELS.cost, timeDuration: LEVELS.timeDuration,
+    serviceKey: 'levels', quantity: levels, chargeAboveThreshold: true, rateTiers: [],
+    // SELF-REFERENCE: sourceServiceId is the levels service itself.
+    thresholds: [{ sourceServiceId: LEVELS_ID, sourceQuantity: 1, includedQuantity: LEVELS.includedLevels }]
+  }];
 
   return {
     basePrice: cfg.basePrice,
@@ -126,7 +147,8 @@ function buildInput(serviceTypeName, bedrooms, bathrooms, sqft, deep) {
         thresholds: SQFT_THRESHOLDS.map(([q, i]) =>
           ({ sourceServiceId: BED_ID, sourceQuantity: q, includedQuantity: i })),
         rateTiers: cfg.sqftTiers
-      }
+      },
+      ...levelsLine
     ],
     extraServices: deep ? [DEEP] : []
   };
@@ -136,13 +158,34 @@ function main() {
   const calc = compileCalculator();
   const fixtures = [];
 
+  // Apartments (and every service type without a levels service): no levels line at all.
   for (const [serviceTypeName, rows] of Object.entries(FIXTURE_SETS)) {
     for (const [bedrooms, sqft] of rows) {
       for (const deep of [false, true]) {
         for (const bathrooms of [1, 2]) {
-          const quote = calc.calculateQuote(buildInput(serviceTypeName, bedrooms, bathrooms, sqft, deep));
+          const quote = calc.calculateQuote(buildInput(serviceTypeName, bedrooms, bathrooms, sqft, deep, null));
           fixtures.push({
-            serviceTypeName, bedrooms, bathrooms, sqft, deepCleaning: deep,
+            serviceTypeName, bedrooms, bathrooms, sqft, deepCleaning: deep, levels: null,
+            expectedSubTotal: Number(quote.subTotal.toFixed(2)),
+            expectedDisplayDuration: quote.displayDuration,
+            expectedMinimumPriceApplied: quote.minimumPriceApplied
+          });
+        }
+      }
+    }
+  }
+
+  // Houses: the same math plus a levels line. Level 1 rows are the ones that matter most - they
+  // must reproduce the apartment price exactly, or we have started charging for stairs that do
+  // not exist.
+  for (const [serviceTypeName, rows] of Object.entries(LEVELS_FIXTURE_SETS)) {
+    for (const [bedrooms, sqft] of rows) {
+      for (const levels of [1, 2, 3, 4]) {
+        for (const deep of [false, true]) {
+          const bathrooms = 2;
+          const quote = calc.calculateQuote(buildInput(serviceTypeName, bedrooms, bathrooms, sqft, deep, levels));
+          fixtures.push({
+            serviceTypeName, bedrooms, bathrooms, sqft, deepCleaning: deep, levels,
             expectedSubTotal: Number(quote.subTotal.toFixed(2)),
             expectedDisplayDuration: quote.displayDuration,
             expectedMinimumPriceApplied: quote.minimumPriceApplied
@@ -176,6 +219,8 @@ export interface PricingFixture {
   bathrooms: number;
   sqft: number;
   deepCleaning: boolean;
+  /** Level count for a house; null for an apartment, which has no levels line at all. */
+  levels: number | null;
   expectedSubTotal: number;
   expectedDisplayDuration: number;
   expectedMinimumPriceApplied: boolean;

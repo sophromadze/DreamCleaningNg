@@ -555,12 +555,17 @@
 
             <app-move-in-out-checklist *ngIf="!loading.serviceTypes && isMoveInOutCleaningServiceType()"></app-move-in-out-checklist>
 
+
             <!-- Step 4: Services (Bedrooms / Bathrooms / SqFt) -->
             <section class="booking-section">
               <div class="services">
                 <!-- Single full-width shimmer when loading and no services yet -->
                 <div *ngIf="loading.serviceDetails && selectedServices.length === 0" class="services-shimmer-single" [shimmer]="true"></div>
-                <div class="service-item" *ngFor="let selected of selectedServices">
+                <!-- Levels is excluded here even though it is an ordinary service: it has its own
+                     gated block above, and rendering it twice would let a customer set a level
+                     count without ever answering the property-type question. -->
+                <ng-container *ngFor="let selected of selectedServices">
+                <div class="service-item" *ngIf="!isLevelsService(selected.service)">
                   <label>{{ selected.service.name }}</label>
                   
                   <!-- Quantity Control Input -->
@@ -590,6 +595,7 @@
                     </div>                  
                   </div>
                 </div>
+                </ng-container>
 
                 <div class="service-item" *ngIf="shouldShowStandaloneBedroomBathroom()">
                   <label>Bedrooms</label>
@@ -616,6 +622,79 @@
             </section>
 
           </ng-container>
+
+            <!-- Property type. Deliberately OUTSIDE the regular-booking container, like the
+                 extras grid below: it is asked on EVERY service type including Custom Pricing
+                 ("Pre-Arranged"), where it is informational only. No default - the customer must
+                 actively choose, and step 1 stays blocked until they do.
+
+                 The LEVELS chips inside are gated separately, on whether the type prices rooms,
+                 because stair time on an hourly type is already inside the hours being bought. -->
+            <section class="booking-section property-type-section" *ngIf="showPropertyTypeSelector()">
+              <h3 class="property-type-heading">What kind of place is it?</h3>
+              <div class="property-type-options">
+                <button
+                  type="button"
+                  class="property-type-card"
+                  [class.selected]="isPropertyTypeSelected(propertyTypeApartment)"
+                  [attr.aria-pressed]="isPropertyTypeSelected(propertyTypeApartment)"
+                  (click)="selectPropertyType(propertyTypeApartment)">
+                  <svg class="property-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16"></path>
+                    <path d="M15 10h4a1 1 0 0 1 1 1v10"></path>
+                    <path d="M2 21h20"></path>
+                    <path d="M7 7h2M7 11h2M7 15h2M11 7h1M11 11h1M11 15h1"></path>
+                  </svg>
+                  <span class="property-type-label">Apartment / Condo</span>
+                </button>
+
+                <button
+                  type="button"
+                  class="property-type-card"
+                  [class.selected]="isPropertyTypeSelected(propertyTypeHouse)"
+                  [attr.aria-pressed]="isPropertyTypeSelected(propertyTypeHouse)"
+                  (click)="selectPropertyType(propertyTypeHouse)">
+                  <svg class="property-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                       stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 10.5 12 3l9 7.5"></path>
+                    <path d="M5 9.5V21h14V9.5"></path>
+                    <path d="M10 21v-6h4v6"></path>
+                  </svg>
+                  <span class="property-type-label">House / Townhouse</span>
+                </button>
+              </div>
+
+              <!-- A greyed-out Continue with no explanation is not acceptable: the customer has
+                   to be told which choice is missing. Shown once they have tried to move on,
+                   matching how every other required step-1 field surfaces its error. -->
+              <div class="error-message property-type-error"
+                   *ngIf="isPropertyTypeMissing() && (formSubmitted || propertyTypeTouched)">
+                Please tell us whether this is an apartment or a house.
+              </div>
+
+              <!-- Levels. Chips rather than a stepper on purpose: a stepper always displays a
+                   number, so "nothing chosen yet" would be impossible to show. -->
+              <div class="levels-block" *ngIf="showLevelsSelector()">
+                <h4 class="levels-heading">How many levels need cleaning?</h4>
+                <div class="levels-options" role="group" aria-label="Number of levels">
+                  <button
+                    type="button"
+                    class="level-chip"
+                    *ngFor="let level of levelOptions"
+                    [class.selected]="isLevelsSelected(level)"
+                    [attr.aria-pressed]="isLevelsSelected(level)"
+                    (click)="selectLevels(level)">
+                    {{ level }}
+                  </button>
+                </div>
+                <p class="levels-hint">Count the basement if it needs cleaning.</p>
+                <div class="error-message levels-error"
+                     *ngIf="isLevelsMissing() && (formSubmitted || propertyTypeTouched)">
+                  Please choose how many levels need cleaning.
+                </div>
+              </div>
+            </section>
 
           <!-- Step 5: Extra Services.
                Deliberately OUTSIDE the regular-booking container: Custom Pricing

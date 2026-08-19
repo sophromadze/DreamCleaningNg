@@ -13,13 +13,17 @@ import { PRICING_FIXTURES } from './pricing-fixtures.data';
  *
  * These tests drive the same adapter the component uses (buildAdminEditQuoteInput) with rows
  * shaped exactly as the edit form holds them, and assert the result matches the shared fixtures
- * generated from the real calculator against the production configuration. Same 68 rows the
+ * generated from the real calculator against the production configuration. Same 100 rows the
  * backend cross-surface test asserts, so all three surfaces are pinned to one set of numbers.
+ *
+ * The house rows (levels 1-4) are what prove an admin can change a level count and have the
+ * price recalculate through the shared calculator rather than through editor-local arithmetic.
  */
 describe('admin order edit pricing', () => {
   const BED_ID = 10;
   const BATH_ID = 20;
   const SQFT_ID = 30;
+  const LEVELS_ID = 40;
 
   const SQFT_THRESHOLD_ROWS: [number, number][] =
     [[0, 400], [1, 650], [2, 850], [3, 1000], [4, 1500], [5, 1800], [6, 2000]];
@@ -84,9 +88,23 @@ describe('admin order edit pricing', () => {
       rateTiers: cfg.sqftTiers.map((t, i) => tier(SQFT_ID, t, i))
     };
 
+    // Levels: ChargeAboveThreshold with ONE self-referencing threshold row, so the first level
+    // is included and billable = max(0, levels - 1). sourceServiceId is LEVELS_ID, not BED_ID.
+    const levels: Service = {
+      id: LEVELS_ID, name: 'Levels', serviceKey: 'levels', cost: 35, timeDuration: 25,
+      serviceTypeId: 1, inputType: 'dropdown', isRangeInput: false, isActive: true,
+      minValue: 1, maxValue: 4, stepValue: 1, displayOrder: 4,
+      chargeAboveThreshold: true,
+      thresholds: [{
+        id: 99, serviceId: LEVELS_ID, sourceServiceId: LEVELS_ID,
+        sourceServiceKey: 'levels', sourceQuantity: 1, includedQuantity: 1
+      }],
+      rateTiers: []
+    } as Service;
+
     return {
       id: 1, name, basePrice: cfg.basePrice, timeDuration: cfg.timeDuration,
-      minimumPrice: cfg.minimumPrice, services: [bedrooms, bathrooms, sqft],
+      minimumPrice: cfg.minimumPrice, services: [bedrooms, bathrooms, sqft, levels],
       extraServices: [], isActive: true, hasPoll: false
     };
   }
@@ -106,22 +124,31 @@ describe('admin order edit pricing', () => {
 
   PRICING_FIXTURES.forEach(fixture => {
     const label = `${fixture.serviceTypeName} ${fixture.bedrooms}bd/${fixture.bathrooms}ba/` +
-      `${fixture.sqft}sqft ${fixture.deepCleaning ? 'Deep' : 'Regular'}`;
+      `${fixture.sqft}sqft ${fixture.deepCleaning ? 'Deep' : 'Regular'}` +
+      `${fixture.levels == null ? '/apt' : `/${fixture.levels}lv`}`;
 
     it(`matches the shared fixture: ${label}`, () => {
       const st = serviceType(fixture.serviceTypeName);
-      const [bedroomsDef, bathroomsDef, sqftDef] = st.services;
+      const [bedroomsDef, bathroomsDef, sqftDef, levelsDef] = st.services;
 
       // Rows exactly as the admin edit form holds them: quantity + cost, index-aligned with
       // the catalog definitions. The sqft row is clamped to the allowance, as the editor does
       // when bedrooms change.
+      const rows = [
+        { row: { quantity: fixture.bedrooms }, definition: bedroomsDef },
+        { row: { quantity: fixture.bathrooms }, definition: bathroomsDef },
+        { row: { quantity: Math.max(fixture.sqft, includedFor(fixture.bedrooms)) }, definition: sqftDef }
+      ];
+
+      // An apartment order carries NO levels row at all, which is exactly how the editor sees a
+      // legacy order too. A house order carries one, at the real level count.
+      if (fixture.levels != null) {
+        rows.push({ row: { quantity: fixture.levels }, definition: levelsDef });
+      }
+
       const built = buildAdminEditQuoteInput(
         st,
-        [
-          { row: { quantity: fixture.bedrooms }, definition: bedroomsDef },
-          { row: { quantity: fixture.bathrooms }, definition: bathroomsDef },
-          { row: { quantity: Math.max(fixture.sqft, includedFor(fixture.bedrooms)) }, definition: sqftDef }
-        ],
+        rows,
         fixture.deepCleaning
           ? [{ row: { quantity: 1, hours: 0 }, definition: DEEP_CLEANING }]
           : []
@@ -137,10 +164,12 @@ describe('admin order edit pricing', () => {
   });
 
   it('covers both service types and both cleaning levels', () => {
-    expect(PRICING_FIXTURES.length).toBe(68);
+    expect(PRICING_FIXTURES.length).toBe(100);
     expect(PRICING_FIXTURES.some(f => f.serviceTypeName.startsWith('Residential'))).toBeTrue();
     expect(PRICING_FIXTURES.some(f => f.serviceTypeName.startsWith('Move'))).toBeTrue();
     expect(PRICING_FIXTURES.some(f => f.expectedMinimumPriceApplied)).toBeTrue();
+    expect(PRICING_FIXTURES.some(f => f.levels == null)).toBeTrue();
+    [1, 2, 3, 4].forEach(n => expect(PRICING_FIXTURES.some(f => f.levels === n)).toBeTrue());
   });
 
   it('returns row index maps so per-line costs can be written back in place', () => {

@@ -114,6 +114,10 @@ export interface Order {
   maidsCount: number;
   bedroomsQuantity?: number;
   bathroomsQuantity?: number;
+  /** "Apartment" or "House". Null/undefined for legacy orders - render nothing, not an empty row. */
+  propertyType?: string | null;
+  /** Levels for a house; null whenever propertyType is not "House". Display only. */
+  levelsQuantity?: number | null;
   isPaid: boolean;
   paidAt?: Date;
   /** True when an admin created this order (create-for-user) instead of the customer booking
@@ -164,6 +168,8 @@ export interface OrderService {
   id: number;
   serviceId: number;
   serviceName: string;
+  /** Stable catalogue key ("bedrooms", "sqft", "levels"...), independent of the display name. */
+  serviceKey?: string | null;
   quantity: number;
   hours?: number;
   cost: number;
@@ -204,6 +210,10 @@ export interface UpdateOrder {
   totalDuration: number;
   bedroomsQuantity?: number;
   bathroomsQuantity?: number;
+  /** "Apartment" or "House"; anything else clears the stored level count server-side. */
+  propertyType?: string | null;
+  /** Informational level count for a service type with no priced levels service. */
+  levelsQuantity?: number | null;
   calculatedSubTotal: number;
   calculatedTax: number;
   calculatedTotal: number;

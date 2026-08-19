@@ -63,6 +63,18 @@ import {
 } from '../shared/pricing/order-pricing.calculator';
 import { buildCustomServiceTypeNameOptions } from '../shared/booking/custom-service-type.util';
 import { normalizeTipAmount } from '../shared/booking/tip-amount.utils';
+import {
+  LEVEL_OPTIONS,
+
+  PROPERTY_TYPE_APARTMENT,
+  PROPERTY_TYPE_HOUSE,
+  PropertyType,
+  findLevelsService,
+  isHouse,
+  isLevelsService,
+  normalizePropertyType,
+  serviceTypeCollectsPropertyType
+} from '../shared/booking/property-type.utils';
 import { extraServiceNamesOf, requiresOvenCleaner } from '../shared/booking/supply-checklist.utils';
 import {
   SMS_CONSENT_LEAD,
@@ -152,6 +164,44 @@ export class BookingComponent implements OnInit, OnDestroy {
   selectedServiceType: ServiceType | null = null;
   selectedServices: SelectedService[] = [];
   selectedExtraServices: SelectedExtraService[] = [];
+
+  /**
+   * Apartment/condo vs house/townhouse. NO DEFAULT - null means "not answered yet" and step 1
+   * stays blocked until the customer picks one. Only asked when the selected service type
+   * actually has a levels service (see serviceTypeHasLevels).
+   */
+  propertyType: PropertyType | null = null;
+
+  /**
+   * Levels to clean, for a house. NO DEFAULT, and deliberately NOT a member of selectedServices
+   * until the customer picks a chip.
+   *
+   * initializeRegularServices seeds every service at its minValue, which for levels is 1. If the
+   * levels row lived in selectedServices from the start there would be no way to tell "not yet
+   * chosen" from "chose 1 level" - the array would say 1 either way, and the no-default rule
+   * would be quietly broken. Keeping it out until a chip is clicked also means a legacy reorder
+   * and a pre-feature saved session both arrive with null and are forced to answer, with no
+   * special legacy branch anywhere.
+   */
+  levelsQuantity: number | null = null;
+
+  /**
+   * Stands in for FormControl.touched on the property-type block.
+   *
+   * propertyType and levelsQuantity are plain fields, not FormControls, so they have no `touched`
+   * state and markFormGroupUntouched does not reach them. Every other required step-1 field hides
+   * its error behind `control.touched` (a control is only touched on BLUR, never on value change),
+   * so the equivalent here is "the customer tried to move on", not "the customer clicked
+   * something" - set only when a blocked Continue or Book Now is pressed.
+   *
+   * Cleared by clearCurrentStepValidationErrors alongside formSubmitted, so stepping back to
+   * step 1 does not re-show a stale error.
+   */
+  propertyTypeTouched = false;
+
+  readonly levelOptions = LEVEL_OPTIONS;
+  readonly propertyTypeApartment = PROPERTY_TYPE_APARTMENT;
+  readonly propertyTypeHouse = PROPERTY_TYPE_HOUSE;
   selectedSubscription: Subscription | null = null;
   // Card-on-file opt-in: saves the card used to pay this booking for faster checkout later.
   // Saving only — future charges always require an explicit customer/admin action.
@@ -864,6 +914,7 @@ export class BookingComponent implements OnInit, OnDestroy {
           // so the result doesn't depend on whether bedrooms happened to precede sqft here.
           this.clampSquareFeetToBedroomMinimum();
         }
+        this.restorePropertyTypeSelection(savedData);
         if (savedExtraServices.length > 0) {
           this.selectedExtraServices = [];
           savedExtraServices.forEach(ses => {
@@ -1277,6 +1328,12 @@ export class BookingComponent implements OnInit, OnDestroy {
       bedroomsQuantity: this.getSelectedBedroomsQuantity(),
       bathroomsQuantity: this.getSelectedBathroomsQuantity(),
 
+      // Property type + levels. Persisted separately from selectedServices because the levels
+      // line is absent from that array until a chip is clicked, so the restore loop (which only
+      // writes into entries that already exist) could never bring it back on its own.
+      propertyType: this.propertyType ?? undefined,
+      levelsQuantity: this.levelsQuantity,
+
       // Poll Data
       pollAnswers: this.showPollForm ? this.pollAnswers : undefined,
 
@@ -1308,6 +1365,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.selectedServiceType = null;
       this.selectedServices = [];
       this.selectedExtraServices = [];
+      this.resetPropertyTypeSelection();
       
       // Reset form to default values
       this.bookingForm.reset();
@@ -1881,6 +1939,9 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.serviceTypeDropdownOpen = false;
     this.selectedServices = [];
     this.selectedExtraServices = [];
+    // The levels line belongs to a specific service type's catalogue row, so a level count can
+    // never carry across a type change - and a type without levels must not keep a property type.
+    this.resetPropertyTypeSelection();
     this.showPollForm = false;
     this.showCustomPricing = false;
 
@@ -2010,6 +2071,9 @@ export class BookingComponent implements OnInit, OnDestroy {
         let bedroomsQuantity = 0; // Default to Studio
         
         sortedServices.forEach(service => {
+          // Levels is never seeded with a default — see initializeRegularServices.
+          if (isLevelsService(service)) return;
+
           if (service.isActive !== false) {
             let defaultQuantity = service.minValue ?? 0;
             
@@ -2081,6 +2145,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.selectedServiceType = null;
       this.selectedServices = [];
       this.selectedExtraServices = [];
+      this.resetPropertyTypeSelection();
       this.showPollForm = false;
       this.showCustomPricing = false;
       this.calculateTotal();
@@ -2240,7 +2305,243 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (service.serviceRelationType === 'hours' && this.hasExtraCleanersSelected()) {
       return Math.max(baseMin, 2.5);
     }
+    // A house has no studio. Raising the floor here is what greys out the minus button at one
+    // bedroom and stops the "Studio" label ever appearing, without a second rule in the template.
+    if (service.serviceKey === 'bedrooms' && isHouse(this.propertyType)) {
+      return Math.max(baseMin, 1);
+    }
     return baseMin;
+  }
+
+  // ===== Property type (apartment vs house) + levels =====
+
+  /**
+   * THE step-1 gate for property type. Both branches of isStep1Valid route through it, and the
+   * blocker diagnostics and the inline error message read the same two predicates below, so a
+   * disabled Continue button can always be explained on screen.
+   *
+   * Property type is required wherever it is asked. Levels are required ONLY where they are
+   * actually priced, so picking House on an hourly service type does not strand the customer
+   * behind chips that were never rendered.
+   */
+  isPropertyTypeAnswered(): boolean {
+    return !this.isPropertyTypeMissing() && !this.isLevelsMissing();
+  }
+
+  /** Property type is asked but unanswered. Drives the inline error under the two cards. */
+  isPropertyTypeMissing(): boolean {
+    return this.showPropertyTypeSelector() && this.propertyType === null;
+  }
+
+  /** Levels are rendered but unanswered. Drives the inline error under the chips. */
+  isLevelsMissing(): boolean {
+    return this.showLevelsSelector() && this.levelsQuantity === null;
+  }
+
+  /** Template helper: levels has its own gated block, never the generic service grid. */
+  isLevelsService(service: Service): boolean {
+    return isLevelsService(service);
+  }
+
+  /**
+   * The property-type question is asked on EVERY service type, with NO gating - including the
+   * custom ("Pre-Arranged") flow, where it is informational only.
+   *
+   * On a type that does not price rooms it still earns its place: admins and cleaners need to
+   * know about parking, a walk-up, travel time and equipment before they arrive. Do NOT re-couple
+   * this to whether a levels service exists; that was an earlier design and it was wrong.
+   *
+   * The ONE exclusion is the poll/quote form, which is not a booking at all - it submits a quote
+   * request and never creates an Order, so there is nothing to persist a property type onto.
+   */
+  showPropertyTypeSelector(): boolean {
+    if (this.showPollForm) return false;
+    return serviceTypeCollectsPropertyType(this.selectedServiceType);
+  }
+
+  /**
+   * Levels are asked for a house on EVERY service type that shows the property type. Visibility
+   * is NOT tied to whether a priced levels service exists.
+   *
+   * Whether the answer costs anything is a separate question, decided by
+   * getPricedLevelsService():
+   *
+   *   - Priced (Residential, Move in/out): selecting a count creates the OrderService row and
+   *     prices through the self-referencing threshold, unchanged.
+   *   - Informational (Office, Custom, Heavy Conditional, Pre-Arranged...): the count is captured
+   *     ONLY as Order.LevelsQuantity. No line, no cost, no duration, no summary row. Same
+   *     precedent as Order.BedroomsQuantity / BathroomsQuantity, which are already collected this
+   *     way for cleaner+hours and custom modes.
+   *
+   * That split is why an hourly type can still be asked: stair time is already inside the hours
+   * the customer buys, so the answer must not add a charge - but the crew still needs to know
+   * there are three flights to carry equipment up.
+   */
+  showLevelsSelector(): boolean {
+    return this.showPropertyTypeSelector() && isHouse(this.propertyType);
+  }
+
+  /**
+   * The levels catalogue row for the selected service type, or null when it has none.
+   *
+   * Null is the whole definition of "informational": no row means no OrderService line, so
+   * nothing reaches the calculator and the price cannot move.
+   */
+  private getPricedLevelsService(): Service | null {
+    return findLevelsService(this.selectedServiceType);
+  }
+
+  /** True when a chosen level count would actually be charged for. */
+  levelsArePriced(): boolean {
+    return this.getPricedLevelsService() != null;
+  }
+
+  isPropertyTypeSelected(type: PropertyType): boolean {
+    return this.propertyType === type;
+  }
+
+  selectPropertyType(type: PropertyType): void {
+    // Deliberately does NOT mark the block touched. Picking House is the customer STARTING to
+    // answer, not finishing: marking it here fired "Please choose how many levels" the instant
+    // they clicked, before a single chip existed to click. Errors surface on a blocked Continue,
+    // which is the same moment every other required step-1 control reveals its own.
+    if (this.propertyType === type) return;
+    this.propertyType = type;
+
+    if (type === PROPERTY_TYPE_HOUSE) {
+      // Studio is not offered for a house, so a customer who had it selected is raised to one
+      // bedroom - and the sq.ft floor follows, through the same linkage a manual bedroom change
+      // uses. Anything the customer had ABOVE the floor is preserved.
+      //
+      // On a service type with no bedrooms input this is a no-op rather than an error: the
+      // lookup simply finds nothing. That is the whole of rule (b) for the studio behaviour.
+      this.raiseBedroomsToHouseMinimum();
+    } else {
+      // Back to apartment: the levels question disappears, so its answer must go too. Leaving a
+      // stale count would keep charging for stairs on a flat.
+      this.clearLevelsSelection();
+    }
+
+    this.calculateTotal();
+    this.saveFormData();
+  }
+
+  /**
+   * What the extra levels are costing right now, through the SHARED calculator.
+   *
+   * Deliberately not `35 * (levels - 1)`: the cost, the minutes and the included allowance are
+   * all admin-editable data, and the deep-cleaning multiplier applies on top. Reading it back
+   * from getServiceDisplayPrice is the only way this line can be guaranteed to agree with the
+   * subtotal it sits above.
+   */
+  getAdditionalLevelsCost(): number {
+    if (!isHouse(this.propertyType) || this.levelsQuantity == null) return 0;
+
+    // Zero on an unpriced service type, because no line was ever added. That is what keeps the
+    // "Additional levels" summary row off an informational order, the same way it stays off a
+    // single-level house whose line prices to $0.
+    const levels = this.selectedServices.find(s => isLevelsService(s.service));
+    if (!levels) return 0;
+
+    return getServiceDisplayPrice(
+      levels.service, levels.quantity, this.getSelectedPriceMultiplier(), this.selectedServices);
+  }
+
+  isLevelsSelected(levels: number): boolean {
+    return this.levelsQuantity === levels;
+  }
+
+  selectLevels(levels: number): void {
+    this.levelsQuantity = levels;
+    this.applyLevelsToSelectedServices(levels);
+    this.calculateTotal();
+    this.saveFormData();
+  }
+
+  /**
+   * Adds or updates the levels line in selectedServices, which is what makes it reach the shared
+   * calculator, the submitted DTO and the persisted session as an ordinary service.
+   */
+  private applyLevelsToSelectedServices(levels: number): void {
+    // No catalogue row means this service type does not price levels. Returning here is what
+    // makes the informational case informational: nothing enters selectedServices, so nothing
+    // reaches the calculator, the DTO's services array or the summary.
+    const definition = this.getPricedLevelsService();
+    if (!definition) return;
+
+    const existing = this.selectedServices.find(s => s.service.id === definition.id);
+    if (existing) existing.quantity = levels;
+    else this.selectedServices.push({ service: definition, quantity: levels });
+  }
+
+  /** Forgets the level count AND removes the priced line. Both, or the charge survives. */
+  private clearLevelsSelection(): void {
+    this.levelsQuantity = null;
+    this.selectedServices = this.selectedServices.filter(s => !isLevelsService(s.service));
+  }
+
+  /**
+   * Raises a studio to one bedroom for a house, dragging the included sq.ft up with it.
+   *
+   * Uses the SAME resolveSquareFeetForBedroomChange rule a manual bedroom change uses, with the
+   * previous bedroom count captured before the write - the rule needs the OUTGOING floor to tell
+   * an inherited sq.ft from one the customer chose. Mirrored server-side by
+   * OrderPricingInputBuilder.ClampBedroomsToPropertyType.
+   */
+  private raiseBedroomsToHouseMinimum(): void {
+    const bedrooms = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    if (!bedrooms || bedrooms.quantity >= 1) return;
+
+    // updateServiceQuantity captures the outgoing count itself before writing the new one, so
+    // the sq.ft linkage sees studio -> 1 bedroom and lifts 400 to 650.
+    this.updateServiceQuantity(bedrooms.service, 1);
+  }
+
+  /**
+   * Restores the property answers from a persisted session.
+   *
+   * Anything that does not normalize to one of the two known values lands as null and the
+   * customer is asked again. That covers a session saved before this feature shipped (no field
+   * at all) and a stored value we no longer recognise, with no legacy branch: both simply fail
+   * the step-1 gate until answered.
+   *
+   * The levels count is only restored for a HOUSE, and only then does the priced line go back
+   * into selectedServices - a stored count left over from before the customer switched to
+   * Apartment must not silently reappear as a charge.
+   */
+  private restorePropertyTypeSelection(savedData: BookingFormData | null): void {
+    if (!this.showPropertyTypeSelector()) {
+      this.resetPropertyTypeSelection();
+      return;
+    }
+
+    this.propertyType = normalizePropertyType(savedData?.propertyType);
+
+    // Only a house has levels at all. Restoring is safe on an unpriced type too: the count comes
+    // back as an informational value and applyLevelsToSelectedServices adds no line.
+    if (!isHouse(this.propertyType)) {
+      this.clearLevelsSelection();
+      return;
+    }
+
+    const stored = savedData?.levelsQuantity;
+    const restored = stored == null ? null : Math.round(Number(stored));
+    this.levelsQuantity =
+      restored != null && LEVEL_OPTIONS.includes(restored) ? restored : null;
+
+    if (this.levelsQuantity != null) this.applyLevelsToSelectedServices(this.levelsQuantity);
+  }
+
+  /**
+   * Resets the property answers when the service type changes.
+   *
+   * Switching to a type with no levels service must not leave a stale property type on the
+   * order, and switching between two types that both have one must not carry a level count
+   * across, because the levels line belongs to a specific service type's catalogue row.
+   */
+  private resetPropertyTypeSelection(): void {
+    this.propertyType = null;
+    this.clearLevelsSelection();
   }
 
   hasExtraCleanersSelected(): boolean {
@@ -2910,6 +3211,17 @@ export class BookingComponent implements OnInit, OnDestroy {
     const shimmer = !mobile && this.loading.pricing;
     const lines: SummaryLine[] = [];
 
+    // Additional levels, shown ONLY when they cost something. A one-level house and an apartment
+    // both add $0, and a $0 line reads as a mistake rather than as reassurance.
+    const additionalLevelsCost = this.getAdditionalLevelsCost();
+    if (additionalLevelsCost > 0) {
+      lines.push({
+        label: `Additional levels (${(this.levelsQuantity ?? 1) - 1}):`,
+        value: `$${additionalLevelsCost.toFixed(2)}`,
+        shimmer
+      });
+    }
+
     lines.push({ label: 'Subtotal:', value: `$${this.calculation.subTotal.toFixed(2)}`, shimmer });
 
     if (this.subscriptionDiscountAmount > 0) {
@@ -3054,6 +3366,10 @@ export class BookingComponent implements OnInit, OnDestroy {
       selectedTargetUser: this.selectedTargetUser,
       sameDayFullyBooked: this.isSameDaySelected && this.isSameDayFullyBooked(),
       dateTimeBlocked: this.isSelectedDateTimeBlocked(),
+      // Same two predicates the inline error messages read, so the console table and the screen
+      // can never disagree about why Continue is disabled.
+      propertyTypeMissing: this.isPropertyTypeMissing(),
+      levelsMissing: this.isLevelsMissing(),
       minTipAmount: this.minTipAmount,
       gates: {
         isFormValid: this.isFormValid(),
@@ -3093,6 +3409,8 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   onSubmit() {
     if (!this.isFormValid()) {
+      // Reveal the property-type / levels errors on a blocked submit too, not only on Continue.
+      this.propertyTypeTouched = true;
       this.logWhyButtonDisabled(this.showPollForm ? 'Send for Quote' : 'Book Now');
     }
 
@@ -3247,6 +3565,16 @@ export class BookingComponent implements OnInit, OnDestroy {
       customServiceDisplayName: this.showCustomPricing ? (this.customServiceName.value || null) : undefined,
       bedroomsQuantity: this.getSelectedBedroomsQuantity(),
       bathroomsQuantity: this.getSelectedBathroomsQuantity(),
+      // Property type is sent even on a custom order (where levels are hidden and unpriced), so
+      // the admin panel and the cleaner's job details still know what kind of building it is.
+      // The LEVEL COUNT travels as an ordinary service line in `services`, not as its own field:
+      // the OrderServices row is the pricing source of truth, and Order.LevelsQuantity is a
+      // display-only column the server derives from that same line.
+      propertyType: this.propertyType ?? null,
+      // Informational fallback ONLY. On a priced service type the level count also travels as an
+      // ordinary line in `services`, and the server prefers that line, so this can never override
+      // what was charged. On an unpriced type it is the only record of the answer.
+      levelsQuantity: this.levelsQuantity,
       smsConsent: formValue.smsConsent,
       cancellationConsent: formValue.cancellationConsent,
       termsConsent: formValue.termsConsent,
@@ -4282,6 +4610,12 @@ export class BookingComponent implements OnInit, OnDestroy {
       let bedroomsQuantity = 0; // Default to Studio
       
       sortedServices.forEach(service => {
+        // Levels is NEVER seeded here. Every other service gets a default quantity, and a
+        // default is exactly what levels must not have: seeding it at minValue 1 would make
+        // "not yet chosen" indistinguishable from "chose 1 level". It joins selectedServices
+        // only when the customer clicks a chip (selectLevels).
+        if (isLevelsService(service)) return;
+
         if (service.isActive !== false) {
           let defaultQuantity = service.minValue ?? 0;
           
@@ -5489,6 +5823,9 @@ export class BookingComponent implements OnInit, OnDestroy {
         // Scroll to top when navigating to next step
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
+        // Reveal the property-type / levels errors too. They are not FormControls, so
+        // clearCurrentStepValidationErrors and markAsTouched do not reach them.
+        this.propertyTypeTouched = true;
         // If step is invalid, scroll to first error
         this.scrollToFirstErrorInCurrentStep();
       }
@@ -5507,6 +5844,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.nextStep();
     } else {
       // If step is invalid, log why (admins only) and scroll to first error in current step
+      this.propertyTypeTouched = true;
       this.logWhyButtonDisabled('Continue');
       this.scrollToFirstErrorInCurrentStep();
     }
@@ -5610,7 +5948,10 @@ export class BookingComponent implements OnInit, OnDestroy {
     }
 
     if (this.showCustomPricing) {
-      return this.serviceTypeControl.valid &&
+      // Custom orders answer the property type too - it is informational there, but it is still
+      // an Order and the crew still needs to know what building they are going to.
+      return this.isPropertyTypeAnswered() &&
+             this.serviceTypeControl.valid &&
              this.customServiceName.valid &&
              this.customAmount.valid &&
              this.customCleaners.valid &&
@@ -5626,6 +5967,8 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (this.isSelectedDateTimeBlocked()) {
       return false;
     }
+
+    if (!this.isPropertyTypeAnswered()) return false;
 
     // For regular booking, check service type and cleaning type
     return this.serviceTypeControl.valid &&
@@ -5702,6 +6045,9 @@ export class BookingComponent implements OnInit, OnDestroy {
     
     // Reset form submitted flag
     this.formSubmitted = false;
+
+    // Same reset for the property-type block, which has no FormControl to untouch.
+    this.propertyTypeTouched = false;
   }
 
 }

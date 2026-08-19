@@ -37,6 +37,17 @@ import {
   STUDIO_PRICE
 } from '../../../shared/pricing/order-pricing.calculator';
 import { buildAdminEditQuoteInput } from '../../../shared/pricing/admin-order-edit.pricing';
+import {
+  PROPERTY_TYPE_APARTMENT,
+  PROPERTY_TYPE_HOUSE,
+  isHouse,
+  isLevelsService,
+  LEVEL_OPTIONS,
+  MIN_LEVELS,
+  levelsToDisplay,
+  normalizePropertyType,
+  serviceTypeCollectsPropertyType
+} from '../../../shared/booking/property-type.utils';
 import { buildCustomServiceTypeNameOptions } from '../../../shared/booking/custom-service-type.util';
 
 // Extended interface for admin orders with additional properties
@@ -3723,6 +3734,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       totalDuration: this.selectedOrder.totalDuration,
       bedroomsQuantity: this.selectedOrder.bedroomsQuantity ?? null,
       bathroomsQuantity: this.selectedOrder.bathroomsQuantity ?? null,
+      // Null on a legacy order and left null unless the admin picks one, because null means
+      // "no change" on the SuperAdmin update path - an admin editing the service date must not
+      // silently stamp a property type onto an order that never had one.
+      propertyType: normalizePropertyType((this.selectedOrder as any).propertyType),
+      levelsQuantity: (this.selectedOrder as any).levelsQuantity ?? null,
       entryMethod: this.selectedOrder.entryMethod ?? null,
       specialInstructions: this.selectedOrder.specialInstructions ?? null,
       floorTypes: this.selectedOrder.floorTypes ?? null,
@@ -4087,6 +4103,115 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** True when the selected order's service type is in Custom Pricing mode (ServiceType.isCustom).
    *  Public because the edit template hides the per-extra Duration/Cost fields on these orders —
    *  their extras are informational only (see addEditExtraService). */
+  // ===== Property type (apartment vs house) + levels =====
+
+  readonly propertyTypeApartment = PROPERTY_TYPE_APARTMENT;
+  readonly propertyTypeHouse = PROPERTY_TYPE_HOUSE;
+
+  /** One shared exclusion rule for every surface. See property-type.utils. */
+  showEditPropertyType(): boolean {
+    return serviceTypeCollectsPropertyType(this.getEditOrderServiceType());
+  }
+
+  /**
+   * Whether the LEVELS row is editable in the Services table.
+   *
+   * Kept in the ordinary services table on purpose - unlike the customer pages, this panel is a
+   * raw row editor, and the Qty stepper on a row named "Levels" IS the admin's level control,
+   * repriced through the shared calculator like every other row.
+   *
+   * Hidden for a non-house so the panel can never show an editable stair charge on an order it
+   * simultaneously labels an apartment. Its quantity is forced back to the included level when
+   * the property type is switched, so hiding never leaves a charge behind.
+   */
+  isEditLevelsRowVisible(index: number): boolean {
+    const definition = this.getEditServiceDefinition(index);
+    // A levels ROW existing already means this order's type prices levels, so no second check on
+    // that is needed. It is hidden only when the order is not a house.
+    if (!isLevelsService(definition ?? undefined)) return true;
+    return isHouse(this.editOrderForm?.propertyType);
+  }
+
+  /**
+   * True when the order has NO priced levels row, so the level count is informational and the
+   * only place to edit it is Order.LevelsQuantity directly.
+   *
+   * Shown for a house on Office / Custom / Heavy Conditional / Pre-Arranged and anything else
+   * without a levels catalogue row. Editing it moves no money, exactly like the existing
+   * Bedrooms / Bathrooms informational fields.
+   */
+  /**
+   * Clamps the informational level count as it is typed.
+   *
+   * The min/max attributes on the input only gate the native spinner arrows and the :invalid
+   * pseudo-class - a typed 99 still binds through ngModel, and Angular marks its forms novalidate
+   * so there is no native bubble either. Without this an admin typed 99, saw it accepted, and got
+   * a 4 back from the server with no explanation.
+   *
+   * Clamping in the change handler is this panel's existing convention for exactly this problem:
+   * see onEditServiceQuantityChange for the sqft minimum and stepEditServiceHours for the
+   * 0.5-24 hours range. The value visibly snaps in the box, so the constraint is discoverable.
+   *
+   * An EMPTY box stays null rather than snapping to 1: null means "no change" on the SuperAdmin
+   * update path, so clearing the field leaves whatever the order already had.
+   */
+  onEditInformationalLevelsChange(): void {
+    // Read as unknown: a cleared number input yields '' at runtime even where the field is typed
+    // as number | null, so both emptiness shapes have to be handled.
+    const raw: unknown = this.editOrderForm?.levelsQuantity;
+    if (raw === null || raw === undefined || raw === '') {
+      this.editOrderForm.levelsQuantity = null;
+      return;
+    }
+
+    const parsed = Number(raw);
+    if (!isFinite(parsed)) {
+      this.editOrderForm.levelsQuantity = null;
+      return;
+    }
+
+    const max = Math.max(...LEVEL_OPTIONS);
+    this.editOrderForm.levelsQuantity = Math.min(Math.max(Math.round(parsed), MIN_LEVELS), max);
+  }
+
+  showEditInformationalLevels(): boolean {
+    if (!isHouse(this.editOrderForm?.propertyType)) return false;
+    return !(this.editOrderForm?.services ?? []).some(
+      (_row: any, index: number) => isLevelsService(this.getEditServiceDefinition(index) ?? undefined));
+  }
+
+  onEditPropertyTypeChange(): void {
+    if (isHouse(this.editOrderForm?.propertyType)) {
+      this.recalcSubtotalFromServicesAndExtras();
+      this.recalculateEditPricing();
+      return;
+    }
+
+    // Apartment (or cleared): the stair charge must go with it. Forcing the row to the included
+    // level prices it at exactly $0 rather than deleting a row the backend still expects.
+    (this.editOrderForm.services ?? []).forEach((row: any, index: number) => {
+      if (isLevelsService(this.getEditServiceDefinition(index) ?? undefined)) row.quantity = 1;
+    });
+
+    this.recalcSubtotalFromServicesAndExtras();
+    this.recalculateEditPricing();
+  }
+
+  /** Read-only detail panel: null renders nothing at all, never an empty row. */
+  getOrderPropertyTypeLabel(order: any): string | null {
+    const normalized = normalizePropertyType(order?.propertyType);
+    if (normalized === PROPERTY_TYPE_APARTMENT) return 'Apartment / Condo';
+    if (normalized === PROPERTY_TYPE_HOUSE) return 'House / Townhouse';
+    return null;
+  }
+
+  /** Levels for display; null for apartments and legacy orders. */
+  getOrderLevelsLabel(order: any): string | null {
+    const levels = levelsToDisplay(order?.propertyType, order?.levelsQuantity);
+    if (levels == null) return null;
+    return levels === 1 ? '1 level' : `${levels} levels`;
+  }
+
   isCustomModeOrder(): boolean {
     const stId = this.selectedOrder?.serviceTypeId;
     if (stId == null) return false;
@@ -4627,6 +4752,19 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     pushTime('Service Time', cur.serviceTime, prop.serviceTime);
     push('Duration (min)', cur.totalDuration, prop.totalDuration);
     push('Maids', cur.maidsCount, prop.maidsCount);
+    // Without these two rows a SuperAdmin would approve a property-type or level change they
+    // could not see in the diff - and a level change moves the price.
+    //
+    // The level count is not a field on the proposed DTO: it travels as an ordinary service row,
+    // so it has to be looked up by matching the current order's levels line to the proposed row
+    // carrying the same orderServiceId.
+    push('Property Type', cur.propertyType, prop.propertyType);
+    const currentLevelsLine = (cur.services ?? []).find((s: any) => s.serviceKey === 'levels');
+    if (currentLevelsLine) {
+      const proposedLevelsRow = (prop.services ?? [])
+        .find((s: any) => s.orderServiceId === currentLevelsLine.id);
+      push('Levels', currentLevelsLine.quantity, proposedLevelsRow?.quantity ?? currentLevelsLine.quantity);
+    }
     push('Entry', cur.entryMethod, prop.entryMethod);
     const instructionsFieldLabel = this.isCustomServiceType(cur) ? 'Description' : 'Instructions';
     push(instructionsFieldLabel, cur.specialInstructions, prop.specialInstructions);
@@ -4752,6 +4890,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       totalDuration: persistedTotalDuration ?? undefined,
       bedroomsQuantity: this.editOrderForm.bedroomsQuantity ?? undefined,
       bathroomsQuantity: this.editOrderForm.bathroomsQuantity ?? undefined,
+      // undefined = no change, which is what a legacy order the admin did not touch must send.
+      propertyType: this.editOrderForm.propertyType ?? undefined,
+      // Informational only; a priced levels row in `services` wins server-side.
+      levelsQuantity: this.editOrderForm.levelsQuantity ?? undefined,
       entryMethod: this.editOrderForm.entryMethod ?? undefined,
       specialInstructions: this.editOrderForm.specialInstructions ?? undefined,
       floorTypes: this.editOrderForm.floorTypes ?? undefined,

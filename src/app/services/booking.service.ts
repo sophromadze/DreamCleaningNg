@@ -17,6 +17,13 @@ export interface ServiceType {
   displayOrder?: number;
   hasPoll: boolean;
   isCustom?: boolean;
+  /**
+   * Whether this type asks apartment vs house. OPTIONAL, and ABSENT MEANS TRUE - the column is
+   * NOT NULL default true, so a stale cached or prerendered payload degrades to showing the
+   * selector rather than silently hiding it everywhere. Read it through
+   * serviceTypeCollectsPropertyType, never directly.
+   */
+  collectsPropertyType?: boolean;
   timeDuration: number;
   /** Floor for base price + services. 0 = no floor. Consumed by the shared pricing calculator. */
   minimumPrice?: number;

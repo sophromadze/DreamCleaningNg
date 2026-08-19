@@ -68,7 +68,9 @@
           </div>
           <div class="services" *ngIf="!isLoadingServiceTypes && selectedServiceType">
             <ng-container *ngFor="let selected of selectedServices">
-              <div class="service-item" *ngIf="selected.service.serviceKey !== 'sqft'">
+              <!-- Sq.ft has its own slider below. Levels is never offered here at all: the hero
+                   asks four questions and a fifth would defeat the point of a quick estimate. -->
+              <div class="service-item" *ngIf="selected.service.serviceKey !== 'sqft' && !isLevelsService(selected.service)">
                 <label>{{ selected.service.name }}</label>
 
                 <div class="service-input" *ngIf="selected.service.inputType === 'dropdown'">
@@ -140,6 +142,48 @@
           </div>
           <div class="error-message" *ngIf="!isLoadingServiceTypes && cleaningTypeControl.invalid && cleaningTypeControl.touched">
             Cleaning type is required
+          </div>
+        </div>
+
+        <!-- Property type. Fills the slot the Regular/Deep choice occupies on Residential, which
+             every other service type leaves empty. Same two cards as the booking page.
+
+             PROPERTY TYPE ONLY - the Levels chips are deliberately NEVER rendered here, so the
+             hero can never write a level count and its estimate can never carry a stair charge.
+             Selecting House therefore changes nothing on screen and nothing in the price. -->
+        <div class="form-section" *ngIf="showPropertyTypeSelector()">
+          <h3 class="section-title">What kind of place is it?</h3>
+          <div class="property-type-options">
+            <button
+              type="button"
+              class="property-type-card"
+              [class.selected]="isPropertyTypeSelected(propertyTypeApartment)"
+              [attr.aria-pressed]="isPropertyTypeSelected(propertyTypeApartment)"
+              (click)="selectPropertyType(propertyTypeApartment)">
+              <svg class="property-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16"></path>
+                <path d="M15 10h4a1 1 0 0 1 1 1v10"></path>
+                <path d="M2 21h20"></path>
+                <path d="M7 7h2M7 11h2M7 15h2M11 7h1M11 11h1M11 15h1"></path>
+              </svg>
+              <span class="property-type-label">Apartment / Condo</span>
+            </button>
+
+            <button
+              type="button"
+              class="property-type-card"
+              [class.selected]="isPropertyTypeSelected(propertyTypeHouse)"
+              [attr.aria-pressed]="isPropertyTypeSelected(propertyTypeHouse)"
+              (click)="selectPropertyType(propertyTypeHouse)">
+              <svg class="property-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                   stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 10.5 12 3l9 7.5"></path>
+                <path d="M5 9.5V21h14V9.5"></path>
+                <path d="M10 21v-6h4v6"></path>
+              </svg>
+              <span class="property-type-label">House / Townhouse</span>
+            </button>
           </div>
         </div>
 

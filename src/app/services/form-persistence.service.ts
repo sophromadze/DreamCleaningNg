@@ -51,6 +51,20 @@ export interface BookingFormData {
   customServiceName?: string;
   bedroomsQuantity?: number;
   bathroomsQuantity?: number;
+
+  /**
+   * "Apartment" or "House". Undefined for a session saved before this feature shipped, which is
+   * exactly right: the booking page treats it as unanswered and blocks step 1 until the customer
+   * chooses, rather than defaulting them into a property type they never picked.
+   */
+  propertyType?: string;
+
+  /**
+   * Levels for a house. Undefined/null both mean "not chosen yet". Stored separately from
+   * selectedServices because the booking page keeps the levels line out of that array until a
+   * chip is clicked - a seeded default would make "unanswered" indistinguishable from "1 level".
+   */
+  levelsQuantity?: number | null;
   
   // Poll Data
   pollAnswers?: { [key: number]: string };

@@ -431,4 +431,380 @@ describe('BookingComponent', () => {
       expect(offered).toEqual(['Inside the Fridge']);
     });
   });
+
+  /**
+   * Property type (apartment vs house) and levels.
+   *
+   * The rule the whole feature rests on: a house is not inherently more expensive than an
+   * apartment of the same size. Stairs are. So a one-level house must cost exactly what the
+   * equivalent apartment costs, and the price driver is the level count alone.
+   */
+  describe('property type and levels', () => {
+    const bedrooms = {
+      id: 1, name: 'Bedrooms', serviceKey: 'bedrooms', cost: 22.5, timeDuration: 30,
+      serviceTypeId: 1, inputType: 'dropdown', isRangeInput: false, isActive: true,
+      minValue: 0, maxValue: 6, stepValue: 1, displayOrder: 1,
+      zeroQuantityCost: 0, zeroQuantityDuration: 0,
+      chargeAboveThreshold: false, thresholds: [], rateTiers: []
+    } as any;
+
+    const sqft = {
+      id: 3, name: 'Square Feet', serviceKey: 'sqft', cost: 0.18, timeDuration: 0.24,
+      serviceTypeId: 1, inputType: 'slider', isRangeInput: true, isActive: true,
+      minValue: 400, maxValue: 5000, stepValue: 100, displayOrder: 3,
+      chargeAboveThreshold: true,
+      thresholds: [
+        { id: 1, serviceId: 3, sourceServiceId: 1, sourceQuantity: 0, includedQuantity: 400 },
+        { id: 2, serviceId: 3, sourceServiceId: 1, sourceQuantity: 1, includedQuantity: 650 },
+        { id: 3, serviceId: 3, sourceServiceId: 1, sourceQuantity: 2, includedQuantity: 850 }
+      ],
+      rateTiers: [{ id: 1, serviceId: 3, fromQuantity: 0, cost: 0.18, timeDuration: 0.24, displayOrder: 1 }]
+    } as any;
+
+    // Seeded exactly as the migration does: chargeAboveThreshold with ONE self-referencing
+    // threshold row, and both zero-quantity columns left null.
+    const levels = {
+      id: 40, name: 'Levels', serviceKey: 'levels', cost: 35, timeDuration: 25,
+      serviceTypeId: 1, inputType: 'dropdown', isRangeInput: false, isActive: true,
+      minValue: 1, maxValue: 4, stepValue: 1, displayOrder: 4,
+      chargeAboveThreshold: true,
+      thresholds: [{ id: 9, serviceId: 40, sourceServiceId: 40, sourceQuantity: 1, includedQuantity: 1 }],
+      rateTiers: []
+    } as any;
+
+    const residential = {
+      id: 1, name: 'Residential Cleaning', basePrice: 90, timeDuration: 120, minimumPrice: 130,
+      isActive: true, hasPoll: false, isCustom: false,
+      services: [bedrooms, sqft, levels], extraServices: []
+    } as any;
+
+    /**
+     * Hourly type: cleaners x hours, no bedrooms service. Property type IS still asked here;
+     * levels are NOT, because stair time is already inside the hours the customer buys.
+     */
+    const cleaners = {
+      id: 5, name: 'Cleaners', serviceKey: 'cleaners', cost: 40, timeDuration: 0,
+      serviceTypeId: 2, inputType: 'dropdown', isRangeInput: false, isActive: true,
+      serviceRelationType: 'cleaner', minValue: 1, maxValue: 10,
+      chargeAboveThreshold: false, thresholds: [], rateTiers: []
+    } as any;
+
+    const hours = {
+      id: 6, name: 'Hours', serviceKey: 'hours', cost: 0, timeDuration: 60,
+      serviceTypeId: 2, inputType: 'dropdown', isRangeInput: false, isActive: true,
+      serviceRelationType: 'hours', minValue: 2, maxValue: 8,
+      chargeAboveThreshold: false, thresholds: [], rateTiers: []
+    } as any;
+
+    const office = {
+      id: 2, name: 'Office Cleaning', basePrice: 200, timeDuration: 120, minimumPrice: 0,
+      isActive: true, hasPoll: false, isCustom: false,
+      services: [cleaners, hours], extraServices: []
+    } as any;
+
+    beforeEach(() => {
+      component.showCustomPricing = false;
+      component.showPollForm = false;
+      component.selectedServiceType = residential;
+      // Mirrors what initializeRegularServices produces: every service EXCEPT levels.
+      component.selectedServices = [
+        { service: bedrooms, quantity: 2 },
+        { service: sqft, quantity: 850 }
+      ] as any;
+      component.selectedExtraServices = [];
+      component.propertyType = null;
+      component.levelsQuantity = null;
+      component.cleaningType.setValue('normal');
+      component.serviceTypeControl.setValue(residential.id);
+    });
+
+    it('asks the property type on EVERY service type, with no gating', () => {
+      expect(component.showPropertyTypeSelector()).toBeTrue();
+
+      // Hourly type: no bedrooms, no levels, but the question is still asked because admins and
+      // cleaners need to know about parking, a walk-up, travel time and equipment.
+      component.selectedServiceType = office;
+      expect(component.showPropertyTypeSelector()).toBeTrue();
+
+      // Custom ("Pre-Arranged") too - it is an Order like any other.
+      component.showCustomPricing = true;
+      expect(component.showPropertyTypeSelector()).toBeTrue();
+    });
+
+    it('shows the levels chips for a house on EVERY service type', () => {
+      component.selectPropertyType('House');
+      expect(component.showLevelsSelector()).toBeTrue();
+      expect(component.levelsArePriced()).toBeTrue();
+
+      // Hourly type: chips still render, because the crew needs to know about the stairs...
+      component.selectedServiceType = office;
+      component.selectedServices = [
+        { service: cleaners, quantity: 2 },
+        { service: hours, quantity: 3 }
+      ] as any;
+      expect(component.showLevelsSelector()).toBeTrue();
+      // ...but the answer is informational only, because stair time is already inside the hours.
+      expect(component.levelsArePriced()).toBeFalse();
+    });
+
+    it('hides the chips for an apartment on every service type', () => {
+      component.selectPropertyType('Apartment');
+      expect(component.showLevelsSelector()).toBeFalse();
+
+      component.selectedServiceType = office;
+      expect(component.showLevelsSelector()).toBeFalse();
+    });
+
+    it('has NO default selection', () => {
+      expect(component.propertyType).toBeNull();
+      expect(component.levelsQuantity).toBeNull();
+    });
+
+    it('never seeds a levels line into selectedServices before a chip is clicked', () => {
+      // The whole reason levelsQuantity is a separate field: a seeded minValue of 1 would make
+      // "not yet chosen" indistinguishable from "chose 1 level".
+      expect(component.selectedServices.some(s => s.service.serviceKey === 'levels')).toBeFalse();
+    });
+
+    it('blocks step 1 until a property type is chosen', () => {
+      expect(component.isStep1Valid()).toBeFalse();
+
+      component.selectPropertyType('Apartment');
+      expect(component.isStep1Valid()).toBeTrue();
+    });
+
+    it('blocks step 1 for a house until levels are chosen too', () => {
+      component.selectPropertyType('House');
+      expect(component.isStep1Valid()).toBeFalse();
+
+      component.selectLevels(2);
+      expect(component.isStep1Valid()).toBeTrue();
+    });
+
+    it('requires the property type AND the level count on a type that prices no rooms', () => {
+      component.selectedServiceType = office;
+      component.serviceTypeControl.setValue(office.id);
+      component.selectedServices = [
+        { service: cleaners, quantity: 2 },
+        { service: hours, quantity: 3 }
+      ] as any;
+
+      expect(component.isStep1Valid()).toBeFalse();
+
+      // House is not enough: the chips ARE rendered here now, so an answer is owed even though
+      // it costs nothing.
+      component.selectPropertyType('House');
+      expect(component.showLevelsSelector()).toBeTrue();
+      expect(component.isStep1Valid()).toBeFalse();
+
+      component.selectLevels(3);
+      expect(component.isStep1Valid()).toBeTrue();
+    });
+
+    it('captures an informational level count with no line, no charge and no summary row', () => {
+      component.selectedServiceType = office;
+      component.selectedServices = [
+        { service: cleaners, quantity: 2 },
+        { service: hours, quantity: 3 }
+      ] as any;
+      component.calculateTotal();
+      const before = component.calculation.subTotal;
+      const beforeDuration = component.actualTotalDuration;
+
+      component.selectPropertyType('House');
+      component.selectLevels(4);
+
+      // The answer is recorded...
+      expect(component.levelsQuantity).toBe(4);
+      // ...but nothing priced happens: no OrderService line, no cost, no duration, no summary row.
+      expect(component.selectedServices.some(s => s.service.serviceKey === 'levels')).toBeFalse();
+      expect(component.getAdditionalLevelsCost()).toBe(0);
+      expect(component.calculation.subTotal).toBe(before);
+      expect(component.actualTotalDuration).toBe(beforeDuration);
+      expect(component.getSummaryPriceLines(false).some(l => l.label.startsWith('Additional levels')))
+        .toBeFalse();
+    });
+
+    it('picking House does not throw where there is no bedrooms service', () => {
+      component.selectedServiceType = office;
+      component.selectedServices = [
+        { service: cleaners, quantity: 2 },
+        { service: hours, quantity: 3 }
+      ] as any;
+
+      expect(() => component.selectPropertyType('House')).not.toThrow();
+    });
+
+    it('leaves the apartment flow exactly as it was', () => {
+      component.calculateTotal();
+      const before = component.calculation.subTotal;
+
+      component.selectPropertyType('Apartment');
+
+      expect(component.showLevelsSelector()).toBeFalse();
+      expect(component.selectedServices.some(s => s.service.serviceKey === 'levels')).toBeFalse();
+      expect(component.calculation.subTotal).toBe(before);
+    });
+
+    it('prices a one-level house exactly like the apartment', () => {
+      component.selectPropertyType('Apartment');
+      component.calculateTotal();
+      const apartment = component.calculation.subTotal;
+
+      component.selectPropertyType('House');
+      component.selectLevels(1);
+
+      expect(component.calculation.subTotal).toBe(apartment);
+      expect(component.getAdditionalLevelsCost()).toBe(0);
+    });
+
+    it('charges 35 per level above the first', () => {
+      component.selectPropertyType('House');
+
+      component.selectLevels(2);
+      expect(component.getAdditionalLevelsCost()).toBe(35);
+
+      component.selectLevels(3);
+      expect(component.getAdditionalLevelsCost()).toBe(70);
+
+      component.selectLevels(4);
+      expect(component.getAdditionalLevelsCost()).toBe(105);
+    });
+
+    it('stores the ACTUAL level count on the priced line, not the billable count', () => {
+      component.selectPropertyType('House');
+      component.selectLevels(3);
+
+      const line = component.selectedServices.find(s => s.service.serviceKey === 'levels');
+      expect(line?.quantity).toBe(3);
+    });
+
+    it('clears the level count AND the charge when switching back to apartment', () => {
+      component.selectPropertyType('House');
+      component.selectLevels(4);
+      expect(component.getAdditionalLevelsCost()).toBe(105);
+
+      component.selectPropertyType('Apartment');
+
+      expect(component.levelsQuantity).toBeNull();
+      expect(component.selectedServices.some(s => s.service.serviceKey === 'levels')).toBeFalse();
+      expect(component.getAdditionalLevelsCost()).toBe(0);
+    });
+
+    it('raises a studio to one bedroom for a house, and the sq.ft floor follows', () => {
+      component.selectedServices = [
+        { service: bedrooms, quantity: 0 },
+        { service: sqft, quantity: 400 }
+      ] as any;
+
+      component.selectPropertyType('House');
+
+      expect(component.selectedServices.find(s => s.service.serviceKey === 'bedrooms')?.quantity).toBe(1);
+      expect(component.selectedServices.find(s => s.service.serviceKey === 'sqft')?.quantity).toBe(650);
+    });
+
+    it('stops offering Studio while House is selected', () => {
+      expect(component.getServiceMinValue(bedrooms)).toBe(0);
+
+      component.selectPropertyType('House');
+      expect(component.getServiceMinValue(bedrooms)).toBe(1);
+    });
+
+    it('does not lower the values back when switching to apartment', () => {
+      component.selectedServices = [
+        { service: bedrooms, quantity: 0 },
+        { service: sqft, quantity: 400 }
+      ] as any;
+      component.selectPropertyType('House');
+
+      component.selectPropertyType('Apartment');
+
+      expect(component.selectedServices.find(s => s.service.serviceKey === 'bedrooms')?.quantity).toBe(1);
+      expect(component.selectedServices.find(s => s.service.serviceKey === 'sqft')?.quantity).toBe(650);
+      expect(component.getServiceMinValue(bedrooms)).toBe(0);
+    });
+
+    it('shows an Additional levels summary line only when it costs something', () => {
+      component.selectPropertyType('House');
+      component.selectLevels(1);
+      expect(component.getSummaryPriceLines(false).some(l => l.label.startsWith('Additional levels')))
+        .withContext('a $0 line reads as a mistake, not reassurance').toBeFalse();
+
+      component.selectLevels(3);
+      const line = component.getSummaryPriceLines(false).find(l => l.label.startsWith('Additional levels'));
+      expect(line?.label).toBe('Additional levels (2):');
+      expect(line?.value).toBe('$70.00');
+    });
+
+    /**
+     * A greyed-out Continue with no explanation is the bug this block exists to prevent. The
+     * inline message, the console blocker table and isStep1Valid must all read the SAME two
+     * predicates, or the screen and the diagnostics can disagree about why the button is dead.
+     */
+    describe('a blocked Continue is always explainable', () => {
+      it('names the missing property type', () => {
+        expect(component.isPropertyTypeMissing()).toBeTrue();
+        expect(component.isLevelsMissing()).toBeFalse();
+        expect(component.isPropertyTypeAnswered()).toBeFalse();
+        expect(component.isStep1Valid()).toBeFalse();
+      });
+
+      it('names the missing level count once House is chosen', () => {
+        component.selectPropertyType('House');
+
+        expect(component.isPropertyTypeMissing()).toBeFalse();
+        expect(component.isLevelsMissing()).toBeTrue();
+        expect(component.isStep1Valid()).toBeFalse();
+      });
+
+      it('reports nothing missing once both are answered', () => {
+        component.selectPropertyType('House');
+        component.selectLevels(2);
+
+        expect(component.isPropertyTypeMissing()).toBeFalse();
+        expect(component.isLevelsMissing()).toBeFalse();
+        expect(component.isPropertyTypeAnswered()).toBeTrue();
+      });
+
+      /**
+       * REGRESSION: the levels error used to appear the instant House was clicked, before a
+       * single chip existed to click. Picking House is the customer STARTING to answer.
+       */
+      it('does NOT reveal an error just because House was selected', () => {
+        component.selectPropertyType('House');
+
+        expect(component.isLevelsMissing()).toBeTrue();
+        expect(component.propertyTypeTouched)
+          .withContext('selecting a card must not mark the block touched').toBeFalse();
+        expect(component.formSubmitted).toBeFalse();
+      });
+
+      it('reveals the errors once a blocked Continue is pressed', () => {
+        component.selectPropertyType('House');
+
+        component.onNextButtonClick();
+
+        expect(component.propertyTypeTouched).toBeTrue();
+      });
+
+      it('clears the revealed state when step-1 errors are cleared', () => {
+        component.propertyTypeTouched = true;
+
+        (component as any).clearCurrentStepValidationErrors();
+
+        expect(component.propertyTypeTouched).toBeFalse();
+      });
+
+      it('feeds the blocker diagnostics the same predicates the inline errors read', () => {
+        const missingBoth = (component as any).buildBookingDiagnosticsSnapshot('Continue');
+        expect(missingBoth.propertyTypeMissing).toBeTrue();
+        expect(missingBoth.levelsMissing).toBeFalse();
+
+        component.selectPropertyType('House');
+        const missingLevels = (component as any).buildBookingDiagnosticsSnapshot('Continue');
+        expect(missingLevels.propertyTypeMissing).toBeFalse();
+        expect(missingLevels.levelsMissing).toBeTrue();
+      });
+    });
+  });
 });

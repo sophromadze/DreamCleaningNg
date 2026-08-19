@@ -8071,3 +8071,123 @@
   white-space: nowrap;
   text-align: left;
 }
+
+/* ── Property type (apartment vs house) + levels ──────────────────────────────────────
+   Shared with the user order-edit page, which lists this stylesheet first. Every colour
+   is a token so the day/night toggle works without a second rule set. */
+.property-type-section {
+  .property-type-heading {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+
+  .property-type-options {
+    display: grid;
+    /* Two cards side by side, stacking only when there genuinely is not room. */
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.75rem;
+  }
+
+  .property-type-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    font-weight: var(--fw-medium);
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+
+    &:hover {
+      border-color: var(--primary-color);
+    }
+
+    /* Selection is carried by border AND background, never colour alone - the two cards
+       must stay distinguishable without relying on hue perception. */
+    &.selected {
+      border-color: var(--primary-color);
+      background: var(--soft-blue);
+      color: var(--primary-color);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+  }
+
+  .property-type-icon {
+    width: 1.75rem;
+    height: 1.75rem;
+    flex-shrink: 0;
+  }
+
+  .property-type-label {
+    min-width: 0;
+  }
+
+  .levels-block {
+    margin-top: 1.25rem;
+  }
+
+  .levels-heading {
+    margin: 0 0 0.625rem;
+    font-size: 0.95rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+
+  .levels-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .level-chip {
+    min-width: 3rem;
+    padding: 0.5rem 0.875rem;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-pill);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: var(--fw-semibold);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+
+    &:hover {
+      border-color: var(--primary-color);
+    }
+
+    &.selected {
+      border-color: var(--primary-color);
+      background: var(--soft-blue);
+      color: var(--primary-color);
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+    }
+  }
+
+  .levels-hint {
+    margin: 0.5rem 0 0;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+  }
+
+  /* Inherits the page's .error-message look (soft red panel). Only the spacing differs, because
+     these sit under a card/chip group rather than under a text input. */
+  .error-message {
+    margin-top: 0.75rem;
+    margin-bottom: 0;
+  }
+}

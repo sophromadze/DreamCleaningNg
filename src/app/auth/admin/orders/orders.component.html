@@ -631,6 +631,31 @@
                           <label>🫧 Est. Points Earned</label>
                           <span class="pts-preview-val">~{{ editEstimatedPoints | number }} pts</span>
                         </div>
+                        <!-- Blank stays selectable and is the default for a legacy order: it
+                             means "no change", so opening and saving an old order never stamps a
+                             property type onto it. -->
+                        <div class="edit-row" *ngIf="showEditPropertyType()">
+                          <label>Property Type</label>
+                          <select [(ngModel)]="editOrderForm.propertyType" (ngModelChange)="onEditPropertyTypeChange()">
+                            <option [ngValue]="null">— not set —</option>
+                            <option [ngValue]="propertyTypeApartment">Apartment / Condo</option>
+                            <option [ngValue]="propertyTypeHouse">House / Townhouse</option>
+                          </select>
+                        </div>
+                        <!-- Informational level count: only for a house whose service type has no
+                             priced Levels row (Office, Custom, Heavy Conditional, Pre-Arranged...).
+                             Where a priced row DOES exist it is edited in the Services table
+                             below instead, so the two can never both be on screen. -->
+                        <div class="edit-row" *ngIf="showEditInformationalLevels()">
+                          <label>Levels (informational)</label>
+                          <!-- min/max drive the spinner and show the range; the clamp that
+                               actually holds is onEditInformationalLevelsChange, because a typed
+                               value bypasses both attributes entirely. -->
+                          <input type="number" min="1" max="4" step="1"
+                                 [(ngModel)]="editOrderForm.levelsQuantity"
+                                 (ngModelChange)="onEditInformationalLevelsChange()"
+                                 title="1-4 levels. Informational only: does not affect price or duration.">
+                        </div>
                         <div class="edit-row"><label>Status</label><select [(ngModel)]="editOrderForm.status"><option value="Pending">Pending</option><option value="Active">Active</option><option value="Done">Done</option><option value="Cancelled">Cancelled</option></select></div>
                         <div class="edit-row"><label>Cancellation Reason</label><input [(ngModel)]="editOrderForm.cancellationReason" placeholder="If status=Cancelled"></div>
                         <div class="edit-row"><label>Cleaner $/hr</label><input type="number" step="0.5" [(ngModel)]="editOrderForm.cleanerHourlyRate" (ngModelChange)="recalcCleanerTotalSalary()"></div>
@@ -639,7 +664,12 @@
                     <div class="edit-group edit-group--services" *ngIf="editOrderForm.services && editOrderForm.services.length > 0">
                       <h6>Services (Qty, Hours, Duration, Cost)</h6>
                       <div class="mini-table">
-                        <div *ngFor="let s of editOrderForm.services; let i = index" class="mini-row">
+                        <!-- The Levels row IS the admin's level control: its Qty stepper reprices
+                             through the shared calculator like any other row. It is hidden only
+                             when the order is not a house, so the panel can never show an
+                             editable stair charge on an order it labels an apartment. -->
+                        <ng-container *ngFor="let s of editOrderForm.services; let i = index">
+                        <div class="mini-row" *ngIf="isEditLevelsRowVisible(i)">
                           <span class="minilabel">{{ getEditServiceDisplayName(s, i) }}</span>
                           <div class="mini-controls">
                             <label class="mini-field" *ngIf="!getEditServiceIsHoursOnlyRow(i)">
@@ -665,6 +695,7 @@
                             </label>
                           </div>
                         </div>
+                        </ng-container>
                       </div>
                     </div>
                     <div class="edit-group edit-group--extras">
@@ -831,6 +862,11 @@
                       </p>
                       <p *ngIf="selectedOrder.bedroomsQuantity != null || selectedOrder.bathroomsQuantity != null"><strong>Bedrooms:</strong> {{ (selectedOrder.bedroomsQuantity ?? 0) === 0 ? 'Studio' : (selectedOrder.bedroomsQuantity ?? 'N/A') }}</p>
                       <p *ngIf="selectedOrder.bedroomsQuantity != null || selectedOrder.bathroomsQuantity != null"><strong>Bathrooms:</strong> {{ selectedOrder.bathroomsQuantity ?? 'N/A' }}</p>
+                      <!-- Both rows disappear entirely on a legacy order (null property type) and
+                           the Levels row also disappears for an apartment. An empty "Property
+                           type: -" row would suggest we lost the answer rather than never asked. -->
+                      <p *ngIf="getOrderPropertyTypeLabel(selectedOrder)"><strong>Property type:</strong> {{ getOrderPropertyTypeLabel(selectedOrder) }}</p>
+                      <p *ngIf="getOrderLevelsLabel(selectedOrder)"><strong>Levels:</strong> {{ getOrderLevelsLabel(selectedOrder) }}</p>
                       <p><strong>Cleaners Count:</strong> {{selectedOrder.maidsCount}}<ng-container *ngIf="getSuggestedMaidsCountForOrder(selectedOrder) as suggested"> <span class="suggested-maids-hint">(suggested: {{suggested}})</span></ng-container>
                         <span *ngIf="needsStaffingReviewForSelected()" class="staffing-review-badge" title="Over 6h per cleaner with the current count">⚠ Long job — review cleaner count</span>
                       </p>

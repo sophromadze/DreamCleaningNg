@@ -73,6 +73,9 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     timeDuration: 90,
     hasPoll: false,
     isCustom: false,
+    // Defaults true, matching the NOT NULL column default: a new type asks apartment vs house
+    // unless an admin turns it off.
+    collectsPropertyType: true,
     minimumPrice: 0
   };
 
@@ -594,6 +597,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       timeDuration: 90,
       hasPoll: false,
       isCustom: false,
+      collectsPropertyType: true,
       minimumPrice: 0
     };
   }
@@ -608,6 +612,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       timeDuration: 90,
       hasPoll: false,
       isCustom: false,
+      collectsPropertyType: true,
       minimumPrice: 0
     };
   }
@@ -625,6 +630,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
           timeDuration: 90,
           hasPoll: false,
           isCustom: false,
+          collectsPropertyType: true,
           minimumPrice: 0
         };
         this.serviceTypeMessage.success = 'Service type added successfully.';
@@ -642,6 +648,18 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
 
   cancelEditServiceType() {
     this.isEditingServiceType = false;
+  }
+
+  /**
+   * Toggles whether this service type asks apartment vs house.
+   *
+   * Independent of the regular/poll/custom mode: the two answer different questions, and the flag
+   * exists precisely because two types with identical mode and identical structure (Office and
+   * Heavy Conditional) need different answers here.
+   */
+  setCollectsPropertyType(collects: boolean) {
+    if (!this.selectedServiceType) return;
+    this.selectedServiceType.collectsPropertyType = collects;
   }
 
   setServiceTypeMode(mode: 'regular' | 'poll' | 'custom') {

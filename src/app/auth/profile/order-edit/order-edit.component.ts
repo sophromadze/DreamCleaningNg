@@ -20,6 +20,17 @@ import { ExtraServicesGridComponent } from '../../../shared/components/extra-ser
 import { OrderSummaryCardComponent, SummaryLine } from '../../../shared/components/order-summary-card/order-summary-card.component';
 import { formatDate, formatNumber } from '@angular/common';
 import {
+  LEVEL_OPTIONS,
+  PROPERTY_TYPE_APARTMENT,
+  PROPERTY_TYPE_HOUSE,
+  PropertyType,
+  isHouse,
+  isLevelsService,
+  normalizePropertyType,
+  findLevelsService,
+  serviceTypeCollectsPropertyType
+} from '../../../shared/booking/property-type.utils';
+import {
   getExtraServiceImage,
   getExtraServiceTooltip,
   formatTime12h,
@@ -426,6 +437,8 @@ export class OrderEditComponent implements OnInit, OnDestroy {
         this.serviceType = serviceTypes.find(st => st.id === serviceTypeId) || null;
         if (this.serviceType && this.order) {
           this.initializeServices();
+          // After the services exist, so the levels row is present to read a count back from.
+          this.initializePropertyTypeSelection();
           this.initializeExtraServices();
           // Calculate initial total
           this.calculateNewTotal();
@@ -437,6 +450,125 @@ export class OrderEditComponent implements OnInit, OnDestroy {
         this.isLoading = false;
       }
     });
+  }
+
+  // ===== Property type (apartment vs house) + levels =====
+
+  /**
+   * Apartment/condo vs house/townhouse, seeded from the order.
+   *
+   * Null for a legacy order, which is deliberate: the selector renders with nothing chosen and
+   * the customer may answer it now, but leaving it alone is also fine. Saving an old order must
+   * not be blocked by a question that did not exist when it was booked.
+   */
+  propertyType: PropertyType | null = null;
+
+  /** Levels for a house; null until chosen. */
+  levelsQuantity: number | null = null;
+
+  readonly levelOptions = LEVEL_OPTIONS;
+  readonly propertyTypeApartment = PROPERTY_TYPE_APARTMENT;
+  readonly propertyTypeHouse = PROPERTY_TYPE_HOUSE;
+
+  /** One shared exclusion rule for every surface. See property-type.utils. */
+  showPropertyTypeSelector(): boolean {
+    return serviceTypeCollectsPropertyType(this.serviceType);
+  }
+
+  /**
+   * Levels are asked for any house. Whether the answer is PRICED depends on the service type
+   * having a levels catalogue row; where it does not, the count is informational and lives only
+   * on Order.LevelsQuantity. See the booking page's showLevelsSelector for the full rationale.
+   */
+  showLevelsSelector(): boolean {
+    return isHouse(this.propertyType);
+  }
+
+  /** True when the order's service type actually charges for levels. */
+  levelsArePriced(): boolean {
+    return findLevelsService(this.serviceType) != null;
+  }
+
+  isPropertyTypeSelected(type: PropertyType): boolean {
+    return this.propertyType === type;
+  }
+
+  isLevelsSelected(levels: number): boolean {
+    return this.levelsQuantity === levels;
+  }
+
+  /** Template helper: levels has its own block, never the generic service grid. */
+  isLevelsService(service: Service): boolean {
+    return isLevelsService(service);
+  }
+
+  /**
+   * Blocks saving only when the customer has actively chosen House without answering levels.
+   * A legacy order with no property type at all saves exactly as it always did.
+   */
+  isPropertyTypeAnswerIncomplete(): boolean {
+    return this.showLevelsSelector() && this.levelsQuantity === null;
+  }
+
+  selectPropertyType(type: PropertyType): void {
+    if (this.propertyType === type) return;
+    this.propertyType = type;
+
+    if (type === PROPERTY_TYPE_HOUSE) {
+      // No-op on a service type with no bedrooms input - the lookup simply finds nothing.
+      this.raiseBedroomsToHouseMinimum();
+    } else {
+      // Back to apartment: forget the count AND reset the priced line to the included level, or
+      // the stair charge survives a change that was supposed to remove it.
+      this.levelsQuantity = null;
+      this.writeLevelsQuantity(1);
+    }
+
+    this.calculateNewTotal();
+  }
+
+  selectLevels(levels: number): void {
+    this.levelsQuantity = levels;
+    this.writeLevelsQuantity(levels);
+    this.calculateNewTotal();
+  }
+
+  /**
+   * Writes the level count into the levels row.
+   *
+   * The row always EXISTS here, unlike on the booking page: initializeServices seeds every
+   * service in the catalogue and the FormArray of controls is index-aligned with
+   * selectedServices, so adding or removing an entry would silently shift every control after
+   * it. The row is hidden from the generic grid instead, and an apartment simply holds the
+   * included count, which prices to exactly zero.
+   */
+  private writeLevelsQuantity(levels: number): void {
+    const index = this.selectedServices.findIndex(s => isLevelsService(s.service));
+    if (index < 0) return;
+
+    this.selectedServices[index].quantity = levels;
+    this.getServiceControl(index)?.setValue(levels);
+  }
+
+  /** A house has no studio; raising bedrooms drags the included sq.ft up through the same rule. */
+  private raiseBedroomsToHouseMinimum(): void {
+    const bedrooms = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
+    if (!bedrooms || bedrooms.quantity >= 1) return;
+    this.updateServiceQuantity(bedrooms.service, 1);
+  }
+
+  /** Seeds both answers from the stored order. Legacy orders land on null and stay editable. */
+  private initializePropertyTypeSelection(): void {
+    this.propertyType = normalizePropertyType(this.order?.propertyType);
+
+    if (!this.showLevelsSelector()) {
+      this.levelsQuantity = null;
+      return;
+    }
+
+    const stored = this.order?.levelsQuantity;
+    this.levelsQuantity =
+      stored != null && LEVEL_OPTIONS.includes(stored) ? stored : null;
   }
 
   initializeServices() {
@@ -956,7 +1088,13 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       // Backend keeps the original LoyaltyDiscountPercentage untouched (see OrderService.UpdateOrder).
       loyaltyDiscountAmount: this.appliedLoyaltyDiscountAmount,
       bedroomsQuantity: this.order?.bedroomsQuantity,
-      bathroomsQuantity: this.order?.bathroomsQuantity
+      bathroomsQuantity: this.order?.bathroomsQuantity,
+      // The level COUNT rides along in `services` like any other line; this only records what
+      // kind of building it is. Sending anything other than "House" makes the server clear the
+      // level count, so a customer who re-declares a house as a flat stops paying for stairs.
+      propertyType: this.propertyType,
+      // Informational fallback only; a priced levels line in `services` always wins server-side.
+      levelsQuantity: this.levelsQuantity
     };
   }
 

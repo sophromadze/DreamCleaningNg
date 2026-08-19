@@ -435,6 +435,17 @@ export interface SuperAdminUpdateOrderDto {
   totalDuration?: number | null;
   bedroomsQuantity?: number | null;
   bathroomsQuantity?: number | null;
+  /**
+   * "Apartment" or "House". Null/undefined means NO CHANGE on this path, unlike the
+   * customer-facing update DTO - an admin editing only the service date must not strip the
+   * property type off the order. The level count travels as an ordinary service row.
+   */
+  propertyType?: string | null;
+  /**
+   * Informational level count, for an order whose service type has no priced levels row. Ignored
+   * when a priced row exists - that row is the source of truth. Null means no change.
+   */
+  levelsQuantity?: number | null;
   entryMethod?: string | null;
   specialInstructions?: string | null;
   floorTypes?: string | null;
@@ -491,6 +502,8 @@ export interface CreateServiceType {
   displayOrder: number;
   timeDuration: number;
   hasPoll?: boolean;
+  /** Whether this type asks apartment vs house. Absent means true (column default). */
+  collectsPropertyType?: boolean;
   isCustom?: boolean;
   /** Floor for base price + services. 0 = no floor. */
   minimumPrice?: number;
@@ -503,6 +516,8 @@ export interface UpdateServiceType {
   displayOrder: number;
   timeDuration: number;
   hasPoll?: boolean;
+  /** Whether this type asks apartment vs house. Absent means true (column default). */
+  collectsPropertyType?: boolean;
   isCustom?: boolean;
   /** Floor for base price + services. 0 = no floor. */
   minimumPrice?: number;
