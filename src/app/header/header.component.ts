@@ -250,7 +250,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
       || this.canViewPage('finances')
       || this.canViewPage('ads')
       || this.canViewPage('traffic')
-      || this.canViewPage('keywords');
+      || this.canViewPage('keywords')
+      || this.canViewPage('customer-stats');
   }
 
   get isInternalUser(): boolean {

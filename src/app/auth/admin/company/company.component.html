@@ -19,6 +19,8 @@
        routerLink="traffic" routerLinkActive="active">Traffic</a>
     <a class="company-tab" *ngIf="canView('keywords')"
        routerLink="keywords" routerLinkActive="active">Keywords</a>
+    <a class="company-tab" *ngIf="canView('customer-stats')"
+       routerLink="customers" routerLinkActive="active">Customers</a>
   </div>
 
   <div class="company-content">

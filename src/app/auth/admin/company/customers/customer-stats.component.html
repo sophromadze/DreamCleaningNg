@@ -1,0 +1,472 @@
+<div class="customers-container">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="page-title">
+      <h1>Customers</h1>
+      <p class="page-subtitle">
+        Who booked in the period, how many of them had booked before, and how much of the money
+        came from regulars rather than newcomers.
+      </p>
+    </div>
+  </div>
+
+  <!-- Period filters. The view toggle sits with them because it is the same kind of control:
+       it changes what you are looking at, not what the numbers mean. -->
+  <div class="filters-card">
+    <div class="filters-left">
+      <div class="view-toggle" role="group" aria-label="Level of detail">
+        <button type="button"
+                [class.active]="viewMode === 'simple'"
+                [attr.aria-pressed]="viewMode === 'simple'"
+                (click)="setViewMode('simple')">Simple</button>
+        <button type="button"
+                [class.active]="viewMode === 'full'"
+                [attr.aria-pressed]="viewMode === 'full'"
+                (click)="setViewMode('full')">Full</button>
+      </div>
+      <div class="quick-filter-dropdown">
+        <select [ngModel]="activeQuickFilter" (ngModelChange)="onQuickFilterChange($event)">
+          <option *ngFor="let f of quickFilters" [value]="f.key">{{ f.label }}</option>
+        </select>
+      </div>
+      <button class="compare-open-btn" (click)="openCompareModal()">
+        <i class="fas fa-balance-scale"></i>
+        Compare
+      </button>
+    </div>
+    <div class="custom-range">
+      <label>From <input type="date" [(ngModel)]="customFrom" /></label>
+      <label>To <input type="date" [(ngModel)]="customTo" /></label>
+      <button class="apply-btn" (click)="applyCustomRange()" [disabled]="!customFrom || !customTo">Apply</button>
+      <button class="clear-btn" (click)="clearCustomRange()" *ngIf="customFrom || customTo">Clear</button>
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div class="error-state" *ngIf="error && !isLoading && !compareMode">
+    <p>{{ error }}</p>
+  </div>
+
+  <!-- ══ SIMPLE ══════════════════════════════════════════════════════════════
+       The answer to the question the page was asked: are customers coming back,
+       is it getting better or worse, are follow-ups doing anything. -->
+  <ng-container *ngIf="viewMode === 'simple' && !error && !compareMode">
+
+    <p class="summary-line" *ngIf="summary && !isLoading">{{ summary }}</p>
+    <p class="summary-line shimmer-loading" *ngIf="isLoading">&nbsp;</p>
+
+    <div class="headline-grid simple">
+      <div class="headline-card" *ngFor="let item of simpleCards">
+        <div class="headline-label">{{ item.label }}</div>
+        <div class="headline-value" [class.shimmer-loading]="isLoading">
+          <ng-container *ngTemplateOutlet="metricValue;
+            context: { v: item.card.value, f: item.card.def.format,
+                       s: item.card.suppressed, tid: tooltipId(item.card.def),
+                       why: suppressionReason(item.card, item.card.def) }"></ng-container>
+        </div>
+        <div class="headline-subline" *ngIf="!isLoading && item.subline">
+          <ng-container *ngTemplateOutlet="metricValue;
+            context: { v: item.subline.value, f: item.subline.def.format }"></ng-container>
+          {{ item.sublineLabel }}
+        </div>
+        <ng-container *ngTemplateOutlet="deltaBlock; context: { card: item.card }"></ng-container>
+      </div>
+
+      <!-- Placeholder keeps the grid shape while the first load resolves. -->
+      <div class="headline-card" *ngIf="simpleCards.length === 0">
+        <div class="headline-label">Customers who came back</div>
+        <div class="headline-value shimmer-loading">—</div>
+      </div>
+    </div>
+
+    <ng-container *ngTemplateOutlet="splitCard"></ng-container>
+    <ng-container *ngTemplateOutlet="trendCard"></ng-container>
+
+    <div class="detail-card" *ngIf="simpleFollowUpCards.length > 0">
+      <h3 class="viz-title">Follow-ups (CRM)</h3>
+      <p class="section-note">
+        <i class="fas fa-info-circle"></i> {{ simpleFollowUpNote }}
+      </p>
+      <table class="detail-table">
+        <tbody>
+          <tr *ngFor="let card of simpleFollowUpCards">
+            <ng-container *ngTemplateOutlet="detailRow; context: { card: card }"></ng-container>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </ng-container>
+
+  <!-- ══ FULL ════════════════════════════════════════════════════════════════ -->
+  <ng-container *ngIf="viewMode === 'full' && !error && !compareMode">
+
+    <div class="headline-grid">
+      <div class="headline-card" *ngFor="let card of headlineCards">
+        <div class="headline-label">{{ card.def.label }}</div>
+        <div class="headline-value" [class.shimmer-loading]="isLoading">
+          <ng-container *ngTemplateOutlet="metricValue;
+            context: { v: card.value, f: card.def.format, s: card.suppressed, tid: tooltipId(card.def), why: suppressionReason(card, card.def) }"></ng-container>
+        </div>
+        <ng-container *ngTemplateOutlet="deltaBlock; context: { card: card }"></ng-container>
+        <div class="headline-hint" *ngIf="card.def.hint">{{ card.def.hint }}</div>
+      </div>
+
+      <div class="headline-card" *ngIf="headlineCards.length === 0">
+        <div class="headline-label">Customers who came back</div>
+        <div class="headline-value shimmer-loading">—</div>
+      </div>
+    </div>
+
+    <div class="content-grid" *ngIf="stats">
+      <ng-container *ngTemplateOutlet="splitCard"></ng-container>
+
+      <!-- How often the period's customers booked inside it -->
+      <div class="viz-card">
+        <h3 class="viz-title">Cleanings per customer, this period</h3>
+        <p class="viz-hint">
+          How many customers booked once, twice, or more inside the selected period.
+        </p>
+        <div class="freq-rows">
+          <div class="freq-row" *ngFor="let bucket of stats.frequency">
+            <span class="freq-label">{{ bucket.label }} cleaning{{ bucket.label === '1' ? '' : 's' }}</span>
+            <div class="freq-track">
+              <div class="freq-fill" [style.width.%]="frequencyWidth(bucket.customers)"></div>
+            </div>
+            <span class="freq-value">{{ bucket.customers | number }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ng-container *ngTemplateOutlet="trendCard"></ng-container>
+
+    <!-- Everything else, grouped, with the period-over-period movement on each row -->
+    <div class="detail-card" *ngFor="let section of groupedCards">
+      <h3 class="viz-title">{{ section.group }}</h3>
+      <p class="section-note" *ngIf="section.note">
+        <i class="fas fa-info-circle"></i> {{ section.note }}
+      </p>
+      <table class="detail-table">
+        <tbody>
+          <tr *ngFor="let card of section.cards">
+            <ng-container *ngTemplateOutlet="detailRow; context: { card: card }"></ng-container>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Sits outside the metric list on purpose: it is measured over a fixed twelve months
+           rather than the selected period, so it is the same figure in every compared column
+           and is not offered as a comparison row. -->
+      <div class="median-line" *ngIf="section.showMedian && stats">
+        <span class="median-label">Customers typically rebook every</span>
+        <span class="median-value" *ngIf="stats.medianDaysBetweenBookings !== null">
+          {{ stats.medianDaysBetweenBookings }} days
+        </span>
+        <span class="median-value muted" *ngIf="stats.medianDaysBetweenBookings === null">
+          — not enough repeat bookings yet
+        </span>
+        <span class="median-window">
+          median over {{ medianWindowLabel }},
+          {{ stats.medianGapSampleSize | number }} gap{{ stats.medianGapSampleSize === 1 ? '' : 's' }}
+        </span>
+      </div>
+    </div>
+
+    <div class="detail-card" *ngIf="stats && stats.topCustomers.length > 0">
+      <h3 class="viz-title">Biggest customers this period</h3>
+      <div class="table-wrap">
+        <table class="top-table">
+          <thead>
+            <tr>
+              <th>Customer</th>
+              <th class="num">Cleanings</th>
+              <th class="num">Spend</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of stats.topCustomers">
+              <td>
+                <span class="cust-name">{{ c.fullName }}</span>
+                <span class="cust-email" *ngIf="c.email">{{ c.email }}</span>
+                <span class="cust-chip" [class.returning]="c.isReturning">
+                  {{ c.isReturning ? 'Returning' : 'First-time' }}
+                </span>
+              </td>
+              <td class="num">{{ c.orders | number }}</td>
+              <td class="num">{{ c.spend | currency:'USD' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </ng-container>
+
+  <!-- ══ COMPARE ═════════════════════════════════════════════════════════════
+       One table for both views — Simple narrows the row list, Full takes every metric. -->
+  <div class="compare-section" *ngIf="compareMode">
+    <div class="compare-head">
+      <h2>Side-by-side comparison</h2>
+      <div class="compare-head-actions">
+        <button class="change-periods-btn" (click)="openCompareModal()">
+          <i class="fas fa-pen"></i> Change periods
+        </button>
+        <button class="exit-compare-btn" (click)="exitCompare()">
+          <i class="fas fa-times"></i> Back to one period
+        </button>
+      </div>
+    </div>
+
+    <div class="compare-card">
+      <div class="compare-table-wrap">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th class="metric-col"></th>
+              <th *ngFor="let r of compareResults">
+                <div class="col-label">{{ r.label }}</div>
+                <div class="col-range" *ngIf="r.rangeLabel">{{ r.rangeLabel }}</div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <ng-container *ngFor="let row of compareRows">
+              <tr class="group-row" *ngIf="row.groupStart">
+                <td [attr.colspan]="compareResults.length + 1">{{ row.def.group }}</td>
+              </tr>
+              <tr>
+                <td class="metric-col">
+                  <span class="metric-label">{{ row.def.label }}</span>
+                  <span class="metric-hint" *ngIf="row.def.hint && viewMode === 'full'">{{ row.def.hint }}</span>
+                </td>
+                <td *ngFor="let cell of row.cells; let i = index" [class.best]="isBest(row, i)">
+                  <span class="cell-value">
+                    <ng-container *ngTemplateOutlet="metricValue;
+                      context: { v: cell.value, f: row.def.format, s: cell.suppressed, tid: tooltipId(row.def), why: suppressionReason(cell, row.def) }"></ng-container>
+                  </span>
+                  <span class="best-chip" *ngIf="isBest(row, i)">best</span>
+                </td>
+              </tr>
+            </ng-container>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SHARED FRAGMENTS ════════════════════════════════════════════════════ -->
+
+  <!-- Declared once and outlet into both views, so #trendCanvas has exactly one declaration
+       for @ViewChild to resolve no matter which view is on screen. -->
+  <ng-template #splitCard>
+    <div class="viz-card" *ngIf="stats">
+      <h3 class="viz-title">First-time vs returning</h3>
+      <p class="viz-hint">
+        The same period read two ways — how the customers split, and how their money splits.
+      </p>
+      <p class="viz-hint thin-sample-note" *ngIf="splitSampleTooThin">
+        <i class="fas fa-info-circle"></i>
+        Greyed out: only {{ stats.activeCustomers | number }}
+        customer{{ stats.activeCustomers === 1 ? '' : 's' }} this period. A proportion of that few
+        people is not meaningful, the same reason percentages elsewhere read as a dash.
+      </p>
+
+      <div class="split-block" [class.thin-sample]="splitSampleTooThin">
+        <div class="split-head">
+          <span>Customers</span>
+          <span class="split-total">{{ stats.activeCustomers | number }} served</span>
+        </div>
+        <div class="split-track">
+          <div class="split-fill returning"
+               [style.width.%]="splitWidth(stats.returningCustomers, stats.activeCustomers)"></div>
+          <div class="split-fill new"
+               [style.width.%]="splitWidth(stats.newCustomers, stats.activeCustomers)"></div>
+        </div>
+        <!-- The percentage is the number the reader actually uses; the count alone leaves him
+             doing the division. It goes through the same suppression path as any other rate, so
+             a thin month shows a dash here exactly as it does everywhere else. -->
+        <div class="split-legend" *ngIf="splitLegend">
+          <span><i class="dot returning"></i> Returning {{ stats.returningCustomers | number }}
+            (<ng-container *ngTemplateOutlet="metricValue;
+              context: { v: splitLegend.returning.value, f: 'percent',
+                         s: splitLegend.returning.suppressed,
+                         tid: splitLegend.returning.tooltipId,
+                         why: splitLegend.returning.reason }"></ng-container>)</span>
+          <span><i class="dot new"></i> First-time {{ stats.newCustomers | number }}
+            (<ng-container *ngTemplateOutlet="metricValue;
+              context: { v: splitLegend.first.value, f: 'percent',
+                         s: splitLegend.first.suppressed,
+                         tid: splitLegend.first.tooltipId,
+                         why: splitLegend.first.reason }"></ng-container>)</span>
+        </div>
+      </div>
+
+      <div class="split-block" [class.thin-sample]="splitSampleTooThin">
+        <div class="split-head">
+          <span>Spend</span>
+          <span class="split-total">{{ stats.totalSpend | currency:'USD' }}</span>
+        </div>
+        <div class="split-track">
+          <div class="split-fill returning"
+               [style.width.%]="splitWidth(stats.returningCustomerSpend, stats.totalSpend)"></div>
+          <div class="split-fill new"
+               [style.width.%]="splitWidth(stats.newCustomerSpend, stats.totalSpend)"></div>
+        </div>
+        <div class="split-legend">
+          <span><i class="dot returning"></i> Returning {{ stats.returningCustomerSpend | currency:'USD' }}</span>
+          <span><i class="dot new"></i> First-time {{ stats.newCustomerSpend | currency:'USD' }}</span>
+        </div>
+      </div>
+    </div>
+  </ng-template>
+
+  <ng-template #trendCard>
+    <div class="viz-card wide" *ngIf="trend.length > 0">
+      <div class="chart-head">
+        <div>
+          <h3 class="viz-title">Last 12 months</h3>
+          <p class="viz-hint">Customers served each month, split by whether they had booked before.</p>
+        </div>
+        <div class="chart-legend">
+          <span><i class="dot returning"></i> Returning</span>
+          <span><i class="dot new"></i> First-time</span>
+          <span><i class="dot rate"></i> Returning rate</span>
+        </div>
+      </div>
+      <div class="chart-box">
+        <canvas #trendCanvas></canvas>
+      </div>
+      <p class="viz-hint chart-footnote">
+        The rate line breaks for months with fewer than 10 customers — a percentage of three
+        people is not a trend.
+      </p>
+    </div>
+  </ng-template>
+
+  <!-- One detail-table row. Shared by the Full sections and the Simple follow-up block. -->
+  <ng-template #detailRow let-card="card">
+    <td class="metric-col">
+      <span class="metric-label">{{ card.def.label }}</span>
+      <span class="metric-hint" *ngIf="card.def.hint && viewMode === 'full'">{{ card.def.hint }}</span>
+    </td>
+    <td class="value-col" [class.shimmer-loading]="isLoading">
+      <ng-container *ngTemplateOutlet="metricValue;
+        context: { v: card.value, f: card.def.format, s: card.suppressed, tid: tooltipId(card.def), why: suppressionReason(card, card.def) }"></ng-container>
+    </td>
+    <td class="delta-col">
+      <ng-container *ngTemplateOutlet="deltaBlock; context: { card: card, inline: true }"></ng-container>
+    </td>
+  </ng-template>
+
+  <!-- Movement against the previous period. Never rendered for a suppressed value: the delta is
+       computed from two numbers we are not willing to print. -->
+  <ng-template #deltaBlock let-card="card" let-inline="inline">
+    <span *ngIf="!isLoading && hasDelta(card)"
+          [class.row-delta]="inline"
+          [class.headline-delta]="!inline"
+          [class.up]="isGoodDelta(card)"
+          [class.down]="isBadDelta(card)">
+      <span class="delta-arrow" *ngIf="!inline">{{ deltaArrow(card) }}</span>
+      <span>
+        {{ deltaSign(card) }}<ng-container *ngTemplateOutlet="metricValue;
+          context: { v: deltaValue(card), f: card.def.format }"></ng-container>
+      </span>
+      <span class="delta-label" *ngIf="!inline">{{ compareLabel }}</span>
+    </span>
+  </ng-template>
+
+  <!-- One number, formatted for its metric — or a dash when its denominator is too thin to report.
+       Used by every view above, so a figure can never render as money in one place and a bare
+       count in another, nor be suppressed in one view and printed in the next. -->
+  <ng-template #metricValue let-v="v" let-f="f" let-s="s" let-tid="tid" let-why="why">
+    <span class="suppressed-value" *ngIf="s"
+          (click)="toggleTooltipById(tid, $event)"
+          [attr.title]="why"
+          [attr.aria-label]="why">
+      —
+      <span class="mobile-tooltip" *ngIf="isTooltipVisibleById(tid)">{{ why }}</span>
+    </span>
+    <ng-container *ngIf="!s" [ngSwitch]="f">
+      <ng-container *ngSwitchCase="'money'">{{ v | currency:'USD' }}</ng-container>
+      <ng-container *ngSwitchCase="'percent'">{{ v | number:'1.0-1' }}%</ng-container>
+      <ng-container *ngSwitchDefault>{{ v | number:'1.0-2' }}</ng-container>
+    </ng-container>
+  </ng-template>
+
+  <!-- Compare periods modal -->
+  <div class="modal-overlay" *ngIf="showCompareModal" (click)="closeCompareModal()">
+    <div class="compare-modal" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h2>Compare periods</h2>
+        <button class="modal-close" (click)="closeCompareModal()" aria-label="Close">×</button>
+      </div>
+      <p class="modal-hint">
+        Pick whole days, weeks, months or years — as many as you like, at least 2 — and see them
+        side by side.
+      </p>
+
+      <div class="unit-tabs">
+        <button *ngFor="let u of compareUnits"
+                [class.active]="compareUnit === u.key"
+                (click)="setCompareUnit(u.key)">{{ u.label }}</button>
+      </div>
+
+      <div class="quick-fill">
+        <span class="quick-fill-label">Quick fill:</span>
+        <button *ngFor="let n of quickFillCounts" (click)="quickFill(n)">
+          Last {{ n }} {{ unitNoun }}s
+        </button>
+      </div>
+
+      <div class="pick-list">
+        <div class="pick-row" *ngFor="let pick of comparePicks; let i = index">
+          <span class="pick-num">{{ i + 1 }}</span>
+
+          <ng-container [ngSwitch]="compareUnit">
+            <input *ngSwitchCase="'day'" type="date" [(ngModel)]="pick.date" />
+
+            <ng-container *ngSwitchCase="'week'">
+              <input type="date" [(ngModel)]="pick.date" />
+              <span class="pick-preview" *ngIf="pick.date">{{ weekPreview(pick.date) }}</span>
+            </ng-container>
+
+            <ng-container *ngSwitchCase="'month'">
+              <select [(ngModel)]="pick.month">
+                <option *ngFor="let m of monthNames; let mi = index" [ngValue]="mi">{{ m }}</option>
+              </select>
+              <select [(ngModel)]="pick.year">
+                <option *ngFor="let y of yearOptions" [ngValue]="y">{{ y }}</option>
+              </select>
+            </ng-container>
+
+            <select *ngSwitchCase="'year'" [(ngModel)]="pick.year">
+              <option *ngFor="let y of yearOptions" [ngValue]="y">{{ y }}</option>
+            </select>
+          </ng-container>
+
+          <button class="remove-pick"
+                  *ngIf="comparePicks.length > 2"
+                  (click)="removePick(i)"
+                  aria-label="Remove this period">×</button>
+        </div>
+      </div>
+
+      <button class="add-pick" (click)="addPick()">
+        <i class="fas fa-plus"></i> Add another {{ unitNoun }}
+      </button>
+
+      <div class="modal-error" *ngIf="compareError">{{ compareError }}</div>
+
+      <div class="modal-footer">
+        <span class="pick-count">
+          {{ comparePicks.length }} {{ unitNoun }}{{ comparePicks.length === 1 ? '' : 's' }} selected
+        </span>
+        <button class="cancel-btn" (click)="closeCompareModal()">Cancel</button>
+        <button class="run-compare-btn" (click)="runCompare()" [disabled]="!picksValid || isComparing">
+          <i class="fas" [ngClass]="isComparing ? 'fa-spinner fa-spin' : 'fa-balance-scale'"></i>
+          {{ isComparing ? 'Comparing…' : 'Compare' }}
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

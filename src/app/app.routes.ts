@@ -402,6 +402,12 @@ export const routes: Routes = [
         path: 'keywords',
         canActivate: [pageViewGuard('keywords')],
         loadComponent: () => import('./auth/admin/company/keywords/keywords.component').then(m => m.KeywordsComponent)
+      },
+      {
+        // Grant key and path differ on purpose — see TAB_ORDER in company-landing.guard.ts.
+        path: 'customers',
+        canActivate: [pageViewGuard('customer-stats')],
+        loadComponent: () => import('./auth/admin/company/customers/customer-stats.component').then(m => m.CustomerStatsComponent)
       }
     ]
   },

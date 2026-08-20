@@ -1,0 +1,1141 @@
+// Company → Customers tab. The period picker, compare modal and comparison table deliberately
+// mirror the Finances page's (finances.component.scss) so the two tabs read as one system — the
+// owner moves between them constantly. All colors come from design tokens, so day/night needs no
+// extra rules.
+
+.customers-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+// ── Header ──────────────────────────────────────────────────────────────────
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+
+  h1 {
+    margin: 0 0 4px;
+    font-size: 1.6rem;
+    font-weight: var(--fw-extrabold);
+    color: var(--text-primary);
+  }
+
+  .page-subtitle {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+    max-width: 620px;
+  }
+}
+
+// ── Filters ─────────────────────────────────────────────────────────────────
+
+.filters-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.filters-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.compare-open-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--primary-text);
+  font-weight: var(--fw-semibold);
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:hover {
+    background: var(--soft-blue);
+  }
+}
+
+.quick-filter-dropdown {
+  select {
+    padding: 9px 36px 9px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-weight: var(--fw-semibold);
+    font-size: 0.92rem;
+    cursor: pointer;
+    appearance: none;
+    // Chevron drawn with gradients so it inherits no hardcoded color assets.
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--text-muted) 50%),
+      linear-gradient(135deg, var(--text-muted) 50%, transparent 50%);
+    background-position:
+      calc(100% - 18px) 50%,
+      calc(100% - 13px) 50%;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+
+    &:hover,
+    &:focus {
+      border-color: var(--primary-color);
+      outline: none;
+    }
+  }
+}
+
+.custom-range {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+
+  label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+  }
+
+  input[type="date"] {
+    padding: 7px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    color-scheme: light;
+
+    :host-context([data-theme="dark"]) & {
+      color-scheme: dark;
+    }
+  }
+
+  .apply-btn,
+  .clear-btn {
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+    background: var(--surface-subtle);
+    color: var(--text-secondary);
+    font-weight: var(--fw-medium);
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+  }
+
+  .apply-btn:not(:disabled) {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+  }
+}
+
+// Segmented Simple/Full control. Lives with the period filters because it is the same kind of
+// control — it changes what you are looking at, not what the numbers mean.
+.view-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+
+  button {
+    border: none;
+    background: var(--surface);
+    color: var(--text-secondary);
+    padding: 9px 18px;
+    font-size: 0.92rem;
+    font-weight: var(--fw-semibold);
+    cursor: pointer;
+
+    & + button {
+      border-left: 1px solid var(--border-color);
+    }
+
+    &:hover:not(.active) {
+      color: var(--text-primary);
+    }
+
+    &.active {
+      background: var(--primary-color);
+      color: #fff;
+    }
+  }
+}
+
+.error-state {
+  background: var(--soft-red);
+  color: var(--bright-red);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+
+  p {
+    margin: 0;
+  }
+}
+
+// The plain-English answer. Set larger than body copy because for the reader this page was built
+// for it carries more than any card below it.
+//
+// --soft-blue is paired with --text-primary rather than its usual --primary-color partner: that
+// pairing rule exists for SEMANTIC state tints, where the foreground carries the state. This is a
+// neutral callout holding a paragraph, and both tokens flip with the theme, so the contrast holds
+// in day and night while blue-on-blue would not at this text size.
+.summary-line {
+  margin: 0 0 20px;
+  padding: 16px 20px;
+  background: var(--soft-blue);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  font-size: 1.08rem;
+  line-height: 1.5;
+  font-weight: var(--fw-medium);
+
+  &.shimmer-loading {
+    min-height: 3.4rem;
+  }
+}
+
+// Cards the Simple view lays out on their own row — four across on desktop, never fewer than two.
+.headline-grid.simple {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+// A dash standing in for a number we will not report. Underlined like a footnote so it reads as
+// "there is a reason" rather than "missing", and tappable for the reason on a phone.
+.suppressed-value {
+  position: relative;
+  color: var(--text-muted);
+  border-bottom: 1px dotted var(--text-muted);
+  cursor: help;
+}
+
+.mobile-tooltip {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  width: max-content;
+  max-width: 240px;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 24px var(--shadow-color);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: var(--fw-medium);
+  line-height: 1.4;
+  white-space: normal;
+  text-align: left;
+}
+
+// ── Headline cards ──────────────────────────────────────────────────────────
+
+.headline-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.headline-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+
+  .headline-label {
+    font-size: 0.84rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .headline-value {
+    margin-top: 6px;
+    font-size: 1.9rem;
+    font-weight: var(--fw-extrabold);
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+  }
+
+  // Second metric under the headline, phrased as a sentence fragment ("23.7% of the customers
+  // we served") rather than a labelled statistic — it is context, not a competing number.
+  .headline-subline {
+    margin-top: 6px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .headline-delta {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+    font-size: 0.84rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-muted);
+
+    &.up { color: var(--fresh-green); }
+    &.down { color: var(--bright-red); }
+
+    .delta-arrow { font-size: 0.7rem; }
+
+    .delta-label {
+      color: var(--text-muted);
+      font-weight: var(--fw-medium);
+    }
+  }
+
+  .headline-hint {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+}
+
+// ── Visual cards ────────────────────────────────────────────────────────────
+
+.content-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+
+.viz-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+
+  &.wide {
+    margin-bottom: 20px;
+  }
+}
+
+// Simple stacks these cards straight into the page rather than into .content-grid, so they need
+// their own spacing. Full's copies sit inside the grid and are unaffected.
+.customers-container > .viz-card {
+  margin-bottom: 20px;
+}
+
+.chart-footnote {
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+.thin-sample-note {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+
+  i {
+    flex-shrink: 0;
+  }
+}
+
+// The median rebooking gap. Outside the metric tables because it is measured over a fixed twelve
+// months rather than the selected period — the label says so, so a historical view is not misread.
+.median-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+
+  .median-label {
+    color: var(--text-secondary);
+    font-weight: var(--fw-medium);
+  }
+
+  .median-value {
+    font-size: 1.15rem;
+    font-weight: var(--fw-extrabold);
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+
+    &.muted {
+      font-size: 0.92rem;
+      font-weight: var(--fw-medium);
+      color: var(--text-muted);
+    }
+  }
+
+  .median-window {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+}
+
+.viz-title {
+  margin: 0 0 6px;
+  font-size: 1rem;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.viz-hint {
+  margin: 0 0 14px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+
+// Shared identity for the two audiences, used by the split bars AND the chart legend,
+// so "blue = returning" holds everywhere on the page.
+.dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: baseline;
+
+  &.returning { background: var(--chart-cat-1); }
+  &.new { background: var(--chart-cat-2); }
+  &.rate { background: var(--chart-cat-8); }
+}
+
+.split-block {
+  & + & {
+    margin-top: 20px;
+  }
+
+  // Too few customers to draw a meaningful proportion. Greyed rather than hidden — the counts in
+  // the legend are still true and worth reading; only the RATIO is unreliable. grayscale() keeps
+  // the two segments distinguishable from each other (blue and green desaturate to different
+  // greys) without needing a second pair of tokens, and works in day and night alike.
+  &.thin-sample {
+    .split-fill,
+    .dot {
+      filter: grayscale(1);
+      opacity: 0.5;
+    }
+
+    .split-legend {
+      color: var(--text-muted);
+    }
+  }
+
+  .split-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+    font-size: 0.88rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+
+    .split-total {
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+
+  .split-track {
+    display: flex;
+    height: 14px;
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    background: var(--surface-subtle);
+  }
+
+  .split-fill {
+    height: 100%;
+
+    &.returning { background: var(--chart-cat-1); }
+    &.new { background: var(--chart-cat-2); }
+  }
+
+  .split-legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.freq-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.freq-row {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+
+  .freq-label {
+    color: var(--text-secondary);
+  }
+
+  .freq-track {
+    height: 10px;
+    border-radius: var(--radius-pill);
+    background: var(--surface-subtle);
+    overflow: hidden;
+  }
+
+  .freq-fill {
+    height: 100%;
+    border-radius: var(--radius-pill);
+    background: var(--chart-cat-1);
+  }
+
+  .freq-value {
+    text-align: right;
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.chart-box {
+  position: relative;
+  height: 280px;
+  margin-top: 8px;
+
+  canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+}
+
+// ── Detail tables ───────────────────────────────────────────────────────────
+
+.detail-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+// Caveat above a section whose numbers would mislead without it (the follow-up coverage note).
+.section-note {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--soft-yellow);
+  color: var(--soft-yellow-text);
+  font-size: 0.82rem;
+  line-height: 1.45;
+
+  i {
+    flex-shrink: 0;
+  }
+}
+
+.detail-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  td {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: baseline;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .metric-col {
+    width: 100%;
+  }
+
+  .value-col,
+  .delta-col {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .value-col {
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+    min-width: 90px;
+  }
+
+  .delta-col {
+    min-width: 80px;
+  }
+}
+
+.metric-label {
+  display: block;
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+.metric-hint {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.row-delta {
+  font-size: 0.85rem;
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+
+  &.up { color: var(--fresh-green); }
+  &.down { color: var(--bright-red); }
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.top-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+  }
+
+  th {
+    font-size: 0.78rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .num {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  tbody td {
+    color: var(--text-primary);
+    font-weight: var(--fw-semibold);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .cust-name {
+    display: block;
+  }
+
+  .cust-email {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.78rem;
+    font-weight: var(--fw-medium);
+    color: var(--text-muted);
+  }
+
+  .cust-chip {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 1px 8px;
+    border-radius: var(--radius-pill);
+    background: var(--soft-yellow);
+    color: var(--soft-yellow-text);
+    font-size: 0.66rem;
+    font-weight: var(--fw-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+
+    &.returning {
+      background: var(--mint-fresh);
+      color: var(--mint-fresh-text);
+    }
+  }
+}
+
+// ── Side-by-side comparison ─────────────────────────────────────────────────
+
+.compare-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.compare-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+
+  h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: var(--fw-extrabold);
+    color: var(--text-primary);
+  }
+}
+
+.compare-head-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    border-radius: var(--radius-md);
+    font-weight: var(--fw-semibold);
+    font-size: 0.88rem;
+    cursor: pointer;
+  }
+
+  .change-periods-btn {
+    border: 1px solid var(--primary-color);
+    background: transparent;
+    color: var(--primary-text);
+
+    &:hover {
+      background: var(--soft-blue);
+    }
+  }
+
+  .exit-compare-btn {
+    border: 1px solid var(--border-color);
+    background: var(--surface-subtle);
+    color: var(--text-secondary);
+
+    &:hover {
+      color: var(--text-primary);
+    }
+  }
+}
+
+.compare-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+}
+
+// Wide comparisons scroll sideways. Note this clips the tap-for-reason tooltip on a suppressed
+// cell — the cell keeps its title attribute, and the Simple and Full views (where this page is
+// actually read) are not inside a scroll container.
+.compare-table-wrap {
+  overflow-x: auto;
+}
+
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 10px 12px;
+    text-align: right;
+    border-bottom: 1px solid var(--border-color);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  thead th {
+    vertical-align: bottom;
+  }
+
+  .col-label {
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+  }
+
+  .col-range {
+    margin-top: 2px;
+    font-size: 0.76rem;
+    font-weight: var(--fw-medium);
+    color: var(--text-muted);
+  }
+
+  // With many periods compared the table scrolls sideways, so the metric name stays
+  // pinned — otherwise you lose track of which row you're reading.
+  .metric-col {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--surface);
+    text-align: left;
+    white-space: normal;
+    min-width: 190px;
+  }
+
+  tbody td {
+    color: var(--text-primary);
+    font-weight: var(--fw-semibold);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  // Section header, so the four groups stay as distinguishable here as they are
+  // in the single-period view.
+  tr.group-row td {
+    background: var(--surface-subtle);
+    color: var(--text-primary);
+    font-size: 0.76rem;
+    font-weight: var(--fw-extrabold);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: left;
+    position: static;
+  }
+
+  td.best {
+    background: var(--mint-fresh);
+    color: var(--mint-fresh-text);
+  }
+
+  .best-chip {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: var(--radius-pill);
+    background: var(--fresh-green);
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: var(--fw-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    vertical-align: middle;
+  }
+}
+
+// ── Compare modal ───────────────────────────────────────────────────────────
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1000;
+}
+
+.compare-modal {
+  background: var(--surface-elevated);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 480px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 20px 22px;
+  box-shadow: 0 20px 50px var(--shadow-color);
+}
+
+.modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+
+  h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: var(--fw-extrabold);
+    color: var(--text-primary);
+  }
+
+  .modal-close {
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 6px;
+
+    &:hover {
+      color: var(--text-primary);
+    }
+  }
+}
+
+.modal-hint {
+  margin: 6px 0 0;
+  font-size: 0.88rem;
+  color: var(--text-muted);
+}
+
+.unit-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 16px 0 14px;
+
+  button {
+    flex: 1;
+    padding: 8px 0;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    color: var(--text-secondary);
+    font-weight: var(--fw-semibold);
+    font-size: 0.88rem;
+    cursor: pointer;
+
+    &.active {
+      background: var(--primary-color);
+      border-color: var(--primary-color);
+      color: #fff;
+    }
+  }
+}
+
+.quick-fill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+
+  .quick-fill-label {
+    font-size: 0.84rem;
+    color: var(--text-muted);
+  }
+
+  button {
+    padding: 5px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-pill);
+    background: var(--surface-subtle);
+    color: var(--text-secondary);
+    font-size: 0.82rem;
+    font-weight: var(--fw-semibold);
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--primary-color);
+      color: var(--primary-text);
+    }
+  }
+}
+
+// The period count is unlimited, so a long list scrolls inside the modal instead
+// of pushing the Compare button off-screen.
+.pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 42vh;
+  overflow-y: auto;
+}
+
+.pick-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+
+  .pick-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--surface-subtle);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: var(--fw-bold);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  input[type="date"],
+  select {
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+  }
+
+  input[type="date"] {
+    color-scheme: light;
+
+    :host-context([data-theme="dark"]) & {
+      color-scheme: dark;
+    }
+  }
+
+  .pick-preview {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+
+  .remove-pick {
+    margin-left: auto;
+    border: none;
+    background: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 2px 6px;
+
+    &:hover {
+      color: var(--bright-red);
+    }
+  }
+}
+
+.add-pick {
+  margin-top: 12px;
+  width: 100%;
+  padding: 9px 0;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  background: none;
+  color: var(--text-secondary);
+  font-weight: var(--fw-semibold);
+  font-size: 0.88rem;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-text);
+  }
+
+  i {
+    margin-right: 6px;
+  }
+}
+
+.modal-error {
+  margin-top: 12px;
+  background: var(--soft-red);
+  color: var(--bright-red);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  font-size: 0.86rem;
+}
+
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+
+  .pick-count {
+    margin-right: auto;
+    font-size: 0.84rem;
+    color: var(--text-muted);
+  }
+
+  .cancel-btn {
+    padding: 9px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--surface-subtle);
+    color: var(--text-secondary);
+    font-weight: var(--fw-medium);
+    cursor: pointer;
+  }
+
+  .run-compare-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 18px;
+    border: none;
+    border-radius: var(--radius-md);
+    background: var(--btn-primary);
+    color: #fff;
+    font-weight: var(--fw-semibold);
+    cursor: pointer;
+
+    &:hover:not(:disabled) {
+      background: var(--btn-primary-hover);
+    }
+
+    &:disabled {
+      opacity: 0.55;
+      cursor: default;
+    }
+  }
+}
+
+// ── Mobile ──────────────────────────────────────────────────────────────────
+
+@media (max-width: 576px) {
+  .customers-container {
+    padding: 16px 10px 40px;
+  }
+
+  .headline-card .headline-value {
+    font-size: 1.6rem;
+  }
+
+  .freq-row {
+    grid-template-columns: 92px minmax(0, 1fr) 42px;
+  }
+}
