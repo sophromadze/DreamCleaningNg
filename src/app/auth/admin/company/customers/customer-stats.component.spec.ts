@@ -49,9 +49,9 @@ describe('CustomerStatsComponent', () => {
     component['buildCards']();
   }
 
-  function compareOn(periods: CustomerStatistics[]): void {
+  function compareOn(periods: CustomerStatistics[], unfinished = false): void {
     component.compareResults = periods.map((stats, i) => ({
-      label: `P${i}`, rangeLabel: '', from: '2026-08-01', to: '2026-08-31', stats
+      label: `P${i}`, rangeLabel: '', from: '2026-08-01', to: '2026-08-31', unfinished, stats
     }));
     component['buildCompareView']();
   }
@@ -115,6 +115,23 @@ describe('CustomerStatsComponent', () => {
       expect(component.compareRows.map(r => r.def.key)).toContain('retentionRate');
     });
 
+    it('uses Simple\'s label for a renamed metric in the comparison rows too', () => {
+      // The override exists to disambiguate from the 90-day metric, which Simple never renders —
+      // so in Simple the qualifier raises a question the view cannot answer, in the table exactly
+      // as on the card.
+      component.viewMode = 'simple';
+      compareOn([makeStats(), makeStats()]);
+      const row = component.compareRows.find(r => r.def.key === 'returningCustomers')!;
+
+      expect(row.label).toBe('Customers who came back');
+      expect(row.def.label).toContain('(any time)'); // the shared label is untouched
+
+      component.viewMode = 'full';
+      component['buildCompareView']();
+      expect(component.compareRows.find(r => r.def.key === 'returningCustomers')!.label)
+        .toContain('(any time)');
+    });
+
     it('switching view rebuilds the comparison without refetching', () => {
       component.viewMode = 'simple';
       compareOn([makeStats(), makeStats()]);
@@ -125,6 +142,53 @@ describe('CustomerStatsComponent', () => {
       expect(component.compareRows.length).toBeGreaterThan(9);
       // The loaded periods are untouched — the toggle is a rendering choice, not a reload.
       expect(component.compareResults.length).toBe(2);
+    });
+  });
+
+  // ── Unfinished compare periods ───────────────────────────────────────────
+  //
+  // A compare column covering a period that has not ended counts cleanings already BOOKED for the
+  // rest of it, so it reads higher than the Simple view of the same month, which stops at today.
+  // Without the marker those two numbers sit on one screen contradicting each other.
+
+  describe('unfinished compare periods', () => {
+    function resolve(pick: { date: string; month: number; year: number }) {
+      return component['resolvePick'](pick);
+    }
+
+    /**
+     * Anchored to dates that are unambiguously past or future rather than to "the current month",
+     * whose end date IS today on the last of the month — a test built on that passes 30 days out
+     * of 31 and fails on the 31st, which is the worst kind of test to own.
+     */
+    const today = new Date();
+    const nextYear = today.getFullYear() + 1;
+    const iso = (d: Date) => component['formatDate'](d);
+    const shift = (days: number) => {
+      const d = new Date(today);
+      d.setDate(d.getDate() + days);
+      return iso(d);
+    };
+
+    const future = { date: shift(30), month: 11, year: nextYear };
+    const past = { date: '2024-03-15', month: 2, year: 2024 };
+
+    it('is decided by the END DATE, not by the unit', () => {
+      // The same rule catches the running month, the running week, the running year and a custom
+      // range ending later today — nothing here is month-specific.
+      (['day', 'week', 'month', 'year'] as const).forEach(unit => {
+        component.compareUnit = unit;
+        expect(resolve(future).unfinished)
+          .withContext(`${unit} in the future`).toBe(true);
+        expect(resolve(past).unfinished)
+          .withContext(`${unit} in the past`).toBe(false);
+      });
+    });
+
+    it('does not mark a period that ends today — nothing about it is still to come', () => {
+      expect(component['endsInFuture'](iso(today))).toBe(false);
+      expect(component['endsInFuture'](shift(-1))).toBe(false);
+      expect(component['endsInFuture'](shift(1))).toBe(true);
     });
   });
 

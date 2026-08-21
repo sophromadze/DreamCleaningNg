@@ -65,12 +65,14 @@
                        s: item.card.suppressed, tid: tooltipId(item.card.def),
                        why: suppressionReason(item.card, item.card.def) }"></ng-container>
         </div>
+        <!-- The delta describes the HEADLINE figure, so it sits directly under it. Below the
+             subline it read as though the subline's number had moved by that much. -->
+        <ng-container *ngTemplateOutlet="deltaBlock; context: { card: item.card }"></ng-container>
         <div class="headline-subline" *ngIf="!isLoading && item.subline">
           <ng-container *ngTemplateOutlet="metricValue;
             context: { v: item.subline.value, f: item.subline.def.format }"></ng-container>
           {{ item.sublineLabel }}
         </div>
-        <ng-container *ngTemplateOutlet="deltaBlock; context: { card: item.card }"></ng-container>
       </div>
 
       <!-- Placeholder keeps the grid shape while the first load resolves. -->
@@ -226,6 +228,10 @@
               <th *ngFor="let r of compareResults">
                 <div class="col-label">{{ r.label }}</div>
                 <div class="col-range" *ngIf="r.rangeLabel">{{ r.rangeLabel }}</div>
+                <!-- Why this column reads higher than the same month on the Simple view, which
+                     stops at today: the period is not over, and cleanings already booked for the
+                     rest of it are counted here. -->
+                <div class="col-unfinished" *ngIf="r.unfinished">includes bookings not yet served</div>
               </th>
             </tr>
           </thead>
@@ -236,7 +242,7 @@
               </tr>
               <tr>
                 <td class="metric-col">
-                  <span class="metric-label">{{ row.def.label }}</span>
+                  <span class="metric-label">{{ row.label }}</span>
                   <span class="metric-hint" *ngIf="row.def.hint && viewMode === 'full'">{{ row.def.hint }}</span>
                 </td>
                 <td *ngFor="let cell of row.cells; let i = index" [class.best]="isBest(row, i)">

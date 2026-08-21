@@ -86,9 +86,12 @@ interface SimpleCardDef {
    */
   sublineLabel?: string;
   /**
-   * Overrides the shared label for this card only. Used for "Customers who came back": Full labels
-   * it "(any time)" to separate it from "Came back within 90 days" sitting nearby, but Simple never
-   * renders the 90-day figure, so the qualifier there would raise a question the view never answers.
+   * Simple's label for this metric, used wherever Simple renders it — the card AND the comparison
+   * rows. Read it through simpleLabel(), never directly.
+   *
+   * Used for "Customers who came back": Full labels it "(any time)" to separate it from "Share who
+   * had booked in the previous 90 days" sitting nearby, but Simple renders no 90-day figure at all,
+   * so the qualifier there would raise a question the view never answers.
    */
   labelOverride?: string;
 }
@@ -142,6 +145,12 @@ interface ComparePeriod {
   rangeLabel: string;
   from: string;
   to: string;
+  /**
+   * The period runs past today, so its column counts cleanings that are booked but not yet served.
+   * That makes it LARGER than the single-period view of the same month, which stops at today — the
+   * subtitle says so, or the two views disagree on the same screen with no visible reason.
+   */
+  unfinished: boolean;
   stats: CustomerStatistics;
 }
 
@@ -153,6 +162,11 @@ interface CompareCell {
 
 interface CompareRow {
   def: MetricDef;
+  /**
+   * Resolved when the row is built rather than read off `def` in the template, because Simple
+   * renames one metric — see simpleLabel().
+   */
+  label: string;
   /** True on the first row of a group — the template prints the section header before it. */
   groupStart: boolean;
   cells: CompareCell[];
@@ -334,16 +348,19 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
     },
 
     {
-      key: 'recentlyActiveRate', label: 'Came back within 90 days', group: 'Retention',
-      format: 'percent', betterWhen: 'high', headline: true,
+      // Both labels say "the previous 90 days" so the pair reads as one idea, and neither can be
+      // taken as forward-looking — this measures who had ALREADY booked, not who will.
+      key: 'recentlyActiveRate', label: 'Share who had booked in the previous 90 days',
+      group: 'Retention', format: 'percent', betterWhen: 'high', headline: true,
       get: s => s.recentlyActiveRate, denominator: s => s.activeCustomers,
-      hint: 'Of the customers served this period, the share who had also booked in the previous 90 days. '
-        + 'Narrower than "Customers who came back", which counts anyone who had ever booked.'
+      hint: 'Narrower than "Customers who came back (any time)", which counts anyone who had ever '
+        + 'booked, however long ago.'
     },
     {
-      key: 'recentlyActiveCustomers', label: 'Customers on a 90-day cadence', group: 'Retention',
-      format: 'count', betterWhen: 'high',
-      get: s => s.recentlyActiveCustomers
+      key: 'recentlyActiveCustomers', label: 'Customers who also booked in the previous 90 days',
+      group: 'Retention', format: 'count', betterWhen: 'high',
+      get: s => s.recentlyActiveCustomers,
+      hint: 'The count behind the share above.'
     },
     {
       key: 'previousActiveCustomers', label: 'Period-over-period: customers in the period before',
@@ -702,7 +719,7 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
         const subline = def.sublineKey ? this.cardByKey.get(def.sublineKey) ?? null : null;
         return {
           card,
-          label: def.labelOverride ?? card.def.label,
+          label: this.simpleLabel(card.def),
           // A suppressed subline is dropped entirely rather than printed as a dash — a dash under
           // a perfectly good headline number reads as an error in the headline number.
           subline: subline && !subline.suppressed ? subline : null,
@@ -734,6 +751,17 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
 
   private isSuppressed(def: MetricDef, s: CustomerStatistics): boolean {
     return def.denominator ? def.denominator(s) < MIN_SAMPLE : false;
+  }
+
+  /**
+   * SIMPLE'S LABEL FOR A METRIC — used wherever Simple renders it, the cards and the comparison
+   * rows alike. `labelOverride` lives on SimpleCardDef because that is where Simple's curation
+   * lives, but it is not a property of the card: reading it only there is what left
+   * "Customers who came back (any time)" in the Simple comparison table, where the 90-day metric
+   * it disambiguates from is not on screen to disambiguate from.
+   */
+  simpleLabel(def: MetricDef): string {
+    return this.simpleCardDefs.find(c => c.key === def.key)?.labelOverride ?? def.label;
   }
 
   /**
@@ -1377,7 +1405,8 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
       // Simple's row list is curated, so its section headers would be noise on a nine-row table.
       const groupStart = this.viewMode === 'full' && def.group !== lastGroup;
       lastGroup = def.group;
-      return { def, groupStart, cells, bestValue };
+      const label = this.viewMode === 'simple' ? this.simpleLabel(def) : def.label;
+      return { def, label, groupStart, cells, bestValue };
     });
   }
 
@@ -1417,8 +1446,16 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Turn a pick into the complete calendar period it means (whole week/month/year). */
+  /**
+   * Turn a pick into the complete calendar period it means (whole week/month/year), and mark it
+   * when that period runs past today — see ComparePeriod.unfinished.
+   */
   private resolvePick(pick: ComparePick): Omit<ComparePeriod, 'stats'> {
+    const period = this.resolvePickRange(pick);
+    return { ...period, unfinished: this.endsInFuture(period.to) };
+  }
+
+  private resolvePickRange(pick: ComparePick): Omit<ComparePeriod, 'stats' | 'unfinished'> {
     switch (this.compareUnit) {
       case 'day': {
         const d = new Date(pick.date + 'T00:00:00');
@@ -1453,6 +1490,22 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
         };
       }
     }
+  }
+
+  /**
+   * Does this period run past today? Deliberately a test on the END DATE rather than on the unit,
+   * so the current week, the current year and a custom range ending later today are all caught by
+   * the same rule as the current month.
+   *
+   * Note such a period is NOT "so far": this tab counts paid Active/Pending orders, so the column
+   * already holds cleanings booked for days that have not happened. It is the period AS BOOKED
+   * TODAY, which is why it reads larger than the single-period view of the same month rather than
+   * smaller.
+   */
+  private endsInFuture(isoDate: string): boolean {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return new Date(isoDate + 'T00:00:00').getTime() > today.getTime();
   }
 
   private addDays(d: Date, days: number): Date {

@@ -70,11 +70,19 @@
     z-index: 1000;
 
     .loading-users,
-    .no-users {
+    .no-users,
+    .search-hint {
       padding: 1.5rem;
       text-align: center;
       color: #666;
       font-size: 0.95rem;
+    }
+
+    // Render-cap footer sits under the last row, so it needs a rule of its own.
+    .search-hint--more {
+      padding: 0.75rem 1.25rem;
+      border-top: 1px solid #f0f0f0;
+      font-size: 0.85rem;
     }
 
     .users-list {
@@ -124,6 +132,25 @@
     }
   }
 
+  // Settle-guard feedback (see USER_LIST_SETTLE_MS). Warning pairing per the design system:
+  // --warning-orange-bg + --warning-orange-text.
+  .click-rejected-warning {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    background: var(--warning-orange-bg);
+    color: var(--warning-orange-text);
+    font-size: 0.9rem;
+    font-weight: 500;
+
+    i {
+      flex-shrink: 0;
+    }
+  }
+
   @media (max-width: 768px) {
     .user-search-input-wrapper {
       .user-search-input {
@@ -164,8 +191,12 @@
     border-color: var(--border-color);
     box-shadow: 0 8px 24px var(--shadow-color);
     .loading-users,
-    .no-users {
+    .no-users,
+    .search-hint {
       color: var(--text-secondary);
+    }
+    .search-hint--more {
+      border-top-color: var(--border-color);
     }
     .users-list .user-item {
       border-bottom-color: var(--border-color);

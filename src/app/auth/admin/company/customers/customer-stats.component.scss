@@ -813,6 +813,19 @@
     color: var(--text-muted);
   }
 
+  // Marks a column whose period has not finished. Set apart from the range rather than blended
+  // into it, because it explains a discrepancy the reader can see between this table and the
+  // single-period view — it is a caveat, not more of the date.
+  .col-unfinished {
+    margin-top: 3px;
+    font-size: 0.72rem;
+    font-weight: var(--fw-medium);
+    font-style: italic;
+    color: var(--soft-yellow-text);
+    white-space: normal;
+    max-width: 150px;
+  }
+
   // With many periods compared the table scrolls sideways, so the metric name stays
   // pinned — otherwise you lose track of which row you're reading.
   .metric-col {

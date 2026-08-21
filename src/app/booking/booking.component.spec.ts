@@ -4,6 +4,7 @@ import { of } from 'rxjs';
 import { BookingComponent } from './booking.component';
 
 import { testProviders } from '../../testing/test-providers';
+import { BookingFormData, FormPersistenceService } from '../services/form-persistence.service';
 
 describe('BookingComponent', () => {
   let component: BookingComponent;
@@ -15,6 +16,10 @@ describe('BookingComponent', () => {
       imports: [BookingComponent]
     })
     .compileComponents();
+
+    // A draft left behind by a previous spec would be picked up (and, if it carries the admin
+    // marker, discarded) by this component's ngOnInit. Start every spec from an empty session.
+    sessionStorage.clear();
 
     fixture = TestBed.createComponent(BookingComponent);
     component = fixture.componentInstance;
@@ -805,6 +810,185 @@ describe('BookingComponent', () => {
         expect(missingLevels.propertyTypeMissing).toBeFalse();
         expect(missingLevels.levelsMissing).toBeTrue();
       });
+    });
+  });
+
+  /**
+   * Regression (2026-08): `isAdminMode` / `selectedTargetUser` are component state and do not
+   * survive a reload, while every form field is persisted and `currentStep` is restored from
+   * `?step=`. A refresh of `/booking?step=3` therefore handed an admin back a fully populated
+   * booking with Admin Mode silently OFF, and Book Now redirected the ADMIN to Stripe to pay
+   * for their customer's cleaning. Such a draft is now discarded outright.
+   */
+  describe('an admin draft is never silently resumed', () => {
+    let persistence: FormPersistenceService;
+
+    beforeEach(() => {
+      persistence = TestBed.inject(FormPersistenceService);
+      persistence.clearFormData();
+    });
+
+    afterEach(() => {
+      persistence.clearFormData();
+    });
+
+    /** Seed a saved draft, then boot a fresh page on top of it (the reload). */
+    function bootOnSavedDraft(data: Partial<BookingFormData>): BookingComponent {
+      persistence.saveFormData(data as BookingFormData);
+      const reloaded = TestBed.createComponent(BookingComponent);
+      reloaded.detectChanges();
+      return reloaded.componentInstance;
+    }
+
+    it('discards a draft written in Admin Mode and tells the admin why', () => {
+      const reloaded = bootOnSavedDraft({
+        wasAdminMode: true,
+        contactFirstName: 'Ann',
+        contactEmail: 'ann@example.com',
+        selectedServiceTypeId: '1'
+      });
+
+      expect(persistence.getFormData()).toBeNull();
+      expect(reloaded.adminDraftDiscarded).toBeTrue();
+      // Nothing of the customer's booking may survive into the admin's own form.
+      expect(reloaded.contactFirstName.value).toBeFalsy();
+      expect(reloaded.contactEmail.value).toBeFalsy();
+      // And the admin starts over rather than landing on an empty step 3.
+      expect(reloaded.currentStep).toBe(1);
+    });
+
+    it('leaves an ordinary customer draft alone', () => {
+      const reloaded = bootOnSavedDraft({
+        contactFirstName: 'Ann',
+        contactEmail: 'ann@example.com',
+        selectedServiceTypeId: '1'
+      });
+
+      expect(persistence.getFormData()).not.toBeNull();
+      expect(reloaded.adminDraftDiscarded).toBeFalse();
+      expect(reloaded.contactFirstName.value).toBe('Ann');
+    });
+
+    it('stamps the marker when admin mode is turned on, and clears it when turned off', () => {
+      persistence.saveFormData({ contactFirstName: 'Ann' } as BookingFormData);
+
+      component.toggleAdminMode();
+      expect(persistence.getFormData()?.wasAdminMode).toBeTrue();
+
+      component.toggleAdminMode();
+      expect(persistence.getFormData()?.wasAdminMode).toBeFalsy();
+    });
+  });
+
+  /**
+   * The submit branch is resolved ONCE, explicitly. Every "shouldn't happen" combination is a
+   * loud stop — never an implicit fall-through to the customer flow, which is what sent the
+   * admin to the Stripe payment page.
+   */
+  describe('submit target resolution', () => {
+    const targetUser = { id: 42, firstName: 'Ann', lastName: 'Lee', email: 'ann@example.com' } as any;
+
+    function resolve(): 'admin-for-user' | 'self' | null {
+      return (component as any).resolveSubmitTarget();
+    }
+
+    beforeEach(() => {
+      TestBed.inject(FormPersistenceService).clearFormData();
+    });
+
+    it('resolves to the customer branch for a plain booking', () => {
+      component.isAdminMode = false;
+      component.selectedTargetUser = null;
+
+      expect(resolve()).toBe('self');
+    });
+
+    it('resolves to the admin branch when admin mode is on with a customer selected', () => {
+      spyOn((component as any).authService, 'isLoggedIn').and.returnValue(true);
+      component.isAdmin = true;
+      component.isAdminMode = true;
+      component.selectedTargetUser = targetUser;
+
+      expect(resolve()).toBe('admin-for-user');
+    });
+
+    it('blocks admin mode with no customer selected', () => {
+      component.isAdminMode = true;
+      component.selectedTargetUser = null;
+
+      expect(resolve()).toBeNull();
+      expect(component.errorMessage).toContain('select a user');
+    });
+
+    it('blocks a selected customer while admin mode is off, instead of booking as the admin', () => {
+      component.isAdminMode = false;
+      component.selectedTargetUser = targetUser;
+
+      expect(resolve()).toBeNull();
+      expect(component.errorMessage).toContain('Admin Mode is off');
+    });
+
+    it('blocks a draft flagged wasAdminMode when admin mode is off', () => {
+      TestBed.inject(FormPersistenceService).saveFormData({ wasAdminMode: true } as BookingFormData);
+      component.isAdminMode = false;
+      component.selectedTargetUser = null;
+
+      expect(resolve()).toBeNull();
+      expect(component.adminDraftDiscarded).toBeTrue();
+      expect(component.errorMessage).toContain('start the booking again');
+    });
+  });
+
+  /**
+   * The admin needs to see, without scrolling back to the top of the page, that Book Now is
+   * about to act on someone else's behalf and what it will do.
+   */
+  describe('submit button label', () => {
+    const targetUser = { id: 42, firstName: 'Ann', lastName: 'Lee', email: 'ann@example.com' } as any;
+
+    it('reads "Book Now" for a customer booking', () => {
+      component.showPollForm = false;
+      component.isAdminMode = false;
+      component.selectedTargetUser = null;
+
+      expect(component.submitButtonLabel).toBe('Book Now');
+    });
+
+    it('reads "Send Payment" for an admin booking paid through Stripe', () => {
+      component.showPollForm = false;
+      component.isAdminMode = true;
+      component.selectedTargetUser = targetUser;
+      component.adminPaymentMethod = 'Normal';
+
+      expect(component.submitButtonLabel).toBe('Send Payment');
+    });
+
+    for (const method of ['Cash', 'Zelle', 'Check', 'Other'] as const) {
+      it('reads "Book for User" for an admin booking paid by ' + method, () => {
+        component.showPollForm = false;
+        component.isAdminMode = true;
+        component.selectedTargetUser = targetUser;
+        component.adminPaymentMethod = method;
+
+        expect(component.submitButtonLabel).toBe('Book for User');
+      });
+    }
+
+    it('reads "Send for Quote" for a poll form, admin mode included', () => {
+      component.showPollForm = true;
+      component.isAdminMode = true;
+      component.selectedTargetUser = targetUser;
+      component.adminPaymentMethod = 'Normal';
+
+      expect(component.submitButtonLabel).toBe('Send for Quote');
+    });
+
+    it('keeps the customer-facing label while admin mode is on but no customer is picked', () => {
+      component.showPollForm = false;
+      component.isAdminMode = true;
+      component.selectedTargetUser = null;
+
+      expect(component.submitButtonLabel).toBe('Book Now');
     });
   });
 });

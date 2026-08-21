@@ -22,6 +22,17 @@
       </div>
     </div>
 
+    <!-- A draft written in Admin Mode was thrown away on load: the admin context behind it does
+         not survive a reload, and resuming it silently would submit the booking as the admin.
+         See discardAdminDraftIfPresent(). -->
+    <div class="admin-draft-discarded" *ngIf="adminDraftDiscarded">
+      <i class="fas fa-triangle-exclamation"></i>
+      <span>
+        Your admin booking session was not restored for safety reasons. Please start the booking
+        again: turn on Admin Mode and re-select the customer.
+      </span>
+    </div>
+
     <!-- Admin User Selector -->
     <div class="admin-user-selector" *ngIf="isAdminMode">
       <div class="user-selector-header">
@@ -100,6 +111,24 @@
          [class.step-3-active]="currentStep === 3 && !showPollForm">
       <!-- Left Side - Service Selection -->
       <div class="booking-form">
+        <!-- Sticky "who is this for" bar. The Create Booking For User panel sits at the very top
+             of the page, off-screen by step 3 — which is exactly where Book Now lives, and where
+             an admin booked for the wrong customer without noticing (2026-08). -->
+        <div class="admin-target-banner"
+             *ngIf="isAdminMode && selectedTargetUser && currentStep === 3">
+          <i class="fas fa-user-check"></i>
+          <span class="admin-target-banner__text">
+            Booking for
+            <strong>{{ selectedTargetUser.firstName }} {{ selectedTargetUser.lastName }}</strong>
+            <span class="admin-target-banner__meta">
+              {{ selectedTargetUser.isNoEmailUser ? 'No email' : selectedTargetUser.email }} · ID {{ selectedTargetUser.id }}
+            </span>
+          </span>
+          <span class="admin-target-banner__method">
+            {{ adminPaymentMethod === 'Normal' ? 'Payment request' : adminPaymentMethod }}
+          </span>
+        </div>
+
         <div class="booking-form-top" *ngIf="!showPollForm && currentStep === 1">
           <!-- Reorder Section - only when loaded and user has previous orders (no shimmer; guests and users without orders don't see it) -->
           <app-reorder-section
@@ -1714,7 +1743,7 @@
               [disabled]="isLoading"
               [class.disabled]="!isFormValid() || isLoading"
               (click)="onSubmit()">
-              {{ isLoading ? 'Processing...' : (showPollForm ? 'Send for Quote' : 'Book Now') }}
+              {{ isLoading ? 'Processing...' : submitButtonLabel }}
             </button>
           </div>
         </div>

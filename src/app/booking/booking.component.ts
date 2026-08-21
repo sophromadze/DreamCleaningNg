@@ -108,6 +108,13 @@ interface SelectedExtraService {
   hours: number;
 }
 
+/**
+ * Who a Book Now click creates the order for. Resolved exactly once, by resolveSubmitTarget().
+ * There is deliberately no "unknown" member — an unresolvable target returns null and aborts the
+ * submit, so the payment redirect can never be reached by falling through.
+ */
+type BookingSubmitTarget = 'admin-for-user' | 'self';
+
 @Component({
   selector: 'app-booking',
   standalone: true,
@@ -470,6 +477,9 @@ export class BookingComponent implements OnInit, OnDestroy {
   adminPaymentReference = '';
   adminPaymentNotes = '';
 
+  /** Set by discardAdminDraftIfPresent() — drives the "session was not restored" banner. */
+  adminDraftDiscarded = false;
+
   constructor(
     private fb: FormBuilder,
     private bookingService: BookingService,
@@ -569,7 +579,10 @@ export class BookingComponent implements OnInit, OnDestroy {
 
     // Only run initialization in browser environment
     if (!this.isBrowser) return;
-    
+
+    // MUST run before anything reads the saved draft (loadSavedFormData / applyServiceTypes).
+    this.discardAdminDraftIfPresent();
+
     // Check same day service availability
     this.checkSameDayServiceAvailability();
     
@@ -801,6 +814,50 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (!this.customDuration.value) {
       this.customDuration.patchValue(60);
     }
+  }
+
+  /**
+   * Throws away a saved draft that was written in Admin Mode, and says so on screen.
+   *
+   * `isAdminMode` / `selectedTargetUser` are component state and do NOT survive a reload, while
+   * every form field does and `currentStep` is restored from `?step=`. Before this guard, a
+   * refresh of `/booking?step=3` handed the admin back a fully populated booking with Admin Mode
+   * silently OFF — and Book Now then took the customer branch and sent the ADMIN to Stripe to pay
+   * for their customer's cleaning (2026-08 incident).
+   *
+   * Resuming such a draft correctly would mean re-selecting the customer and replaying every
+   * side effect of selectUser() (apartments, subscription, loyalty, offers, points, orders)
+   * WITHOUT clobbering the admin's own contact edits. Discarding is the provably safe option:
+   * the admin loses the draft, never the customer's money.
+   *
+   * Runs before any restore path reads storage, so nothing downstream ever sees the draft.
+   */
+  private discardAdminDraftIfPresent(): void {
+    if (!this.isBrowser) return;
+
+    this.formPersistenceService.loadFormData();
+    const savedData = this.formPersistenceService.getFormData();
+    if (!savedData?.wasAdminMode) return;
+
+    this.formPersistenceService.clearFormData();
+    this.adminDraftDiscarded = true;
+
+    // Start over from the top rather than dropping the admin onto a step-3 form that no longer
+    // has any data behind it.
+    this.currentStep = 1;
+    if (this.route.snapshot.queryParamMap.get('step')) {
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: { step: null },
+        queryParamsHandling: 'merge',
+        replaceUrl: true
+      });
+    }
+
+    console.warn(
+      '[booking] Discarded a saved draft that was created in Admin Mode. Admin context is not ' +
+      'persisted across reloads, so resuming it would have submitted the booking as the admin.'
+    );
   }
 
   private loadSavedFormData() {
@@ -1339,9 +1396,14 @@ export class BookingComponent implements OnInit, OnDestroy {
 
       // Floor Types
       floorTypes: this.floorTypes.length > 0 ? this.floorTypes : undefined,
-      floorTypeOther: this.floorTypeOther || undefined
+      floorTypeOther: this.floorTypeOther || undefined,
+
+      // Marker only — the admin context itself is never persisted. A draft carrying this can
+      // only be discarded on reload, never silently resumed as a customer booking.
+      // See discardAdminDraftIfPresent() and BookingFormData.wasAdminMode.
+      wasAdminMode: this.isAdminMode || undefined
     };
-  
+
     this.formPersistenceService.saveFormData(formData);
     
     // Mark booking as in progress if user is making changes
@@ -3407,6 +3469,100 @@ export class BookingComponent implements OnInit, OnDestroy {
     };
   }
 
+  /**
+   * Who does this booking belong to? Returns null when the answer can't be established, in which
+   * case onSubmit() aborts.
+   *
+   * This exists because the old code asked the question twice — a guard on `isAdminMode` near the
+   * top, then `if (this.isAdminMode && this.selectedTargetUser)` 170 lines later — with an
+   * unguarded `router.navigate(['/booking-confirmation'])` as the implicit else. Any way of
+   * losing admin state between those two points (a reload restoring the form but not the admin
+   * context) sent the admin to Stripe to pay for their customer's booking. Now the branch is
+   * chosen once, explicitly, and every "shouldn't happen" case is a loud stop.
+   */
+  private resolveSubmitTarget(): BookingSubmitTarget | null {
+    if (this.isAdminMode) {
+      if (!this.selectedTargetUser) {
+        this.errorMessage = 'Please select a user to create booking for';
+        this.scrollToFirstError();
+        return null;
+      }
+      // Admins/Moderators don't need to be logged in as themselves, but they need to be authenticated
+      if (!this.authService.isLoggedIn() || !this.isAdmin) {
+        this.errorMessage = 'You must be logged in as an admin or moderator to create bookings for users';
+        return null;
+      }
+      return 'admin-for-user';
+    }
+
+    // Half-present admin context is not a customer booking. Block rather than guess.
+    if (this.selectedTargetUser) {
+      this.errorMessage = 'A customer is selected but Admin Mode is off. Nothing was booked — turn Admin Mode back on, or clear the selected customer.';
+      console.error(
+        '[booking] Blocked submit: selectedTargetUser is set while isAdminMode is false. ' +
+        'This would have created the booking under the admin\'s own account.'
+      );
+      return null;
+    }
+
+    // A draft written in Admin Mode must never be submitted as a customer booking, even if
+    // discardAdminDraftIfPresent() somehow did not run (SSR, a restore path added later).
+    // Belt and braces for the 2026-08 "admin sent to Stripe" incident.
+    if (this.formPersistenceService.getFormData()?.wasAdminMode) {
+      this.errorMessage = 'This booking was started in Admin Mode, which was not restored. Nothing was booked — please start the booking again.';
+      this.adminDraftDiscarded = true;
+      console.error(
+        '[booking] Blocked submit: the saved draft is flagged wasAdminMode but Admin Mode is off.'
+      );
+      return null;
+    }
+
+    return 'self';
+  }
+
+  /**
+   * Reads the target customer and the payment consequence back to the admin before anything is
+   * created. Answers both 2026-08 incidents: a mis-clicked search result shows the wrong name
+   * here, and a lost Admin Mode means this dialog never appears at all.
+   */
+  private confirmAdminBookingTarget(): boolean {
+    if (!this.isBrowser) return true;
+
+    const user = this.selectedTargetUser;
+    if (!user) return false;
+
+    const emailLabel = user.isNoEmailUser ? 'no email on file' : user.email;
+    const methodLabel = this.paymentMethodOptions.find(o => o.value === this.adminPaymentMethod)?.label
+      ?? this.adminPaymentMethod;
+    const paymentLine = this.adminPaymentMethod === 'Normal'
+      ? `Payment: ${methodLabel} — a Pay Now link will be sent to the customer. Nothing is charged to you.`
+      : `Payment: ${methodLabel} — recorded as already paid. The customer gets a booking confirmation only.`;
+
+    return window.confirm(
+      `Create this booking for:\n\n` +
+      `${user.firstName} ${user.lastName}\n` +
+      `${emailLabel}  ·  ID ${user.id}\n\n` +
+      `${paymentLine}`
+    );
+  }
+
+  /**
+   * Submit button text. Admin-mode wording exists so the admin can see, without scrolling back
+   * up, that this booking is going to someone else and what will happen when they click.
+   * Customers only ever see 'Book Now' / 'Send for Quote'.
+   */
+  get submitButtonLabel(): string {
+    // A poll is a quote request, never a payment — it outranks admin mode, matching the order
+    // of the branches in onSubmit().
+    if (this.showPollForm) return 'Send for Quote';
+
+    if (this.isAdminMode && this.selectedTargetUser) {
+      return this.adminPaymentMethod === 'Normal' ? 'Send Payment' : 'Book for User';
+    }
+
+    return 'Book Now';
+  }
+
   onSubmit() {
     if (!this.isFormValid()) {
       // Reveal the property-type / levels errors on a blocked submit too, not only on Continue.
@@ -3419,19 +3575,10 @@ export class BookingComponent implements OnInit, OnDestroy {
       return;
     }
 
-    // Check if admin mode is enabled and user is selected
-    if (this.isAdminMode) {
-      if (!this.selectedTargetUser) {
-        this.errorMessage = 'Please select a user to create booking for';
-        this.scrollToFirstError();
-        return;
-      }
-      // Admins/Moderators don't need to be logged in as themselves, but they need to be authenticated
-      if (!this.authService.isLoggedIn() || !this.isAdmin) {
-        this.errorMessage = 'You must be logged in as an admin or moderator to create bookings for users';
-        return;
-      }
-    }
+    // ONE explicit decision about who this booking belongs to. Never fall through: an
+    // unresolvable target aborts the submit instead of quietly becoming a customer booking.
+    const submitTarget = this.resolveSubmitTarget();
+    if (!submitTarget) return;
 
     // Set form submitted flag
     this.formSubmitted = true;
@@ -3448,7 +3595,13 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.scrollToFirstError();
       return;
     }
-  
+
+    // Last line of defence against booking for the wrong customer: make the admin read the name
+    // back. Only in admin mode — customers are never interrupted.
+    if (submitTarget === 'admin-for-user' && !this.confirmAdminBookingTarget()) {
+      return;
+    }
+
     this.isLoading = true;
     
     // Get form values, including disabled fields
@@ -3594,9 +3747,20 @@ export class BookingComponent implements OnInit, OnDestroy {
     // If admin mode, create booking for target user (unpaid). Phase 1 manual payment fields
     // ride along — for Normal they're effectively no-ops, for Cash/Zelle/Check/Other the
     // backend records the payment and skips the Pay Now reminder.
-    if (this.isAdminMode && this.selectedTargetUser) {
+    if (submitTarget === 'admin-for-user') {
+      const targetUser = this.selectedTargetUser;
+      if (!targetUser) {
+        // Unreachable: resolveSubmitTarget() only returns 'admin-for-user' with a target, and
+        // nothing between there and here is async. Fail loudly anyway — the whole point of this
+        // rewrite is that losing the target can never silently become a self-booking.
+        this.isLoading = false;
+        this.errorMessage = 'The selected customer was lost before the booking was sent. Nothing was booked — please re-select the customer and try again.';
+        console.error('[booking] submitTarget was admin-for-user but selectedTargetUser is null. Submit aborted.');
+        return;
+      }
+
       this.bookingService.createBookingForUser(
-        this.selectedTargetUser.id,
+        targetUser.id,
         bookingData,
         this.adminPaymentMethod,
         this.adminPaymentMethod !== 'Normal' ? this.adminPaymentReference : null,
@@ -3606,8 +3770,13 @@ export class BookingComponent implements OnInit, OnDestroy {
           this.isLoading = false;
           this.errorMessage = '';
           
-          // Show success message
-          alert(`Booking created successfully for ${this.selectedTargetUser?.firstName} ${this.selectedTargetUser?.lastName}. Order ID: ${response.orderId}. The user will see this order in their profile and can pay for it.`);
+          // Show success message. The follow-up sentence has to match what the backend actually
+          // did: Normal leaves the order Pending and sends a Pay Now link, manual methods mark
+          // it Active and send a booking confirmation only.
+          const outcome = this.adminPaymentMethod === 'Normal'
+            ? 'A payment request has been sent to them; the order also appears in their profile.'
+            : `Recorded as paid by ${this.adminPaymentMethod}. They were sent a booking confirmation — no payment request.`;
+          alert(`Booking created successfully for ${targetUser.firstName} ${targetUser.lastName}. Order ID: ${response.orderId}. ${outcome}`);
           
           // Reset form
           this.skipSaveOnDestroy = true;
@@ -4113,10 +4282,30 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  /**
+   * Keep the persisted draft's `wasAdminMode` marker in step with the live toggle.
+   *
+   * Both directions matter. Turning admin mode ON must stamp it immediately, or a reload before
+   * the next field change would restore an admin draft with no marker on it — the exact hole this
+   * whole mechanism closes. Turning it OFF must clear it, or the safety check in
+   * resolveSubmitTarget() would block a perfectly legitimate customer booking made afterwards.
+   */
+  private syncAdminDraftMarker(): void {
+    if (!this.isBrowser) return;
+    const saved = this.formPersistenceService.getFormData();
+    // Nothing persisted yet — saveFormData() stamps it on the first change.
+    if (!saved) return;
+    if (!!saved.wasAdminMode === this.isAdminMode) return;
+    this.formPersistenceService.updateFormData({ wasAdminMode: this.isAdminMode || undefined });
+  }
+
   toggleAdminMode() {
     // Admin mode changes who the order belongs to — drop discounts before anything else.
     this.clearAppliedDiscountsForAccountSwitch();
     this.isAdminMode = !this.isAdminMode;
+    this.syncAdminDraftMarker();
+    // Turning the toggle back on is the admin acknowledging the discarded-draft notice.
+    if (this.isAdminMode) this.adminDraftDiscarded = false;
     // (User search/list loading is owned by AdminUserSearchComponent, which
     // initializes itself when admin mode renders it.)
     if (!this.isAdminMode) {
@@ -4374,7 +4563,10 @@ export class BookingComponent implements OnInit, OnDestroy {
           // Copy tips from previous order but not promo codes, gift cards, or special offers
           tips: normalizeTipAmount(order.tips),
           hasStartedBooking: true,
-          bookingProgress: 'started' as const
+          bookingProgress: 'started' as const,
+          // This call REPLACES the stored draft, so the admin marker has to be re-stamped here
+          // or an admin reorder would write a draft that looks like a customer's.
+          wasAdminMode: this.isAdminMode || undefined
         };
 
         // Save form data

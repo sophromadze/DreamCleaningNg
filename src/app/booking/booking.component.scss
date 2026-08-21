@@ -397,6 +397,79 @@
     }
   }
 
+  // Admin draft was discarded on load (see discardAdminDraftIfPresent). Warning pairing:
+  // --warning-orange-bg + --warning-orange-text.
+  .admin-draft-discarded {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    background-color: var(--warning-orange-bg);
+    color: var(--warning-orange-text);
+    padding: 0.85rem 1rem;
+    border-radius: var(--radius-md);
+    margin-bottom: 1rem;
+    font-family: 'Poppins', sans-serif;
+    font-weight: var(--fw-medium);
+    font-size: 0.9rem;
+    line-height: 1.4;
+
+    i {
+      margin-top: 0.15rem;
+      flex-shrink: 0;
+    }
+  }
+
+  // Sticky "who is this booking for" bar on step 3.
+  .admin-target-banner {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background-color: var(--soft-blue);
+    color: var(--primary-color);
+    padding: 0.7rem 1rem;
+    border-radius: var(--radius-md);
+    margin-bottom: 1rem;
+    font-family: 'Poppins', sans-serif;
+    font-size: 0.9rem;
+    line-height: 1.35;
+
+    i {
+      flex-shrink: 0;
+    }
+
+    &__text {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+
+      strong {
+        font-weight: var(--fw-semibold);
+      }
+    }
+
+    &__meta {
+      font-size: 0.8rem;
+      opacity: 0.85;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    &__method {
+      margin-left: auto;
+      flex-shrink: 0;
+      padding: 0.2rem 0.6rem;
+      border-radius: var(--radius-sm);
+      background-color: var(--surface);
+      font-size: 0.78rem;
+      font-weight: var(--fw-semibold);
+      white-space: nowrap;
+    }
+  }
+
   .blocked-date-warning {
     background-color: #fee2e2;
     color: #991b1b;

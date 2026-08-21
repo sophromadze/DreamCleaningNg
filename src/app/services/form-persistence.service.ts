@@ -71,10 +71,24 @@ export interface BookingFormData {
   
   // Timestamp for when form was saved
   savedAt?: number;
-  
+
   // Booking state tracking
   hasStartedBooking?: boolean;
   bookingProgress?: 'started' | 'in_progress' | 'completed';
+
+  /**
+   * True when this draft was written while the booking page was in Admin Mode ("Create Booking
+   * For User"). The admin context itself (which customer, which payment method) is deliberately
+   * NOT persisted — only this marker is.
+   *
+   * Why: `isAdminMode` and `selectedTargetUser` are component state, while every form field here
+   * survives a reload. A refresh of `/booking?step=3` therefore used to restore a fully filled
+   * admin form with Admin Mode silently OFF, and Book Now fell through to the customer branch —
+   * redirecting the admin to Stripe to pay for their customer's booking. The marker lets the
+   * booking page DISCARD such a draft on load instead of silently resuming it as a customer
+   * booking, and lets onSubmit() refuse one outright if it ever reaches submission.
+   */
+  wasAdminMode?: boolean;
 }
 
 @Injectable({

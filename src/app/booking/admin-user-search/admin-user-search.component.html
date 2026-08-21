@@ -21,13 +21,16 @@
     <div *ngIf="isLoadingUsers" class="loading-users">
       Loading users...
     </div>
-    <div *ngIf="!isLoadingUsers && filteredUsers.length === 0" class="no-users">
+    <div *ngIf="!isLoadingUsers && needsMoreCharacters" class="search-hint">
+      Type at least {{ minSearchChars }} characters to search by name, email, or ID.
+    </div>
+    <div *ngIf="!isLoadingUsers && !needsMoreCharacters && filteredUsers.length === 0" class="no-users">
       No users found
     </div>
     <div class="users-list" *ngIf="!isLoadingUsers && filteredUsers.length > 0">
       <div
         class="user-item"
-        *ngFor="let user of filteredUsers"
+        *ngFor="let user of filteredUsers; trackBy: trackByUserId"
         (click)="selectUser(user)">
         <div class="user-info">
           <strong>{{ user.firstName }} {{ user.lastName }}</strong>
@@ -36,5 +39,17 @@
         </div>
       </div>
     </div>
+    <!-- Render cap: the hidden matches are reported rather than drawn, so the list can never
+         grow large enough to lag behind the keystrokes. -->
+    <div class="search-hint search-hint--more" *ngIf="!isLoadingUsers && hiddenMatchCount > 0">
+      Showing the first {{ maxResults }} of {{ totalMatchCount }} matches — refine your search.
+    </div>
+  </div>
+
+  <!-- Settle guard feedback: the click was swallowed on purpose because the list had just
+       changed under the cursor. See USER_LIST_SETTLE_MS. -->
+  <div class="click-rejected-warning" *ngIf="clickRejected && !selectedUser">
+    <i class="fas fa-triangle-exclamation"></i>
+    <span>The list just updated — please check the name and click again.</span>
   </div>
 </div>
