@@ -400,4 +400,75 @@ describe('OrdersComponent', () => {
         - start.loyalty + start.tax - 10));
     });
   });
+  /**
+   * "This customer has no email address on their account."
+   *
+   * The order's contactEmail is frozen at booking time, so a no-email cash account routinely
+   * owns an order that displays a real-looking address — admins read the skipped email as a bug.
+   * The panel must warn off the ACCOUNT flag, and each send control must state what it really
+   * does: the payment link uses the account address only, while the reminder / updated-payment
+   * mails fall back to the order's own address (resolved server-side).
+   */
+  describe('no account email warning', () => {
+    const orderWith = (extra: any) => ({ id: 5, userId: 9, contactEmail: '', ...extra } as any);
+
+    it('flags the account even when the order carries a real-looking address', () => {
+      component.selectedOrder = orderWith({
+        contactEmail: 'typed.on.order@example.com',
+        customerHasNoAccountEmail: true,
+        customerAccountEmail: null,
+        notificationEmailTarget: 'typed.on.order@example.com'
+      });
+
+      expect(component.customerHasNoAccountEmail).toBe(true);
+      // The reminder path still reaches that address, so the panel names it instead of
+      // claiming nothing can be sent.
+      expect(component.notificationEmailTarget).toBe('typed.on.order@example.com');
+    });
+
+    it('reports no email target at all when neither the order nor the account has one', () => {
+      component.selectedOrder = orderWith({
+        customerHasNoAccountEmail: true,
+        customerAccountEmail: null,
+        notificationEmailTarget: null
+      });
+
+      expect(component.customerHasNoAccountEmail).toBe(true);
+      expect(component.notificationEmailTarget).toBe('');
+    });
+
+    it('opens the payment-link modal with email unchecked for a no-email account', () => {
+      component.selectedOrder = orderWith({ customerHasNoAccountEmail: true });
+
+      component.openSendPaymentLinkModal();
+
+      expect(component.sendPaymentLinkChannels).toEqual({ email: false, sms: true });
+    });
+
+    it('keeps both channels checked for an ordinary account', () => {
+      component.selectedOrder = orderWith({
+        contactEmail: 'real@example.com',
+        customerHasNoAccountEmail: false,
+        customerAccountEmail: 'real@example.com',
+        notificationEmailTarget: 'real@example.com'
+      });
+
+      component.openSendPaymentLinkModal();
+
+      expect(component.sendPaymentLinkChannels).toEqual({ email: true, sms: true });
+      // Account and order agree — nothing to point out.
+      expect(component.differingAccountEmail).toBeNull();
+    });
+
+    it('surfaces an account address that disagrees with the order contact', () => {
+      component.selectedOrder = orderWith({
+        contactEmail: 'old.typo@example.com',
+        customerHasNoAccountEmail: false,
+        customerAccountEmail: 'corrected@example.com',
+        notificationEmailTarget: 'old.typo@example.com'
+      });
+
+      expect(component.differingAccountEmail).toBe('corrected@example.com');
+    });
+  });
 });

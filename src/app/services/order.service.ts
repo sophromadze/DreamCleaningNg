@@ -105,6 +105,16 @@ export interface Order {
   contactLastName: string;
   contactEmail: string;
   contactPhone: string;
+  /** True when the order OWNER'S ACCOUNT has no email address on file (no-email cash customer).
+   *  `contactEmail` above is frozen on the order at booking time and can show a real-looking
+   *  address while this is true — the admin panel warns off THIS flag, never off contactEmail. */
+  customerHasNoAccountEmail?: boolean;
+  /** The owner's real account email, or null when the account has none. Rendered only when it
+   *  differs from `contactEmail`. */
+  customerAccountEmail?: string | null;
+  /** Where a payment reminder / updated-payment mail for this order would actually land (order
+   *  contact email first, account email as the fallback). Null = those can only go by text. */
+  notificationEmailTarget?: string | null;
   serviceAddress: string;
   aptSuite?: string;
   city: string;

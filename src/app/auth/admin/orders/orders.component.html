@@ -471,6 +471,31 @@
                     </span>
                   </div>
 
+                  <!-- The OWNER'S ACCOUNT has no email. Stated right above the send buttons because
+                       the order's own contact email is frozen at booking time and can look perfectly
+                       real — that disagreement is what made a skipped send read as a bug. Each line
+                       says what the action next to it actually does for this customer. -->
+                  <div class="no-account-email-alert" *ngIf="!editingOrder && customerHasNoAccountEmail && userPermissions.permissions.canView">
+                    <div class="alert-title">⚠ This customer has no email address on their account</div>
+                    <p class="alert-line" *ngIf="selectedOrder.contactEmail">
+                      <strong>{{ selectedOrder.contactEmail }}</strong> was typed on this order when it was booked —
+                      it is not saved on the customer's account.
+                    </p>
+                    <ul class="alert-actions">
+                      <li><strong>Send Payment Link</strong> — sends to the account, so this customer can only be texted.</li>
+                      <li><strong>Send Updated Confirmation</strong> — the email is skipped for this customer; the text still goes out.</li>
+                      <li *ngIf="notificationEmailTarget">
+                        <strong>Payment reminder / updated payment</strong> — emails {{ notificationEmailTarget }}, the address on the order.
+                      </li>
+                      <li *ngIf="!notificationEmailTarget">
+                        <strong>Payment reminder / updated payment</strong> — text message only.
+                      </li>
+                    </ul>
+                    <button type="button" class="link-btn" *ngIf="selectedOrder.userId" (click)="openUserInAdmin(selectedOrder.userId)">
+                      Add an email on the customer's account →
+                    </button>
+                  </div>
+
                   <!-- Top actions: assign cleaners / send assignment emails (kept at the top) -->
                   <div class="order-top-actions" *ngIf="!editingOrder && userPermissions.permissions.canView">
                     <button class="action-btn assign-cleaners"
@@ -491,7 +516,9 @@
                             class="action-btn send-payment-link"
                             (click)="openSendPaymentLinkModal()"
                             [disabled]="loadingStates.sendPaymentLink"
-                            title="Re-send the payment link to the customer's current account email/phone">
+                            [title]="customerHasNoAccountEmail
+                              ? 'No email on this account — the payment link can only be texted'
+                              : 'Re-send the payment link to the current account email / phone on file'">
                       {{ loadingStates.sendPaymentLink ? 'Sending…' : 'Send Payment Link' }}
                     </button>
                     <!-- Re-send the booking confirmation with the order's CURRENT details. The
@@ -503,7 +530,9 @@
                             class="action-btn resend-confirmation"
                             (click)="resendConfirmation()"
                             [disabled]="loadingStates.resendingConfirmation"
-                            title="Email and text the customer an updated confirmation showing this order's current date, time and address">
+                            [title]="customerHasNoAccountEmail
+                              ? 'No email on this account — the updated confirmation goes by text message only'
+                              : 'Email and text an updated confirmation showing the current date, time and address'">
                       {{ loadingStates.resendingConfirmation ? 'Sending…' : 'Send Updated Confirmation' }}
                     </button>
                     <!-- Explicit charge of the owner's card on file (unpaid orders only).
@@ -760,6 +789,17 @@
                       <p><strong>User ID:</strong> {{selectedOrder.userId}}</p>
                       <p><strong>Name:</strong> {{selectedOrder.contactFirstName}} {{selectedOrder.contactLastName}}</p>
                       <p><strong>Email:</strong> {{selectedOrder.contactEmail || '— (no email)'}}</p>
+                      <!-- The order's contact email is a snapshot; the ACCOUNT is what the send
+                           paths resolve. Show the difference instead of leaving admins to guess. -->
+                      <p class="account-email-note" *ngIf="customerHasNoAccountEmail">
+                        <span class="tag-chip no-email">No account email</span>
+                        <ng-container *ngIf="selectedOrder.contactEmail">Saved on this order only — the customer's account has no email address.</ng-container>
+                        <ng-container *ngIf="!selectedOrder.contactEmail">The customer's account has no email address either.</ng-container>
+                      </p>
+                      <p class="account-email-note" *ngIf="!customerHasNoAccountEmail && differingAccountEmail">
+                        <span class="tag-chip">Account email</span>
+                        {{ differingAccountEmail }} — the payment link goes here, not to the address above.
+                      </p>
                       <p><strong>Phone:</strong> {{selectedOrder.contactPhone}}</p>
 
                       <!-- Opens the Users tab in a new browser tab with this customer's detail panel expanded -->
@@ -1143,6 +1183,9 @@
                             {{ sendingReminder ? 'Sending...' : 'Send payment reminder' }}
                           </button>
                           <span class="remind-hint">Unpaid: ${{formatCurrency(getUnpaidAdditionalAmount())}}</span>
+                          <span class="remind-hint no-email-hint" *ngIf="customerHasNoAccountEmail && !notificationEmailTarget">
+                            No email on file — this goes by text message only.
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1761,10 +1804,14 @@
         customer's <strong>current account email and phone</strong>, so correct any mistyped
         contact on the user's account first.
       </p>
+      <div class="send-payment-link-note warn" *ngIf="customerHasNoAccountEmail">
+        ⚠ This customer's account has <strong>no email address</strong>, so only the text message can be
+        sent. Add an email on the user's account first if they should receive one.
+      </div>
       <div class="send-payment-link-channels">
-        <label class="checkbox-row">
-          <input type="checkbox" [(ngModel)]="sendPaymentLinkChannels.email">
-          <span>Email</span>
+        <label class="checkbox-row" [class.disabled]="customerHasNoAccountEmail">
+          <input type="checkbox" [(ngModel)]="sendPaymentLinkChannels.email" [disabled]="customerHasNoAccountEmail">
+          <span>Email <em *ngIf="customerHasNoAccountEmail">— none on the account</em></span>
         </label>
         <label class="checkbox-row">
           <input type="checkbox" [(ngModel)]="sendPaymentLinkChannels.sms">

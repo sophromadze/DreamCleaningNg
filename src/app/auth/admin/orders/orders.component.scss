@@ -4103,8 +4103,89 @@ $order-header-mobile: 60px;
       color: var(--text-primary);
 
       input[type="checkbox"] { margin: 0; accent-color: var(--primary-color); }
+
+      // The account has no email — the row stays visible (so the admin sees WHY only the
+      // text is going out) but reads as unavailable rather than merely unchecked.
+      &.disabled {
+        cursor: not-allowed;
+        opacity: 0.65;
+        em { font-style: normal; color: var(--text-muted); }
+      }
     }
   }
+
+  .send-payment-link-note.warn {
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--warning-orange-border);
+    border-radius: var(--radius-md);
+    background: var(--warning-orange-bg);
+    color: var(--warning-orange-text);
+  }
+}
+
+// "This customer has no email address on their account" — sits directly above the send
+// buttons in the order detail panel. Caution-orange (operational warning, not a money
+// action, and nothing is broken): the send simply cannot reach this customer by email.
+.no-account-email-alert {
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--warning-orange-border);
+  border-radius: var(--radius-md);
+  background: var(--warning-orange-bg);
+  color: var(--warning-orange-text);
+  font-size: 0.82rem;
+  line-height: 1.5;
+
+  .alert-title { font-weight: var(--fw-semibold); margin-bottom: 0.35rem; }
+  .alert-line { margin: 0 0 0.4rem; }
+
+  .alert-actions {
+    margin: 0;
+    padding-left: 1.1rem;
+    li { margin-bottom: 0.2rem; }
+  }
+
+  .link-btn {
+    margin-top: 0.5rem;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--warning-orange-text);
+    font-size: 0.8rem;
+    font-weight: var(--fw-semibold);
+    text-decoration: underline;
+    cursor: pointer;
+  }
+}
+
+// Under the Customer Information email line: which address is the ACCOUNT's, and which one
+// only lives on this order. Both cases are informational, so they stay quiet.
+.account-email-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.15rem 0 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+
+  .tag-chip {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: var(--radius-sm);
+    font-size: 0.68rem;
+    font-weight: var(--fw-semibold);
+    background: var(--surface-subtle);
+    color: var(--text-muted);
+
+    &.no-email { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+  }
+}
+
+// Same warning next to the unpaid-additional reminder buttons, which fall back to the
+// order's own contact email and so only lose email when that is empty too.
+.remind-hint.no-email-hint {
+  color: var(--warning-orange-text) !important;
 }
 
 // SuperAdmin re-label control for custom ("Pre-Arranged") orders, in the detail panel.

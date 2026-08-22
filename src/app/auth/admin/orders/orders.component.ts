@@ -2570,10 +2570,43 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  // ── "This customer has no email" ──────────────────────────────────────────────
+  // A no-email account still carries the order's FROZEN contactEmail, which can look
+  // perfectly real — admins read the resulting skipped email as a bug. The three send
+  // paths resolve their address differently, so the panel states each one honestly
+  // rather than showing a single blanket warning:
+  //   • Send Payment Link          → the ACCOUNT email only (backend refuses without one)
+  //   • Send Updated Confirmation  → skips email for a no-email account, texts anyway
+  //   • Payment reminder / updated payment → the order's contactEmail, falling back to
+  //     the account email, so it still emails when the order carries an address.
+
+  /** True when the selected order's owner has no email address on their account. */
+  get customerHasNoAccountEmail(): boolean {
+    return !!this.selectedOrder?.customerHasNoAccountEmail;
+  }
+
+  /** The account email when it DISAGREES with the order's frozen contact email — the exact
+   *  mismatch that makes a send land somewhere the admin did not expect. Null when they
+   *  match, when the account has none, or when it wasn't loaded. */
+  get differingAccountEmail(): string | null {
+    const account = (this.selectedOrder?.customerAccountEmail || '').trim();
+    if (!account) return null;
+    const contact = (this.selectedOrder?.contactEmail || '').trim();
+    return account.toLowerCase() === contact.toLowerCase() ? null : account;
+  }
+
+  /** Address the payment-reminder / updated-payment mails would actually use; '' means those
+   *  can only go by text. Resolved server-side (NoEmailHelper.ResolveOrderNotificationEmail) so
+   *  the panel can never name an address the sender would discard. */
+  get notificationEmailTarget(): string {
+    return (this.selectedOrder?.notificationEmailTarget || '').trim();
+  }
+
   openSendPaymentLinkModal() {
     if (!this.selectedOrder) return;
-    // Reset to both channels checked each time the modal opens.
-    this.sendPaymentLinkChannels = { email: true, sms: true };
+    // Reset to both channels checked each time the modal opens — except email for an account
+    // with no address, where the backend would reject the send outright.
+    this.sendPaymentLinkChannels = { email: !this.customerHasNoAccountEmail, sms: true };
     this.showSendPaymentLinkModal = true;
   }
 
