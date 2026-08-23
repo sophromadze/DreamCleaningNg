@@ -725,14 +725,27 @@ export interface TotalsInput {
   pointsRedeemedDiscount?: number;
   rewardBalanceUsed?: number;
   /**
-   * Custom Pricing only (see {@link splitTaxInclusiveAmount}): the exact tax contained in the
-   * tax-inclusive amount the admin typed, used verbatim so the total matches it to the cent.
+   * The exact tax contained in a tax-inclusive amount an admin typed (see
+   * {@link splitTaxInclusiveAmount}), used verbatim so the total matches what was typed to the
+   * cent. Set by Custom Pricing at booking and by the admin order editor's Total field.
    *
-   * Honoured ONLY while no discount has reduced the subtotal. Once one does, the entered
-   * total no longer describes what is owed, so tax reverts to the normal
-   * `round2(discountedSubTotal × SALES_TAX_RATE)`.
+   * Honoured ONLY while the amount actually being taxed still equals {@link taxOverrideBase}.
+   * Once anything moves it, the typed figure no longer describes what is owed and tax reverts
+   * to `round2(discountedSubTotal × SALES_TAX_RATE)`.
    */
   taxOverride?: number | null;
+  /**
+   * The amount `taxOverride` was split out of. Two callers, two different bases, which is
+   * exactly why this is explicit rather than assumed:
+   *
+   *   - Custom Pricing types a PRE-discount amount, so the base is the subTotal — leave this
+   *     null and it defaults there, and any discount then voids the override.
+   *   - The admin order editor types the POST-discount amount owed, so the base is the
+   *     discounted subtotal and the recorded discounts stay untouched.
+   *
+   * Null means "the subTotal", which is what every pre-existing caller meant.
+   */
+  taxOverrideBase?: number | null;
 }
 
 export interface TotalsResult {
@@ -756,10 +769,16 @@ export function calculateTotals(input: TotalsInput): TotalsResult {
     (input.loyaltyDiscountAmount ?? 0);
   if (discountedSubTotal < 0) discountedSubTotal = 0;
 
-  // The override is only meaningful against the subtotal it was split out of, so any
-  // discount hands the tax back to the standard rate math.
-  const useOverride =
-    input.taxOverride != null && discountedSubTotal === round2(input.subTotal);
+  // The override is only meaningful against the amount it was split out of; once the taxed
+  // amount no longer matches that base, the tax goes back to the rate math.
+  //
+  // Both sides are ROUNDED before comparing because `discountedSubTotal` is a raw subtraction:
+  // 367.40 - 91.85 is 275.55000000000007 in binary floating point, which is not === 275.55, and an
+  // exact comparison silently threw the override away and slipped the charged total by a cent. The
+  // C# mirror uses decimal and is exact, so its Round2 is a no-op — kept there so the two read the
+  // same.
+  const overrideBase = round2(input.taxOverrideBase ?? input.subTotal);
+  const useOverride = input.taxOverride != null && round2(discountedSubTotal) === overrideBase;
 
   const tax = useOverride ? round2(input.taxOverride!) : round2(discountedSubTotal * SALES_TAX_RATE);
   const totalBeforeGiftCard =

@@ -471,4 +471,298 @@ describe('OrdersComponent', () => {
       expect(component.differingAccountEmail).toBe('corrected@example.com');
     });
   });
+
+  /**
+   * Nobody applies an order change without reading it first.
+   *
+   * A regular Admin's edit goes to a SuperAdmin, who reads a table of "field / current / proposed"
+   * rows before approving. Whoever saves DIRECTLY - a SuperAdmin, or an Admin a SuperAdmin has
+   * granted it - now reads the same table before the write happens. One function builds the table
+   * for both, so the two views cannot drift apart.
+   */
+  describe('order edit save confirmation', () => {
+    /** Minimal order-details shape: only the fields the diff reads. */
+    const baseOrder = () => ({
+      id: 42,
+      contactFirstName: 'Ann',
+      contactLastName: 'Lee',
+      contactEmail: 'ann@example.com',
+      contactPhone: '(212) 555-0134',
+      serviceAddress: '5 Main St',
+      city: 'Brooklyn',
+      state: 'New York',
+      zipCode: '11201',
+      serviceDate: '2026-09-01T00:00:00',
+      serviceTime: '09:00:00',
+      totalDuration: 180,
+      maidsCount: 1,
+      status: 'Active',
+      subTotal: 200,
+      tax: 17.75,
+      tips: 0,
+      total: 217.75,
+      discountAmount: 0,
+      services: [],
+      extraServices: []
+    }) as any;
+
+    it('lists only the fields that actually changed, with a signed difference', () => {
+      const changes = component.computeOrderEditChanges(baseOrder(), {
+        contactFirstName: 'Ann',
+        subTotal: 250,
+        total: 267.75
+      } as any);
+
+      const fields = changes.map(c => c.field);
+      expect(fields).toContain('SubTotal');
+      expect(fields).toContain('Total');
+      // Unchanged and unsent fields must never appear, or every save looks like a rewrite.
+      expect(fields).not.toContain('Contact First Name');
+      expect(fields).not.toContain('Status');
+
+      expect(changes.find(c => c.field === 'SubTotal')!.difference).toBe('+50');
+    });
+
+    it('does not report a phone whose only difference is formatting', () => {
+      // The order can hold "(212) 555-0134" while the form always submits 10 digits. Comparing
+      // raw strings flagged a Phone change on every save that touched nothing.
+      const changes = component.computeOrderEditChanges(baseOrder(), { contactPhone: '2125550134' } as any);
+      expect(changes.map(c => c.field)).not.toContain('Phone');
+    });
+
+    /** An Admin with the update permission — canEditOrder's non-SuperAdmin branch. */
+    const asAdmin = (canSaveDirectly: boolean) => {
+      component.userRole = 'Admin';
+      component.isSuperAdmin = false;
+      component.userPermissions = {
+        role: 'Admin',
+        permissions: {
+          canView: true, canCreate: true, canUpdate: true,
+          canDelete: false, canActivate: false, canDeactivate: false
+        }
+      } as any;
+      component.canSaveOrderEditsDirectly = canSaveDirectly;
+      component.selectedOrder = baseOrder();
+      component.editingOrder = true;
+      component.editOrderForm = { ...baseOrder(), subTotal: 250, total: 267.75 } as any;
+    };
+
+    it('holds the save behind the confirmation modal for a granted admin', () => {
+      asAdmin(true);
+
+      component.saveOrderEdit();
+
+      expect(component.showSaveConfirm).toBeTrue();
+      // Still in the editor, nothing sent: the write only happens on confirm.
+      expect(component.savingOrder).toBeFalse();
+      expect(component.editingOrder).toBeTrue();
+      expect(component.saveConfirmChanges.length).toBeGreaterThan(0);
+    });
+
+    it('discards the pending save when the admin goes back to editing', () => {
+      asAdmin(true);
+
+      component.saveOrderEdit();
+      component.closeSaveConfirm();
+
+      expect(component.showSaveConfirm).toBeFalse();
+      expect(component.saveConfirmChanges).toEqual([]);
+      // The form stays open so the admin can adjust rather than retype everything.
+      expect(component.editingOrder).toBeTrue();
+    });
+
+    it('sends an ungranted admin straight to approval without a confirmation step', () => {
+      asAdmin(false);
+
+      component.saveOrderEdit();
+
+      // Their changes are reviewed on the SuperAdmin side; a second review here would be noise.
+      expect(component.showSaveConfirm).toBeFalse();
+      expect(component.savingOrder).toBeTrue();
+    });
+
+    it('always shows the Total row, emphasised, even when nothing moved it', () => {
+      // It is the number the customer pays; a reviewer should never have to infer it from the
+      // row's absence.
+      const changes = component.computeOrderEditChanges(baseOrder(), { specialInstructions: 'Ring twice' } as any);
+
+      const total = changes.find(c => c.field === 'Total');
+      expect(total).toBeTruthy();
+      expect(total!.emphasised).toBeTrue();
+      expect(total!.difference).toBe('—');
+      // Pinned last so it reads as the bottom line.
+      expect(changes[changes.length - 1]).toBe(total!);
+    });
+
+    it('shows the Total delta when the edit moves it', () => {
+      const changes = component.computeOrderEditChanges(baseOrder(), { total: 267.75 } as any);
+
+      const total = changes.find(c => c.field === 'Total')!;
+      expect(total.difference).toBe('+50');
+      expect(total.emphasised).toBeTrue();
+    });
+  });
+
+  /**
+   * Typing a TOTAL instead of a subtotal. The figure is tax-inclusive and post-discount: the
+   * editor splits it, keeps the order's recorded discounts, and derives the subtotal from both —
+   * so the customer pays exactly what was typed and the order still shows why.
+   */
+  describe('editable total', () => {
+    const TYPED = 300.00;
+    const SPLIT_SUBTOTAL = 275.55;
+    const SPLIT_TAX = 24.45;
+
+    /** Mirrors what startEditOrder seeds, INCLUDING the discount snapshot the re-scale needs. */
+    const openEditorOn = (order: any) => {
+      component.selectedOrder = order;
+      component.editingOrder = true;
+      component.editOrderForm = {
+        subTotal: order.subTotal,
+        tax: order.tax,
+        total: order.total,
+        tips: order.tips ?? 0,
+        discountAmount: order.discountAmount ?? 0,
+        subscriptionDiscountAmount: order.subscriptionDiscountAmount ?? 0,
+        loyaltyDiscountAmount: order.loyaltyDiscountAmount ?? 0
+      } as any;
+      component.editOrderFormOriginalSubTotal = order.subTotal;
+      component.editOrderFormOriginalDiscount = order.discountAmount ?? 0;
+      component.editOrderFormOriginalSubscriptionDiscount = order.subscriptionDiscountAmount ?? 0;
+      component.editOrderFormOriginalLoyaltyPercentage = order.loyaltyDiscountPercentage ?? 0;
+      component.editGiftCardAmountToUse = 0;
+      component.editGiftCardOriginalUsed = 0;
+      component.editOrderTaxOverride = null;
+    };
+
+    const plainOrder = (over: any = {}) => ({
+      id: 7, services: [], extraServices: [],
+      subTotal: 200, tax: 17.75, total: 217.75, tips: 0,
+      discountAmount: 0, subscriptionDiscountAmount: 0, loyaltyDiscountAmount: 0,
+      pointsRedeemedDiscount: 0, rewardBalanceUsed: 0,
+      ...over
+    }) as any;
+
+    it('derives the subtotal from a typed total and charges it to the cent', () => {
+      openEditorOn(plainOrder());
+
+      component.editOrderTotalInput = TYPED;
+      component.onEditTotalChange();
+
+      expect(component.editOrderForm.subTotal).toBe(SPLIT_SUBTOTAL);
+      expect(component.editOrderForm.tax).toBe(SPLIT_TAX);
+      expect(component.editOrderForm.total).toBe(TYPED);
+    });
+
+    it('re-scales the discount with the new total, exactly as the SubTotal field does', () => {
+      // $200 order with a $50 (25%) promo. Typing a total must move the promo too, or the order
+      // ends up advertising "25% off" while showing a discount that is no longer 25% of anything.
+      openEditorOn(plainOrder({ subTotal: 200, discountAmount: 50 }));
+
+      component.editOrderTotalInput = TYPED;
+      component.onEditTotalChange();
+
+      expect(component.editOrderForm.discountAmount).toBe(91.85);
+      expect(component.editOrderForm.subTotal).toBe(367.40);
+      // Still 25%, and the customer still pays exactly what was typed.
+      expect(round2(component.editOrderForm.discountAmount! / component.editOrderForm.subTotal!)).toBe(0.25);
+      expect(component.editOrderForm.total).toBe(TYPED);
+    });
+
+    it('adds tips on top of a typed total without disturbing it', () => {
+      openEditorOn(plainOrder({ tips: 40 }));
+      component.editOrderForm.tips = 40;
+
+      component.editOrderTotalInput = TYPED;
+      component.onEditTotalChange();
+
+      expect(component.editOrderForm.tax).toBe(SPLIT_TAX);
+      expect(component.editOrderForm.total).toBe(TYPED + 40);
+      // The input stays tip-free, so what was typed is what is still shown.
+      expect(component.editOrderTotalInput).toBe(TYPED);
+    });
+
+    it('drops the typed total once a discount moves', () => {
+      openEditorOn(plainOrder());
+      component.editOrderTotalInput = TYPED;
+      component.onEditTotalChange();
+      expect(component.editOrderTaxOverride).not.toBeNull();
+
+      component.editOrderForm.discountAmount = 25;
+      component.onEditDiscountChange();
+
+      // The typed figure no longer describes what is owed, so pricing goes back to the rate math.
+      expect(component.editOrderTaxOverride).toBeNull();
+      expect(component.editOrderForm.tax).toBe(round2((SPLIT_SUBTOTAL - 25) * 0.08875));
+    });
+
+    it('drops the typed total when a subtotal is typed instead', () => {
+      openEditorOn(plainOrder());
+      component.editOrderTotalInput = TYPED;
+      component.onEditTotalChange();
+
+      component.editOrderForm.subTotal = 400;
+      component.onEditSubTotalChange();
+
+      expect(component.editOrderTaxOverride).toBeNull();
+      expect(component.editOrderForm.tax).toBe(round2(400 * 0.08875));
+    });
+
+    /**
+     * A real order that could not be edited before this was fixed: $170 subtotal, a $42.50
+     * "Women Day" promo and 1000 bubble points worth $10, paying $128.82. The blocker was the
+     * POINTS, not the discount — points are a fixed grant and invert perfectly.
+     */
+    it('inverts through bubble points, which are a fixed credit', () => {
+      openEditorOn(plainOrder({
+        subTotal: 170, discountAmount: 42.50, pointsRedeemedDiscount: 10
+      }));
+
+      expect(component.canEditTotalDirectly()).toBeTrue();
+
+      // Sanity: the order as it stands reads back as what the panel shows.
+      component.recalculateEditPricing();
+      expect(component.editOrderForm.tax).toBe(11.32);
+      expect(component.editOrderTotalInput).toBe(128.82);
+
+      // Now raise what the customer pays to $150.
+      component.editOrderTotalInput = 150;
+      component.onEditTotalChange();
+
+      // 150 paid + 10 of points = 160 owed; the 25% promo scales with it.
+      expect(component.editOrderForm.subTotal).toBe(195.95);
+      expect(component.editOrderForm.discountAmount).toBe(48.99);
+      expect(component.editOrderForm.tax).toBe(13.04);
+      expect(component.editOrderTotalInput).toBe(150);
+    });
+
+    it('inverts through a reward balance the same way', () => {
+      openEditorOn(plainOrder({ rewardBalanceUsed: 25 }));
+
+      expect(component.canEditTotalDirectly()).toBeTrue();
+
+      component.editOrderTotalInput = 100;
+      component.onEditTotalChange();
+
+      // 100 paid + 25 credit = 125 owed, which is what the tax lives inside.
+      expect(round2(component.editOrderForm.subTotal! + component.editOrderForm.tax!)).toBe(125);
+      expect(component.editOrderTotalInput).toBe(100);
+    });
+
+    it('stays read-only only for a gift card', () => {
+      // A gift card's draw is min(balance, totalBeforeGiftCard) — a function of the subtotal we
+      // would be solving for — so a typed figure has two equally valid readings. Points and
+      // rewards have no such problem.
+      openEditorOn(plainOrder());
+      component.editGiftCardAmountToUse = 30;
+      expect(component.canEditTotalDirectly()).toBeFalse();
+
+      component.editGiftCardAmountToUse = 0;
+      component.editGiftCardOriginalUsed = 30;
+      expect(component.canEditTotalDirectly()).toBeFalse();
+
+      component.editGiftCardOriginalUsed = 0;
+      expect(component.canEditTotalDirectly()).toBeTrue();
+    });
+  });
 });

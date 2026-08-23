@@ -164,6 +164,12 @@ export interface AuditLog {
 
 export interface UserPermissions {
   role: string;
+  /**
+   * True when this user's order edits apply immediately instead of going to a SuperAdmin for
+   * approval. Resolved server-side through Helpers/OrderEditApprovalPolicy so a grant made while
+   * the admin is logged in takes effect on their next page load, not their next login.
+   */
+  canSaveOrderEditsDirectly?: boolean;
   permissions: {
     canView: boolean;
     canCreate: boolean;
@@ -340,6 +346,8 @@ export interface UserAdmin {
   adminNotes?: string | null;
   /** Restricted-admin-page keys this (Admin-role) user has been granted read-only access to. */
   viewablePages?: string[];
+  /** True when a SuperAdmin has granted this Admin direct order-edit saves (no approval step). */
+  canEditOrdersWithoutApproval?: boolean;
   /** True if user has an active connection (on site). */
   isOnline?: boolean;
 
@@ -456,8 +464,18 @@ export interface SuperAdminUpdateOrderDto {
   status?: string | null;
   cancellationReason?: string | null;
   subTotal?: number | null;
+  // Tax and total are sent for the preview/audit trail but NOT applied server-side: the update
+  // path recomputes both through the shared calculator.
   tax?: number | null;
   total?: number | null;
+  /**
+   * Set when the admin typed a TOTAL rather than a subtotal: the exact tax inside that
+   * tax-inclusive figure, so the charged total matches it to the cent. Honoured server-side only
+   * while `taxOverrideBase` still equals the subtotal this order's discounts leave behind.
+   */
+  taxOverride?: number | null;
+  /** The discounted subtotal `taxOverride` was split out of. */
+  taxOverrideBase?: number | null;
   discountAmount?: number | null;
   subscriptionDiscountAmount?: number | null;
   /** Loyalty Discount amount rescaled when subTotal changes during an admin edit.
@@ -1153,27 +1171,39 @@ export class AdminService {
     return this.http.put(`${this.apiUrl}/orders/${orderId}/superadmin-full-update`, dto);
   }
 
+  /**
+   * SuperAdmin-only: grant/revoke a regular Admin the right to save order edits directly, skipping
+   * the pending-edit approval step. Same shape as updateUserViewablePages.
+   */
+  updateUserOrderEditApproval(userId: number, canEditOrdersWithoutApproval: boolean):
+    Observable<{ message: string; canEditOrdersWithoutApproval: boolean }> {
+    return this.http.put<{ message: string; canEditOrdersWithoutApproval: boolean }>(
+      `${this.apiUrl}/users/${userId}/order-edit-approval`,
+      { canEditOrdersWithoutApproval }
+    );
+  }
+
   /** Admin-only: submit proposed order changes for SuperAdmin approval. */
   submitPendingOrderEdit(orderId: number, dto: SuperAdminUpdateOrderDto): Observable<PendingOrderEditListDto> {
     return this.http.post<PendingOrderEditListDto>(`${this.apiUrl}/orders/${orderId}/pending-edit`, dto);
   }
 
-  /** SuperAdmin-only: list pending order edits. */
+  /** Reviewers only (SuperAdmin, or an Admin granted direct saves): list pending order edits. */
   getPendingOrderEdits(): Observable<PendingOrderEditListDto[]> {
     return this.http.get<PendingOrderEditListDto[]>(`${this.apiUrl}/orders/pending-edits`);
   }
 
-  /** SuperAdmin-only: get one pending edit with current order and proposed changes. */
+  /** Reviewers only: get one pending edit with current order and proposed changes. */
   getPendingOrderEditDetail(id: number): Observable<PendingOrderEditDetailDto> {
     return this.http.get<PendingOrderEditDetailDto>(`${this.apiUrl}/orders/pending-edits/${id}`);
   }
 
-  /** SuperAdmin-only: approve and apply a pending order edit. */
+  /** Reviewers only: approve and apply a pending order edit. */
   approvePendingOrderEdit(id: number): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiUrl}/orders/pending-edits/${id}/approve`, {});
   }
 
-  /** SuperAdmin-only: reject a pending order edit. */
+  /** Reviewers only: reject a pending order edit. */
   rejectPendingOrderEdit(id: number, rejectReason?: string): Observable<{ message: string }> {
     return this.http.post<{ message: string }>(`${this.apiUrl}/orders/pending-edits/${id}/reject`, { rejectReason });
   }

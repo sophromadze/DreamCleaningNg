@@ -1288,6 +1288,24 @@
     .diff-val { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
     .diff-val.diff-up { color: var(--fresh-green); }
     .diff-val.diff-down { color: var(--bright-red); }
+
+    // The Total row: always present and deliberately loud, because it is the number the customer
+    // pays and the one a reviewer scans for. --soft-blue / --primary-color is the documented
+    // background+foreground pairing, so it flips correctly with the day/night toggle and needs no
+    // separate dark-mode rule below.
+    tr.change-row-total {
+      background: var(--soft-blue);
+      td { border-bottom: none; padding-top: 0.55rem; padding-bottom: 0.55rem; }
+      .field-name,
+      .current-val,
+      .proposed-val {
+        color: var(--primary-color);
+        font-weight: 800;
+        font-size: 1.02rem;
+      }
+      // Direction still reads green/red — an emphasised row must not hide WHICH way it moved.
+      .diff-val { font-weight: 800; font-size: 1.02rem; }
+    }
   }
   .btn-approve {
     background: #198754;
@@ -2953,6 +2971,11 @@
       .field-name { color: var(--text-primary) !important; }
       .current-val { color: var(--text-secondary) !important; }
       .proposed-val { color: #6ea8fe !important; }
+      // Re-assert the Total row: the three rules above are !important, so without this the
+      // emphasised row would lose its colour in dark mode and read as an ordinary row.
+      tr.change-row-total {
+        .field-name, .current-val, .proposed-val { color: var(--primary-color) !important; }
+      }
     }
     .btn-approve {
       background: #198754;

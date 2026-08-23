@@ -549,6 +549,27 @@
                   </span>
                 </span>
               </ng-container>
+
+              <!-- Order edits: SuperAdmin lets a regular Admin apply order changes themselves
+                   instead of sending each one for approval. They still review the change list
+                   before it is applied - the same table a SuperAdmin approves from. -->
+              <ng-container *ngIf="canManageOrderEditAccess(selectedUser)">
+                <span class="pref-row page-access-head">
+                  <span class="pref-label">Order edits</span>
+                  <span class="pref-hint">Save order changes without SAdmin approval</span>
+                </span>
+                <span class="pref-row">
+                  <span class="pref-label pref-label-sub">Save without approval</span>
+                  <span class="yes-no-toggle">
+                    <span class="yn-btn" [class.active]="isOrderEditGranted(selectedUser)"
+                          (click)="toggleUserOrderEditAccess(selectedUser, true, $event)"
+                          [class.disabled]="togglingOrderEditAccessUserId === selectedUser.id">Yes</span>
+                    <span class="yn-btn" [class.active]="!isOrderEditGranted(selectedUser)"
+                          (click)="toggleUserOrderEditAccess(selectedUser, false, $event)"
+                          [class.disabled]="togglingOrderEditAccessUserId === selectedUser.id">No</span>
+                  </span>
+                </span>
+              </ng-container>
             </div>
           </div>
 

@@ -37,6 +37,7 @@ import {
   STUDIO_PRICE
 } from '../../../shared/pricing/order-pricing.calculator';
 import { buildAdminEditQuoteInput } from '../../../shared/pricing/admin-order-edit.pricing';
+import { solveSubTotalForTypedTotal } from '../../../shared/pricing/admin-total-solve';
 import {
   PROPERTY_TYPE_APARTMENT,
   PROPERTY_TYPE_HOUSE,
@@ -49,6 +50,23 @@ import {
   serviceTypeCollectsPropertyType
 } from '../../../shared/booking/property-type.utils';
 import { buildCustomServiceTypeNameOptions } from '../../../shared/booking/custom-service-type.util';
+// Aliased: the component has a field of the same name holding the resolved answer.
+import { canSaveOrderEditsDirectly as canSaveOrderEditsDirectlyFor } from '../../../shared/order-edit-approval.policy';
+
+/** One row of an order-edit review table (approval modal and save-confirmation modal). */
+export interface OrderEditChange {
+  field: string;
+  current: string;
+  proposed: string;
+  /** Signed numeric delta (proposed - current), or '—' when the field isn't numeric. */
+  difference: string;
+  /**
+   * True for the Total row, which is styled to stand out and is the ONE row emitted even when
+   * nothing changed — it is the number the customer actually pays, so a reviewer should never
+   * have to infer it from its absence.
+   */
+  emphasised?: boolean;
+}
 
 // Extended interface for admin orders with additional properties
 export interface AdminOrderList extends OrderList {
@@ -271,7 +289,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   orderUpdateHistory: OrderUpdateHistory[] = [];
   loadingUpdateHistory = false;
 
-  // Pending order edits (SuperAdmin: list and review; Admin: submit only)
+  // Pending order edits. Reviewed by anyone who may apply an order edit directly (SuperAdmin, or
+  // an Admin granted it); every other Admin only submits them.
   pendingOrderEdits: PendingOrderEditListDto[] = [];
   loadingPendingEdits = false;
   selectedPendingEdit: PendingOrderEditDetailDto | null = null;
@@ -282,6 +301,31 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   extraServiceNamesMap: Map<number, string> = new Map();
   /** Map extraServiceId -> true if extra uses hours (for "(hours/cost)" vs "(qty/cost)" label). */
   extraServiceHasHoursMap: Map<number, boolean> = new Map();
+
+  // Save-confirmation modal — shown to whoever saves an order edit DIRECTLY (SuperAdmin, or an
+  // Admin granted it). It lists the same change rows a SuperAdmin sees when approving another
+  // admin's edit, so nobody applies an order change without reading it first. Admins who still
+  // need approval skip this: their submission is reviewed on the other side.
+  showSaveConfirm = false;
+  /** The DTO built from the open edit form, held until the confirmation is accepted. */
+  pendingSaveDto: SuperAdminUpdateOrderDto | null = null;
+  /** Diff rows computed once when the modal opens, not re-derived per change-detection pass. */
+  saveConfirmChanges: OrderEditChange[] = [];
+
+  // ── Editable Total (tax-inclusive, discount-aware) ──
+  //
+  // The admin can type what the customer should pay instead of working back from a subtotal, the
+  // same way Custom Pricing works at booking. The typed figure is what the CUSTOMER PAYS: tax
+  // included, this order's discounts applied, bubble points / reward balance already deducted,
+  // tips excluded. Only a gift card takes the field read-only — see canEditTotalDirectly.
+  /** What the Total input shows and edits: the tip-free total. Kept in sync by recalculateEditPricing. */
+  editOrderTotalInput: number | null = null;
+  /**
+   * Set only while a typed Total is in force: the exact tax split out of it, plus the discounted
+   * subtotal it was split from. Both travel to the server, which honours the tax only if the base
+   * still matches — so a stale override can never silently mis-price an order.
+   */
+  editOrderTaxOverride: { tax: number; base: number } | null = null;
 
   // SuperAdmin full order edit
   editingOrder = false;
@@ -323,7 +367,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Statistics for SuperAdmin
   isSuperAdmin = false;
-  /** True if user can edit orders: SuperAdmin (direct save) or Admin (submit for approval). */
+  /**
+   * True when this user's order edits are applied on save instead of being sent to a SuperAdmin
+   * for approval — always for SuperAdmins, and for Admins a SuperAdmin has granted it. Resolved
+   * server-side by the permissions endpoint (Helpers/OrderEditApprovalPolicy) so a grant made
+   * mid-session takes effect on the next page load; shared/order-edit-approval.policy.ts is the
+   * client-side mirror used when only a user object is at hand.
+   */
+  canSaveOrderEditsDirectly = false;
+  /** True if user can edit orders: direct save, or Admin submitting for approval. */
   get canEditOrder(): boolean {
     return this.isSuperAdmin || (this.userRole === 'Admin' && this.userPermissions.permissions.canUpdate);
   }
@@ -1440,6 +1492,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         this.userRole = response.role;
         this.userPermissions = response;
         this.isSuperAdmin = response.role === 'SuperAdmin';
+        // Prefer the server's answer; fall back to the shared rule for an older API response that
+        // predates the flag (SuperAdmins still save directly, Admins still submit for approval).
+        this.canSaveOrderEditsDirectly = response.canSaveOrderEditsDirectly
+          ?? canSaveOrderEditsDirectlyFor({ role: response.role });
         // Admins-list for the assigned-admin pill dropdown. Same source the shifts page uses.
         // Endpoint is Admin/SuperAdmin-only — skip for Moderators (avoids a 403) since they
         // can't reassign anyway.
@@ -1479,8 +1535,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           this.orderReminderService.initialize(this.orders);
           if (this.isSuperAdmin) {
             this.calculateStatistics();
-            this.loadPendingOrderEdits();
           }
+          // The review queue follows the direct-save grant, not the role: a granted Admin
+          // reviews colleagues' submissions, but the header statistics stay SuperAdmin-only.
+          this.loadPendingOrderEdits();
           if (this.openOrderId) {
             setTimeout(() => this.viewOrderDetails(this.openOrderId!), 100);
           }
@@ -1766,8 +1824,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selectedOrder = null;
     this.editingOrder = false;
     this.editingPaymentMethod = false;
+    this.resetSaveConfirmState();
     this.resetOrderPhotoState();
     this.resetRefundState();
+  }
+
+  /** Drop an unconfirmed save so it can never be applied to a different order. */
+  private resetSaveConfirmState(): void {
+    this.showSaveConfirm = false;
+    this.pendingSaveDto = null;
+    this.saveConfirmChanges = [];
   }
 
   private resetOrderPhotoState(): void {
@@ -3799,6 +3865,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       })) ?? null
     };
     this.editingOrder = true;
+    // A typed Total belongs to one editing session; recalculateEditPricing below seeds the input.
+    this.editOrderTaxOverride = null;
+    this.editOrderTotalInput = null;
     const parsed = this.parseFloorTypesForEdit(this.selectedOrder.floorTypes, this.selectedOrder.floorTypeOther);
     this.editFloorTypes = parsed.types;
     this.editFloorTypeOther = parsed.otherText;
@@ -3946,6 +4015,107 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * The resulting rule, which is the intended one: the ratio is the authority once the subtotal
    * moves, and a hand-typed discount survives exactly as long as the subtotal does not.
    */
+  /**
+   * Bubble points and reward credit are FIXED amounts already granted on the order, so the field
+   * simply adds them back before splitting — see editCreditsHeldOffTheTotal. Discounts are handled
+   * too, and are not a reason to block anything: they are the whole point of the feature.
+   *
+   * A GIFT CARD is the one exception, because its draw is `min(balance, totalBeforeGiftCard)` —
+   * a function of the very subtotal we would be solving for. Where the balance does not cover the
+   * order that is still invertible, but where it does, "what the customer pays" and "what the
+   * service costs" come apart and a typed figure has two equally valid readings (raise the service
+   * price so the customer pays it, or price the service at it and let the card absorb it). Rather
+   * than guess, the field stays read-only for the gift-card case alone.
+   */
+  canEditTotalDirectly(): boolean {
+    if (!this.editingOrder || !this.selectedOrder) return false;
+    return this.editGiftCardAmountToUse <= 0 && this.editGiftCardOriginalUsed <= 0;
+  }
+
+  /**
+   * Credits subtracted AFTER tax that the Total input therefore hides: bubble points and reward
+   * balance. Both are fixed grants recorded on the order — nothing about them depends on the
+   * total, which is exactly why they can be inverted and a gift card cannot.
+   */
+  private editCreditsHeldOffTheTotal(): number {
+    if (!this.selectedOrder) return 0;
+    return (Number((this.selectedOrder as any).pointsRedeemedDiscount ?? 0) || 0)
+      + (Number((this.selectedOrder as any).rewardBalanceUsed ?? 0) || 0);
+  }
+
+  /**
+   * The admin typed a Total. Treat it as what the CUSTOMER PAYS — tax included, discounts applied,
+   * credits already deducted, tips excluded — and work backwards:
+   *
+   *   typed + credits   -> the amount owed before bubble points / reward balance come off, which
+   *                        is the figure the tax actually lives inside
+   *   solve             -> the subtotal AND the re-scaled discounts behind it
+   *
+   * The discounts scale exactly as they do when the SubTotal field is edited - a 25% promo stays
+   * 25% - which makes the solve circular, so the algebra lives written out in its own module:
+   * shared/pricing/admin-total-solve.ts.
+   *
+   * The split tax rides along as an override because re-deriving it as
+   * `round2(discountedSubTotal × rate)` drifts a cent on roughly one amount in twenty — the same
+   * reason Custom Pricing carries one (see splitTaxInclusiveAmount).
+   */
+  onEditTotalChange(): void {
+    if (!this.editingOrder || !this.canEditTotalDirectly()) return;
+
+    const typed = Number(this.editOrderTotalInput ?? 0) || 0;
+    if (typed <= 0) {
+      // Cleared or zeroed: nothing to hold on to, so hand pricing back to the subtotal.
+      this.editOrderTaxOverride = null;
+      this.editOrderForm.subTotal = 0;
+      this.recalculateEditPricing();
+      return;
+    }
+
+    const solved = solveSubTotalForTypedTotal(
+      round2(typed + this.editCreditsHeldOffTheTotal()),
+      {
+        originalSubTotal: this.editOrderFormOriginalSubTotal,
+        originalDiscount: this.editOrderFormOriginalDiscount,
+        originalSubscriptionDiscount: this.editOrderFormOriginalSubscriptionDiscount,
+        loyaltyPercentage: this.editOrderFormOriginalLoyaltyPercentage
+      },
+      {
+        discountAmount: Number(this.editOrderForm.discountAmount ?? 0) || 0,
+        subscriptionDiscountAmount: Number(this.editOrderForm.subscriptionDiscountAmount ?? 0) || 0,
+        loyaltyDiscountAmount: Number(this.editOrderForm.loyaltyDiscountAmount ?? 0) || 0
+      });
+
+    this.editOrderTaxOverride = { tax: solved.tax, base: solved.discountedSubTotal };
+    this.editOrderForm.subTotal = solved.subTotal;
+    this.editOrderForm.discountAmount = solved.discountAmount;
+    this.editOrderForm.subscriptionDiscountAmount = solved.subscriptionDiscountAmount;
+    this.editOrderForm.loyaltyDiscountAmount = solved.loyaltyDiscountAmount;
+    // Deliberately NOT rederiveDiscountsFromSubTotal: the solve above already scaled them, and
+    // re-scaling from the subtotal it produced would chase its own tail.
+    this.recalculateEditPricing();
+  }
+
+  /**
+   * Anything that moves the subtotal or a discount invalidates a typed Total — the figure no
+   * longer describes what is owed, so pricing goes back to subtotal + rate math. Tips are
+   * excluded on purpose: they sit outside the taxed amount, so they cannot invalidate it.
+   */
+  private clearEditTotalOverride(): void {
+    this.editOrderTaxOverride = null;
+  }
+
+  /** SubTotal input: typing a subtotal is the opposite intent, so it drops a typed Total. */
+  onEditSubTotalChange(): void {
+    this.clearEditTotalOverride();
+    this.recalculateEditPricing(true);
+  }
+
+  /** Discount inputs: they move the amount being taxed, so a typed Total no longer holds. */
+  onEditDiscountChange(): void {
+    this.clearEditTotalOverride();
+    this.recalculateEditPricing();
+  }
+
   recalculateEditPricing(rederiveDiscountsFromSubTotal = false): void {
     if (!this.selectedOrder || !this.editingOrder) return;
 
@@ -3991,7 +4161,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       tips,
       companyDevelopmentTips: companyTips,
       pointsRedeemedDiscount,
-      rewardBalanceUsed
+      rewardBalanceUsed,
+      // Present only while a typed Total is in force. The base is the discounted subtotal it was
+      // split from, so if a discount has moved since, calculateTotals ignores it by itself.
+      taxOverride: this.editOrderTaxOverride?.tax ?? null,
+      taxOverrideBase: this.editOrderTaxOverride?.base ?? null
     });
 
     // Re-resolve the gift card: draw up to min(availableBalance, totalBeforeGiftCard). Falls back
@@ -4004,6 +4178,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.editOrderForm.tax = totals.tax;
     this.editOrderForm.total = round2(Math.max(0,
       totals.totalBeforeGiftCard - giftCardAmountToUse - pointsRedeemedDiscount - rewardBalanceUsed));
+
+    // Mirror the derived figure back into the Total input, so it tracks every other edit and a
+    // typed value round-trips to itself (with no credits, tip-free total === discounted + tax).
+    this.editOrderTotalInput = this.getSummaryTotalWithoutTips();
 
     const base = totals.total - totals.tax - tips - companyTips;
     this.editEstimatedPoints = this.pointsEnabled && this.pointsPerDollar > 0
@@ -4055,6 +4233,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   recalcSubtotalFromServicesAndExtras(): void {
+    // The subtotal is about to be rebuilt from the lines, which is precisely what a typed Total
+    // was overriding.
+    this.clearEditTotalOverride();
     const built = this.buildEditQuote();
 
     if (built) {
@@ -4607,16 +4788,24 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   cancelEditOrder(): void {
     this.editingOrder = false;
+    // Drop any unconfirmed save with the form it was built from, so reopening the editor can
+    // never surface a diff against values that are no longer on screen.
+    this.resetSaveConfirmState();
   }
 
-  /** Pending edits for the currently selected order (for template; avoids arrow fn in template). */
+  /**
+   * Pending edits for the currently selected order (for template; avoids arrow fn in template).
+   * Empty for an admin who cannot review, because the list is never fetched for them.
+   */
   getPendingEditsForSelectedOrder(): PendingOrderEditListDto[] {
     if (!this.selectedOrder) return [];
     return this.pendingOrderEdits.filter(p => p.orderId === this.selectedOrder!.id);
   }
 
   loadPendingOrderEdits(): void {
-    if (!this.isSuperAdmin) return;
+    // Whoever may apply an order edit themselves may also approve one from a colleague; the
+    // endpoint enforces the same rule, so an ungranted admin would just get a 403.
+    if (!this.canSaveOrderEditsDirectly) return;
     this.loadingPendingEdits = true;
     this.adminService.getPendingOrderEdits().subscribe({
       next: (list) => {
@@ -4642,8 +4831,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  /** Load extra service id -> name and hasHours from service types for pending edit diff labels. */
-  private loadExtraServiceNamesForPendingEdit(): void {
+  /**
+   * Load extra service id -> name and hasHours from service types, for the "(new)" / "(removed)"
+   * extra rows and the "(hours/cost)" vs "(qty/cost)" unit label in the approval table. The
+   * save-confirmation table reads the same maps but fills them from the editor's own cache
+   * (hydrateExtraServiceLabelMapsFromCache) so it never waits on a request.
+   */
+  private loadExtraServiceNamesForPendingEdit(done?: () => void): void {
     this.bookingService.getServiceTypes().subscribe({
       next: (types) => {
         const nameMap = new Map<number, string>();
@@ -4657,9 +4851,34 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         this.extraServiceNamesMap = nameMap;
         this.extraServiceHasHoursMap = hasHoursMap;
         this.cdr.detectChanges();
+        done?.();
       },
-      error: () => { this.extraServiceNamesMap = new Map(); this.extraServiceHasHoursMap = new Map(); }
+      error: () => {
+        this.extraServiceNamesMap = new Map();
+        this.extraServiceHasHoursMap = new Map();
+        done?.();
+      }
     });
+  }
+
+  /**
+   * Fill the extra-service label maps from `serviceTypesCache`, which `startEditOrder` has already
+   * populated. Synchronous on purpose: the save-confirmation modal must open on the click, not
+   * after a round trip, and an empty cache only costs us "Extra #17" instead of "Oven Cleaning".
+   */
+  private hydrateExtraServiceLabelMapsFromCache(): void {
+    if (this.extraServiceNamesMap.size > 0) return;
+    const nameMap = new Map<number, string>();
+    const hasHoursMap = new Map<number, boolean>();
+    for (const st of this.serviceTypesCache) {
+      for (const es of st.extraServices ?? []) {
+        if (!nameMap.has(es.id)) nameMap.set(es.id, es.name);
+        if (!hasHoursMap.has(es.id)) hasHoursMap.set(es.id, !!es.hasHours);
+      }
+    }
+    if (nameMap.size === 0) return;
+    this.extraServiceNamesMap = nameMap;
+    this.extraServiceHasHoursMap = hasHoursMap;
   }
 
   closePendingEditDetail(): void {
@@ -4735,13 +4954,26 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return hasCustomServiceMarker || hasNoRegularServices;
   }
 
-  /** Build a list of field-level changes (current vs proposed) for display. */
-  getPendingEditChanges(): { field: string; current: string; proposed: string; difference: string }[] {
+  /** Build a list of field-level changes for a pending edit awaiting SuperAdmin approval. */
+  getPendingEditChanges(): OrderEditChange[] {
     const d = this.selectedPendingEdit;
     if (!d?.currentOrder || !d?.proposedChanges) return [];
-    const cur = d.currentOrder as any;
-    const prop = d.proposedChanges;
-    const changes: { field: string; current: string; proposed: string; difference: string }[] = [];
+    return this.computeOrderEditChanges(d.currentOrder, d.proposedChanges);
+  }
+
+  /**
+   * Field-level diff of an order (as loaded) against a proposed update DTO.
+   *
+   * Shared by the two places an order edit is reviewed before it takes effect: the SuperAdmin
+   * approval modal (proposal loaded from the server) and the save-confirmation modal shown to
+   * whoever saves directly (proposal built from the open edit form). Both read the same rows, so
+   * a granted Admin confirms exactly what a SuperAdmin would have approved.
+   */
+  computeOrderEditChanges(currentOrder: any, proposed: SuperAdminUpdateOrderDto | null | undefined): OrderEditChange[] {
+    if (!currentOrder || !proposed) return [];
+    const cur = currentOrder as any;
+    const prop = proposed;
+    const changes: OrderEditChange[] = [];
     const fmt = (v: any): string => v == null || v === '' ? '—' : String(v);
     // Signed numeric difference (proposed − current). Returns '—' when either side
     // isn't a finite number (text fields like names/addresses) or when there's no change.
@@ -4754,11 +4986,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       return dlt > 0 ? `+${body}` : body;
     };
     const push = (field: string, c: any, p: any) => {
+      // `undefined` on the DTO means the field is not part of this edit (the backend's own rule:
+      // `if (dto.X != null) order.X = dto.X`). Rendering it as a change to '—' would invent
+      // removals the save is not going to perform. Clearing a field sends '' or 0, not undefined.
+      if (p === undefined) return;
       const cv = fmt(c);
       const pv = fmt(p);
       if (cv !== pv) changes.push({ field, current: cv, proposed: pv, difference: fmtDiff(c, p) });
     };
     const pushTime = (field: string, c: any, p: any) => {
+      if (p === undefined) return; // not part of this edit — see `push`
       const cv = this.normalizeTimeToHHmm(c);
       const pv = this.normalizeTimeToHHmm(p);
       if (cv !== pv) changes.push({ field, current: cv || '—', proposed: pv || '—', difference: '—' });
@@ -4766,7 +5003,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     push('Contact First Name', cur.contactFirstName, prop.contactFirstName);
     push('Contact Last Name', cur.contactLastName, prop.contactLastName);
     push('Email', cur.contactEmail, prop.contactEmail);
-    push('Phone', cur.contactPhone, prop.contactPhone);
+    // Both sides normalized: the form and the DTO always carry 10 digits, but a legacy order
+    // can still hold a formatted number - a formatting difference is not a change.
+    push('Phone', normalizePhone10(cur.contactPhone) ?? cur.contactPhone, normalizePhone10(prop.contactPhone) ?? prop.contactPhone);
     push('Address', cur.serviceAddress, prop.serviceAddress);
     push('Apt/Suite', cur.aptSuite, prop.aptSuite);
     push('City', cur.city, prop.city);
@@ -4781,7 +5020,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     };
     const curDate = dateOnly(cur.serviceDate);
     const propDate = dateOnly(prop.serviceDate);
-    if (curDate !== propDate) changes.push({ field: 'Service Date', current: curDate || '—', proposed: propDate || '—', difference: '—' });
+    if (prop.serviceDate !== undefined && curDate !== propDate) {
+      changes.push({ field: 'Service Date', current: curDate || '—', proposed: propDate || '—', difference: '—' });
+    }
     pushTime('Service Time', cur.serviceTime, prop.serviceTime);
     push('Duration (min)', cur.totalDuration, prop.totalDuration);
     push('Maids', cur.maidsCount, prop.maidsCount);
@@ -4805,7 +5046,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     push('SubTotal', cur.subTotal, prop.subTotal);
     push('Tax', cur.tax, prop.tax);
     push('Tips', cur.tips, prop.tips);
-    push('Total', cur.total, prop.total);
+    // Total is deliberately NOT pushed here — it is appended last and unconditionally, so it
+    // always reads as the bottom line of the table.
     push('Discount', cur.discountAmount, prop.discountAmount);
     push('Subscription Discount', cur.subscriptionDiscountAmount, prop.subscriptionDiscountAmount);
     push('Status', cur.status, prop.status);
@@ -4888,6 +5130,21 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       const cc = Number(ce.cost);
       changes.push({ field: `${extraLabel} (removed) ${unit}`, current: `(${cVal}/${cc})`, proposed: '—', difference: fmtDiff(cc, 0) });
     }
+
+    // The bottom line, always shown. Every other row is omitted when it did not change; this one
+    // is not, because "what will the customer pay, and by how much did it move" is the question a
+    // reviewer is actually answering, and an absent row makes them go and look it up. An edit that
+    // leaves the total alone says so explicitly, with a '—' difference.
+    const curTotal = cur.total;
+    const propTotal = prop.total !== undefined ? prop.total : cur.total;
+    changes.push({
+      field: 'Total',
+      current: fmt(curTotal),
+      proposed: fmt(propTotal),
+      difference: fmtDiff(curTotal, propTotal),
+      emphasised: true
+    });
+
     return changes;
   }
 
@@ -4900,11 +5157,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.editOrderForm.contactPhone = cleaned;
   }
 
-  saveOrderEdit(): void {
-    if (!this.selectedOrder || !this.canEditOrder || this.savingOrder) return;
-    this.savingOrder = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+  /**
+   * Assemble the update DTO from the open edit form. Pure: it neither sends anything nor touches
+   * component state, so the save-confirmation modal can diff the exact payload that will be sent.
+   */
+  private buildOrderEditDto(): SuperAdminUpdateOrderDto {
     // Custom pricing: totalDuration is per-cleaner minutes (matches booking payload).
     const persistedTotalDuration = this.editOrderForm.totalDuration ?? undefined;
     const dto: SuperAdminUpdateOrderDto = {
@@ -4937,6 +5194,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       subTotal: this.editOrderForm.subTotal ?? undefined,
       tax: this.editOrderForm.tax ?? undefined,
       total: this.editOrderForm.total ?? undefined,
+      // Only present when the admin typed a Total. The server re-checks the base against the
+      // subtotal this order's discounts leave behind before honouring the tax.
+      taxOverride: this.editOrderTaxOverride?.tax ?? undefined,
+      taxOverrideBase: this.editOrderTaxOverride?.base ?? undefined,
       discountAmount: this.editOrderForm.discountAmount ?? undefined,
       subscriptionDiscountAmount: this.editOrderForm.subscriptionDiscountAmount ?? undefined,
       // Loyalty Discount: persist the rescaled $ amount. Backend leaves the original
@@ -4969,36 +5230,80 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         return { orderExtraServiceId: 0, extraServiceId, quantity, hours, cost };
       }).filter((x): x is NonNullable<typeof x> => x != null)
     };
+    return dto;
+  }
 
-    if (this.isSuperAdmin) {
-      this.adminService.superAdminFullUpdateOrder(this.selectedOrder.id, dto).subscribe({
-        next: () => {
-          this.successMessage = 'Order updated successfully. All changes are recorded in Audit logs.';
-          this.editingOrder = false;
-          this.refreshOrderAfterSave();
-          setTimeout(() => { this.successMessage = ''; }, 5000);
-        },
-        error: (err) => {
-          this.errorMessage = err.error?.message || 'Failed to update order.';
-          setTimeout(() => { this.errorMessage = ''; }, 5000);
-        },
-        complete: () => { this.savingOrder = false; }
-      });
-    } else {
-      // Admin: submit for SuperAdmin approval
-      this.adminService.submitPendingOrderEdit(this.selectedOrder.id, dto).subscribe({
-        next: () => {
-          this.successMessage = 'Your changes have been sent to SAdmin for approval. You will see the update once a SAdmin confirms.';
-          this.editingOrder = false;
-          setTimeout(() => { this.successMessage = ''; }, 5000);
-        },
-        error: (err) => {
-          this.errorMessage = err.error?.message || 'Failed to submit edit for approval.';
-          setTimeout(() => { this.errorMessage = ''; }, 5000);
-        },
-        complete: () => { this.savingOrder = false; }
-      });
+  /**
+   * Save button. Whoever applies the edit themselves gets the change list first (same table a
+   * SuperAdmin approves from) and confirms it; an Admin who still needs approval submits straight
+   * away, because their changes are reviewed on the SuperAdmin side.
+   */
+  saveOrderEdit(): void {
+    if (!this.selectedOrder || !this.canEditOrder || this.savingOrder) return;
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    const dto = this.buildOrderEditDto();
+
+    if (!this.canSaveOrderEditsDirectly) {
+      this.savingOrder = true;
+      this.submitOrderEditForApproval(dto);
+      return;
     }
+
+    // Names/units are only needed to label "(new)" and "(removed)" extra rows; they come from the
+    // catalogue the open editor already loaded, so the modal opens on the click.
+    this.hydrateExtraServiceLabelMapsFromCache();
+    this.pendingSaveDto = dto;
+    this.saveConfirmChanges = this.computeOrderEditChanges(this.selectedOrder, dto);
+    this.showSaveConfirm = true;
+  }
+
+  /** Apply the reviewed changes. Only reachable from the save-confirmation modal. */
+  confirmSaveOrderEdit(): void {
+    if (!this.selectedOrder || !this.pendingSaveDto || this.savingOrder) return;
+    const dto = this.pendingSaveDto;
+    this.savingOrder = true;
+    this.adminService.superAdminFullUpdateOrder(this.selectedOrder.id, dto).subscribe({
+      next: () => {
+        this.successMessage = 'Order updated successfully. All changes are recorded in Audit logs.';
+        this.editingOrder = false;
+        this.resetSaveConfirmState();
+        this.refreshOrderAfterSave();
+        setTimeout(() => { this.successMessage = ''; }, 5000);
+      },
+      error: (err) => {
+        // Keep the edit form open with the admin's values intact so they can retry or adjust.
+        this.errorMessage = err.error?.message || 'Failed to update order.';
+        this.resetSaveConfirmState();
+        setTimeout(() => { this.errorMessage = ''; }, 5000);
+      },
+      complete: () => { this.savingOrder = false; }
+    });
+  }
+
+  /** Dismiss the confirmation and return to the still-open edit form with nothing sent. */
+  closeSaveConfirm(): void {
+    if (this.savingOrder) return;
+    this.showSaveConfirm = false;
+    this.pendingSaveDto = null;
+    this.saveConfirmChanges = [];
+  }
+
+  private submitOrderEditForApproval(dto: SuperAdminUpdateOrderDto): void {
+    if (!this.selectedOrder) return;
+    this.adminService.submitPendingOrderEdit(this.selectedOrder.id, dto).subscribe({
+      next: () => {
+        this.successMessage = 'Your changes have been sent to SAdmin for approval. You will see the update once a SAdmin confirms.';
+        this.editingOrder = false;
+        setTimeout(() => { this.successMessage = ''; }, 5000);
+      },
+      error: (err) => {
+        this.errorMessage = err.error?.message || 'Failed to submit edit for approval.';
+        setTimeout(() => { this.errorMessage = ''; }, 5000);
+      },
+      complete: () => { this.savingOrder = false; }
+    });
   }
 
   private refreshOrderAfterSave(): void {

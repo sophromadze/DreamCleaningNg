@@ -1095,6 +1095,60 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     });
   }
 
+  // -- Direct order-edit saves (SuperAdmin -> regular Admin) --
+  //
+  // Separate from the page-view grants above because this one grants a WRITE: a granted Admin
+  // applies order edits immediately (still reviewing the change list first) instead of sending
+  // them to a SuperAdmin. Rule: shared/order-edit-approval.policy.ts.
+
+  /** Same audience as the page grants: a SuperAdmin looking at a regular Admin. */
+  canManageOrderEditAccess(user: DetailedUser | UserAdmin | null): boolean {
+    return this.canManagePageAccess(user);
+  }
+
+  isOrderEditGranted(user: DetailedUser | UserAdmin | null): boolean {
+    return !!user && !!user.canEditOrdersWithoutApproval;
+  }
+
+  togglingOrderEditAccessUserId: number | null = null;
+
+  toggleUserOrderEditAccess(user: DetailedUser | UserAdmin, granted: boolean, event?: Event) {
+    event?.stopPropagation();
+    if (!this.canManageOrderEditAccess(user)) return;
+    if (this.isOrderEditGranted(user) === granted) return;
+
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    const original = !!user.canEditOrdersWithoutApproval;
+
+    // Optimistic update on both the row and the open panel copy (same as the page grants).
+    user.canEditOrdersWithoutApproval = granted;
+    if (this.selectedUser && this.selectedUser.id === user.id) {
+      this.selectedUser.canEditOrdersWithoutApproval = granted;
+    }
+    this.togglingOrderEditAccessUserId = user.id;
+
+    this.adminService.updateUserOrderEditApproval(user.id, granted).subscribe({
+      next: (res) => {
+        this.togglingOrderEditAccessUserId = null;
+        user.canEditOrdersWithoutApproval = res.canEditOrdersWithoutApproval;
+        if (this.selectedUser && this.selectedUser.id === user.id) {
+          this.selectedUser.canEditOrdersWithoutApproval = res.canEditOrdersWithoutApproval;
+        }
+      },
+      error: (error) => {
+        this.togglingOrderEditAccessUserId = null;
+        user.canEditOrdersWithoutApproval = original;
+        if (this.selectedUser && this.selectedUser.id === user.id) {
+          this.selectedUser.canEditOrdersWithoutApproval = original;
+        }
+        this.errorMessage = error.error?.message || 'Failed to update order edit access.';
+        setTimeout(() => this.errorMessage = '', 4000);
+      }
+    });
+  }
+
   updateUserStatus(user: UserAdmin, isActive: boolean) {
     this.errorMessage = '';
     this.successMessage = '';

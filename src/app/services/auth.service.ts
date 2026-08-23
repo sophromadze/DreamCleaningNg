@@ -28,6 +28,8 @@ export interface UserDto {
   isEmailVerified?: boolean;
   /** Restricted-admin-page keys this Admin has been granted read-only access to (see admin-viewable-pages.ts). */
   viewablePages?: string[];
+  /** True when a SuperAdmin has granted this Admin direct order-edit saves (see order-edit-approval.policy.ts). */
+  canEditOrdersWithoutApproval?: boolean;
 }
 
 interface AuthResponse {

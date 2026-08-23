@@ -45,8 +45,9 @@
     </div>
   </div>
 
-  <!-- SuperAdmin: Global list of pending order edits (admin-submitted, awaiting confirmation) -->
-  <div *ngIf="isSuperAdmin && !loadingStates.orders && pendingOrderEdits.length > 0" class="pending-edits-global">
+  <!-- Reviewers (SuperAdmin, or an Admin granted direct saves): global list of pending order
+       edits submitted by admins who still need approval. -->
+  <div *ngIf="canSaveOrderEditsDirectly && !loadingStates.orders && pendingOrderEdits.length > 0" class="pending-edits-global">
     <h4><i class="fas fa-clock"></i> Pending order edits ({{ pendingOrderEdits.length }}) — confirm or reject</h4>
     <div class="pending-edits-list">
       <div *ngFor="let pe of pendingOrderEdits" class="pending-edit-row">
@@ -344,12 +345,13 @@
                 (click)="startEditOrder()">
           Edit
         </button>
-        <!-- Edit mode: Save (left) + Discard -->
+        <!-- Edit mode: Save (left) + Discard. A direct save opens the review modal first, so the
+             label promises a review rather than an immediate write. -->
         <button class="action-btn small save"
                 *ngIf="canEditOrder && editingOrder"
                 (click)="saveOrderEdit()"
                 [disabled]="savingOrder">
-          {{ savingOrder ? 'Saving…' : (isSuperAdmin ? 'Save' : 'Send for approval') }}
+          {{ savingOrder ? 'Saving…' : (canSaveOrderEditsDirectly ? 'Review & save' : 'Send for approval') }}
         </button>
         <button class="action-btn small discard"
                 *ngIf="canEditOrder && editingOrder"
@@ -622,14 +624,14 @@
                         <!-- Typing a subtotal MOVES the subtotal, so the discounts re-scale (same rule as a
                              quantity change). The Discount / Subscription Discount inputs below deliberately
                              do not, or they would overwrite what the admin is typing into them. -->
-                        <div class="edit-row"><label>SubTotal</label><input type="number" step="1" [(ngModel)]="editOrderForm.subTotal" (ngModelChange)="recalculateEditPricing(true)"></div>
+                        <div class="edit-row"><label>SubTotal</label><input type="number" step="1" [(ngModel)]="editOrderForm.subTotal" (ngModelChange)="onEditSubTotalChange()"></div>
                         <div class="edit-row"><label>Tax</label><input type="number" step="1" [(ngModel)]="editOrderForm.tax" readonly></div>
                         <div class="edit-row"><label>Tips</label><input type="number" step="1" [(ngModel)]="editOrderForm.tips" (ngModelChange)="recalculateEditPricing()"></div>
                         <!-- Company Tips is RETIRED: no form field, no editOrderForm entry, and it is
                              no longer sent on save. The stored value on a legacy order is read-only
                              (see legacyCompanyDevelopmentTips) and the backend preserves it. -->
-                        <div class="edit-row"><label>Discount (promo/special)</label><input type="number" step="1" [(ngModel)]="editOrderForm.discountAmount" (ngModelChange)="recalculateEditPricing()"></div>
-                        <div class="edit-row"><label>Subscription Discount</label><input type="number" step="1" [(ngModel)]="editOrderForm.subscriptionDiscountAmount" (ngModelChange)="recalculateEditPricing()"></div>
+                        <div class="edit-row"><label>Discount (promo/special)</label><input type="number" step="1" [(ngModel)]="editOrderForm.discountAmount" (ngModelChange)="onEditDiscountChange()"></div>
+                        <div class="edit-row"><label>Subscription Discount</label><input type="number" step="1" [(ngModel)]="editOrderForm.subscriptionDiscountAmount" (ngModelChange)="onEditDiscountChange()"></div>
                         <!-- Loyalty Discount in admin edit: read-only display because the $ amount
                              is mechanically derived from the locked percentage × current subtotal.
                              To change the underlying percentage admin uses the Account section on
@@ -652,10 +654,24 @@
                           <label>Gift Card{{ editGiftCardAvailableBalance > 0 ? ' (bal. $' + (editGiftCardAvailableBalance - editGiftCardAmountToUse).toFixed(2) + ' left)' : '' }}</label>
                           <input type="number" [value]="editGiftCardAmountToUse.toFixed(2)" readonly>
                         </div>
-                        <!-- Displayed tip-free so it matches the summary bar's Total. The value
-                             PERSISTED on save is still editOrderForm.total (which includes tips);
-                             this input is a read-only projection of it, not a binding. -->
-                        <div class="edit-row"><label>Total</label><input type="number" step="1" [value]="getSummaryTotalWithoutTips()" readonly></div>
+                        <!-- Editable: type what the CUSTOMER PAYS - tax included, this order's
+                             discounts applied, bubble points / reward balance already deducted -
+                             and the SubTotal above is derived from it with the discounts left
+                             intact (onEditTotalChange). Tip-free so it matches the summary bar; the
+                             value PERSISTED on save is still editOrderForm.total, which includes
+                             tips. Only a gift card takes it read-only - see canEditTotalDirectly. -->
+                        <div class="edit-row edit-row--total">
+                          <label>Total</label>
+                          <input type="number" step="1" min="0"
+                                 *ngIf="canEditTotalDirectly()"
+                                 [(ngModel)]="editOrderTotalInput"
+                                 (ngModelChange)="onEditTotalChange()"
+                                 title="What the customer pays: tax included, discounts and any points/reward credit applied. SubTotal and Tax are derived from this.">
+                          <input type="number" step="1"
+                                 *ngIf="!canEditTotalDirectly()"
+                                 [value]="getSummaryTotalWithoutTips()" readonly
+                                 title="Not editable while a gift card applies: the card's draw depends on the total itself, so a typed figure would be ambiguous.">
+                        </div>
                         <div class="edit-row edit-row--pts-preview" *ngIf="pointsEnabled && editEstimatedPoints > 0">
                           <label>🫧 Est. Points Earned</label>
                           <span class="pts-preview-val">~{{ editEstimatedPoints | number }} pts</span>
@@ -773,8 +789,8 @@
                     </div>
                   </div>
 
-                  <!-- SuperAdmin: Pending edits for this order (quick link) -->
-                  <div *ngIf="isSuperAdmin && !editingOrder && getPendingEditsForSelectedOrder().length > 0" class="pending-edits-inline">
+                  <!-- Reviewers only: pending edits for this order (quick link) -->
+                  <div *ngIf="canSaveOrderEditsDirectly && !editingOrder && getPendingEditsForSelectedOrder().length > 0" class="pending-edits-inline">
                     <h5>Pending edit(s) for this order</h5>
                     <div *ngFor="let pe of getPendingEditsForSelectedOrder()" class="pending-item">
                       <span class="pending-by">{{ pe.requestedByName }} at {{ formatUtcDateTime(pe.requestedAt) }}</span>
@@ -1456,7 +1472,7 @@
             <tr><th>Field</th><th>Current</th><th>Proposed</th><th>Difference</th></tr>
           </thead>
           <tbody>
-            <tr *ngFor="let ch of getPendingEditChanges()">
+            <tr *ngFor="let ch of getPendingEditChanges()" [class.change-row-total]="ch.emphasised">
               <td class="field-name">{{ ch.field }}</td>
               <td class="current-val">{{ ch.current }}</td>
               <td class="proposed-val">{{ ch.proposed }}</td>
@@ -1476,6 +1492,47 @@
         {{ rejectingPendingId === selectedPendingEdit.id ? 'Rejecting...' : 'Reject' }}
       </button>
       <button class="action-btn btn-close" (click)="closePendingEditDetail()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Save-confirmation modal: shown to whoever applies an order edit directly (SuperAdmin, or an
+     Admin granted direct saves). Deliberately the same change table as the approval modal above,
+     so a granted Admin confirms exactly what a SuperAdmin would have approved. -->
+<div class="modal-overlay pending-edit-modal-overlay" *ngIf="showSaveConfirm" (click)="closeSaveConfirm()">
+  <div class="modal-content pending-edit-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Confirm changes — Order #{{ selectedOrder?.id }}</h3>
+      <button class="close-btn" (click)="closeSaveConfirm()" [disabled]="savingOrder">×</button>
+    </div>
+    <div class="modal-body">
+      <p class="pending-edit-hint">Review every change below. Saving applies them to the order immediately.</p>
+      <div *ngIf="saveConfirmChanges.length === 0" class="no-changes">Nothing has changed — there is nothing to save.</div>
+      <div *ngIf="saveConfirmChanges.length > 0" class="pending-edit-changes">
+        <table class="changes-table">
+          <thead>
+            <tr><th>Field</th><th>Current</th><th>New</th><th>Difference</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let ch of saveConfirmChanges" [class.change-row-total]="ch.emphasised">
+              <td class="field-name">{{ ch.field }}</td>
+              <td class="current-val">{{ ch.current }}</td>
+              <td class="proposed-val">{{ ch.proposed }}</td>
+              <td class="diff-val"
+                  [class.diff-up]="ch.difference.charAt(0) === '+'"
+                  [class.diff-down]="ch.difference.charAt(0) === '-'">{{ ch.difference }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="action-btn btn-approve"
+              (click)="confirmSaveOrderEdit()"
+              [disabled]="savingOrder || saveConfirmChanges.length === 0">
+        {{ savingOrder ? 'Saving…' : 'Save changes' }}
+      </button>
+      <button class="action-btn btn-close" (click)="closeSaveConfirm()" [disabled]="savingOrder">Back to editing</button>
     </div>
   </div>
 </div>
