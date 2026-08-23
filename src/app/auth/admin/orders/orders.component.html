@@ -185,9 +185,11 @@
               <td>{{order.city || '—'}}</td>
               <td class="amount">$ {{formatCurrency(getOrderTotalWithoutTips(order))}}</td>
               <td>
-                <!-- Phase 1: shows "DoneM" suffix for orders marked Done with a non-Stripe
-                     payment method. Reuses the existing status-done class for color. -->
-                <span class="status-badge" [ngClass]="getStatusClass(order.status)">
+                <!-- Labels are DERIVED, never stored: "DoneM" for a Done order paid by a
+                     non-Stripe method, "RefundH" for a partially refunded one. RefundH replaces
+                     the real status here, so the tooltip carries it. -->
+                <span class="status-badge" [ngClass]="getStatusClass(order)"
+                      [title]="getStatusTitle(order)">
                   {{ getStatusDisplayLabel(order) }}
                 </span>
               </td>

@@ -836,4 +836,74 @@ describe('OrdersComponent', () => {
       expect(save).not.toHaveBeenCalled();
     });
   });
+/**
+   * The status column shows PRESENT-TENSE verbs and one derived label the database never holds.
+   * The whole point is that nothing is stored: order #264 was cancelled and then refunded
+   * $250.91 of $320.91 (the $70 cancellation fee retained), and it must read RefundH while
+   * Order.Status stays "Cancelled" — otherwise OrderBookedFilter.IsRealBooking,
+   * OrderStatuses.CanBeHidden/WasPerformed and the statistics grouping all change meaning.
+   */
+  describe('status column labels', () => {
+    const order = (over: any = {}) => ({
+      id: 264, status: 'Cancelled', paymentMethod: 'Normal', totalRefundedAmount: 0, ...over
+    }) as any;
+
+    it('renders present-tense verbs without touching the stored status', () => {
+      const cancelled = order();
+      const refunded = order({ status: 'Refunded', totalRefundedAmount: 320.91 });
+
+      expect(component.getStatusDisplayLabel(cancelled)).toBe('Cancel');
+      expect(component.getStatusDisplayLabel(refunded)).toBe('Refund');
+      // The stored values are untouched — every backend predicate still keys off these.
+      expect(cancelled.status).toBe('Cancelled');
+      expect(refunded.status).toBe('Refunded');
+    });
+
+    it('leaves the other statuses alone', () => {
+      expect(component.getStatusDisplayLabel(order({ status: 'Pending' }))).toBe('Pending');
+      expect(component.getStatusDisplayLabel(order({ status: 'Active' }))).toBe('Active');
+      expect(component.getStatusDisplayLabel(order({ status: 'Done' }))).toBe('Done');
+    });
+
+    it('shows RefundH for a cancelled order with the fee retained (order #264)', () => {
+      const o = order({ totalRefundedAmount: 250.91 });
+
+      expect(component.isPartiallyRefunded(o)).toBeTrue();
+      expect(component.getStatusDisplayLabel(o)).toBe('RefundH');
+      expect(component.getStatusClass(o)).toBe('status-refund-partial');
+      // RefundH hides the real status, so the tooltip has to name it.
+      expect(component.getStatusTitle(o)).toContain('Cancelled');
+      expect(component.getStatusTitle(o)).toContain('250.91');
+    });
+
+    it('does NOT treat a fully refunded order as partial', () => {
+      // The backend flips Status to Refunded in exactly one place, and exactly when the refund
+      // clears the charge — so the status IS the full-vs-partial test. Comparing amounts here
+      // would misread an order whose total moved after the charge settled.
+      const o = order({ status: 'Refunded', totalRefundedAmount: 320.91 });
+
+      expect(component.isPartiallyRefunded(o)).toBeFalse();
+      expect(component.getStatusDisplayLabel(o)).toBe('Refund');
+      expect(component.getStatusClass(o)).toBe('status-cancelled status-refunded');
+      expect(component.getStatusTitle(o)).toBe('');
+    });
+
+    it('keeps DoneM for manually paid Done orders', () => {
+      expect(component.getStatusDisplayLabel(order({ status: 'Done', paymentMethod: 'Cash' })))
+        .toBe('DoneM');
+    });
+
+    it('lets RefundH outrank DoneM when a manually paid Done order is part-refunded', () => {
+      const o = order({ status: 'Done', paymentMethod: 'Cash', totalRefundedAmount: 40 });
+
+      expect(component.getStatusDisplayLabel(o)).toBe('RefundH');
+      expect(component.getStatusTitle(o)).toContain('Done');
+    });
+
+    it('ignores an order with no refund recorded', () => {
+      expect(component.isPartiallyRefunded(order({ status: 'Active' }))).toBeFalse();
+      expect(component.isPartiallyRefunded(order({ status: 'Active', totalRefundedAmount: undefined })))
+        .toBeFalse();
+    });
+  });
 });

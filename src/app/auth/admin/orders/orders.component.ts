@@ -3517,8 +3517,29 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.round(originalSub * rate * 100) / 100;
   }
 
-  getStatusClass(status: string): string {
-    switch (status.toLowerCase()) {
+  /**
+   * True when money came back on this order but NOT all of it — the retained-cancellation-fee
+   * case (e.g. order #264: $250.91 returned of $320.91 charged, the $70 fee kept).
+   *
+   * Partial vs full is decided by the STATUS, never by comparing amounts here. The backend flips
+   * Status to "Refunded" in exactly one place (OrderRefundService.ApplyRefundTotals) and exactly
+   * when the refunded total clears everything actually charged — so "refunded > 0 but status is
+   * not Refunded" IS the backend's own definition of partial. Re-deriving it from `total` would
+   * be wrong on both sides: tips ride outside the charged amount, and an admin edit can move
+   * `total` after the charge settled.
+   */
+  isPartiallyRefunded(order: AdminOrderList): boolean {
+    return (Number(order.totalRefundedAmount) || 0) > 0
+      && (order.status || '').toLowerCase() !== 'refunded';
+  }
+
+  getStatusClass(order: AdminOrderList): string {
+    // A partial refund keeps its stored status but earns its own pill: the money was neither
+    // fully kept nor fully returned, so neither the done/active nor the cancelled colour is
+    // honest. Amber is the paired warning token, not a third red.
+    if (this.isPartiallyRefunded(order)) return 'status-refund-partial';
+
+    switch ((order.status || '').toLowerCase()) {
       case 'active':
         return 'status-active';
       case 'pending':
@@ -3535,14 +3556,50 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  // Phase 1: append an "M" to "Done" when the order was paid via a non-Stripe method, so
-  // admins can scan the orders list and see at a glance which Done rows came from manual
-  // payments. CSS class stays `.status-done` either way — only the label text differs.
+  /**
+   * Storage → status-column label. Present-tense verbs are a deliberate display choice; the
+   * stored Order.Status values stay "Cancelled"/"Refunded" and MUST NOT be renamed — roughly
+   * thirty comparison sites plus OrderStatuses, OrderBookedFilter and the statistics grouping
+   * key off the stored spelling.
+   */
+  private static readonly STATUS_LABELS: Record<string, string> = {
+    pending: 'Pending',
+    active: 'Active',
+    done: 'Done',
+    cancelled: 'Cancel',
+    refunded: 'Refund',
+  };
+
+  /**
+   * Status column text. Two labels are DERIVED rather than stored, on the same principle:
+   *  - `DoneM`   — Done, paid by a non-Stripe method (Phase 1), so manual payments are scannable.
+   *  - `RefundH` — partially refunded (see isPartiallyRefunded). Deriving it is what lets a
+   *    cancelled-then-part-refunded order keep "Cancelled" in the database, leaving every
+   *    reporting predicate that reads Status (IsRealBooking, CanBeHidden, WasPerformed) exactly
+   *    as it was. RefundH outranks the underlying status in the pill, so that status is carried
+   *    in the tooltip instead — see getStatusTitle.
+   */
   getStatusDisplayLabel(order: AdminOrderList): string {
-    if (order.status?.toLowerCase() === 'done' && order.paymentMethod && order.paymentMethod !== 'Normal') {
+    if (this.isPartiallyRefunded(order)) return 'RefundH';
+
+    const key = (order.status || '').toLowerCase();
+    if (key === 'done' && order.paymentMethod && order.paymentMethod !== 'Normal') {
       return 'DoneM';
     }
-    return order.status;
+    return OrdersComponent.STATUS_LABELS[key] ?? order.status;
+  }
+
+  /**
+   * Hover text for the status pill. Only RefundH needs one: it replaces the real status on
+   * screen, so the status it replaced — and how much actually came back — has to stay reachable
+   * without opening the order. The plain statuses explain themselves and get no tooltip.
+   */
+  getStatusTitle(order: AdminOrderList): string {
+    if (this.isPartiallyRefunded(order)) {
+      const refunded = this.formatCurrency(Number(order.totalRefundedAmount) || 0);
+      return `Partially refunded — ${refunded} returned to the customer. Order status: ${order.status}.`;
+    }
+    return '';
   }
 
   clearMessages() {

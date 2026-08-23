@@ -4895,6 +4895,17 @@ $order-header-mobile: 60px;
   letter-spacing: 0.02em;
 }
 
+// REFUNDH — partially refunded, e.g. cancelled with the fee retained. Deliberately NOT the
+// cancelled red: unlike a cancellation or a full refund, this order kept some money, so it is
+// still income on the header cards. Amber is the paired warning token rather than a third red,
+// and it is theme-aware, so the pill follows the day/night toggle (the older pills above still
+// hardcode hex — new rules use tokens, per the design system).
+.status-badge.status-refund-partial {
+  background: var(--warning-orange-bg);
+  color: var(--warning-orange-text);
+  letter-spacing: 0.02em;
+}
+
 // Soft-hidden rows only ever render with "Show hidden orders" ticked. Dimmed so they can never
 // be mistaken for live orders, but still fully readable and clickable.
 tr.row-hidden-order {
