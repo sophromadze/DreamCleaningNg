@@ -4,6 +4,8 @@ import { OrdersComponent } from './orders.component';
 import { round2 } from '../../../shared/pricing/order-pricing.calculator';
 
 import { testProviders } from '../../../../testing/test-providers';
+import { AdminService } from '../../../services/admin.service';
+import { of } from 'rxjs';
 
 describe('OrdersComponent', () => {
   let component: OrdersComponent;
@@ -763,6 +765,75 @@ describe('OrdersComponent', () => {
 
       component.editGiftCardOriginalUsed = 0;
       expect(component.canEditTotalDirectly()).toBeTrue();
+    });
+  });
+
+  /**
+   * The internal per-order note shown above Assigned Cleaners. It is admin-only text on its own
+   * endpoint — deliberately NOT part of OrderDto, which is the shared shape behind the customer's
+   * own order-details page.
+   */
+  describe('internal order note', () => {
+    let adminService: AdminService;
+
+    beforeEach(() => {
+      adminService = TestBed.inject(AdminService);
+      component.userPermissions = {
+        role: 'Admin',
+        permissions: { canView: true, canCreate: true, canUpdate: true, canDelete: false }
+      } as any;
+      component.viewingOrderId = 7;
+    });
+
+    it('sends null when the box is cleared, so the row is deleted rather than stored empty', () => {
+      const save = spyOn(adminService, 'updateOrderAdminNotes').and.returnValue(of({ orderId: 7 } as any));
+      component.orderNoteDraft = '   ';
+      (component as any).orderNoteSaved = 'gate code 4412';
+
+      component.saveOrderNote();
+
+      expect(save).toHaveBeenCalledWith(7, null);
+      expect(component.orderNoteDraft).toBe('');
+    });
+
+    it('trims before saving, and a whitespace-only edit of an empty note is not dirty', () => {
+      const save = spyOn(adminService, 'updateOrderAdminNotes').and.returnValue(
+        of({ orderId: 7, notes: 'dog on site' } as any));
+
+      component.orderNoteDraft = '  dog on site  ';
+      expect(component.orderNoteDirty).toBeTrue();
+
+      component.saveOrderNote();
+
+      expect(save).toHaveBeenCalledWith(7, 'dog on site');
+      // Saved text is echoed back, so the Save button goes quiet again.
+      expect(component.orderNoteDirty).toBeFalse();
+    });
+
+    it('ignores a response that arrives after the panel moved to another order', () => {
+      spyOn(adminService, 'updateOrderAdminNotes').and.callFake((..._args: any[]) => {
+        component.viewingOrderId = 9;
+        return of({ orderId: 7, notes: 'stale' } as any);
+      });
+
+      component.orderNoteDraft = 'stale';
+      component.saveOrderNote();
+
+      // Order 7's text must not be painted into order 9's panel.
+      expect(component.orderNoteDraft).toBe('stale');
+      expect((component as any).orderNoteSaved).toBe('');
+    });
+
+    it('refuses to save without update rights, mirroring the endpoint permission', () => {
+      const save = spyOn(adminService, 'updateOrderAdminNotes');
+      component.userPermissions.permissions.canUpdate = false;
+      component.isSuperAdmin = false;
+      component.orderNoteDraft = 'not allowed';
+
+      component.saveOrderNote();
+
+      expect(component.canEditOrderNote).toBeFalse();
+      expect(save).not.toHaveBeenCalled();
     });
   });
 });

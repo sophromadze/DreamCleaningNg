@@ -3942,6 +3942,106 @@ $order-header-mobile: 60px;
     .error-message.inline { margin-top: 0.6rem; color: var(--bright-red, #ef4444); font-size: 0.82rem; }
     .success-message.inline { margin-top: 0.6rem; color: var(--fresh-green, #22c55e); font-size: 0.82rem; }
 
+    // Internal per-order note, directly above Assigned Cleaners. Tokens only, so it
+    // follows the day/night toggle without a dark-mode override of its own.
+    .order-note-section {
+      margin-top: 1.25rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border-color, #e2e8f0);
+
+      .order-note-input {
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 90px;
+        resize: vertical;
+        padding: 0.6rem 0.7rem;
+        border: 1px solid var(--border-color, #e2e8f0);
+        border-radius: var(--radius-sm, 8px);
+        background: var(--surface-elevated, #fff);
+        color: var(--text-primary, #1e293b);
+        font-family: inherit;
+        font-size: 0.85rem;
+        line-height: 1.45;
+
+        &::placeholder { color: var(--text-muted, #64748b); }
+        &:focus {
+          outline: none;
+          border-color: var(--primary-color, #2563eb);
+          box-shadow: 0 0 0 2px var(--soft-blue, #dbeafe);
+        }
+        &:disabled { opacity: 0.65; cursor: not-allowed; }
+      }
+
+      .order-note-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 0.4rem;
+      }
+
+      .char-counter {
+        font-size: 0.75rem;
+        color: var(--text-muted, #64748b);
+
+        &.char-counter--limit {
+          color: var(--warning-orange-text, #c2410c);
+          font-weight: 600;
+        }
+      }
+
+      .order-note-actions { display: flex; gap: 0.5rem; }
+
+      .order-note-save-btn,
+      .order-note-cancel-btn {
+        padding: 0.4rem 0.85rem;
+        border-radius: var(--radius-sm, 8px);
+        border: 1px solid transparent;
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+
+        &:disabled { opacity: 0.55; cursor: not-allowed; }
+      }
+
+      .order-note-save-btn {
+        background: var(--primary-color, #2563eb);
+        color: #fff;
+        &:hover:not(:disabled) { background: var(--primary-color-hover, #1d4ed8); }
+      }
+
+      .order-note-cancel-btn {
+        background: transparent;
+        border-color: var(--border-color, #e2e8f0);
+        color: var(--text-secondary, #475569);
+        &:hover:not(:disabled) { background: var(--surface-subtle, #f1f5f9); }
+      }
+
+      // Read-only view for admins without update rights: keep the typed line breaks.
+      .order-note-readonly {
+        white-space: pre-wrap;
+        padding: 0.6rem 0.7rem;
+        border-radius: var(--radius-sm, 8px);
+        background: var(--surface-subtle, #f1f5f9);
+        color: var(--text-primary, #1e293b);
+        font-size: 0.85rem;
+        line-height: 1.45;
+      }
+
+      .no-order-note-message {
+        color: var(--text-muted, #64748b);
+        font-size: 0.82rem;
+        font-style: italic;
+      }
+
+      .order-note-meta {
+        margin-top: 0.45rem;
+        font-size: 0.75rem;
+        color: var(--text-muted, #64748b);
+      }
+    }
+
     .order-photos-section {
       margin-top: 1.25rem;
       padding-top: 1rem;

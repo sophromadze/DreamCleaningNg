@@ -1370,6 +1370,63 @@
                     </div>
                   </div>
 
+                  <!-- Internal note: staff-only free text, never shown to the customer -->
+                  <div *ngIf="!editingOrder" class="order-note-section">
+                    <h5>
+                      Notes
+                      <span class="hint">— internal only, the customer never sees this</span>
+                    </h5>
+
+                    <div *ngIf="loadingOrderNote" class="loading-small">
+                      <div class="spinner-small"></div>
+                      <span>Loading note...</span>
+                    </div>
+
+                    <div *ngIf="!loadingOrderNote" class="order-note-content">
+                      <ng-container *ngIf="canEditOrderNote; else readOnlyOrderNote">
+                        <textarea class="order-note-input"
+                                  [(ngModel)]="orderNoteDraft"
+                                  [maxlength]="orderNoteMaxLength"
+                                  [disabled]="savingOrderNote"
+                                  rows="4"
+                                  placeholder="Anything the team should know about this order — gate codes, parking, pets, what the customer asked for on the phone..."></textarea>
+                        <div class="order-note-footer">
+                          <small class="char-counter"
+                                 [class.char-counter--limit]="orderNoteDraft.length >= orderNoteMaxLength">
+                            {{ orderNoteDraft.length }} / {{ orderNoteMaxLength }} characters
+                          </small>
+                          <div class="order-note-actions">
+                            <button type="button"
+                                    class="order-note-cancel-btn"
+                                    *ngIf="orderNoteDirty"
+                                    (click)="cancelOrderNoteEdit()"
+                                    [disabled]="savingOrderNote">
+                              Cancel
+                            </button>
+                            <button type="button"
+                                    class="order-note-save-btn"
+                                    (click)="saveOrderNote()"
+                                    [disabled]="savingOrderNote || !orderNoteDirty">
+                              {{ savingOrderNote ? 'Saving...' : 'Save note' }}
+                            </button>
+                          </div>
+                        </div>
+                      </ng-container>
+
+                      <ng-template #readOnlyOrderNote>
+                        <p class="order-note-readonly" *ngIf="orderNoteDraft">{{ orderNoteDraft }}</p>
+                        <p class="no-order-note-message" *ngIf="!orderNoteDraft">No note on this order yet.</p>
+                      </ng-template>
+
+                      <div class="order-note-meta" *ngIf="orderNoteUpdatedAt">
+                        Last saved {{ formatOrderNoteTimestamp(orderNoteUpdatedAt) }}<span *ngIf="orderNoteUpdatedByName"> by {{ orderNoteUpdatedByName }}</span>
+                      </div>
+
+                      <div class="error-message inline" *ngIf="orderNoteError">{{ orderNoteError }}</div>
+                      <div class="success-message inline" *ngIf="orderNoteSuccess">{{ orderNoteSuccess }}</div>
+                    </div>
+                  </div>
+
                   <!-- Assigned Cleaners Section with Enhanced Loading States -->
                   <div *ngIf="!editingOrder" class="assigned-cleaners-section">
                     <h5>Assigned Cleaners</h5>

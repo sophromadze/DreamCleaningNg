@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderTransferInfo, UserAdmin, OrderRefundSummary, OrderRefundInfo } from '../../../services/admin.service';
+import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderAdminNote, OrderTransferInfo, UserAdmin, OrderRefundSummary, OrderRefundInfo } from '../../../services/admin.service';
 import { environment } from '../../../../environments/environment';
 import { OrderService, Order, OrderList } from '../../../services/order.service';
 import { CleanerService, AvailableCleaner } from '../../../services/cleaner.service';
@@ -18,7 +18,7 @@ import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils
 import { ShiftService, ShiftAdmin } from '../../../services/shift.service';
 import { CardOnFileService, OrderSavedCardInfo } from '../../../services/card-on-file.service';
 import { CARD_ON_FILE_ENABLED } from '../../../shared/card-on-file.flag';
-import { formatNy } from '../../../shared/ny-time.util';
+import { formatNy, formatNyDateTime } from '../../../shared/ny-time.util';
 import {
   calculateQuote,
   calculateTotals,
@@ -112,6 +112,19 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** User id whose flag is mid-update (disables the panel flag buttons). */
   flaggingOrderUserId: number | null = null;
   viewingOrderId: number | null = null;
+
+  // ── Internal order note (admin-only free text, above Assigned Cleaners) ──
+  readonly orderNoteMaxLength = 2000;
+  /** What the textarea is bound to. Never null, so the counter and length checks stay simple. */
+  orderNoteDraft = '';
+  /** Last saved text, used to tell an unchanged draft from an edited one. */
+  private orderNoteSaved = '';
+  orderNoteUpdatedAt: string | null = null;
+  orderNoteUpdatedByName: string | null = null;
+  loadingOrderNote = false;
+  savingOrderNote = false;
+  orderNoteError = '';
+  orderNoteSuccess = '';
 
   // ── Order cleaning photos (shared with the per-user photo library) ──
   orderPhotos: UserCleaningPhoto[] = [];
@@ -1748,6 +1761,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadingStates.orderDetails = true;
     this.resetOrderPhotoState();
     this.loadOrderPhotos(orderId);
+    this.resetOrderNoteState();
+    this.loadOrderNote(orderId);
     this.loadOrderSavedCardInfo(orderId);
     this.resetTransferPanel();
     this.resetRefundState();
@@ -1826,6 +1841,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.editingPaymentMethod = false;
     this.resetSaveConfirmState();
     this.resetOrderPhotoState();
+    this.resetOrderNoteState();
     this.resetRefundState();
   }
 
@@ -1834,6 +1850,96 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.showSaveConfirm = false;
     this.pendingSaveDto = null;
     this.saveConfirmChanges = [];
+  }
+
+  // ── Internal order note (admin-only free text, above Assigned Cleaners) ──
+
+  /** Mirrors the backend's [RequirePermission(Update)] on the notes endpoint. */
+  get canEditOrderNote(): boolean {
+    return this.isSuperAdmin || !!this.userPermissions?.permissions?.canUpdate;
+  }
+
+  /** True when the textarea differs from what is stored, i.e. there is something to save. */
+  get orderNoteDirty(): boolean {
+    return this.orderNoteDraft.trim() !== this.orderNoteSaved;
+  }
+
+  private resetOrderNoteState(): void {
+    this.orderNoteDraft = '';
+    this.orderNoteSaved = '';
+    this.orderNoteUpdatedAt = null;
+    this.orderNoteUpdatedByName = null;
+    this.loadingOrderNote = false;
+    this.savingOrderNote = false;
+    this.orderNoteError = '';
+    this.orderNoteSuccess = '';
+  }
+
+  private loadOrderNote(orderId: number): void {
+    this.loadingOrderNote = true;
+    this.adminService.getOrderAdminNotes(orderId).subscribe({
+      next: (note) => {
+        // The panel may have moved on to another order while this was in flight.
+        if (this.viewingOrderId !== orderId) return;
+        this.applyLoadedOrderNote(note);
+        this.loadingOrderNote = false;
+      },
+      error: () => {
+        if (this.viewingOrderId !== orderId) return;
+        this.loadingOrderNote = false;
+        this.orderNoteError = 'Failed to load the note for this order.';
+      }
+    });
+  }
+
+  private applyLoadedOrderNote(note: OrderAdminNote): void {
+    this.orderNoteSaved = (note.notes || '').trim();
+    this.orderNoteDraft = this.orderNoteSaved;
+    this.orderNoteUpdatedAt = note.updatedAt || null;
+    this.orderNoteUpdatedByName = note.updatedByName || null;
+  }
+
+  saveOrderNote(): void {
+    const orderId = this.viewingOrderId;
+    if (orderId == null || this.savingOrderNote || !this.canEditOrderNote) return;
+
+    const text = this.orderNoteDraft.trim();
+    if (text.length > this.orderNoteMaxLength) {
+      this.orderNoteError = `The note is limited to ${this.orderNoteMaxLength} characters.`;
+      return;
+    }
+
+    this.savingOrderNote = true;
+    this.orderNoteError = '';
+    this.orderNoteSuccess = '';
+
+    // An empty box clears the note; the endpoint deletes the row rather than storing ''.
+    this.adminService.updateOrderAdminNotes(orderId, text.length > 0 ? text : null).subscribe({
+      next: (note) => {
+        if (this.viewingOrderId !== orderId) return;
+        this.applyLoadedOrderNote(note);
+        this.savingOrderNote = false;
+        this.orderNoteSuccess = text.length > 0 ? 'Note saved.' : 'Note cleared.';
+        setTimeout(() => { this.orderNoteSuccess = ''; }, 3000);
+      },
+      error: (error) => {
+        if (this.viewingOrderId !== orderId) return;
+        this.savingOrderNote = false;
+        this.orderNoteError = error?.error?.message || 'Failed to save the note.';
+      }
+    });
+  }
+
+  /** Drop an unsaved edit and go back to the stored text. */
+  cancelOrderNoteEdit(): void {
+    this.orderNoteDraft = this.orderNoteSaved;
+    this.orderNoteError = '';
+    this.orderNoteSuccess = '';
+  }
+
+  /** "Aug 23, 2026, 2:15 PM" in NY time, matching every other timestamp on this panel. */
+  formatOrderNoteTimestamp(value: string | null): string {
+    return value ? formatNyDateTime(value) : '';
   }
 
   private resetOrderPhotoState(): void {

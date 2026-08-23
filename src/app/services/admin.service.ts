@@ -388,6 +388,14 @@ export interface UpdateUserNoteDto {
   content: string;
 }
 
+/** Internal staff note on one order. Admin-only — deliberately not part of the shared OrderDto. */
+export interface OrderAdminNote {
+  orderId: number;
+  notes?: string | null;
+  updatedAt?: string | null;
+  updatedByName?: string | null;
+}
+
 export interface UserCleaningPhoto {
   id: number;
   userId: number;
@@ -1336,6 +1344,16 @@ export class AdminService {
 
   deleteUserCleaningPhoto(photoId: number): Observable<{ message: string }> {
     return this.http.delete<{ message: string }>(`${this.apiUrl}/user-care/cleaning-photos/${photoId}`);
+  }
+
+  // ── Order-scoped internal notes (admin-only; never part of OrderDto) ──
+
+  getOrderAdminNotes(orderId: number): Observable<OrderAdminNote> {
+    return this.http.get<OrderAdminNote>(`${this.apiUrl}/orders/${orderId}/notes`);
+  }
+
+  updateOrderAdminNotes(orderId: number, notes: string | null): Observable<OrderAdminNote> {
+    return this.http.put<OrderAdminNote>(`${this.apiUrl}/orders/${orderId}/notes`, { notes });
   }
 
   // ── Order-scoped cleaning photos (shared with the per-user library) ──
