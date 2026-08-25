@@ -146,6 +146,24 @@ export interface BookingData {
   subTotal: number;
 }
 
+/**
+ * Extra controls on create-for-user, used by the admin "recreate a past order" flow. Every field
+ * is optional and an omitted one means "the endpoint's historic behaviour" — so the booking page's
+ * Admin Mode submit, which passes none of them, is completely unaffected.
+ */
+export interface CreateForUserOptions {
+  /** false suppresses the customer confirmation / payment-reminder EMAIL. Omitted = send. */
+  sendCustomerEmail?: boolean;
+  /** false suppresses the customer confirmation / payment-reminder SMS. Omitted = send. */
+  sendCustomerSms?: boolean;
+  /** 'Pending' | 'Active' | 'Done'. Omitted = derived from the payment method. */
+  initialStatus?: string;
+  /** Recorded in the server log only; links nothing and copies nothing. */
+  recreatedFromOrderId?: number;
+  /** false suppresses the customer's CURRENT loyalty + recurring-plan discounts. Omitted = apply. */
+  applyCurrentDiscounts?: boolean;
+}
+
 export interface BlockedTimeSlot {
   id: number;
   date: string;       // YYYY-MM-DD
@@ -264,11 +282,17 @@ export class BookingService {
     bookingData: any,
     paymentMethod: string = 'Normal',
     paymentReference: string | null = null,
-    paymentNotes: string | null = null
+    paymentNotes: string | null = null,
+    options: CreateForUserOptions = {}
   ): Observable<any> {
     // Phase 1 manual payment tracking. Defaults preserve the existing call shape; older
     // callers that don't pass these arguments get Normal/null/null which the backend
     // interprets identically to the pre-Phase-1 behavior (Status=Pending + Stripe reminder).
+    //
+    // `options` is the admin "recreate a past order" flow's channel to the same endpoint. Every
+    // field in it is OMITTED unless supplied, and the backend reads a missing field as "behave as
+    // this endpoint always has" — which is what keeps the booking page's Admin Mode submit, which
+    // passes no options at all, byte-for-byte unchanged.
     return this.http.post<any>(
       `${this.apiUrl}/booking/create-for-user`,
       {
@@ -277,6 +301,7 @@ export class BookingService {
         paymentMethod,
         paymentReference: paymentMethod !== 'Normal' ? paymentReference : null,
         paymentNotes:     paymentMethod !== 'Normal' ? paymentNotes     : null,
+        ...options
       },
       { headers: this.getAuthHeaders() }
     );

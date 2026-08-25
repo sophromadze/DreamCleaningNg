@@ -1,0 +1,42 @@
+<div class="register-modal-overlay" *ngIf="open" (click)="close()">
+  <div class="register-modal-content" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3 class="modal-title">Register Customer</h3>
+      <button type="button" class="modal-close" (click)="close()" aria-label="Close">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="register-modal-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+      <div class="form-group">
+        <label for="reg-firstName">First Name <span class="required">*</span></label>
+        <input id="reg-firstName" type="text" [(ngModel)]="form.firstName" (input)="onFieldInput()" placeholder="First name" [disabled]="isRegistering">
+      </div>
+      <div class="form-group">
+        <label for="reg-lastName">Last Name <span class="required">*</span></label>
+        <input id="reg-lastName" type="text" [(ngModel)]="form.lastName" (input)="onFieldInput()" placeholder="Last name" [disabled]="isRegistering">
+      </div>
+      <div class="form-group">
+        <label for="reg-email">Email <span class="required" *ngIf="!form.noEmail">*</span></label>
+        <input id="reg-email" type="email" [(ngModel)]="form.email"
+               (input)="onFieldInput()" (blur)="onEmailBlur()"
+               [placeholder]="form.noEmail ? 'No email on file' : 'name@example.com'"
+               [disabled]="isRegistering || form.noEmail">
+      </div>
+      <div class="form-group no-email-toggle">
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="form.noEmail" (change)="onNoEmailToggle()" [disabled]="isRegistering">
+          Customer has no email (phone required, cannot log in; pays cash, Zelle, etc.)
+        </label>
+      </div>
+      <div class="form-group">
+        <label for="reg-phone">Phone <span class="required" *ngIf="form.noEmail">*</span><span class="optional" *ngIf="!form.noEmail">(optional)</span></label>
+        <input id="reg-phone" type="tel" inputmode="numeric" [(ngModel)]="form.phone" (input)="onPhoneInput($event)" placeholder="10-digit number" [disabled]="isRegistering">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="action-btn ghost" (click)="close()" [disabled]="isRegistering">Cancel</button>
+      <button type="button" class="action-btn primary" (click)="submit()" [disabled]="isRegistering">
+        {{ isRegistering ? 'Registering…' : 'Register' }}
+      </button>
+    </div>
+  </div>
+</div>

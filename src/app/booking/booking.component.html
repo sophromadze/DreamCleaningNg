@@ -6,6 +6,16 @@
 
       <!-- Admin/Moderator Mode Toggle -->
       <div class="admin-mode-toggle" *ngIf="isAdmin">
+        <!-- Same "Register Customer" action as the admin Users tab, gated on the same
+             `canCreate` permission (Admin + SuperAdmin; Moderators have View only). -->
+        <button
+          type="button"
+          class="register-customer-btn"
+          *ngIf="canRegisterCustomers"
+          (click)="openRegisterCustomerModal()">
+          <i class="fas fa-user-plus"></i>
+          <span>Register User</span>
+        </button>
         <button
           type="button"
           class="admin-toggle-btn"
@@ -33,6 +43,12 @@
       </span>
     </div>
 
+    <!-- Result of the header's Register Customer action. -->
+    <div class="customer-registered-note" *ngIf="registeredCustomerMessage">
+      <i class="fas fa-circle-check"></i>
+      <span>{{ registeredCustomerMessage }}</span>
+    </div>
+
     <!-- Admin User Selector -->
     <div class="admin-user-selector" *ngIf="isAdminMode">
       <div class="user-selector-header">
@@ -40,8 +56,11 @@
         <p>Select a user to create a booking on their behalf</p>
       </div>
       
+      <!-- seedUsers: customers registered from the header this session, so they are searchable
+           without a page reload (see onCustomerRegistered). -->
       <app-admin-user-search
         [selectedUser]="selectedTargetUser"
+        [seedUsers]="registeredCustomers"
         (userSelected)="selectUser($event)"
         (cleared)="clearSelectedUser()">
       </app-admin-user-search>
@@ -2044,4 +2063,13 @@
 
     </div>
   </div>
-  
+
+<!-- ──────────────  REGISTER CUSTOMER MODAL  ──────────────
+     Shared with the admin Users tab: shared/components/register-customer-modal.
+     Deliberately outside .booking-container — .booking-content establishes a stacking
+     context (z-index: 1), so a fixed overlay nested inside it would sit under the header. -->
+<app-register-customer-modal
+  [open]="showRegisterCustomerModal"
+  (closed)="closeRegisterCustomerModal()"
+  (registered)="onCustomerRegistered($event)">
+</app-register-customer-modal>

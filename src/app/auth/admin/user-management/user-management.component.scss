@@ -1130,6 +1130,13 @@ $app-header-height-mobile: 60px;
       font-size: 0.78rem;
 
       .history-amount { font-weight: 700; color: #0f172a; }
+
+      // Sits inside a row that is itself clickable, so it needs to read as its own target.
+      .history-recreate {
+        white-space: nowrap;
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+      }
     }
   }
 }

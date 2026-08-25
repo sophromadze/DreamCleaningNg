@@ -26,6 +26,10 @@ import { ShimmerDirective } from '../shared/directives/shimmer.directive';
 import { GoogleMapsLoaderService } from '../services/google-maps-loader.service';
 import { FloorTypeSelectorComponent, FloorTypeSelection } from '../shared/components/floor-type-selector/floor-type-selector.component';
 import { AdminUserSearchComponent } from './admin-user-search/admin-user-search.component';
+import {
+  RegisterCustomerModalComponent,
+  RegisteredCustomer
+} from '../shared/components/register-customer-modal/register-customer-modal.component';
 import { ReorderSectionComponent } from './reorder-section/reorder-section.component';
 import { CleaningTypeDetailsExpandableComponent } from '../shared/components/cleaning-type-details-expandable/cleaning-type-details-expandable.component';
 import { MoveInOutChecklistComponent } from '../shared/components/move-in-out-checklist/move-in-out-checklist.component';
@@ -118,7 +122,7 @@ type BookingSubmitTarget = 'admin-for-user' | 'self';
 @Component({
   selector: 'app-booking',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule, RouterModule, DurationSelectorComponent, TimeSelectorComponent, DateSelectorComponent, ShimmerDirective, FloorTypeSelectorComponent, CleaningTypeDetailsExpandableComponent, MoveInOutChecklistComponent, AdminUserSearchComponent, ReorderSectionComponent, QuantityControlComponent, ExtraServicesGridComponent, OrderSummaryCardComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule, RouterModule, DurationSelectorComponent, TimeSelectorComponent, DateSelectorComponent, ShimmerDirective, FloorTypeSelectorComponent, CleaningTypeDetailsExpandableComponent, MoveInOutChecklistComponent, AdminUserSearchComponent, RegisterCustomerModalComponent, ReorderSectionComponent, QuantityControlComponent, ExtraServicesGridComponent, OrderSummaryCardComponent],
   providers: [BookingService],
   templateUrl: './booking.component.html',
   styleUrl: './booking.component.scss'
@@ -396,6 +400,13 @@ export class BookingComponent implements OnInit, OnDestroy {
   stateDropdownOpen = false;
   savedAddressDropdownOpen = false;
   @ViewChild('addressNameOtherInput') addressNameOtherInput?: ElementRef<HTMLInputElement>;
+
+  /**
+   * The admin-mode customer search. Present only while admin mode is on (it sits inside an
+   * `*ngIf`), which is why every use is optional-chained. Needed so a customer registered from
+   * this page is in the list the admin is about to search.
+   */
+  @ViewChild(AdminUserSearchComponent) adminUserSearch?: AdminUserSearchComponent;
   
   // Booking summary collapse state
   isSummaryCollapsed = true;
@@ -458,6 +469,28 @@ export class BookingComponent implements OnInit, OnDestroy {
   isSuperAdmin = false;
   isModerator = false;
   isAdminMode = false;
+
+  /**
+   * Whether to offer the header's "Register Customer" button — the same action as the admin
+   * Users tab, resolved through the same `canCreate` permission rather than a role check here.
+   * `GET api/admin/permissions` grants Create to Admin and SuperAdmin only (Moderators have
+   * View), which is exactly who may see this, and it is the flag the endpoint itself enforces.
+   */
+  canRegisterCustomers = false;
+  showRegisterCustomerModal = false;
+  /** Transient confirmation after a customer is registered from this page. */
+  registeredCustomerMessage = '';
+
+  /**
+   * Customers registered from this page during this session, fed to the admin search as
+   * `seedUsers` so they are selectable IMMEDIATELY — no page reload.
+   *
+   * The page holds them rather than the search box because the search box lives inside the
+   * admin-mode `*ngIf`: registering with Admin Mode off destroys nothing and loses nothing, and
+   * the freshly created search box picks the list up from here. Session-scoped on purpose — after
+   * a reload the server's own list is authoritative and these are redundant.
+   */
+  registeredCustomers: UserAdmin[] = [];
 
   // Consent copy — shared with the payment page's gate for admin-created orders, so both
   // surfaces always show the same wording (see shared/booking/consent-texts.ts).
@@ -4228,11 +4261,98 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.isAdmin = user?.role === 'Admin' || user?.role === 'SuperAdmin' || user?.role === 'Moderator';
       this.isSuperAdmin = user?.role === 'SuperAdmin';
       this.isModerator = user?.role === 'Moderator';
+      this.loadRegisterCustomerPermission();
     } else {
       this.isAdmin = false;
       this.isSuperAdmin = false;
       this.isModerator = false;
+      this.canRegisterCustomers = false;
     }
+  }
+
+  /**
+   * Ask the server who may create users, exactly as the Users tab does. Deliberately not a
+   * local role check: the permission map lives in `PermissionService` on the backend and this
+   * page must not hold a second, drifting copy of it.
+   */
+  private loadRegisterCustomerPermission(): void {
+    if (!this.isBrowser || !this.isAdmin) {
+      this.canRegisterCustomers = false;
+      return;
+    }
+
+    this.adminService.getUserPermissions().subscribe({
+      next: (permissions) => {
+        this.canRegisterCustomers = !!permissions?.permissions?.canCreate;
+      },
+      error: () => {
+        // Hiding the button is the safe failure: the endpoint would reject the call anyway.
+        this.canRegisterCustomers = false;
+      }
+    });
+  }
+
+  openRegisterCustomerModal(): void {
+    if (!this.canRegisterCustomers) return;
+    this.registeredCustomerMessage = '';
+    this.showRegisterCustomerModal = true;
+  }
+
+  closeRegisterCustomerModal(): void {
+    this.showRegisterCustomerModal = false;
+  }
+
+  /**
+   * The shared modal has already created the customer.
+   *
+   * The admin must NOT have to reload the page to find them, so the new account is added to the
+   * search list two ways, and both are needed:
+   *  - pushed into `registeredCustomers` (the search box's `seedUsers`), which makes them
+   *    selectable at once and survives Admin Mode being toggled off and back on — that rebuilds
+   *    the search box from scratch,
+   *  - a forced reload of the server list, so the canonical row replaces the seed. It is forced
+   *    because `GET /api/admin/users` is cacheable and a plain refetch can return the list from
+   *    before the POST.
+   *
+   * They are then selected — but only when Admin Mode is already on, since registering from this
+   * page is done in order to book for them. With Admin Mode off there is nothing to select onto
+   * and turning it on unasked would change what Book Now is about to do, so the admin is just
+   * told the account exists; the seed is waiting when they switch it on.
+   */
+  onCustomerRegistered(customer: RegisteredCustomer): void {
+    const newUser: UserAdmin = {
+      id: customer.id,
+      firstName: customer.firstName,
+      lastName: customer.lastName,
+      // Never undefined: the search box lower-cases this field to match against.
+      email: customer.email ?? '',
+      phone: customer.phone ?? undefined,
+      role: customer.role,
+      authProvider: customer.authProvider,
+      isNoEmailUser: customer.isNoEmailUser,
+      firstTimeOrder: true,
+      isActive: true,
+      createdAt: new Date(),
+      canReceiveCommunications: !customer.isNoEmailUser
+    };
+
+    // New array reference — `seedUsers` is an @Input, and mutating in place would not notify.
+    this.registeredCustomers = [
+      newUser,
+      ...this.registeredCustomers.filter(user => user.id !== newUser.id)
+    ];
+
+    this.registeredCustomerMessage =
+      `${customer.firstName} ${customer.lastName} was registered and added to the customer list.`;
+
+    this.adminUserSearch?.loadUsers(true);
+
+    if (this.isAdminMode) {
+      this.selectUser(newUser);
+      this.registeredCustomerMessage += ' They are now selected for this booking.';
+    }
+
+    setTimeout(() => { this.registeredCustomerMessage = ''; }, 8000);
   }
 
   /**

@@ -1,0 +1,177 @@
+/* Flattened from the admin Users tab's register modal (2026-08 extraction). Kept
+   visually identical to what admins already know — only the z-index was raised, so the
+   overlay clears the sticky site header when the modal is opened from the booking page. */
+
+.register-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.register-modal-content {
+  background: white;
+  border-radius: 10px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+
+  .modal-header {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .modal-title { margin: 0; font-size: 1rem; color: #0f172a; }
+
+    .modal-close {
+      background: transparent;
+      border: none;
+      font-size: 1.4rem;
+      color: #64748b;
+      cursor: pointer;
+      line-height: 1;
+
+      &:hover { color: #0f172a; }
+    }
+  }
+
+  .modal-body {
+    padding: 1rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+
+    .register-modal-error {
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+
+      label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #475569;
+
+        .required { color: #dc2626; }
+        .optional { color: #94a3b8; font-weight: 400; }
+      }
+
+      input {
+        padding: 0.5rem 0.7rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.85rem;
+
+        &:focus {
+          outline: none;
+          border-color: #2563eb;
+          box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+      }
+    }
+  }
+
+  .modal-footer {
+    padding: 0.85rem 1.2rem;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+}
+
+/* The two footer buttons. Flattened from the Users tab's generic `.action-btn`, which this
+   component can no longer inherit now that it lives outside that stylesheet. */
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #fff;
+  color: #334155;
+  font-size: 0.825rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-weight: 500;
+
+  &:hover { background: #f8fafc; }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  &.primary {
+    background: #2563eb;
+    color: #fff;
+    border-color: #2563eb;
+
+    &:hover { background: #1d4ed8; }
+  }
+
+  &.ghost { background: transparent; }
+}
+
+@media (max-width: 600px) {
+  .register-modal-content { max-width: 100%; }
+}
+
+/* ── Dark mode. Grouped last: `:host-context` loses the ancestor-class specificity the
+      Users tab's own `[data-theme="dark"]` block relied on, so it must win on order. ── */
+:host-context([data-theme="dark"]) {
+  .register-modal-content {
+    background: var(--surface-elevated);
+    border-color: var(--border-color);
+
+    .modal-header,
+    .modal-footer { border-color: var(--border-color); }
+
+    .modal-header .modal-title { color: var(--text-primary); }
+
+    .modal-close {
+      color: var(--text-muted);
+      &:hover { color: var(--text-primary); }
+    }
+
+    .modal-body .form-group {
+      label { color: var(--text-secondary); }
+
+      input {
+        background: var(--surface-elevated);
+        color: var(--text-primary);
+        border-color: var(--border-color);
+      }
+    }
+
+    .modal-body .form-group.no-email-toggle .checkbox-label { color: var(--text-secondary); }
+  }
+
+  .action-btn {
+    background: rgba(255, 255, 255, 0.06);
+    color: #f1f5f9;
+    border-color: var(--border-color);
+
+    &:hover:not(:disabled) { background: rgba(255, 255, 255, 0.14); }
+
+    &.primary {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #fff;
+      &:hover:not(:disabled) { background: #1d4ed8; border-color: #1d4ed8; }
+    }
+  }
+}

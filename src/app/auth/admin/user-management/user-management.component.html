@@ -720,6 +720,7 @@
       <section *ngIf="detailTab === 'history'" class="tab-pane">
         <div class="info-card" *ngIf="(selectedUser.orders?.length || 0) > 0; else noOrders">
           <h6>Cleaning History</h6>
+          <div class="success-message inline" *ngIf="recreateSuccessMessage">{{ recreateSuccessMessage }}</div>
           <div class="history-list">
             <div *ngFor="let order of selectedUser.orders"
                  class="history-row"
@@ -733,6 +734,15 @@
               <div class="history-row__meta">
                 <span class="history-amount">{{ formatCurrency(order.total) }}</span>
                 <span class="muted">#{{ order.id }}</span>
+                <!-- Opens the recreate flow instead of the row's own navigation — see
+                     startRecreateOrder, which stops the click from reaching the row. -->
+                <button *ngIf="canCreate"
+                        type="button"
+                        class="action-btn small ghost history-recreate"
+                        (click)="startRecreateOrder(order.id, $event)"
+                        title="Create a new order just like this one">
+                  Recreate
+                </button>
               </div>
             </div>
           </div>
@@ -851,48 +861,23 @@
   <button class="lightbox-close" (click)="closeLightbox()">✕</button>
 </div>
 
-<!-- ──────────────  REGISTER CUSTOMER MODAL  ────────────── -->
-<div class="register-modal-overlay" *ngIf="showRegisterModal" (click)="closeRegisterModal()">
-  <div class="register-modal-content" (click)="$event.stopPropagation()">
-    <div class="modal-header">
-      <h3 class="modal-title">Register Customer</h3>
-      <button type="button" class="modal-close" (click)="closeRegisterModal()" aria-label="Close">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="register-modal-error" *ngIf="registerModalError">{{ registerModalError }}</div>
-      <div class="form-group">
-        <label for="reg-firstName">First Name <span class="required">*</span></label>
-        <input id="reg-firstName" type="text" [(ngModel)]="registerForm.firstName" placeholder="First name" [disabled]="isRegistering">
-      </div>
-      <div class="form-group">
-        <label for="reg-lastName">Last Name <span class="required">*</span></label>
-        <input id="reg-lastName" type="text" [(ngModel)]="registerForm.lastName" placeholder="Last name" [disabled]="isRegistering">
-      </div>
-      <div class="form-group">
-        <label for="reg-email">Email <span class="required" *ngIf="!registerForm.noEmail">*</span></label>
-        <input id="reg-email" type="email" [(ngModel)]="registerForm.email"
-               [placeholder]="registerForm.noEmail ? 'No email on file' : 'Email'"
-               [disabled]="isRegistering || registerForm.noEmail">
-      </div>
-      <div class="form-group no-email-toggle">
-        <label class="checkbox-label">
-          <input type="checkbox" [(ngModel)]="registerForm.noEmail" [disabled]="isRegistering">
-          Customer has no email (phone required, cannot log in; pays cash, Zelle, etc.)
-        </label>
-      </div>
-      <div class="form-group">
-        <label for="reg-phone">Phone <span class="required" *ngIf="registerForm.noEmail">*</span><span class="optional" *ngIf="!registerForm.noEmail">(optional)</span></label>
-        <input id="reg-phone" type="tel" inputmode="numeric" [(ngModel)]="registerForm.phone" (input)="onRegisterPhoneInput($event)" placeholder="10-digit number" [disabled]="isRegistering">
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button type="button" class="action-btn ghost" (click)="closeRegisterModal()" [disabled]="isRegistering">Cancel</button>
-      <button type="button" class="action-btn primary" (click)="registerUser()" [disabled]="isRegistering">
-        {{ isRegistering ? 'Registering…' : 'Register' }}
-      </button>
-    </div>
-  </div>
-</div>
+<!-- ──────────────  REGISTER CUSTOMER MODAL  ──────────────
+     Shared with the booking page: shared/components/register-customer-modal -->
+<app-register-customer-modal
+  [open]="showRegisterModal"
+  (closed)="closeRegisterModal()"
+  (registered)="onCustomerRegistered($event)">
+</app-register-customer-modal>
+
+<!-- ──────────────  RECREATE ORDER MODAL  ──────────────
+     Opened from a row in the Cleaning History tab. Rendered here, outside the detail panel, so
+     the panel's own stacking context can't paint over it. -->
+<app-recreate-order-modal
+  [open]="showRecreateModal"
+  [sourceOrderId]="recreateSourceOrderId"
+  (closed)="closeRecreateModal()"
+  (created)="onOrderRecreated($event)">
+</app-recreate-order-modal>
 
 <!-- ──────────────  EXPORT USERS MODAL  ────────────── -->
 <div class="register-modal-overlay" *ngIf="showExportModal" (click)="closeExportModal()">

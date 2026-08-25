@@ -7,6 +7,81 @@ import { Order, OrderList } from './order.service';
 import { Apartment, CreateApartment } from './profile.service';
 import { UserSpecialOffer } from './special-offer.service';
 
+// ─── "Recreate this order" preview (mirrors DTOs/ReorderDtos.cs) ────────────────────────────
+
+/** One line whose charge or duration moved since the source order. Only movers are sent. */
+export interface ReorderLineChange {
+  kind: 'Service' | 'Extra';
+  id: number;
+  name: string;
+  quantity: number;
+  hours: number;
+  originalCost: number;
+  newCost: number;
+  originalDuration: number;
+  newDuration: number;
+}
+
+/** A line whose catalogue row is gone or deactivated — dropped from the recreated order. */
+export interface ReorderUnavailableLine {
+  kind: 'Service' | 'Extra';
+  id: number;
+  name: string;
+  quantity: number;
+  originalCost: number;
+  reason: string;
+}
+
+/**
+ * A discount slot the source order used, and what becomes of it. `canReapply` is true only for
+ * Loyalty / Subscription and only while the customer is still entitled — those two are the
+ * opt-in; everything else is reported purely so the admin can explain the difference.
+ */
+export interface ReorderDiscountChange {
+  kind: 'PromoCode' | 'FirstTime' | 'SpecialOffer' | 'GiftCard' | 'BubblePoints'
+      | 'RewardBalance' | 'Loyalty' | 'Subscription';
+  label: string;
+  originalAmount: number;
+  availableAmount: number;
+  canReapply: boolean;
+  reason: string;
+}
+
+export interface ReorderTotals {
+  subTotal: number;
+  discountAmount: number;
+  subscriptionDiscountAmount: number;
+  loyaltyDiscountAmount: number;
+  giftCardAmountUsed: number;
+  pointsRedeemedDiscount: number;
+  rewardBalanceUsed: number;
+  tax: number;
+  tips: number;
+  total: number;
+  totalDuration: number;
+  maidsCount: number;
+}
+
+export interface ReorderPreview {
+  sourceOrderId: number;
+  customerUserId: number;
+  customerName: string;
+  originalServiceDate: string;
+  serviceTypeName: string;
+  isCustomServiceType: boolean;
+  original: ReorderTotals;
+  recreated: ReorderTotals;
+  lineChanges: ReorderLineChange[];
+  unavailable: ReorderUnavailableLine[];
+  discounts: ReorderDiscountChange[];
+  hasChanges: boolean;
+  /** A CreateBookingDto with every discount slot already empty — post it straight back. */
+  prefill: any;
+  notificationEmail: string | null;
+  notificationPhone: string | null;
+  customerHasNoAccountEmail: boolean;
+}
+
 export interface ExpenseBreakdownItem {
   expenseId: number;
   name: string;
@@ -1235,6 +1310,15 @@ export class AdminService {
 
   getOrderDetails(orderId: number): Observable<Order> {
     return this.http.get<Order>(`${this.apiUrl}/orders/${orderId}`);
+  }
+
+  /**
+   * "Recreate this order" preview — the diff the admin reads before the mini booking form opens,
+   * plus that form's prefill, in one round trip. Read-only: it creates nothing. The recreated
+   * order is written by booking/create-for-user, which re-prices independently.
+   */
+  getReorderPreview(orderId: number): Observable<ReorderPreview> {
+    return this.http.get<ReorderPreview>(`${this.apiUrl}/orders/${orderId}/reorder-preview`);
   }
 
   updateOrderStatus(

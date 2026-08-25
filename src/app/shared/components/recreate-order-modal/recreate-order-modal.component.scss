@@ -1,0 +1,532 @@
+/**
+ * "Recreate this order" modal. Every colour is a token from styles.scss, so the panel follows
+ * the day/night toggle without a single :host-context override of its own.
+ */
+
+.rom-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  background: var(--overlay-dark-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.rom-panel {
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 24px 60px var(--shadow-color);
+  width: 100%;
+  max-width: 860px;
+  max-height: calc(100vh - 2rem);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+// ─── Header / footer ───────────────────────────────────────────────────────────────────
+
+.rom-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.4rem;
+  border-bottom: 1px solid var(--border-color);
+
+  h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+  }
+}
+
+.rom-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.rom-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.25rem;
+
+  &:hover { color: var(--text-primary); }
+}
+
+.rom-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1rem 1.4rem;
+  border-top: 1px solid var(--border-color);
+  background: var(--surface);
+}
+
+.rom-body {
+  padding: 1.25rem 1.4rem;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+// ─── Sections ──────────────────────────────────────────────────────────────────────────
+
+.rom-section {
+  margin-bottom: 1.5rem;
+
+  &:last-child { margin-bottom: 0; }
+
+  h4 {
+    margin: 0 0 0.6rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+}
+
+.rom-lead {
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.rom-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.rom-muted { color: var(--text-muted); }
+.rom-center { text-align: center; }
+
+.rom-nochange {
+  background: var(--mint-fresh);
+  color: var(--mint-fresh-text);
+  border: 1px solid var(--mint-fresh-border);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1rem;
+  font-size: 0.9rem;
+}
+
+.rom-banner {
+  margin-top: 0.75rem;
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.9rem;
+  font-size: 0.85rem;
+
+  &--info {
+    background: var(--soft-blue);
+    color: var(--primary-color);
+  }
+}
+
+.rom-error {
+  background: var(--soft-red);
+  color: var(--bright-red);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 0.9rem;
+  font-size: 0.87rem;
+  margin-top: 0.75rem;
+}
+
+// ─── Tables (the diff) ─────────────────────────────────────────────────────────────────
+
+.rom-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+
+  th, td {
+    text-align: left;
+    padding: 0.5rem 0.6rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  th {
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  td + td, th + th { text-align: right; }
+}
+
+.rom-total-row td {
+  font-weight: 600;
+  border-bottom: none;
+}
+
+.rom-delta {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+
+  &.up { color: var(--warning-orange-text); }
+  &.down { color: var(--fresh-green); }
+}
+
+.rom-up { color: var(--warning-orange-text); }
+.rom-down { color: var(--fresh-green); }
+.rom-neg { color: var(--fresh-green); }
+
+.rom-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    margin-bottom: 0.5rem;
+    font-size: 0.87rem;
+    background: var(--surface);
+
+    &.reapplicable {
+      border-color: var(--mint-fresh-border);
+      background: var(--mint-fresh);
+      color: var(--mint-fresh-text);
+    }
+  }
+}
+
+.rom-was {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.rom-reason {
+  margin-top: 0.25rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.reapplicable .rom-reason,
+.reapplicable .rom-was { color: inherit; }
+
+// ─── Form ──────────────────────────────────────────────────────────────────────────────
+
+.rom-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+
+  &--three { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+}
+
+.rom-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+
+  &--wide { grid-column: span 2; }
+  &--full { display: flex; width: 100%; }
+
+  input, select, textarea {
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    width: 100%;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+  }
+
+  textarea { resize: vertical; }
+}
+
+.rom-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary-text);
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.rom-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.87rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+  cursor: pointer;
+
+  input { margin-top: 0.15rem; }
+
+  &.disabled {
+    color: var(--text-muted);
+    cursor: not-allowed;
+  }
+}
+
+// ─── Services / chips ──────────────────────────────────────────────────────────────────
+
+.rom-services {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.rom-service-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+
+  label {
+    font-size: 0.87rem;
+    color: var(--text-secondary);
+  }
+}
+
+.rom-slider {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
+
+  &__value {
+    font-size: 0.85rem;
+    font-weight: 600;
+    min-width: 3.5rem;
+    text-align: right;
+  }
+
+  input[type="range"] { flex: 1 1 auto; min-width: 0; }
+}
+
+.rom-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rom-chip {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.87rem;
+  cursor: pointer;
+
+  &:hover { border-color: var(--primary-color); }
+
+  &.selected {
+    background: var(--soft-blue);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    font-weight: 600;
+  }
+
+  &--small { min-width: 2.75rem; text-align: center; }
+}
+
+.rom-levels {
+  margin-top: 0.85rem;
+
+  &__label {
+    display: block;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.4rem;
+  }
+}
+
+// ─── Extras ────────────────────────────────────────────────────────────────────────────
+//
+// Deliberately NOT the booking page's card grid: no artwork, no tooltips, no "See all". An
+// admin recreating an order is reading a list, not shopping. A name button per extra, and its
+// quantity / hours stepper only once it is selected.
+
+.rom-extras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rom-extra {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  &__toggle {
+    padding: 0.45rem 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-align: left;
+
+    &:hover { border-color: var(--primary-color); }
+
+    &.selected {
+      background: var(--soft-blue);
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+      font-weight: 600;
+    }
+  }
+
+  &__controls {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  &__control {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+
+  &__label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+}
+
+/**
+ * The one stepper in this modal, sized to sit level with `.rom-extra__toggle` — same border,
+ * radius, surface and font size, so a selected extra and its counter read as one control rather
+ * than a small button next to a large pill. Used by the extras AND the service rows: they are the
+ * same control, and only one of them looking like the booking page's blue pill was the mismatch.
+ */
+.rom-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  height: 1.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  overflow: hidden;
+
+  button {
+    font: inherit;
+    font-size: 0.9rem;
+    line-height: 1;
+    width: 1.6rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0;
+
+    &:hover:not(:disabled) {
+      background: var(--soft-blue);
+      color: var(--primary-color);
+    }
+
+    &:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+  }
+
+  &__value {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.6rem;
+    padding: 0 0.3rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-left: 1px solid var(--border-color);
+    border-right: 1px solid var(--border-color);
+    white-space: nowrap;
+  }
+}
+
+// ─── Summary ───────────────────────────────────────────────────────────────────────────
+
+.rom-summary {
+  background: var(--surface-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.9rem 1rem;
+
+  &__row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.87rem;
+    padding: 0.2rem 0;
+
+    &--total {
+      font-weight: 700;
+      font-size: 1rem;
+      border-top: 1px solid var(--border-color);
+      margin-top: 0.4rem;
+      padding-top: 0.5rem;
+    }
+  }
+}
+
+// ─── Buttons ───────────────────────────────────────────────────────────────────────────
+
+.rom-btn {
+  padding: 0.55rem 1.15rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  &.primary {
+    background: var(--btn-primary);
+    color: #fff;
+
+    &:hover:not(:disabled) { background: var(--btn-primary-hover); }
+  }
+
+  &.ghost {
+    background: transparent;
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+
+    &:hover:not(:disabled) { border-color: var(--primary-color); color: var(--primary-color); }
+  }
+}
+
+@media (max-width: 640px) {
+  .rom-field--wide { grid-column: span 1; }
+  .rom-panel { max-height: 100vh; border-radius: 0; }
+  .rom-backdrop { padding: 0; }
+}

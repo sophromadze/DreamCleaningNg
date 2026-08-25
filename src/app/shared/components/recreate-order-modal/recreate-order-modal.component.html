@@ -1,0 +1,516 @@
+<div class="rom-backdrop" *ngIf="open" (click)="close()">
+  <div class="rom-panel" (click)="onPanelClick($event)" role="dialog" aria-modal="true">
+
+    <header class="rom-header">
+      <div class="rom-header__text">
+        <h3>Recreate order</h3>
+        <p class="rom-subtitle" *ngIf="preview">
+          #{{ preview.sourceOrderId }} · {{ preview.serviceTypeName }} ·
+          {{ preview.originalServiceDate | date:'mediumDate' }} · {{ preview.customerName }}
+        </p>
+      </div>
+      <button type="button" class="rom-close" (click)="close()" aria-label="Close">×</button>
+    </header>
+
+    <!-- ─── Loading ─────────────────────────────────────────────────────────────────── -->
+    <div class="rom-body" *ngIf="step === 'loading'">
+      <p class="rom-muted rom-center">Working out what has changed since this order…</p>
+    </div>
+
+    <!-- ─── Load failure ────────────────────────────────────────────────────────────── -->
+    <div class="rom-body" *ngIf="step === 'error'">
+      <div class="rom-error">{{ errorMessage }}</div>
+    </div>
+
+    <!-- ─── Step 1: what will be different ──────────────────────────────────────────── -->
+    <div class="rom-body" *ngIf="step === 'changes' && preview">
+
+      <p class="rom-lead">
+        This will create a <strong>new</strong> order for {{ preview.customerName }}. The original
+        order is not touched.
+      </p>
+
+      <!-- Nothing moved: say so in one line rather than render four empty sections. -->
+      <div class="rom-nochange" *ngIf="!preview.hasChanges">
+        Nothing has changed since this order was booked — the same job costs the same today.
+      </div>
+
+      <ng-container *ngIf="preview.hasChanges">
+
+        <!-- Bottom line -->
+        <section class="rom-section" *ngIf="hasTotalChange">
+          <h4>What the customer pays</h4>
+          <table class="rom-table rom-totals">
+            <thead>
+              <tr><th></th><th>Original</th><th>If recreated today</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Subtotal</td>
+                <td>{{ preview.original.subTotal | currency }}</td>
+                <td>{{ preview.recreated.subTotal | currency }}</td>
+              </tr>
+              <tr *ngIf="preview.original.discountAmount
+                       || preview.original.subscriptionDiscountAmount
+                       || preview.original.loyaltyDiscountAmount">
+                <td>Discounts</td>
+                <td class="rom-neg">
+                  −{{ preview.original.discountAmount
+                      + preview.original.subscriptionDiscountAmount
+                      + preview.original.loyaltyDiscountAmount | currency }}
+                </td>
+                <td class="rom-muted">none</td>
+              </tr>
+              <tr *ngIf="preview.original.giftCardAmountUsed
+                       || preview.original.pointsRedeemedDiscount
+                       || preview.original.rewardBalanceUsed">
+                <td>Gift card / points / reward balance</td>
+                <td class="rom-neg">
+                  −{{ preview.original.giftCardAmountUsed
+                      + preview.original.pointsRedeemedDiscount
+                      + preview.original.rewardBalanceUsed | currency }}
+                </td>
+                <td class="rom-muted">none</td>
+              </tr>
+              <tr>
+                <td>Sales tax</td>
+                <td>{{ preview.original.tax | currency }}</td>
+                <td>{{ preview.recreated.tax | currency }}</td>
+              </tr>
+              <tr *ngIf="preview.original.tips || preview.recreated.tips">
+                <td>Tips</td>
+                <td>{{ preview.original.tips | currency }}</td>
+                <td>{{ preview.recreated.tips | currency }}</td>
+              </tr>
+              <tr class="rom-total-row">
+                <td>Total</td>
+                <td>{{ preview.original.total | currency }}</td>
+                <td>
+                  {{ preview.recreated.total | currency }}
+                  <span class="rom-delta" [class.up]="totalDelta > 0" [class.down]="totalDelta < 0">
+                    {{ totalDelta > 0 ? '+' : '' }}{{ totalDelta | currency }}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="rom-note">
+            You can change any of this on the next screen before the order is created.
+          </p>
+        </section>
+
+        <!-- Catalogue moves -->
+        <section class="rom-section" *ngIf="hasLineChanges">
+          <h4>Prices that have changed since then</h4>
+          <table class="rom-table">
+            <thead>
+              <tr><th>Item</th><th>Then</th><th>Now</th><th>Time</th></tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let line of preview.lineChanges">
+                <td>
+                  {{ line.name }}
+                  <span class="rom-muted" *ngIf="line.quantity > 1">× {{ line.quantity }}</span>
+                  <span class="rom-muted" *ngIf="line.hours">· {{ line.hours }}h</span>
+                </td>
+                <td>{{ line.originalCost | currency }}</td>
+                <td [class.rom-up]="line.newCost > line.originalCost"
+                    [class.rom-down]="line.newCost < line.originalCost">
+                  {{ line.newCost | currency }}
+                </td>
+                <td class="rom-muted">
+                  <span *ngIf="line.newDuration !== line.originalDuration">
+                    {{ line.originalDuration }}m → {{ line.newDuration }}m
+                  </span>
+                  <span *ngIf="line.newDuration === line.originalDuration">—</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- Gone from the catalogue -->
+        <section class="rom-section" *ngIf="hasUnavailable">
+          <h4>No longer available — these will be left out</h4>
+          <ul class="rom-list">
+            <li *ngFor="let line of preview.unavailable">
+              <strong>{{ line.name }}</strong>
+              <span class="rom-muted" *ngIf="line.quantity > 1"> × {{ line.quantity }}</span>
+              <span class="rom-was"> (was {{ line.originalCost | currency }})</span>
+              <div class="rom-reason">{{ line.reason }}</div>
+            </li>
+          </ul>
+        </section>
+
+        <!-- Discounts -->
+        <section class="rom-section" *ngIf="hasDiscountChanges">
+          <h4>Discounts</h4>
+          <ul class="rom-list">
+            <li *ngFor="let d of preview.discounts" [class.reapplicable]="d.canReapply">
+              <strong>{{ d.label }}</strong>
+              <span class="rom-was" *ngIf="d.originalAmount > 0">
+                (took {{ d.originalAmount | currency }} off the original order)
+              </span>
+              <div class="rom-reason">{{ d.reason }}</div>
+            </li>
+          </ul>
+        </section>
+
+      </ng-container>
+    </div>
+
+    <!-- ─── Step 2: the mini booking form ───────────────────────────────────────────── -->
+    <div class="rom-body" *ngIf="step === 'form' && preview && serviceType">
+
+      <!-- Schedule -->
+      <section class="rom-section">
+        <h4>When</h4>
+        <div class="rom-grid">
+          <label class="rom-field">
+            <span>Service date</span>
+            <!-- No `min`: back-dating is the point. Re-entering cash jobs that were missed at
+                 the time is the main reason this modal exists. -->
+            <input type="date" [(ngModel)]="serviceDate" (ngModelChange)="onScheduleChange()">
+          </label>
+          <label class="rom-field">
+            <span>Service time</span>
+            <input type="time" step="1800" [(ngModel)]="serviceTime">
+          </label>
+        </div>
+        <button type="button" class="rom-link" (click)="useOriginalDate()">
+          Use the original date ({{ preview.originalServiceDate | date:'mediumDate' }})
+        </button>
+
+        <div class="rom-banner rom-banner--info" *ngIf="isBackDated">
+          This order will be <strong>back-dated</strong>. It is exempt from the automatic
+          “unpaid and the date has passed” cancellation, so it will stay exactly as you create it.
+        </div>
+      </section>
+
+      <!-- Payment + status -->
+      <section class="rom-section">
+        <h4>Payment &amp; status</h4>
+        <div class="rom-grid">
+          <label class="rom-field">
+            <span>Payment method</span>
+            <select [(ngModel)]="paymentMethod" (ngModelChange)="onScheduleChange()">
+              <option *ngFor="let m of paymentMethods" [value]="m.value">{{ m.label }}</option>
+            </select>
+          </label>
+          <label class="rom-field">
+            <span>Status</span>
+            <select [(ngModel)]="orderStatus" (ngModelChange)="onStatusChange()">
+              <option value="Pending">Pending — awaiting payment</option>
+              <option value="Active">Active — booked, not yet done</option>
+              <option value="Done">Done — the cleaning already happened</option>
+            </select>
+          </label>
+        </div>
+        <ng-container *ngIf="paymentMethod !== 'Normal'">
+          <div class="rom-grid">
+            <label class="rom-field">
+              <span>Payment reference</span>
+              <input type="text" [(ngModel)]="paymentReference" placeholder="Optional">
+            </label>
+            <label class="rom-field">
+              <span>Payment notes</span>
+              <input type="text" [(ngModel)]="paymentNotes" placeholder="Optional">
+            </label>
+          </div>
+        </ng-container>
+        <p class="rom-note" *ngIf="paymentMethod === 'Normal'">
+          Stripe: the order is created unpaid. Nothing is charged here, and no payment link goes
+          out unless you turn a notification on below.
+        </p>
+      </section>
+
+      <!-- Custom ("Pre-Arranged") pricing -->
+      <section class="rom-section" *ngIf="serviceType.isCustom">
+        <h4>Pre-arranged price</h4>
+        <div class="rom-grid rom-grid--three">
+          <label class="rom-field">
+            <span>Total amount (tax included)</span>
+            <input type="number" min="0" step="0.01"
+                   [(ngModel)]="customAmount" (ngModelChange)="recalculate()">
+          </label>
+          <label class="rom-field">
+            <span>Cleaners</span>
+            <input type="number" min="1" step="1"
+                   [(ngModel)]="customCleaners" (ngModelChange)="recalculate()">
+          </label>
+          <label class="rom-field">
+            <span>Minutes per cleaner</span>
+            <input type="number" min="0" step="30"
+                   [(ngModel)]="customDuration" (ngModelChange)="recalculate()">
+          </label>
+        </div>
+        <p class="rom-note">
+          Extras below are recorded for the crew but cost nothing and add no time on a
+          pre-arranged job — the amount above is the whole quote.
+        </p>
+      </section>
+
+      <!-- Services -->
+      <section class="rom-section" *ngIf="!serviceType.isCustom && stepperServices.length">
+        <h4>The job</h4>
+        <div class="rom-services">
+          <div class="rom-service-item" *ngFor="let selected of stepperServices">
+            <label>{{ selected.service.name }}</label>
+
+            <div class="rom-service-input" *ngIf="selected.service.inputType === 'dropdown'">
+              <span class="rom-stepper">
+                <button type="button" aria-label="Decrease"
+                        [disabled]="selected.quantity <= getServiceMinValue(selected.service)"
+                        (click)="decrementService(selected.service)">&minus;</button>
+                <span class="rom-stepper__value">
+                  {{ selected.service.serviceKey === 'bedrooms' && selected.quantity === 0
+                       ? 'Studio' : selected.quantity }}
+                </span>
+                <button type="button" aria-label="Increase"
+                        [disabled]="selected.quantity >= (selected.service.maxValue || 10)"
+                        (click)="incrementService(selected.service)">+</button>
+              </span>
+            </div>
+
+            <div class="rom-service-input rom-slider" *ngIf="selected.service.isRangeInput">
+              <span class="rom-slider__value">{{ selected.quantity }}</span>
+              <input type="range" min="0" step="1"
+                     [max]="squareFeetSliderMaxIndex(selected.service)"
+                     [value]="squareFeetSliderIndex(selected.service, selected.quantity)"
+                     (input)="onSquareFeetSliderChange(selected.service, $any($event.target).value)">
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Property type + levels -->
+      <section class="rom-section" *ngIf="showPropertyTypeSelector()">
+        <h4>What kind of place is it?</h4>
+        <div class="rom-chips">
+          <button type="button" class="rom-chip"
+                  [class.selected]="propertyType === apartmentType"
+                  (click)="selectPropertyType(apartmentType)">Apartment / Condo</button>
+          <button type="button" class="rom-chip"
+                  [class.selected]="propertyType === houseType"
+                  (click)="selectPropertyType(houseType)">House / Townhouse</button>
+        </div>
+
+        <div class="rom-levels" *ngIf="showLevelsSelector()">
+          <span class="rom-levels__label">Levels being cleaned</span>
+          <div class="rom-chips">
+            <button type="button" class="rom-chip rom-chip--small"
+                    *ngFor="let level of levelOptions"
+                    [class.selected]="levelsQuantity === level"
+                    (click)="selectLevels(level)">{{ level }}</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Cleaning type. Deep / Super Deep are a TYPE, not an extra — the same rule the booking
+           page applies. They never appear in the extras list below. -->
+      <section class="rom-section" *ngIf="showCleaningTypeSelector">
+        <h4>Cleaning type</h4>
+        <div class="rom-chips">
+          <button type="button" class="rom-chip"
+                  *ngFor="let option of cleaningTypeOptions"
+                  [class.selected]="cleaningType === option.value"
+                  (click)="selectCleaningType(option.value)">
+            {{ option.label }}
+          </button>
+        </div>
+      </section>
+
+      <!-- Extras -->
+      <section class="rom-section" *ngIf="selectableExtras.length">
+        <h4>Extra services</h4>
+        <div class="rom-extras">
+          <div class="rom-extra" *ngFor="let extra of selectableExtras">
+            <button type="button"
+                    class="rom-extra__toggle"
+                    [class.selected]="isExtraSelected(extra)"
+                    (click)="toggleExtra(extra)">
+              {{ extra.name }}
+            </button>
+
+            <div class="rom-extra__controls"
+                 *ngIf="isExtraSelected(extra) && (extra.hasQuantity || extra.hasHours)">
+              <span class="rom-extra__control" *ngIf="extra.hasQuantity">
+                <span class="rom-extra__label">Qty</span>
+                <span class="rom-stepper">
+                  <button type="button" aria-label="Decrease quantity"
+                          [disabled]="extraQuantity(extra) <= 1"
+                          (click)="changeExtraQuantity(extra, -1)">&minus;</button>
+                  <span class="rom-stepper__value">{{ extraQuantity(extra) }}</span>
+                  <button type="button" aria-label="Increase quantity"
+                          (click)="changeExtraQuantity(extra, 1)">+</button>
+                </span>
+              </span>
+              <span class="rom-extra__control" *ngIf="extra.hasHours">
+                <span class="rom-extra__label">Hours</span>
+                <span class="rom-stepper">
+                  <button type="button" aria-label="Decrease hours"
+                          [disabled]="extraHours(extra) <= 0.5"
+                          (click)="changeExtraHours(extra, -0.5)">&minus;</button>
+                  <span class="rom-stepper__value">{{ extraHours(extra) }}</span>
+                  <button type="button" aria-label="Increase hours"
+                          (click)="changeExtraHours(extra, 0.5)">+</button>
+                </span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Where / who -->
+      <section class="rom-section">
+        <h4>Address &amp; contact</h4>
+        <div class="rom-grid">
+          <label class="rom-field rom-field--wide">
+            <span>Street address</span>
+            <input type="text" [(ngModel)]="serviceAddress">
+          </label>
+          <label class="rom-field">
+            <span>Apt / Suite</span>
+            <input type="text" [(ngModel)]="aptSuite">
+          </label>
+          <label class="rom-field">
+            <span>City</span>
+            <input type="text" [(ngModel)]="city">
+          </label>
+          <label class="rom-field">
+            <span>State</span>
+            <input type="text" [(ngModel)]="state">
+          </label>
+          <label class="rom-field">
+            <span>ZIP</span>
+            <input type="text" maxlength="5" [(ngModel)]="zipCode">
+          </label>
+        </div>
+        <div class="rom-grid">
+          <label class="rom-field">
+            <span>First name</span>
+            <input type="text" [(ngModel)]="contactFirstName">
+          </label>
+          <label class="rom-field">
+            <span>Last name</span>
+            <input type="text" [(ngModel)]="contactLastName">
+          </label>
+          <label class="rom-field">
+            <span>Email</span>
+            <input type="email" [(ngModel)]="contactEmail" placeholder="Leave blank for a cash customer">
+          </label>
+          <label class="rom-field">
+            <span>Phone</span>
+            <input type="tel" [(ngModel)]="contactPhone">
+          </label>
+        </div>
+      </section>
+
+      <!-- Details -->
+      <section class="rom-section">
+        <h4>Details</h4>
+        <div class="rom-grid">
+          <label class="rom-field rom-field--wide">
+            <span>Entry method</span>
+            <input type="text" [(ngModel)]="entryMethod">
+          </label>
+          <label class="rom-field">
+            <span>Tips</span>
+            <input type="number" min="0" step="1" [(ngModel)]="tips" (ngModelChange)="onTipsChange()">
+          </label>
+        </div>
+        <label class="rom-field rom-field--full">
+          <span>Special instructions</span>
+          <textarea rows="2" [(ngModel)]="specialInstructions"></textarea>
+        </label>
+      </section>
+
+      <!-- Discounts opt-in — only rendered when there is genuinely something to opt in to -->
+      <section class="rom-section" *ngIf="reapplicableDiscounts.length">
+        <h4>Discounts</h4>
+        <label class="rom-check">
+          <input type="checkbox" [(ngModel)]="applyCurrentDiscounts"
+                 (ngModelChange)="onDiscountToggleChange()">
+          <span>
+            Apply this customer's current discounts
+            (<ng-container *ngFor="let d of reapplicableDiscounts; let last = last"
+             >{{ d.label }}{{ last ? '' : ', ' }}</ng-container>) —
+            about {{ reapplicableTotal | currency }} off
+          </span>
+        </label>
+        <p class="rom-note">
+          Off by default. Ticking a <strong>loyalty</strong> discount also uses it up, so leave
+          this alone when you are simply re-entering a job that already happened.
+        </p>
+      </section>
+
+      <!-- Notifications -->
+      <section class="rom-section">
+        <h4>Tell the customer?</h4>
+        <p class="rom-note">
+          Both off by default — a recreated order sends nothing unless you ask it to.
+        </p>
+        <label class="rom-check" [class.disabled]="!canNotifyByEmail">
+          <input type="checkbox" [(ngModel)]="notifyByEmail" [disabled]="!canNotifyByEmail">
+          <span *ngIf="canNotifyByEmail">Email {{ preview.notificationEmail }}</span>
+          <span *ngIf="!canNotifyByEmail">
+            No email on file for this customer — nothing can be emailed.
+          </span>
+        </label>
+        <label class="rom-check" [class.disabled]="!canNotifyBySms">
+          <input type="checkbox" [(ngModel)]="notifyBySms" [disabled]="!canNotifyBySms">
+          <span *ngIf="canNotifyBySms">Text {{ preview.notificationPhone }}</span>
+          <span *ngIf="!canNotifyBySms">
+            No phone number on file for this customer — nothing can be texted.
+          </span>
+        </label>
+      </section>
+
+      <!-- Live summary -->
+      <section class="rom-section rom-summary">
+        <h4>This order</h4>
+        <div class="rom-summary__row"><span>Subtotal</span><span>{{ quoteSubTotal | currency }}</span></div>
+        <div class="rom-summary__row" *ngIf="appliedLoyalty > 0">
+          <span>Loyalty discount</span><span class="rom-neg">−{{ appliedLoyalty | currency }}</span>
+        </div>
+        <div class="rom-summary__row" *ngIf="appliedSubscription > 0">
+          <span>Plan discount</span><span class="rom-neg">−{{ appliedSubscription | currency }}</span>
+        </div>
+        <div class="rom-summary__row"><span>Sales tax</span><span>{{ quoteTax | currency }}</span></div>
+        <div class="rom-summary__row" *ngIf="tips > 0"><span>Tips</span><span>{{ tips | currency }}</span></div>
+        <div class="rom-summary__row rom-summary__row--total">
+          <span>Total</span><span>{{ quoteTotal | currency }}</span>
+        </div>
+        <div class="rom-summary__row rom-muted">
+          <span>Estimated duration</span><span>{{ formattedDuration }}</span>
+        </div>
+      </section>
+
+      <div class="rom-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+    </div>
+
+    <!-- ─── Footer ──────────────────────────────────────────────────────────────────── -->
+    <footer class="rom-footer">
+      <ng-container *ngIf="step === 'changes'">
+        <button type="button" class="rom-btn ghost" (click)="close()">Cancel</button>
+        <button type="button" class="rom-btn primary" (click)="continueToForm()">
+          Continue to booking
+        </button>
+      </ng-container>
+
+      <ng-container *ngIf="step === 'form'">
+        <button type="button" class="rom-btn ghost" (click)="backToChanges()" [disabled]="submitting">
+          Back to changes
+        </button>
+        <button type="button" class="rom-btn primary" (click)="submit()" [disabled]="submitting">
+          {{ submitting ? 'Creating…' : 'Create order' }}
+        </button>
+      </ng-container>
+
+      <ng-container *ngIf="step === 'error' || step === 'loading'">
+        <button type="button" class="rom-btn ghost" (click)="close()">Close</button>
+      </ng-container>
+    </footer>
+
+  </div>
+</div>

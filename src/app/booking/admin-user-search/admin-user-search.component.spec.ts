@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 
 import {
   AdminUserSearchComponent,
@@ -198,6 +198,98 @@ describe('AdminUserSearchComponent', () => {
       subjects[0](stale); // late arrival from the older request
 
       expect(component.availableUsers.map(u => u.id)).toEqual([60]);
+    });
+  });
+
+  /**
+   * A customer registered from the booking page's header must be bookable IMMEDIATELY — the
+   * admin is on the phone and cannot be told to reload the page. The host owns the list of
+   * customers it created (the search box lives inside the admin-mode *ngIf and is destroyed
+   * whenever Admin Mode is toggled off), and hands them over as `seedUsers`.
+   */
+  describe('seedUsers — a just-registered customer is searchable without a reload', () => {
+    const fresh = customer(99, 'Nino', 'Beridze', 'nino@example.com');
+
+    it('is searchable as soon as the input changes, with no refetch', fakeAsync(() => {
+      adminService.getUsers.calls.reset();
+
+      fixture.componentRef.setInput('seedUsers', [fresh]);
+      fixture.detectChanges();
+      search('Beridze');
+
+      expect(component.filteredUsers.map(u => u.id)).toEqual([99]);
+      expect(adminService.getUsers).not.toHaveBeenCalled();
+    }));
+
+    it('is present when the box is created with seeds already waiting', fakeAsync(() => {
+      // Registering with Admin Mode OFF destroys nothing — this box did not exist yet.
+      const later = TestBed.createComponent(AdminUserSearchComponent);
+      later.componentRef.setInput('seedUsers', [fresh]);
+      later.detectChanges();
+
+      later.componentInstance.onSearchInput('Nino');
+      tick(USER_SEARCH_DEBOUNCE_MS);
+
+      expect(later.componentInstance.filteredUsers.map(u => u.id)).toEqual([99]);
+    }));
+
+    it('ranks seeds ahead of the server list so the render cap cannot hide them', fakeAsync(() => {
+      fixture.componentRef.setInput('seedUsers', [fresh]);
+      fixture.detectChanges();
+
+      expect(component.availableUsers[0].id).toBe(99);
+      expect(component.availableUsers.length).toBe(users.length + 1);
+    }));
+
+    /** The seed is a stand-in, not a second record. */
+    it('drops the seed once the server list carries that id', fakeAsync(() => {
+      const canonical = customer(99, 'Nino', 'Beridze', 'nino@example.com');
+      adminService.getUsers.and.returnValue(of([...users, canonical] as any));
+
+      fixture.componentRef.setInput('seedUsers', [fresh]);
+      fixture.detectChanges();
+      component.loadUsers(true);
+      search('Beridze');
+
+      expect(component.filteredUsers.map(u => u.id)).toEqual([99]);
+      expect(component.availableUsers.filter(u => u.id === 99).length).toBe(1);
+      expect(component.availableUsers[0].id).not.toBe(99);
+    }));
+
+    /**
+     * The customer exists on the server either way; a load that failed is a reason to keep
+     * showing them, not to drop them.
+     */
+    it('keeps seeds when the reload fails', fakeAsync(() => {
+      fixture.componentRef.setInput('seedUsers', [fresh]);
+      fixture.detectChanges();
+      adminService.getUsers.and.returnValue(throwError(() => new Error('offline')));
+
+      component.loadUsers(true);
+      search('Beridze');
+
+      expect(component.filteredUsers.map(u => u.id)).toEqual([99]);
+    }));
+
+    /**
+     * GET /api/admin/users is an ordinary cacheable GET, so a reload triggered by a WRITE has to
+     * bypass the cache or it can hand back the list from before the POST — the exact "I have to
+     * reload the page to see the new customer" symptom.
+     */
+    it('bypasses the HTTP cache on a reload triggered by a registration', () => {
+      adminService.getUsers.calls.reset();
+
+      component.loadUsers(true);
+
+      expect(adminService.getUsers).toHaveBeenCalledWith(true);
+    });
+
+    it('leaves the ordinary first load cacheable', () => {
+      adminService.getUsers.calls.reset();
+
+      component.loadUsers();
+
+      expect(adminService.getUsers).toHaveBeenCalledWith(false);
     });
   });
 

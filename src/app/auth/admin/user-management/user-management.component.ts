@@ -22,13 +22,18 @@ import { AdminBonusService, AdminBonusSummary } from '../../../services/admin-bo
 import { environment } from '../../../../environments/environment';
 import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
 import { ADMIN_VIEWABLE_PAGES } from '../../../shared/admin-viewable-pages';
+import {
+  RegisterCustomerModalComponent,
+  RegisteredCustomer
+} from '../../../shared/components/register-customer-modal/register-customer-modal.component';
+import { RecreateOrderModalComponent } from '../../../shared/components/recreate-order-modal/recreate-order-modal.component';
 
 type DetailTab = 'details' | 'history' | 'photos' | 'notes' | 'tasks';
 
 @Component({
   selector: 'app-user-management',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RegisterCustomerModalComponent, RecreateOrderModalComponent],
   templateUrl: './user-management.component.html',
   styleUrls: ['./user-management.component.scss']
 })
@@ -63,16 +68,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   errorMessage = '';
   successMessage = '';
 
+  /** Register-customer modal visibility. The form itself lives in the shared modal component. */
   showRegisterModal = false;
-  registerForm = {
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    noEmail: false
-  };
-  isRegistering = false;
-  registerModalError = '';
 
   // ── Export (SuperAdmin-only) ──
   showExportModal = false;
@@ -1542,18 +1539,43 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     window.open('/admin?orderId=' + orderId, '_blank');
   }
 
+  // ─── Recreate an order from the customer's cleaning history ───────────────────────────
+  // Gated on `canCreate` from GET api/admin/permissions rather than a local role test, for the
+  // same reason "Register Customer" is: PermissionService's map (Create for Admin + SuperAdmin,
+  // Moderator View-only) is what the endpoint enforces, and a second copy of it here would be
+  // free to drift. The reorder-preview endpoint carries [RequirePermission(Permission.Create)].
+
+  recreateSourceOrderId: number | null = null;
+  showRecreateModal = false;
+  recreateSuccessMessage = '';
+
+  startRecreateOrder(orderId: number, event: Event): void {
+    // The whole history row navigates to the order in the admin panel; the button must not.
+    event.stopPropagation();
+    if (!this.canCreate) return;
+    this.recreateSuccessMessage = '';
+    this.recreateSourceOrderId = orderId;
+    this.showRecreateModal = true;
+  }
+
+  closeRecreateModal(): void {
+    this.showRecreateModal = false;
+    this.recreateSourceOrderId = null;
+  }
+
+  onOrderRecreated(result: { orderId: number; total: number }): void {
+    this.recreateSuccessMessage =
+      `Order #${result.orderId} created. It is on this customer's history below.`;
+    // The new order belongs in the list the admin is looking at, and the header's order count and
+    // lifetime total are derived from that same list — reloading is what keeps all three honest.
+    if (this.selectedUser) this.loadUserOrders(this.selectedUser.id);
+  }
+
   onEditPhoneInput(event: Event): void {
     const input = event.target as HTMLInputElement;
     const cleaned = sanitizePhoneInput(input.value);
     if (input.value !== cleaned) input.value = cleaned;
     this.editUserForm.phone = cleaned || null;
-  }
-
-  onRegisterPhoneInput(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    const cleaned = sanitizePhoneInput(input.value);
-    if (input.value !== cleaned) input.value = cleaned;
-    this.registerForm.phone = cleaned;
   }
 
   callUser(user: UserAdmin, event?: Event): void {
@@ -1886,55 +1908,18 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   openRegisterModal(): void {
-    this.registerForm = { firstName: '', lastName: '', email: '', phone: '', noEmail: false };
-    this.registerModalError = '';
     this.showRegisterModal = true;
   }
 
   closeRegisterModal(): void {
     this.showRegisterModal = false;
-    this.registerModalError = '';
   }
 
-  registerUser(): void {
-    const f = this.registerForm;
-    if (!f.firstName?.trim() || !f.lastName?.trim()) {
-      this.registerModalError = 'First name and last name are required.';
-      return;
-    }
-    if (!f.noEmail && !f.email?.trim()) {
-      this.registerModalError = 'Email is required (or mark the customer as having no email).';
-      return;
-    }
-    if (f.noEmail && !normalizePhone10(f.phone)) {
-      this.registerModalError = 'Phone is required for customers without an email.';
-      return;
-    }
-    this.registerModalError = '';
-    this.isRegistering = true;
-    this.adminService.registerUser({
-      firstName: f.firstName.trim(),
-      lastName: f.lastName.trim(),
-      email: f.noEmail ? undefined : f.email.trim(),
-      phone: normalizePhone10(f.phone) || undefined,
-      noEmail: f.noEmail
-    }).subscribe({
-      next: (res: any) => {
-        const name = `${res.firstName || this.registerForm.firstName} ${res.lastName || this.registerForm.lastName}`;
-        this.successMessage = `User ${name} registered successfully.`;
-        this.closeRegisterModal();
-        this.loadUsers();
-        setTimeout(() => { this.successMessage = ''; }, 5000);
-      },
-      error: (err) => {
-        if (err.status === 409) {
-          this.registerModalError = 'A user with this email already exists.';
-        } else {
-          this.registerModalError = err.error?.message || err.message || 'Registration failed. Please try again.';
-        }
-      },
-      complete: () => { this.isRegistering = false; }
-    });
+  /** The shared modal has already created the customer; refresh the table and say so. */
+  onCustomerRegistered(customer: RegisteredCustomer): void {
+    this.successMessage = `User ${customer.firstName} ${customer.lastName} registered successfully.`;
+    this.loadUsers();
+    setTimeout(() => { this.successMessage = ''; }, 5000);
   }
 
   openExportModal(): void {

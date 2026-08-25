@@ -58,7 +58,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      margin-bottom: 2rem;
+      margin-bottom: 1rem;
       flex-wrap: wrap;
       gap: 1rem;
 
@@ -66,13 +66,6 @@
         margin: 0 !important;
         text-align: center !important;
         margin-bottom: 0 !important;
-      }
-
-      .admin-mode-toggle {
-        position: absolute;
-        right: 0;
-        top: 50%;
-        transform: translateY(-50%);
       }
 
       @media (max-width: 768px) {
@@ -88,7 +81,6 @@
           transform: none;
           width: 100%;
           justify-content: center;
-          margin-top: 1rem;
         }
       }
     }
@@ -96,7 +88,43 @@
     .admin-mode-toggle {
       display: flex;
       align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
       gap: 0.5rem;
+
+      /* Same action as the admin Users tab's "+ Register Customer". Deliberately the same
+         SHAPE as the Admin Mode pill beside it (solid fill, no outline — a border made it
+         read as the taller of the two) but the green button family, so the two are never
+         mistaken for the same control or for each other's on/off state. */
+      .register-customer-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        background: var(--btn-secondary);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: var(--btn-secondary-shadow);
+
+        i { font-size: 1rem; }
+
+        &:hover {
+          background: var(--btn-secondary-hover);
+          box-shadow: var(--btn-secondary-shadow-hover);
+          transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+          width: 100%;
+          justify-content: center;
+          padding: 0.875rem 1.25rem;
+        }
+      }
 
       .admin-toggle-btn {
         display: flex;
@@ -159,6 +187,23 @@
           padding: 0.875rem 1.25rem;
         }
       }
+    }
+
+    /* Confirmation shown after the header's Register Customer action. */
+    .customer-registered-note {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-bottom: 1.5rem;
+      padding: 0.85rem 1.1rem;
+      border-radius: 10px;
+      background: var(--mint-fresh);
+      color: var(--fresh-green);
+      border: 1px solid var(--fresh-green);
+      font-size: 0.95rem;
+      font-weight: 500;
+
+      i { flex-shrink: 0; }
     }
 
     .admin-user-selector {

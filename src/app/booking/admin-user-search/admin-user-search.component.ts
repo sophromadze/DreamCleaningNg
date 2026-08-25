@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
@@ -52,16 +52,35 @@ export const USER_LIST_SETTLE_MS = 350;
   templateUrl: './admin-user-search.component.html',
   styleUrls: ['./admin-user-search.component.scss']
 })
-export class AdminUserSearchComponent implements OnInit, OnDestroy {
+export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
   /** Currently selected target user (owned by the booking page). */
   @Input() selectedUser: UserAdmin | null = null;
+
+  /**
+   * Customers the host created during THIS page session (the header's Register Customer action).
+   *
+   * They are merged into the list on top of whatever the server returns, and re-merged whenever
+   * this array changes, so a just-registered customer is searchable without a page reload. Two
+   * reasons the server response alone is not enough:
+   *  - this component is inside the admin-mode `*ngIf`, so registering with Admin Mode OFF happens
+   *    while it does not exist; it is created later and must still know about the new customer,
+   *  - `GET /api/admin/users` is an ordinary cacheable GET.
+   * A seeded entry disappears silently the moment the server's own list contains that id.
+   */
+  @Input() seedUsers: UserAdmin[] = [];
+
   @Output() userSelected = new EventEmitter<UserAdmin>();
   @Output() cleared = new EventEmitter<void>();
 
   userSearchTerm = '';
+
+  /** Everything searchable: the server's customers plus any `seedUsers` it doesn't know about yet. */
   availableUsers: UserAdmin[] = [];
   filteredUsers: UserAdmin[] = [];
   isLoadingUsers = false;
+
+  /** The last server response, kept raw so `seedUsers` can be re-merged without a refetch. */
+  private serverUsers: UserAdmin[] = [];
 
   /** Total matches before `USER_SEARCH_MAX_RESULTS` truncation — drives the "refine" footer. */
   totalMatchCount = 0;
@@ -99,6 +118,20 @@ export class AdminUserSearchComponent implements OnInit, OnDestroy {
     this.loadUsers();
   }
 
+  ngOnChanges(changes: SimpleChanges): void {
+    // A customer registered from the header arrives here as a new `seedUsers` array. Re-merge
+    // against the response we already hold rather than refetching — the host may still be
+    // waiting on its own reload, and the admin should not be.
+    //
+    // Deliberately NOT skipped on the first change: whether the host's first binding counts as
+    // "first" depends on how the box was created (a fresh Admin Mode toggle binds a list that is
+    // already populated), and merging into an empty server list is a no-op anyway.
+    if (changes['seedUsers']) {
+      this.rebuildAvailableUsers();
+      this.applyFilter();
+    }
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
@@ -129,11 +162,16 @@ export class AdminUserSearchComponent implements OnInit, OnDestroy {
     this.searchTerm$.next(value);
   }
 
-  loadUsers(): void {
+  /**
+   * @param forceRefresh bypass the HTTP cache. Pass true for any reload triggered by a WRITE
+   *   (a customer was just registered): `GET /api/admin/users` is an ordinary cacheable GET, so a
+   *   plain refetch can hand back the list from before the POST. The admin Users tab does the same.
+   */
+  loadUsers(forceRefresh = false): void {
     const generation = ++this.loadGeneration;
     this.isLoadingUsers = true;
 
-    this.adminService.getUsers()
+    this.adminService.getUsers(forceRefresh)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (response: any) => {
@@ -142,27 +180,51 @@ export class AdminUserSearchComponent implements OnInit, OnDestroy {
 
           // Handle both response formats
           if (response && response.users) {
-            this.availableUsers = response.users.filter((u: UserAdmin) =>
+            this.serverUsers = response.users.filter((u: UserAdmin) =>
               u.role === 'Customer' && u.isActive
             );
           } else if (Array.isArray(response)) {
-            this.availableUsers = response.filter((u: UserAdmin) =>
+            this.serverUsers = response.filter((u: UserAdmin) =>
               u.role === 'Customer' && u.isActive
             );
           } else {
-            this.availableUsers = [];
+            this.serverUsers = [];
           }
+          this.rebuildAvailableUsers();
           this.applyFilter();
           this.isLoadingUsers = false;
         },
         error: (error) => {
           if (generation !== this.loadGeneration) return;
           console.error('Error loading users:', error);
-          this.availableUsers = [];
+          this.serverUsers = [];
+          // Seeded customers survive a failed load on purpose: they exist, this request just
+          // didn't come back, and the admin should still be able to book for them.
+          this.rebuildAvailableUsers();
           this.applyFilter();
           this.isLoadingUsers = false;
         }
       });
+  }
+
+  /**
+   * Rebuild the searchable list from the last server response plus any `seedUsers` that response
+   * doesn't already contain.
+   *
+   * Seeds go FIRST so a just-registered customer is inside `USER_SEARCH_MAX_RESULTS` even when
+   * their name is a common one. A seed whose id is already in the server list is dropped, so the
+   * canonical row wins as soon as the backend knows about it and nobody is ever shown twice.
+   */
+  private rebuildAvailableUsers(): void {
+    if (!this.seedUsers?.length) {
+      this.availableUsers = this.serverUsers;
+      return;
+    }
+
+    const knownIds = new Set(this.serverUsers.map(user => user.id));
+    const pending = this.seedUsers.filter(user => !knownIds.has(user.id));
+
+    this.availableUsers = pending.length ? [...pending, ...this.serverUsers] : this.serverUsers;
   }
 
   /**

@@ -991,4 +991,160 @@ describe('BookingComponent', () => {
       expect(component.submitButtonLabel).toBe('Book Now');
     });
   });
+  /**
+   * The admin Users tab's "Register Customer" action, moved onto the booking page's header so an
+   * admin taking a booking by phone can create the account without leaving the page.
+   *
+   * Two things must hold. The button follows the same `canCreate` permission the Users tab uses —
+   * NOT a local role check, because the permission map lives on the backend and a second copy here
+   * would drift. And registering only selects the customer when Admin Mode is already on: with it
+   * off there is no target-user slot to select into, and silently turning it on would change what
+   * the Book Now button is about to do.
+   */
+  describe('register customer from the booking header', () => {
+    const newCustomer = {
+      id: 501,
+      firstName: 'Nino',
+      lastName: 'Beridze',
+      email: 'nino@example.com',
+      phone: '2125550134',
+      role: 'Customer',
+      authProvider: 'Admin',
+      isNoEmailUser: false
+    };
+
+    const renderedButton = () =>
+      fixture.nativeElement.querySelector('.register-customer-btn') as HTMLElement | null;
+
+    it('is hidden for an admin who may not create users', () => {
+      component.isAdmin = true;
+      component.canRegisterCustomers = false;
+      fixture.detectChanges();
+
+      expect(renderedButton()).toBeNull();
+    });
+
+    it('is shown beside the Admin Mode toggle once create is granted', () => {
+      component.isAdmin = true;
+      component.canRegisterCustomers = true;
+      fixture.detectChanges();
+
+      const button = renderedButton();
+      expect(button).not.toBeNull();
+      // Same container as the Admin Mode pill — that is what "near the Admin Mode button" means.
+      expect(button!.closest('.admin-mode-toggle')).not.toBeNull();
+    });
+
+    it('never opens the modal for someone without the permission', () => {
+      component.canRegisterCustomers = false;
+
+      component.openRegisterCustomerModal();
+
+      expect(component.showRegisterCustomerModal).toBeFalse();
+    });
+
+    it('selects the new customer when Admin Mode is already on', () => {
+      component.isAdminMode = true;
+      const selectUser = spyOn(component, 'selectUser');
+
+      component.onCustomerRegistered(newCustomer);
+
+      expect(selectUser).toHaveBeenCalled();
+      expect(selectUser.calls.mostRecent().args[0].id).toBe(501);
+      expect(component.registeredCustomerMessage).toContain('Nino Beridze');
+      expect(component.registeredCustomerMessage).toContain('selected');
+    });
+
+    it('only confirms the registration when Admin Mode is off', () => {
+      component.isAdminMode = false;
+      const selectUser = spyOn(component, 'selectUser');
+
+      component.onCustomerRegistered(newCustomer);
+
+      expect(selectUser).not.toHaveBeenCalled();
+      expect(component.registeredCustomerMessage).toContain('Nino Beridze');
+      expect(component.registeredCustomerMessage).not.toContain('selected');
+    });
+
+    /**
+     * The reload-the-page complaint. The new customer has to be selectable at once, so the page
+     * keeps them in `registeredCustomers` and hands them to the search box as `seedUsers`. That
+     * list also has to survive Admin Mode being toggled off and on, which destroys and rebuilds
+     * the search box — which is why the PAGE owns it and not the box.
+     */
+    describe('the new customer joins the list live', () => {
+      it('adds them to the seed list handed to the search box', () => {
+        spyOn(component, 'selectUser');
+
+        component.onCustomerRegistered(newCustomer);
+
+        expect(component.registeredCustomers.map(u => u.id)).toEqual([501]);
+      });
+
+      it('adds them even with Admin Mode off, so they are there when it is switched on', () => {
+        component.isAdminMode = false;
+
+        component.onCustomerRegistered(newCustomer);
+
+        expect(component.registeredCustomers.map(u => u.id)).toEqual([501]);
+      });
+
+      /** `seedUsers` is an @Input — mutating the array in place would not notify the search box. */
+      it('replaces the array rather than mutating it', () => {
+        const before = component.registeredCustomers;
+
+        component.onCustomerRegistered(newCustomer);
+
+        expect(component.registeredCustomers).not.toBe(before);
+      });
+
+      it('never lists the same customer twice', () => {
+        component.onCustomerRegistered(newCustomer);
+        component.onCustomerRegistered(newCustomer);
+
+        expect(component.registeredCustomers.map(u => u.id)).toEqual([501]);
+      });
+
+      it('keeps several customers registered in a row, newest first', () => {
+        component.onCustomerRegistered(newCustomer);
+        component.onCustomerRegistered({ ...newCustomer, id: 502, firstName: 'Dato' });
+
+        expect(component.registeredCustomers.map(u => u.id)).toEqual([502, 501]);
+      });
+
+      /**
+       * GET /api/admin/users is an ordinary cacheable GET, so the refresh that follows the POST
+       * must bypass the cache — otherwise it can return the list from before the registration,
+       * which is exactly the symptom that made admins reload the page.
+       */
+      it('forces the server list to refresh past the HTTP cache', () => {
+        const searchBox = jasmine.createSpyObj('AdminUserSearchComponent', ['loadUsers']);
+        (component as any).adminUserSearch = searchBox;
+
+        component.onCustomerRegistered(newCustomer);
+
+        expect(searchBox.loadUsers).toHaveBeenCalledWith(true);
+      });
+
+      it('does not fall over when the search box is absent (Admin Mode off)', () => {
+        component.isAdminMode = false;
+        (component as any).adminUserSearch = undefined;
+
+        expect(() => component.onCustomerRegistered(newCustomer)).not.toThrow();
+      });
+    });
+
+    /** A no-email cash customer arrives with a null email; nothing downstream may be handed "null". */
+    it('carries a no-email customer through without inventing an address', () => {
+      component.isAdminMode = true;
+      const selectUser = spyOn(component, 'selectUser');
+
+      component.onCustomerRegistered({ ...newCustomer, email: null, isNoEmailUser: true });
+
+      const selected = selectUser.calls.mostRecent().args[0];
+      expect(selected.email).toBe('');
+      expect(selected.isNoEmailUser).toBeTrue();
+      expect(selected.canReceiveCommunications).toBeFalse();
+    });
+  });
 });
