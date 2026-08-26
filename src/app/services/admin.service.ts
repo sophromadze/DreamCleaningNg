@@ -107,16 +107,25 @@ export interface ExpenseBreakdown {
 export interface OrderStatistics {
   totalOrders: number;
   /**
-   * Taxable cleaning revenue — order subtotals AFTER discounts, before tax, without tips,
-   * net of refunds. Backend: OrderRevenueMath.Split.
+   * "Company Revenue": taxable cleaning revenue — order subtotals AFTER discounts, before tax,
+   * without tips, net of refunds — PLUS `totalTaxRetained`. Backend: OrderRevenueMath.Split.
    */
   totalAmount: number;
   /**
-   * Sales tax collected. Always exactly 8.875% of totalAmount — both come from the same
-   * post-discount base and shrink together when an order is refunded. It is charged on top
-   * of the price, so it is a pass-through owed to the state, NOT a cost against totalAmount.
+   * Sales tax owed to the state — the part collected through Stripe. It is charged on top of
+   * the price, so it is a pass-through, NOT a cost against totalAmount.
+   *
+   * NOTE: this is 8.875% of the taxable revenue only where every order was card-paid. Tax on a
+   * Cash/Zelle/Check order is never remitted, so it lands in `totalTaxRetained` instead — and
+   * `totalTaxes + totalTaxRetained` is the whole tax the customers were charged.
    */
   totalTaxes: number;
+  /**
+   * Sales tax charged on payments collected outside Stripe. Not remitted, so it is company
+   * money and is ALREADY INSIDE `totalAmount` — never add it to the revenue a second time.
+   * Surfaced only so a page can show how much of the revenue it is.
+   */
+  totalTaxRetained: number;
   totalTips: number;
   /** Promo/first-time + subscription + loyalty discounts granted. Informational only. */
   totalDiscounts: number;
@@ -161,8 +170,12 @@ export interface OrderStatistics {
 export interface DailyStatistics {
   date: string;
   orders: number;
+  /** Taxable revenue plus `taxRetained` — same basis as OrderStatistics.totalAmount. */
   amount: number;
+  /** Sales tax owed to the state (the Stripe-collected part). */
   taxes: number;
+  /** Sales tax collected outside Stripe. ALREADY INSIDE `amount` — never add it again. */
+  taxRetained: number;
   tips: number;
   cleanersSalary: number;
   /** GRAND total expenses for the day (table + Stripe fees + admin bonuses). */

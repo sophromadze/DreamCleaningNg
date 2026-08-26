@@ -44,16 +44,25 @@
     <div class="stat-card">
       <div class="stat-label">Company Revenue</div>
       <div class="stat-value amount">{{ stats.totalAmount | currency:'USD' }}</div>
-      <div class="stat-sub">after discounts, before tax, without tips</div>
+      <div class="stat-sub" *ngIf="stats.totalTaxRetained <= 0">after discounts, before tax, without tips</div>
+      <!-- Tax on a cash/Zelle/check order is never remitted, so it sits inside this figure
+           rather than in Total Taxes below. Named here so the card is not silently larger. -->
+      <div class="stat-sub" *ngIf="stats.totalTaxRetained > 0">
+        after discounts, without tips — includes {{ stats.totalTaxRetained | currency:'USD' }} kept tax
+      </div>
     </div>
 
-    <!-- Always exactly 8.875% of Company Revenue: both sides use the same post-discount
-         base, and a refund shrinks them together. -->
+    <!-- 8.875% of the taxable revenue that was CARD-paid. Tax charged on a payment collected
+         outside Stripe is not remitted, so it is reported as revenue above instead. -->
     <div class="stat-card">
       <div class="stat-label">Total Taxes</div>
       <div class="stat-value taxes">{{ stats.totalTaxes | currency:'USD' }}</div>
-      <div class="stat-sub">8.875% — collected for the state</div>
+      <div class="stat-sub" *ngIf="stats.totalTaxRetained <= 0">8.875% — collected for the state</div>
+      <div class="stat-sub" *ngIf="stats.totalTaxRetained > 0">
+        collected for the state — card payments only
+      </div>
     </div>
+
 
     <div class="stat-card">
       <div class="stat-label">Discounts Given</div>
@@ -96,7 +105,11 @@
     <div class="breakdown-formula">
       <div class="breakdown-line">
         <span class="breakdown-amount">{{ stats.totalAmount | currency:'USD' }}</span>
-        <span class="breakdown-label">(Company Revenue — order subtotals after discounts, before tax)</span>
+        <span class="breakdown-label" *ngIf="stats.totalTaxRetained <= 0">(Company Revenue — order subtotals after discounts, before tax)</span>
+        <span class="breakdown-label" *ngIf="stats.totalTaxRetained > 0">
+          (Company Revenue — order subtotals after discounts, plus
+          {{ stats.totalTaxRetained | currency:'USD' }} tax kept on non-card payments)
+        </span>
       </div>
       <!-- Sales tax is NOT subtracted here. It is charged on top of the price, so it was never
            inside the amount above — it is money collected for the state, shown separately. -->
@@ -139,6 +152,11 @@
       are deliberately outside this formula — customers pay them on top of the price and they pass
       straight through to the state and the cleaners. Discounts ({{ stats.totalDiscounts | currency:'USD' }})
       are already deducted from the Company Revenue on the first line.
+      <ng-container *ngIf="stats.totalTaxRetained > 0">
+        Tax charged on cash, Zelle and check payments ({{ stats.totalTaxRetained | currency:'USD' }})
+        is not remitted, so it is counted as company revenue on the first line instead of as a
+        pass-through. Customers were still charged and shown the full tax on their orders.
+      </ng-container>
     </p>
 
     <!-- Per-category expense itemisation, rolled up to ONE line per expense per month.

@@ -272,6 +272,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
     totalOrders: 0,
     totalAmount: 0,
     totalTaxes: 0,
+    totalTaxRetained: 0,
     totalTips: 0,
     totalDiscounts: 0,
     totalCleanersSalary: 0,
@@ -356,6 +357,10 @@ export class FinancesComponent implements OnInit, OnDestroy {
    * What customers actually paid for cleanings — the discounted price plus the sales
    * tax charged on top of it, net of refunds. Tips are excluded: they belong to the
    * cleaners, not the company, and are reported separately below.
+   *
+   * `totalAmount` already carries the tax kept on non-card payments and `totalTaxes` carries
+   * only the remitted part (see OrderRevenueMath), so this sum is the whole charged amount
+   * either way — the split below is what changes, not this figure.
    */
   get totalRevenue(): number {
     return (this.stats?.totalAmount ?? 0) + (this.stats?.totalTaxes ?? 0);
@@ -364,6 +369,22 @@ export class FinancesComponent implements OnInit, OnDestroy {
   /** The sales tax line as it currently counts (0 while unchecked). */
   get salesTaxDeducted(): number {
     return this.amountOf('salesTax');
+  }
+
+  /**
+   * Sales tax charged on cash / Zelle / check orders. Never remitted, so it is NOT a
+   * deduction — it is already inside the Net Revenue Baseline and flows to Net Company
+   * Income. Reported here purely so the receipt can name it.
+   */
+  get retainedTax(): number {
+    return this.stats?.totalTaxRetained ?? 0;
+  }
+
+  /** True once any non-card payment in the window carried tax — drives the extra labelling. */
+  get hasRetainedTax(): boolean {
+    return this.compareMode
+      ? this.compareResults.some(r => r.stats.totalTaxRetained > 0)
+      : this.retainedTax > 0;
   }
 
   /**
@@ -674,6 +695,20 @@ export class FinancesComponent implements OnInit, OnDestroy {
         betterWhen: 'none',
         percent: this.percentOfRevenue(this.stats?.totalDiscounts ?? 0)
       },
+      // Not a deduction and not a pass-through: it is revenue that happens to have arrived as
+      // sales tax. Listed so the receipt can account for the gap between the tax the customers
+      // were charged and the smaller "Sales tax" line deducted above.
+      ...(this.retainedTax > 0 || (this.prevStats?.totalTaxRetained ?? 0) > 0
+        ? [{
+          key: 'retainedTax',
+          label: 'Tax kept on cash / Zelle / check (counted as revenue)',
+          value: this.retainedTax,
+          format: 'money' as const,
+          delta: this.prevStats ? this.retainedTax - this.prevStats.totalTaxRetained : null,
+          betterWhen: 'none' as const,
+          percent: this.percentOfRevenue(this.retainedTax)
+        }]
+        : []),
       {
         key: 'tips',
         label: 'Tips (pass-through, not profit)',
@@ -787,6 +822,12 @@ export class FinancesComponent implements OnInit, OnDestroy {
     // figure — what the customer actually paid. Taking the tax back off lands exactly
     // on the taxable revenue the backend reports as TotalAmount, so the chain stays
     // arithmetically honest and the bottom line still matches the official Net Income.
+    //
+    // stats.totalTaxes is the REMITTED tax only: tax charged on a cash/Zelle/check order is
+    // never handed to the state, so the backend leaves it inside totalAmount and it simply
+    // never appears as a deduction here. That is what makes it land in Net Company Income.
+    // The label stays plain "Sales tax" either way — the hint under the receipt is where the
+    // smaller-than-8.875% line gets explained.
     const lines: CostLine[] = [
       {
         key: 'salesTax',
@@ -1416,6 +1457,10 @@ export class FinancesComponent implements OnInit, OnDestroy {
       vals(s => (s.expensesBreakdown?.byCategory ?? []).find(c => c.categoryId === id)?.total ?? 0)]));
 
     const salesTax = vals(s => s.totalTaxes);
+    // Tax collected outside Stripe: already inside each period's totalAmount, so it is never
+    // a deduction here — only a row that explains why the sales-tax line is below 8.875%.
+    const retainedTax = vals(s => s.totalTaxRetained);
+    const anyRetainedTax = retainedTax.some(v => v > 0);
     const salaries = vals(s => s.totalCleanersSalary);
     const stripeFees = vals(s => s.stripeFees);
     const adminBonuses = vals(s => s.adminBonusesUsd);
@@ -1484,6 +1529,9 @@ export class FinancesComponent implements OnInit, OnDestroy {
         { withShare: false }),
       // 'none': a bigger discount bill is not automatically worse — discounts buy bookings.
       row('Discounts given to customers', 'none', vals(s => s.totalDiscounts)),
+      ...(anyRetainedTax
+        ? [row('Tax kept on cash / Zelle / check (counted as revenue)', 'none', retainedTax)]
+        : []),
       row('Tips (pass-through, not profit)', 'none', vals(s => s.totalTips)),
       row('Completed cleanings', 'high', orders, { format: 'count', withShare: false })
     ];

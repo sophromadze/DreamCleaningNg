@@ -12,6 +12,8 @@ type ChartGrouping = 'days' | 'weeks' | 'months';
 interface ChartDataPoint {
   label: string;
   orders: number;
+  // Same basis as the cards: `amount` already includes tax kept on non-card payments,
+  // and `taxes` is the remitted part only. See OrderRevenueMath on the backend.
   amount: number;
   taxes: number;
   tips: number;

@@ -168,6 +168,15 @@
               </div>
             </div>
           </div>
+
+          <!-- Why the sales-tax line is below 8.875% of the revenue above it. Only rendered
+               when the window actually contains a non-card payment. -->
+          <p class="viz-hint" *ngIf="!isLoading && hasRetainedTax">
+            Sales tax charged on cash, Zelle and check orders
+            <ng-container *ngIf="!compareMode"> ({{ retainedTax | currency:'USD' }})</ng-container>
+            is not remitted, so it is not deducted here — it stays in the baseline and lands in
+            Net Company Income. Customers were still charged and shown the full tax.
+          </p>
         </div>
 
         <!-- Card 2: totals, averages and the pass-throughs -->
@@ -317,6 +326,10 @@
         <h3 class="viz-title">Where the money went</h3>
       </div>
       <ng-container *ngTemplateOutlet="compareTable; context: { rows: compareChainRows }"></ng-container>
+      <p class="viz-hint" *ngIf="hasRetainedTax">
+        Sales tax charged on cash, Zelle and check orders is not remitted, so it is not deducted
+        here — it stays in the baseline and lands in Net Company Income.
+      </p>
     </div>
 
     <!-- Card 2: totals, averages and pass-throughs -->
