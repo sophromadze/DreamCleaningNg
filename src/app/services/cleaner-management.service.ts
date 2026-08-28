@@ -6,6 +6,42 @@ import { environment } from '../../environments/environment';
 export type CleanerRanking = 'Top' | 'Standard' | 'Beginner' | 'Restricted' | 'NoExp';
 export type CleanerDocumentType = 'IdCard' | 'Passport' | 'DriverLicense';
 
+/**
+ * How a cleaner is paid their WAGES — not how a customer paid us (that is the separate
+ * PaymentMethod on an order). Mirrors CleanerPaymentMethod.cs; the numbers are the enum's
+ * stored values, and the API accepts either the name or the number.
+ */
+export type CleanerPaymentMethod = 'Zelle' | 'Cash' | 'Check' | 'Other';
+
+export const CLEANER_PAYMENT_METHOD_INDEX: Record<CleanerPaymentMethod, number> = {
+  Zelle: 1,
+  Cash: 2,
+  Check: 3,
+  Other: 4
+};
+
+/** Numeric enum value → name, for reading a cleaner back off the API. */
+export function normalizeCleanerPaymentMethod(
+  value: CleanerPaymentMethod | number | null | undefined
+): CleanerPaymentMethod | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === 'string') return value as CleanerPaymentMethod;
+  const found = (Object.keys(CLEANER_PAYMENT_METHOD_INDEX) as CleanerPaymentMethod[])
+    .find(k => CLEANER_PAYMENT_METHOD_INDEX[k] === value);
+  return found ?? null;
+}
+
+/**
+ * The label shown next to the details field, per method. "Zelle number or email" and "Pay to
+ * the order of" are different enough that one generic placeholder would read as a mistake.
+ */
+export const CLEANER_PAYMENT_DETAILS_LABEL: Record<CleanerPaymentMethod, string> = {
+  Zelle: 'Zelle number or email',
+  Cash: 'Cash handover note',
+  Check: 'Check payable to',
+  Other: 'Payment details'
+};
+
 export interface CleanerListItem {
   id: number;
   firstName: string;
@@ -29,6 +65,10 @@ export interface CleanerListItem {
   photoUrl?: string | null;
   isActive: boolean;
   createdAt: string;
+  /** How this cleaner is paid their wages. Optional — blank is normal. */
+  paymentMethod?: CleanerPaymentMethod | number | null;
+  /** Zelle number/email, who a check is written to, etc. Optional. */
+  paymentDetails?: string | null;
 }
 
 export interface CleanerVacation {
@@ -104,6 +144,8 @@ export interface CreateCleanerPayload {
   restrictions?: string | null;
   mainNote?: string | null;
   documentType?: CleanerDocumentType | number | null;
+  paymentMethod?: CleanerPaymentMethod | number | null;
+  paymentDetails?: string | null;
 }
 
 export interface UpdateCleanerPayload extends CreateCleanerPayload {

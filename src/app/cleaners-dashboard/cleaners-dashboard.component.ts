@@ -15,7 +15,11 @@ import {
   CleanerRanking,
   CleanerDocumentType,
   CleanerNote,
-  CleanerVacation
+  CleanerVacation,
+  CleanerPaymentMethod,
+  CLEANER_PAYMENT_METHOD_INDEX,
+  CLEANER_PAYMENT_DETAILS_LABEL,
+  normalizeCleanerPaymentMethod
 } from '../services/cleaner-management.service';
 import { compressImage } from '../utils/image-compression';
 import { normalizePhone10, sanitizePhoneInput, telHrefUS } from '../utils/phone.utils';
@@ -235,6 +239,89 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     { value: 'DriverLicense', label: "Driver's License" }
   ];
 
+  /** How this cleaner is paid their wages. Blank is a valid, common answer. */
+  readonly paymentMethodOptions: { value: CleanerPaymentMethod | ''; label: string }[] = [
+    { value: '', label: '—' },
+    { value: 'Zelle', label: 'Zelle' },
+    { value: 'Cash', label: 'Cash' },
+    { value: 'Check', label: 'Check' },
+    { value: 'Other', label: 'Other' }
+  ];
+
+  /**
+   * Label/placeholder for the payment-details box, following the chosen method. A generic
+   * "details" prompt reads as a mistake when the answer is a Zelle number in one case and a
+   * payee name in another.
+   */
+  get paymentDetailsLabel(): string {
+    const method = normalizeCleanerPaymentMethod(this.formModel.paymentMethod);
+    return method ? CLEANER_PAYMENT_DETAILS_LABEL[method] : 'Payment details';
+  }
+
+  /**
+   * True for 2s after the payment details are copied, so the button can confirm. A tick that
+   * never clears stops meaning anything.
+   */
+  paymentDetailsCopied = false;
+  private paymentCopiedTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Copies the payment destination out of the form — the Zelle number / payee alone, never the
+   * method with it, because it is pasted straight into a banking app.
+   *
+   * `navigator.clipboard` needs a browser and a secure context; the execCommand fallback covers
+   * the rest, and a failure is reported rather than silently swallowed — somebody is about to
+   * paste an account number somewhere.
+   */
+  copyFormPaymentDetails(): void {
+    const text = (this.formModel.paymentDetails || '').trim();
+    if (!text) return;
+
+    const confirmCopied = () => {
+      this.paymentDetailsCopied = true;
+      if (this.paymentCopiedTimer) clearTimeout(this.paymentCopiedTimer);
+      this.paymentCopiedTimer = setTimeout(() => {
+        this.paymentDetailsCopied = false;
+        this.cdr.markForCheck();
+      }, 2000);
+      this.cdr.markForCheck();
+    };
+
+    const fallback = () => {
+      try {
+        const area = document.createElement('textarea');
+        area.value = text;
+        area.setAttribute('readonly', '');
+        area.style.position = 'fixed';
+        area.style.opacity = '0';
+        document.body.appendChild(area);
+        area.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(area);
+        if (ok) confirmCopied();
+      } catch {
+        // Nothing else to try; the value is on screen and selectable by hand.
+      }
+      this.cdr.markForCheck();
+    };
+
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(confirmCopied, fallback);
+      return;
+    }
+
+    fallback();
+  }
+
+  /** Read-only summary for the detail panel, e.g. "Zelle · 6465550134". */
+  paymentSummary(cleaner: { paymentMethod?: CleanerPaymentMethod | number | null; paymentDetails?: string | null }): string {
+    const method = normalizeCleanerPaymentMethod(cleaner.paymentMethod);
+    const details = (cleaner.paymentDetails || '').trim();
+    if (!method && !details) return '';
+    if (!details) return method as string;
+    return method ? `${method} · ${details}` : details;
+  }
+
   constructor(
     private cleanerService: CleanerManagementService,
     private cdr: ChangeDetectorRef
@@ -254,6 +341,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    if (this.paymentCopiedTimer) clearTimeout(this.paymentCopiedTimer);
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -354,6 +442,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       restrictions: detail.restrictions ?? null,
       mainNote: detail.mainNote ?? null,
       documentType: this.normalizeDocumentType(detail.documentType),
+      paymentMethod: normalizeCleanerPaymentMethod(detail.paymentMethod),
+      paymentDetails: detail.paymentDetails ?? null,
       isActive: detail.isActive
     };
     this.availableDays = this.intsToAvailableDays(detail.busyDaysOfWeek);
@@ -1024,6 +1114,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       restrictions: null,
       mainNote: null,
       documentType: null,
+      paymentMethod: null,
+      paymentDetails: null,
       isActive: true
     };
   }
@@ -1124,6 +1216,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   private buildPayload(): CreateCleanerPayload | UpdateCleanerPayload {
     const rankingStr = (this.formModel.ranking ?? 'Standard') as CleanerRanking;
     const docTypeStr = this.formModel.documentType as CleanerDocumentType | null;
+    const payMethodStr = normalizeCleanerPaymentMethod(this.formModel.paymentMethod);
 
     const payload: UpdateCleanerPayload = {
       firstName: this.formModel.firstName.trim(),
@@ -1147,6 +1240,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       restrictions: this.nullIfBlank(this.formModel.restrictions),
       mainNote: this.nullIfBlank(this.formModel.mainNote),
       documentType: docTypeStr ? DOCUMENT_TYPE_INDEX[docTypeStr] : null,
+      paymentMethod: payMethodStr ? CLEANER_PAYMENT_METHOD_INDEX[payMethodStr] : null,
+      paymentDetails: this.nullIfBlank(this.formModel.paymentDetails),
       isActive: this.formModel.isActive
     };
     return payload;

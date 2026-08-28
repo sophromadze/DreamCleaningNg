@@ -13,6 +13,7 @@ import { companyLandingGuard } from './guards/company-landing.guard';
 import { passwordSetupGuard } from './guards/password-setup.guard';
 import { pendingVerificationGuard } from './guards/pending-verification.guard';
 import { pinSetupGuard } from './guards/pin-setup.guard';
+import { superAdminGuard } from './guards/super-admin.guard';
 import { skipWhenPaymentToken } from './guards/payment-link.guard';
 
 export const routes: Routes = [
@@ -410,6 +411,14 @@ export const routes: Routes = [
         loadComponent: () => import('./auth/admin/company/customers/customer-stats.component').then(m => m.CustomerStatsComponent)
       }
     ]
+  },
+  {
+    // SuperAdmin only, and deliberately NOT behind a grantable pageView key: every write here
+    // moves what the company reports as its labour cost, and records money leaving the business.
+    path: 'admin/outgoing-payments',
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, superAdminGuard],
+    loadComponent: () => import('./auth/admin/outgoing-payments/outgoing-payments.component')
+      .then(m => m.OutgoingPaymentsComponent)
   },
   {
     path: 'admin/blog',

@@ -1,0 +1,491 @@
+<!--
+  Structure and class names are lifted from the admin Orders tab on purpose — .orders-section,
+  .table-container/.table-wrapper/table.data-table, .status-badge, .pagination and the
+  .detail-overlay/.order-detail-panel pair. orders.component.scss is listed FIRST in this
+  component's styleUrls, so the table, the panel and their dark-mode treatment come from there
+  rather than being re-invented here; outgoing-payments.component.scss only adds what is unique
+  to this page. Same arrangement the order-edit page uses with booking.component.scss.
+-->
+<div class="admin-container outgoing-page">
+<div class="orders-section outgoing-section">
+
+  <div class="section-header">
+    <div class="page-title">
+      <h2>Outgoing Payments</h2>
+      <p class="page-subtitle">
+        Cleaner wages for finished jobs. Every figure is worked out from the order itself — the
+        hours, the rate and the tip split — so there is nothing to add up by hand.
+      </p>
+    </div>
+  </div>
+
+  <!-- Month selector + what still has to go out this month -->
+  <div class="month-bar">
+    <div class="month-nav">
+      <button class="month-arrow" type="button" (click)="prevMonth()" title="Previous month">‹</button>
+      <span class="month-label">{{ monthLabel }}</span>
+      <button class="month-arrow" type="button" (click)="nextMonth()" title="Next month">›</button>
+      <button class="btn-link" type="button" (click)="goToCurrentMonth()" *ngIf="!isCurrentMonth">This month</button>
+    </div>
+
+    <div class="month-total" *ngIf="data">
+      <span class="month-total-label">Still to pay</span>
+      <span class="month-total-value">$ {{ data.summary.unpaidPayout | number:'1.2-2' }}</span>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filter-bar">
+    <div class="segmented" role="group" aria-label="Payment status">
+      <button type="button" [class.active]="paidStatus === 'all'" (click)="setPaidStatus('all')">All</button>
+      <button type="button" [class.active]="paidStatus === 'unpaid'" (click)="setPaidStatus('unpaid')">Unpaid</button>
+      <button type="button" [class.active]="paidStatus === 'paid'" (click)="setPaidStatus('paid')">Paid</button>
+    </div>
+
+    <button type="button" class="chip-toggle" [class.active]="warningsOnly" (click)="toggleWarningsOnly()">
+      ⚠ Needs a look
+      <span class="chip-count" *ngIf="data?.summary?.ordersWithWarnings">{{ data?.summary?.ordersWithWarnings }}</span>
+    </button>
+
+    <input class="search-input"
+           type="text"
+           [ngModel]="searchTerm"
+           (ngModelChange)="onSearchChange($event)"
+           placeholder="Order number, customer or cleaner" />
+  </div>
+
+  <!-- Totals across the whole filtered range, not just this page -->
+  <div class="summary-cards" *ngIf="data">
+    <div class="summary-card">
+      <span class="summary-label">Finished jobs</span>
+      <span class="summary-value">{{ data.summary.orderCount }}</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">Cleaner payouts</span>
+      <span class="summary-value">{{ data.summary.cleanerLineCount }}</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">Wages</span>
+      <span class="summary-value">$ {{ data.summary.totalSalary | number:'1.2-2' }}</span>
+    </div>
+    <div class="summary-card">
+      <span class="summary-label">Tips</span>
+      <span class="summary-value">$ {{ data.summary.totalTips | number:'1.2-2' }}</span>
+    </div>
+    <div class="summary-card is-outstanding">
+      <span class="summary-label">Still to pay</span>
+      <span class="summary-value">$ {{ data.summary.unpaidPayout | number:'1.2-2' }}</span>
+      <span class="summary-sub">{{ data.summary.unpaidCleanerCount }} cleaner(s)</span>
+    </div>
+    <div class="summary-card is-paid">
+      <span class="summary-label">Already paid</span>
+      <span class="summary-value">$ {{ data.summary.paidPayout | number:'1.2-2' }}</span>
+    </div>
+  </div>
+
+  <div class="message success" *ngIf="successMessage">{{ successMessage }}</div>
+  <div class="message error" *ngIf="error">{{ error }}</div>
+
+  <div class="loading-state" *ngIf="loading">Loading…</div>
+
+  <div class="empty-state" *ngIf="!loading && data && data.orders.length === 0">
+    No finished jobs match this filter for {{ monthLabel }}.
+  </div>
+
+  <!-- Compact list. One row per finished order; everything else lives in the panel. -->
+  <div class="orders-list" *ngIf="!loading && data && data.orders.length > 0">
+    <div class="table-container">
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Service Date</th>
+              <th>Service Type</th>
+              <th>Cleaners</th>
+              <th>Duration</th>
+              <th>Total</th>
+              <th>Payout</th>
+              <th>Payment</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let order of data.orders; trackBy: trackByOrder"
+                [class.expanded]="selectedOrderId === order.orderId"
+                (click)="openPanel(order)"
+                style="cursor: pointer;">
+
+              <td>
+                <!-- The warning marker rides on the order number so it survives the narrow
+                     columns; the full text is in the panel. -->
+                <span class="warn-dot" *ngIf="order.warnings.length > 0" [title]="order.warnings.join(' · ')">⚠</span>
+                {{ order.orderId }}
+              </td>
+
+              <td class="service-date">{{ order.serviceDate | date:'MM/dd/yy' }}</td>
+
+              <td>
+                <!-- The SHORT label ("Regular"/"Deep"/"Move In/Out"), from the same shared
+                     function the Orders tab's Service Type column uses. -->
+                {{ serviceTypeShort(order) }}
+                <!-- "Paid by cash" mattered enough to be written into every WhatsApp message. -->
+                <span class="cash-tag" *ngIf="customerPaymentNote(order)">{{ customerPaymentNote(order) }}</span>
+              </td>
+
+              <td class="cleaners-col">
+                <span *ngIf="order.cleaners.length > 0"
+                      class="cleaners-names"
+                      [title]="cleanerNamesFull(order)">
+                  ({{ order.cleaners.length }}) {{ cleanerNamesShort(order) }}
+                </span>
+                <span *ngIf="order.cleaners.length === 0" class="no-cleaners">Not assigned</span>
+              </td>
+
+              <td class="duration-col">
+                {{ formatDuration(order.totalDuration) }}
+                <em *ngIf="order.cleaners.length > 1">· {{ formatDuration(order.automaticMinutesPerCleaner) }} ea.</em>
+              </td>
+
+              <td class="amount">$ {{ order.totalWithoutTips | number:'1.2-2' }}</td>
+
+              <td class="amount">$ {{ order.totalPayout | number:'1.2-2' }}</td>
+
+              <td>
+                <span class="status-badge" [ngClass]="payStatusClass(order)" [title]="payStatusTitle(order)">
+                  {{ payStatusLabel(order) }}
+                </span>
+              </td>
+
+              <td class="actions" (click)="$event.stopPropagation()">
+                <div class="row-actions">
+                  <a class="icon-btn history"
+                     [routerLink]="['/admin']"
+                     [queryParams]="{ orderId: order.orderId }"
+                     target="_blank"
+                     rel="noopener"
+                     title="Open this order in the admin panel (new tab)">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                      <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                  </a>
+                  <button class="icon-btn ok"
+                          *ngIf="!order.isFullyPaid && order.cleaners.length > 0"
+                          (click)="openPayOrder(order)"
+                          title="Mark every cleaner on this order paid">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="pagination" *ngIf="totalPages > 1">
+      <button class="page-btn" (click)="goToPage(page - 1)" [disabled]="page === 1">‹ Prev</button>
+      <button class="page-btn" *ngFor="let p of pageWindow" (click)="goToPage(p)" [class.active]="p === page">{{ p }}</button>
+      <button class="page-btn" (click)="goToPage(page + 1)" [disabled]="page === totalPages">Next ›</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Slide-in payout sheet (mirrors the orders and users tabs) -->
+<div class="detail-overlay" *ngIf="selectedOrder" (click)="closePanel()"></div>
+<aside class="detail-panel order-detail-panel" [class.open]="selectedOrder !== null">
+  <ng-container *ngIf="selectedOrder as order">
+    <div class="order-panel-header">
+      <h3>Order #{{ order.orderId }} — payout</h3>
+      <div class="order-panel-header__actions">
+        <a class="action-btn small edit"
+           [routerLink]="['/admin']"
+           [queryParams]="{ orderId: order.orderId }"
+           target="_blank"
+           rel="noopener">View order</a>
+        <button class="action-btn small save"
+                *ngIf="!order.isFullyPaid && order.cleaners.length > 0"
+                (click)="openPayOrder(order)">Mark all paid</button>
+        <button class="action-btn small discard" (click)="closePanel()">Close</button>
+      </div>
+    </div>
+
+    <!--
+      Order of the panel is deliberate: the CLEANERS come first. The reason anyone opens this
+      panel is to send somebody money, and the Zelle number is the thing being carried across to a
+      banking app — burying it under the order's subtotal made the reader scroll past everything
+      to reach the one field they came for. The job details and the order's money follow as
+      supporting context.
+    -->
+    <div class="order-panel-body">
+
+      <div class="no-cleaners-block" *ngIf="order.cleaners.length === 0">
+        Nobody is assigned to this order, so there is nothing to pay out yet.
+      </div>
+
+      <!--
+        The order's hourly rate. This is the DEFAULT every assigned cleaner without their own
+        rate is paid at, and saving it writes through to Order.CleanerHourlyRate — the order
+        itself carries the new figure, so Statistics and Finances follow with nothing else to do.
+      -->
+      <section class="panel-block order-rate-block" *ngIf="order.cleaners.length > 0">
+        <div class="order-rate-head">
+          <span class="field-label">Hourly rate for this order</span>
+
+          <div class="order-rate-value" *ngIf="!editingOrderRate">
+            <strong>$ {{ order.orderHourlyRate | number:'1.0-2' }}</strong> / hour
+            <span class="pill pill-warn"
+                  *ngIf="order.orderHourlyRate !== order.expectedHourlyRate"
+                  [title]="'The default for ' + order.serviceTypeName + ' is $' + (order.expectedHourlyRate | number:'1.0-2') + '/hr'">
+              off default
+            </span>
+            <button class="action-btn small edit" type="button" (click)="startEditOrderRate(order)">Change</button>
+          </div>
+
+          <div class="order-rate-edit" *ngIf="editingOrderRate">
+            <label>
+              <span>$ / hour</span>
+              <input type="number" min="0" step="0.5" [(ngModel)]="orderRateInput" name="orderRateInput" />
+            </label>
+            <button class="action-btn small save" type="button" [disabled]="savingOrderRate" (click)="saveOrderRate(order)">
+              {{ savingOrderRate ? 'Saving…' : 'Save rate' }}
+            </button>
+            <button class="action-btn small discard" type="button" [disabled]="savingOrderRate" (click)="cancelOrderRateEdit()">Cancel</button>
+          </div>
+        </div>
+
+        <p class="order-rate-hint">
+          Applies to {{ cleanersOnOrderRate(order) }} of {{ order.cleaners.length }} cleaner(s) on this
+          order and is saved onto the order itself.
+          <ng-container *ngIf="cleanersWithOwnRate(order) > 0">
+            {{ cleanersWithOwnRate(order) }} cleaner(s) have their own rate and will not move — use
+            “Reset to automatic” on their line to put them back on this one.
+          </ng-container>
+        </p>
+      </section>
+
+      <section class="panel-block" *ngIf="order.cleaners.length > 0">
+        <h4>Cleaners</h4>
+
+        <ul class="cleaner-list">
+          <li class="cleaner-row"
+              *ngFor="let cleaner of order.cleaners; trackBy: trackByCleaner"
+              [class.is-paid]="cleaner.isPaid">
+
+            <div class="cleaner-identity">
+              <span class="cleaner-name">{{ cleanerName(cleaner) }}</span>
+
+              <!-- The destination is the field this panel exists to hand over. The method is a
+                   quiet chip; the number itself is monospaced so digits are easy to check, and
+                   the copy button copies the NUMBER ALONE — "Zelle · " in front of it would make
+                   the paste useless in a banking app. -->
+              <span class="cleaner-destination" *ngIf="payoutDetails(cleaner)">
+                <span class="destination-method" *ngIf="methodLabel(cleaner.paymentMethod)">
+                  {{ methodLabel(cleaner.paymentMethod) }}
+                </span>
+                <span class="destination-value">{{ payoutDetails(cleaner) }}</span>
+                <button type="button"
+                        class="copy-btn"
+                        [class.copied]="isCopied(cleaner)"
+                        (click)="copyPaymentDetails(cleaner)"
+                        [attr.aria-label]="'Copy ' + cleanerName(cleaner) + '\'s payment details'"
+                        [title]="isCopied(cleaner) ? 'Copied' : 'Copy'">
+                  <svg *ngIf="!isCopied(cleaner)" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                  <svg *ngIf="isCopied(cleaner)" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </button>
+              </span>
+
+              <!-- A method with no destination recorded still tells the reader how to pay. -->
+              <span class="cleaner-destination" *ngIf="!payoutDetails(cleaner) && methodLabel(cleaner.paymentMethod)">
+                <span class="destination-method">{{ methodLabel(cleaner.paymentMethod) }}</span>
+              </span>
+
+              <span class="cleaner-destination muted" *ngIf="!payoutDestination(cleaner)">No payment method on file</span>
+            </div>
+
+            <!-- Read mode: the "$21 × 4.50 = $94.50" working, plus tips -->
+            <div class="cleaner-figures" *ngIf="!isEditing(order, cleaner)">
+              <div class="figure">
+                <span class="figure-label">Hours</span>
+                <span class="figure-value">
+                  {{ formatDuration(cleaner.billableMinutes) }}
+                  <span class="pill pill-edited" *ngIf="cleaner.hoursOverridden" title="Set by hand, not the automatic split">edited</span>
+                </span>
+              </div>
+              <div class="figure">
+                <span class="figure-label">Wages</span>
+                <span class="figure-value">
+                  {{ salaryWorking(cleaner) }}
+                  <!-- This line carries its own rate, so the order-level rate control skips it. -->
+                  <span class="pill pill-edited"
+                        *ngIf="cleaner.rateOverridden"
+                        title="Own rate, set by hand — the order's rate does not move this line">
+                    own rate
+                  </span>
+                  <span class="pill pill-warn"
+                        *ngIf="cleaner.rateDiffersFromDefault"
+                        [title]="'The default for ' + order.serviceTypeName + ' is $' + (order.expectedHourlyRate | number:'1.0-2') + '/hr'">
+                    off default
+                  </span>
+                </span>
+              </div>
+              <div class="figure" *ngIf="cleaner.tips > 0">
+                <span class="figure-label">Tips</span>
+                <span class="figure-value">$ {{ cleaner.tips | number:'1.2-2' }}</span>
+              </div>
+              <div class="figure figure-total">
+                <span class="figure-label">Payout</span>
+                <span class="figure-value">$ {{ cleaner.payout | number:'1.2-2' }}</span>
+              </div>
+            </div>
+
+            <!-- Edit mode: hours are entered in decimal hours to match the working above. -->
+            <div class="cleaner-edit" *ngIf="isEditing(order, cleaner)">
+              <label>
+                <span>$ / hour</span>
+                <input type="number" min="0" step="0.5" [(ngModel)]="editRate" name="editRate" />
+              </label>
+              <label>
+                <span>Hours</span>
+                <input type="number" min="0" step="0.25" [(ngModel)]="editHours" name="editHours" />
+              </label>
+              <div class="edit-actions">
+                <button class="action-btn small save" type="button" [disabled]="savingEdit" (click)="saveEdit(order, cleaner)">
+                  {{ savingEdit ? 'Saving…' : 'Save' }}
+                </button>
+                <button class="action-btn small discard" type="button" [disabled]="savingEdit" (click)="cancelEdit()">Cancel</button>
+                <button class="btn-link" type="button"
+                        *ngIf="cleaner.rateOverridden || cleaner.hoursOverridden"
+                        [disabled]="savingEdit"
+                        (click)="resetToAutomatic(order, cleaner)"
+                        title="Drop the manual values and follow the order again">
+                  Reset to automatic
+                </button>
+              </div>
+            </div>
+
+            <div class="cleaner-actions">
+              <ng-container *ngIf="!cleaner.isPaid">
+                <button class="action-btn small edit" type="button" *ngIf="!isEditing(order, cleaner)" (click)="startEdit(order, cleaner)">
+                  Rate / hours
+                </button>
+                <button class="action-btn small save" type="button" (click)="openPayCleaner(order, cleaner)">Mark paid</button>
+              </ng-container>
+
+              <ng-container *ngIf="cleaner.isPaid">
+                <span class="paid-stamp">
+                  ✓ Paid $ {{ (cleaner.paidAmount ?? cleaner.payout) | number:'1.2-2' }}
+                  <span *ngIf="methodLabel(cleaner.paidVia)"> via {{ methodLabel(cleaner.paidVia) }}</span>
+                  <em *ngIf="cleaner.paidAt"> · {{ cleaner.paidAt | date:'MM/dd/yy' }}</em>
+                  <em *ngIf="cleaner.paidByName"> · by {{ cleaner.paidByName }}</em>
+                </span>
+                <span class="paid-note" *ngIf="cleaner.paymentNote">“{{ cleaner.paymentNote }}”</span>
+                <button class="btn-link danger" type="button" (click)="undoPayment(order, cleaner)">Undo</button>
+              </ng-container>
+            </div>
+          </li>
+        </ul>
+
+        <div class="panel-foot">
+          <span class="foot-label">Order payout</span>
+          <span class="foot-value">$ {{ order.totalPayout | number:'1.2-2' }}</span>
+          <span class="foot-sub">wages $ {{ order.totalSalary | number:'1.2-2' }} + tips $ {{ order.tips | number:'1.2-2' }}</span>
+        </div>
+      </section>
+
+      <!-- Warnings never block a payout; the job happened and the cleaner is owed either way. -->
+      <section class="panel-block order-warnings" *ngIf="order.warnings.length > 0">
+        <div class="warning-row" *ngFor="let warning of order.warnings">⚠ {{ warning }}</div>
+      </section>
+
+      <!-- The WhatsApp message, rebuilt: service type, date, duration. -->
+      <section class="panel-block">
+        <h4>The job</h4>
+        <div class="panel-grid">
+          <div><label>Service type</label><span>{{ order.serviceTypeName }}</span></div>
+          <div><label>Service date</label><span>{{ order.serviceDate | date:'MM/dd/yy' }} · {{ order.serviceTime }}</span></div>
+          <div><label>Status</label><span>{{ statusLabel(order) }}</span></div>
+          <div><label>Customer</label><span>{{ order.customerName }}</span></div>
+          <div *ngIf="order.serviceAddress"><label>Address</label><span>{{ order.serviceAddress }}<span *ngIf="order.city">, {{ order.city }}</span></span></div>
+          <div>
+            <label>Duration</label>
+            <span>
+              {{ formatDuration(order.totalDuration) }} total
+              <em *ngIf="order.cleaners.length > 1">· {{ formatDuration(order.automaticMinutesPerCleaner) }} each cleaner</em>
+            </span>
+          </div>
+          <div *ngIf="customerPaymentNote(order)"><label>Customer paid</label><span>{{ customerPaymentNote(order) }}</span></div>
+        </div>
+      </section>
+
+      <section class="panel-block">
+        <h4>The order</h4>
+        <div class="money-grid">
+          <div><label>Subtotal</label><span>$ {{ order.subTotal | number:'1.2-2' }}</span></div>
+          <div><label>Tax</label><span>$ {{ order.tax | number:'1.2-2' }}</span></div>
+          <div><label>Total (no tips)</label><span>$ {{ order.totalWithoutTips | number:'1.2-2' }}</span></div>
+          <div><label>Tips</label><span>$ {{ order.tips | number:'1.2-2' }}</span></div>
+        </div>
+      </section>
+    </div>
+  </ng-container>
+</aside>
+
+<!-- Pay confirmation: names what is being recorded before it is recorded -->
+<div class="modal-backdrop" *ngIf="payOrder" (click)="closePayModal()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <h2 *ngIf="payCleaner">Mark {{ cleanerName(payCleaner) }} as paid</h2>
+    <h2 *ngIf="!payCleaner">Mark everyone on order #{{ payOrder.orderId }} as paid</h2>
+
+    <p class="modal-lead" *ngIf="payCleaner">
+      Order #{{ payOrder.orderId }} · {{ payOrder.serviceTypeName }} · {{ payOrder.serviceDate | date:'MM/dd/yy' }}
+    </p>
+
+    <ul class="modal-lines" *ngIf="!payCleaner">
+      <li *ngFor="let c of unpaidInPayOrder">
+        <span>{{ cleanerName(c) }}</span>
+        <span class="modal-line-method">{{ methodLabel(c.paymentMethod) || 'no method on file' }}</span>
+        <span class="modal-line-amount">$ {{ c.payout | number:'1.2-2' }}</span>
+      </li>
+    </ul>
+
+    <div class="modal-total">
+      <span>Total</span>
+      <strong>$ {{ payModalTotal | number:'1.2-2' }}</strong>
+    </div>
+
+    <label class="modal-field" *ngIf="payCleaner">
+      <span>Sent via</span>
+      <select [(ngModel)]="payVia" name="payVia">
+        <option *ngFor="let opt of paymentMethodOptions" [value]="opt.value">{{ opt.label }}</option>
+      </select>
+    </label>
+
+    <p class="modal-hint" *ngIf="!payCleaner">
+      Each cleaner is recorded against their own saved payment method.
+    </p>
+
+    <label class="modal-field">
+      <span>Note (optional)</span>
+      <input type="text" [(ngModel)]="payNote" name="payNote" maxlength="500" placeholder="Reference, confirmation number…" />
+    </label>
+
+    <div class="modal-actions">
+      <button class="action-btn small discard" type="button" [disabled]="paying" (click)="closePayModal()">Cancel</button>
+      <button class="action-btn small save" type="button" [disabled]="paying" (click)="confirmPay()">
+        {{ paying ? 'Recording…' : 'Confirm payment' }}
+      </button>
+    </div>
+  </div>
+</div>

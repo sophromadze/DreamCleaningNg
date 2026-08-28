@@ -315,6 +315,13 @@
                    *ngIf="canViewCompany()">
                   Company
                 </a>
+                <!-- SuperAdmin only: cleaner wages and the record of paying them. Gated on the
+                     role here and by superAdminGuard on the route. -->
+                <a routerLink="/admin/outgoing-payments"
+                   (click)="closeAllMenus(); $event.stopPropagation()"
+                   *ngIf="currentUser?.role === 'SuperAdmin'">
+                  Outgoing Payments
+                </a>
                 <a routerLink="/admin/blog"
                    (click)="closeAllMenus(); $event.stopPropagation()"
                    *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'"

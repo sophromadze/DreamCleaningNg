@@ -62,13 +62,15 @@ export const PER_MAID_MINIMUM_MINUTES = 60;
 export const EXTRA_CLEANERS_PER_MAID_MINIMUM_MINUTES = 150;
 
 /**
- * Default cleaner hourly rates. Regular residential is the base; deep/super-deep and
- * move in/out pay the mid rate; heavy-condition and post-construction pay the top rate.
+ * Default cleaner hourly rates. Regular residential (and office, and an unrecognised custom
+ * label) is the base; deep/super-deep, move in/out and post-construction pay the mid rate;
+ * heavy-condition pays the top rate and a filthy job pays the highest.
  * Mirrored by *CleanerHourlyRate in OrderPricingCalculator.cs.
  */
 export const REGULAR_CLEANER_HOURLY_RATE = 20;
 export const DEEP_CLEANING_CLEANER_HOURLY_RATE = 21;
 export const HEAVY_DUTY_CLEANER_HOURLY_RATE = 25;
+export const FILTHY_CLEANER_HOURLY_RATE = 28;
 
 /** The extra service that adds cleaners is identified by name, like the booking page does. */
 export const EXTRA_CLEANERS_NAME = 'Extra Cleaners';
@@ -810,9 +812,16 @@ export function resolveGiftCardAmountToUse(giftCardBalance: number, totalBeforeG
  * Default cleaner hourly rate for an order, matched on the EFFECTIVE service-type name
  * (i.e. the custom "Pre-Arranged" label when there is one) and, for residential, on whether
  * the deep-cleaning extra was picked:
- *   heavy condition / post construction → 25, move in/out → 21,
- *   residential deep / super-deep → 21, everything else → 20.
- * The rate is only a DEFAULT — admins can override it per order in the orders panel.
+ *   filthy → 28, heavy condition → 25, post construction / move in/out → 21,
+ *   residential deep / super-deep → 21, everything else (regular, office, and an
+ *   unrecognised custom label) → 20.
+ *
+ * The keyword ORDER is the contract, not an accident. A label reading "Heavy / Filthy" must
+ * pay the filthy rate, so filthy is tested first; and post construction is tested on its own
+ * line because it used to share the heavy rate and deliberately no longer does.
+ *
+ * The rate is only a DEFAULT — admins override it per order in the orders panel and per
+ * CLEANER on the Outgoing Payments page, which warns when the rate in force differs from this.
  * Mirrored by GetDefaultCleanerHourlyRate in OrderPricingCalculator.cs.
  */
 export function getDefaultCleanerHourlyRate(
@@ -821,11 +830,15 @@ export function getDefaultCleanerHourlyRate(
 ): number {
   const name = normalizeServiceTypeName(serviceTypeName);
 
-  if (name.includes('heavy') || name.includes('post construction')) {
+  if (name.includes('filthy')) {
+    return FILTHY_CLEANER_HOURLY_RATE;
+  }
+
+  if (name.includes('heavy')) {
     return HEAVY_DUTY_CLEANER_HOURLY_RATE;
   }
 
-  if (name.includes('move')) {
+  if (name.includes('post construction') || name.includes('move')) {
     return DEEP_CLEANING_CLEANER_HOURLY_RATE;
   }
 

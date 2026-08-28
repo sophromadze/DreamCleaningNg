@@ -2063,3 +2063,87 @@
     .location-value { text-align: left; }
   }
 }
+
+/* ============================================================
+   Payment row (cleaner form)
+   ============================================================
+   Its own full-width row directly above Operating areas, tinted so it reads as a distinct
+   block rather than as two more fields in the grid — it is what the Outgoing Payments page
+   sends money against, so it has to be findable at a glance. The tint uses the component's
+   own --cd-* accent tokens, which already flip for dark mode at the top of this file, so
+   nothing here needs a second dark-mode rule. */
+.payment-block {
+  padding: 12px 14px;
+  border: 1px solid var(--cd-accent-border);
+  border-radius: 10px;
+  background: var(--cd-accent-soft);
+
+  > .field-label {
+    color: var(--cd-accent);
+    font-weight: 600;
+  }
+
+  .payment-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 8px;
+
+    /* The method is a short fixed choice; the destination takes the rest of the row. */
+    .payment-method-field {
+      flex: 0 0 170px;
+      min-width: 140px;
+    }
+
+    .payment-details-field {
+      flex: 1 1 260px;
+      min-width: 200px;
+    }
+  }
+
+  .payment-details-input {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+
+    input {
+      flex: 1 1 auto;
+      min-width: 0;
+      /* Monospaced so a Zelle number's digits can be checked against a phone at a glance. */
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+  }
+
+  /* Icon only — a "Copy" word next to an account number competes with the number itself. */
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 34px;
+    padding: 0;
+    border: 1px solid var(--cd-input-border);
+    border-radius: 8px;
+    background: var(--cd-input-bg);
+    color: var(--cd-text-muted);
+    cursor: pointer;
+    transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+
+    &:hover:not(:disabled) {
+      border-color: var(--cd-accent);
+      color: var(--cd-accent);
+    }
+
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* Confirmed state, cleared after 2s by the component. */
+    &.copied {
+      border-color: var(--cd-success);
+      color: var(--cd-success);
+      background: var(--cd-success-soft);
+    }
+  }
+}

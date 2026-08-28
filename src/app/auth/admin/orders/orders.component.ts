@@ -20,6 +20,10 @@ import { CardOnFileService, OrderSavedCardInfo } from '../../../services/card-on
 import { CARD_ON_FILE_ENABLED } from '../../../shared/card-on-file.flag';
 import { formatNy, formatNyDateTime } from '../../../shared/ny-time.util';
 import {
+  formatAdminServiceTypeLabel,
+  isResidentialServiceTypeName
+} from '../../../shared/admin/service-type-short-label';
+import {
   calculateQuote,
   calculateTotals,
   calculateCleanerTotalSalary,
@@ -2460,9 +2464,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /**
    * Default hourly rate shown in the assign-cleaners modal, from the shared calculator:
-   * heavy condition / post construction pay the top rate, move in/out and residential deep
-   * cleaning the mid rate, everything else the base rate. Only a fallback — a rate already
-   * stored on the order (including an admin override) always wins.
+   * filthy pays the highest rate, heavy condition the top rate, post construction / move in/out
+   * and residential deep cleaning the mid rate, everything else the base rate. Only a fallback —
+   * a rate already stored on the order (including an admin override) always wins.
    */
   getDefaultHourlyRate(orderId: number): number {
     const details = this.selectedOrder?.id === orderId ? this.selectedOrder : null;
@@ -3319,31 +3323,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return 'other';
   }
 
+  /**
+   * Both delegate to shared/admin/service-type-short-label.ts. The Outgoing Payments table shows
+   * the identical column, and two admin tables labelling the same order differently is exactly
+   * the confusion worth one shared function. Kept as thin methods so the template and the
+   * sort/filter helpers below read unchanged.
+   */
   private formatServiceTypeLabel(serviceTypeName: string | null | undefined): string {
-    if (!serviceTypeName) return 'N/A';
-
-    let normalized = serviceTypeName
-      .toLowerCase()
-      .trim()
-      .replace(/[_-]+/g, ' ')
-      .replace(/\bcleaning\b/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    // Keep "in/out" formatting for move in/out service labels.
-    normalized = normalized.replace(/\bin out\b/g, 'in/out');
-    normalized = normalized.replace(/\bheavy condition(al)?\b/g, 'heavy');
-    normalized = normalized.replace(/\bpre arranged\b/g, 'arranged');
-    normalized = normalized.replace(/\bpost construction\b/g, 'construction');
-
-    if (!normalized) return 'N/A';
-
-    return normalized.replace(/\b\w+\b/g, (word) => word.charAt(0).toUpperCase() + word.slice(1));
+    return formatAdminServiceTypeLabel(serviceTypeName);
   }
 
   private isResidentialServiceType(serviceTypeName: string | null | undefined): boolean {
-    const normalized = (serviceTypeName || '').toLowerCase().trim().replace(/[_\s]+/g, '-');
-    return normalized === 'residential-cleaning' || normalized === 'residentialcleaning';
+    return isResidentialServiceTypeName(serviceTypeName);
   }
 
   private resolveIsDeepResidential(orderLike: any, detailsLike?: any): boolean {

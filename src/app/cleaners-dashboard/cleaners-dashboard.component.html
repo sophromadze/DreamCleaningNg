@@ -179,6 +179,7 @@
           <div><label>Operating areas</label><span>{{ boroughsDisplay(selectedDetail.operatingAreas) }}</span></div>
           <div *ngIf="selectedDetail.nationality"><label>Nationality</label><span>{{ selectedDetail.nationality }}</span></div>
           <div *ngIf="selectedDetail.experience"><label>Experience</label><span>{{ selectedDetail.experience }}</span></div>
+          <div *ngIf="paymentSummary(selectedDetail)"><label>Paid via</label><span>{{ paymentSummary(selectedDetail) }}</span></div>
           <div *ngIf="selectedDetail.ranking === 'Restricted' || selectedDetail.ranking === 3">
             <label>Restriction reason</label>
             <span>{{ selectedDetail.restrictedReason || '—' }}</span>
@@ -427,6 +428,56 @@
             <option *ngFor="let opt of locationOptions" [value]="opt.value">{{ opt.label }}</option>
           </select>
         </label>
+
+        <!--
+          How this cleaner is PAID. Given its own tinted row directly above Operating areas
+          because it is the field the Outgoing Payments page sends money against — it earns being
+          found at a glance rather than sitting among the document/nationality fields. Both halves
+          stay OPTIONAL: plenty of cleaners are settled in cash with nothing to record, and the
+          payments page treats this as a hint, never as a requirement.
+        -->
+        <div class="full payment-block">
+          <span class="field-label">Payment</span>
+          <div class="payment-row">
+            <label class="payment-method-field">
+              <span>Method</span>
+              <select [(ngModel)]="formModel.paymentMethod" name="paymentMethod">
+                <option *ngFor="let opt of paymentMethodOptions" [ngValue]="opt.value || null">{{ opt.label }}</option>
+              </select>
+            </label>
+
+            <label class="payment-details-field">
+              <span>{{ paymentDetailsLabel }}</span>
+              <div class="payment-details-input">
+                <input type="text"
+                       [(ngModel)]="formModel.paymentDetails"
+                       name="paymentDetails"
+                       maxlength="200"
+                       [placeholder]="paymentDetailsLabel" />
+                <!-- Icon only, and disabled while the box is empty so it can never "succeed" at
+                     copying nothing. Copies the destination alone — it is pasted straight into a
+                     banking app. -->
+                <button type="button"
+                        class="copy-btn"
+                        [class.copied]="paymentDetailsCopied"
+                        [disabled]="!formModel.paymentDetails"
+                        (click)="copyFormPaymentDetails()"
+                        [attr.aria-label]="'Copy ' + paymentDetailsLabel"
+                        [title]="paymentDetailsCopied ? 'Copied' : 'Copy'">
+                  <svg *ngIf="!paymentDetailsCopied" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                  </svg>
+                  <svg *ngIf="paymentDetailsCopied" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                       stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </button>
+              </div>
+            </label>
+          </div>
+        </div>
 
         <div class="full busy-days-block">
           <span class="field-label">Operating areas</span>
