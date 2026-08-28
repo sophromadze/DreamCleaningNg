@@ -63,8 +63,8 @@ export const EXTRA_CLEANERS_PER_MAID_MINIMUM_MINUTES = 150;
 
 /**
  * Default cleaner hourly rates. Regular residential (and office, and an unrecognised custom
- * label) is the base; deep/super-deep, move in/out and post-construction pay the mid rate;
- * heavy-condition pays the top rate and a filthy job pays the highest.
+ * label) is the base; deep/super-deep and move in/out pay the mid rate; heavy-condition and
+ * post-construction pay the top rate; a filthy job pays the highest.
  * Mirrored by *CleanerHourlyRate in OrderPricingCalculator.cs.
  */
 export const REGULAR_CLEANER_HOURLY_RATE = 20;
@@ -834,11 +834,16 @@ export function getDefaultCleanerHourlyRate(
     return FILTHY_CLEANER_HOURLY_RATE;
   }
 
-  if (name.includes('heavy')) {
+  if (name.includes('heavy') || name.includes('post construction')) {
     return HEAVY_DUTY_CLEANER_HOURLY_RATE;
   }
 
-  if (name.includes('post construction') || name.includes('move')) {
+  // "deep" is matched on the NAME as well as on the fee. A Custom ("Pre-Arranged") order
+  // labelled "Deep" carries no deep-cleaning extra — that extra is deliberately filtered out of
+  // the custom extras grid — so the fee is 0 and the rate used to fall through to the $20 base.
+  // The label is the truth for a custom order. "Super Deep" contains "deep" and is meant to
+  // match: it pays the same mid rate.
+  if (name.includes('move') || name.includes('deep')) {
     return DEEP_CLEANING_CLEANER_HOURLY_RATE;
   }
 
@@ -855,6 +860,24 @@ function normalizeServiceTypeName(serviceTypeName?: string | null): string {
 }
 
 /**
+ * How many people the work is spread across: the count the job was STAFFED for
+ * (`maidsCount`), widened when more cleaners turned out to be assigned than it was priced
+ * for. Mirrors CleanerPayrollCalculator.ResolveSplitCount.
+ *
+ * Every surface that divides a duration or a salary across cleaners must use this, NOT bare
+ * `maidsCount` (2026-08). The Outgoing Payments page and the cleaner assignment email/SMS
+ * always split this way, so an order priced for 2 and staffed with 3 used to show
+ * "6h per cleaner" in the admin orders panel while the payouts page — and the mail each of
+ * those cleaners received — said 4h.
+ *
+ * Pass 0 for `assignedCount` when the assignment list is genuinely unknown (not yet loaded);
+ * that falls back to the staffing count, which is what it always was.
+ */
+export function resolveCleanerSplitCount(maidsCount: number, assignedCount: number): number {
+  return Math.max(1, Math.max(Number(maidsCount) || 0, Number(assignedCount) || 0));
+}
+
+/**
  * Billable minutes ONE cleaner is paid for, snapped to DURATION_ROUNDING_MINUTES.
  * SINGLE source for both the payroll figure and the "· X per cleaner" label admins see —
  * they must never disagree. Mirrors OrderPricingCalculator.CalculatePerCleanerBillableMinutes.
@@ -862,12 +885,22 @@ function normalizeServiceTypeName(serviceTypeName?: string | null): string {
  * Only cleaner-hours service types store TotalDuration as per-cleaner; everything
  * else (including Custom Pricing) stores it as TOTAL across all maids and we divide.
  *
- * The split rounds DOWN, and that is the whole point. Rounding each share to the NEAREST
- * increment and then multiplying back by the cleaner count inflated payroll purely because
- * an admin raised the count: a 456-minute job paid 450 min (7h30) at 1 cleaner but
- * 2 × 240 min (2 × 4h) at 2 cleaners, +$10.50 for identical work. Flooring makes the paid
- * total a multiple of the increment that is always ≤ the raw total, so raising maidsCount
- * can never increase what we pay out.
+ * **The DISPLAYED total is what gets divided, not the raw one (2026-08).** Every surface
+ * shows the order's total rounded to the nearest increment, so the split has to start from
+ * that same figure or two labels sitting side by side contradict each other: a raw 710-minute
+ * job read "12h total · 5h 30m per cleaner" at 2 cleaners, because the 12h came from rounding
+ * 710 UP to 720 while the share came from flooring 710 / 2 = 355 DOWN to 330. Dividing the
+ * rounded total gives 720 / 2 = 360 — "12h total · 6h per cleaner", arithmetic an admin can
+ * check by halving.
+ *
+ * The split itself still rounds DOWN, and that is the whole point. Rounding each share to the
+ * NEAREST increment and then multiplying back by the cleaner count inflated payroll purely
+ * because an admin raised the count: a 456-minute job paid 450 min (7h30) at 1 cleaner but
+ * 2 × 240 min (2 × 4h) at 2 cleaners, +$10.50 for identical work. Flooring keeps the paid
+ * total a multiple of the increment that is always ≤ the rounded total, so raising maidsCount
+ * can never increase what we pay out. The consequence the owner accepted (2026-08) is that an
+ * UNEVEN split still pays slightly under the displayed total — 11h30 across 2 cleaners is
+ * 5h30 each, not 5h45 — because clean half-hour labels were worth more than exactness.
  */
 export function calculatePerCleanerBillableMinutes(
   totalDuration: number,
@@ -876,19 +909,25 @@ export function calculatePerCleanerBillableMinutes(
 ): number {
   const maids = Math.max(1, maidsCount);
 
-  // Already per-cleaner (cleaner-hours types), or nothing to split: keep the historical
-  // nearest-increment behaviour so single-cleaner orders are untouched.
+  // The figure every surface prints as the order's total. Dividing THIS is what keeps
+  // "X total · Y per cleaner" internally consistent.
+  const roundedTotal =
+    Math.round(totalDuration / DURATION_ROUNDING_MINUTES) * DURATION_ROUNDING_MINUTES;
+
+  // Already per-cleaner (cleaner-hours types), or nothing to split.
   if (hasCleanerService || maids === 1) {
-    return Math.round(totalDuration / DURATION_ROUNDING_MINUTES) * DURATION_ROUNDING_MINUTES;
+    return roundedTotal;
   }
 
   const floored =
-    Math.floor(totalDuration / maids / DURATION_ROUNDING_MINUTES) * DURATION_ROUNDING_MINUTES;
+    Math.floor(roundedTotal / maids / DURATION_ROUNDING_MINUTES) * DURATION_ROUNDING_MINUTES;
 
   // Never floor a real job down to zero pay: with more cleaners than there are half-hours of
   // work (6 cleaners on a 1h job) the share floors to 0. Pay one increment instead. This is
   // the ONE case where the never-raises guarantee can be exceeded, and $0 payroll is worse.
-  return totalDuration > 0 && floored <= 0 ? DURATION_ROUNDING_MINUTES : floored;
+  // The shortest job this system can quote is 2h30 (studio, one bathroom), so it takes more
+  // than 5 cleaners on a single order before this can fire at all.
+  return roundedTotal > 0 && floored <= 0 ? DURATION_ROUNDING_MINUTES : floored;
 }
 
 /**

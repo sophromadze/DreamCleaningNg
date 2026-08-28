@@ -16,10 +16,19 @@ import { CleanerPaymentMethod } from './cleaner-management.service';
 export type OutgoingPaymentPaidFilter = 'all' | 'unpaid' | 'paid';
 
 export interface OutgoingPaymentCleaner {
+  /** 0 on an unassigned slot — there is no assignment row behind it. */
   orderCleanerId: number;
   cleanerId: number;
   firstName: string;
   lastName: string;
+  /**
+   * True for a staffing slot with nobody assigned. The figures are real — somebody worked those
+   * hours — and the slot CAN be marked paid; it just cannot have its rate or hours edited, since
+   * there is no per-cleaner record to hang an override on.
+   */
+  isUnassigned?: boolean;
+  /** Unassigned slots only: which slot this is, 0-based. The pay/unpay endpoints key on it. */
+  slotIndex?: number;
   /** The cleaner's saved payout method — a hint for whoever is sending the money. */
   paymentMethod?: CleanerPaymentMethod | number | null;
   paymentDetails?: string | null;
@@ -74,12 +83,24 @@ export interface OutgoingPaymentOrder {
   totalDuration: number;
   automaticMinutesPerCleaner: number;
   maidsCount: number;
+  /**
+   * How many people the work was split across — max(maidsCount, assigned). "· 6h each cleaner"
+   * comes from this, NOT from the number of assignment rows.
+   */
+  splitCount: number;
   orderHourlyRate: number;
   expectedHourlyRate: number;
   totalSalary: number;
   totalPayout: number;
 
   cleaners: OutgoingPaymentCleaner[];
+  /**
+   * Staffing slots nobody is assigned to. Reported, counted in the totals, and payable like any
+   * other line — the record is keyed by slot index rather than by cleaner. Kept out of `cleaners`
+   * so anything walking the assignment list cannot trip over a line with no cleaner behind it;
+   * `isFullyPaid` deliberately spans both.
+   */
+  unassignedCleaners: OutgoingPaymentCleaner[];
   warnings: string[];
   isFullyPaid: boolean;
   isPartiallyPaid: boolean;
@@ -184,5 +205,23 @@ export class OutgoingPaymentService {
   undoCleanerPayment(orderId: number, orderCleanerId: number): Observable<OutgoingPaymentOrder> {
     return this.http.post<OutgoingPaymentOrder>(
       `${this.apiUrl}/order/${orderId}/cleaner/${orderCleanerId}/unpay`, {});
+  }
+
+  /**
+   * Records a payout against a staffing slot with nobody on file. Addressed by SLOT INDEX, not by
+   * a cleaner id — there is no cleaner. The note is where the person's name goes.
+   */
+  markUnassignedSlotPaid(
+    orderId: number,
+    slotIndex: number,
+    body: { paidVia?: CleanerPaymentMethod | number | null; paymentNote?: string | null } = {}
+  ): Observable<OutgoingPaymentOrder> {
+    return this.http.post<OutgoingPaymentOrder>(
+      `${this.apiUrl}/order/${orderId}/unassigned/${slotIndex}/pay`, body);
+  }
+
+  undoUnassignedSlotPayment(orderId: number, slotIndex: number): Observable<OutgoingPaymentOrder> {
+    return this.http.post<OutgoingPaymentOrder>(
+      `${this.apiUrl}/order/${orderId}/unassigned/${slotIndex}/unpay`, {});
   }
 }

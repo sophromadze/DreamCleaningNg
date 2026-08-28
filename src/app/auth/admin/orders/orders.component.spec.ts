@@ -906,4 +906,87 @@ describe('OrdersComponent', () => {
         .toBeFalse();
     });
   });
+
+  /**
+   * ONE ANSWER FOR "HOW LONG IS THIS PER CLEANER" (2026-08).
+   *
+   * Three surfaces quote it — this panel, the Outgoing Payments page, and the assignment
+   * email/SMS the cleaner actually receives — and they must never disagree. Two rules make
+   * that true, both of which were broken here:
+   *
+   *  1. The share is cut from the DISPLAYED (rounded) total, so halving the "12h total" the
+   *     admin is reading reproduces the "6h per cleaner" beside it. A raw 710-minute order
+   *     used to read "12h total · 5h 30m per cleaner".
+   *  2. It divides by max(MaidsCount, assigned) — the same divisor payroll uses — so an order
+   *     priced for 2 and staffed with 3 does not claim 6h each while the payouts page and
+   *     all three mails say 4h.
+   */
+  describe('per-cleaner duration', () => {
+    const selectOrder = (over: any = {}) => {
+      component.selectedOrder = {
+        id: 900, totalDuration: 710, maidsCount: 2, cleanerHourlyRate: 21,
+        hasCleanersService: false, ...over
+      } as any;
+    };
+
+    const assign = (orderId: number, count: number) => {
+      component.assignedCleanersCache.set(
+        orderId, Array.from({ length: count }, (_, i) => ({ cleanerId: i + 1 })) as any);
+      component.cleanersLoadedSet.add(orderId);
+    };
+
+    it('halves the total it just displayed, not the raw stored minutes', () => {
+      selectOrder();
+      assign(900, 2);
+
+      // 710 min renders as "12h"; the share must be the half of THAT an admin can check.
+      expect(component.formatDuration(710)).toBe('12h');
+      expect(component.getSelectedOrderDurationText()).toBe('12h total · 6h per cleaner');
+      expect(component.getDisplayCleanerTotalSalary()).toBe(252);
+    });
+
+    it('splits across the people actually assigned when they outnumber MaidsCount', () => {
+      selectOrder({ maidsCount: 2, totalDuration: 720 });
+      assign(900, 3);
+
+      // Payroll pays these three a third each; the panel has to say the same thing.
+      expect(component.getSelectedOrderSplitCount()).toBe(3);
+      expect(component.getSelectedOrderDurationText()).toBe('12h total · 4h per cleaner');
+    });
+
+    it('does not shrink the split when fewer cleaners are on file than were staffed', () => {
+      // The third cleaner worked their hours, they are just not in the system. Dividing by the
+      // assignment count would pay the two on file for 6h each of a 2-way split.
+      selectOrder({ maidsCount: 3, totalDuration: 1080 });
+      assign(900, 2);
+
+      expect(component.getSelectedOrderSplitCount()).toBe(3);
+      expect(component.getSelectedOrderDurationText()).toBe('18h total · 6h per cleaner');
+    });
+
+    it('falls back to MaidsCount while the assignment list is still loading', () => {
+      selectOrder({ maidsCount: 2, totalDuration: 720 });
+      // Nothing added to cleanersLoadedSet — unknown must not read as "nobody assigned yet
+      // and therefore a 1-way split".
+      expect(component.getSelectedOrderSplitCount()).toBe(2);
+      expect(component.getSelectedOrderDurationText()).toBe('12h total · 6h per cleaner');
+    });
+
+    it('drops the per-cleaner half entirely for a single cleaner', () => {
+      selectOrder({ maidsCount: 1, totalDuration: 710 });
+      assign(900, 1);
+
+      expect(component.getSelectedOrderDurationText()).toBe('12h total');
+    });
+
+    it('widens the edit-form hint by the assignments, not just the typed count', () => {
+      selectOrder({ maidsCount: 2, totalDuration: 720 });
+      assign(900, 3);
+      component.editOrderForm = { ...(component.editOrderForm as any), totalDuration: 720, maidsCount: 2 } as any;
+
+      // Typing 2 into Maids does not un-assign the third cleaner, and payroll still pays
+      // three ways — so the hint must not promise 6h each.
+      expect(component.getEditDurationHintText()).toBe('12h total · 4h per cleaner');
+    });
+  });
 });

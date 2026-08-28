@@ -528,6 +528,24 @@
       background: var(--mint-fresh);
       border-color: var(--mint-fresh-border);
     }
+
+    /* A staffing slot with nobody on file. Dashed, so it reads as a gap in the paperwork rather
+       than as a person — the figures are real, the payee is not recorded. */
+    &.is-unassigned {
+      background: var(--warning-orange-bg);
+      border-style: dashed;
+      border-color: var(--warning-orange-border);
+
+      .cleaner-name { color: var(--warning-orange-text); }
+    }
+  }
+
+  .unassigned-list { margin-top: 0.55rem; }
+
+  .unassigned-note {
+    font-size: 0.76rem;
+    font-style: italic;
+    color: var(--warning-orange-text);
   }
 
   .cleaner-identity {

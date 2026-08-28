@@ -17,6 +17,14 @@
         hours, the rate and the tip split — so there is nothing to add up by hand.
       </p>
     </div>
+
+    <div class="header-actions">
+      <!-- Same control the Orders tab carries: orders finish and cleaners get assigned while
+           this page is open, so a reload without losing the filters is worth a button. -->
+      <button class="action-btn refresh" (click)="load()" [disabled]="loading">
+        {{ loading ? 'Loading...' : 'Refresh' }}
+      </button>
+    </div>
   </div>
 
   <!-- Month selector + what still has to go out this month -->
@@ -129,22 +137,30 @@
                 <!-- The SHORT label ("Regular"/"Deep"/"Move In/Out"), from the same shared
                      function the Orders tab's Service Type column uses. -->
                 {{ serviceTypeShort(order) }}
-                <!-- "Paid by cash" mattered enough to be written into every WhatsApp message. -->
-                <span class="cash-tag" *ngIf="customerPaymentNote(order)">{{ customerPaymentNote(order) }}</span>
+                <!-- How the customer settled, when it was not a card. Just the method — a
+                     "Paid by" prefix only ate column width; the tooltip carries the sentence. -->
+                <span class="cash-tag"
+                      *ngIf="customerPaymentNote(order)"
+                      [title]="customerPaymentTitle(order)">{{ customerPaymentNote(order) }}</span>
               </td>
 
               <td class="cleaners-col">
                 <span *ngIf="order.cleaners.length > 0"
                       class="cleaners-names"
                       [title]="cleanerNamesFull(order)">
-                  ({{ order.cleaners.length }}) {{ cleanerNamesShort(order) }}
+                  <!-- "(2 of 3)" when the job was staffed for more people than are on file. -->
+                  {{ cleanerCountLabel(order) }} {{ cleanerNamesShort(order) }}
                 </span>
-                <span *ngIf="order.cleaners.length === 0" class="no-cleaners">Not assigned</span>
+                <span *ngIf="order.cleaners.length === 0" class="no-cleaners">
+                  Not assigned<span *ngIf="order.splitCount > 1"> ({{ order.splitCount }})</span>
+                </span>
               </td>
 
               <td class="duration-col">
-                {{ formatDuration(order.totalDuration) }}
-                <em *ngIf="order.cleaners.length > 1">· {{ formatDuration(order.automaticMinutesPerCleaner) }} ea.</em>
+                {{ formatTotalDuration(order.totalDuration) }}
+                <!-- Gated on the STAFFED count, not the assignment count: an 18h job staffed for
+                     3 is 6h each even when only 2 of them are on file. -->
+                <em *ngIf="order.splitCount > 1">· {{ formatDuration(order.automaticMinutesPerCleaner) }} ea.</em>
               </td>
 
               <td class="amount">$ {{ order.totalWithoutTips | number:'1.2-2' }}</td>
@@ -171,9 +187,9 @@
                     </svg>
                   </a>
                   <button class="icon-btn ok"
-                          *ngIf="!order.isFullyPaid && order.cleaners.length > 0"
+                          *ngIf="!order.isFullyPaid && allPayoutLines(order).length > 0"
                           (click)="openPayOrder(order)"
-                          title="Mark every cleaner on this order paid">
+                          title="Record every outstanding payout on this order">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="20 6 9 17 4 12"/>
                     </svg>
@@ -208,7 +224,7 @@
            target="_blank"
            rel="noopener">View order</a>
         <button class="action-btn small save"
-                *ngIf="!order.isFullyPaid && order.cleaners.length > 0"
+                *ngIf="!order.isFullyPaid && allPayoutLines(order).length > 0"
                 (click)="openPayOrder(order)">Mark all paid</button>
         <button class="action-btn small discard" (click)="closePanel()">Close</button>
       </div>
@@ -223,16 +239,12 @@
     -->
     <div class="order-panel-body">
 
-      <div class="no-cleaners-block" *ngIf="order.cleaners.length === 0">
-        Nobody is assigned to this order, so there is nothing to pay out yet.
-      </div>
-
       <!--
         The order's hourly rate. This is the DEFAULT every assigned cleaner without their own
         rate is paid at, and saving it writes through to Order.CleanerHourlyRate — the order
         itself carries the new figure, so Statistics and Finances follow with nothing else to do.
       -->
-      <section class="panel-block order-rate-block" *ngIf="order.cleaners.length > 0">
+      <section class="panel-block order-rate-block">
         <div class="order-rate-head">
           <span class="field-label">Hourly rate for this order</span>
 
@@ -268,7 +280,7 @@
         </p>
       </section>
 
-      <section class="panel-block" *ngIf="order.cleaners.length > 0">
+      <section class="panel-block">
         <h4>Cleaners</h4>
 
         <ul class="cleaner-list">
@@ -397,6 +409,62 @@
           </li>
         </ul>
 
+        <!--
+          Staffing slots nobody is assigned to. Somebody worked those hours — the third cleaner on
+          a 3-person job who is not in the system — so the figures are shown and counted in the
+          totals. They cannot be paid from here: there is no person on file to pay, and inventing
+          a payout record against nobody would be a lie in the audit trail.
+        -->
+        <ul class="cleaner-list unassigned-list" *ngIf="hasUnassignedSlots(order)">
+          <li class="cleaner-row is-unassigned"
+              *ngFor="let slot of order.unassignedCleaners; trackBy: trackBySlot"
+              [class.is-paid]="slot.isPaid">
+            <div class="cleaner-identity">
+              <span class="cleaner-name">Unassigned cleaner</span>
+              <span class="cleaner-destination muted">Not in the system — put their name in the payment note</span>
+            </div>
+
+            <div class="cleaner-figures">
+              <div class="figure">
+                <span class="figure-label">Hours</span>
+                <span class="figure-value">{{ formatDuration(slot.billableMinutes) }}</span>
+              </div>
+              <div class="figure">
+                <span class="figure-label">Wages</span>
+                <span class="figure-value">{{ salaryWorking(slot) }}</span>
+              </div>
+              <div class="figure" *ngIf="slot.tips > 0">
+                <span class="figure-label">Tips</span>
+                <span class="figure-value">$ {{ slot.tips | number:'1.2-2' }}</span>
+              </div>
+              <div class="figure figure-total">
+                <span class="figure-label">Payout</span>
+                <span class="figure-value">$ {{ slot.payout | number:'1.2-2' }}</span>
+              </div>
+            </div>
+
+            <!-- Same pay/undo controls as a named cleaner. Rate and hours are NOT editable here:
+                 there is no per-cleaner record to hang an override on, and the order-level rate
+                 above already moves this line. -->
+            <div class="cleaner-actions">
+              <button class="action-btn small save" type="button" *ngIf="!slot.isPaid" (click)="openPayCleaner(order, slot)">
+                Mark paid
+              </button>
+
+              <ng-container *ngIf="slot.isPaid">
+                <span class="paid-stamp">
+                  ✓ Paid $ {{ (slot.paidAmount ?? slot.payout) | number:'1.2-2' }}
+                  <span *ngIf="methodLabel(slot.paidVia)"> via {{ methodLabel(slot.paidVia) }}</span>
+                  <em *ngIf="slot.paidAt"> · {{ slot.paidAt | date:'MM/dd/yy' }}</em>
+                  <em *ngIf="slot.paidByName"> · by {{ slot.paidByName }}</em>
+                </span>
+                <span class="paid-note" *ngIf="slot.paymentNote">“{{ slot.paymentNote }}”</span>
+                <button class="btn-link danger" type="button" (click)="undoPayment(order, slot)">Undo</button>
+              </ng-container>
+            </div>
+          </li>
+        </ul>
+
         <div class="panel-foot">
           <span class="foot-label">Order payout</span>
           <span class="foot-value">$ {{ order.totalPayout | number:'1.2-2' }}</span>
@@ -421,8 +489,8 @@
           <div>
             <label>Duration</label>
             <span>
-              {{ formatDuration(order.totalDuration) }} total
-              <em *ngIf="order.cleaners.length > 1">· {{ formatDuration(order.automaticMinutesPerCleaner) }} each cleaner</em>
+              {{ formatTotalDuration(order.totalDuration) }} total
+              <em *ngIf="order.splitCount > 1">· {{ formatDuration(order.automaticMinutesPerCleaner) }} each cleaner</em>
             </span>
           </div>
           <div *ngIf="customerPaymentNote(order)"><label>Customer paid</label><span>{{ customerPaymentNote(order) }}</span></div>
@@ -455,7 +523,9 @@
     <ul class="modal-lines" *ngIf="!payCleaner">
       <li *ngFor="let c of unpaidInPayOrder">
         <span>{{ cleanerName(c) }}</span>
-        <span class="modal-line-method">{{ methodLabel(c.paymentMethod) || 'no method on file' }}</span>
+        <span class="modal-line-method">
+          {{ c.isUnassigned ? 'not in the system' : (methodLabel(c.paymentMethod) || 'no method on file') }}
+        </span>
         <span class="modal-line-amount">$ {{ c.payout | number:'1.2-2' }}</span>
       </li>
     </ul>

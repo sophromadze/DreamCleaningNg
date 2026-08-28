@@ -28,6 +28,7 @@ import {
   calculateTotals,
   calculateCleanerTotalSalary,
   calculatePerCleanerBillableMinutes,
+  resolveCleanerSplitCount,
   getDefaultCleanerHourlyRate,
   getServiceDisplayDuration,
   getSquareFeetForBedrooms,
@@ -2464,7 +2465,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /**
    * Default hourly rate shown in the assign-cleaners modal, from the shared calculator:
-   * filthy pays the highest rate, heavy condition the top rate, post construction / move in/out
+   * filthy pays the highest rate, heavy condition and post construction the top rate, move in/out
    * and residential deep cleaning the mid rate, everything else the base rate. Only a fallback —
    * a rate already stored on the order (including an admin override) always wins.
    */
@@ -2494,7 +2495,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   getEstimatedSalaryBreakdown(): string {
     const order = this.selectedOrder;
     if (!order) return '';
-    const maids = Math.max(1, Number(order.maidsCount) || 1);
+    const maids = this.getSelectedOrderSplitCount();
     const perCleaner = DurationUtils.formatMinutes(
       calculatePerCleanerBillableMinutes(Number(order.totalDuration) || 0, maids, order.hasCleanersService)
     );
@@ -2507,7 +2508,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.selectedOrder) return 0;
     return calculateCleanerTotalSalary(
       this.selectedOrder.totalDuration,
-      this.selectedOrder.maidsCount,
+      this.getSelectedOrderSplitCount(),
       this.selectedOrder.hasCleanersService,
       this.cleanerHourlySalary
     );
@@ -2521,7 +2522,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const order = this.selectedOrder;
     if (!order) return 0;
     const totalDuration = Number(order.totalDuration) || 0;
-    const maids = Number(order.maidsCount) || 1;
+    // Split the way payroll splits it, so this figure agrees with the Duration row above it
+    // and with the Outgoing Payments page. (It still can't see per-cleaner rate/hours
+    // overrides — those live on the payouts page, and the reload after a save corrects it.)
+    const maids = this.getSelectedOrderSplitCount();
     const rate = Number(order.cleanerHourlyRate) || 0;
     if (rate <= 0 || maids <= 0 || totalDuration <= 0) return 0;
     return calculateCleanerTotalSalary(totalDuration, maids, order.hasCleanersService, rate);
@@ -3832,17 +3836,53 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
+  /** How many people the work is split across for the SELECTED order — the staffing count,
+   *  widened when more cleaners are actually assigned than it was priced for. This is the
+   *  divisor Outgoing Payments and the cleaner assignment mail both use, so every per-cleaner
+   *  figure in this panel has to use it too or the three surfaces disagree on an
+   *  over-assigned order. Falls back to MaidsCount while the assignment list is still
+   *  loading, which is what this panel always showed. */
+  getSelectedOrderSplitCount(): number {
+    const order = this.selectedOrder;
+    if (!order) return 1;
+    const assigned = this.cleanersLoadedSet.has(order.id)
+      ? (this.assignedCleanersCache.get(order.id)?.length ?? 0)
+      : 0;
+    return resolveCleanerSplitCount(Number(order.maidsCount) || 1, assigned);
+  }
+
+  /** "12h total · 6h per cleaner" for the details panel, split the way payroll splits it. */
+  getSelectedOrderDurationText(): string {
+    const order = this.selectedOrder;
+    if (!order) return '';
+
+    const totalDuration = Number(order.totalDuration) || 0;
+    const total = `${this.formatDuration(totalDuration)} total`;
+    const splitCount = this.getSelectedOrderSplitCount();
+    if (splitCount <= 1) return total;
+
+    return `${total} · ${this.getPerCleanerDurationText(totalDuration, splitCount, false)} per cleaner`;
+  }
+
   /** Hint text shown next to the "Duration (min)" input in the edit form.
    *  Cleaner-hours orders store TotalDuration per-cleaner, so it's shown as-is;
    *  everything else stores the TOTAL, shown as "X total" plus the per-cleaner
    *  split once the admin has set more than one maid. */
   getEditDurationHintText(): string {
     const totalDuration = Number(this.editOrderForm?.totalDuration ?? 0) || 0;
-    const maidsCount = Number(this.editOrderForm?.maidsCount ?? 1) || 1;
     const hasCleaners = this.selectedOrder?.hasCleanersService ?? false;
     if (hasCleaners) {
       return `${DurationUtils.formatDurationRounded(totalDuration)} per maid`;
     }
+    // The FORM's maids count (the admin may be changing it right now), widened by the people
+    // already assigned — lowering the count below the assignment list does not un-assign
+    // anybody, and payroll would still split their way.
+    const assigned = this.selectedOrder && this.cleanersLoadedSet.has(this.selectedOrder.id)
+      ? (this.assignedCleanersCache.get(this.selectedOrder.id)?.length ?? 0)
+      : 0;
+    const maidsCount = resolveCleanerSplitCount(
+      Number(this.editOrderForm?.maidsCount ?? 1) || 1, assigned);
+
     const total = `${DurationUtils.formatDurationRounded(totalDuration)} total`;
     return maidsCount > 1
       ? `${total} · ${this.getPerCleanerDurationText(totalDuration, maidsCount, false)} per cleaner`

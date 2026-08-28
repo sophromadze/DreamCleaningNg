@@ -65,11 +65,13 @@ describe('OutgoingPaymentsComponent', () => {
     totalDuration: 540,
     automaticMinutesPerCleaner: 270,
     maidsCount: 2,
+    splitCount: 2,
     orderHourlyRate: 21,
     expectedHourlyRate: 21,
     totalSalary: 189,
     totalPayout: 189,
     cleaners: [cleaner(), cleaner({ orderCleanerId: 2, cleanerId: 12, firstName: 'Maia', lastName: 'Niauri' })],
+    unassignedCleaners: [],
     warnings: [],
     isFullyPaid: false,
     isPartiallyPaid: false,
@@ -183,7 +185,7 @@ describe('OutgoingPaymentsComponent', () => {
       const o = order();
       expect(component.payStatusLabel(o)).toBe('Unpaid');
       expect(component.payStatusClass(o)).toBe('status-pending');
-      expect(component.payStatusTitle(o)).toBe('2 of 2 cleaner(s) still to pay');
+      expect(component.payStatusTitle(o)).toBe('2 of 2 payout(s) still to record');
     });
 
     it('reads Part paid when some but not all cleaners are settled', () => {
@@ -201,8 +203,25 @@ describe('OutgoingPaymentsComponent', () => {
       expect(component.payStatusClass(o)).toBe('status-done');
     });
 
-    it('says so plainly when nobody is assigned', () => {
-      expect(component.payStatusLabel(order({ cleaners: [] }))).toBe('No cleaners');
+    it('says so plainly when an order has no payout lines at all', () => {
+      expect(component.payStatusLabel(order({ cleaners: [], unassignedCleaners: [] })))
+        .toBe('No payouts');
+    });
+
+    /**
+     * An unassigned slot is a real, recordable payout, so it counts toward the pill. An order
+     * whose named cleaners are all paid but whose unassigned slot is not is NOT "Paid".
+     */
+    it('counts unassigned slots, so a settled-but-incomplete order is only part paid', () => {
+      const o = order({
+        cleaners: [cleaner({ isPaid: true }), cleaner({ orderCleanerId: 2, isPaid: true })],
+        unassignedCleaners: [cleaner({ orderCleanerId: 0, isUnassigned: true, slotIndex: 0 })],
+        isFullyPaid: false,
+        isPartiallyPaid: true
+      });
+
+      expect(component.payStatusLabel(o)).toBe('Part paid');
+      expect(component.payStatusTitle(o)).toBe('1 of 3 payout(s) still to record');
     });
   });
 
@@ -371,12 +390,133 @@ describe('OutgoingPaymentsComponent', () => {
   describe('status labels', () => {
     it('shows DoneM for a Done order settled outside Stripe', () => {
       expect(component.statusLabel(order({ paymentMethod: 'Cash' }))).toBe('DoneM');
-      expect(component.customerPaymentNote(order({ paymentMethod: 'Cash' }))).toBe('Paid by cash');
     });
 
-    it('shows plain Done for a card order, with no payment note', () => {
+    it('shows plain Done for a card order, with no payment tag', () => {
       expect(component.statusLabel(order())).toBe('Done');
       expect(component.customerPaymentNote(order())).toBe('');
+    });
+
+    /** The tag is just the method — a "Paid by" prefix only ate column width. */
+    it('tags the row with the method alone, keeping the sentence in the tooltip', () => {
+      const o = order({ paymentMethod: 'Cash' });
+      expect(component.customerPaymentNote(o)).toBe('Cash');
+      expect(component.customerPaymentTitle(o)).toBe('The customer paid by cash');
+    });
+  });
+
+  /**
+   * The production case that exposed the hours bug: an 18h Heavy job staffed for 3 cleaners with
+   * only 2 on file. Each of them worked SIX hours — the third worked theirs too and is simply not
+   * recorded — so the shortfall shows as an unassigned slot rather than inflating the other two.
+   */
+  describe('an under-assigned order', () => {
+    const heavy = () => order({
+      totalDuration: 1080,
+      automaticMinutesPerCleaner: 360,
+      maidsCount: 3,
+      splitCount: 3,
+      orderHourlyRate: 25,
+      expectedHourlyRate: 25,
+      totalSalary: 450,
+      totalPayout: 450,
+      cleaners: [
+        cleaner({ billableMinutes: 360, hourlyRate: 25, salary: 150, payout: 150, isPaid: true, paidAmount: 150 }),
+        cleaner({ orderCleanerId: 2, cleanerId: 12, billableMinutes: 360, hourlyRate: 25, salary: 150, payout: 150, isPaid: true, paidAmount: 150 })
+      ],
+      unassignedCleaners: [
+        cleaner({
+          orderCleanerId: 0, cleanerId: 0, slotIndex: 0, isUnassigned: true,
+          firstName: 'Unassigned cleaner', lastName: '',
+          billableMinutes: 360, hourlyRate: 25, salary: 150, payout: 150, isPaid: false
+        })
+      ]
+    });
+
+    /**
+     * The order TOTAL rounds like every other surface (nearest 30 min); the per-cleaner figure
+     * does not, because it is already on the increment and must not drift from the salary.
+     */
+    it('rounds the order total but leaves the per-cleaner figure exact', () => {
+      expect(component.formatTotalDuration(370)).toBe('6h');
+      expect(component.formatDuration(370)).toBe('6h 10m');
+      expect(component.formatTotalDuration(1080)).toBe('18h');
+    });
+
+    it('shows six hours each, not the assignment-count split', () => {
+      const o = heavy();
+      expect(component.formatDuration(o.automaticMinutesPerCleaner)).toBe('6h');
+      expect(component.salaryWorking(o.cleaners[0])).toBe('$25 × 6.00 = $150.00');
+    });
+
+    it('says the cleaner list is incomplete right in the row', () => {
+      expect(component.cleanerCountLabel(heavy())).toBe('(2 of 3)');
+      expect(component.hasUnassignedSlots(heavy())).toBe(true);
+    });
+
+    it('reads a fully-assigned order as a plain count', () => {
+      expect(component.cleanerCountLabel(order())).toBe('(2)');
+      expect(component.hasUnassignedSlots(order())).toBe(false);
+    });
+
+    it('lists the unassigned slot alongside the assigned cleaners', () => {
+      expect(component.allPayoutLines(heavy()).length).toBe(3);
+    });
+
+    /** An order nobody was assigned to still cost money; reporting $0 hid that. */
+    it('still reports a payout when nobody is assigned', () => {
+      const o = order({
+        cleaners: [],
+        unassignedCleaners: [cleaner({ orderCleanerId: 0, cleanerId: 0, isUnassigned: true })],
+        splitCount: 1,
+        totalPayout: 94.5
+      });
+
+      expect(o.totalPayout).toBe(94.5);
+      expect(component.allPayoutLines(o).length).toBe(1);
+    });
+
+    /**
+     * The slot is payable like any other line, addressed by SLOT INDEX because there is no
+     * assignment id to use.
+     */
+    it('records a payout against an unassigned slot by its index', () => {
+      const o = heavy();
+      component.openPanel(o);
+      component.openPayCleaner(o, o.unassignedCleaners[0]);
+      component.payNote = 'Paid Mariam in cash';
+      component.confirmPay();
+
+      const req = httpMock.expectOne(r => r.method === 'POST' && r.url.endsWith('/unassigned/0/pay'));
+      expect(req.request.body.paymentNote).toBe('Paid Mariam in cash');
+
+      req.flush(o);
+      flushLoad(list([o]));
+    });
+
+    it('undoes an unassigned payout through the slot endpoint', () => {
+      spyOn(window, 'confirm').and.returnValue(true);
+      const o = heavy();
+      component.openPanel(o);
+
+      component.undoPayment(o, { ...o.unassignedCleaners[0], isPaid: true });
+
+      const req = httpMock.expectOne(r => r.method === 'POST' && r.url.endsWith('/unassigned/0/unpay'));
+      req.flush(o);
+      flushLoad(list([o]));
+    });
+
+    /** "Mark all paid" settles the slots too, so the modal has to list and total them. */
+    it('includes unassigned slots in the pay-all confirmation', () => {
+      const o = order({
+        cleaners: [cleaner()],
+        unassignedCleaners: [cleaner({ orderCleanerId: 0, isUnassigned: true, slotIndex: 0 })]
+      });
+      component.openPayOrder(o);
+
+      expect(component.unpaidInPayOrder.length).toBe(2);
+      expect(component.payModalTotal).toBe(189);
+      component.closePayModal();
     });
   });
 

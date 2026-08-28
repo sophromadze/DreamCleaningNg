@@ -259,11 +259,22 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   // ===== Display helpers =====
 
   /**
-   * Durations are formatted WITHOUT re-rounding: the minutes came from the same function the
-   * salary was computed from, and a label that re-rounds ends up contradicting the money beside it.
+   * A PER-CLEANER duration — formatted WITHOUT re-rounding. These minutes came from the same
+   * function the salary was computed from and are already snapped to the 30-minute increment, so
+   * re-rounding could only make the label contradict the money beside it.
    */
   formatDuration(minutes: number): string {
     return DurationUtils.formatMinutes(minutes || 0);
+  }
+
+  /**
+   * The ORDER's total duration, rounded the way every other customer- and admin-facing surface
+   * rounds it (nearest 30 minutes). The stored total can be an odd figure like 370 minutes; the
+   * rest of the app shows that as "6h", and a payouts page reading "6h 10m" beside it looks wrong
+   * even though both are true.
+   */
+  formatTotalDuration(minutes: number): string {
+    return DurationUtils.formatDurationRounded(minutes || 0);
   }
 
   /** "4.50" — the hours figure in the "$21 × 4.50 = $94.50" working. */
@@ -392,11 +403,39 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
     return (order.paymentMethod && order.paymentMethod !== 'Normal') ? 'DoneM' : 'Done';
   }
 
-  /** The "Paid by cash" note from the WhatsApp messages, when it applies. */
+  /**
+   * How the CUSTOMER settled, when it was not a card — just "Cash" / "Zelle" / "Check". The tag
+   * sits beside the service type where a "Paid by" prefix only ate column width; the tooltip
+   * carries the full sentence for anyone who needs it.
+   */
   customerPaymentNote(order: OutgoingPaymentOrder): string {
-    return (order.paymentMethod && order.paymentMethod !== 'Normal')
-      ? `Paid by ${order.paymentMethod.toLowerCase()}`
-      : '';
+    return (order.paymentMethod && order.paymentMethod !== 'Normal') ? order.paymentMethod : '';
+  }
+
+  /** The full sentence, for the tag's tooltip. */
+  customerPaymentTitle(order: OutgoingPaymentOrder): string {
+    const method = this.customerPaymentNote(order);
+    return method ? `The customer paid by ${method.toLowerCase()}` : '';
+  }
+
+  /** Every payout line on the order — assigned first, then the unassigned staffing slots. */
+  allPayoutLines(order: OutgoingPaymentOrder): OutgoingPaymentCleaner[] {
+    return [...order.cleaners, ...(order.unassignedCleaners || [])];
+  }
+
+  /** True when the job was staffed for more people than are on file. */
+  hasUnassignedSlots(order: OutgoingPaymentOrder): boolean {
+    return (order.unassignedCleaners?.length ?? 0) > 0;
+  }
+
+  /**
+   * "(2) Irma Xar., Maia Nia." — or "(2 of 3)" when the job was staffed for more people than are
+   * recorded, so the row says up front that the list is incomplete.
+   */
+  cleanerCountLabel(order: OutgoingPaymentOrder): string {
+    return this.hasUnassignedSlots(order)
+      ? `(${order.cleaners.length} of ${order.splitCount})`
+      : `(${order.cleaners.length})`;
   }
 
   // ===== Payment status pill =====
@@ -404,29 +443,36 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   // Reuses the Orders tab's .status-badge colours: amber = still to do, blue = part done,
   // green = done. Deliberately NOT red — an unpaid cleaner is work outstanding, not an error.
 
+  // The pill counts EVERY payout line, named or not — an unassigned slot is a real payout that
+  // can be recorded, so an order is only "Paid" once all of them are settled.
+
   payStatusLabel(order: OutgoingPaymentOrder): string {
-    if (order.cleaners.length === 0) return 'No cleaners';
+    if (this.allPayoutLines(order).length === 0) return 'No payouts';
     if (order.isFullyPaid) return 'Paid';
     if (order.isPartiallyPaid) return 'Part paid';
     return 'Unpaid';
   }
 
   payStatusClass(order: OutgoingPaymentOrder): string {
-    if (order.cleaners.length === 0) return 'status-cancelled';
+    if (this.allPayoutLines(order).length === 0) return 'status-cancelled';
     if (order.isFullyPaid) return 'status-done';
     if (order.isPartiallyPaid) return 'status-active';
     return 'status-pending';
   }
 
   payStatusTitle(order: OutgoingPaymentOrder): string {
-    if (order.cleaners.length === 0) return 'Nobody is assigned to this order';
-    const unpaid = order.cleaners.filter(c => !c.isPaid);
-    if (unpaid.length === 0) return 'Every cleaner on this order has been paid';
-    return `${unpaid.length} of ${order.cleaners.length} cleaner(s) still to pay`;
+    const lines = this.allPayoutLines(order);
+    if (lines.length === 0) return 'This order has no payouts recorded against it';
+
+    const unpaid = lines.filter(c => !c.isPaid);
+    if (unpaid.length === 0) return 'Every payout on this order has been recorded';
+    return `${unpaid.length} of ${lines.length} payout(s) still to record`;
   }
 
   trackByOrder = (_: number, order: OutgoingPaymentOrder) => order.orderId;
   trackByCleaner = (_: number, cleaner: OutgoingPaymentCleaner) => cleaner.orderCleanerId;
+  /** Unassigned slots share orderCleanerId 0, so they track by slot index instead. */
+  trackBySlot = (_: number, slot: OutgoingPaymentCleaner) => slot.slotIndex ?? _;
 
   // ===== Order-level hourly rate =====
 
@@ -609,8 +655,13 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
     this.payNote = '';
   }
 
+  /**
+   * Everything "Mark all paid" will settle — assigned cleaners AND unassigned staffing slots,
+   * because the endpoint pays both. Listing only the named ones would understate the total the
+   * modal is asking you to confirm.
+   */
   get unpaidInPayOrder(): OutgoingPaymentCleaner[] {
-    return this.payOrder?.cleaners.filter(c => !c.isPaid) ?? [];
+    return this.payOrder ? this.allPayoutLines(this.payOrder).filter(c => !c.isPaid) : [];
   }
 
   get payModalTotal(): number {
@@ -625,12 +676,17 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
     this.paying = true;
     this.error = '';
 
-    const request = this.payCleaner
-      ? this.service.markCleanerPaid(order.orderId, this.payCleaner.orderCleanerId, {
-          paidVia: this.payVia ? CLEANER_PAYMENT_METHOD_INDEX[this.payVia] : null,
-          paymentNote: this.payNote.trim() || null
-        })
-      : this.service.markOrderPaid(order.orderId, { paymentNote: this.payNote.trim() || null });
+    const body = {
+      paidVia: this.payVia ? CLEANER_PAYMENT_METHOD_INDEX[this.payVia] : null,
+      paymentNote: this.payNote.trim() || null
+    };
+
+    // An unassigned slot has no assignment id, so it is addressed by its slot index instead.
+    const request = !this.payCleaner
+      ? this.service.markOrderPaid(order.orderId, { paymentNote: body.paymentNote })
+      : this.payCleaner.isUnassigned
+        ? this.service.markUnassignedSlotPaid(order.orderId, this.payCleaner.slotIndex ?? 0, body)
+        : this.service.markCleanerPaid(order.orderId, this.payCleaner.orderCleanerId, body);
 
     const who = this.payCleaner ? this.cleanerName(this.payCleaner) : `everyone on order #${order.orderId}`;
 
@@ -654,8 +710,11 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   undoPayment(order: OutgoingPaymentOrder, cleaner: OutgoingPaymentCleaner): void {
     if (!confirm(`Undo the payment recorded for ${this.cleanerName(cleaner)} on order #${order.orderId}?`)) return;
 
-    this.service
-      .undoCleanerPayment(order.orderId, cleaner.orderCleanerId)
+    const request = cleaner.isUnassigned
+      ? this.service.undoUnassignedSlotPayment(order.orderId, cleaner.slotIndex ?? 0)
+      : this.service.undoCleanerPayment(order.orderId, cleaner.orderCleanerId);
+
+    request
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: updated => {
