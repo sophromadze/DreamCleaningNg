@@ -214,9 +214,13 @@
                   <ng-template #noCleaners>
                     <span class="no-cleaners">Not assigned</span>
                   </ng-template>
-                  <span *ngIf="needsStaffingReview(order)"
+                  <!-- Same marker, same place. Its tooltip now lists the actual reasons, joined
+                       with " · " on a native title exactly as the Outgoing Payments warn-dot does
+                       — the reasons are the server-built OrderStaffingWarnings, so hovering here
+                       and opening the panel say the same thing. -->
+                  <span *ngIf="hasStaffingWarnings(order)"
                         class="staffing-review-flag"
-                        title="Long job — review cleaner count (over 6h per cleaner)">⚠</span>
+                        [title]="getStaffingWarningTooltip(order)">⚠</span>
                 </div>
               </td>
               <td class="actions" *ngIf="userPermissions.permissions.canUpdate" (click)="$event.stopPropagation()">
@@ -347,6 +351,18 @@
                 (click)="startEditOrder()">
           Edit
         </button>
+        <!-- Only for an admin whose edits go for approval: a line the reviewer will read. It is
+             optional, and sits beside the button rather than in the form, because it is about the
+             REQUEST rather than about the order. -->
+        <input *ngIf="canEditOrder && editingOrder && !canSaveOrderEditsDirectly"
+               class="edit-request-reason"
+               type="text"
+               maxlength="1000"
+               [(ngModel)]="orderEditRequestReason"
+               [ngModelOptions]="{ standalone: true }"
+               placeholder="Why is this change needed? (optional)"
+               [disabled]="savingOrder">
+
         <!-- Edit mode: Save (left) + Discard. A direct save opens the review modal first, so the
              label promises a review rather than an immediate write. -->
         <button class="action-btn small save"
@@ -982,6 +998,25 @@
                           </p>
                         </ng-container>
                       </div>
+
+                      <!-- The same staffing warnings Outgoing Payments prints for this job —
+                           wrong hourly rate, cleaners who worked but are not on file, more people
+                           than the order was priced for, no duration, unpaid customer. One builder
+                           on the server, so the two screens cannot describe the same order
+                           differently. None of them blocks anything: the order stays editable,
+                           staffable and payable with warnings outstanding.
+
+                           OUTSIDE the *ngIf="isSuperAdmin" wage block above, deliberately: the
+                           breakdown says what each cleaner is PAID, while these say something is
+                           wrong with how the order is STAFFED — which is the Admins' own work, so
+                           a warning only a SuperAdmin can see would be no warning at all. They
+                           come from their own Admin+SuperAdmin endpoint, not from the payroll
+                           response. -->
+                      <div class="order-staffing-warnings" *ngIf="getOrderStaffingWarnings().length > 0">
+                        <div class="staffing-warning-row" *ngFor="let warning of getOrderStaffingWarnings()">
+                          ⚠ {{ warning }}
+                        </div>
+                      </div>
                     </div>
                     
                     <!-- Address -->
@@ -1574,7 +1609,47 @@
     </div>
     <div class="modal-body" *ngIf="selectedPendingEdit">
       <p class="pending-edit-meta">Requested by <strong>{{ selectedPendingEdit.requestedByName }}</strong> on {{ formatUtcDateTime(selectedPendingEdit.requestedAt) }}</p>
-      <p class="pending-edit-hint">Review every change below. Approve to apply to the order, or Reject to discard.</p>
+
+      <!-- Why the requester says the change is needed. Only rendered when they wrote one. -->
+      <p class="pending-edit-reason" *ngIf="selectedPendingEdit.reason">
+        <strong>Reason given:</strong> {{ selectedPendingEdit.reason }}
+      </p>
+
+      <!-- A DECIDED request stays readable forever. The endpoint used to reject anything that was
+           not still Pending, so the moment a request was approved or rejected nobody could see
+           what had been asked for. -->
+      <p class="pending-edit-decided" *ngIf="pendingEditIsDecided()">
+        <strong>{{ selectedPendingEdit.status }}</strong>
+        <ng-container *ngIf="selectedPendingEdit.reviewedByName"> by {{ selectedPendingEdit.reviewedByName }}</ng-container>
+        <ng-container *ngIf="selectedPendingEdit.reviewedAt"> on {{ formatUtcDateTime(selectedPendingEdit.reviewedAt) }}</ng-container>.
+        <ng-container *ngIf="selectedPendingEdit.rejectReason"> Reason: {{ selectedPendingEdit.rejectReason }}</ng-container>
+        This is a record of what was asked for; it cannot be applied again.
+      </p>
+
+      <p class="pending-edit-hint" *ngIf="!pendingEditIsDecided()">Review every change below. Approve to apply to the order, or Reject to discard.</p>
+
+      <!-- The order moved after the request was made. Approving now applies a change measured
+           against a state that no longer exists, which is exactly the situation a reviewer cannot
+           detect by eye. -->
+      <div class="pending-edit-drift" *ngIf="pendingEditHasDrift()">
+        <strong>This order has changed since the request was submitted.</strong>
+        The values below are what the requester saw. These fields are different now:
+        <ul>
+          <li *ngFor="let ch of pendingEditDriftedFields()">
+            {{ ch.field }} — was <em>{{ ch.current }}</em> when requested, is <em>{{ ch.liveCurrent }}</em> now
+          </li>
+        </ul>
+        Check the order before approving.
+      </div>
+
+      <!-- Requests submitted before the field-level payload existed (order #296 among them) carry
+           only the raw update DTO. Say so, and fall back to diffing it against the live order,
+           rather than rendering an empty table or failing the panel. -->
+      <p class="pending-edit-legacy" *ngIf="pendingEditPayloadUnavailable() && !loadingPendingEditDetail">
+        This request predates change-request tracking, so what the requester saw was not recorded.
+        The table below compares their proposal against the order as it stands now.
+      </p>
+
       <div *ngIf="loadingPendingEditDetail" class="loading-small"><div class="spinner-small"></div> Loading...</div>
       <div *ngIf="!loadingPendingEditDetail && getPendingEditChanges().length === 0" class="no-changes">No field changes to show (or invalid data).</div>
       <div *ngIf="!loadingPendingEditDetail && getPendingEditChanges().length > 0" class="pending-edit-changes">
@@ -1583,9 +1658,14 @@
             <tr><th>Field</th><th>Current</th><th>Proposed</th><th>Difference</th></tr>
           </thead>
           <tbody>
-            <tr *ngFor="let ch of getPendingEditChanges()" [class.change-row-total]="ch.emphasised">
+            <tr *ngFor="let ch of getPendingEditChanges()"
+                [class.change-row-total]="ch.emphasised"
+                [class.change-row-drifted]="ch.hasDrifted">
               <td class="field-name">{{ ch.field }}</td>
-              <td class="current-val">{{ ch.current }}</td>
+              <td class="current-val">
+                {{ ch.current }}
+                <span class="drift-now" *ngIf="ch.hasDrifted" title="The order has changed since this request was submitted">now {{ ch.liveCurrent }}</span>
+              </td>
               <td class="proposed-val">{{ ch.proposed }}</td>
               <td class="diff-val"
                   [class.diff-up]="ch.difference.charAt(0) === '+'"
@@ -1596,10 +1676,10 @@
       </div>
     </div>
     <div class="modal-actions" *ngIf="selectedPendingEdit && !loadingPendingEditDetail">
-      <button class="action-btn btn-approve" (click)="approvePendingOrderEdit(selectedPendingEdit.id)" [disabled]="approvingPendingId === selectedPendingEdit.id">
+      <button class="action-btn btn-approve" *ngIf="!pendingEditIsDecided()" (click)="approvePendingOrderEdit(selectedPendingEdit.id)" [disabled]="approvingPendingId === selectedPendingEdit.id">
         {{ approvingPendingId === selectedPendingEdit.id ? 'Applying...' : 'Approve & apply' }}
       </button>
-      <button class="action-btn btn-reject" (click)="rejectPendingOrderEdit(selectedPendingEdit.id)" [disabled]="rejectingPendingId === selectedPendingEdit.id">
+      <button class="action-btn btn-reject" *ngIf="!pendingEditIsDecided()" (click)="rejectPendingOrderEdit(selectedPendingEdit.id)" [disabled]="rejectingPendingId === selectedPendingEdit.id">
         {{ rejectingPendingId === selectedPendingEdit.id ? 'Rejecting...' : 'Reject' }}
       </button>
       <button class="action-btn btn-close" (click)="closePendingEditDetail()">Close</button>
@@ -1677,12 +1757,15 @@
           No cleaners match your search.
         </p>
         <div class="cleaner-grid">
+          <!-- Every card is clickable, conflict or not. The gap rule cannot see that two jobs
+               are on the same block; the admin can, so the conflict is warned about and
+               acknowledged below rather than making the card dead. -->
           <div *ngFor="let cleaner of availableCleanersFiltered"
                class="cleaner-card"
                [class.selected]="isCleanerSelected(cleaner.id)"
-               [class.unavailable]="cleaner.hasScheduleConflict"
+               [class.conflicting]="cleaner.hasScheduleConflict"
                [class.busy-day]="cleaner.isBusyDay && !cleaner.hasScheduleConflict"
-               (click)="!cleaner.hasScheduleConflict && toggleCleanerSelection(cleaner.id)">
+               (click)="toggleCleanerSelection(cleaner.id)">
 
             <div class="cleaner-info">
               <div class="cleaner-name">{{ cleaner.firstName }} {{ cleaner.lastName }}</div>
@@ -1695,7 +1778,7 @@
                 <span class="cleaner-tag experience" *ngIf="cleaner.experience">Exp: {{ cleaner.experience }}</span>
               </div>
               <div class="cleaner-busy-reason conflict" *ngIf="cleaner.hasScheduleConflict">
-                ⛔ {{ cleaner.conflictReason || 'Has another job within 1 hour that day' }}
+                ⚠ {{ cleaner.conflictReason || 'Has another job within 1 hour that day' }}
               </div>
               <div class="cleaner-busy-reason soft" *ngIf="!cleaner.hasScheduleConflict && cleaner.isBusyDay">
                 🌴 {{ cleaner.busyDayReason }}
@@ -1704,7 +1787,7 @@
                    [class.available]="!cleaner.isBusyDay && !cleaner.hasScheduleConflict"
                    [class.busy-soft]="cleaner.isBusyDay && !cleaner.hasScheduleConflict"
                    [class.busy]="cleaner.hasScheduleConflict">
-                {{ cleaner.hasScheduleConflict ? 'Unavailable' : (cleaner.isBusyDay ? 'Busy · can still assign' : 'Available') }}
+                {{ cleaner.hasScheduleConflict ? 'Schedule conflict · can still assign' : (cleaner.isBusyDay ? 'Busy · can still assign' : 'Available') }}
               </div>
             </div>
             
@@ -1742,10 +1825,28 @@
                   rows="3"></textarea>
       </div>
       
+      <!-- The overrule. A schedule conflict no longer blocks the assignment, but it has to be
+           read and ticked through — the same acknowledgement the server requires before it will
+           accept it. Ticking is per selection: dropping the last conflicting cleaner clears it. -->
+      <div class="conflict-ack" *ngIf="selectedCleanersWithConflicts.length > 0">
+        <div class="conflict-ack-title">⚠ Schedule conflict</div>
+        <p class="conflict-ack-text">
+          {{ selectedConflictNames }} already
+          {{ selectedCleanersWithConflicts.length === 1 ? 'has' : 'have' }} another job within an
+          hour of this one that day. Assign anyway only if you know the schedule works — the
+          travel time between the two jobs is not something the system can see.
+        </p>
+        <label class="conflict-ack-check">
+          <input type="checkbox" [(ngModel)]="acknowledgeScheduleConflicts">
+          <span>I understand and want to assign
+            {{ selectedCleanersWithConflicts.length === 1 ? 'this cleaner' : 'these cleaners' }} anyway</span>
+        </label>
+      </div>
+
       <div class="modal-actions">
-        <button class="btn-primary" 
+        <button class="btn-primary"
                 (click)="assignCleanersToOrder()"
-                [disabled]="selectedCleaners.length === 0 || loadingStates.assigningCleaners">
+                [disabled]="selectedCleaners.length === 0 || conflictAcknowledgementOwed || loadingStates.assigningCleaners">
           {{ loadingStates.assigningCleaners ? 'Assigning...' : `Assign ${selectedCleaners.length} Cleaner(s)` }}
         </button>
         <button class="btn-secondary" (click)="closeCleanerModal()">Cancel</button>

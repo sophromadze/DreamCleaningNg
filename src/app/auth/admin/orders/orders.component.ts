@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderAdminNote, OrderTransferInfo, UserAdmin, OrderRefundSummary, OrderRefundInfo, OrderCleanerPayroll, OrderCleanerPayrollLine } from '../../../services/admin.service';
+import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderAdminNote, OrderTransferInfo, UserAdmin, OrderRefundSummary, OrderRefundInfo, OrderCleanerPayroll, OrderCleanerPayrollLine, OrderStaffingWarningsMap } from '../../../services/admin.service';
 import { environment } from '../../../../environments/environment';
 import { OrderService, Order, OrderList } from '../../../services/order.service';
 import { CleanerService, AvailableCleaner } from '../../../services/cleaner.service';
@@ -63,6 +63,17 @@ export interface OrderEditChange {
   field: string;
   current: string;
   proposed: string;
+  /**
+   * The field's value on the order AS IT STANDS NOW, set only when this row came from a stored
+   * submit-time payload (the approval table). The save-confirmation table has no such distinction
+   * — it is built from the form that is open in front of you.
+   */
+  liveCurrent?: string;
+  /**
+   * True when {@link liveCurrent} disagrees with {@link current}: the order moved underneath the
+   * request, so approving it would apply a change reviewed against a state that no longer exists.
+   */
+  hasDrifted?: boolean;
   /** Signed numeric delta (proposed - current), or '—' when the field isn't numeric. */
   difference: string;
   /**
@@ -271,6 +282,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   cleanerAssignmentSearchQuery = '';
   /** When true, the assign list also shows cleaners marked busy that day (still assignable). */
   showBusyCleaners = false;
+  /** The admin has read the same-day conflict warning on the cleaners they picked and wants
+   *  them anyway. Reset every time the modal opens or closes — an acknowledgement belongs to
+   *  the selection it was given for, never to the next one. */
+  acknowledgeScheduleConflicts = false;
   selectedCleaners: number[] = [];
   tipsForCleaner = '';
   assigningOrderId: number | null = null;
@@ -282,6 +297,17 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** The per-cleaner wage breakdown for the order whose detail panel is open (SuperAdmin only). */
   selectedOrderPayroll: OrderCleanerPayroll | null = null;
   loadingOrderPayroll = false;
+  /**
+   * Staffing warnings by order id, for the table's ⚠ tooltip and the detail panel's warning
+   * block. Loaded in one bulk request alongside the orders (Admin + SuperAdmin — unlike the wage
+   * breakdown above, which is SuperAdmin-only).
+   *
+   * Orders with nothing wrong are ABSENT rather than mapped to an empty array, and
+   * `staffingWarningsLoaded` is what separates "checked, all clear" from "not asked yet" — the
+   * same distinction the panel already draws for the payroll block.
+   */
+  staffingWarningsByOrderId: Map<number, string[]> = new Map();
+  private staffingWarningsLoaded = false;
   // Hourly rate shown in the assign modal; set per order from getDefaultHourlyRate() on open.
   cleanerHourlySalary: number = REGULAR_CLEANER_HOURLY_RATE;
 
@@ -1553,6 +1579,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           this.orders = orders as AdminOrderList[];
           this.preloadResidentialVariants();
           this.preloadAssignedCleaners();
+          this.preloadStaffingWarnings();
           this.orderReminderService.initialize(this.orders);
           if (this.isSuperAdmin) {
             this.calculateStatistics();
@@ -1631,6 +1658,53 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         this.loadingStates.assignedCleaners = false;
       }
     });
+  }
+
+  /** Admin or SuperAdmin — the two roles the staffing-warnings endpoint accepts. Checked at the
+   *  call site so a Moderator never fires a request that can only 403. */
+  private get canSeeStaffingWarnings(): boolean {
+    return this.isSuperAdmin || this.userRole === 'Admin';
+  }
+
+  /**
+   * One bulk request for the whole list's staffing warnings, alongside the cleaners preload.
+   *
+   * Deliberately not per-page: paging, search, status/date filters and sorting are all
+   * client-side here and each of them changes the visible rows, so a per-page fetch would have
+   * to hook into every one of them and would eventually miss one — leaving a row whose ⚠ has
+   * nothing to say. `includeHidden` has to match what the list was loaded with, or a hidden
+   * order's row would be the one with no warnings behind it.
+   */
+  private preloadStaffingWarnings(orderIds?: number[]) {
+    if (!this.canSeeStaffingWarnings || this.orders.length === 0) return;
+
+    this.adminService
+      .getOrdersStaffingWarnings(orderIds, this.showHiddenOrders, !!orderIds)
+      .subscribe({
+        next: (warningsByOrderId) => this.applyStaffingWarnings(warningsByOrderId, orderIds),
+        // Non-fatal and silent, like the payroll breakdown: a failed fetch costs the tooltip its
+        // reasons, not the admin their orders list. staffingWarningsLoaded stays false so the
+        // panel keeps saying nothing rather than rendering an all-clear it cannot vouch for.
+        error: (error) => console.error('Error loading staffing warnings:', error)
+      });
+  }
+
+  /** Merges a warnings response into the cache. A targeted refresh must CLEAR the ids it asked
+   *  about first — an order whose last warning was just resolved comes back absent from the map,
+   *  and a plain merge would leave its stale entry in place. */
+  private applyStaffingWarnings(warningsByOrderId: OrderStaffingWarningsMap, refreshedIds?: number[]) {
+    if (refreshedIds) {
+      refreshedIds.forEach(id => this.staffingWarningsByOrderId.delete(id));
+    } else {
+      this.staffingWarningsByOrderId.clear();
+    }
+
+    Object.entries(warningsByOrderId ?? {}).forEach(([orderId, warnings]) => {
+      if (warnings?.length) this.staffingWarningsByOrderId.set(Number(orderId), warnings);
+    });
+
+    this.staffingWarningsLoaded = true;
+    this.cdr.detectChanges();
   }
 
   /** Preload Deep/Regular variant for residential rows from order details API. */
@@ -2393,6 +2467,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.tipsForCleaner = '';
     this.cleanerAssignmentSearchQuery = '';
     this.showBusyCleaners = false;
+    this.acknowledgeScheduleConflicts = false;
 
     // Set hourly rate from order data if available, otherwise use default based on cleaning type
     const order = this.orders.find(o => o.id === orderId);
@@ -2422,13 +2497,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.availableCleaners = [];
     this.cleanerAssignmentSearchQuery = '';
     this.showBusyCleaners = false;
+    this.acknowledgeScheduleConflicts = false;
     this.cleanerHourlySalary = REGULAR_CLEANER_HOURLY_RATE;
   }
 
   /**
    * Cleaners shown in the assign modal. Applies the name/email search, then — unless
-   * "Show busy" is on — hides cleaners that are marked busy that day or have a hard
+   * "Show busy" is on — hides cleaners that are marked busy that day or have a same-day
    * scheduling conflict. Already-selected cleaners stay visible regardless.
+   *
+   * Conflicting cleaners stay HIDDEN by default even though they can now be assigned: the
+   * default list is "who should do this job", and somebody with another job an hour away is
+   * still the wrong first answer. "Show busy cleaners" is how an admin goes looking for them.
    */
   get availableCleanersFiltered(): AvailableCleaner[] {
     const q = this.cleanerAssignmentSearchQuery.trim().toLowerCase();
@@ -2450,6 +2530,36 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.availableCleaners.filter(
       (c) => (c.isBusyDay || c.hasScheduleConflict) && !this.isCleanerSelected(c.id)
     ).length;
+  }
+
+  /**
+   * The picked cleaners who already have another job within an hour that day.
+   *
+   * Drives the acknowledgement banner and, through it, the flag the server needs before it will
+   * accept the assignment. Derived from the current selection rather than tracked as a flag, so
+   * de-selecting the last conflicting cleaner takes the banner away on its own.
+   */
+  get selectedCleanersWithConflicts(): AvailableCleaner[] {
+    return this.availableCleaners.filter(
+      (c) => c.hasScheduleConflict && this.isCleanerSelected(c.id)
+    );
+  }
+
+  /** Names for the acknowledgement banner, in the order they appear in the list. */
+  get selectedConflictNames(): string {
+    return this.selectedCleanersWithConflicts
+      .map((c) => `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim() || `Cleaner #${c.id}`)
+      .join(', ');
+  }
+
+  /**
+   * Blocks the Assign button only while a conflict is picked and NOT acknowledged. A schedule
+   * conflict is advice the admin may overrule — they know the two addresses are on the same
+   * block — but overruling it has to be a deliberate act, which is also exactly what the server
+   * requires (AssignCleanersDto.AcknowledgeScheduleConflicts).
+   */
+  get conflictAcknowledgementOwed(): boolean {
+    return this.selectedCleanersWithConflicts.length > 0 && !this.acknowledgeScheduleConflicts;
   }
 
   /** Human-readable rank label for a cleaner in the assignment modal. */
@@ -2597,6 +2707,50 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * The staffing warnings for the open order — the SAME text the Outgoing Payments page prints
+   * for the same job, built once on the server (`OrderStaffingWarnings`) and never recomputed
+   * here. Two implementations of one warning is how the two screens end up disagreeing about a
+   * single job, and an admin comparing them has no way to tell which is right.
+   *
+   * Reads the same bulk cache the table's ⚠ tooltip reads, so the tooltip and the panel cannot
+   * show different reasons for one order. Visible to Admin as well as SuperAdmin — it comes from
+   * the staffing-warnings endpoint, not from the SuperAdmin-only wage breakdown it renders under.
+   *
+   * Empty while the fetch is outstanding or if it failed: an absent warning list is not the same
+   * claim as "nothing is wrong", which is why the block disappears entirely rather than rendering
+   * an all-clear nobody checked.
+   */
+  getOrderStaffingWarnings(): string[] {
+    const orderId = this.selectedOrder?.id;
+    if (orderId == null) return [];
+    return this.staffingWarningsByOrderId.get(orderId) ?? [];
+  }
+
+  /**
+   * Tooltip for the table row's ⚠, in the Outgoing Payments format — the reasons joined with
+   * " · " on a native `title`, which is what keeps it a hover with no layout of its own.
+   *
+   * Two sources, answering different questions: the existing advisory staffing-review flag
+   * (per-cleaner load over 6h, computed live, clears the moment an admin raises the count) and
+   * the server-built warnings. The advisory one goes first — it is the cheaper signal and the one
+   * an admin can act on without opening anything.
+   */
+  getStaffingWarningTooltip(order: AdminOrderList): string {
+    const reasons: string[] = [];
+    if (this.needsStaffingReview(order)) {
+      reasons.push('Long job — review cleaner count (over 6h per cleaner)');
+    }
+    reasons.push(...(this.staffingWarningsByOrderId.get(order.id) ?? []));
+    return reasons.join(' · ');
+  }
+
+  /** Whether the row's ⚠ shows at all: the advisory long-job flag, or any server-built warning. */
+  hasStaffingWarnings(order: AdminOrderList): boolean {
+    return this.needsStaffingReview(order)
+      || (this.staffingWarningsByOrderId.get(order.id)?.length ?? 0) > 0;
+  }
+
   /** Every line in the breakdown, assigned first then the unstaffed slots, so the rows a reader
    *  adds up are exactly the rows that make the total. */
   getOrderPayrollLines(): OrderCleanerPayrollLine[] {
@@ -2681,18 +2835,26 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.preloadAssignedCleaners();
   }
 
+  /**
+   * Every cleaner in the list is selectable, conflict or not (2026-08-31). The 1-hour-gap rule
+   * cannot see that two jobs are on the same block or that the earlier one will finish early —
+   * the admin can — so the conflict is surfaced on the card and acknowledged before the assign
+   * goes through, rather than making the card dead.
+   *
+   * De-selecting the last conflicting cleaner also drops the acknowledgement: it was given for a
+   * warning that is no longer on screen, and leaving it armed would carry it silently into the
+   * next conflict the admin picks.
+   */
   toggleCleanerSelection(cleanerId: number) {
     const index = this.selectedCleaners.indexOf(cleanerId);
     if (index > -1) {
       this.selectedCleaners.splice(index, 1);
-      return;
+    } else {
+      this.selectedCleaners.push(cleanerId);
     }
-    // Hard rule: never select a cleaner with a same-day scheduling conflict.
-    const cleaner = this.availableCleaners.find((c) => c.id === cleanerId);
-    if (cleaner?.hasScheduleConflict) {
-      return;
+    if (this.selectedCleanersWithConflicts.length === 0) {
+      this.acknowledgeScheduleConflicts = false;
     }
-    this.selectedCleaners.push(cleanerId);
   }
 
   isCleanerSelected(cleanerId: number): boolean {
@@ -2705,17 +2867,27 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
+    // The server refuses a conflicting assignment without the acknowledgement, so catching it
+    // here is about the message: "tick the box" beats a 400 that reads like a hard refusal.
+    if (this.conflictAcknowledgementOwed) {
+      this.errorMessage = 'Confirm the schedule conflict before assigning.';
+      return;
+    }
+
     this.loadingStates.assigningCleaners = true;
 
     // Store the order ID before it gets cleared by modal close
     const orderIdToRefresh = this.assigningOrderId;
     const selectedCleanersToAssign = [...this.selectedCleaners];
-  
+    // Only ever true off the admin's explicit tick — read before the modal close clears it.
+    const conflictsAcknowledged = this.acknowledgeScheduleConflicts;
+
     this.cleanerService.assignCleaners(
       orderIdToRefresh,
       selectedCleanersToAssign,
       this.tipsForCleaner || undefined,
-      this.cleanerHourlySalary
+      this.cleanerHourlySalary,
+      conflictsAcknowledged
     ).subscribe({
       next: (response) => {
         this.successMessage = 'Cleaners assigned successfully. Click “Send assignment email” when you are ready to notify them.';
@@ -5130,6 +5302,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.pendingOrderEdits.filter(p => p.orderId === this.selectedOrder!.id);
   }
 
+  /** Optional free-text reason an Admin gives when submitting an edit for approval. */
+  orderEditRequestReason = '';
+
   loadPendingOrderEdits(): void {
     // Whoever may apply an order edit themselves may also approve one from a colleague; the
     // endpoint enforces the same rule, so an ungranted admin would just get a 403.
@@ -5282,11 +5457,77 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return hasCustomServiceMarker || hasNoRegularServices;
   }
 
-  /** Build a list of field-level changes for a pending edit awaiting SuperAdmin approval. */
+  /**
+   * The change table a reviewer reads.
+   *
+   * Prefers the SUBMIT-TIME payload stored with the request — that is what the requesting admin
+   * actually saw and confirmed. Falls back to diffing the proposal against the live order for
+   * requests that predate the payload (order #296 among them), which is the old behaviour and is
+   * why those rows still render at all instead of blanking the panel.
+   *
+   * Each row carries the live value alongside the stored one, so DRIFT is visible: if somebody
+   * else edited the order after the request was submitted, approving it applies a change measured
+   * against a state that no longer exists.
+   */
   getPendingEditChanges(): OrderEditChange[] {
+    const d = this.selectedPendingEdit;
+    if (!d) return [];
+
+    const live = this.computeLivePendingEditChanges();
+
+    const stored = d.requestedChanges;
+    if (!stored || stored.length === 0) return live;
+
+    // Match by field LABEL: both sides are produced by computeOrderEditChanges, so the labels are
+    // generated by one implementation and cannot drift apart on formatting alone.
+    const liveByField = new Map(live.map(c => [c.field, c]));
+
+    return stored.map(s => {
+      const liveRow = liveByField.get(s.field);
+      // No live row for this field means the order already matches what was requested — somebody
+      // has applied it by hand. That is drift too, and the most important kind.
+      const liveCurrent = liveRow ? liveRow.current : s.proposed;
+      return {
+        field: s.field,
+        current: s.current,
+        proposed: s.proposed,
+        difference: s.difference,
+        emphasised: s.emphasised,
+        liveCurrent,
+        hasDrifted: liveCurrent !== s.current,
+      } as OrderEditChange;
+    });
+  }
+
+  /** The proposal diffed against the order AS IT STANDS NOW. */
+  private computeLivePendingEditChanges(): OrderEditChange[] {
     const d = this.selectedPendingEdit;
     if (!d?.currentOrder || !d?.proposedChanges) return [];
     return this.computeOrderEditChanges(d.currentOrder, d.proposedChanges);
+  }
+
+  /** True when the order moved under the request. Drives the warning banner in the modal. */
+  pendingEditHasDrift(): boolean {
+    // Only meaningful while the request is still open: once approved the order SHOULD have moved
+    // (this request moved it), and once rejected nobody is going to act on it.
+    if (!this.selectedPendingEdit || this.selectedPendingEdit.status !== 'Pending') return false;
+    return this.getPendingEditChanges().some(c => c.hasDrifted);
+  }
+
+  /** Rows whose live value no longer matches what the requester saw. */
+  pendingEditDriftedFields(): OrderEditChange[] {
+    return this.getPendingEditChanges().filter(c => c.hasDrifted);
+  }
+
+  /** True when this request predates the field-level payload, so there is nothing stored to read. */
+  pendingEditPayloadUnavailable(): boolean {
+    return !!this.selectedPendingEdit?.requestedChangesUnavailable;
+  }
+
+  /** A decided request is read-only: the buttons would apply a change that was already settled. */
+  pendingEditIsDecided(): boolean {
+    const s = this.selectedPendingEdit?.status;
+    return !!s && s !== 'Pending';
   }
 
   /**
@@ -5627,10 +5868,21 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private submitOrderEditForApproval(dto: SuperAdminUpdateOrderDto): void {
     if (!this.selectedOrder) return;
-    this.adminService.submitPendingOrderEdit(this.selectedOrder.id, dto).subscribe({
+
+    // Send the field-level diff the requesting admin is looking at, so the reviewer reads back the
+    // request that was actually made rather than the proposal re-measured against whatever the
+    // order looks like by the time they open it. Same computeOrderEditChanges the save-confirm
+    // modal uses — one implementation, so requester and reviewer see identical rows.
+    this.hydrateExtraServiceLabelMapsFromCache();
+    const fieldChanges = this.computeOrderEditChanges(this.selectedOrder, dto);
+
+    this.adminService.submitPendingOrderEdit(
+      this.selectedOrder.id, dto, fieldChanges, this.orderEditRequestReason.trim() || undefined
+    ).subscribe({
       next: () => {
         this.successMessage = 'Your changes have been sent to SAdmin for approval. You will see the update once a SAdmin confirms.';
         this.editingOrder = false;
+        this.orderEditRequestReason = '';
         setTimeout(() => { this.successMessage = ''; }, 5000);
       },
       error: (err) => {
@@ -5646,6 +5898,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     // The salary can move on any save (services, duration, maids, rate), so the breakdown is
     // refetched with the order rather than left showing the pre-save split.
     if (this.isSuperAdmin) this.loadOrderCleanerPayroll(this.selectedOrder.id);
+    // So can the warnings — a save that raises the cleaner count or records a payment resolves
+    // one. Targeted at this order so a single save does not drag the whole table over the wire.
+    this.preloadStaffingWarnings([this.selectedOrder.id]);
     this.adminService.getOrderDetails(this.selectedOrder.id).subscribe({
       next: (o) => {
         this.selectedOrder = o;
@@ -5661,6 +5916,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           updatedOrder.serviceDate = o.serviceDate;
           updatedOrder.serviceTime = o.serviceTime;
           updatedOrder.totalDuration = o.totalDuration;
+          // The row's staffing-review ⚠ is per-cleaner load, so it reads maidsCount. Assigning
+          // cleaners now raises that count server-side; without copying it back the flag would
+          // keep warning about a job that has just been staffed.
+          updatedOrder.maidsCount = o.maidsCount;
           updatedOrder.status = o.status;
           updatedOrder.total = o.total;
           updatedOrder.tips = o.tips;

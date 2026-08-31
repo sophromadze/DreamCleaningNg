@@ -110,10 +110,12 @@ export class LoyaltyDiscountAdminComponent implements OnInit {
     this.loadingAudit = true;
     this.auditError = '';
     this.currentPage = 1;
-    this.adminService.getRecentAuditLogs(30).subscribe({
-      next: (logs) => {
-        this.auditLogs = (logs || [])
-          .filter(l => l.entityType === 'UserLoyaltyDiscount')
+    // Filtered and paged on the SERVER now. This page shows one narrow stream, so asking for it
+    // by entity type is both cheaper and correct — the old call fetched every audit row from the
+    // last 30 days and threw almost all of them away in the browser.
+    this.adminService.getAuditLogs({ days: 30, entityType: 'UserLoyaltyDiscount', pageSize: 200 }).subscribe({
+      next: (page) => {
+        this.auditLogs = (page?.items || [])
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         this.loadingAudit = false;
       },

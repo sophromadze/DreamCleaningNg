@@ -244,10 +244,51 @@ export interface AuditLog {
   createdAt: Date;
   changedBy?: string;
   changedByEmail?: string;
+  changedByUserId?: number | null;
   oldValues?: any;
   newValues?: any;
   changedFields?: string[] | null;
   undoneAt?: Date | null;
+  /**
+   * Why Undo/Redo is unavailable for this row, or null/absent when it IS available.
+   *
+   * Resolved SERVER-SIDE (AuditEntityTypes.ResolveUndoBlockedReason) and rendered verbatim in the
+   * disabled button's tooltip. The component deliberately keeps no block list of its own: the old
+   * copy in audit-history.component.ts drifted from the server's, so the button looked enabled on
+   * rows the API was always going to refuse.
+   */
+  undoBlockedReason?: string | null;
+}
+
+/** One page of the Audits tab feed. Paging, filtering and search are all server-side. */
+export interface AuditLogPage {
+  items: AuditLog[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+/** Filter vocabulary for the Audits tab, built from the rows that actually exist. */
+export interface AuditMetadata {
+  entityTypes: string[];
+  actions: string[];
+  admins: { id: number; name: string; email: string }[];
+  undoBlockedEntityTypes: string[];
+  undoBlockedReasons: { [entityType: string]: string };
+}
+
+/** Server-side query for the Audits tab. Every field is optional. */
+export interface AuditLogQuery {
+  days?: number;
+  from?: string;
+  to?: string;
+  entityType?: string;
+  action?: string;
+  changedByUserId?: number;
+  search?: string;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface UserPermissions {
@@ -620,7 +661,21 @@ export interface OrderCleanerPayroll {
   lines: OrderCleanerPayrollLine[];
   /** Counted inside totalSalary — somebody worked those hours, they are just not on file. */
   unassignedLines: OrderCleanerPayrollLine[];
+  // The staffing warnings are NOT here: this response is SuperAdmin-only because it carries
+  // wages, and the warnings have to reach Admins too. See getOrdersStaffingWarnings.
 }
+
+/**
+ * Staffing warnings keyed by order id, from the backend's shared `OrderStaffingWarnings` — the
+ * SAME text the Outgoing Payments page prints for the same job. Deliberately not recomputed
+ * client-side: two implementations of one warning are how the two screens end up disagreeing
+ * about a single order.
+ *
+ * Orders with nothing wrong are ABSENT from the map rather than present with an empty list, so a
+ * missing key means "no warning was raised" only for orders this request actually covered. A
+ * caller that never asked about an order must not read its absence as an all-clear.
+ */
+export type OrderStaffingWarningsMap = { [orderId: string]: string[] };
 
 /** Pending order edit list item (admin-submitted, awaiting SuperAdmin approval). */
 export interface PendingOrderEditListDto {
@@ -633,6 +688,26 @@ export interface PendingOrderEditListDto {
   status: string;
 }
 
+/**
+ * One field an admin asked to change, captured AT SUBMIT TIME.
+ *
+ * `current` is the value as it stood when the request was made — NOT as it stands now. The review
+ * screen compares it against a freshly computed diff of the live order and warns when they no
+ * longer agree, because approving a request built against a stale order applies a change nobody
+ * reviewed. `liveCurrent`/`hasDrifted` are filled in by the component, not the server: the only
+ * implementation that formats an order-edit diff is `computeOrderEditChanges`, and comparing a
+ * stored string against a server-side re-derivation would compare two different formatters.
+ */
+export interface PendingOrderEditFieldChange {
+  field: string;
+  current: string;
+  proposed: string;
+  difference: string;
+  emphasised?: boolean;
+  liveCurrent?: string | null;
+  hasDrifted?: boolean;
+}
+
 /** Pending order edit detail with current order and proposed changes (for diff/approve). */
 export interface PendingOrderEditDetailDto {
   id: number;
@@ -643,6 +718,17 @@ export interface PendingOrderEditDetailDto {
   status: string;
   currentOrder?: Order;
   proposedChanges?: SuperAdminUpdateOrderDto;
+  /** What was asked for, as captured at submit time. Absent on requests predating the payload. */
+  requestedChanges?: PendingOrderEditFieldChange[] | null;
+  /** True when this request has no readable submit-time payload (legacy row, e.g. order #296). */
+  requestedChangesUnavailable?: boolean;
+  /** Why the requester says the change is needed. */
+  reason?: string | null;
+  // Decision record — populated once approved or rejected. A decided request stays readable.
+  reviewedByUserId?: number | null;
+  reviewedByName?: string | null;
+  reviewedAt?: string | null;
+  rejectReason?: string | null;
 }
 
 export interface CreateServiceType {
@@ -1316,8 +1402,23 @@ export class AdminService {
   }
 
   /** Admin-only: submit proposed order changes for SuperAdmin approval. */
-  submitPendingOrderEdit(orderId: number, dto: SuperAdminUpdateOrderDto): Observable<PendingOrderEditListDto> {
-    return this.http.post<PendingOrderEditListDto>(`${this.apiUrl}/orders/${orderId}/pending-edit`, dto);
+  /**
+   * Submit an order edit for approval, together with the field-level diff the requesting admin
+   * saw. The payload is what the reviewer reads back — the raw DTO alone is only meaningful when
+   * diffed against an order, so without it a reviewer could only ever be shown the request
+   * measured against the order as it stands NOW.
+   */
+  submitPendingOrderEdit(
+    orderId: number,
+    dto: SuperAdminUpdateOrderDto,
+    fieldChanges?: PendingOrderEditFieldChange[],
+    reason?: string
+  ): Observable<PendingOrderEditListDto> {
+    return this.http.post<PendingOrderEditListDto>(`${this.apiUrl}/orders/${orderId}/pending-edit`, {
+      changes: dto,
+      fieldChanges: fieldChanges ?? [],
+      reason: reason ?? null
+    });
   }
 
   /** Reviewers only (SuperAdmin, or an Admin granted direct saves): list pending order edits. */
@@ -1572,8 +1673,24 @@ export class AdminService {
   }
   
   // Get recent audit logs
-  getRecentAuditLogs(days: number = 7): Observable<AuditLog[]> {
-    return this.http.get<AuditLog[]>(`${this.apiUrl}/audit-logs?days=${days}`);
+  /**
+   * One page of audit rows. Everything the Audits tab filters on is pushed to the server — the
+   * old version fetched six months in a single request and paged in the browser, which stopped
+   * being viable once the 2026-08-31 coverage sweep multiplied the row count.
+   */
+  getAuditLogs(query: AuditLogQuery = {}): Observable<AuditLogPage> {
+    let params = new HttpParams();
+    // Only send what was actually set: an empty string reaches the API as a real filter value.
+    for (const [key, value] of Object.entries(query)) {
+      if (value === null || value === undefined || value === '') continue;
+      params = params.set(key, String(value));
+    }
+    return this.http.get<AuditLogPage>(`${this.apiUrl}/audit-logs`, { params });
+  }
+
+  /** Entity types, actions and admins present in the log, plus the undo block list. */
+  getAuditMetadata(days: number = 180): Observable<AuditMetadata> {
+    return this.http.get<AuditMetadata>(`${this.apiUrl}/audit-logs/metadata?days=${days}`);
   }
 
   undoAuditLog(id: number): Observable<{ message: string }> {
@@ -1611,6 +1728,39 @@ export class AdminService {
    */
   getOrderCleanerPayroll(orderId: number): Observable<OrderCleanerPayroll> {
     return this.http.get<OrderCleanerPayroll>(`${this.apiUrl}/orders/${orderId}/cleaner-payroll`);
+  }
+
+  /**
+   * Staffing warnings for the orders list, in one round trip. **Admin and SuperAdmin** — wider
+   * than the payroll call above, because assigning cleaners and chasing an unpaid customer is the
+   * Admins' work and a warning they cannot see is not a warning.
+   *
+   * @param orderIds narrows it to specific orders — the targeted refresh after a write moves an
+   *        order's staffing. Omitted, it answers for the whole list, which is why `includeHidden`
+   *        has to be passed the same value the list itself was loaded with.
+   * @param forceRefresh sends the no-cache headers + buster the users list uses. A plain GET
+   *        straight after an assign can otherwise come back from cache, showing the warnings as
+   *        they stood before the change that was just made.
+   */
+  getOrdersStaffingWarnings(
+    orderIds?: number[],
+    includeHidden = false,
+    forceRefresh = false
+  ): Observable<OrderStaffingWarningsMap> {
+    let params = new HttpParams().set('includeHidden', String(includeHidden));
+    (orderIds ?? []).forEach(id => { params = params.append('orderIds', String(id)); });
+    if (forceRefresh) params = params.set('_', Date.now().toString());
+
+    const headers = forceRefresh
+      ? new HttpHeaders({
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0'
+        })
+      : undefined;
+
+    return this.http.get<OrderStaffingWarningsMap>(
+      `${this.apiUrl}/orders/staffing-warnings/bulk`, { params, headers });
   }
 
   /** Returns assigned cleaners for ALL orders in one request, keyed by orderId (string). */

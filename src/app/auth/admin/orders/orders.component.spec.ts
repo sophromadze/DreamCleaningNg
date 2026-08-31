@@ -1135,5 +1135,240 @@ describe('OrdersComponent', () => {
       component.selectedOrderPayroll!.storedTotalSalary = 175;
       expect(component.payrollDisagreesWithStored()).toBe(false);
     });
+
+  });
+
+  /**
+   * The staffing warnings come from the server's shared OrderStaffingWarnings, so the Orders tab
+   * prints exactly what Outgoing Payments prints for the same job. The component's only job is to
+   * render them — recomputing them here is how the two screens would drift apart.
+   *
+   * They live on their OWN Admin+SuperAdmin path, not on the SuperAdmin-only wage breakdown: the
+   * breakdown says what each cleaner is PAID, while these say something is wrong with how the
+   * order is STAFFED, which is the Admins' own work.
+   */
+  describe('staffing warnings', () => {
+    const RATE_WARNING = 'Hourly rate is $25/hr, but Deep Cleaning should default to $21/hr.';
+    const UNPAID_WARNING = 'The customer has not paid for this order yet.';
+
+    const row = (over: any = {}) => ({
+      id: 315, totalDuration: 480, maidsCount: 2, hasCleanersService: false,
+      isCustomServiceType: false, status: 'Active', ...over
+    } as any);
+
+    beforeEach(() => {
+      component.staffingWarningsByOrderId = new Map([[315, [RATE_WARNING, UNPAID_WARNING]]]);
+    });
+
+    it('renders the server-built warnings verbatim in the detail panel', () => {
+      component.selectedOrder = row();
+
+      expect(component.getOrderStaffingWarnings()).toEqual([RATE_WARNING, UNPAID_WARNING]);
+    });
+
+    it('shows nothing rather than an all-clear for an order it has no answer for', () => {
+      component.selectedOrder = row({ id: 999 });
+
+      // An absent warning list is not the same claim as "nothing is wrong", so the block has to
+      // disappear entirely rather than render as a clean bill of health.
+      expect(component.getOrderStaffingWarnings()).toEqual([]);
+    });
+
+    /**
+     * The row marker keeps its shape; only what it can say about itself grew. The tooltip format
+     * is the Outgoing Payments one — reasons joined with " · " on a native title.
+     */
+    it('lists the reasons in the row tooltip, Outgoing Payments style', () => {
+      // Short job at 2 cleaners: the advisory long-job flag does NOT fire, so the tooltip is the
+      // server-built warnings alone.
+      const order = row({ totalDuration: 300 });
+
+      expect(component.hasStaffingWarnings(order)).toBe(true);
+      expect(component.getStaffingWarningTooltip(order)).toBe(`${RATE_WARNING} · ${UNPAID_WARNING}`);
+    });
+
+    it('keeps the advisory long-job flag first when both apply', () => {
+      // 900 min across 2 cleaners is 7h30 each — over the 6h advisory threshold.
+      const order = row({ totalDuration: 900 });
+
+      expect(component.needsStaffingReview(order)).toBe(true);
+      expect(component.getStaffingWarningTooltip(order))
+        .toBe(`Long job — review cleaner count (over 6h per cleaner) · ${RATE_WARNING} · ${UNPAID_WARNING}`);
+    });
+
+    it('still shows the marker for the long-job flag alone, exactly as before', () => {
+      component.staffingWarningsByOrderId = new Map();
+      const order = row({ totalDuration: 900 });
+
+      expect(component.hasStaffingWarnings(order)).toBe(true);
+      expect(component.getStaffingWarningTooltip(order))
+        .toBe('Long job — review cleaner count (over 6h per cleaner)');
+    });
+
+    it('hides the marker when nothing is wrong', () => {
+      component.staffingWarningsByOrderId = new Map();
+
+      expect(component.hasStaffingWarnings(row({ totalDuration: 300 }))).toBe(false);
+    });
+
+    /**
+     * A targeted refresh must CLEAR the ids it asked about before merging: an order whose last
+     * warning was just resolved comes back ABSENT from the response, and a plain merge would
+     * leave the stale entry showing a problem that no longer exists.
+     */
+    it('drops a resolved order\'s warnings on a targeted refresh', () => {
+      component.staffingWarningsByOrderId = new Map([[315, [UNPAID_WARNING]], [316, [RATE_WARNING]]]);
+
+      (component as any).applyStaffingWarnings({}, [315]);
+
+      expect(component.staffingWarningsByOrderId.has(315)).toBe(false);
+      // An order the refresh did not ask about is left exactly as it was.
+      expect(component.staffingWarningsByOrderId.get(316)).toEqual([RATE_WARNING]);
+    });
+
+    it('replaces the whole cache on a full load', () => {
+      component.staffingWarningsByOrderId = new Map([[999, [UNPAID_WARNING]]]);
+
+      (component as any).applyStaffingWarnings({ '315': [RATE_WARNING] });
+
+      expect(component.staffingWarningsByOrderId.get(315)).toEqual([RATE_WARNING]);
+      expect(component.staffingWarningsByOrderId.has(999)).toBe(false);
+    });
+
+    /** Moderators are View-only and do not staff orders; the endpoint would 403 them. */
+    it('only fetches for Admin and SuperAdmin', () => {
+      const spy = spyOn(component['adminService'], 'getOrdersStaffingWarnings')
+        .and.returnValue(of({}));
+      component.orders = [row()];
+
+      component.isSuperAdmin = false;
+      component.userRole = 'Moderator';
+      (component as any).preloadStaffingWarnings();
+      expect(spy).not.toHaveBeenCalled();
+
+      component.userRole = 'Admin';
+      (component as any).preloadStaffingWarnings();
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      component.isSuperAdmin = true;
+      component.userRole = 'SuperAdmin';
+      (component as any).preloadStaffingWarnings();
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  /**
+   * A same-day 1-hour-gap conflict is ADVICE, not a block (2026-08-31). The rule cannot see that
+   * two jobs are on the same block or that the earlier one will finish early — the admin can — so
+   * a conflicting cleaner is selectable, warned about, and acknowledged before the assign goes
+   * through. The acknowledgement is what the server requires too, so it must never be defaulted on.
+   */
+  describe('assigning over a schedule conflict', () => {
+    const CLEAN = { id: 1, firstName: 'Maia', lastName: 'Niauri', email: 'm@x.com', isAvailable: true };
+    const CONFLICTED = {
+      id: 2, firstName: 'Marekh', lastName: 'Tabidze', email: 't@x.com', isAvailable: false,
+      hasScheduleConflict: true, conflictReason: 'Booked 9:00 AM–1:00 PM that day (needs 60-min gap)'
+    };
+
+    beforeEach(() => {
+      component.availableCleaners = [CLEAN, CONFLICTED] as any;
+      component.assigningOrderId = 315;
+      component.selectedCleaners = [];
+      component.acknowledgeScheduleConflicts = false;
+    });
+
+    it('lets a conflicting cleaner be selected', () => {
+      component.toggleCleanerSelection(2);
+
+      expect(component.isCleanerSelected(2)).toBe(true);
+      expect(component.selectedCleanersWithConflicts.map(c => c.id)).toEqual([2]);
+      expect(component.selectedConflictNames).toBe('Marekh Tabidze');
+    });
+
+    it('will not assign until the conflict is acknowledged', () => {
+      component.toggleCleanerSelection(2);
+      expect(component.conflictAcknowledgementOwed).toBe(true);
+
+      component.acknowledgeScheduleConflicts = true;
+      expect(component.conflictAcknowledgementOwed).toBe(false);
+    });
+
+    it('asks for nothing when no conflicting cleaner is picked', () => {
+      component.toggleCleanerSelection(1);
+
+      expect(component.selectedCleanersWithConflicts).toEqual([]);
+      expect(component.conflictAcknowledgementOwed).toBe(false);
+    });
+
+    /**
+     * An acknowledgement belongs to the selection it was given for. Leaving it armed after the
+     * conflicting cleaner is dropped would carry it silently into the next one picked.
+     */
+    it('drops the acknowledgement when the last conflicting cleaner is de-selected', () => {
+      component.toggleCleanerSelection(2);
+      component.acknowledgeScheduleConflicts = true;
+
+      component.toggleCleanerSelection(2);
+
+      expect(component.acknowledgeScheduleConflicts).toBe(false);
+    });
+
+    it('keeps the acknowledgement while another conflicting cleaner is still picked', () => {
+      component.availableCleaners = [CLEAN, CONFLICTED, { ...CONFLICTED, id: 3 }] as any;
+      component.toggleCleanerSelection(2);
+      component.toggleCleanerSelection(3);
+      component.acknowledgeScheduleConflicts = true;
+
+      component.toggleCleanerSelection(3);
+
+      expect(component.acknowledgeScheduleConflicts).toBe(true);
+    });
+
+    it('clears the acknowledgement when the modal is closed', () => {
+      component.toggleCleanerSelection(2);
+      component.acknowledgeScheduleConflicts = true;
+
+      component.closeCleanerModal();
+
+      expect(component.acknowledgeScheduleConflicts).toBe(false);
+    });
+
+    /**
+     * Conflicting cleaners stay hidden until "Show busy cleaners" is on. Being assignable does
+     * not make somebody with another job an hour away the right first answer.
+     */
+    it('still hides conflicting cleaners from the default list', () => {
+      expect(component.availableCleanersFiltered.map(c => c.id)).toEqual([1]);
+      expect(component.hiddenBusyCleanersCount).toBe(1);
+
+      component.showBusyCleaners = true;
+      expect(component.availableCleanersFiltered.map(c => c.id)).toEqual([1, 2]);
+    });
+
+    it('sends the acknowledgement to the server only when it was actually given', () => {
+      const cleanerService = (component as any).cleanerService;
+      const spy = spyOn(cleanerService, 'assignCleaners').and.returnValue(of({}));
+
+      component.toggleCleanerSelection(1);
+      component.assignCleanersToOrder();
+      expect(spy.calls.mostRecent().args[4]).toBe(false);
+
+      component.selectedCleaners = [2];
+      component.acknowledgeScheduleConflicts = true;
+      component.assigningOrderId = 315;
+      component.assignCleanersToOrder();
+      expect(spy.calls.mostRecent().args[4]).toBe(true);
+    });
+
+    it('refuses to fire the request while the acknowledgement is outstanding', () => {
+      const cleanerService = (component as any).cleanerService;
+      const spy = spyOn(cleanerService, 'assignCleaners').and.returnValue(of({}));
+
+      component.toggleCleanerSelection(2);
+      component.assignCleanersToOrder();
+
+      expect(spy).not.toHaveBeenCalled();
+      expect(component.errorMessage).toContain('Confirm the schedule conflict');
+    });
   });
 });

@@ -8,7 +8,8 @@ export interface AvailableCleaner {
   firstName: string;
   lastName: string;
   email: string;
-  /** False only when there is a hard scheduling conflict (the 1-hour-gap rule). */
+  /** False when the 1-hour-gap rule flags a same-day conflict. Sorting/labelling only —
+   *  a conflict is a warning the admin can overrule, never a permission. */
   isAvailable: boolean;
   location?: string | null;
   ranking?: number | string | null;
@@ -16,7 +17,8 @@ export interface AvailableCleaner {
   /** Soft: marked busy that day via recurring weekday / vacation. Still assignable. */
   isBusyDay?: boolean;
   busyDayReason?: string | null;
-  /** Hard: another Active/Pending job within 1 hour the same day. Cannot assign. */
+  /** Another Active/Pending job within 1 hour the same day. Warned about loudly and
+   *  acknowledged before the assign goes through — NOT blocked (2026-08-31). */
   hasScheduleConflict?: boolean;
   conflictReason?: string | null;
   createdAt?: string;
@@ -34,11 +36,24 @@ export class CleanerService {
     return this.http.get<AvailableCleaner[]>(`${this.adminApiUrl}/orders/${orderId}/available-cleaners`);
   }
 
-  assignCleaners(orderId: number, cleanerIds: number[], tipsForCleaner?: string, cleanerHourlyRate?: number): Observable<any> {
+  /**
+   * @param acknowledgeScheduleConflicts the admin has seen the same-day 1-hour-gap warnings on
+   *        the cleaners they picked and wants them assigned anyway. The server refuses a
+   *        conflicting assignment without it, so this must only ever be sent off a deliberate
+   *        acknowledgement in the UI — never defaulted to true.
+   */
+  assignCleaners(
+    orderId: number,
+    cleanerIds: number[],
+    tipsForCleaner?: string,
+    cleanerHourlyRate?: number,
+    acknowledgeScheduleConflicts = false
+  ): Observable<any> {
     return this.http.post(`${this.adminApiUrl}/orders/${orderId}/assign-cleaners`, {
       cleanerIds,
       tipsForCleaner,
-      cleanerHourlyRate
+      cleanerHourlyRate,
+      acknowledgeScheduleConflicts
     });
   }
 

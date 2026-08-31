@@ -8,31 +8,67 @@
     </div>
   </div>
 
-  <!-- Filters Section -->
+  <!-- Filters. Every control here is a SERVER-side query parameter; nothing filters in the
+       browser. Changing any of them resets to page 1. -->
   <div class="filters-section">
     <div class="search-box">
-      <input type="text" 
-             [(ngModel)]="searchTerm" 
-             placeholder="Search by email, ID, or EentityID..."
+      <input type="text"
+             [(ngModel)]="searchTerm"
+             (ngModelChange)="onSearchChange()"
+             placeholder="Search by email, name, order number, or #auditId"
              class="search-input">
     </div>
-    
+
     <div class="filter-controls">
-      <select [(ngModel)]="selectedEntityType" class="filter-select">
+      <select [(ngModel)]="selectedEntityType" class="filter-select" (change)="onFilterChange()"
+              title="What kind of thing changed">
         <option *ngFor="let type of entityTypes" [value]="type.value">
           {{ type.label }}
         </option>
       </select>
-      
-      <select [(ngModel)]="selectedDays" 
+
+      <select [(ngModel)]="selectedAction" class="filter-select" (change)="onFilterChange()"
+              title="What was done">
+        <option *ngFor="let a of actionOptions" [value]="a.value">{{ a.label }}</option>
+      </select>
+
+      <select [(ngModel)]="selectedAdminId" class="filter-select" (change)="onFilterChange()"
+              title="Who made the change">
+        <option value="all">Anyone</option>
+        <option *ngFor="let admin of metadata.admins" [value]="admin.id">
+          {{ admin.name || admin.email }}
+        </option>
+      </select>
+
+      <select [(ngModel)]="selectedDays"
               class="filter-select"
-              (change)="loadRecentLogs()">
+              [disabled]="hasExplicitDateRange"
+              [title]="hasExplicitDateRange ? 'Ignored while an explicit date range is set' : 'How far back to look'"
+              (change)="onFilterChange()">
         <option [value]="180">All Logs (6 Months)</option>
         <option [value]="1">Last 24 hours</option>
         <option [value]="7">Last 7 days</option>
         <option [value]="30">Last 30 days</option>
         <option [value]="90">Last 90 days</option>
       </select>
+    </div>
+
+    <!-- Explicit range. When either end is set it OVERRIDES the dropdown above, which is why
+         that control is disabled rather than silently ignored. -->
+    <div class="filter-controls date-range-controls">
+      <label class="date-range-label">
+        From
+        <input type="date" class="filter-date" [(ngModel)]="fromDate" (change)="onFilterChange()">
+      </label>
+      <label class="date-range-label">
+        To
+        <input type="date" class="filter-date" [(ngModel)]="toDate" (change)="onFilterChange()">
+      </label>
+      <button *ngIf="hasExplicitDateRange" type="button" class="action-btn secondary"
+              (click)="clearDateRange()">Clear dates</button>
+      <button *ngIf="hasActiveFilters" type="button" class="action-btn secondary"
+              (click)="clearAllFilters()">Reset all filters</button>
+      <span class="result-count">{{ pageRangeLabel }}</span>
     </div>
   </div>
 
@@ -90,7 +126,13 @@
                   </button>
                 </ng-container>
                 <ng-template #noUndoCell>
-                  <span class="undo-na" title="Audit-only or side-effect entity">—</span>
+                  <!-- A DISABLED button with the server's reason, not a dash. A bare "—" told the
+                       admin nothing and read as a broken page; the reason text comes from
+                       AuditEntityTypes so it can never disagree with what the API would do. -->
+                  <button type="button" class="action-btn secondary undo-blocked" disabled
+                          [title]="undoBlockedReason(log)">
+                    Undo
+                  </button>
                 </ng-template>
               </td>
             </tr>

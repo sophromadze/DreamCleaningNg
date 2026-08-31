@@ -1,8 +1,17 @@
 import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminService, AuditLog, UserPermissions } from '../../../services/admin.service';
+import { AdminService, AuditLog, AuditMetadata, UserPermissions } from '../../../services/admin.service';
 import { formatNyDateTime } from '../../../shared/ny-time.util';
+import {
+  formatAuditValue,
+  formatAuditTimestamp,
+  getAuditActionClass,
+  getAuditActionLabel,
+  getAuditEntityLabel,
+  getAuditFieldLabel,
+  shouldShowAuditField,
+} from '../../../shared/admin/audit-field-display';
 
 @Component({
   selector: 'app-audit-history',
@@ -33,15 +42,33 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     return 80;
   }
   
-  // Filters
+  // ── Filters. All of these are sent to the server; none of them filter in the browser. ──
   selectedEntityType = 'all';
+  selectedAction = 'all';
+  selectedAdminId: number | 'all' = 'all';
   selectedDays = 180; // Default to 6 months (all available logs)
   searchTerm = '';
-  
-  // Pagination
+  /** Explicit date range (yyyy-MM-dd). When either is set it OVERRIDES the days dropdown. */
+  fromDate = '';
+  toDate = '';
+
+  /** Debounce handle for the search box — one request per pause, not one per keystroke. */
+  private searchDebounce?: ReturnType<typeof setTimeout>;
+
+  // ── Pagination. Server-side: `auditLogs` holds ONE page, never the whole window. ──
   currentPage = 1;
   itemsPerPage = 20;
   totalPages = 1;
+  totalCount = 0;
+
+  /** Entity types / actions / admins that actually occur in the log. Filled from the API. */
+  metadata: AuditMetadata = {
+    entityTypes: [], actions: [], admins: [],
+    undoBlockedEntityTypes: [], undoBlockedReasons: {},
+  };
+
+  /** Admin id -> display name, for rendering "Paid By: 4" as a person. */
+  private adminNames = new Map<number, string>();
   
   // Expanded row state
   viewingLogId: number | null = null;
@@ -60,28 +87,36 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   };
   
-  // Available entity types - UPDATED to include CleanerAssignment
-  entityTypes = [
-    { value: 'all', label: 'All Changes' },
-    { value: 'User', label: 'Users' },
-    { value: 'Order', label: 'Orders' },
-    { value: 'CleanerAssignment', label: 'Cleaner Assignments' },
-    { value: 'OrderServicesUpdate', label: 'Order Services Updates' },
-    { value: 'ServiceType', label: 'Service Types' },
-    { value: 'Service', label: 'Services' },
-    { value: 'ExtraService', label: 'Extra Services' },
-    { value: 'Subscription', label: 'Subscriptions' },
-    { value: 'PromoCode', label: 'Promo Codes' },
-    { value: 'GiftCard', label: 'Gift Cards' },
-    { value: 'UserLoyaltyDiscount', label: 'Loyalty Discount' },
-    { value: 'OrderNotification', label: 'Order Notifications' }
-  ];
+  /**
+   * Entity-type filter options, derived from the rows that exist rather than hardcoded.
+   *
+   * The old hardcoded list of 13 was already incomplete before the 2026-08-31 coverage sweep and
+   * would have been badly wrong after it — a stream with no dropdown entry is a stream nobody can
+   * find. Labels come from the shared display module, which humanizes anything unmapped, so a
+   * newly audited action appears here with no frontend change at all.
+   */
+  get entityTypes(): { value: string; label: string }[] {
+    return [
+      { value: 'all', label: 'All Changes' },
+      ...this.metadata.entityTypes.map(t => ({ value: t, label: getAuditEntityLabel(t) })),
+    ];
+  }
+
+  get actionOptions(): { value: string; label: string }[] {
+    return [
+      { value: 'all', label: 'All Actions' },
+      ...this.metadata.actions.map(a => ({ value: a, label: getAuditActionLabel(a) })),
+    ];
+  }
 
   constructor(private adminService: AdminService) {}
 
   ngOnInit() {
     this.loadUserPermissions();
   }
+
+  /** Resolve an admin/user id to a name for the diff table. Null when we do not know them. */
+  private resolveAdminName = (id: number): string | null => this.adminNames.get(id) ?? null;
 
   ngAfterViewInit() {
     this.initializeStickyHeader();
@@ -344,6 +379,7 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
       next: (response) => {
         this.userRole = response.role;
         this.userPermissions = response;
+        this.loadMetadata();
         this.loadRecentLogs();
       },
       error: (error) => {
@@ -353,11 +389,39 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * Load ONE page from the server. Entity type, action, changed-by admin, date range and search
+   * are all query parameters — nothing is filtered in the browser any more.
+   */
   loadRecentLogs() {
     this.isLoading = true;
-    this.adminService.getRecentAuditLogs(this.selectedDays).subscribe({
-      next: (logs) => {
-        this.auditLogs = this.processAuditLogs(logs);
+    this.errorMessage = '';
+
+    const hasRange = !!this.fromDate || !!this.toDate;
+
+    this.adminService.getAuditLogs({
+      // An explicit range wins over the dropdown; sending both would let the narrower one silently
+      // clip the range the admin actually picked.
+      days: hasRange ? undefined : this.selectedDays,
+      from: this.fromDate || undefined,
+      to: this.toDate || undefined,
+      entityType: this.selectedEntityType === 'all' ? undefined : this.selectedEntityType,
+      action: this.selectedAction === 'all' ? undefined : this.selectedAction,
+      changedByUserId: this.selectedAdminId === 'all' ? undefined : Number(this.selectedAdminId),
+      search: this.searchTerm.trim() || undefined,
+      page: this.currentPage,
+      pageSize: this.itemsPerPage,
+    }).subscribe({
+      next: (page) => {
+        this.auditLogs = this.processAuditLogs(page?.items ?? []);
+        this.totalCount = page?.totalCount ?? 0;
+        this.totalPages = Math.max(1, page?.totalPages ?? 1);
+        // A filter change can leave the current page past the end of a shorter result set.
+        if (this.currentPage > this.totalPages) {
+          this.currentPage = this.totalPages;
+          this.loadRecentLogs();
+          return;
+        }
         this.isLoading = false;
         setTimeout(() => {
           if (!this.stickyHeaderInitialized) {
@@ -367,38 +431,78 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
           }
         }, 150);
       },
-      error: (error) => {
+      error: () => {
         this.errorMessage = 'Failed to load audit logs';
         this.isLoading = false;
       }
     });
   }
 
+  /** Filter vocabulary + the undo block list. Loaded once, alongside the first page. */
+  private loadMetadata() {
+    this.adminService.getAuditMetadata(180).subscribe({
+      next: (meta) => {
+        this.metadata = meta ?? this.metadata;
+        this.adminNames = new Map((meta?.admins ?? []).map(a => [a.id, a.name || a.email]));
+      },
+      // A missing metadata response costs the dropdowns their options, not the page — the feed
+      // itself still renders, so this must not surface as an error banner.
+      error: () => { /* filters degrade to "All"; the log still loads */ }
+    });
+  }
+
+  /** Any filter other than the page: reset to page 1, because page 5 of the old result set is
+   *  meaningless against the new one. */
+  onFilterChange() {
+    this.currentPage = 1;
+    this.loadRecentLogs();
+  }
+
+  /** Search is debounced so typing an email does not fire a request per character. */
+  onSearchChange() {
+    if (this.searchDebounce) clearTimeout(this.searchDebounce);
+    this.searchDebounce = setTimeout(() => this.onFilterChange(), 350);
+  }
+
+  /** Picking an explicit range makes the days dropdown meaningless, so it is visibly disabled. */
+  get hasExplicitDateRange(): boolean {
+    return !!this.fromDate || !!this.toDate;
+  }
+
+  clearDateRange() {
+    this.fromDate = '';
+    this.toDate = '';
+    this.onFilterChange();
+  }
+
+  clearAllFilters() {
+    this.selectedEntityType = 'all';
+    this.selectedAction = 'all';
+    this.selectedAdminId = 'all';
+    this.selectedDays = 180;
+    this.searchTerm = '';
+    this.fromDate = '';
+    this.toDate = '';
+    this.onFilterChange();
+  }
+
+  get hasActiveFilters(): boolean {
+    return this.selectedEntityType !== 'all'
+        || this.selectedAction !== 'all'
+        || this.selectedAdminId !== 'all'
+        || !!this.searchTerm.trim()
+        || this.hasExplicitDateRange;
+  }
+
+  /**
+   * Readable name for a changed field.
+   *
+   * Delegates to the shared map, which has a HUMANIZED FALLBACK. The old local map knew 18 names
+   * and returned the raw identifier for everything else — `CleanerTotalSalary` rendered as
+   * `CleanerTotalSalary`, which is the specific complaint this replaces.
+   */
   getFieldDisplayName(field: string): string {
-    const fieldMap: { [key: string]: string } = {
-      'PasswordHash': 'Password',
-      'PasswordSalt': 'Password Salt',
-      'RefreshToken': 'Session Token',
-      'RefreshTokenExpiryTime': 'Session Expiry',
-      'CreatedAt': 'Created Date',
-      'UpdatedAt': 'Updated',
-      'IsActive': 'Active Status',
-      'FirstName': 'First Name',
-      'LastName': 'Last Name',
-      'Email': 'Email',
-      'Phone': 'Phone',
-      'Role': 'Role',
-      'FirstTimeOrder': 'First Time Customer',
-      'SubscriptionId': 'Subscription',
-      'CurrentBalance': 'Balance',
-      'OriginalAmount': 'Original Amount',
-      'IsPaid': 'Payment Status',
-      'CancellationReason': 'Cancellation Reason',
-      'CleanerEmail': 'Cleaner Email', // NEW for cleaner assignments
-      'ServiceDate&Time': 'ServiceDate&Time', // Combined field
-    };
-    
-    return fieldMap[field] || field;
+    return getAuditFieldLabel(field);
   }
 
   processAuditLogs(logs: any[]): any[] {   
@@ -613,46 +717,29 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     return groupedLogs;
   }
 
+  /**
+   * The rows on screen. This is now simply the page the server returned.
+   *
+   * It used to filter and page in the browser, and its search had a defect worth remembering:
+   * `search.startsWith('e')` treated ANY term beginning with "e" as an entity-id prefix, so
+   * searching `eugene@…` looked for entity ids containing `ugene@…` and found nothing. Every
+   * customer and admin whose email starts with an "e" was unsearchable. Search is server-side now
+   * (AdminAuditController.ApplySearch), where the entity-id form is recognised only when the rest
+   * of the term is digits.
+   *
+   * Assigning component state from a template-called getter is also how NG0100 happens; this one
+   * assigns nothing.
+   */
   get filteredLogs(): any[] {
-    let filtered = this.auditLogs;
-  
-    // Filter by entity type
-    if (this.selectedEntityType !== 'all') {
-      filtered = filtered.filter(log => log.entityType === this.selectedEntityType);
-    }
-  
-    // Filter by search term
-    if (this.searchTerm) {
-      const search = this.searchTerm.toLowerCase();
-      
-      // Check if search starts with # for audit log ID search
-      if (search.startsWith('#')) {
-        const logIdSearch = search.substring(1); // Remove the # prefix
-        filtered = filtered.filter(log => 
-          log.id?.toString().includes(logIdSearch)
-        );
-      } else if (search.startsWith('e')) {
-        // Check if search starts with 'e' for entity ID search
-        const entityIdSearch = search.substring(1); // Remove the E prefix
-        filtered = filtered.filter(log => 
-          log.entityId?.toString().includes(entityIdSearch)
-        );
-      } else {
-        // Regular search - check email, log ID, and entity ID
-        filtered = filtered.filter(log => 
-          log.changedByEmail?.toLowerCase().includes(search) ||
-          log.id?.toString().includes(search) ||
-          log.entityId?.toString().includes(search)
-        );
-      }
-    }
+    return this.auditLogs;
+  }
 
-    // Update pagination
-    this.totalPages = Math.ceil(filtered.length / this.itemsPerPage);
-    
-    // Return paginated results
-    const start = (this.currentPage - 1) * this.itemsPerPage;
-    return filtered.slice(start, start + this.itemsPerPage);
+  /** "Showing 21–40 of 512" — a page count means nothing without the total behind it. */
+  get pageRangeLabel(): string {
+    if (this.totalCount === 0) return 'No changes found';
+    const first = (this.currentPage - 1) * this.itemsPerPage + 1;
+    const last = Math.min(this.currentPage * this.itemsPerPage, this.totalCount);
+    return `Showing ${first}–${last} of ${this.totalCount}`;
   }
 
   formatDate(date: any): string {
@@ -660,62 +747,25 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     return formatNyDateTime(date);
   }
 
+  /** Badge colour. Shared so a newly coined action still reads as create-ish / delete-ish
+   *  instead of falling through to no class at all. */
   getActionClass(action: string): string {
-    switch (action.toLowerCase()) {
-      case 'create': return 'action-create';
-      case 'update': return 'action-update';
-      case 'delete': return 'action-delete';
-      case 'assigned': return 'action-assigned';
-      case 'removed': return 'action-removed';
-      case 'pointsadded': return 'action-points-added';
-      case 'pointsdeducted': return 'action-points-deducted';
-      // Loyalty Discount (Phase 7). Reuse existing palette so badges look consistent —
-      // activations/sets share Create's green, upgrades share Update's blue, cleared uses
-      // points-deducted yellow (neutral "no longer in effect"), used/reversed use Delete red.
-      case 'loyaltyautoactivated':
-      case 'loyaltymanualset':      return 'action-create';
-      case 'loyaltyautoupgraded':   return 'action-update';
-      case 'loyaltymanualcleared':  return 'action-points-deducted';
-      case 'loyaltyused':           return 'action-removed';
-      case 'loyaltyreversed':       return 'action-delete';
-      default: return '';
-    }
+    return getAuditActionClass(action);
   }
 
-  // Friendly label for the audit-row action badge. Existing actions (Create/Update/Delete/
-  // Assigned/Removed/PointsAdded/PointsDeducted) are short enough to display verbatim; only
-  // the Loyalty* set gets translated. Keeps existing rows visually unchanged.
+  /** Friendly label for the action badge. Create/Update/Delete are unchanged; anything else is
+   *  humanized, so `PayoutRecorded` reads as "Payout Recorded". */
   getActionDisplayLabel(action: string): string {
-    switch (action) {
-      case 'LoyaltyAutoActivated':  return 'Auto-activated';
-      case 'LoyaltyAutoUpgraded':   return 'Auto-upgraded';
-      case 'LoyaltyManualSet':      return 'Manually set';
-      case 'LoyaltyManualCleared':  return 'Cleared';
-      case 'LoyaltyUsed':           return 'Used on order';
-      case 'LoyaltyReversed':       return 'Restored';
-      default:                      return action;
-    }
+    return getAuditActionLabel(action);
   }
 
+  /** Readable form of a value with no field context. Never returns raw JSON. */
   getFieldValue(value: any): string {
-    if (value === null || value === undefined) return 'null';
-    if (typeof value === 'boolean') return value ? 'true' : 'false';
-    if (value instanceof Date || (typeof value === 'string' && !isNaN(Date.parse(value)))) {
-      return this.formatAuditTimestamp(value);
-    }
-    if (typeof value === 'object') return JSON.stringify(value);
-    return value.toString();
+    return formatAuditValue(value, undefined, this.resolveAdminName);
   }
 
-  /**
-   * Audit timestamps are UTC → show in NY time. Midnight values are date-only
-   * wall-clock fields (ServiceDate, DueDate, ...) — show the date as-is, no conversion.
-   */
   private formatAuditTimestamp(value: any): string {
-    if (typeof value === 'string' && /T00:00:00(\.0+)?Z?$/.test(value)) {
-      return new Date(value.replace(/Z$/, '')).toLocaleDateString();
-    }
-    return formatNyDateTime(value);
+    return formatAuditTimestamp(value);
   }
 
   // UPDATED: Special handling for CleanerAssignment logs
@@ -761,121 +811,31 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  getFieldDisplayValue(value: any, fieldName?: string): string {   
-    // Handle null/undefined
-    if (value === null || value === undefined) {
-      return 'None';
-    }
-    
-    // Handle boolean values
-    if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No';
-    }
-    
-    // Handle Role enum (0 = Customer, 1 = SuperAdmin, 2 = Admin, 3 = Moderator)
-    if (fieldName === 'Role' && typeof value === 'number') {
-      const roles = ['Customer', 'SAdmin', 'Admin', 'Moderator'];
-      return roles[value] || value.toString();
-    }
-  
-    // Handle TotalDuration field - format as hours:minutes
-    if (fieldName === 'TotalDuration' && typeof value === 'number') {
-      const hours = Math.floor(value / 60);
-      const minutes = Math.round(value % 60);
-      return `${hours}h ${minutes}m`;
-    }
-    
-    // IMPORTANT: Handle TimeDuration and Duration fields BEFORE date handling
-    if (fieldName === 'TimeDuration' || fieldName === 'Duration') {
-      return `${value} minutes`;
+  /**
+   * Readable form of one changed value, WITH its field name for context.
+   *
+   * All of the formatting lives in the shared audit-field-display module so the Audits tab, the
+   * created/deleted value lists and any future reader agree: money gets a $, dates render in NY
+   * business time (date-only fields are NOT shifted), enums resolve to labels by their declared
+   * numeric value, booleans read Yes/No, durations read as hours and minutes, and user ids
+   * resolve to names through the admin list the metadata endpoint returned.
+   *
+   * The old local version detected dates by handing the value to Date.parse and accepting
+   * anything that did not come back NaN — which accepts "5" and "Deep Clean 2", so ordinary text
+   * was being rendered as a date. The shared version matches an ISO shape instead.
+   */
+  getFieldDisplayValue(value: any, fieldName?: string): string {
+    // Gift card codes stay masked for anyone below SuperAdmin — a permission rule, not
+    // formatting, so it is decided here rather than in the shared module.
+    if (fieldName === 'Code' && this.userRole !== 'SuperAdmin' && typeof value === 'string') {
+      return '*'.repeat(value.length);
     }
 
-    // Handle combined ServiceDate&Time field
     if (fieldName === 'ServiceDate&Time') {
       return this.getCombinedServiceDateTimeValue(value);
     }
-    
-    // Special handling for ServiceTime field to show proper time format
-    if (fieldName === 'ServiceTime') {
-      // Handle TimeSpan format (HH:mm:ss or HH:mm)
-      let timeString = value;
-      
-      // If value is an object (TimeSpan serialized as object), extract the time string
-      if (typeof value === 'object' && value !== null) {
-        // Handle different possible TimeSpan serialization formats
-        timeString = value.Hours !== undefined ? 
-          `${String(value.Hours).padStart(2, '0')}:${String(value.Minutes || 0).padStart(2, '0')}` : 
-          value.toString();
-      }
-      
-      // Convert to string if needed
-      timeString = String(timeString);
-      
-      // Parse time parts
-      const timeParts = timeString.split(':');
-      if (timeParts.length >= 2) {
-        const hours = parseInt(timeParts[0]);
-        const minutes = timeParts[1];
-        const ampm = hours >= 12 ? 'PM' : 'AM';
-        const displayHour = hours % 12 || 12;
-        return `${displayHour}:${minutes} ${ampm}`;
-      }
-      return timeString;
-    }
-    
-    // Handle ServiceDate specifically to show only the date part
-    if (fieldName === 'ServiceDate') {
-      try {
-        const date = new Date(value);
-        if (!isNaN(date.getTime())) {
-          // Format as MM/DD/YYYY without time
-          return date.toLocaleDateString();
-        }
-      } catch {
-        // Fall through to return as string
-      }
-    }
-    
-    // Handle other dates - this comes AFTER the specific field checks
-    if (fieldName && (fieldName.includes('Date') || fieldName.includes('Time') || fieldName === 'CreatedAt' || fieldName === 'UpdatedAt')) {
-      if (value === '0001-01-01T00:00:00Z' || value === '0001-01-01T00:00:00') {
-        return 'Not set';
-      }
-      try {
-        const date = new Date(value);
-        if (!isNaN(date.getTime())) {
-          return this.formatAuditTimestamp(value);
-        }
-      } catch {
-        // Fall through to return as string
-      }
-    }
-    
-    // Handle password/token fields
-    if (fieldName && (fieldName.includes('Password') || fieldName.includes('Token') || fieldName === 'PasswordSalt')) {
-      return '(hidden)';
-    }
-    
-    // Handle gift card code masking for non-super admins
-    if (fieldName === 'Code' && this.userRole !== 'SuperAdmin') {
-      return '*'.repeat(value.length);
-    }
-    
-    // Handle numbers
-    if (typeof value === 'number') {
-      return value.toString();
-    }
-    
-    // Handle long strings
-    if (typeof value === 'string') {
-      if (value.length > 50) {
-        return value.substring(0, 47) + '...';
-      }
-      return value;
-    }
-    
-    // Default: try to convert to string
-    return String(value);
+
+    return formatAuditValue(value, fieldName, this.resolveAdminName);
   }
 
   isServiceUpdateLog(log: any): boolean {
@@ -976,48 +936,14 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     return oldService && (oldService.Quantity !== service.Quantity || oldService.Hours !== service.Hours);
   }
 
+  /** Secrets, plumbing and the row's own id are never rendered. Shared with the diff module. */
   shouldShowField(fieldName: string): boolean {
-    if (fieldName === 'Services' || fieldName === 'ExtraServices') {
-      return false;
-    }
-    
-    // Hide these fields from display
-    const hiddenFields = [
-      'PasswordHash',
-      'PasswordSalt',
-      'RefreshToken',
-      'RefreshTokenExpiryTime',
-      'ExternalAuthId',
-      'Apartments',
-      'Orders',
-      'Subscription',
-      'CreatedAt',
-      'UpdatedAt', // Hide UpdatedAt since it's already in Date column
-      'Id' 
-    ];
-    
-    return !hiddenFields.includes(fieldName);
+    return shouldShowAuditField(fieldName);
   }
 
+  /** Readable entity-type label, humanized when unmapped. */
   getEntityTypeDisplayName(entityType: string): string {
-    const typeMap: { [key: string]: string } = {
-      'User': 'User ID',
-      'Order': 'Order',
-      'CleanerAssignment': 'Order',
-      'OrderServicesUpdate': 'Order Services Update', 
-      'GiftCard': 'Gift Card',
-      'GiftCardUsage': 'Gift Card Usage',
-      'ServiceType': 'Service Type',
-      'Service': 'Service',
-      'ExtraService': 'Extra Service',
-      'Subscription': 'Subscription',
-      'PromoCode': 'Promo Code',
-      'Apartment': 'Address',
-      'BubblePointsAdjustment': 'Bubble Points',
-      'UserLoyaltyDiscount': 'Loyalty Discount'
-    };
-
-    return typeMap[entityType] || entityType;
+    return getAuditEntityLabel(entityType);
   }
 
   getObjectKeys(obj: any): string[] {
@@ -1033,22 +959,25 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     }, null, 2);
   }
 
-  // Pagination methods
+  // Pagination. Each move refetches — the browser only ever holds one page.
   previousPage() {
     if (this.currentPage > 1) {
       this.currentPage--;
+      this.loadRecentLogs();
     }
   }
 
   nextPage() {
     if (this.currentPage < this.totalPages) {
       this.currentPage++;
+      this.loadRecentLogs();
     }
   }
 
   goToPage(page: number) {
-    if (page >= 1 && page <= this.totalPages) {
+    if (page >= 1 && page <= this.totalPages && page !== this.currentPage) {
       this.currentPage = page;
+      this.loadRecentLogs();
     }
   }
 
@@ -1064,27 +993,23 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
-  // Entity types we won't try to undo client-side — must match the server-side block list in
-  // AuditService.UndoBlockedEntityTypes. Mirrored here so the button is hidden rather than
-  // showing-then-failing.
-  private readonly undoBlockedEntityTypes = new Set([
-    'AuditLog', 'BubblePointsAdjustment', 'CleanerAssignment', 'OrderServicesUpdate',
-    'PaymentHistory', 'WebhookEvent',
-    'NotificationLog', 'ScheduledMail', 'ScheduledSms',
-    'OrderUpdateHistory',
-  ]);
-
+  /**
+   * Can this row be undone?
+   *
+   * The answer comes from the SERVER, as `undoBlockedReason` on each row. This component used to
+   * keep its own copy of the block list, which had already drifted from AuditService's (it was
+   * missing OrderNotification, OrderRefund and OrderTransfer) — so the button rendered enabled on
+   * rows the API was always going to refuse, and the Phase 1 fabricated-before-image refusal was
+   * invisible here entirely. There is now ONE definition, in AuditEntityTypes, shipped by
+   * GET api/admin/audit-logs/metadata.
+   */
   canUndoRedo(log: AuditLog): boolean {
-    if (!log.entityType) return false;
-    if (this.undoBlockedEntityTypes.has(log.entityType)) return false;
-    if (['Create', 'Update', 'Delete'].includes(log.action)) return true;
-    // Loyalty Discount actions don't use the generic Create/Update/Delete vocabulary, but
-    // the server has a dedicated undo path that re-applies the OldValues snapshot. See
-    // AuditService.UndoAsync for the dispatch.
-    return [
-      'LoyaltyAutoActivated', 'LoyaltyAutoUpgraded', 'LoyaltyManualSet',
-      'LoyaltyManualCleared', 'LoyaltyUsed', 'LoyaltyReversed',
-    ].includes(log.action);
+    return !log.undoBlockedReason;
+  }
+
+  /** Tooltip for the disabled Undo control — the reason, verbatim from the server. */
+  undoBlockedReason(log: AuditLog): string {
+    return log.undoBlockedReason || '';
   }
 
   // Display helper for the UserLoyaltyDiscount details panel. Pulls a single field out of the

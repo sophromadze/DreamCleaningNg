@@ -519,6 +519,57 @@
     color: var(--text-muted);
   }
 
+  // A row that cannot be undone shows a DISABLED button carrying the server's reason as its
+  // tooltip, rather than a dash. It has to read as deliberately unavailable, not as a failure.
+  .undo-blocked {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  // Explicit date range. Sits on its own row under the dropdowns because a full-width strip of
+  // five selects wraps badly on a laptop.
+  .date-range-controls {
+    align-items: center;
+    flex-wrap: wrap;
+
+    .date-range-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .filter-date {
+      padding: 4px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      font-size: 0.8rem;
+      background: var(--surface);
+      color: var(--text-primary);
+
+      &:focus {
+        outline: none;
+        border-color: var(--primary-color);
+      }
+    }
+
+    // "Showing 21-40 of 512". A page number with no total behind it says nothing about how much
+    // there is to read.
+    .result-count {
+      margin-left: auto;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    @media (max-width: 480px) {
+      .result-count {
+        margin-left: 0;
+      }
+    }
+  }
+
   .undone-tag {
     color: var(--text-muted);
     font-size: 0.75rem;

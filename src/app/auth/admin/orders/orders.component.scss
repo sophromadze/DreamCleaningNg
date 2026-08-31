@@ -1277,6 +1277,51 @@
   }
   .pending-edit-meta, .pending-edit-hint { margin-bottom: 0.5rem; font-size: 0.95rem; color: #495057; }
   .pending-edit-hint { color: #6c757d; }
+
+  // The requester's own words, quoted back to the reviewer.
+  .pending-edit-reason {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--soft-blue);
+    color: var(--primary-color);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+  }
+
+  // Already approved or rejected: a record, not an action. Neutral amber rather than red — a
+  // decided request is normal history, not an error.
+  .pending-edit-decided {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--soft-yellow);
+    color: var(--soft-yellow-text);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+  }
+
+  // The order moved under the request. Loud on purpose: this is the one thing a reviewer cannot
+  // detect by reading the table, and approving through it applies an unreviewed change.
+  .pending-edit-drift {
+    margin-bottom: 0.75rem;
+    padding: 0.6rem 0.85rem;
+    background: var(--warning-orange-bg);
+    color: var(--warning-orange-text);
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem;
+
+    ul { margin: 0.4rem 0 0.4rem 1.1rem; padding: 0; }
+    li { margin-bottom: 0.15rem; }
+    em { font-style: normal; font-weight: 700; }
+  }
+
+  // Requests predating the stored payload (order #296 among them).
+  .pending-edit-legacy {
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
   .pending-edit-changes { margin: 0.75rem 0; overflow-x: auto; }
   .changes-table {
     width: 100%; border-collapse: collapse; font-size: 0.9rem;
@@ -1288,6 +1333,19 @@
     .diff-val { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
     .diff-val.diff-up { color: var(--fresh-green); }
     .diff-val.diff-down { color: var(--bright-red); }
+
+    // The live value, shown inline beside the submit-time one on a drifted row.
+    .drift-now {
+      display: block;
+      margin-top: 2px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--warning-orange-text);
+    }
+
+    tr.change-row-drifted {
+      background: var(--warning-orange-bg);
+    }
 
     // The Total row: always present and deliberately loud, because it is the number the customer
     // pays and the one a reviewer scans for. --soft-blue / --primary-color is the documented
@@ -1626,7 +1684,7 @@
   position: relative;
   background: white;
 
-  &:hover:not(.unavailable) {
+  &:hover {
     border-color: #007bff;
     box-shadow: 0 2px 8px rgba(0, 123, 255, 0.2);
   }
@@ -1640,10 +1698,13 @@
     }
   }
 
-  &.unavailable {
-    opacity: 0.6;
-    cursor: not-allowed;
-    background: #f8f9fa;
+  // Same-day schedule conflict: a red edge, NOT a disabled card. It is selectable (the admin
+  // acknowledges it below the list before assigning), so it must not read as unclickable —
+  // that is what the dimmed, cursor:not-allowed `.unavailable` variant said, and it was the
+  // whole reason admins could not staff a day the rule was wrong about.
+  &.conflicting {
+    border-color: var(--bright-red);
+    background: var(--soft-red);
   }
 
   // Busy-day cleaner: visually muted with an amber edge, but still selectable.
@@ -2937,8 +2998,21 @@
     background: rgba(245, 158, 11, 0.12) !important;
     border-color: rgba(245, 158, 11, 0.5);
   }
+  // Conflicting cards are still selectable, so the dark variant stays a red EDGE rather than a
+  // dimmed surface — matching the light theme's reading of "look at this", not "you can't".
+  .cleaner-assignment-modal .cleaner-card.conflicting {
+    background: rgba(220, 53, 69, 0.14) !important;
+    border-color: rgba(220, 53, 69, 0.55);
+  }
   .cleaner-assignment-modal .cleaner-card .cleaner-created {
     color: var(--text-muted);
+  }
+  // The acknowledgement has to keep its emphasis in dark: the block above sets every <label>
+  // inside a modal body to --text-secondary with !important, and this is the one label in the
+  // modal that is asking for a decision rather than naming a field.
+  .cleaner-assignment-modal .conflict-ack {
+    .conflict-ack-text { color: var(--text-primary) !important; }
+    .conflict-ack-check { color: var(--text-primary) !important; }
   }
   .cleaner-assignment-modal .cleaner-card.selected {
     border-color: #007bff;
@@ -2965,6 +3039,10 @@
     }
     .modal-actions { border-top-color: var(--border-color); }
     .pending-edit-meta, .pending-edit-hint { color: var(--text-secondary) !important; }
+    // The three notice blocks pair a semantic background with its own foreground token, so both
+    // flip with the theme and need no colour override here — only the legacy note, which uses the
+    // plain muted text colour.
+    .pending-edit-legacy { color: var(--text-muted) !important; }
     .changes-table {
       th { background: var(--surface-elevated, #2d2d2d) !important; color: var(--text-primary) !important; border-color: var(--border-color); }
       td { border-color: var(--border-color); }
@@ -4754,6 +4832,64 @@ $order-header-mobile: 60px;
   border-radius: var(--radius-sm);
 }
 
+// The staffing warnings, in the same caution treatment as the mismatch warning above — they are
+// the same kind of statement ("look at this before you act"), and Outgoing Payments prints them
+// in its own amber, so a second colour here would suggest a different severity.
+.order-staffing-warnings {
+  margin: 0.4rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+
+  .staffing-warning-row {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    color: var(--warning-orange-text);
+    background: var(--warning-orange-bg);
+    border: 1px solid var(--warning-orange-border);
+    border-radius: var(--radius-sm);
+  }
+}
+
+// The overrule for a same-day schedule conflict, between the cleaner grid and Assign. Red
+// rather than amber: unlike the panel's advisory warnings this one is asking for a decision,
+// and the button below it stays disabled until it gets one.
+.conflict-ack {
+  margin: 0.6rem 0 0;
+  padding: 0.55rem 0.7rem;
+  background: var(--soft-red);
+  border: 1px solid var(--bright-red);
+  border-radius: var(--radius-sm);
+
+  .conflict-ack-title {
+    font-weight: 700;
+    font-size: 0.82rem;
+    color: var(--bright-red);
+    margin-bottom: 0.25rem;
+  }
+
+  .conflict-ack-text {
+    margin: 0 0 0.4rem;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: var(--text-primary);
+  }
+
+  .conflict-ack-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    cursor: pointer;
+    user-select: none;
+
+    input { cursor: pointer; margin-top: 2px; }
+  }
+}
+
 // The Cleaners Total Salary box once cleaners are assigned: still readable, visibly not yours
 // to type in, with the reason on the line below.
 .edit-row input.readonly {
@@ -5173,4 +5309,28 @@ tr.row-hidden-order {
     background: var(--warning-orange-bg);
     border-color: var(--warning-orange-border);
   }
+
+  // Same reason as above: the warning rows are <div>s inside .detail-section, and the generic
+  // dark-mode text override would otherwise flatten them into ordinary body copy.
+  .order-staffing-warnings .staffing-warning-row {
+    color: var(--warning-orange-text) !important;
+    background: var(--warning-orange-bg);
+    border-color: var(--warning-orange-border);
+  }
+}
+
+// Optional "why" an Admin types when sending an order edit for approval. Sits inline with the
+// action buttons because it belongs to the REQUEST, not to the order being edited.
+.edit-request-reason {
+  flex: 1 1 220px;
+  min-width: 160px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+
+  &::placeholder { color: var(--text-muted); }
+  &:focus { outline: none; border-color: var(--primary-color); }
 }
