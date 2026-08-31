@@ -457,6 +457,22 @@
                       Close Details
                     </button>
                   </div>
+
+                  <!-- Nothing above rendered. The expansion row is emitted unconditionally while
+                       every block inside it is separately gated, so when they all fail the admin
+                       used to get a literally blank <td colspan="7"> - that is what appeared
+                       between #2113 and #2112 (2026-08-31). Say what happened instead. -->
+                  <div *ngIf="!hasAnyRenderableDetail(log)" class="log-details-empty">
+                    <ng-container *ngIf="isDetailUnreadable(log); else noVisibleChanges">
+                      <p>This entry's stored details could not be read, so the change cannot be shown here.</p>
+                    </ng-container>
+                    <ng-template #noVisibleChanges>
+                      <p>This entry recorded no visible field changes - the save left the record as it was.</p>
+                    </ng-template>
+                    <button class="close-details-btn" (click)="viewLogDetails(log.id)">
+                      Close Details
+                    </button>
+                  </div>
                 </div>
               </td>
             </tr>

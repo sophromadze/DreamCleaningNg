@@ -881,13 +881,22 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   isServiceUpdateLog(log: any): boolean {
     return log.entityType === 'OrderServicesUpdate';
   }
-  
+
+  /** Returns null rather than throwing when the stored JSON is unreadable — a malformed row must
+   *  degrade to an explicit "could not be read" message, not to an empty expansion row. */
   getServiceUpdateDetails(log: any): any {
     if (!log.oldValues || !log.newValues) return null;
-    
-    const oldValues = typeof log.oldValues === 'string' ? JSON.parse(log.oldValues) : log.oldValues;
-    const newValues = typeof log.newValues === 'string' ? JSON.parse(log.newValues) : log.newValues;
-    
+
+    let oldValues: any;
+    let newValues: any;
+    try {
+      oldValues = typeof log.oldValues === 'string' ? JSON.parse(log.oldValues) : log.oldValues;
+      newValues = typeof log.newValues === 'string' ? JSON.parse(log.newValues) : log.newValues;
+    } catch {
+      return null;
+    }
+    if (!oldValues || !newValues) return null;
+
     return {
       services: {
         old: oldValues.Services || [],
@@ -898,6 +907,55 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
         new: newValues.ExtraServices || []
       }
     };
+  }
+
+  /**
+   * Would ANY of the detail blocks in the expansion row actually render?
+   *
+   * The expansion `<tr>` is emitted unconditionally, while every block inside it is separately
+   * gated, so when they all fail the admin gets a literally blank `<td colspan="7">`. That is
+   * what produced the empty row between #2113 and #2112 (2026-08-31): an order edit whose only
+   * changed field was `UpdatedAt`, which `shouldShowField` hides. The backend no longer writes
+   * those rows, but existing ones still have to render as something.
+   *
+   * The conditions below mirror the template's gates one for one. Keep them in step.
+   */
+  hasAnyRenderableDetail(log: any): boolean {
+    if (log.entityType === 'BubblePointsAdjustment') return !!log.newValues;
+    if (log.entityType === 'CleanerAssignment') return !!this.getCleanerAssignmentDetails(log);
+    if (log.entityType === 'UserLoyaltyDiscount') return true;
+
+    // Merged Order + OrderServicesUpdate view.
+    if (log.hasServiceChanges && log.serviceLogs) {
+      if (this.showChangedFields(log) && this.hasMeaningfulChangedFields(log)) return true;
+      return (log.serviceLogs as any[]).some(sl => this.serviceLogHasVisibleRows(sl));
+    }
+
+    // Standalone service-update view.
+    if (this.isServiceUpdateLog(log)) return this.serviceLogHasVisibleRows(log);
+
+    // Standard view.
+    if (this.showChangedFields(log) && this.hasMeaningfulChangedFields(log)) return true;
+    if (log.action === 'Create' && log.newValues) return true;
+    if (log.action === 'Delete' && log.oldValues) return true;
+    return false;
+  }
+
+  /** True when a service-update row carries JSON we could not parse — distinguishes "nothing to
+   *  show" from "we have something and cannot read it", which are different problems. */
+  isDetailUnreadable(log: any): boolean {
+    const candidates: any[] = log.hasServiceChanges && log.serviceLogs
+      ? log.serviceLogs
+      : (this.isServiceUpdateLog(log) ? [log] : []);
+
+    return candidates.some(l => !!l.oldValues && !!l.newValues && this.getServiceUpdateDetails(l) === null);
+  }
+
+  private serviceLogHasVisibleRows(log: any): boolean {
+    const details = this.getServiceUpdateDetails(log);
+    if (!details) return false;
+    return this.getAllServices(details.services.old, details.services.new).length > 0
+        || this.getAllExtraServices(details.extraServices.old, details.extraServices.new).length > 0;
   }
   
   isServiceInList(service: any, list: any[]): boolean {

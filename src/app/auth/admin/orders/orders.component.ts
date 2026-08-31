@@ -1,7 +1,7 @@
 import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderAdminNote, OrderTransferInfo, UserAdmin, OrderRefundSummary, OrderRefundInfo } from '../../../services/admin.service';
+import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderAdminNote, OrderTransferInfo, UserAdmin, OrderRefundSummary, OrderRefundInfo, OrderCleanerPayroll, OrderCleanerPayrollLine } from '../../../services/admin.service';
 import { environment } from '../../../../environments/environment';
 import { OrderService, Order, OrderList } from '../../../services/order.service';
 import { CleanerService, AvailableCleaner } from '../../../services/cleaner.service';
@@ -279,6 +279,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   cleanersLoadedSet: Set<number> = new Set();
   /** Cached resolved residential variant for list rows (without opening details). */
   residentialVariantCache: Map<number, 'Deep' | 'Regular'> = new Map();
+  /** The per-cleaner wage breakdown for the order whose detail panel is open (SuperAdmin only). */
+  selectedOrderPayroll: OrderCleanerPayroll | null = null;
+  loadingOrderPayroll = false;
   // Hourly rate shown in the assign modal; set per order from getDefaultHourlyRate() on open.
   cleanerHourlySalary: number = REGULAR_CLEANER_HOURLY_RATE;
 
@@ -1774,6 +1777,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.isSuperAdmin) {
       this.loadOrderTransfers(orderId);
       this.loadOrderRefunds(orderId);
+      // The breakdown under "Cleaners Total Salary". SuperAdmin-gated at the call site as well
+      // as on the server, so an Admin never fires a request that can only 403.
+      this.loadOrderCleanerPayroll(orderId);
     }
 
     // Acknowledge any active reminders for this order
@@ -1842,6 +1848,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   closeOrderDetails(): void {
     this.viewingOrderId = null;
     this.selectedOrder = null;
+    this.selectedOrderPayroll = null;
+    this.loadingOrderPayroll = false;
     this.editingOrder = false;
     this.editingPaymentMethod = false;
     this.resetSaveConfirmState();
@@ -2340,7 +2348,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       this.cleanerService.removeCleanerFromOrder(orderId, cleanerId).subscribe({
         next: () => {
           this.successMessage = `${cleanerName} has been removed from the order and notified via email.`;
-          
+
+          // Removing a cleaner changes what the job costs (the duration re-splits), so the
+          // order's stored salary and the breakdown both move. Refetch rather than leave the
+          // panel showing the pre-removal split.
+          this.refreshOrderAfterSave();
+
           // Refresh assigned cleaners from server after removal
           this.adminService.getAssignedCleanersWithIds(orderId).subscribe({
             next: (updatedCleaners) => {
@@ -2503,7 +2516,21 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return maids > 1 ? `${perCleaner} × ${maids} × ${rate}` : `${perCleaner} × ${rate}`;
   }
 
-  /** Calculate estimated total salary for display in modal (shared calculator). */
+  /**
+   * Estimated total salary shown in the assign-cleaners modal.
+   *
+   * Deliberately still a RECOMPUTE, unlike the details panel's getDisplayCleanerTotalSalary
+   * (reviewed 2026-08-31). This is forward-looking: `cleanerHourlySalary` is an editable input in
+   * the modal and is SENT with the assignment, so the figure answers "what will the assignment I
+   * am about to make cost at the rate I am typing". Reading the stored column here would show the
+   * cost of the OLD staffing, which is the opposite of what the admin is asking.
+   *
+   * KNOWN CAVEAT, Phase 2 (docs/phase-2-3-backlog.md): opened on an order that ALREADY has
+   * cleaners, this ignores their per-cleaner rate/hours overrides, and confirming overwrites
+   * Order.CleanerHourlyRate for every line that has no rate of its own. The label says "Est." and
+   * the details panel now shows the real per-cleaner breakdown a few inches away, so it is left
+   * as-is rather than half-fixed.
+   */
   getEstimatedTotalSalary(): number {
     if (!this.selectedOrder) return 0;
     return calculateCleanerTotalSalary(
@@ -2514,30 +2541,137 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
-  /** Display value for the "Cleaners Total Salary" row in the details view.
-   *  ALWAYS computed on-the-fly from current TotalDuration × MaidsCount × HourlyRate so the
-   *  number matches what the user sees for Duration/Cleaners on the page, even when the stored
-   *  cleanerTotalSalary is stale (e.g. an older edit added Extra Minutes without recalculating). */
+  /**
+   * Display value for the "Cleaners Total Salary" row in the details view.
+   *
+   * Reads the STORED figure once anybody is assigned. That column is written by
+   * CleanerPayrollCalculator.ApplyOrderTotalSalary on every event that can move it (assign,
+   * unassign, order edit, per-cleaner rate/hours override, order-rate change) and is what
+   * Statistics and Finances report as labour cost — so it is the only number here that can agree
+   * with the Outgoing Payments page.
+   *
+   * This used to recompute unconditionally from TotalDuration x MaidsCount x rate. That form
+   * cannot see a per-cleaner rate or hours override, which live on OrderCleaner and only the
+   * payroll calculator reads: order #315 had one cleaner edited down to 3h and displayed $200
+   * against a payout sheet of $175 (2026-08-31). The old comment justified it as protection
+   * against a stale stored value, which was true before every write path was routed through the
+   * calculator and is not any more.
+   *
+   * The fallback survives for the pre-assignment case ONLY, where there are no per-cleaner rows
+   * to be wrong about and a legacy order may still carry a stale column. Unknown load state
+   * prefers the stored value: guessing "nobody is assigned" is exactly what produced the wrong
+   * number, and the panel preloads assignments anyway.
+   */
   getDisplayCleanerTotalSalary(): number {
     const order = this.selectedOrder;
     if (!order) return 0;
+
+    if (!this.selectedOrderHasNoCleanersAssigned()) {
+      return Number(order.cleanerTotalSalary) || 0;
+    }
+
     const totalDuration = Number(order.totalDuration) || 0;
-    // Split the way payroll splits it, so this figure agrees with the Duration row above it
-    // and with the Outgoing Payments page. (It still can't see per-cleaner rate/hours
-    // overrides — those live on the payouts page, and the reload after a save corrects it.)
     const maids = this.getSelectedOrderSplitCount();
     const rate = Number(order.cleanerHourlyRate) || 0;
     if (rate <= 0 || maids <= 0 || totalDuration <= 0) return 0;
     return calculateCleanerTotalSalary(totalDuration, maids, order.hasCleanersService, rate);
   }
 
-  /** Recalculate cleaner total salary in edit form when hourly rate changes (shared calculator). */
+  /**
+   * Loads the wage breakdown behind "Cleaners Total Salary".
+   *
+   * Failure is non-fatal and silent: the total above it comes from the order itself, so a failed
+   * breakdown costs the admin the itemisation, not the figure. Nothing here is ever written back.
+   */
+  private loadOrderCleanerPayroll(orderId: number): void {
+    this.selectedOrderPayroll = null;
+    this.loadingOrderPayroll = true;
+    this.adminService.getOrderCleanerPayroll(orderId).subscribe({
+      next: (payroll) => {
+        // A late response for an order the admin has already navigated away from must not paint
+        // over the panel they are now looking at.
+        if (this.viewingOrderId === orderId) this.selectedOrderPayroll = payroll;
+      },
+      error: () => { this.selectedOrderPayroll = null; },
+      complete: () => { this.loadingOrderPayroll = false; }
+    });
+  }
+
+  /** Every line in the breakdown, assigned first then the unstaffed slots, so the rows a reader
+   *  adds up are exactly the rows that make the total. */
+  getOrderPayrollLines(): OrderCleanerPayrollLine[] {
+    const p = this.selectedOrderPayroll;
+    if (!p) return [];
+    return [...p.lines, ...p.unassignedLines];
+  }
+
+  /** Label for one breakdown row. Unstaffed slots have no name to show. */
+  getPayrollLineName(line: OrderCleanerPayrollLine): string {
+    if (line.isUnassignedSlot) return 'Unassigned slot';
+    const name = `${line.firstName ?? ''} ${line.lastName ?? ''}`.trim();
+    return name || `Cleaner #${line.cleanerId}`;
+  }
+
+  /** Hours as the payouts page prints them: already on the rounding increment, never re-rounded. */
+  getPayrollLineHours(line: OrderCleanerPayrollLine): string {
+    return DurationUtils.formatMinutes(Number(line.billableMinutes) || 0);
+  }
+
+  /**
+   * True when the breakdown's derived total disagrees with the column Statistics and Finances
+   * read. It should be impossible — every write path routes through
+   * CleanerPayrollCalculator.ApplyOrderTotalSalary — so it is surfaced rather than hidden: a
+   * mismatch means a row written before that was true, or a write path that escaped it.
+   */
+  payrollDisagreesWithStored(): boolean {
+    const p = this.selectedOrderPayroll;
+    if (!p) return false;
+    return Math.abs(Number(p.totalSalary) - Number(p.storedTotalSalary)) >= 0.01;
+  }
+
+  /**
+   * Is the selected order KNOWN to have nobody assigned? Deliberately phrased in the negative:
+   * an unloaded assignment list must NOT read as "nobody assigned", because that is the state in
+   * which recomputing the salary gives the wrong answer.
+   */
+  selectedOrderHasNoCleanersAssigned(): boolean {
+    const order = this.selectedOrder;
+    if (!order) return true;
+    if (!this.cleanersLoadedSet.has(order.id)) return false; // unknown - assume assigned
+    return (this.assignedCleanersCache.get(order.id)?.length ?? 0) === 0;
+  }
+
+  /** Inverse of the above, for template and guard readability. */
+  selectedOrderHasAssignedCleaners(): boolean {
+    return !!this.selectedOrder && !this.selectedOrderHasNoCleanersAssigned();
+  }
+
+  /**
+   * Recalculate the edit form's cleaner total salary when rate / duration / maids / lines change.
+   *
+   * NO-OP once anybody is assigned, and the guard lives HERE rather than at the five call sites
+   * so a sixth cannot reintroduce the bug. `calculateCleanerTotalSalary` is the MaidsCount x rate
+   * estimate; it cannot see a per-cleaner rate or hours override, so running it on a staffed
+   * order overwrites the real figure with a wrong one and then submits it. The field is read-only
+   * in that state anyway (see the template) and the server refuses the value, so there is nothing
+   * to keep in sync: the stored figure seeded by startEditOrder simply stands.
+   *
+   * Pre-assignment it behaves exactly as before - there are no per-cleaner rows to be wrong
+   * about, and the estimate is the best available answer.
+   */
   recalcCleanerTotalSalary(): void {
+    if (this.selectedOrderHasAssignedCleaners()) return;
     const rate = Number(this.editOrderForm.cleanerHourlyRate) || 0;
     const totalDuration = Number(this.editOrderForm.totalDuration) || 0;
     const maidsCount = Number(this.editOrderForm.maidsCount) || 1;
     const hasCleanersService = this.selectedOrder?.hasCleanersService ?? false;
     this.editOrderForm.cleanerTotalSalary = calculateCleanerTotalSalary(totalDuration, maidsCount, hasCleanersService, rate);
+  }
+
+  /** The Cleaners Total Salary input is editable only while nobody is assigned. Once cleaners
+   *  exist the per-cleaner rows own the figure and the server discards whatever is submitted. */
+  canEditCleanerTotalSalary(): boolean {
+    return !this.selectedOrderHasAssignedCleaners();
   }
 
   // Method to force refresh all assigned cleaners (for debugging)
@@ -5398,7 +5532,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       // LoyaltyDiscountPercentage untouched per SuperAdminFullUpdateOrder comment.
       loyaltyDiscountAmount: this.editOrderForm.loyaltyDiscountAmount ?? undefined,
       cleanerHourlyRate: this.editOrderForm.cleanerHourlyRate ?? undefined,
-      cleanerTotalSalary: this.editOrderForm.cleanerTotalSalary ?? undefined,
+      // Omitted entirely once cleaners are assigned: the per-cleaner rows own the figure and the
+      // server refuses a submitted one (OrderService.SuperAdminFullUpdateOrder). Sending it
+      // anyway put a "Cleaners Total Salary" row in the save-confirmation modal describing a
+      // change that was never going to happen - undefined means "not part of this edit", which is
+      // exactly right here and is what computeOrderEditChanges already skips on.
+      cleanerTotalSalary: this.canEditCleanerTotalSalary()
+        ? (this.editOrderForm.cleanerTotalSalary ?? undefined)
+        : undefined,
       // Only meaningful for custom orders; backend ignores it for other service types.
       // Send '' (not undefined) when cleared so the backend can reset it to "Arranged".
       customServiceDisplayName: this.selectedOrderIsCustomServiceType
@@ -5502,6 +5643,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private refreshOrderAfterSave(): void {
     if (!this.selectedOrder) return;
+    // The salary can move on any save (services, duration, maids, rate), so the breakdown is
+    // refetched with the order rather than left showing the pre-save split.
+    if (this.isSuperAdmin) this.loadOrderCleanerPayroll(this.selectedOrder.id);
     this.adminService.getOrderDetails(this.selectedOrder.id).subscribe({
       next: (o) => {
         this.selectedOrder = o;

@@ -706,7 +706,21 @@
                         <div class="edit-row"><label>Status</label><select [(ngModel)]="editOrderForm.status"><option value="Pending">Pending</option><option value="Active">Active</option><option value="Done">Done</option><option value="Cancelled">Cancelled</option></select></div>
                         <div class="edit-row"><label>Cancellation Reason</label><input [(ngModel)]="editOrderForm.cancellationReason" placeholder="If status=Cancelled"></div>
                         <div class="edit-row"><label>Cleaner $/hr</label><input type="number" step="0.5" [(ngModel)]="editOrderForm.cleanerHourlyRate" (ngModelChange)="recalcCleanerTotalSalary()"></div>
-                        <div class="edit-row" *ngIf="isSuperAdmin"><label>Cleaners Total Salary</label><input type="number" step="1" [(ngModel)]="editOrderForm.cleanerTotalSalary"></div>
+                        <!-- Editable only while nobody is assigned. Once cleaners exist the
+                             per-cleaner rows on Outgoing Payments own this figure and the server
+                             discards a submitted one, so an editable box here was a control that
+                             silently did nothing. -->
+                        <div class="edit-row" *ngIf="isSuperAdmin">
+                          <label>Cleaners Total Salary</label>
+                          <input type="number" step="1"
+                                 [(ngModel)]="editOrderForm.cleanerTotalSalary"
+                                 [readonly]="!canEditCleanerTotalSalary()"
+                                 [class.readonly]="!canEditCleanerTotalSalary()">
+                        </div>
+                        <div class="edit-row edit-row--hint" *ngIf="isSuperAdmin && !canEditCleanerTotalSalary()">
+                          <label></label>
+                          <span class="edit-hint">Set on Outgoing Payments — per-cleaner rates and hours are the source of truth.</span>
+                        </div>
                       </div>
                     <div class="edit-group edit-group--services" *ngIf="editOrderForm.services && editOrderForm.services.length > 0">
                       <h6>Services (Qty, Hours, Duration, Cost)</h6>
@@ -930,6 +944,44 @@
                       </p>
                       <p><strong>Cleaner Hourly Rate:</strong> ${{selectedOrder.cleanerHourlyRate.toFixed(2)}}/hr</p>
                       <p *ngIf="isSuperAdmin"><strong>Cleaners Total Salary:</strong> ${{getDisplayCleanerTotalSalary().toFixed(2)}}</p>
+
+                      <!-- The wages behind that total, itemised. Both screens derive from
+                           CleanerPayrollCalculator, so this panel and Outgoing Payments cannot
+                           quote different numbers for the same job without it being visible here.
+                           Unstaffed slots are listed because they are counted in the total -
+                           leaving them out would make the rows fail to add up. Labels stay put
+                           while the values shimmer (project convention). -->
+                      <div class="cleaner-payroll" *ngIf="isSuperAdmin">
+                        <div class="cleaner-payroll-loading" *ngIf="loadingOrderPayroll && !selectedOrderPayroll">
+                          <span class="shimmer-loading">Loading breakdown…</span>
+                        </div>
+
+                        <ng-container *ngIf="selectedOrderPayroll as payroll">
+                          <div class="cleaner-payroll-row" *ngFor="let line of getOrderPayrollLines()"
+                               [class.unassigned]="line.isUnassignedSlot">
+                            <span class="cp-name">{{ getPayrollLineName(line) }}</span>
+                            <span class="cp-hours">{{ getPayrollLineHours(line) }}</span>
+                            <span class="cp-rate">${{ line.hourlyRate.toFixed(2) }}/hr</span>
+                            <span class="cp-salary">${{ line.salary.toFixed(2) }}</span>
+                            <span class="cp-pill cp-pill--rate" *ngIf="line.rateOverridden">OWN RATE</span>
+                            <span class="cp-pill cp-pill--hours" *ngIf="line.hoursOverridden">EDITED</span>
+                          </div>
+
+                          <p class="cleaner-payroll-empty" *ngIf="getOrderPayrollLines().length === 0">
+                            No cleaners assigned yet — the figure above is an estimate from the
+                            cleaner count and hourly rate.
+                          </p>
+
+                          <!-- Should be impossible: every write path routes through
+                               ApplyOrderTotalSalary. Surfaced rather than hidden because a
+                               mismatch means Statistics and Finances are reporting a stale cost. -->
+                          <p class="cleaner-payroll-warning" *ngIf="payrollDisagreesWithStored()">
+                            ⚠ The stored total (${{ payroll.storedTotalSalary.toFixed(2) }}) does not
+                            match these lines (${{ payroll.totalSalary.toFixed(2) }}). Open this order
+                            on Outgoing Payments to re-save it.
+                          </p>
+                        </ng-container>
+                      </div>
                     </div>
                     
                     <!-- Address -->

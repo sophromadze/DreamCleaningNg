@@ -4667,6 +4667,107 @@ $order-header-mobile: 60px;
   font-weight: var(--fw-semibold);
 }
 
+// ── Cleaner wage breakdown under "Cleaners Total Salary" (order detail panel, SuperAdmin) ──
+// Supporting detail for the figure above it, so it reads quieter than the surrounding <p> rows.
+// The two pills mirror the Outgoing Payments markers exactly - an admin comparing the screens
+// must not have to work out that "OWN RATE" here and there mean the same thing.
+.cleaner-payroll {
+  margin: 0.35rem 0 0;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--border-color);
+}
+
+.cleaner-payroll-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+
+  .cp-name {
+    min-width: 8rem;
+    font-weight: var(--fw-medium);
+    color: var(--text-primary);
+  }
+
+  .cp-hours,
+  .cp-rate {
+    color: var(--text-muted);
+  }
+
+  .cp-salary {
+    margin-left: auto;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+
+  // An unstaffed slot is a real cost with nobody behind it. Muted, never red: it is normal
+  // paperwork-pending state, not an error.
+  &.unassigned .cp-name {
+    font-style: italic;
+    color: var(--text-muted);
+  }
+}
+
+.cp-pill {
+  padding: 0.05rem 0.4rem;
+  font-size: 0.7rem;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.02em;
+  border-radius: var(--radius-pill);
+  white-space: nowrap;
+}
+
+.cp-pill--rate {
+  color: var(--primary-color);
+  background: var(--soft-blue);
+}
+
+.cp-pill--hours {
+  color: var(--soft-yellow-text);
+  background: var(--soft-yellow);
+}
+
+.cleaner-payroll-empty {
+  margin: 0.15rem 0 0;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
+.cleaner-payroll-loading {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+// Reported labour cost disagreeing with the lines that make it up is a real problem, so this
+// one does get the caution treatment.
+.cleaner-payroll-warning {
+  margin: 0.35rem 0 0;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.82rem;
+  color: var(--warning-orange-text);
+  background: var(--warning-orange-bg);
+  border: 1px solid var(--warning-orange-border);
+  border-radius: var(--radius-sm);
+}
+
+// The Cleaners Total Salary box once cleaners are assigned: still readable, visibly not yours
+// to type in, with the reason on the line below.
+.edit-row input.readonly {
+  background: var(--surface-elevated);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.edit-row--hint .edit-hint {
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
 // ── SuperAdmin refunds (order detail panel section + modal) ──
 // Danger-tinted throughout: every control here moves real money back to the customer
 // and cannot be undone.
@@ -5050,5 +5151,26 @@ tr.row-hidden-order {
       &:hover:not(:disabled) { background: var(--soft-blue); }
       &:disabled { opacity: 0.5; cursor: not-allowed; }
     }
+  }
+}
+
+// Dark mode: the cleaner-payroll <p> rows have to re-assert their colour. The generic
+// `.detail-section { ... p { color: var(--text-secondary) !important; } }` block above wins on
+// specificity (0,1,1) over a bare class, so these are qualified with .detail-section to reach
+// (0,2,0) — the same arrangement the refunds and pricing-column overrides use. Without it the
+// mismatch warning would lose its orange and read as an ordinary line of detail.
+:host-context([data-theme="dark"]) .detail-section {
+  .cleaner-payroll {
+    border-left-color: var(--border-color);
+  }
+
+  .cleaner-payroll-empty {
+    color: var(--text-muted) !important;
+  }
+
+  .cleaner-payroll-warning {
+    color: var(--warning-orange-text) !important;
+    background: var(--warning-orange-bg);
+    border-color: var(--warning-orange-border);
   }
 }

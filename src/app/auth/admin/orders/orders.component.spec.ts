@@ -924,8 +924,11 @@ describe('OrdersComponent', () => {
   describe('per-cleaner duration', () => {
     const selectOrder = (over: any = {}) => {
       component.selectedOrder = {
+        // cleanerTotalSalary carries what the server would have stored for this shape
+        // (720 min / 2 cleaners x $21 = $252), because the panel now READS that column rather
+        // than recomputing it - see the "cleaners total salary" block below.
         id: 900, totalDuration: 710, maidsCount: 2, cleanerHourlyRate: 21,
-        hasCleanersService: false, ...over
+        cleanerTotalSalary: 252, hasCleanersService: false, ...over
       } as any;
     };
 
@@ -942,6 +945,8 @@ describe('OrdersComponent', () => {
       // 710 min renders as "12h"; the share must be the half of THAT an admin can check.
       expect(component.formatDuration(710)).toBe('12h');
       expect(component.getSelectedOrderDurationText()).toBe('12h total · 6h per cleaner');
+      // The salary agrees with the label because the stored column was written from the same
+      // split. It is read, not recomputed - the recompute is what could not see an override.
       expect(component.getDisplayCleanerTotalSalary()).toBe(252);
     });
 
@@ -987,6 +992,148 @@ describe('OrdersComponent', () => {
       // Typing 2 into Maids does not un-assign the third cleaner, and payroll still pays
       // three ways — so the hint must not promise 6h each.
       expect(component.getEditDurationHintText()).toBe('12h total · 4h per cleaner');
+    });
+  });
+
+  /**
+   * "Cleaners Total Salary" on the admin Orders panel.
+   *
+   * The panel used to RECOMPUTE this from TotalDuration x MaidsCount x the order's single rate.
+   * That form cannot see a per-cleaner rate or hours override — those live on OrderCleaner and
+   * only CleanerPayrollCalculator reads them — so order #315, whose second cleaner was edited
+   * down to 3h, showed $200 here against a $175 payout sheet (2026-08-31). The stored column is
+   * now the source of truth once anybody is assigned, and the breakdown underneath makes the
+   * arithmetic checkable without opening the other screen.
+   */
+  describe('cleaners total salary', () => {
+    const selectOrder = (over: any = {}) => {
+      component.selectedOrder = {
+        id: 315, totalDuration: 480, maidsCount: 2, cleanerHourlyRate: 25,
+        cleanerTotalSalary: 175, hasCleanersService: false, ...over
+      } as any;
+      component.viewingOrderId = component.selectedOrder!.id;
+    };
+
+    const assign = (orderId: number, count: number) => {
+      component.assignedCleanersCache.set(
+        orderId, Array.from({ length: count }, (_, i) => ({ cleanerId: i + 1 })) as any);
+      component.cleanersLoadedSet.add(orderId);
+    };
+
+    const line = (over: any = {}) => ({
+      cleanerId: 1, firstName: 'Maia', lastName: 'Niauri', isUnassignedSlot: false,
+      billableMinutes: 240, hoursOverridden: false, hourlyRate: 25, rateOverridden: false,
+      salary: 100, ...over
+    });
+
+    it('reads the stored figure once cleaners are assigned, not the MaidsCount estimate', () => {
+      selectOrder();
+      assign(315, 2);
+
+      // The estimate for this shape is 480/2 = 4h each x 2 x $25 = $200 — which is exactly the
+      // wrong answer order #315 displayed. The stored column knows about the 3h override.
+      expect(component.getDisplayCleanerTotalSalary()).toBe(175);
+    });
+
+    it('falls back to the estimate only when the assignment list is known to be empty', () => {
+      selectOrder({ cleanerTotalSalary: 0 });
+      component.assignedCleanersCache.set(315, [] as any);
+      component.cleanersLoadedSet.add(315);
+
+      // Nobody assigned: no per-cleaner rows exist to be wrong about, so the pre-assignment
+      // estimate is the best answer available.
+      expect(component.getDisplayCleanerTotalSalary()).toBe(200);
+    });
+
+    it('prefers the stored figure while the assignment list is still unknown', () => {
+      selectOrder();
+      // Nothing in cleanersLoadedSet. Guessing "nobody assigned" here is precisely what
+      // produced the wrong number, so unknown must not take the estimate branch.
+      expect(component.getDisplayCleanerTotalSalary()).toBe(175);
+    });
+
+    it('does not overwrite the stored figure when the edit form is recalculated', () => {
+      selectOrder();
+      assign(315, 2);
+      component.editOrderForm = {
+        totalDuration: 480, maidsCount: 2, cleanerHourlyRate: 25, cleanerTotalSalary: 175
+      } as any;
+
+      component.recalcCleanerTotalSalary();
+
+      expect(component.editOrderForm.cleanerTotalSalary).toBe(175);
+      expect(component.canEditCleanerTotalSalary()).toBe(false);
+    });
+
+    it('still recalculates the estimate before anybody is assigned', () => {
+      selectOrder({ cleanerTotalSalary: 0 });
+      component.assignedCleanersCache.set(315, [] as any);
+      component.cleanersLoadedSet.add(315);
+      component.editOrderForm = {
+        totalDuration: 480, maidsCount: 2, cleanerHourlyRate: 25, cleanerTotalSalary: 0
+      } as any;
+
+      component.recalcCleanerTotalSalary();
+
+      expect(component.editOrderForm.cleanerTotalSalary).toBe(200);
+      expect(component.canEditCleanerTotalSalary()).toBe(true);
+    });
+
+    it('omits cleanerTotalSalary from the save DTO once cleaners are assigned', () => {
+      selectOrder();
+      assign(315, 2);
+      component.editOrderForm = {
+        ...(component.editOrderForm as any), cleanerTotalSalary: 175, cleanerHourlyRate: 25
+      } as any;
+
+      const dto = (component as any).buildOrderEditDto();
+
+      // The server refuses it in this state, so sending it only put a change row in the
+      // confirmation modal describing something that was never going to happen.
+      expect(dto.cleanerTotalSalary).toBeUndefined();
+      expect(dto.cleanerHourlyRate).toBe(25);
+    });
+
+    it('sends cleanerTotalSalary while the order is still unstaffed', () => {
+      selectOrder({ cleanerTotalSalary: 0 });
+      component.assignedCleanersCache.set(315, [] as any);
+      component.cleanersLoadedSet.add(315);
+      component.editOrderForm = {
+        ...(component.editOrderForm as any), cleanerTotalSalary: 200, cleanerHourlyRate: 25
+      } as any;
+
+      expect((component as any).buildOrderEditDto().cleanerTotalSalary).toBe(200);
+    });
+
+    it('lists the unstaffed slots so the breakdown adds up to the total', () => {
+      selectOrder();
+      component.selectedOrderPayroll = {
+        orderId: 315, totalSalary: 275, storedTotalSalary: 275, splitCount: 3, assignedCount: 2,
+        automaticMinutesPerCleaner: 240, orderHourlyRate: 25,
+        lines: [line(), line({ cleanerId: 2, firstName: 'Marekh', billableMinutes: 180, hoursOverridden: true, rateOverridden: true, salary: 75 })],
+        unassignedLines: [line({ cleanerId: 0, firstName: '', lastName: '', isUnassignedSlot: true, salary: 100 })]
+      } as any;
+
+      const rows = component.getOrderPayrollLines();
+      expect(rows.length).toBe(3);
+      expect(rows.reduce((sum, r) => sum + r.salary, 0)).toBe(275);
+      expect(component.getPayrollLineName(rows[2])).toBe('Unassigned slot');
+      expect(component.getPayrollLineHours(rows[1])).toBe('3h');
+      expect(rows[1].hoursOverridden).toBe(true);
+      expect(rows[1].rateOverridden).toBe(true);
+    });
+
+    it('flags a breakdown that disagrees with the column Statistics reads', () => {
+      selectOrder();
+      component.selectedOrderPayroll = {
+        orderId: 315, totalSalary: 175, storedTotalSalary: 200, splitCount: 2, assignedCount: 2,
+        automaticMinutesPerCleaner: 240, orderHourlyRate: 25, lines: [], unassignedLines: []
+      } as any;
+
+      expect(component.payrollDisagreesWithStored()).toBe(true);
+
+      component.selectedOrderPayroll!.storedTotalSalary = 175;
+      expect(component.payrollDisagreesWithStored()).toBe(false);
     });
   });
 });

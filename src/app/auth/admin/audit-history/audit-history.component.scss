@@ -733,6 +733,19 @@
 }
 
 // Close Details Button
+// Shown when no detail block in the expansion row would render. Deliberately quiet - this is an
+// explanation, not a warning: a save that changed nothing is unusual but not an error.
+.log-details-empty {
+  padding: 4px 0;
+
+  p {
+    margin: 0 0 4px;
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.875rem;
+  }
+}
+
 .close-details-btn {
   display: block;
   margin: 15px auto 0;

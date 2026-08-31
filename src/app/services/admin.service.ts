@@ -586,6 +586,42 @@ export interface SuperAdminUpdateOrderDto {
   extraServices?: { orderExtraServiceId: number; extraServiceId?: number; quantity: number; hours: number; cost: number }[] | null;
 }
 
+/** One cleaner's (or one unstaffed slot's) WAGES on an order. Tips are excluded — they are the
+ *  customer's money passing through and are never part of reported labour cost. */
+export interface OrderCleanerPayrollLine {
+  cleanerId: number;
+  firstName: string;
+  lastName: string;
+  /** True for a staffing slot with nobody assigned; the name fields are then empty. */
+  isUnassignedSlot: boolean;
+  billableMinutes: number;
+  /** An admin set these hours by hand on Outgoing Payments — rendered as "EDITED". */
+  hoursOverridden: boolean;
+  hourlyRate: number;
+  /** An admin set this rate by hand on Outgoing Payments — rendered as "OWN RATE". */
+  rateOverridden: boolean;
+  salary: number;
+}
+
+/**
+ * The breakdown behind an order's "Cleaners Total Salary". `totalSalary` is derived from the
+ * per-cleaner rows by the shared CleanerPayrollCalculator; `storedTotalSalary` is what
+ * Order.CleanerTotalSalary actually holds, which Statistics and Finances read. They should always
+ * match — a difference means a stale row and is surfaced rather than hidden.
+ */
+export interface OrderCleanerPayroll {
+  orderId: number;
+  totalSalary: number;
+  storedTotalSalary: number;
+  splitCount: number;
+  assignedCount: number;
+  automaticMinutesPerCleaner: number;
+  orderHourlyRate: number;
+  lines: OrderCleanerPayrollLine[];
+  /** Counted inside totalSalary — somebody worked those hours, they are just not on file. */
+  unassignedLines: OrderCleanerPayrollLine[];
+}
+
 /** Pending order edit list item (admin-submitted, awaiting SuperAdmin approval). */
 export interface PendingOrderEditListDto {
   id: number;
@@ -1566,6 +1602,15 @@ export class AdminService {
 
   getAssignedCleanersWithIds(orderId: number): Observable<AssignedCleanerAdmin[]> {
     return this.http.get<AssignedCleanerAdmin[]>(`${this.apiUrl}/orders/${orderId}/assigned-cleaners-with-ids`);
+  }
+
+  /**
+   * The cleaner-wage breakdown behind an order's "Cleaners Total Salary" — the same figures the
+   * Outgoing Payments page pays, itemised. SuperAdmin only; do not call it for other roles, the
+   * endpoint will 403.
+   */
+  getOrderCleanerPayroll(orderId: number): Observable<OrderCleanerPayroll> {
+    return this.http.get<OrderCleanerPayroll>(`${this.apiUrl}/orders/${orderId}/cleaner-payroll`);
   }
 
   /** Returns assigned cleaners for ALL orders in one request, keyed by orderId (string). */
