@@ -210,7 +210,7 @@
           <tr>
             <th>Month</th>
             <th>USD per 1 GEL</th>
-            <th>Bonus / order</th>
+            <th title="Staff bonuses owed for the month, at today's rates">Staff bonuses</th>
             <th>Source</th>
             <th *ngIf="canEdit"></th>
           </tr>
@@ -223,8 +223,8 @@
                      [(ngModel)]="r.editValue" [disabled]="r.saving || !canEdit" class="rate-input" />
             </td>
             <td class="rate-bonus">
-              {{ r.adminBonusRatePerOrderGel | number:'1.0-2' }} GEL
-              <span class="rate-bonus-usd">≈ {{ bonusRateUsd(r) | currency:'USD' }}</span>
+              {{ r.adminBonusTotalGel | number:'1.0-2' }} GEL
+              <span class="rate-bonus-usd">≈ {{ bonusTotalUsd(r) | currency:'USD' }}</span>
             </td>
             <td>
               <span class="rate-source" [class.manual]="r.fxSource === 'manual'"

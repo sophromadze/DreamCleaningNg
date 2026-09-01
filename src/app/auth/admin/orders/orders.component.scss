@@ -2558,6 +2558,14 @@
     .edit-row { display: flex; flex-direction: column; gap: 0.2rem; margin-bottom: 0.5rem;
       label { font-size: 0.75rem; color: #6c757d; }
       input, select, textarea { padding: 0.3rem 0.5rem; border: 1px solid #ced4da; border-radius: 4px; }
+      // Service time picker: hour / minute / AM-PM side by side.
+      .time-parts {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        select { padding: 0.3rem 0.4rem; }
+        .time-parts-sep { color: var(--text-secondary); font-weight: 600; }
+      }
       &.edit-row--readonly-discount {
         label { color: #e67e22; }
         input[readonly] { background: transparent; border-color: transparent; color: #e67e22; font-weight: 600; padding-left: 0; }

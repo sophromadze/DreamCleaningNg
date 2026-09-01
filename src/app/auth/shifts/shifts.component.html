@@ -120,47 +120,92 @@
   </div>
 
   <!-- ═══════════════════════════════════════ -->
-  <!--  Admin bonuses (current visible month)  -->
+  <!--  Staff bonuses (current visible month)  -->
   <!-- ═══════════════════════════════════════ -->
   <div class="bonus-panel" *ngIf="!multiSelectMode">
     <div class="bonus-header">
       <div class="bonus-title-group">
         <h2>
           <i class="fas fa-coins"></i>
-          {{ isSuperAdmin ? 'Admin Bonuses' : 'My Bonus' }}
+          {{ isSuperAdmin ? 'Staff Bonuses' : 'My Bonus' }}
         </h2>
         <span class="bonus-month-label">{{ getBonusMonthLabel() }}</span>
       </div>
 
-      <!-- Rate display + SuperAdmin inline editor -->
-      <div class="bonus-rate-row" *ngIf="bonusRate">
-        <ng-container *ngIf="!isEditingRate">
-          <span class="bonus-rate-label">Rate:</span>
-          <span class="bonus-rate-value">{{ bonusRate.ratePerOrder }} {{ bonusRate.currency }} / order</span>
+      <!-- Company defaults — the whole pay table, so SuperAdmin only. A manager or administrator
+           sees their OWN rates on their own row below, and nobody else's; the endpoint enforces
+           the same thing, because a hidden block is not access control. -->
+      <div class="bonus-rate-row" *ngIf="isSuperAdmin && bonusRates">
+        <ng-container *ngIf="!isEditingRates">
+          <span class="bonus-rate-label">Default rates:</span>
+          <span class="bonus-rate-group">
+            <span class="bonus-rate-pos">Administrator books</span>
+            <span class="bonus-rate-value">
+              {{ bonusRates.administratorNewCustomerRate }} new / {{ bonusRates.administratorExistingCustomerRate }} returning
+            </span>
+          </span>
+          <span class="bonus-rate-group">
+            <span class="bonus-rate-pos">Manager books</span>
+            <span class="bonus-rate-value">
+              {{ bonusRates.managerOwnBookingNewCustomerRate }} new / {{ bonusRates.managerOwnBookingExistingCustomerRate }} returning
+            </span>
+          </span>
+          <span class="bonus-rate-group">
+            <span class="bonus-rate-pos">Manager's team share</span>
+            <span class="bonus-rate-value">
+              {{ bonusRates.managerTeamNewCustomerRate }} new / {{ bonusRates.managerTeamExistingCustomerRate }} returning
+            </span>
+          </span>
+          <span class="bonus-rate-currency">{{ bonusRates.currency }}</span>
           <button *ngIf="isSuperAdmin"
                   type="button"
                   class="bonus-rate-edit-btn"
-                  (click)="startEditingRate()"
-                  title="Edit rate">
+                  (click)="startEditingRates()"
+                  title="Edit default rates">
             <i class="fas fa-pen"></i>
           </button>
         </ng-container>
 
-        <ng-container *ngIf="isEditingRate">
-          <span class="bonus-rate-label">Rate:</span>
-          <input type="number"
-                 class="bonus-rate-input"
-                 [(ngModel)]="rateEditValue"
-                 min="0"
-                 step="0.5"
-                 [disabled]="isSavingRate">
-          <span class="bonus-rate-currency">{{ bonusRate.currency }}</span>
-          <button type="button" class="btn btn-primary btn-sm" (click)="saveRate()" [disabled]="isSavingRate">
-            <i class="fas fa-check"></i> Save
-          </button>
-          <button type="button" class="btn btn-secondary btn-cancel btn-sm" (click)="cancelEditingRate()" [disabled]="isSavingRate">
-            <i class="fas fa-times"></i> Cancel
-          </button>
+        <ng-container *ngIf="isEditingRates">
+          <div class="bonus-rate-editor">
+            <div class="bonus-rate-editor-grid">
+              <span class="bonus-rate-editor-head"></span>
+              <span class="bonus-rate-editor-head">New customer</span>
+              <span class="bonus-rate-editor-head">Returning</span>
+
+              <span class="bonus-rate-editor-label">An administrator books the order</span>
+              <input type="number" class="bonus-rate-input" min="0" step="0.5"
+                     [(ngModel)]="rateEdit.administratorNewCustomerRate" [disabled]="isSavingRates">
+              <input type="number" class="bonus-rate-input" min="0" step="0.5"
+                     [(ngModel)]="rateEdit.administratorExistingCustomerRate" [disabled]="isSavingRates">
+
+              <span class="bonus-rate-editor-label">A manager books it themselves</span>
+              <input type="number" class="bonus-rate-input" min="0" step="0.5"
+                     [(ngModel)]="rateEdit.managerOwnBookingNewCustomerRate" [disabled]="isSavingRates">
+              <input type="number" class="bonus-rate-input" min="0" step="0.5"
+                     [(ngModel)]="rateEdit.managerOwnBookingExistingCustomerRate" [disabled]="isSavingRates">
+
+              <span class="bonus-rate-editor-label">A manager's share of their team's booking</span>
+              <input type="number" class="bonus-rate-input" min="0" step="0.5"
+                     [(ngModel)]="rateEdit.managerTeamNewCustomerRate" [disabled]="isSavingRates">
+              <input type="number" class="bonus-rate-input" min="0" step="0.5"
+                     [(ngModel)]="rateEdit.managerTeamExistingCustomerRate" [disabled]="isSavingRates">
+            </div>
+            <p class="bonus-rate-hint">
+              In {{ bonusRates.currency }}, per order. The three rows are independent — a manager
+              booking an order themselves is its own figure, not the other two added together.
+              Changing a default restates every month, including ones already gone by; anyone on
+              their own rate is left alone.
+            </p>
+            <div class="bonus-rate-editor-actions">
+              <button type="button" class="btn btn-primary btn-sm" (click)="saveRates()" [disabled]="isSavingRates">
+                <i class="fas fa-check"></i> Save
+              </button>
+              <button type="button" class="btn btn-secondary btn-cancel btn-sm" (click)="cancelEditingRates()" [disabled]="isSavingRates">
+                <i class="fas fa-times"></i> Cancel
+              </button>
+            </div>
+          </div>
         </ng-container>
       </div>
     </div>
@@ -175,29 +220,138 @@
 
     <div class="bonus-table" *ngIf="!isLoadingBonuses && bonuses.length > 0">
       <div class="bonus-row bonus-row-header">
-        <div class="bonus-cell bonus-cell-admin">Admin</div>
-        <div class="bonus-cell bonus-cell-count" title="Done & paid orders assigned to this admin in the selected month">
-          Eligible orders
+        <div class="bonus-cell bonus-cell-admin">Staff</div>
+        <div class="bonus-cell bonus-cell-count" title="Done & paid orders this person earns on in the selected month">
+          Paying orders
         </div>
-        <div class="bonus-cell bonus-cell-rate">Rate</div>
+        <div class="bonus-cell bonus-cell-rate"
+             title="New customer / returning customer. A manager has two rows: what they earn for booking an order themselves, and their share of a booking their team took.">
+          Rate (new / returning)
+        </div>
         <div class="bonus-cell bonus-cell-total">Bonus</div>
       </div>
-      <div *ngFor="let b of bonuses" class="bonus-row" [class.is-me]="b.adminId === currentUserId">
-        <div class="bonus-cell bonus-cell-admin">
-          <span class="bonus-admin-dot" [style.background-color]="b.shiftColor || '#94a3b8'"></span>
-          <span class="bonus-admin-name">{{ b.firstName }} {{ b.lastName }}</span>
-          <span *ngIf="b.adminId === currentUserId" class="bonus-me-tag">You</span>
+
+      <ng-container *ngFor="let b of bonuses">
+        <div class="bonus-row" [class.is-me]="b.adminId === currentUserId" [class.is-manager]="isManager(b)">
+          <div class="bonus-cell bonus-cell-admin">
+            <span class="bonus-admin-dot" [style.background-color]="b.shiftColor || '#94a3b8'"></span>
+            <span class="bonus-admin-name">{{ b.firstName }} {{ b.lastName }}</span>
+            <span *ngIf="b.adminId === currentUserId" class="bonus-me-tag">You</span>
+            <span class="bonus-position-chip" [class.manager]="isManager(b)">
+              {{ isManager(b) ? 'Manager' : 'Administrator' }}
+            </span>
+            <!-- Who they earn alongside: a manager's team size, an administrator's manager. -->
+            <span class="bonus-admin-sub" *ngIf="isManager(b) && b.teamSize > 0">
+              {{ b.teamSize }} administrator{{ b.teamSize === 1 ? '' : 's' }}
+            </span>
+            <span class="bonus-admin-sub" *ngIf="!isManager(b) && b.managerName">
+              reports to {{ b.managerName }}
+            </span>
+            <span class="bonus-admin-sub muted" *ngIf="!isManager(b) && !b.managerName">
+              no manager
+            </span>
+          </div>
+
+          <div class="bonus-cell bonus-cell-count">
+            {{ b.eligibleCount }}
+            <span class="bonus-count-split" *ngIf="b.eligibleCount > 0">
+              {{ newCount(b) }} new · {{ existingCount(b) }} returning
+            </span>
+            <!-- Only shown when the person genuinely earned on both sides; on a plain
+                 administrator or a manager who took no bookings it would be noise. -->
+            <span class="bonus-count-split" *ngIf="hasBothSides(b)">
+              {{ ownCount(b) }} own · {{ teamCount(b) }} team
+            </span>
+            <span class="bonus-assigned-hint" *ngIf="b.assignedCount !== b.eligibleCount"
+                  title="Orders they hold in this month vs. the ones that pay out">
+              ({{ b.assignedCount }} assigned)
+            </span>
+          </div>
+
+          <div class="bonus-cell bonus-cell-rate">
+            <ng-container *ngIf="editingOverrideAdminId !== b.adminId">
+              <!-- Two slots pay different rates, so a manager's row shows both. An administrator
+                   only ever books, so a team line would be a rate they can never earn. -->
+              <span class="bonus-rate-line">
+                <!-- The slot label only earns its place when a second line follows it. -->
+                <span class="bonus-rate-slot" *ngIf="showsTeamRate(b)">books</span>
+                <span class="bonus-rate-pair">
+                  <span [class.own-rate]="b.ownNewCustomerRateIsCustom">{{ b.ownNewCustomerRate }}</span>
+                  <span class="bonus-rate-sep">/</span>
+                  <span [class.own-rate]="b.ownExistingCustomerRateIsCustom">{{ b.ownExistingCustomerRate }}</span>
+                  <span class="bonus-rate-currency">{{ b.currency }}</span>
+                </span>
+              </span>
+              <span class="bonus-rate-line" *ngIf="showsTeamRate(b)">
+                <span class="bonus-rate-slot">team</span>
+                <span class="bonus-rate-pair">
+                  <span [class.own-rate]="b.teamNewCustomerRateIsCustom">{{ b.teamNewCustomerRate }}</span>
+                  <span class="bonus-rate-sep">/</span>
+                  <span [class.own-rate]="b.teamExistingCustomerRateIsCustom">{{ b.teamExistingCustomerRate }}</span>
+                  <span class="bonus-rate-currency">{{ b.currency }}</span>
+                </span>
+              </span>
+              <span class="own-rate-pill"
+                    *ngIf="hasCustomRate(b)"
+                    title="Set for this person, not the company default">own rate</span>
+              <button *ngIf="isSuperAdmin"
+                      type="button"
+                      class="bonus-rate-edit-btn"
+                      (click)="startEditingOverride(b)"
+                      title="Set this person's rates">
+                <i class="fas fa-pen"></i>
+              </button>
+            </ng-container>
+
+            <ng-container *ngIf="editingOverrideAdminId === b.adminId">
+              <div class="bonus-override-editor">
+                <span class="bonus-override-line">
+                  <span class="bonus-rate-slot">{{ showsTeamRate(b) ? 'books' : 'rate' }}</span>
+                  <input type="number" class="bonus-rate-input" min="0" step="0.5"
+                         [(ngModel)]="overrideEdit.ownBookingNewCustomerRate"
+                         [disabled]="isSavingOverride"
+                         placeholder="default"
+                         title="Orders they book themselves, new customer. Blank follows the company default.">
+                  <span class="bonus-rate-sep">/</span>
+                  <input type="number" class="bonus-rate-input" min="0" step="0.5"
+                         [(ngModel)]="overrideEdit.ownBookingExistingCustomerRate"
+                         [disabled]="isSavingOverride"
+                         placeholder="default"
+                         title="Orders they book themselves, returning customer. Blank follows the company default.">
+                </span>
+                <span class="bonus-override-line" *ngIf="showsTeamRate(b)">
+                  <span class="bonus-rate-slot">team</span>
+                  <input type="number" class="bonus-rate-input" min="0" step="0.5"
+                         [(ngModel)]="overrideEdit.teamBookingNewCustomerRate"
+                         [disabled]="isSavingOverride"
+                         placeholder="default"
+                         title="Share of a team booking, new customer. Blank follows the company default.">
+                  <span class="bonus-rate-sep">/</span>
+                  <input type="number" class="bonus-rate-input" min="0" step="0.5"
+                         [(ngModel)]="overrideEdit.teamBookingExistingCustomerRate"
+                         [disabled]="isSavingOverride"
+                         placeholder="default"
+                         title="Share of a team booking, returning customer. Blank follows the company default.">
+                </span>
+                <span class="bonus-override-actions">
+                  <button type="button" class="btn btn-primary btn-sm" (click)="saveOverride(b)" [disabled]="isSavingOverride">
+                    <i class="fas fa-check"></i>
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-cancel btn-sm" (click)="cancelEditingOverride()" [disabled]="isSavingOverride">
+                    <i class="fas fa-times"></i>
+                  </button>
+                  <button type="button" class="bonus-clear-btn" (click)="clearOverride(b)" [disabled]="isSavingOverride"
+                          title="Follow the company default again">
+                    Use default
+                  </button>
+                </span>
+              </div>
+            </ng-container>
+          </div>
+
+          <div class="bonus-cell bonus-cell-total">{{ b.bonusAmount }} {{ b.currency }}</div>
         </div>
-        <div class="bonus-cell bonus-cell-count">
-          {{ b.eligibleCount }}
-          <span class="bonus-assigned-hint" *ngIf="b.assignedCount !== b.eligibleCount"
-                title="Total assigned vs. eligible">
-            ({{ b.assignedCount }} assigned)
-          </span>
-        </div>
-        <div class="bonus-cell bonus-cell-rate">{{ b.ratePerOrder }} {{ b.currency }}</div>
-        <div class="bonus-cell bonus-cell-total">{{ b.bonusAmount }} {{ b.currency }}</div>
-      </div>
+      </ng-container>
     </div>
   </div>
 

@@ -49,6 +49,12 @@ export class AdminComponent implements OnInit {
     }
   };
 
+  /** Tabs only a SuperAdmin may open. Services edits the price catalogue every quote is built
+   *  from, so it is role-gated rather than permission-gated — canView is held by Admins and
+   *  Moderators too. Mirrors [Authorize(Roles = "SuperAdmin")] on AdminCatalogController's
+   *  catalogue endpoints. */
+  private static readonly SUPER_ADMIN_ONLY_TABS = ['booking-services'];
+
   // UI State
   activeTab: string = 'orders';
   selectedDiscountSubTab: 'promo-codes' | 'special-offers' | 'subscriptions' | 'gift-cards' = 'promo-codes';
@@ -144,7 +150,13 @@ export class AdminComponent implements OnInit {
       next: (response) => {
         this.userRole = response.role;
         this.userPermissions = response;
-        
+
+        // A tab restored from sessionStorage predates knowing the role — drop back to Orders
+        // if it turns out this admin may not open it (e.g. demoted since their last visit).
+        if (!this.canOpenTab(this.activeTab)) {
+          this.setActiveTab('orders');
+        }
+
         // Load maintenance status if user is SuperAdmin
         if (response.role === 'SuperAdmin') {
           this.loadMaintenanceStatus();
@@ -240,7 +252,14 @@ export class AdminComponent implements OnInit {
     return d.toLocaleString();
   }
 
+  canOpenTab(tab: string): boolean {
+    return !AdminComponent.SUPER_ADMIN_ONLY_TABS.includes(tab) || this.userRole === 'SuperAdmin';
+  }
+
   setActiveTab(tab: string) {
+    if (!this.canOpenTab(tab)) {
+      tab = 'orders';
+    }
     this.activeTab = tab;
     if (tab === 'discounts') {
       this.selectedDiscountSubTab = 'promo-codes';

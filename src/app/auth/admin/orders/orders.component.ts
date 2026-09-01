@@ -15,6 +15,7 @@ import { BubbleRewardsService } from '../../../services/bubble-rewards.service';
 import { forkJoin, of } from 'rxjs';
 import { catchError, finalize } from 'rxjs/operators';
 import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
+import { extractApiErrorMessage } from '../../../utils/http-error.utils';
 import { ShiftService, ShiftAdmin } from '../../../services/shift.service';
 import { CardOnFileService, OrderSavedCardInfo } from '../../../services/card-on-file.service';
 import { CARD_ON_FILE_ENABLED } from '../../../shared/card-on-file.flag';
@@ -55,6 +56,7 @@ import {
   serviceTypeCollectsPropertyType
 } from '../../../shared/booking/property-type.utils';
 import { buildCustomServiceTypeNameOptions } from '../../../shared/booking/custom-service-type.util';
+import { composeTime24h, parseTime12h } from '../../../shared/booking/extra-service-display.utils';
 // Aliased: the component has a field of the same name holding the resolved answer.
 import { canSaveOrderEditsDirectly as canSaveOrderEditsDirectlyFor } from '../../../shared/order-edit-approval.policy';
 
@@ -377,6 +379,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // SuperAdmin full order edit
   editingOrder = false;
   editOrderForm: Partial<SuperAdminUpdateOrderDto> = {};
+  // Service time is edited as 12-hour + AM/PM (admins misread a 24-hour field and booked
+  // 08:00 jobs at 20:00). `editOrderForm.serviceTime` stays the 24-hour "HH:mm" the API
+  // expects - these three are only the picker, recomposed by onEditServiceTimeChange().
+  editTimeHour12: number | null = null;
+  editTimeMinute = 0;
+  editTimeMeridiem: 'AM' | 'PM' = 'AM';
+  readonly editTimeHourOptions = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  editTimeMinuteOptions: number[] = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
   savingOrder = false;
   editOrderFormOriginalSubTotal = 0;
   editOrderFormOriginalDiscount = 0;
@@ -4365,6 +4375,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       })) ?? null
     };
     this.editingOrder = true;
+    this.setEditTimeFromForm(timeStr);
     // A typed Total belongs to one editing session; recalculateEditPricing below seeds the input.
     this.editOrderTaxOverride = null;
     this.editOrderTotalInput = null;
@@ -4386,6 +4397,42 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.recalculateEditPricing();
     // Do not recalc duration/maids on open: preserve order's actual totalDuration and maidsCount
     // (e.g. custom 3h). recalcEditDurationAndMaids runs when user changes service/extra qty.
+  }
+
+  /** "HH:mm" from the order -> the three picker controls. */
+  private setEditTimeFromForm(time: string | null | undefined): void {
+    const parts = parseTime12h(time);
+    this.editTimeHour12 = parts ? parts.hour12 : null;
+    this.editTimeMinute = parts ? parts.minute : 0;
+    this.editTimeMeridiem = parts ? parts.meridiem : 'AM';
+    // 5-minute steps, plus the order's own minute when it sits off that grid, so opening the
+    // editor can never silently round a stored time.
+    const options = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+    if (!options.includes(this.editTimeMinute)) options.push(this.editTimeMinute);
+    this.editTimeMinuteOptions = options.sort((a, b) => a - b);
+  }
+
+  /** Minute dropdown label - always two digits, so ":05" can't be read as ":50". */
+  formatMinuteOption(minute: number): string {
+    return String(minute).padStart(2, '0');
+  }
+
+  /** The three picker controls -> the "HH:mm" the DTO carries. */
+  onEditServiceTimeChange(): void {
+    if (this.editTimeHour12 == null) {
+      // Order carried no time and the admin has not picked one: leave it out of the edit.
+      this.editOrderForm.serviceTime = null;
+      return;
+    }
+    this.editOrderForm.serviceTime = composeTime24h(
+      Number(this.editTimeHour12), Number(this.editTimeMinute) || 0, this.editTimeMeridiem);
+  }
+
+  /** Read-back of the picker for labels and the change confirmation. */
+  formatServiceTime12h(time: string | null | undefined): string {
+    const parts = parseTime12h(time);
+    if (!parts) return '';
+    return `${parts.hour12}:${String(parts.minute).padStart(2, '0')} ${parts.meridiem}`;
   }
 
   /**
@@ -5567,7 +5614,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       if (p === undefined) return; // not part of this edit — see `push`
       const cv = this.normalizeTimeToHHmm(c);
       const pv = this.normalizeTimeToHHmm(p);
-      if (cv !== pv) changes.push({ field, current: cv || '—', proposed: pv || '—', difference: '—' });
+      // Compared in 24-hour form (one canonical string), shown in 12-hour form - the reviewer
+      // reads the same clock the picker and every other admin surface use.
+      if (cv !== pv) {
+        changes.push({
+          field,
+          current: this.formatServiceTime12h(cv) || '—',
+          proposed: this.formatServiceTime12h(pv) || '—',
+          difference: '—'
+        });
+      }
     };
     push('Contact First Name', cur.contactFirstName, prop.contactFirstName);
     push('Contact Last Name', cur.contactLastName, prop.contactLastName);
@@ -5886,7 +5942,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         setTimeout(() => { this.successMessage = ''; }, 5000);
       },
       error: (err) => {
-        this.errorMessage = err.error?.message || 'Failed to submit edit for approval.';
+        // extractApiErrorMessage, not err.error?.message: a rejection from [ApiController] model
+        // binding is a ValidationProblemDetails with no 'message' property, so the real reason
+        // used to be swallowed behind this generic fallback.
+        this.errorMessage = extractApiErrorMessage(err, 'Failed to submit edit for approval.');
         setTimeout(() => { this.errorMessage = ''; }, 5000);
       },
       complete: () => { this.savingOrder = false; }

@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { ShiftService, AdminShift, ShiftAdmin } from '../../services/shift.service';
 import { AuthService } from '../../services/auth.service';
-import { AdminBonusService, AdminBonusSummary, AdminBonusRate } from '../../services/admin-bonus.service';
+import { AdminBonusService, AdminBonusSummary, AdminBonusRates } from '../../services/admin-bonus.service';
 
 const FALLBACK_COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e',
@@ -57,16 +57,45 @@ export class ShiftsComponent implements OnInit {
   successMessage = '';
   errorMessage = '';
 
-  // ── Admin bonuses (current visible month) ──
+  // ── Staff bonuses (current visible month) ──
   bonuses: AdminBonusSummary[] = [];
-  bonusRate: AdminBonusRate | null = null;
+  bonusRates: AdminBonusRates | null = null;
   isLoadingBonuses = false;
   isSuperAdmin = false;
   currentUserId: number | null = null;
-  // Rate edit UI (SuperAdmin only).
-  isEditingRate = false;
-  rateEditValue: number = 0;
-  isSavingRate = false;
+
+  // Company-default rate editor (SuperAdmin only). Four values: position x new-vs-returning
+  // customer. Editing them restates every month on screen, past ones included.
+  isEditingRates = false;
+  isSavingRates = false;
+  rateEdit = {
+    administratorNewCustomerRate: 0,
+    administratorExistingCustomerRate: 0,
+    managerOwnBookingNewCustomerRate: 0,
+    managerOwnBookingExistingCustomerRate: 0,
+    managerTeamNewCustomerRate: 0,
+    managerTeamExistingCustomerRate: 0
+  };
+
+  // Per-person rate editor (SuperAdmin only). Only one row is editable at a time. Two pairs,
+  // because a manager's own bookings and their share of the team's pay different rates; an
+  // administrator only ever books, so their row offers the first pair alone.
+  //
+  // A blank field is a real state and means "follow the company default" — it is what clears an
+  // override, and is deliberately not the same as typing 0, which means "earns nothing here".
+  editingOverrideAdminId: number | null = null;
+  isSavingOverride = false;
+  overrideEdit: {
+    ownBookingNewCustomerRate: number | null;
+    ownBookingExistingCustomerRate: number | null;
+    teamBookingNewCustomerRate: number | null;
+    teamBookingExistingCustomerRate: number | null;
+  } = {
+    ownBookingNewCustomerRate: null,
+    ownBookingExistingCustomerRate: null,
+    teamBookingNewCustomerRate: null,
+    teamBookingExistingCustomerRate: null
+  };
 
   constructor(
     private shiftService: ShiftService,
@@ -84,7 +113,9 @@ export class ShiftsComponent implements OnInit {
     this.buildCalendar();
     this.loadAdmins();
     this.loadShifts();
-    this.loadBonusRate();
+    // Company defaults are SuperAdmin-only — the endpoint refuses anyone else, so a regular admin
+    // must not ask for them and collect a 403 in the console on every page load.
+    if (this.isSuperAdmin) this.loadBonusRates();
     this.loadBonuses();
   }
 
@@ -233,11 +264,11 @@ export class ShiftsComponent implements OnInit {
     });
   }
 
-  loadBonusRate(): void {
-    this.adminBonusService.getRate().subscribe({
+  loadBonusRates(): void {
+    this.adminBonusService.getRates().subscribe({
       next: (r) => {
-        this.bonusRate = r;
-        this.rateEditValue = r.ratePerOrder;
+        this.bonusRates = r;
+        this.resetRateEdit();
       },
       error: () => {}
     });
@@ -247,40 +278,219 @@ export class ShiftsComponent implements OnInit {
     return this.currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   }
 
-  // SuperAdmin-only rate edit. Backend enforces the role.
-  startEditingRate(): void {
+  isManager(b: AdminBonusSummary): boolean {
+    return b.position === 'Manager';
+  }
+
+  /**
+   * Whether the team-share rate is worth showing this person at all. A manager with nobody
+   * reporting to them cannot earn it, so printing "team 5 / 15" on their row states a rate that
+   * pays them nothing — it reads as money they are owed.
+   *
+   * The second half matters: a manager whose last administrator was just moved away can still have
+   * earned team shares inside the window on screen. Hiding the rate then would leave part of their
+   * total unexplained, so the line stays while the earnings do.
+   */
+  showsTeamRate(b: AdminBonusSummary): boolean {
+    return this.isManager(b) && (b.teamSize > 0 || this.teamCount(b) > 0);
+  }
+
+  /**
+   * Whether ANY of the rates this person can actually earn were set for them rather than followed
+   * from the company default. The team flags only count when the team slot applies — an
+   * administrator can never earn on it, and neither can a manager with no team, so a stale value
+   * there is not a rate they are on.
+   */
+  hasCustomRate(b: AdminBonusSummary): boolean {
+    return b.ownNewCustomerRateIsCustom
+      || b.ownExistingCustomerRateIsCustom
+      || (this.showsTeamRate(b) && (b.teamNewCustomerRateIsCustom || b.teamExistingCustomerRateIsCustom));
+  }
+
+  /** "3 own · 2 team" — only shown when both sides are non-zero, otherwise it is noise. */
+  hasBothSides(b: AdminBonusSummary): boolean {
+    const own = b.ownNewCustomerCount + b.ownExistingCustomerCount;
+    const team = b.teamNewCustomerCount + b.teamExistingCustomerCount;
+    return own > 0 && team > 0;
+  }
+
+  ownCount(b: AdminBonusSummary): number {
+    return b.ownNewCustomerCount + b.ownExistingCustomerCount;
+  }
+
+  teamCount(b: AdminBonusSummary): number {
+    return b.teamNewCustomerCount + b.teamExistingCustomerCount;
+  }
+
+  newCount(b: AdminBonusSummary): number {
+    return b.ownNewCustomerCount + b.teamNewCustomerCount;
+  }
+
+  existingCount(b: AdminBonusSummary): number {
+    return b.ownExistingCustomerCount + b.teamExistingCustomerCount;
+  }
+
+  // ── Company default rates (SuperAdmin only; the backend enforces the role) ──
+
+  startEditingRates(): void {
     if (!this.isSuperAdmin) return;
-    this.isEditingRate = true;
-    this.rateEditValue = this.bonusRate?.ratePerOrder ?? 10;
+    this.resetRateEdit();
+    this.isEditingRates = true;
   }
 
-  cancelEditingRate(): void {
-    this.isEditingRate = false;
-    this.rateEditValue = this.bonusRate?.ratePerOrder ?? 10;
+  cancelEditingRates(): void {
+    this.isEditingRates = false;
+    this.resetRateEdit();
   }
 
-  saveRate(): void {
-    if (!this.isSuperAdmin || this.isSavingRate) return;
-    const value = Number(this.rateEditValue);
-    if (!isFinite(value) || value < 0) {
-      this.showError('Rate must be zero or positive');
+  saveRates(): void {
+    if (!this.isSuperAdmin || this.isSavingRates) return;
+
+    const values = [
+      this.rateEdit.administratorNewCustomerRate,
+      this.rateEdit.administratorExistingCustomerRate,
+      this.rateEdit.managerOwnBookingNewCustomerRate,
+      this.rateEdit.managerOwnBookingExistingCustomerRate,
+      this.rateEdit.managerTeamNewCustomerRate,
+      this.rateEdit.managerTeamExistingCustomerRate
+    ].map(Number);
+
+    if (values.some(v => !isFinite(v) || v < 0)) {
+      this.showError('Rates must be zero or positive');
       return;
     }
-    this.isSavingRate = true;
-    this.adminBonusService.setRate(value).subscribe({
+
+    this.isSavingRates = true;
+    this.adminBonusService.setRates({
+      administratorNewCustomerRate: values[0],
+      administratorExistingCustomerRate: values[1],
+      managerOwnBookingNewCustomerRate: values[2],
+      managerOwnBookingExistingCustomerRate: values[3],
+      managerTeamNewCustomerRate: values[4],
+      managerTeamExistingCustomerRate: values[5]
+    }).subscribe({
       next: (r) => {
-        this.bonusRate = r;
-        this.rateEditValue = r.ratePerOrder;
-        this.isEditingRate = false;
-        this.isSavingRate = false;
+        this.bonusRates = r;
+        this.resetRateEdit();
+        this.isEditingRates = false;
+        this.isSavingRates = false;
+        // The month on screen is recomputed from the new rates, so it has to be refetched —
+        // anybody still on a company default has just changed value.
         this.loadBonuses();
-        this.showSuccess('Bonus rate updated');
+        this.showSuccess('Bonus rates updated');
       },
       error: (err) => {
-        this.isSavingRate = false;
-        this.showError(err.error?.message || 'Failed to update rate');
+        this.isSavingRates = false;
+        this.showError(err.error?.message || 'Failed to update rates');
       }
     });
+  }
+
+  private resetRateEdit(): void {
+    this.rateEdit = {
+      administratorNewCustomerRate: this.bonusRates?.administratorNewCustomerRate ?? 10,
+      administratorExistingCustomerRate: this.bonusRates?.administratorExistingCustomerRate ?? 10,
+      managerOwnBookingNewCustomerRate: this.bonusRates?.managerOwnBookingNewCustomerRate ?? 15,
+      managerOwnBookingExistingCustomerRate: this.bonusRates?.managerOwnBookingExistingCustomerRate ?? 25,
+      managerTeamNewCustomerRate: this.bonusRates?.managerTeamNewCustomerRate ?? 5,
+      managerTeamExistingCustomerRate: this.bonusRates?.managerTeamExistingCustomerRate ?? 15
+    };
+  }
+
+  // ── Per-person rates (SuperAdmin only) ──
+
+  startEditingOverride(b: AdminBonusSummary): void {
+    if (!this.isSuperAdmin) return;
+    this.editingOverrideAdminId = b.adminId;
+    // Seed ONLY the fields this person actually overrides. Pre-filling a defaulted field with the
+    // company figure would turn "follows the default" into a personal rate the moment they saved.
+    this.overrideEdit = {
+      ownBookingNewCustomerRate: b.ownNewCustomerRateIsCustom ? b.ownNewCustomerRate : null,
+      ownBookingExistingCustomerRate: b.ownExistingCustomerRateIsCustom ? b.ownExistingCustomerRate : null,
+      teamBookingNewCustomerRate: b.teamNewCustomerRateIsCustom ? b.teamNewCustomerRate : null,
+      teamBookingExistingCustomerRate: b.teamExistingCustomerRateIsCustom ? b.teamExistingCustomerRate : null
+    };
+  }
+
+  cancelEditingOverride(): void {
+    this.editingOverrideAdminId = null;
+    this.overrideEdit = {
+      ownBookingNewCustomerRate: null,
+      ownBookingExistingCustomerRate: null,
+      teamBookingNewCustomerRate: null,
+      teamBookingExistingCustomerRate: null
+    };
+  }
+
+  saveOverride(b: AdminBonusSummary): void {
+    if (!this.isSuperAdmin || this.isSavingOverride) return;
+
+    const parsed = [
+      this.overrideEdit.ownBookingNewCustomerRate,
+      this.overrideEdit.ownBookingExistingCustomerRate,
+      this.overrideEdit.teamBookingNewCustomerRate,
+      this.overrideEdit.teamBookingExistingCustomerRate
+    ].map(raw => {
+      // A cleared number input yields null (Angular) or '' (a hand-set value), and BOTH mean
+      // "follow the company default" — deliberately not the same as a typed 0, which means this
+      // person earns nothing on that slot.
+      const text = String(raw ?? '').trim();
+      return text === '' ? null : Number(text);
+    });
+
+    if (parsed.some(v => v !== null && (!isFinite(v) || v < 0))) {
+      this.showError('Rates must be zero or positive, or left blank to use the default');
+      return;
+    }
+
+    const year = this.currentMonth.getFullYear();
+    const month = this.currentMonth.getMonth();
+    const from = this.formatYmd(new Date(Date.UTC(year, month, 1)));
+    const to = this.formatYmd(new Date(Date.UTC(year, month + 1, 0)));
+
+    this.isSavingOverride = true;
+    this.adminBonusService.setOverride(
+      b.adminId,
+      {
+        ownBookingNewCustomerRate: parsed[0],
+        ownBookingExistingCustomerRate: parsed[1],
+        // An administrator never fills the team slot, so their row does not offer those inputs and
+        // must not send a value for them — a stale figure sitting in a column nothing reads is how
+        // a later promotion would start paying a rate nobody chose.
+        //
+        // Gated on isManager, NOT on showsTeamRate: a manager whose last administrator was just
+        // moved away has the inputs hidden but their stored team rate seeded and riding through
+        // untouched. Nulling it there would quietly delete a rate that applies again the moment
+        // somebody is attached to them.
+        teamBookingNewCustomerRate: this.isManager(b) ? parsed[2] : null,
+        teamBookingExistingCustomerRate: this.isManager(b) ? parsed[3] : null
+      },
+      from, to
+    ).subscribe({
+      next: (updated) => {
+        // Replace just this row — the response is already computed over the visible month, so
+        // reloading the whole table would only cost a round trip to arrive at the same numbers.
+        const i = this.bonuses.findIndex(x => x.adminId === updated.adminId);
+        if (i >= 0) this.bonuses[i] = updated;
+        this.isSavingOverride = false;
+        this.cancelEditingOverride();
+        this.showSuccess('Rates updated');
+      },
+      error: (err) => {
+        this.isSavingOverride = false;
+        this.showError(err.error?.message || 'Failed to update rates');
+      }
+    });
+  }
+
+  clearOverride(b: AdminBonusSummary): void {
+    this.overrideEdit = {
+      ownBookingNewCustomerRate: null,
+      ownBookingExistingCustomerRate: null,
+      teamBookingNewCustomerRate: null,
+      teamBookingExistingCustomerRate: null
+    };
+    this.saveOverride(b);
   }
 
   private formatYmd(d: Date): string {

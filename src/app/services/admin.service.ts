@@ -187,13 +187,18 @@ export interface DailyStatistics {
   adminBonuses: number;
 }
 
-/** One month's locked GEL→USD rate + frozen bonus rate, for the statistics rates panel. */
+/**
+ * One month's locked GEL→USD rate plus what that month's staff bonuses came to, for the statistics
+ * rates panel. Only the exchange rate is frozen per month — the bonus total is computed live,
+ * because a bonus is no longer one rate per order (position and new-vs-returning customer both
+ * move it), so there is no single rate left to freeze.
+ */
 export interface MonthlyFinancialRate {
   year: number;
   month: number;
   monthKey: string;
   usdPerGel: number;
-  adminBonusRatePerOrderGel: number;
+  adminBonusTotalGel: number;
   fxSource: string;       // 'auto' | 'manual' | 'fallback'
   isFinalized: boolean;
   updatedAt: string;
@@ -477,6 +482,14 @@ export interface UserAdmin {
   viewablePages?: string[];
   /** True when a SuperAdmin has granted this Admin direct order-edit saves (no approval step). */
   canEditOrdersWithoutApproval?: boolean;
+  /**
+   * 'Administrator' | 'Manager'. Only meaningful on an Admin-role row — it is NOT a permission
+   * (see the backend AdminPosition enum), it decides which side of the per-order bonus is earned.
+   */
+  adminPosition?: string;
+  /** The Manager this Administrator reports to, if any. */
+  managerId?: number | null;
+  managerName?: string | null;
   /** True if user has an active connection (on site). */
   isOnline?: boolean;
 
@@ -1398,6 +1411,21 @@ export class AdminService {
     return this.http.put<{ message: string; canEditOrdersWithoutApproval: boolean }>(
       `${this.apiUrl}/users/${userId}/order-edit-approval`,
       { canEditOrdersWithoutApproval }
+    );
+  }
+
+  /**
+   * SuperAdmin-only: set an Admin's position (Manager / Administrator) and, for an administrator,
+   * the manager they report to. managerId is ignored server-side when position is 'Manager'.
+   *
+   * The backend refuses to demote a manager who still has administrators reporting to them, and
+   * says how many need moving first — surface that message rather than swallowing it.
+   */
+  updateAdminPosition(userId: number, position: string, managerId: number | null):
+    Observable<{ message: string; adminPosition: string; managerId: number | null }> {
+    return this.http.put<{ message: string; adminPosition: string; managerId: number | null }>(
+      `${this.apiUrl}/users/${userId}/admin-position`,
+      { position, managerId }
     );
   }
 

@@ -595,7 +595,23 @@
                           </select>
                         </div>
                         <div class="edit-row"><label>Service Date</label><input type="date" [(ngModel)]="editOrderForm.serviceDate"></div>
-                        <div class="edit-row"><label>Service Time (HH:mm)</label><input type="text" [(ngModel)]="editOrderForm.serviceTime" placeholder="14:30"></div>
+                        <div class="edit-row">
+                          <label>Service Time</label>
+                          <div class="time-parts">
+                            <select [(ngModel)]="editTimeHour12" (ngModelChange)="onEditServiceTimeChange()" aria-label="Hour">
+                              <option [ngValue]="null" disabled>--</option>
+                              <option *ngFor="let h of editTimeHourOptions" [ngValue]="h">{{ h }}</option>
+                            </select>
+                            <span class="time-parts-sep">:</span>
+                            <select [(ngModel)]="editTimeMinute" (ngModelChange)="onEditServiceTimeChange()" aria-label="Minute">
+                              <option *ngFor="let m of editTimeMinuteOptions" [ngValue]="m">{{ formatMinuteOption(m) }}</option>
+                            </select>
+                            <select [(ngModel)]="editTimeMeridiem" (ngModelChange)="onEditServiceTimeChange()" aria-label="AM or PM">
+                              <option value="AM">AM</option>
+                              <option value="PM">PM</option>
+                            </select>
+                          </div>
+                        </div>
                         <div class="edit-row"><label>Maids</label><input type="number" [(ngModel)]="editOrderForm.maidsCount" (ngModelChange)="onEditMaidsChange()" title="Set manually — customers only see the total duration"> <span class="duration-hint" [class.staffing-review-hint]="editFormNeedsStaffingReview()" *ngIf="getSuggestedMaidsCount() as suggested">suggested: {{ suggested }} (1 per 6h)</span></div>
                         <div class="edit-row"><label>Duration (min)</label><input type="number" [(ngModel)]="editOrderForm.totalDuration" (ngModelChange)="onEditDurationChange()" min="60" placeholder="min"> <span class="duration-hint">{{ getEditDurationHintText() }}</span></div>
                         <div class="edit-row"><label>Entry</label><input [(ngModel)]="editOrderForm.entryMethod"></div>

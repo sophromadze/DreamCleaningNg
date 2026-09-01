@@ -43,10 +43,13 @@
             *ngIf="userPermissions?.permissions?.canView">
       Users
     </button>
-    <button class="tab-btn" 
+    <!-- Services edits the price catalogue every quote is built from, so it is SuperAdmin-only —
+         deliberately NOT canView, which regular Admins and Moderators hold. Matched by
+         [Authorize(Roles = "SuperAdmin")] on the catalogue half of AdminCatalogController. -->
+    <button class="tab-btn"
             [class.active]="activeTab === 'booking-services'"
             (click)="setActiveTab('booking-services')"
-            *ngIf="userPermissions?.permissions?.canView">
+            *ngIf="userRole === 'SuperAdmin'">
       Services
     </button>
     <button class="tab-btn" 
@@ -102,7 +105,12 @@
     <ng-container [ngSwitch]="activeTab">
       <app-orders *ngSwitchCase="'orders'" [openOrderId]="pendingOrderId"></app-orders>
       <app-user-management *ngSwitchCase="'users'" [openUserId]="pendingUserId"></app-user-management>
-      <app-booking-services *ngSwitchCase="'booking-services'"></app-booking-services>
+      <!-- Guarded as well as hidden: a stale 'booking-services' in sessionStorage would otherwise
+           mount the component (and fire its now-403 catalogue GETs) before the role has loaded.
+           setActiveTab / the permission load move a non-SuperAdmin back to Orders. -->
+      <ng-container *ngSwitchCase="'booking-services'">
+        <app-booking-services *ngIf="userRole === 'SuperAdmin'"></app-booking-services>
+      </ng-container>
       <app-discounts *ngSwitchCase="'discounts'" [initialSubTab]="selectedDiscountSubTab"></app-discounts>
       <app-scheduling *ngSwitchCase="'scheduling'"></app-scheduling>
       <app-audit-history *ngSwitchCase="'audit-history'"></app-audit-history>

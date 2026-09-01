@@ -292,16 +292,16 @@
         <span class="stat-value bubble">{{ (userRewardsSummary?.currentPoints ?? 0) | number }}</span>
       </div>
 
-      <!-- Admin bonus stats. Only shown when the viewed user has the Admin role —
-           tracks how many bonus-eligible orders they've been assigned, and what
-           that earns them in the current calendar month. -->
+      <!-- Staff bonus stats. Only shown when the viewed user has the Admin role — how many
+           paying orders they earn on, and what that comes to this calendar month. The rate
+           shown is theirs (their own override if they have one), new / returning customer. -->
       <ng-container *ngIf="selectedUser.role === 'Admin' && adminBonusAllTime">
         <div class="stat">
-          <span class="stat-label">Assigned Orders</span>
+          <span class="stat-label">Paying Orders</span>
           <span class="stat-value">
             {{ adminBonusAllTime.assignedCount }}
             <small *ngIf="adminBonusAllTime.eligibleCount !== adminBonusAllTime.assignedCount" class="muted">
-              ({{ adminBonusAllTime.eligibleCount }} eligible)
+              ({{ adminBonusAllTime.eligibleCount }} paying)
             </small>
           </span>
         </div>
@@ -309,7 +309,11 @@
           <span class="stat-label">This Month Bonus</span>
           <span class="stat-value">
             {{ adminBonusThisMonth.bonusAmount }} {{ adminBonusThisMonth.currency }}
-            <small class="muted">({{ adminBonusThisMonth.eligibleCount }} × {{ adminBonusThisMonth.ratePerOrder }})</small>
+            <small class="muted">
+              ({{ adminBonusThisMonth.eligibleCount }} orders ·
+              {{ adminBonusThisMonth.ownNewCustomerRate }} new /
+              {{ adminBonusThisMonth.ownExistingCustomerRate }} returning)
+            </small>
           </span>
         </div>
       </ng-container>
@@ -529,6 +533,42 @@
                   <option value="SuperAdmin" *ngIf="currentUserRole === 'SuperAdmin'">SAdmin</option>
                 </select>
               </span>
+
+              <!-- Position: Manager or Administrator. NOT a permission — it decides which side of
+                   the per-order bonus this person earns, and who reports to whom. Only orders
+                   assigned AFTER a change are affected; money already earned never moves. -->
+              <ng-container *ngIf="canManageAdminPosition(selectedUser)">
+                <span class="pref-row page-access-head">
+                  <span class="pref-label">Position</span>
+                  <span class="pref-hint">Decides the bonus rate — not what they can access</span>
+                </span>
+                <span class="pref-row">
+                  <span class="pref-label pref-label-sub">Role in the team</span>
+                  <select class="role-select"
+                          [ngModel]="selectedUser.adminPosition || 'Administrator'"
+                          [disabled]="savingAdminPositionUserId === selectedUser.id"
+                          (ngModelChange)="updateAdminPosition(selectedUser, $event)">
+                    <option value="Administrator">Administrator</option>
+                    <option value="Manager">Manager</option>
+                  </select>
+                </span>
+                <!-- Only an administrator reports to somebody. A manager's row hides this rather
+                     than showing a disabled control for a choice that does not exist. -->
+                <span class="pref-row" *ngIf="!isManagerPosition(selectedUser)">
+                  <span class="pref-label pref-label-sub">Reports to</span>
+                  <!-- ngValue, not value: the ids are numbers, and a plain [value] would render
+                       them as strings and never match the bound managerId. -->
+                  <select class="role-select"
+                          [ngModel]="selectedUser.managerId ?? null"
+                          [disabled]="savingAdminPositionUserId === selectedUser.id"
+                          (ngModelChange)="updateUserManager(selectedUser, $event)">
+                    <option [ngValue]="null">No manager</option>
+                    <option *ngFor="let m of managerOptionsFor(selectedUser)" [ngValue]="m.id">
+                      {{ m.firstName }} {{ m.lastName }}
+                    </option>
+                  </select>
+                </span>
+              </ng-container>
 
               <!-- Page access: SuperAdmin grants a regular Admin read-only access to
                    restricted pages (Statistics / Expenses / Bubble Rewards). -->

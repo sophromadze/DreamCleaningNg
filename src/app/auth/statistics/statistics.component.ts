@@ -178,9 +178,12 @@ export class StatisticsComponent implements OnInit, OnDestroy {
     });
   }
 
-  /** USD value of a month's bonus rate at its locked FX — handy preview in the table. */
-  bonusRateUsd(r: RateRow): number {
-    return r.adminBonusRatePerOrderGel * (r.editValue || 0);
+  /**
+   * USD value of a month's staff bonuses at the FX rate currently typed in the row — a live
+   * preview of what changing the rate would do to that month's cost.
+   */
+  bonusTotalUsd(r: RateRow): number {
+    return r.adminBonusTotalGel * (r.editValue || 0);
   }
 
   saveRate(r: RateRow): void {

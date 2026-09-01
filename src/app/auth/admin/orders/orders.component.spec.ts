@@ -482,6 +482,74 @@ describe('OrdersComponent', () => {
    * granted it - now reads the same table before the write happens. One function builds the table
    * for both, so the two views cannot drift apart.
    */
+  /**
+   * The service time is picked as hour / minute / AM-PM. It used to be a free-text "HH:mm" box,
+   * and admins misread it - an 8am job typed as 20:00. Storage is unchanged: the picker
+   * recomposes the same 24-hour string the DTO has always carried.
+   */
+  describe('service time picker', () => {
+    const setPicker = (time: string | null) => (component as any).setEditTimeFromForm(time);
+
+    it('seeds the three controls from the stored 24-hour time', () => {
+      setPicker('13:30');
+      expect(component.editTimeHour12).toBe(1);
+      expect(component.editTimeMinute).toBe(30);
+      expect(component.editTimeMeridiem).toBe('PM');
+    });
+
+    it('leaves the hour unset when the order carries no time', () => {
+      setPicker(null);
+      expect(component.editTimeHour12).toBeNull();
+
+      // Nothing picked yet is not an edit to the time.
+      component.editOrderForm = {} as any;
+      component.onEditServiceTimeChange();
+      expect(component.editOrderForm.serviceTime).toBeNull();
+    });
+
+    it('writes back the 24-hour string the DTO carries', () => {
+      component.editOrderForm = {} as any;
+      component.editTimeHour12 = 6;
+      component.editTimeMinute = 30;
+      component.editTimeMeridiem = 'PM';
+      component.onEditServiceTimeChange();
+      expect(component.editOrderForm.serviceTime).toBe('18:30');
+
+      component.editTimeHour12 = 12;
+      component.editTimeMinute = 0;
+      component.editTimeMeridiem = 'AM';
+      component.onEditServiceTimeChange();
+      expect(component.editOrderForm.serviceTime).toBe('00:00');
+    });
+
+    it('offers an off-grid stored minute rather than rounding it away', () => {
+      // A legacy order at 09:07 must still be 09:07 after an edit that never touched the time.
+      setPicker('09:07');
+      expect(component.editTimeMinuteOptions).toContain(7);
+      component.editOrderForm = {} as any;
+      component.onEditServiceTimeChange();
+      expect(component.editOrderForm.serviceTime).toBe('09:07');
+    });
+
+    it('shows the change confirmation in 12-hour form too', () => {
+      const changes = component.computeOrderEditChanges(
+        { serviceTime: '09:00:00' } as any,
+        { serviceTime: '14:30' } as any
+      );
+      const row = changes.find(c => c.field === 'Service Time')!;
+      expect(row.current).toBe('9:00 AM');
+      expect(row.proposed).toBe('2:30 PM');
+    });
+
+    it('still reports no change when only the stored format differs', () => {
+      const changes = component.computeOrderEditChanges(
+        { serviceTime: '09:00:00' } as any,
+        { serviceTime: '09:00' } as any
+      );
+      expect(changes.map(c => c.field)).not.toContain('Service Time');
+    });
+  });
+
   describe('order edit save confirmation', () => {
     /** Minimal order-details shape: only the fields the diff reads. */
     const baseOrder = () => ({

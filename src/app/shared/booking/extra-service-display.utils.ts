@@ -57,6 +57,39 @@ export function formatTime12h(time: string | null | undefined): string {
   return `${hour12}:${minutes} ${ampm}`;
 }
 
+/** The 12-hour pieces an AM/PM picker edits. */
+export interface Time12hParts {
+  hour12: number;      // 1-12
+  minute: number;      // 0-59
+  meridiem: 'AM' | 'PM';
+}
+
+/**
+ * "HH:mm" / "HH:mm:ss" -> the 12-hour pieces, or null when there is no usable time.
+ * The inverse of `composeTime24h`. Storage stays 24-hour everywhere; only the
+ * picker is 12-hour, because admins misread a 24-hour field.
+ */
+export function parseTime12h(time: string | null | undefined): Time12hParts | null {
+  if (!time) return null;
+  const match = String(time).trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const hour24 = parseInt(match[1], 10);
+  const minute = parseInt(match[2], 10);
+  if (isNaN(hour24) || isNaN(minute) || hour24 > 23 || minute > 59) return null;
+  return {
+    hour12: hour24 % 12 || 12,
+    minute,
+    meridiem: hour24 >= 12 ? 'PM' : 'AM'
+  };
+}
+
+/** 12-hour pieces -> the "HH:mm" string the API and every other surface store. */
+export function composeTime24h(hour12: number, minute: number, meridiem: 'AM' | 'PM'): string {
+  const base = hour12 % 12;                       // 12 AM -> 0, 12 PM -> 12
+  const hour24 = meridiem === 'PM' ? base + 12 : base;
+  return `${String(hour24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+}
+
 /**
  * Mobile tooltip show/auto-hide state for the extra-service cards. The host
  * component supplies its own "am I on mobile" check and auto-hide duration.

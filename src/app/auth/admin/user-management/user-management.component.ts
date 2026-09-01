@@ -1146,6 +1146,112 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     });
   }
 
+  // ── Position: Manager vs Administrator (SuperAdmin → regular Admin) ──
+  //
+  // NOT a permission. The position changes nothing about what a staff member may do — it decides
+  // which side of the per-order bonus they earn, and who can be attached to whom. That is why it
+  // sits beside the grants rather than inside them, and why it is a plain select rather than a
+  // Yes/No toggle.
+
+  /** Same audience as the grants: a SuperAdmin looking at a regular Admin. */
+  canManageAdminPosition(user: DetailedUser | UserAdmin | null): boolean {
+    return this.canManagePageAccess(user);
+  }
+
+  isManagerPosition(user: DetailedUser | UserAdmin | null): boolean {
+    return user?.adminPosition === 'Manager';
+  }
+
+  /**
+   * Managers this administrator could report to. Blocked accounts are excluded (they earn nothing
+   * and the backend refuses them anyway), and so is the person themselves — an administrator
+   * cannot be their own manager.
+   */
+  managerOptionsFor(user: DetailedUser | UserAdmin | null): UserAdmin[] {
+    return this.users.filter(u =>
+      u.role === 'Admin' &&
+      u.adminPosition === 'Manager' &&
+      u.isActive &&
+      u.id !== user?.id);
+  }
+
+  savingAdminPositionUserId: number | null = null;
+
+  updateAdminPosition(user: DetailedUser | UserAdmin, position: string, event?: Event) {
+    event?.stopPropagation();
+    if (!this.canManageAdminPosition(user)) return;
+    if ((user.adminPosition || 'Administrator') === position) return;
+
+    // Promoting to Manager drops the reporting line: a manager does not report to a manager, and
+    // the backend clears it either way, so the optimistic copy has to match or the panel would
+    // briefly show a manager with a manager.
+    const managerId = position === 'Manager' ? null : (user.managerId ?? null);
+    this.saveAdminPosition(user, position, managerId);
+  }
+
+  updateUserManager(user: DetailedUser | UserAdmin, rawManagerId: string | number | null, event?: Event) {
+    event?.stopPropagation();
+    if (!this.canManageAdminPosition(user)) return;
+
+    // The "no manager" option submits an empty string, which must become null rather than 0.
+    const managerId = rawManagerId === '' || rawManagerId == null ? null : Number(rawManagerId);
+    if ((user.managerId ?? null) === managerId) return;
+
+    this.saveAdminPosition(user, user.adminPosition || 'Administrator', managerId);
+  }
+
+  private saveAdminPosition(
+    user: DetailedUser | UserAdmin, position: string, managerId: number | null) {
+
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    const originalPosition = user.adminPosition;
+    const originalManagerId = user.managerId ?? null;
+    const originalManagerName = user.managerName ?? null;
+
+    const applyTo = (target: DetailedUser | UserAdmin | null, pos: string | undefined, mid: number | null) => {
+      if (!target) return;
+      target.adminPosition = pos;
+      target.managerId = mid;
+      // Resolved from the loaded list so the panel can name the manager without a refetch.
+      const manager = mid == null ? null : this.users.find(u => u.id === mid);
+      target.managerName = manager ? `${manager.firstName} ${manager.lastName}` : null;
+    };
+
+    applyTo(user, position, managerId);
+    if (this.selectedUser && this.selectedUser.id === user.id) {
+      applyTo(this.selectedUser, position, managerId);
+    }
+    this.savingAdminPositionUserId = user.id;
+
+    this.adminService.updateAdminPosition(user.id, position, managerId).subscribe({
+      next: (res) => {
+        this.savingAdminPositionUserId = null;
+        applyTo(user, res.adminPosition, res.managerId ?? null);
+        if (this.selectedUser && this.selectedUser.id === user.id) {
+          applyTo(this.selectedUser, res.adminPosition, res.managerId ?? null);
+        }
+      },
+      error: (error) => {
+        this.savingAdminPositionUserId = null;
+        // Roll back BOTH copies. The most likely rejection is "N administrators still report to
+        // this manager", which the admin has to read and act on — so it is shown, not swallowed.
+        const restore = (target: DetailedUser | UserAdmin | null) => {
+          if (!target) return;
+          target.adminPosition = originalPosition;
+          target.managerId = originalManagerId;
+          target.managerName = originalManagerName;
+        };
+        restore(user);
+        if (this.selectedUser && this.selectedUser.id === user.id) restore(this.selectedUser);
+
+        this.errorMessage = error.error?.message || 'Failed to update position.';
+        setTimeout(() => this.errorMessage = '', 6000);
+      }
+    });
+  }
+
   updateUserStatus(user: UserAdmin, isActive: boolean) {
     this.errorMessage = '';
     this.successMessage = '';
