@@ -934,10 +934,359 @@
   }
 }
 
+/* ===== Payee tabs =====
+
+   Two kinds of payee, two tabs. An underline rather than a pill set: the tabs sit directly above
+   the month bar, and two stacked bands of filled chips made it unclear which one the month
+   belonged to. */
+
+.payee-tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.payee-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.6rem 1rem;
+  margin-bottom: -1px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover { color: var(--text-primary); }
+
+  &.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+  }
+
+  /* What the tab still owes, so money waiting on the tab you are NOT looking at is visible
+     without clicking into it. Amber, like every other "still to pay" on this page — never red,
+     since an unpaid wage is work outstanding rather than an error. */
+  .tab-owing {
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    background: var(--soft-yellow);
+    color: var(--soft-yellow-text);
+    font-size: 0.72rem;
+    font-weight: 700;
+  }
+}
+
+@media (max-width: 480px) {
+  .payee-tab {
+    flex: 1 1 0;
+    justify-content: center;
+    padding: 0.6rem 0.5rem;
+    font-size: 0.85rem;
+  }
+}
+
+/* ===== Staff salaries =====
+
+   A block of its own above the cleaner table. A salary is per PERSON per MONTH with no order,
+   hours or rate behind it, so it gets a stacked layout rather than being forced into the table's
+   columns. The paid pill reuses the Orders tab's `.status-badge` colours with the same mapping
+   the cleaner rows use — amber unpaid, blue part paid, green paid, never red. */
+
+.salary-block {
+  margin-bottom: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.salary-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 0.9rem;
+
+  h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .salary-head-totals {
+    margin-left: auto;
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    white-space: nowrap;
+  }
+
+  /* What still has to go out is the question the page is open to answer, so it leads. */
+  .salary-outstanding {
+    padding: 0.05rem 0.5rem;
+    border-radius: 999px;
+    background: var(--soft-yellow);
+    color: var(--soft-yellow-text);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .salary-settled {
+    padding: 0.05rem 0.5rem;
+    border-radius: 999px;
+    background: var(--mint-fresh);
+    color: var(--fresh-green);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .salary-month-total { font-weight: 700; color: var(--text-primary); }
+}
+
+.salary-loading {
+  padding: 0.75rem 0.9rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.salary-list { border-top: 1px solid var(--border-color); }
+
+.salary-payee {
+  padding: 0.65rem 0.9rem;
+
+  & + .salary-payee { border-top: 1px solid var(--border-color); }
+}
+
+.salary-payee-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  .salary-name { font-weight: 600; color: var(--text-primary); }
+
+  .salary-role {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+  }
+
+  /* Amber, not red: a former staff member's salary history is worth keeping, not an error. */
+  .salary-former {
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    background: var(--soft-yellow);
+    color: var(--soft-yellow-text);
+    font-size: 0.68rem;
+    font-weight: 600;
+    cursor: help;
+  }
+
+  /* Green, because it is money earned on top rather than a state to worry about — paired with
+     its own foreground token, like every other semantic background on this page. */
+  .salary-bonus-tag {
+    padding: 0.05rem 0.45rem;
+    border-radius: 999px;
+    background: var(--mint-fresh);
+    color: var(--fresh-green);
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: help;
+  }
+
+  .salary-month-figure {
+    margin-left: auto;
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    white-space: nowrap;
+  }
+}
+
+/* The entered amount leads; the converted figure sits beside it, quieter — the lari figure is
+   what gets handed over, the dollar one is what the books report. */
+.salary-native { font-weight: 700; color: var(--text-primary); }
+.salary-usd { color: var(--text-muted); font-size: 0.8rem; font-weight: 600; }
+
+/* Where the money goes. Monospaced because these digits get checked character by character
+   against a banking app, and given its own quiet row directly under the name — it is the field
+   this tab exists to act on, so it earns being found at a glance. Same treatment the cleaner
+   payout panel gives a Zelle number. */
+.salary-destination {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+
+  .dest-value {
+    padding: 0.15rem 0.45rem;
+    border-radius: 4px;
+    background: var(--surface-subtle);
+    color: var(--text-primary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+    word-break: break-all;
+  }
+
+  .icon-btn {
+    padding: 0.15rem 0.4rem;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    line-height: 1.3;
+    cursor: pointer;
+
+    &:hover { background: var(--page-bg); color: var(--text-primary); }
+  }
+
+  /* Nothing on file yet — an invitation, not an empty field pretending to be data. */
+  .dest-add {
+    border: 1px dashed var(--border-color);
+    border-radius: 6px;
+    background: none;
+    padding: 0.2rem 0.55rem;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    cursor: pointer;
+
+    &:hover { color: var(--primary-color); border-color: var(--primary-color); }
+  }
+
+  .dest-input {
+    flex: 1 1 16rem;
+    min-width: 0;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text-primary);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+  }
+
+  .dest-hint { color: var(--text-muted); font-size: 0.74rem; }
+}
+
+.salary-warning {
+  margin-top: 0.35rem;
+  color: var(--warning-orange-text);
+  font-size: 0.78rem;
+}
+
+.salary-instalments {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.salary-instalment {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--page-bg);
+  font-size: 0.85rem;
+
+  &.paid { background: var(--mint-fresh); border-color: transparent; }
+
+  .inst-label { color: var(--text-secondary); min-width: 8.5rem; }
+
+  .inst-amount {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
+    white-space: nowrap;
+  }
+
+  /* The sum being made, so "1,050 + 200" is readable rather than just landing at 1,250. */
+  .inst-breakdown {
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    white-space: nowrap;
+  }
+
+  .inst-paid-meta {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+
+    .inst-paid-tick { color: var(--fresh-green); font-weight: 600; }
+    .inst-paid-note { font-style: italic; }
+  }
+
+  .inst-actions,
+  .inst-confirm {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .inst-note {
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.8rem;
+    min-width: 12rem;
+  }
+}
+
+/* Same reason as the pay modal below: the Orders tab scopes its `.action-btn.small` variants
+   inside `.order-detail-panel`, and this block renders at the page root, so it never matches
+   them. Re-declared here rather than widening a selector the whole Orders tab depends on. */
+.salary-block .action-btn.small {
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+  &:hover:not(:disabled) { background: var(--page-bg); }
+
+  &.pay {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+    &:hover:not(:disabled) { background: var(--primary-color-hover); }
+  }
+}
+
 /* ===== Narrow screens ===== */
 
 @media (max-width: 768px) {
   .order-detail-panel .cleaner-actions {
     justify-content: flex-start;
+  }
+
+  /* The instalment row is label / amount / action side-by-side on a desktop; on a phone the
+     action has to drop under the figures rather than squeezing them off screen. */
+  .salary-instalment {
+    .inst-label { min-width: 0; flex: 1 0 100%; }
+
+    .inst-actions,
+    .inst-confirm { margin-left: 0; flex: 1 0 100%; }
+
+    .inst-note { min-width: 0; flex: 1 1 auto; }
   }
 }

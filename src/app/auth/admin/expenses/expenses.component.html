@@ -56,22 +56,76 @@
     </div>
 
     <div class="form-grid">
-      <label class="form-field span-2">
-        <span>Name</span>
-        <input type="text" [(ngModel)]="form.name" placeholder="e.g. Claude AI subscription">
-      </label>
-
-      <label class="form-field">
-        <span>Amount ($)</span>
-        <input type="number" min="0" step="0.01" [(ngModel)]="form.amount">
-      </label>
-
+      <!-- Category leads: it decides whether this row is named by hand or by picking a person. -->
       <label class="form-field">
         <span>Category</span>
-        <select [(ngModel)]="form.categoryId">
+        <select [(ngModel)]="form.categoryId" (ngModelChange)="onCategoryChange()">
           <option *ngFor="let c of categories" [ngValue]="c.id">{{ c.name }}</option>
         </select>
       </label>
+
+      <!-- Salaries are paid to a person, so they are picked rather than typed. -->
+      <label class="form-field" *ngIf="isSalaryForm">
+        <span>Paid to</span>
+        <!-- Every option binds [ngValue]: mixing it with plain `value` in one select makes
+             Angular match the placeholder by string and the rest by identity. -->
+        <select [(ngModel)]="staffChoice">
+          <option [ngValue]="''" disabled>Select a staff member…</option>
+          <optgroup label="Staff" *ngIf="currentStaff.length">
+            <option *ngFor="let s of currentStaff" [ngValue]="s.id">{{ staffOptionLabel(s) }}</option>
+          </optgroup>
+          <optgroup label="No longer staff" *ngIf="formerStaff.length">
+            <option *ngFor="let s of formerStaff" [ngValue]="s.id">{{ staffOptionLabel(s) }}</option>
+          </optgroup>
+          <option [ngValue]="'custom'">Someone else (type a name)</option>
+        </select>
+      </label>
+
+      <label class="form-field span-2" *ngIf="showsNameField">
+        <span>Name</span>
+        <input type="text" [(ngModel)]="form.name"
+               [placeholder]="isSalaryForm ? 'Who this salary is for' : 'e.g. Claude AI subscription'">
+      </label>
+
+      <!-- Named by the account, so the row keeps naming them after that account is deleted. -->
+      <div class="form-field span-2 staff-note" *ngIf="selectedStaff as staff">
+        <span>Name</span>
+        <div class="staff-chip">
+          <i class="fas fa-user"></i>
+          <strong>{{ staff.fullName }}</strong>
+          <small *ngIf="staff.email">{{ staff.email }}</small>
+          <small class="staff-warning" *ngIf="staff.isFormer">
+            No longer staff — their past salaries stay on file under this name.
+          </small>
+        </div>
+      </div>
+
+      <label class="form-field">
+        <span>Amount ({{ symbolFor(formCurrency) }})</span>
+        <input type="number" min="0" step="0.01" [(ngModel)]="form.amount">
+      </label>
+
+      <!-- Salaries only: the admins are paid in lari, everything else is billed in dollars. -->
+      <div class="form-field" *ngIf="canChooseCurrency">
+        <span>Currency</span>
+        <div class="toggle-group">
+          <button type="button" class="toggle"
+                  [class.active]="formCurrency === 'USD'"
+                  (click)="setCurrency('USD')">$ USD</button>
+          <button type="button" class="toggle"
+                  [class.active]="formCurrency === 'GEL'"
+                  (click)="setCurrency('GEL')">₾ GEL</button>
+        </div>
+      </div>
+
+      <!-- Amounts stay in the currency they were entered in; only reporting converts. -->
+      <div class="form-field span-2 currency-note" *ngIf="canChooseCurrency && formCurrency === 'GEL'">
+        <i class="fas fa-info-circle"></i>
+        <span>
+          Stored in lari. Statistics and Finances convert it to USD at each month's exchange rate —
+          the same rate the staff bonuses use.
+        </span>
+      </div>
 
       <label class="form-field">
         <span>Start date</span>
@@ -223,9 +277,24 @@
           <div class="name-block" *ngFor="let n of cat.names">
             <div class="name-head" (click)="toggleName(cat.categoryId, n.name)">
               <span class="chevron"><i class="fas" [class.fa-chevron-right]="!isNameOpen(cat.categoryId, n.name)" [class.fa-chevron-down]="isNameOpen(cat.categoryId, n.name)"></i></span>
+              <span class="name-icon" *ngIf="n.staffUserId"><i class="fas fa-user"></i></span>
               <span class="name-name">{{ n.name }}</span>
+              <!-- The account is gone; the row still names them from the snapshot it was saved with. -->
+              <span class="name-former-tag" *ngIf="n.staffUserRemoved"
+                    title="This person is no longer in Users. Their salaries stay on file under the name they were paid as.">
+                former
+              </span>
               <span class="name-entries-tag" *ngIf="n.entries.length > 1">{{ n.entries.length }} entries</span>
-              <span class="name-total">$ {{ n.monthTotal | number:'1.2-2' }}</span>
+              <!-- A foreign-currency line leads with what was actually paid; the USD figure that
+                   reaches the books follows it, because that is the one the totals add up. -->
+              <span class="name-total">
+                <span class="native-amount" *ngIf="n.monthTotalInCurrency != null">
+                  {{ symbolFor(n.currency) }} {{ n.monthTotalInCurrency | number:'1.2-2' }}
+                </span>
+                <span [class.converted-amount]="n.monthTotalInCurrency != null">
+                  $ {{ n.monthTotal | number:'1.2-2' }}
+                </span>
+              </span>
             </div>
 
             <!-- Individual entries for this name -->
@@ -233,7 +302,12 @@
               <div class="entry-alltime">
                 <i class="fas fa-coins"></i>
                 Total to date across all entries:
-                <strong>$ {{ n.allTimeTotal | number:'1.2-2' }}</strong>
+                <strong *ngIf="n.allTimeTotalInCurrency != null">
+                  {{ symbolFor(n.currency) }} {{ n.allTimeTotalInCurrency | number:'1.2-2' }}
+                </strong>
+                <strong [class.converted-amount]="n.allTimeTotalInCurrency != null">
+                  $ {{ n.allTimeTotal | number:'1.2-2' }}
+                </strong>
               </div>
 
               <table class="entry-table">
@@ -249,7 +323,9 @@
                 <tbody>
                   <ng-container *ngFor="let row of n.entries">
                     <tr [class.is-deleting]="pendingDeleteId === row.id">
-                      <td class="amount">$ {{ row.amount | number:'1.2-2' }}</td>
+                      <!-- The entry shows exactly what was typed; conversion is a reporting
+                           concern and belongs on the totals, not on the record of the amount. -->
+                      <td class="amount">{{ symbolFor(row.currency) }} {{ row.amount | number:'1.2-2' }}</td>
                       <td>{{ recurrenceLabel(row) }}</td>
                       <td>{{ formatDate(row.startDate) }}</td>
                       <td>

@@ -228,6 +228,59 @@
 }
 
 /* ── Prorate checkbox (in form) ──────────────────────────────────────────── */
+// A converted figure sits BESIDE the amount that was actually entered, quieter and smaller — the
+// lari figure is what the owner typed and hands over, the dollar one is what the books report.
+// Same treatment wherever a pair appears, so the two are never mistaken for each other.
+.converted-amount {
+  color: var(--text-muted);
+  font-size: 0.85em;
+  font-weight: var(--fw-medium);
+
+  &::before { content: '≈ '; }
+}
+
+// The lari half of a pair keeps the primary weight it would have had on its own.
+.native-amount { color: var(--text-primary); }
+
+// Explains where a GEL amount goes once it leaves this form.
+.currency-note {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--soft-blue);
+  color: var(--primary-color);
+  font-size: 0.82rem;
+  line-height: 1.45;
+
+  i { margin-top: 0.15rem; }
+}
+
+// Read-only stand-in for the Name input when a staff member is picked: the row is named by the
+// account, so there is nothing to type — but the name still has to be on screen before saving.
+.staff-note {
+  .staff-chip {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.55rem 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--surface-subtle);
+
+    i { color: var(--primary-color); font-size: 0.85rem; }
+    strong { color: var(--text-primary); }
+    small { color: var(--text-muted); font-size: 0.8rem; }
+
+    .staff-warning {
+      width: 100%;
+      color: var(--soft-yellow-text);
+    }
+  }
+}
+
 .prorate-field {
   .checkbox-line {
     display: flex;
@@ -331,7 +384,25 @@
 
   .chevron { color: var(--text-muted); width: 0.8rem; text-align: center; font-size: 0.8rem; }
 
+  // A salary line names a person rather than a thing — the icon says which without a second column.
+  .name-icon {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin-right: -0.2rem;
+  }
+
   .name-name { font-weight: var(--fw-semibold); color: var(--text-primary); }
+
+  // Amber, not red: a former staff member's salaries are history worth keeping, not an error.
+  .name-former-tag {
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--radius-pill);
+    background: var(--soft-yellow);
+    color: var(--soft-yellow-text);
+    font-size: 0.7rem;
+    font-weight: var(--fw-semibold);
+    cursor: help;
+  }
 
   .name-entries-tag {
     padding: 0.1rem 0.5rem;
@@ -347,6 +418,9 @@
     font-weight: var(--fw-bold);
     color: var(--text-primary);
     white-space: nowrap;
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
   }
 }
 

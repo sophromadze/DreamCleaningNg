@@ -2423,15 +2423,33 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * Assigning a cleaner does NOT notify them — the assignment mail is a separate, deliberate
+   * action — so a cleaner unassigned before it went out has never heard of this job, and the
+   * server sends them no removal email. Say so up front rather than promising a mail that is
+   * not coming. The server decides; this only keeps the wording honest.
+   */
+  private wasCleanerNotifiedOfAssignment(orderId: number, cleanerId: number): boolean {
+    const cleaner = this.getAssignedCleanersWithIds(orderId).find(c => c.id === cleanerId);
+    if (!cleaner) return false;
+    return cleaner.assignmentNotificationSentAt != null && cleaner.assignmentNotificationSentAt !== '';
+  }
+
   removeCleanerFromOrder(orderId: number, cleanerId: number, cleanerName: string) {
-    const confirmMessage = `Are you sure you want to remove ${cleanerName} from this order? They will receive an email notification about the removal.`;
-    
+    const wasNotified = this.wasCleanerNotifiedOfAssignment(orderId, cleanerId);
+    const confirmMessage = wasNotified
+      ? `Are you sure you want to remove ${cleanerName} from this order? They will receive an email notification about the removal.`
+      : `Are you sure you want to remove ${cleanerName} from this order? They were never sent the assignment email, so no removal email will go out.`;
+
     if (confirm(confirmMessage)) {
       this.loadingStates.removingCleaner = true;
       
       this.cleanerService.removeCleanerFromOrder(orderId, cleanerId).subscribe({
-        next: () => {
-          this.successMessage = `${cleanerName} has been removed from the order and notified via email.`;
+        next: (response: any) => {
+          const notified = response?.removalNotificationSent ?? wasNotified;
+          this.successMessage = notified
+            ? `${cleanerName} has been removed from the order and notified via email.`
+            : `${cleanerName} has been removed from the order. No email was sent — they had not been notified about this job.`;
 
           // Removing a cleaner changes what the job costs (the duration re-splits), so the
           // order's stored salary and the breakdown both move. Refetch rather than leave the

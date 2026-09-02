@@ -6,10 +6,13 @@ import {
   ExpenseService,
   Expense,
   ExpenseCategory,
+  ExpenseStaffMember,
+  ExpenseCurrencyCode,
   CreateExpense,
   GroupedExpenses
 } from '../../../services/expense.service';
 import { AuthService } from '../../../services/auth.service';
+import { allowsCurrencyChoice, currencySymbol, isSalaryCategory } from '../../../shared/admin/salary-expense.rules';
 
 @Component({
   selector: 'app-expenses',
@@ -22,6 +25,9 @@ export class ExpensesComponent implements OnInit {
   // Grouped Category → Name → entries view, scoped to the selected month.
   grouped: GroupedExpenses | null = null;
   categories: ExpenseCategory[] = [];
+  // People a salary can be recorded against. Loaded with the page so the picker is never empty
+  // on first open — the Salaries category is the one an owner reaches for most.
+  staffMembers: ExpenseStaffMember[] = [];
 
   loading = false;
   error = '';
@@ -40,6 +46,12 @@ export class ExpensesComponent implements OnInit {
   editingId: number | null = null;
   saving = false;
   form: CreateExpense = this.blankForm();
+
+  // Who a salary is for. A staff member's id, 'custom' for somebody with no account (which is
+  // also how every salary row predating the picker edits), or '' for "not answered yet" — the
+  // three are genuinely different and collapsing the last two would let an unanswered form save
+  // itself under a blank name.
+  staffChoice: number | 'custom' | '' = '';
 
   // Common cadence presets the user can pick without typing a number.
   frequencyPresets: { label: string; months: number }[] = [
@@ -82,11 +94,13 @@ export class ExpensesComponent implements OnInit {
     this.loading = true;
     forkJoin({
       grouped: this.expenseService.getGrouped(this.selYear, this.selMonth),
-      categories: this.expenseService.getCategories()
+      categories: this.expenseService.getCategories(),
+      staff: this.expenseService.getStaffMembers()
     }).subscribe({
-      next: ({ grouped, categories }) => {
+      next: ({ grouped, categories, staff }) => {
         this.grouped = grouped;
         this.categories = categories;
+        this.staffMembers = staff;
         this.loading = false;
       },
       error: (err) => {
@@ -153,6 +167,7 @@ export class ExpensesComponent implements OnInit {
     this.editingId = null;
     this.form = this.blankForm();
     if (categoryId != null) this.form.categoryId = categoryId;
+    this.staffChoice = '';
     this.showForm = true;
   }
 
@@ -161,7 +176,9 @@ export class ExpensesComponent implements OnInit {
     this.form = {
       name: row.name,
       amount: row.amount,
+      currency: row.currency ?? 'USD',
       categoryId: row.categoryId,
+      staffUserId: row.staffUserId ?? null,
       startDate: this.toYmd(row.startDate),
       isRecurring: row.isRecurring,
       frequencyMonths: row.frequencyMonths ?? null,
@@ -169,6 +186,11 @@ export class ExpensesComponent implements OnInit {
       prorateByDay: row.prorateByDay,
       notes: row.notes ?? null
     };
+    // A salary row with no link is one typed by hand — including every row written before the
+    // picker existed. It edits as 'custom' so re-saving it can't silently blank its name.
+    this.staffChoice = isSalaryCategory(row.categoryId)
+      ? (row.staffUserId ?? 'custom')
+      : '';
     this.showForm = true;
   }
 
@@ -176,6 +198,73 @@ export class ExpensesComponent implements OnInit {
     this.showForm = false;
     this.editingId = null;
     this.form = this.blankForm();
+    this.staffChoice = '';
+  }
+
+  // ─── salary staff picker ─────────────────────────────────────────────────────
+
+  get isSalaryForm(): boolean {
+    return isSalaryCategory(this.form.categoryId);
+  }
+
+  onCategoryChange(): void {
+    if (!this.isSalaryForm) {
+      // Leaving Salaries drops the link AND the currency, matching the server, which refuses to
+      // store either on any other category. Whatever name is on screen is what the row keeps.
+      this.staffChoice = '';
+      this.form.staffUserId = null;
+      this.form.currency = 'USD';
+      return;
+    }
+    // Arriving at Salaries on an existing row that already has a typed name keeps that name
+    // rather than throwing it away — the owner can still switch to a staff member.
+    if (this.staffChoice === '' && this.form.name?.trim()) this.staffChoice = 'custom';
+  }
+
+  // ─── currency ────────────────────────────────────────────────────────────────
+
+  /** Only a salary offers a currency choice; everything else is USD. */
+  get canChooseCurrency(): boolean {
+    return allowsCurrencyChoice(this.form.categoryId);
+  }
+
+  get formCurrency(): ExpenseCurrencyCode {
+    return this.form.currency ?? 'USD';
+  }
+
+  setCurrency(currency: ExpenseCurrencyCode): void {
+    this.form.currency = currency;
+  }
+
+  /** Display only — nothing is converted on this side. */
+  symbolFor(currency: string | null | undefined): string {
+    return currencySymbol(currency);
+  }
+
+  get selectedStaff(): ExpenseStaffMember | null {
+    if (typeof this.staffChoice !== 'number') return null;
+    return this.staffMembers.find(s => s.id === this.staffChoice) ?? null;
+  }
+
+  /** The name field is only shown when there is a name to type — a picked staff member names the row. */
+  get showsNameField(): boolean {
+    return !this.isSalaryForm || this.staffChoice === 'custom';
+  }
+
+  get currentStaff(): ExpenseStaffMember[] {
+    return this.staffMembers.filter(s => !s.isFormer);
+  }
+
+  get formerStaff(): ExpenseStaffMember[] {
+    return this.staffMembers.filter(s => s.isFormer);
+  }
+
+  staffOptionLabel(s: ExpenseStaffMember): string {
+    const notes: string[] = [];
+    if (s.role) notes.push(s.role === 'SuperAdmin' ? 'Super Admin' : s.role);
+    if (!s.isActive) notes.push('blocked');
+    if (s.isFormer && !s.role) notes.push('no longer staff');
+    return notes.length ? `${s.fullName} (${notes.join(' · ')})` : s.fullName;
   }
 
   onRecurringToggle(isRecurring: boolean): void {
@@ -203,18 +292,33 @@ export class ExpensesComponent implements OnInit {
 
   save(): void {
     if (this.saving) return;
-    if (!this.form.name?.trim()) { this.flashError('Name is required'); return; }
-    if (this.form.amount == null || this.form.amount < 0) { this.flashError('Amount must be 0 or positive'); return; }
     if (this.form.categoryId == null) { this.flashError('Pick a category'); return; }
+
+    const staff = this.selectedStaff;
+    if (this.isSalaryForm && this.staffChoice === '') {
+      this.flashError('Pick who this salary is for'); return;
+    }
+    if (this.isSalaryForm && typeof this.staffChoice === 'number' && !staff) {
+      this.flashError('That staff member is no longer on the list. Reload the page and pick again.'); return;
+    }
+    // A picked staff member names the row, so only a typed name has to be there.
+    if (!staff && !this.form.name?.trim()) { this.flashError('Name is required'); return; }
+    if (this.form.amount == null || this.form.amount < 0) { this.flashError('Amount must be 0 or positive'); return; }
     if (!this.form.startDate) { this.flashError('Start date is required'); return; }
     if (this.form.isRecurring && (!this.form.frequencyMonths || this.form.frequencyMonths <= 0)) {
       this.flashError('Recurring expenses need a frequency in months > 0'); return;
     }
 
     const dto: CreateExpense = {
-      name: this.form.name.trim(),
+      // The server overwrites this from the account when a staff member is picked; sending their
+      // name keeps the request self-describing rather than blank.
+      name: (staff ? staff.fullName : this.form.name).trim(),
       amount: Number(this.form.amount),
+      // The server forces USD on every non-salary category anyway; sending what is on screen
+      // keeps the request honest rather than relying on that.
+      currency: this.canChooseCurrency ? this.formCurrency : 'USD',
       categoryId: Number(this.form.categoryId),
+      staffUserId: staff ? staff.id : null,
       startDate: this.form.startDate,
       isRecurring: this.form.isRecurring,
       frequencyMonths: this.form.isRecurring ? Number(this.form.frequencyMonths) : null,
@@ -389,7 +493,9 @@ export class ExpensesComponent implements OnInit {
     return {
       name: '',
       amount: 0,
+      currency: 'USD',
       categoryId: this.categories[0]?.id ?? 0,
+      staffUserId: null,
       startDate: this.toYmd(new Date().toISOString()),
       isRecurring: false,
       frequencyMonths: null,

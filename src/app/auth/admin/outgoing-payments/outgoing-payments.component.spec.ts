@@ -7,7 +7,9 @@ import { OutgoingPaymentsComponent } from './outgoing-payments.component';
 import {
   OutgoingPaymentCleaner,
   OutgoingPaymentList,
-  OutgoingPaymentOrder
+  OutgoingPaymentOrder,
+  AdminSalaryPayoutList,
+  AdminSalaryPayout
 } from '../../../services/outgoing-payment.service';
 
 /**
@@ -96,16 +98,47 @@ describe('OutgoingPaymentsComponent', () => {
     pageSize: 20
   });
 
-  /** Answers the initial load (and any reload the action under test triggers). */
+  /** An empty staff-salaries month — the default for tests that are about cleaner wages. */
+  const emptySalaries = (): AdminSalaryPayoutList => ({
+    year: 2026,
+    month: 8,
+    monthLabel: 'August 2026',
+    payees: [],
+    totalUsd: 0,
+    paidUsd: 0,
+    unpaidUsd: 0,
+    unpaidInstalmentCount: 0
+  });
+
+  /**
+   * Answers the initial load (and any reload the action under test triggers).
+   * The `/salaries` exclusion is load-bearing: the page fetches both halves from the same base
+   * URL, and matching on the prefix alone answered the salaries call with an order list.
+   */
   function flushLoad(payload: OutgoingPaymentList): void {
-    const requests = httpMock.match(r => r.method === 'GET' && r.url.includes('/outgoing-payments'));
+    const requests = httpMock.match(r =>
+      r.method === 'GET' && r.url.includes('/outgoing-payments') && !r.url.includes('/salaries'));
     requests.forEach(r => r.flush(payload));
   }
 
-  /** Loads the page with the given orders and renders it. */
-  function render(orders: OutgoingPaymentOrder[] = [order()]): void {
+  /** Answers any outstanding staff-salaries fetch. */
+  function flushSalaries(payload: AdminSalaryPayoutList = emptySalaries()): void {
+    httpMock.match(r => r.method === 'GET' && r.url.includes('/outgoing-payments/salaries'))
+      .forEach(r => r.flush(payload));
+  }
+
+  /** Loads the page with the given orders and renders it. Opens on the Cleaner wages tab. */
+  function render(orders: OutgoingPaymentOrder[] = [order()], salaries?: AdminSalaryPayoutList): void {
     fixture.detectChanges();
     flushLoad(list(orders));
+    flushSalaries(salaries);
+    fixture.detectChanges();
+  }
+
+  /** Renders, then switches to the Employees tab — where the salary markup lives. */
+  function renderEmployees(salaries: AdminSalaryPayoutList, orders: OutgoingPaymentOrder[] = [order()]): void {
+    render(orders, salaries);
+    component.setTab('employees');
     fixture.detectChanges();
   }
 
@@ -132,9 +165,11 @@ describe('OutgoingPaymentsComponent', () => {
 
   it('asks for 20 a page, matching the Orders tab', () => {
     fixture.detectChanges();
-    const req = httpMock.expectOne(r => r.method === 'GET');
+    const req = httpMock.expectOne(r =>
+      r.method === 'GET' && !r.url.includes('/salaries'));
     expect(req.request.params.get('pageSize')).toBe('20');
     req.flush(list([]));
+    flushSalaries();
   });
 
   describe('the slide-in panel', () => {
@@ -681,6 +716,442 @@ describe('OutgoingPaymentsComponent', () => {
       component.data = list([order()], 400); // 20 pages
       component.page = 10;
       expect(component.pageWindow).toEqual([7, 8, 9, 10, 11, 12, 13]);
+    });
+  });
+
+  // ── Staff salaries ─────────────────────────────────────────────────────────
+  //
+  // The admins are paid a monthly salary in lari, in two instalments. What is OWED comes from the
+  // Expenses page via the server; this section only records the paying.
+
+  describe('staff salaries', () => {
+    const payee = (over: Partial<AdminSalaryPayout> = {}): AdminSalaryPayout => ({
+      payeeKey: 'staff#7',
+      staffUserId: 7,
+      name: 'Nino Beridze',
+      role: 'Admin',
+      isFormerStaff: false,
+      paymentDetails: 'GE29NB0000000101904917',
+      salaryTotal: 1800,
+      bonusTotal: 0,
+      bonusTotalGel: 0,
+      bonusTotalUsd: 0,
+      monthTotal: 1800,
+      currency: 'GEL',
+      monthTotalUsd: 666,
+      usdPerGel: 0.37,
+      instalments: [
+        { half: 1, label: 'First payment', amount: 900, currency: 'GEL', amountUsd: 333, salaryAmount: 900, bonusAmount: 0, isPaid: false },
+        { half: 2, label: 'Second payment', amount: 900, currency: 'GEL', amountUsd: 333, salaryAmount: 900, bonusAmount: 0, isPaid: false }
+      ],
+      isFullyPaid: false,
+      isPartiallyPaid: false,
+      unpaidAmount: 1800,
+      warnings: [],
+      ...over
+    });
+
+    const salaryMonth = (payees: AdminSalaryPayout[]): AdminSalaryPayoutList => ({
+      year: 2026,
+      month: 8,
+      monthLabel: 'August 2026',
+      payees,
+      totalUsd: payees.reduce((n, p) => n + p.monthTotalUsd, 0),
+      paidUsd: 0,
+      unpaidUsd: payees.reduce((n, p) => n + p.monthTotalUsd, 0),
+      unpaidInstalmentCount: payees.length * 2
+    });
+
+    it('shows each salary as the two payments it is actually made in', () => {
+      renderEmployees(salaryMonth([payee()]));
+
+      const rows = fixture.nativeElement.querySelectorAll('.salary-instalment');
+      expect(rows.length).toBe(2);
+      expect(rows[0].textContent).toContain('First payment');
+      expect(rows[1].textContent).toContain('Second payment');
+    });
+
+    it('leads with the lari figure and shows the USD it converts to', () => {
+      renderEmployees(salaryMonth([payee()]));
+
+      const head = fixture.nativeElement.querySelector('.salary-payee-head');
+      // What is handed over first, what the books report second — never only the converted one.
+      expect(head.textContent).toContain('₾ 1,800.00');
+      expect(head.textContent).toContain('666.00');
+    });
+
+    it('shows no conversion line for a salary already in USD', () => {
+      const usd = payee({
+        currency: 'USD', salaryTotal: 2000, monthTotal: 2000, monthTotalUsd: 2000, usdPerGel: null,
+        instalments: [
+          { half: 1, label: 'First payment', amount: 1000, currency: 'USD', amountUsd: 1000, salaryAmount: 1000, bonusAmount: 0, isPaid: false },
+          { half: 2, label: 'Second payment', amount: 1000, currency: 'USD', amountUsd: 1000, salaryAmount: 1000, bonusAmount: 0, isPaid: false }
+        ]
+      });
+      renderEmployees(salaryMonth([usd]));
+
+      expect(component.isConverted('USD')).toBeFalse();
+      expect(fixture.nativeElement.querySelector('.salary-payee-head .salary-usd')).toBeNull();
+    });
+
+    it('records one instalment against the payee key, not a user id', () => {
+      // A salary can be owed to somebody with no account at all, so the key is what addresses it.
+      renderEmployees(salaryMonth([payee()]));
+
+      const p = component.salaries!.payees[0];
+      component.startPayInstalment(p, p.instalments[0]);
+      component.salaryPaymentNote = 'Bank transfer';
+      component.confirmPayInstalment(p, p.instalments[0]);
+
+      const req = httpMock.expectOne(r => r.method === 'POST' && r.url.includes('/salaries/'));
+      expect(req.request.url).toContain('/salaries/2026/8/1/pay');
+      expect(req.request.params.get('payeeKey')).toBe('staff#7');
+      expect(req.request.body.paymentNote).toBe('Bank transfer');
+
+      // The write answers with the whole month, so the section redraws from one response.
+      req.flush(salaryMonth([payee({ isPartiallyPaid: true })]));
+      expect(component.payingInstalmentKey).toBeNull();
+    });
+
+    it('does not record anything until the payment is confirmed', () => {
+      renderEmployees(salaryMonth([payee()]));
+
+      const p = component.salaries!.payees[0];
+      component.startPayInstalment(p, p.instalments[0]);
+      component.cancelPayInstalment();
+
+      httpMock.expectNone(r => r.method === 'POST');
+      expect(component.payingInstalmentKey).toBeNull();
+    });
+
+    it('reads Part paid when only one of the two has gone out', () => {
+      const half = payee({ isPartiallyPaid: true, unpaidAmount: 900 });
+      renderEmployees(salaryMonth([half]));
+
+      expect(component.salaryStatusLabel(half)).toBe('Part paid');
+      // Blue, like the cleaner rows. Never red — an unpaid salary is work outstanding.
+      expect(component.salaryStatusClass(half)).toBe('status-active');
+      expect(component.salaryStatusClass(payee())).toBe('status-pending');
+      expect(component.salaryStatusClass(payee({ isFullyPaid: true }))).toBe('status-done');
+    });
+
+    it('shows what was actually handed over on a paid instalment', () => {
+      // Frozen at pay time: editing the salary afterwards changes what is owed next month, not
+      // what already left. The server sends the frozen figure; the page renders it as given.
+      const paid = payee({
+        isPartiallyPaid: true,
+        instalments: [
+          {
+            half: 1, label: 'First payment', amount: 850, currency: 'GEL', amountUsd: 314.50,
+            salaryAmount: 850, bonusAmount: 0, isPaid: true, paidAt: '2026-08-15T00:00:00', paidByName: 'Owner', paymentNote: 'Bank transfer'
+          },
+          { half: 2, label: 'Second payment', amount: 900, currency: 'GEL', amountUsd: 333, salaryAmount: 900, bonusAmount: 0, isPaid: false }
+        ]
+      });
+      renderEmployees(salaryMonth([paid]));
+
+      const rows = fixture.nativeElement.querySelectorAll('.salary-instalment');
+      expect(rows[0].textContent).toContain('₾ 850.00');
+      expect(rows[0].textContent).toContain('Owner');
+      expect(rows[0].textContent).toContain('Bank transfer');
+    });
+
+    it('keeps a departed staff member on the page, marked former', () => {
+      const gone = payee({ role: null, isFormerStaff: true });
+      renderEmployees(salaryMonth([gone]));
+
+      const head = fixture.nativeElement.querySelector('.salary-payee-head');
+      expect(head.textContent).toContain('Nino Beridze');
+      expect(head.querySelector('.salary-former')).not.toBeNull();
+    });
+
+    it('renders the section warnings verbatim rather than recomputing them', () => {
+      const warned = payee({ warnings: ['No exchange rate for this month yet, so the USD figure is not converted.'] });
+      renderEmployees(salaryMonth([warned]));
+
+      expect(fixture.nativeElement.querySelector('.salary-warning').textContent)
+        .toContain('No exchange rate for this month yet');
+    });
+
+    it('hides the whole section when nobody is on salary', () => {
+      renderEmployees(emptySalaries());
+      expect(fixture.nativeElement.querySelector('.salary-block')).toBeNull();
+    });
+
+    it('does not refetch salaries when a cleaner filter changes', fakeAsync(() => {
+      // Salaries depend only on the month. Refetching them on every debounced keystroke in the
+      // cleaner search would be pure waste — and emptying the section mid-search reads as
+      // "nobody is owed a salary".
+      renderEmployees(salaryMonth([payee()]));
+
+      component.onSearchChange('Irma');
+      tick(300);
+
+      expect(httpMock.match(r => r.url.includes('/salaries')).length).toBe(0);
+      flushLoad(list([]));
+    }));
+
+    it('reloads salaries when the month changes', () => {
+      renderEmployees(salaryMonth([payee()]));
+
+      component.prevMonth();
+
+      httpMock.expectOne(r => r.method === 'GET' && r.url.includes('/salaries'))
+        .flush(emptySalaries());
+      flushLoad(list([]));
+      expect(component.salaries!.payees.length).toBe(0);
+    });
+
+    // ── Bonuses ride on the second payment ───────────────────────────────────
+
+    it('adds the month\'s bonus to the second payment, never the first', () => {
+      // The owner's example: 2,100 GEL a month is 1,050 each half; a 200 GEL bonus makes the
+      // second payment 1,250. Bonuses are earned across the whole month, so the figure is only
+      // known once it is over — which is when the second payment goes out.
+      const withBonus = payee({
+        salaryTotal: 2100, bonusTotal: 200, bonusTotalGel: 200, bonusTotalUsd: 76.64,
+        monthTotal: 2300, monthTotalUsd: 881.34,
+        instalments: [
+          { half: 1, label: 'First payment', amount: 1050, currency: 'GEL', amountUsd: 402.35,
+            salaryAmount: 1050, bonusAmount: 0, isPaid: false },
+          { half: 2, label: 'Second payment', amount: 1250, currency: 'GEL', amountUsd: 478.99,
+            salaryAmount: 1050, bonusAmount: 200, isPaid: false }
+        ]
+      });
+      renderEmployees(salaryMonth([withBonus]));
+
+      const rows = fixture.nativeElement.querySelectorAll('.salary-instalment');
+      expect(rows[0].textContent).toContain('₾ 1,050.00');
+      expect(rows[1].textContent).toContain('₾ 1,250.00');
+
+      // Only the second explains itself as a sum.
+      expect(rows[0].querySelector('.inst-breakdown')).toBeNull();
+      expect(rows[1].querySelector('.inst-breakdown').textContent).toContain('₾200.00 bonus');
+    });
+
+    it('shows the bonus in the month total, tagged so it is not mistaken for salary', () => {
+      const withBonus = payee({
+        salaryTotal: 2100, bonusTotal: 200, bonusTotalGel: 200, bonusTotalUsd: 76.64,
+        monthTotal: 2300, monthTotalUsd: 881.34
+      });
+      renderEmployees(salaryMonth([withBonus]));
+
+      const head = fixture.nativeElement.querySelector('.salary-payee-head');
+      expect(head.textContent).toContain('₾ 2,300.00');
+      expect(head.querySelector('.salary-bonus-tag').textContent).toContain('+₾200.00 bonus');
+    });
+
+    it('shows no bonus chip for a month with none', () => {
+      renderEmployees(salaryMonth([payee()]));
+      expect(fixture.nativeElement.querySelector('.salary-bonus-tag')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.inst-breakdown')).toBeNull();
+    });
+
+    it('keeps a paid instalment at the figure it was paid at', () => {
+      // The USD figure in particular must not drift with the exchange rate once the money is
+      // gone — it is a record, not an estimate. The server sends the frozen pair; the page
+      // renders it and never recomputes.
+      const settled = payee({
+        isPartiallyPaid: true,
+        instalments: [
+          { half: 1, label: 'First payment', amount: 1050, currency: 'GEL', amountUsd: 402.35,
+            salaryAmount: 1050, bonusAmount: 0, isPaid: false },
+          { half: 2, label: 'Second payment', amount: 1250, currency: 'GEL', amountUsd: 478.99,
+            salaryAmount: 1050, bonusAmount: 200, isPaid: true,
+            paidAt: '2026-08-31T00:00:00', paidByName: 'Owner' }
+        ]
+      });
+      renderEmployees(salaryMonth([settled]));
+
+      const rows = fixture.nativeElement.querySelectorAll('.salary-instalment');
+      expect(rows[1].textContent).toContain('478.99');
+      // A settled instalment still explains its own breakdown.
+      expect(rows[1].querySelector('.inst-breakdown').textContent).toContain('bonus');
+    });
+
+    // ── Where the salary is sent ─────────────────────────────────────────────
+
+    describe('payment destination', () => {
+      it('shows the destination under the name, ready to copy', () => {
+        renderEmployees(salaryMonth([payee()]));
+
+        const dest = fixture.nativeElement.querySelector('.salary-destination .dest-value');
+        expect(dest.textContent.trim()).toBe('GE29NB0000000101904917');
+      });
+
+      it('offers to add one when there is none on file', () => {
+        renderEmployees(salaryMonth([payee({ paymentDetails: null })]));
+
+        expect(fixture.nativeElement.querySelector('.dest-value')).toBeNull();
+        expect(fixture.nativeElement.querySelector('.dest-add').textContent).toContain('IBAN');
+      });
+
+      it('saves an edited destination against the payee key', () => {
+        renderEmployees(salaryMonth([payee()]));
+
+        const p = component.salaries!.payees[0];
+        component.startEditDetails(p);
+        expect(component.detailsInput).toBe('GE29NB0000000101904917');
+
+        component.detailsInput = 'GE60TB7777777777777777';
+        component.saveDetails(p);
+
+        const req = httpMock.expectOne(r => r.method === 'PUT' && r.url.includes('/payee-details'));
+        expect(req.request.url).toContain('/salaries/2026/8/payee-details');
+        expect(req.request.params.get('payeeKey')).toBe('staff#7');
+        expect(req.request.body.paymentDetails).toBe('GE60TB7777777777777777');
+
+        req.flush(salaryMonth([payee({ paymentDetails: 'GE60TB7777777777777777' })]));
+        expect(component.editingDetailsKey).toBeNull();
+        expect(component.salaries!.payees[0].paymentDetails).toBe('GE60TB7777777777777777');
+      });
+
+      it('sends null when the box is emptied, so a wrong destination can be removed', () => {
+        // A stale account number left on file is how money goes astray — clearing has to work,
+        // not just replacing.
+        renderEmployees(salaryMonth([payee()]));
+
+        const p = component.salaries!.payees[0];
+        component.startEditDetails(p);
+        component.detailsInput = '   ';
+        component.saveDetails(p);
+
+        const req = httpMock.expectOne(r => r.method === 'PUT' && r.url.includes('/payee-details'));
+        expect(req.request.body.paymentDetails).toBeNull();
+        req.flush(salaryMonth([payee({ paymentDetails: null })]));
+      });
+
+      it('writes nothing when an edit is cancelled', () => {
+        renderEmployees(salaryMonth([payee()]));
+
+        const p = component.salaries!.payees[0];
+        component.startEditDetails(p);
+        component.detailsInput = 'typed but abandoned';
+        component.cancelEditDetails();
+
+        httpMock.expectNone(r => r.method === 'PUT');
+        expect(component.editingDetailsKey).toBeNull();
+      });
+
+      it('copies the destination alone, with no name or label around it', async () => {
+        // It is pasted into a banking app; anything in front of the number makes it useless.
+        renderEmployees(salaryMonth([payee()]));
+
+        // Replaces the object rather than spying on the method: `navigator.clipboard` is shared
+        // across the whole suite, so a Jasmine spy on it collides with the cleaner-tab copy test
+        // depending on which spec file runs first. Same pattern that test already uses.
+        const writeText = jasmine.createSpy('writeText').and.returnValue(Promise.resolve());
+        Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+        component.copySalaryDetails(component.salaries!.payees[0]);
+        await Promise.resolve();
+
+        expect(writeText).toHaveBeenCalledWith('GE29NB0000000101904917');
+      });
+
+      it('drops a half-typed destination when the tab is left', () => {
+        renderEmployees(salaryMonth([payee()]));
+
+        component.startEditDetails(component.salaries!.payees[0]);
+        component.detailsInput = 'half typed';
+        component.setTab('cleaners');
+
+        expect(component.editingDetailsKey).toBeNull();
+        expect(component.detailsInput).toBe('');
+      });
+    });
+  });
+
+  // ── Tabs ───────────────────────────────────────────────────────────────────
+
+  describe('the two payee tabs', () => {
+    const payee = (over: Partial<AdminSalaryPayout> = {}): AdminSalaryPayout => ({
+      payeeKey: 'staff#7',
+      staffUserId: 7,
+      name: 'Nino Beridze',
+      role: 'Admin',
+      isFormerStaff: false,
+      paymentDetails: null,
+      salaryTotal: 1800,
+      bonusTotal: 0,
+      bonusTotalGel: 0,
+      bonusTotalUsd: 0,
+      monthTotal: 1800,
+      currency: 'GEL',
+      monthTotalUsd: 666,
+      usdPerGel: 0.37,
+      instalments: [
+        { half: 1, label: 'First payment', amount: 900, currency: 'GEL', amountUsd: 333, salaryAmount: 900, bonusAmount: 0, isPaid: false },
+        { half: 2, label: 'Second payment', amount: 900, currency: 'GEL', amountUsd: 333, salaryAmount: 900, bonusAmount: 0, isPaid: false }
+      ],
+      isFullyPaid: false,
+      isPartiallyPaid: false,
+      unpaidAmount: 1800,
+      warnings: [],
+      ...over
+    });
+
+    const withPayee = (): AdminSalaryPayoutList => ({
+      ...emptySalaries(), payees: [payee()], totalUsd: 666, unpaidUsd: 666, unpaidInstalmentCount: 2
+    });
+
+    it('opens on cleaner wages', () => {
+      render();
+      expect(component.activeTab).toBe('cleaners');
+      expect(fixture.nativeElement.querySelector('table.data-table')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('.salary-block')).toBeNull();
+    });
+
+    it('shows one tab at a time', () => {
+      renderEmployees(withPayee());
+
+      expect(fixture.nativeElement.querySelector('.salary-block')).not.toBeNull();
+      // The cleaner table and its filters are gone, not merely scrolled past.
+      expect(fixture.nativeElement.querySelector('table.data-table')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.filter-bar')).toBeNull();
+    });
+
+    it('carries what each tab still owes, so money on the other tab is visible', () => {
+      render([order()], withPayee());
+
+      expect(component.unpaidForTab.cleaners).toBe(189);
+      expect(component.unpaidForTab.employees).toBe(666);
+
+      const badges = fixture.nativeElement.querySelectorAll('.payee-tab .tab-owing');
+      expect(badges.length).toBe(2);
+    });
+
+    it('points "Still to pay" at the tab on screen', () => {
+      render([order()], withPayee());
+      expect(component.activeTabUnpaid).toBe(189);
+
+      component.setTab('employees');
+      expect(component.activeTabUnpaid).toBe(666);
+    });
+
+    it('fetches nothing when switching tabs — both are already loaded', () => {
+      render([order()], withPayee());
+
+      component.setTab('employees');
+      component.setTab('cleaners');
+
+      expect(httpMock.match(() => true).length).toBe(0);
+    });
+
+    it('keeps both tabs on the same month', () => {
+      // Moving the month on one tab and finding the other elsewhere would be worse than the
+      // extra click of switching back.
+      renderEmployees(withPayee());
+      const before = component.monthLabel;
+
+      component.prevMonth();
+      httpMock.expectOne(r => r.method === 'GET' && r.url.includes('/salaries')).flush(emptySalaries());
+      flushLoad(list([]));
+
+      // The month moved for BOTH halves, and the tab you were on is the tab you are still on.
+      expect(component.monthLabel).not.toBe(before);
+      expect(component.activeTab).toBe('employees');
+      expect(component.isCurrentMonth).toBeFalse();
     });
   });
 });

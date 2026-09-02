@@ -10,8 +10,12 @@ import {
   OutgoingPaymentList,
   OutgoingPaymentOrder,
   OutgoingPaymentCleaner,
-  OutgoingPaymentPaidFilter
+  OutgoingPaymentPaidFilter,
+  AdminSalaryPayoutList,
+  AdminSalaryPayout,
+  AdminSalaryInstalment
 } from '../../../services/outgoing-payment.service';
+import { currencySymbol } from '../../../shared/admin/salary-expense.rules';
 import {
   CleanerPaymentMethod,
   CLEANER_PAYMENT_METHOD_INDEX,
@@ -69,6 +73,43 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
 
   private readonly search$ = new Subject<string>();
   private readonly destroy$ = new Subject<void>();
+
+  // ===== Tabs =====
+  /**
+   * The page pays two different kinds of people. A cleaner is paid per ORDER for hours worked; an
+   * employee is paid a monthly salary in two instalments, with no order, hours or rate behind it.
+   * Nothing about the two shares a column, a filter or a pager, so they are tabs rather than two
+   * blocks stacked on one screen.
+   *
+   * BOTH are loaded on entry even though only one is on screen: the inactive tab's badge is what
+   * says money is still owed over there, and a badge that only appears once you click the tab is
+   * no use at all.
+   */
+  activeTab: 'cleaners' | 'employees' = 'cleaners';
+
+  // ===== Staff salaries (Employees tab) =====
+  /**
+   * The employees' monthly salaries for the month on screen, each split into the two instalments
+   * they are actually paid in.
+   *
+   * Deliberately NOT touched by the cleaner tab's paid/warnings/search filters. Those describe
+   * orders, and carrying them across would mean a search typed on one tab silently emptied the
+   * other — which reads as "nobody is owed a salary".
+   */
+  salaries: AdminSalaryPayoutList | null = null;
+  salariesLoading = false;
+
+  /** The instalment a note is being typed for, as "payeeKey|half". Null = no pay dialog open. */
+  payingInstalmentKey: string | null = null;
+  salaryPaymentNote = '';
+  salarySaving = false;
+
+  /** The payee whose payment destination is being edited, by key. Null = nobody. */
+  editingDetailsKey: string | null = null;
+  detailsInput = '';
+  savingDetails = false;
+  /** The payee whose destination was just copied, so the button can confirm it. */
+  copiedPayeeKey: string | null = null;
 
   // ===== Slide-in panel =====
   /**
@@ -129,7 +170,7 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
         this.load();
       });
 
-    this.load();
+    this.reloadAll();
   }
 
   ngOnDestroy(): void {
@@ -139,6 +180,16 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   }
 
   // ===== Loading =====
+
+  /**
+   * Reloads both halves of the page. Separate from `load()` because the salaries depend ONLY on
+   * the month — re-fetching them on every debounced keystroke in the cleaner search would be
+   * pure waste — so only the month controls and an explicit Refresh come through here.
+   */
+  reloadAll(): void {
+    this.loadSalaries();
+    this.load();
+  }
 
   load(): void {
     this.loading = true;
@@ -187,6 +238,211 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
     this.load();
   }
 
+  // ===== Staff salaries =====
+
+  loadSalaries(): void {
+    this.salariesLoading = true;
+    this.service
+      .getSalaries(this.monthAnchor.getFullYear(), this.monthAnchor.getMonth() + 1)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: data => {
+          this.salaries = data;
+          this.salariesLoading = false;
+          this.cdr.markForCheck();
+        },
+        error: err => {
+          // Reported into the section rather than the page-level banner: the cleaner list beside
+          // it may have loaded perfectly well, and one failure must not read as both failing.
+          this.salaries = null;
+          this.salariesLoading = false;
+          this.error = extractApiErrorMessage(err, 'Could not load staff salaries');
+          this.cdr.markForCheck();
+        }
+      });
+  }
+
+  // ===== Tabs =====
+
+  setTab(tab: 'cleaners' | 'employees'): void {
+    if (this.activeTab === tab) return;
+    this.activeTab = tab;
+    // Both tabs are already loaded, so switching fetches nothing. What it does clear is the
+    // transient state of the tab being left — a half-typed payment note or a half-edited account
+    // number must not still be sitting there on the way back.
+    this.cancelPayInstalment();
+    this.cancelEditDetails();
+    this.error = '';
+  }
+
+  /** What the month still owes on the tab that is NOT on screen — the tab badge. */
+  get unpaidForTab(): { cleaners: number; employees: number } {
+    return {
+      cleaners: this.data?.summary.unpaidPayout ?? 0,
+      employees: this.salaries?.unpaidUsd ?? 0
+    };
+  }
+
+  /** "Still to pay" in the month bar follows the tab you are looking at. */
+  get activeTabUnpaid(): number {
+    return this.activeTab === 'cleaners' ? this.unpaidForTab.cleaners : this.unpaidForTab.employees;
+  }
+
+  instalmentKey(payee: AdminSalaryPayout, instalment: AdminSalaryInstalment): string {
+    return `${payee.payeeKey}|${instalment.half}`;
+  }
+
+  isPayingInstalment(payee: AdminSalaryPayout, instalment: AdminSalaryInstalment): boolean {
+    return this.payingInstalmentKey === this.instalmentKey(payee, instalment);
+  }
+
+  /** Opens the note box for one instalment. Nothing is recorded until it is confirmed. */
+  startPayInstalment(payee: AdminSalaryPayout, instalment: AdminSalaryInstalment): void {
+    this.payingInstalmentKey = this.instalmentKey(payee, instalment);
+    this.salaryPaymentNote = '';
+    this.error = '';
+  }
+
+  cancelPayInstalment(): void {
+    this.payingInstalmentKey = null;
+    this.salaryPaymentNote = '';
+  }
+
+  confirmPayInstalment(payee: AdminSalaryPayout, instalment: AdminSalaryInstalment): void {
+    if (this.salarySaving) return;
+    this.salarySaving = true;
+
+    this.service
+      .markSalaryPaid(
+        this.salaries!.year, this.salaries!.month, instalment.half, payee.payeeKey,
+        { paymentNote: this.salaryPaymentNote.trim() || null })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        // The write answers with the WHOLE month, so the section redraws from one response
+        // instead of being patched in place and drifting from the server.
+        next: data => this.afterSalaryWrite(data, `${payee.name} — ${instalment.label} recorded`),
+        error: err => this.afterSalaryError(err, 'Could not record that payment')
+      });
+  }
+
+  undoInstalment(payee: AdminSalaryPayout, instalment: AdminSalaryInstalment): void {
+    if (this.salarySaving) return;
+    this.salarySaving = true;
+
+    this.service
+      .undoSalaryPayment(this.salaries!.year, this.salaries!.month, instalment.half, payee.payeeKey)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: data => this.afterSalaryWrite(data, `${payee.name} — ${instalment.label} undone`),
+        error: err => this.afterSalaryError(err, 'Could not undo that payment')
+      });
+  }
+
+  private afterSalaryWrite(data: AdminSalaryPayoutList, message: string): void {
+    this.salaries = data;
+    this.salarySaving = false;
+    this.payingInstalmentKey = null;
+    this.salaryPaymentNote = '';
+    this.flash(message);
+    this.cdr.markForCheck();
+  }
+
+  private afterSalaryError(err: unknown, fallback: string): void {
+    this.salarySaving = false;
+    this.error = extractApiErrorMessage(err, fallback);
+    this.cdr.markForCheck();
+  }
+
+  // ── Where the salary is sent ───────────────────────────────────────────────
+  //
+  // An IBAN, a bank card or an ID number — whatever the person is paid against. Free text on
+  // purpose: the format differs by country and by person, and validating one we cannot know
+  // would block a real payment.
+
+  startEditDetails(payee: AdminSalaryPayout): void {
+    this.editingDetailsKey = payee.payeeKey;
+    this.detailsInput = payee.paymentDetails ?? '';
+    this.error = '';
+  }
+
+  cancelEditDetails(): void {
+    this.editingDetailsKey = null;
+    this.detailsInput = '';
+  }
+
+  isEditingDetails(payee: AdminSalaryPayout): boolean {
+    return this.editingDetailsKey === payee.payeeKey;
+  }
+
+  saveDetails(payee: AdminSalaryPayout): void {
+    if (this.savingDetails) return;
+    this.savingDetails = true;
+
+    this.service
+      // An empty box CLEARS it. A destination that turns out to be wrong has to be removable,
+      // not only replaceable — a stale account number on file is how money goes astray.
+      .updateSalaryPayeeDetails(
+        this.salaries!.year, this.salaries!.month, payee.payeeKey, this.detailsInput.trim() || null)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: data => {
+          this.salaries = data;
+          this.savingDetails = false;
+          this.editingDetailsKey = null;
+          this.detailsInput = '';
+          this.flash(`${payee.name} — payment details saved`);
+          this.cdr.markForCheck();
+        },
+        error: err => {
+          this.savingDetails = false;
+          this.error = extractApiErrorMessage(err, 'Could not save those payment details');
+          this.cdr.markForCheck();
+        }
+      });
+  }
+
+  /**
+   * Copies the destination ALONE — no name, no label. It is being pasted into a banking app,
+   * where anything in front of the account number makes the paste useless. Same rule as the
+   * cleaner payout panel.
+   */
+  copySalaryDetails(payee: AdminSalaryPayout): void {
+    this.copyText(payee.paymentDetails ?? null, () => {
+      this.copiedPayeeKey = payee.payeeKey;
+      this.armCopiedTimer(() => { this.copiedPayeeKey = null; });
+    });
+  }
+
+  isDetailsCopied(payee: AdminSalaryPayout): boolean {
+    return this.copiedPayeeKey === payee.payeeKey;
+  }
+
+  /** Display only — the server sends both the entered amount and its USD equivalent. */
+  salarySymbol(currency: string | null | undefined): string {
+    return currencySymbol(currency);
+  }
+
+  /** True when the amount is in a currency the USD figure had to be converted from. */
+  isConverted(currency: string | null | undefined): boolean {
+    return (currency ?? 'USD').toUpperCase() !== 'USD';
+  }
+
+  salaryStatusLabel(payee: AdminSalaryPayout): string {
+    if (payee.isFullyPaid) return 'Paid';
+    if (payee.isPartiallyPaid) return 'Part paid';
+    return 'Unpaid';
+  }
+
+  /**
+   * Amber = unpaid, blue = part paid, green = paid — the same mapping the cleaner rows use.
+   * Never red: an unpaid salary is work outstanding, not an error.
+   */
+  salaryStatusClass(payee: AdminSalaryPayout): string {
+    if (payee.isFullyPaid) return 'status-done';
+    if (payee.isPartiallyPaid) return 'status-active';
+    return 'status-pending';
+  }
+
   // ===== Panel =====
 
   openPanel(order: OutgoingPaymentOrder): void {
@@ -209,19 +465,19 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   prevMonth(): void {
     this.monthAnchor = new Date(this.monthAnchor.getFullYear(), this.monthAnchor.getMonth() - 1, 1);
     this.page = 1;
-    this.load();
+    this.reloadAll();
   }
 
   nextMonth(): void {
     this.monthAnchor = new Date(this.monthAnchor.getFullYear(), this.monthAnchor.getMonth() + 1, 1);
     this.page = 1;
-    this.load();
+    this.reloadAll();
   }
 
   goToCurrentMonth(): void {
     this.monthAnchor = this.startOfMonth(new Date());
     this.page = 1;
-    this.load();
+    this.reloadAll();
   }
 
   get isCurrentMonth(): boolean {
@@ -339,18 +595,19 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    * about to paste an account number somewhere.
    */
   copyPaymentDetails(cleaner: OutgoingPaymentCleaner): void {
-    const text = this.payoutDetails(cleaner);
-    if (!text || !isPlatformBrowser(this.platformId)) return;
-
-    const confirmCopied = () => {
+    this.copyText(this.payoutDetails(cleaner), () => {
       this.copiedCleanerId = cleaner.orderCleanerId;
-      if (this.copiedTimer) clearTimeout(this.copiedTimer);
-      this.copiedTimer = setTimeout(() => {
-        this.copiedCleanerId = null;
-        this.cdr.markForCheck();
-      }, 2000);
-      this.cdr.markForCheck();
-    };
+      this.armCopiedTimer(() => { this.copiedCleanerId = null; });
+    });
+  }
+
+  /**
+   * The copy mechanism itself, shared by the cleaner rows and the employee tab — there is one
+   * account number being pasted into a banking app either way, and two copies of the fallback
+   * would be free to diverge on the failure path, which is the half that matters.
+   */
+  private copyText(text: string | null, confirmCopied: () => void): void {
+    if (!text || !isPlatformBrowser(this.platformId)) return;
 
     const fallback = () => {
       try {
@@ -377,6 +634,16 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
     }
 
     fallback();
+  }
+
+  /** Clears the "copied" tick after a moment — one that never goes away stops meaning anything. */
+  private armCopiedTimer(clear: () => void): void {
+    if (this.copiedTimer) clearTimeout(this.copiedTimer);
+    this.copiedTimer = setTimeout(() => {
+      clear();
+      this.cdr.markForCheck();
+    }, 2000);
+    this.cdr.markForCheck();
   }
 
   isCopied(cleaner: OutgoingPaymentCleaner): boolean {

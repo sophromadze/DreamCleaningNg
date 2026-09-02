@@ -1439,4 +1439,65 @@ describe('OrdersComponent', () => {
       expect(component.errorMessage).toContain('Confirm the schedule conflict');
     });
   });
+
+  /**
+   * Assigning a cleaner does not notify them — the assignment mail is a separate, deliberate
+   * admin action. So an admin who staffs an order, changes their mind and unassigns before
+   * sending anything has told that cleaner nothing, and a "you have been removed" email would
+   * be the first and only thing they ever heard about the job. The server decides (it owns
+   * AssignmentNotificationSentAt); these assertions cover what the admin is told.
+   */
+  describe('removing a cleaner who was never notified', () => {
+    const NOTIFIED = { id: 1, name: 'Maia Niauri', assignmentNotificationSentAt: '2026-08-30T10:00:00Z' };
+    const UNNOTIFIED = { id: 2, name: 'Marekh Tabidze', assignmentNotificationSentAt: null };
+
+    let removeSpy: jasmine.Spy;
+
+    beforeEach(() => {
+      component.assignedCleanersCache.set(315, [NOTIFIED, UNNOTIFIED] as any);
+      component.cleanersLoadedSet.add(315);
+
+      const adminService = TestBed.inject(AdminService);
+      spyOn(adminService, 'getAssignedCleanersWithIds').and.returnValue(of([]));
+      spyOn(component as any, 'refreshOrderAfterSave').and.stub();
+
+      const cleanerService = (component as any).cleanerService;
+      removeSpy = spyOn(cleanerService, 'removeCleanerFromOrder');
+    });
+
+    it('warns that no removal email is coming for an un-notified cleaner', () => {
+      const confirmSpy = spyOn(window, 'confirm').and.returnValue(false);
+
+      component.removeCleanerFromOrder(315, 2, 'Marekh Tabidze');
+
+      expect(confirmSpy.calls.mostRecent().args[0]).toContain('no removal email will go out');
+      expect(removeSpy).not.toHaveBeenCalled();
+    });
+
+    it('still promises the email for a cleaner who received the assignment mail', () => {
+      const confirmSpy = spyOn(window, 'confirm').and.returnValue(false);
+
+      component.removeCleanerFromOrder(315, 1, 'Maia Niauri');
+
+      expect(confirmSpy.calls.mostRecent().args[0]).toContain('will receive an email notification');
+    });
+
+    it('reports what the server actually did rather than assuming a send', () => {
+      spyOn(window, 'confirm').and.returnValue(true);
+      removeSpy.and.returnValue(of({ message: 'ok', removalNotificationSent: false }));
+
+      component.removeCleanerFromOrder(315, 2, 'Marekh Tabidze');
+
+      expect(component.successMessage).toContain('No email was sent');
+    });
+
+    it('says the cleaner was notified when the server sent the mail', () => {
+      spyOn(window, 'confirm').and.returnValue(true);
+      removeSpy.and.returnValue(of({ message: 'ok', removalNotificationSent: true }));
+
+      component.removeCleanerFromOrder(315, 1, 'Maia Niauri');
+
+      expect(component.successMessage).toContain('notified via email');
+    });
+  });
 });

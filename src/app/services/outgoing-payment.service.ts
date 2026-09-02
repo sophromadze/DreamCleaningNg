@@ -15,6 +15,80 @@ import { CleanerPaymentMethod } from './cleaner-management.service';
 
 export type OutgoingPaymentPaidFilter = 'all' | 'unpaid' | 'paid';
 
+// ── Staff salaries ──────────────────────────────────────────────────────────
+//
+// Deliberately a different shape from the cleaner lines below: a cleaner is paid per ORDER for
+// hours worked, while an admin is paid a monthly salary in two instalments. What is OWED is
+// derived server-side from the Salaries expenses, so this page and the reported cost cannot
+// disagree; only the payments are stored.
+
+export interface AdminSalaryInstalment {
+  /** 1 = first payment of the month, 2 = second. */
+  half: number;
+  /** "First payment" / "Second payment" — no calendar dates are claimed. */
+  label: string;
+  /** Owed, in `currency` — or, once paid, the FROZEN figure that was actually handed over. */
+  amount: number;
+  currency: string;
+  amountUsd: number;
+  /** This instalment's half of the salary, before bonuses. */
+  salaryAmount: number;
+  /** Bonuses riding on this instalment. Always 0 on the first — see the second payment. */
+  bonusAmount: number;
+  isPaid: boolean;
+  paidAt?: string | null;
+  paidByName?: string | null;
+  paymentNote?: string | null;
+}
+
+export interface AdminSalaryPayout {
+  /** Stable identity for the person; what the pay/unpay calls address them by. */
+  payeeKey: string;
+  /** Null for a salary recorded against a typed name rather than an account. */
+  staffUserId?: number | null;
+  name: string;
+  /** Null once they no longer hold a staff role. */
+  role?: string | null;
+  isFormerStaff: boolean;
+  /**
+   * Where the salary is actually sent — an IBAN, a card or an ID number. Free text, copied
+   * verbatim and never parsed. Null until somebody fills it in.
+   */
+  paymentDetails?: string | null;
+  /** The salary alone, in the currency it was entered in. */
+  salaryTotal: number;
+  /**
+   * Staff bonuses earned this month, in the salary's currency (converted when the two differ —
+   * bonus rates are always set in GEL). Paid with the SECOND instalment.
+   */
+  bonusTotal: number;
+  bonusTotalGel: number;
+  bonusTotalUsd: number;
+  /** Salary + bonuses — what the month owes this person in total. */
+  monthTotal: number;
+  currency: string;
+  monthTotalUsd: number;
+  usdPerGel?: number | null;
+  /** Always exactly two, always in order. */
+  instalments: AdminSalaryInstalment[];
+  isFullyPaid: boolean;
+  isPartiallyPaid: boolean;
+  unpaidAmount: number;
+  /** Worth knowing before sending money. Never blocks anything. */
+  warnings: string[];
+}
+
+export interface AdminSalaryPayoutList {
+  year: number;
+  month: number;
+  monthLabel: string;
+  payees: AdminSalaryPayout[];
+  totalUsd: number;
+  paidUsd: number;
+  unpaidUsd: number;
+  unpaidInstalmentCount: number;
+}
+
 export interface OutgoingPaymentCleaner {
   /** 0 on an unassigned slot — there is no assignment row behind it. */
   orderCleanerId: number;
@@ -223,5 +297,46 @@ export class OutgoingPaymentService {
   undoUnassignedSlotPayment(orderId: number, slotIndex: number): Observable<OutgoingPaymentOrder> {
     return this.http.post<OutgoingPaymentOrder>(
       `${this.apiUrl}/order/${orderId}/unassigned/${slotIndex}/unpay`, {});
+  }
+
+  // ── Staff salaries ────────────────────────────────────────────────────────
+  //
+  // A salary is per PERSON per MONTH, paid in two instalments — a different shape from the
+  // per-order cleaner wages above, so it gets its own calls rather than being forced into
+  // theirs. Every write answers with the whole month, so the page redraws from one response.
+
+  getSalaries(year: number, month: number): Observable<AdminSalaryPayoutList> {
+    const params = new HttpParams().set("year", year).set("month", month);
+    return this.http.get<AdminSalaryPayoutList>(this.apiUrl + "/salaries", { params });
+  }
+
+  markSalaryPaid(
+    year: number,
+    month: number,
+    half: number,
+    payeeKey: string,
+    body: { paymentNote?: string | null } = {}
+  ): Observable<AdminSalaryPayoutList> {
+    const params = new HttpParams().set("payeeKey", payeeKey);
+    return this.http.post<AdminSalaryPayoutList>(
+      this.apiUrl + "/salaries/" + year + "/" + month + "/" + half + "/pay", body, { params });
+  }
+
+  /** Sets where an employee's salary is sent. An empty string CLEARS it. */
+  updateSalaryPayeeDetails(
+    year: number,
+    month: number,
+    payeeKey: string,
+    paymentDetails: string | null
+  ): Observable<AdminSalaryPayoutList> {
+    const params = new HttpParams().set("payeeKey", payeeKey);
+    return this.http.put<AdminSalaryPayoutList>(
+      this.apiUrl + "/salaries/" + year + "/" + month + "/payee-details", { paymentDetails }, { params });
+  }
+
+  undoSalaryPayment(year: number, month: number, half: number, payeeKey: string): Observable<AdminSalaryPayoutList> {
+    const params = new HttpParams().set("payeeKey", payeeKey);
+    return this.http.post<AdminSalaryPayoutList>(
+      this.apiUrl + "/salaries/" + year + "/" + month + "/" + half + "/unpay", {}, { params });
   }
 }

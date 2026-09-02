@@ -12,22 +12,60 @@
   <div class="section-header">
     <div class="page-title">
       <h2>Outgoing Payments</h2>
-      <p class="page-subtitle">
-        Cleaner wages for finished jobs. Every figure is worked out from the order itself — the
-        hours, the rate and the tip split — so there is nothing to add up by hand.
+      <!-- Per tab: the two describe genuinely different work, and one sentence covering both
+           ended up describing neither. -->
+      <p class="page-subtitle" *ngIf="activeTab === 'cleaners'">
+        What we owe cleaners for finished jobs. Every figure is worked out from the order itself —
+        the hours, the rate and the tip split — so there is nothing to add up by hand.
+      </p>
+      <p class="page-subtitle" *ngIf="activeTab === 'employees'">
+        Monthly salaries for office staff, taken from the Salaries category on the Expenses page
+        and halved into the two payments a month they are paid in.
       </p>
     </div>
 
     <div class="header-actions">
       <!-- Same control the Orders tab carries: orders finish and cleaners get assigned while
            this page is open, so a reload without losing the filters is worth a button. -->
-      <button class="action-btn refresh" (click)="load()" [disabled]="loading">
+      <button class="action-btn refresh" (click)="reloadAll()" [disabled]="loading || salariesLoading">
         {{ loading ? 'Loading...' : 'Refresh' }}
       </button>
     </div>
   </div>
 
-  <!-- Month selector + what still has to go out this month -->
+  <!--
+    Two kinds of payee, two tabs. A cleaner is paid per ORDER for hours worked; an employee is
+    paid a monthly salary. They share no column, filter or pager, so stacking them on one screen
+    only made both harder to read.
+
+    Each tab carries what it still owes, so the money waiting on the tab you are NOT looking at
+    is visible without clicking into it.
+  -->
+  <div class="payee-tabs" role="tablist">
+    <button type="button" role="tab" class="payee-tab"
+            [class.active]="activeTab === 'cleaners'"
+            [attr.aria-selected]="activeTab === 'cleaners'"
+            (click)="setTab('cleaners')">
+      Cleaner wages
+      <span class="tab-owing" *ngIf="unpaidForTab.cleaners > 0">
+        $ {{ unpaidForTab.cleaners | number:'1.0-0' }}
+      </span>
+    </button>
+
+    <button type="button" role="tab" class="payee-tab"
+            [class.active]="activeTab === 'employees'"
+            [attr.aria-selected]="activeTab === 'employees'"
+            (click)="setTab('employees')">
+      Employees
+      <span class="tab-owing" *ngIf="unpaidForTab.employees > 0">
+        $ {{ unpaidForTab.employees | number:'1.0-0' }}
+      </span>
+    </button>
+  </div>
+
+  <!-- Month selector + what still has to go out this month. SHARED: both tabs are a view of the
+       same month, so moving it on one and finding the other on a different month would be worse
+       than the extra click of switching back. "Still to pay" follows the tab on screen. -->
   <div class="month-bar">
     <div class="month-nav">
       <button class="month-arrow" type="button" (click)="prevMonth()" title="Previous month">‹</button>
@@ -36,11 +74,172 @@
       <button class="btn-link" type="button" (click)="goToCurrentMonth()" *ngIf="!isCurrentMonth">This month</button>
     </div>
 
-    <div class="month-total" *ngIf="data">
+    <div class="month-total" *ngIf="data || salaries">
       <span class="month-total-label">Still to pay</span>
-      <span class="month-total-value">$ {{ data.summary.unpaidPayout | number:'1.2-2' }}</span>
+      <span class="month-total-value">$ {{ activeTabUnpaid | number:'1.2-2' }}</span>
     </div>
   </div>
+
+  <!-- Shared by both tabs: a write on either reports through the same two lines. -->
+  <div class="message success" *ngIf="successMessage">{{ successMessage }}</div>
+  <div class="message error" *ngIf="error">{{ error }}</div>
+
+  <!-- ══ Employees tab ══════════════════════════════════════════════════════ -->
+  <ng-container *ngIf="activeTab === 'employees'">
+
+  <div class="salary-loading" *ngIf="salariesLoading && !salaries">Loading salaries…</div>
+
+  <!-- Nothing on salary this month is a normal state, not an error — so it says where salaries
+       come from rather than just reporting an absence. -->
+  <div class="empty-state" *ngIf="!salariesLoading && salaries && salaries.payees.length === 0">
+    No employee salaries for {{ monthLabel }}.
+    Add them on the Expenses page under the Salaries category, and they appear here.
+  </div>
+
+  <div class="salary-block" *ngIf="salaries && salaries.payees.length">
+    <div class="salary-head">
+      <h3>{{ salaries.payees.length }} on salary</h3>
+
+      <span class="salary-head-totals">
+        <span class="salary-outstanding" *ngIf="salaries.unpaidUsd > 0">
+          $ {{ salaries.unpaidUsd | number:'1.2-2' }} still to pay
+        </span>
+        <span class="salary-settled" *ngIf="salaries.unpaidUsd <= 0 && salaries.totalUsd > 0">
+          All paid
+        </span>
+        <span class="salary-month-total">$ {{ salaries.totalUsd | number:'1.2-2' }}</span>
+      </span>
+    </div>
+
+    <div class="salary-list">
+      <div class="salary-payee" *ngFor="let payee of salaries.payees">
+        <div class="salary-payee-head">
+          <span class="salary-name">{{ payee.name }}</span>
+          <span class="salary-role" *ngIf="payee.role">{{ payee.role === 'SuperAdmin' ? 'Super Admin' : payee.role }}</span>
+          <!-- Their salary history stays here after they leave; the tag says so plainly. -->
+          <span class="salary-former" *ngIf="payee.isFormerStaff"
+                title="No longer staff. What they were paid stays on file.">former</span>
+
+          <span class="status-badge" [ngClass]="salaryStatusClass(payee)">{{ salaryStatusLabel(payee) }}</span>
+
+          <!-- Bonuses are part of what this person is owed, so they are part of the month total.
+               The chip beside it says how much of it is bonus. -->
+          <span class="salary-bonus-tag" *ngIf="payee.bonusTotal"
+                title="Staff bonuses earned this month, paid with the second payment.">
+            +{{ salarySymbol(payee.currency) }}{{ payee.bonusTotal | number:'1.2-2' }} bonus
+          </span>
+
+          <span class="salary-month-figure">
+            <span class="salary-native">
+              {{ salarySymbol(payee.currency) }} {{ payee.monthTotal | number:'1.2-2' }}
+            </span>
+            <span class="salary-usd" *ngIf="isConverted(payee.currency)">
+              ≈ $ {{ payee.monthTotalUsd | number:'1.2-2' }}
+            </span>
+          </span>
+        </div>
+
+        <!-- Where the money goes. The reason anyone opens this tab is to send somebody money, so
+             the destination sits directly under their name — monospaced, because digits get
+             checked against a bank app, and copyable on its own. -->
+        <div class="salary-destination" *ngIf="!isEditingDetails(payee)">
+          <ng-container *ngIf="payee.paymentDetails; else noDetails">
+            <code class="dest-value">{{ payee.paymentDetails }}</code>
+            <!-- Copies the destination ALONE: anything in front of an account number makes the
+                 paste useless in a banking app. -->
+            <button type="button" class="icon-btn" title="Copy payment details"
+                    (click)="copySalaryDetails(payee)">
+              {{ isDetailsCopied(payee) ? '✓' : '⧉' }}
+            </button>
+            <button type="button" class="icon-btn" title="Edit payment details"
+                    (click)="startEditDetails(payee)">✎</button>
+          </ng-container>
+
+          <ng-template #noDetails>
+            <button type="button" class="dest-add" (click)="startEditDetails(payee)">
+              + Add IBAN or ID number
+            </button>
+          </ng-template>
+        </div>
+
+        <div class="salary-destination editing" *ngIf="isEditingDetails(payee)">
+          <input type="text" class="dest-input"
+                 placeholder="IBAN, card or ID number"
+                 [(ngModel)]="detailsInput"
+                 (keyup.enter)="saveDetails(payee)"
+                 (keyup.escape)="cancelEditDetails()">
+          <button type="button" class="action-btn small" [disabled]="savingDetails"
+                  (click)="cancelEditDetails()">Cancel</button>
+          <button type="button" class="action-btn small pay" [disabled]="savingDetails"
+                  (click)="saveDetails(payee)">
+            {{ savingDetails ? 'Saving…' : 'Save' }}
+          </button>
+          <!-- Says what an empty box does, because "clear it" and "leave it" look identical. -->
+          <span class="dest-hint">Leave empty to remove.</span>
+        </div>
+
+        <div class="salary-warning" *ngFor="let w of payee.warnings">⚠ {{ w }}</div>
+
+        <div class="salary-instalments">
+          <div class="salary-instalment" *ngFor="let inst of payee.instalments" [class.paid]="inst.isPaid">
+            <span class="inst-label">{{ inst.label }}</span>
+
+            <span class="inst-amount">
+              <span class="salary-native">
+                {{ salarySymbol(inst.currency) }} {{ inst.amount | number:'1.2-2' }}
+              </span>
+              <span class="salary-usd" *ngIf="isConverted(inst.currency)">
+                ≈ $ {{ inst.amountUsd | number:'1.2-2' }}
+              </span>
+            </span>
+
+            <!-- Shows the sum being made, so a second payment larger than half the salary reads
+                 as a month with bonuses in it rather than an error. -->
+            <span class="inst-breakdown" *ngIf="inst.bonusAmount">
+              {{ salarySymbol(inst.currency) }}{{ inst.salaryAmount | number:'1.2-2' }} salary
+              + {{ salarySymbol(inst.currency) }}{{ inst.bonusAmount | number:'1.2-2' }} bonus
+            </span>
+
+            <!-- Paid: what was handed over, when, and by whom. Frozen — editing the salary later
+                 changes what is owed next month, not what already left. -->
+            <span class="inst-paid-meta" *ngIf="inst.isPaid">
+              <span class="inst-paid-tick">✓ Paid</span>
+              <span class="inst-paid-when">{{ inst.paidAt | date:'MMM d' }}</span>
+              <span class="inst-paid-by" *ngIf="inst.paidByName">by {{ inst.paidByName }}</span>
+              <span class="inst-paid-note" *ngIf="inst.paymentNote">“{{ inst.paymentNote }}”</span>
+            </span>
+
+            <span class="inst-actions" *ngIf="!isPayingInstalment(payee, inst)">
+              <button type="button" class="action-btn small pay"
+                      *ngIf="!inst.isPaid"
+                      [disabled]="salarySaving"
+                      (click)="startPayInstalment(payee, inst)">Mark paid</button>
+              <button type="button" class="action-btn small"
+                      *ngIf="inst.isPaid"
+                      [disabled]="salarySaving"
+                      (click)="undoInstalment(payee, inst)">Undo</button>
+            </span>
+
+            <span class="inst-confirm" *ngIf="isPayingInstalment(payee, inst)">
+              <input type="text" class="inst-note" placeholder="Note (optional)"
+                     [(ngModel)]="salaryPaymentNote" (keyup.enter)="confirmPayInstalment(payee, inst)">
+              <button type="button" class="action-btn small" [disabled]="salarySaving"
+                      (click)="cancelPayInstalment()">Cancel</button>
+              <button type="button" class="action-btn small pay" [disabled]="salarySaving"
+                      (click)="confirmPayInstalment(payee, inst)">
+                {{ salarySaving ? 'Saving…' : 'Confirm' }}
+              </button>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  </ng-container>
+
+  <!-- ══ Cleaner wages tab ══════════════════════════════════════════════════ -->
+  <ng-container *ngIf="activeTab === 'cleaners'">
 
   <!-- Filters -->
   <div class="filter-bar">
@@ -90,9 +289,6 @@
       <span class="summary-value">$ {{ data.summary.paidPayout | number:'1.2-2' }}</span>
     </div>
   </div>
-
-  <div class="message success" *ngIf="successMessage">{{ successMessage }}</div>
-  <div class="message error" *ngIf="error">{{ error }}</div>
 
   <div class="loading-state" *ngIf="loading">Loading…</div>
 
@@ -208,6 +404,8 @@
       <button class="page-btn" (click)="goToPage(page + 1)" [disabled]="page === totalPages">Next ›</button>
     </div>
   </div>
+
+  </ng-container>
 </div>
 </div>
 
