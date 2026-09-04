@@ -117,12 +117,33 @@ export interface OutgoingPaymentCleaner {
   /** salary + tips: what actually gets handed to this person. */
   payout: number;
   isPaid: boolean;
-  /** What was handed over, frozen at pay time. Null until paid. */
+  /**
+   * Total handed over so far, frozen at pay time. Null until paid. A top-up ADDS to it, so it
+   * reads as everything this person has had for this order.
+   */
   paidAmount?: number | null;
   paidVia?: CleanerPaymentMethod | number | null;
   paidAt?: string | null;
   paidByName?: string | null;
   paymentNote?: string | null;
+
+  // ===== Settlement =====
+  //
+  // Resolved server-side by Helpers/CleanerPayoutSettlement. The component RENDERS these and
+  // recomputes nothing — a second copy of the rule here could disagree with the figure the pay
+  // endpoint actually charges.
+
+  /** Still to hand over: the whole payout on an unpaid line, the shortfall on a paid one. */
+  outstandingPayout: number;
+  /** Paid above what the line is now worth — hours edited down after payment. Advisory. */
+  overpaidAmount: number;
+  /** Nothing left to pay on this line. */
+  isSettled: boolean;
+  /**
+   * Paid once already and worth more now. The ONLY thing that may turn on "still to pay"
+   * wording — an ordinary unpaid line must never show it.
+   */
+  isTopUp: boolean;
 }
 
 export interface OutgoingPaymentOrder {
@@ -176,8 +197,18 @@ export interface OutgoingPaymentOrder {
    */
   unassignedCleaners: OutgoingPaymentCleaner[];
   warnings: string[];
+  /** Every line SETTLED — paid, and still covered by what was paid. */
   isFullyPaid: boolean;
   isPartiallyPaid: boolean;
+  /** Everything still to hand over: unpaid lines plus any shortfalls. */
+  outstandingPayout: number;
+  /**
+   * The part of `outstandingPayout` owed on lines ALREADY PAID — the extra an order edit
+   * created. Zero on an order nobody has been paid for.
+   */
+  topUpPayout: number;
+  /** Any line paid above what it is now worth. Advisory; nothing is clawed back. */
+  overpaidAmount: number;
 }
 
 export interface OutgoingPaymentSummary {
@@ -186,8 +217,11 @@ export interface OutgoingPaymentSummary {
   totalSalary: number;
   totalTips: number;
   totalPayout: number;
+  /** Unpaid lines in full PLUS the shortfall on lines paid before their hours grew. */
   unpaidPayout: number;
   paidPayout: number;
+  /** The part of `unpaidPayout` owed on already-paid lines. */
+  topUpPayout: number;
   unpaidCleanerCount: number;
   ordersWithWarnings: number;
 }

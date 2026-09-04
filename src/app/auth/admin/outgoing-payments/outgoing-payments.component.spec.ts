@@ -25,26 +25,48 @@ describe('OutgoingPaymentsComponent', () => {
   let component: OutgoingPaymentsComponent;
   let httpMock: HttpTestingController;
 
-  const cleaner = (over: Partial<OutgoingPaymentCleaner> = {}): OutgoingPaymentCleaner => ({
-    orderCleanerId: 1,
-    cleanerId: 11,
-    firstName: 'Irma',
-    lastName: 'Xaratishvili',
-    paymentMethod: 'Zelle',
-    paymentDetails: '6465550134',
-    billableMinutes: 270,
-    hoursOverridden: false,
-    hourlyRate: 21,
-    rateOverridden: false,
-    rateDiffersFromDefault: false,
-    salary: 94.5,
-    tips: 0,
-    payout: 94.5,
-    isPaid: false,
-    ...over
-  });
+  const r2 = (n: number) => Math.round(n * 100) / 100;
 
-  const order = (over: Partial<OutgoingPaymentOrder> = {}): OutgoingPaymentOrder => ({
+  /**
+   * The fixture stands in for the SERVER, so it resolves settlement the way
+   * Helpers/CleanerPayoutSettlement does rather than making every test spell four more fields
+   * out. An explicit override still wins — that is how the top-up cases below set up a line paid
+   * $73.50 that is now worth $84.00.
+   */
+  const cleaner = (over: Partial<OutgoingPaymentCleaner> = {}): OutgoingPaymentCleaner => {
+    const base = {
+      orderCleanerId: 1,
+      cleanerId: 11,
+      firstName: 'Irma',
+      lastName: 'Xaratishvili',
+      paymentMethod: 'Zelle' as const,
+      paymentDetails: '6465550134',
+      billableMinutes: 270,
+      hoursOverridden: false,
+      hourlyRate: 21,
+      rateOverridden: false,
+      rateDiffersFromDefault: false,
+      salary: 94.5,
+      tips: 0,
+      payout: 94.5,
+      isPaid: false,
+      ...over
+    };
+
+    const paid = base.isPaid ? (base.paidAmount ?? base.payout) : 0;
+    const difference = r2(base.payout - paid);
+
+    return {
+      outstandingPayout: base.isPaid ? Math.max(0, difference) : base.payout,
+      overpaidAmount: base.isPaid ? Math.max(0, -difference) : 0,
+      isSettled: base.isPaid && difference <= 0,
+      isTopUp: base.isPaid && difference > 0,
+      ...base
+    };
+  };
+
+  const order = (over: Partial<OutgoingPaymentOrder> = {}): OutgoingPaymentOrder => {
+    const base = {
     orderId: 501,
     serviceTypeName: 'Residential Cleaning',
     isCustomServiceType: false,
@@ -75,10 +97,24 @@ describe('OutgoingPaymentsComponent', () => {
     cleaners: [cleaner(), cleaner({ orderCleanerId: 2, cleanerId: 12, firstName: 'Maia', lastName: 'Niauri' })],
     unassignedCleaners: [],
     warnings: [],
-    isFullyPaid: false,
-    isPartiallyPaid: false,
-    ...over
-  });
+      ...over
+    };
+
+    // Same reasoning as the cleaner fixture: the server derives all of this from the lines, so
+    // the fixture does too rather than letting a test set a headline figure that contradicts the
+    // rows underneath it. Note isFullyPaid reads SETTLED, not paid — an order whose lines grew
+    // after payday is no longer fully paid, which is the behaviour under test below.
+    const lines = [...base.cleaners, ...(base.unassignedCleaners || [])];
+
+    return {
+      isFullyPaid: lines.length > 0 && lines.every(c => c.isSettled),
+      isPartiallyPaid: lines.some(c => c.isPaid) && lines.some(c => !c.isSettled),
+      outstandingPayout: r2(lines.reduce((s, c) => s + c.outstandingPayout, 0)),
+      topUpPayout: r2(lines.filter(c => c.isTopUp).reduce((s, c) => s + c.outstandingPayout, 0)),
+      overpaidAmount: r2(lines.reduce((s, c) => s + c.overpaidAmount, 0)),
+      ...base
+    };
+  };
 
   const list = (orders: OutgoingPaymentOrder[], totalCount?: number): OutgoingPaymentList => ({
     orders,
@@ -90,6 +126,7 @@ describe('OutgoingPaymentsComponent', () => {
       totalPayout: 189,
       unpaidPayout: 189,
       paidPayout: 0,
+      topUpPayout: r2(orders.reduce((n, o) => n + o.topUpPayout, 0)),
       unpaidCleanerCount: 2,
       ordersWithWarnings: orders.filter(o => o.warnings.length > 0).length
     },
@@ -558,8 +595,21 @@ describe('OutgoingPaymentsComponent', () => {
   describe('editing a cleaner\'s pay', () => {
     beforeEach(() => render());
 
-    it('refuses to open an editor on an already-paid line', () => {
-      component.startEdit(order(), cleaner({ isPaid: true }));
+    /**
+     * Editing a PAID line used to be refused ("undo the payment first"). It is allowed since
+     * 2026-09: cleaners routinely report longer hours after they have been settled, and raising
+     * them now shows the difference as still to pay rather than forcing an undo that would erase
+     * the record of what was actually handed over.
+     */
+    it('opens an editor on an already-paid line', () => {
+      const o = order();
+      component.startEdit(o, cleaner({ isPaid: true }));
+      expect(component.editingKey).not.toBeNull();
+    });
+
+    /** An unassigned slot has no per-cleaner row to hang an override on — still not editable. */
+    it('refuses to open an editor on an unassigned staffing slot', () => {
+      component.startEdit(order(), cleaner({ isUnassigned: true, slotIndex: 0, orderCleanerId: 0 }));
       expect(component.editingKey).toBeNull();
     });
 
@@ -674,6 +724,113 @@ describe('OutgoingPaymentsComponent', () => {
       expect(component.unpaidInPayOrder.length).toBe(1);
       expect(component.payModalTotal).toBe(94.5);
       component.closePayModal();
+    });
+  });
+
+  /**
+   * An order edited AFTER payday. From production (2026-09): two cleaners paid $73.50 each for a
+   * 3h30 deep clean, who then reported four hours; the admin added the hour in the orders panel
+   * and this page redrew the line at $84.00 while still showing it as PAID, so the $10.50 a head
+   * genuinely owed appeared nowhere.
+   */
+  describe('an order that changed after the cleaners were paid', () => {
+    /** Paid $73.50, now worth $84.00 — the exact order that produced this feature. */
+    const toppedUp = (over: Partial<OutgoingPaymentCleaner> = {}) =>
+      cleaner({ isPaid: true, paidAmount: 73.5, salary: 84, payout: 84, billableMinutes: 240, ...over });
+
+    const grownOrder = () =>
+      order({
+        cleaners: [toppedUp(), toppedUp({ orderCleanerId: 2, cleanerId: 12, firstName: 'Maia', lastName: 'Niauri' })],
+        totalSalary: 168,
+        totalPayout: 168
+      });
+
+    it('reports the difference as still owed, not the whole payout again', () => {
+      const o = grownOrder();
+
+      expect(o.cleaners[0].outstandingPayout).toBe(10.5);
+      expect(o.cleaners[0].isTopUp).toBe(true);
+      // The record of what actually left the company is untouched.
+      expect(o.cleaners[0].paidAmount).toBe(73.5);
+      expect(o.topUpPayout).toBe(21);
+    });
+
+    it('stops reading Paid and goes back to Part paid', () => {
+      const o = grownOrder();
+
+      expect(component.payStatusLabel(o)).toBe('Part paid');
+      expect(component.payStatusClass(o)).toBe('status-active');
+      expect(component.payStatusTitle(o)).toContain('$21.00 more is owed');
+    });
+
+    it('asks for the shortfall in the pay modal, never the full payout', () => {
+      const o = grownOrder();
+      component.openPayCleaner(o, o.cleaners[0]);
+
+      expect(component.payModalTotal).toBe(10.5);
+      expect(component.payModalIsTopUp).toBe(true);
+      component.closePayModal();
+    });
+
+    it('settles every short line when the whole order is paid', () => {
+      const o = grownOrder();
+      component.openPayOrder(o);
+
+      // Both lines are already "paid" — an unpaid-only filter would offer nothing at all here.
+      expect(component.unpaidInPayOrder.length).toBe(2);
+      expect(component.payModalTotal).toBe(21);
+      component.closePayModal();
+    });
+
+    it('shows the working on the line — paid, worth now, and what is left', () => {
+      render([grownOrder()]);
+      component.openPanel(component.data!.orders[0]);
+      fixture.detectChanges();
+
+      const row = fixture.nativeElement.querySelector('.cleaner-row.needs-topup');
+      expect(row).not.toBeNull();
+      expect(row.textContent).toContain('73.50');
+      expect(row.textContent).toContain('84.00');
+      expect(row.textContent).toContain('10.50 still to pay');
+    });
+
+    /**
+     * The whole point of gating on isTopUp rather than on "something is owed": a cleaner nobody
+     * has paid is plainly unpaid, and "additional to pay" wording there would invent a first
+     * payment that never happened.
+     */
+    it('says nothing about a top-up on an order nobody has been paid for', () => {
+      const o = order();
+
+      expect(component.hasTopUp(o)).toBe(false);
+      expect(o.topUpPayout).toBe(0);
+      expect(o.cleaners.every(c => !c.isTopUp)).toBe(true);
+      expect(component.payStatusLabel(o)).toBe('Unpaid');
+      expect(component.payStatusTitle(o)).toBe('2 of 2 payout(s) still to record');
+    });
+
+    it('renders no top-up markup on a plainly unpaid order', () => {
+      render([order()]);
+      component.openPanel(component.data!.orders[0]);
+      fixture.detectChanges();
+
+      expect(fixture.nativeElement.querySelector('.topup-banner')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.cleaner-topup')).toBeNull();
+      expect(fixture.nativeElement.querySelector('.cleaner-row.needs-topup')).toBeNull();
+    });
+
+    /** Hours cut after payment. Reported, never netted off — and never a negative amount owed. */
+    it('reports an overpayment instead of a negative shortfall', () => {
+      const o = order({
+        cleaners: [cleaner({ isPaid: true, paidAmount: 84, salary: 73.5, payout: 73.5 })]
+      });
+
+      expect(o.cleaners[0].overpaidAmount).toBe(10.5);
+      expect(o.cleaners[0].outstandingPayout).toBe(0);
+      expect(o.cleaners[0].isTopUp).toBe(false);
+      expect(component.hasOverpayment(o)).toBe(true);
+      // Nothing is owed, so the order is still settled — the overpayment is a note, not a task.
+      expect(o.cleaners[0].isSettled).toBe(true);
     });
   });
 

@@ -121,6 +121,19 @@ export class RecreateOrderModalComponent implements OnChanges {
   customCleaners = 1;
   customDuration = 0;
 
+  /**
+   * INFORMATIONAL bed/bath, for a service type that prices neither — a custom ("Pre-Arranged")
+   * job, or a cleaner+hours type. They cost nothing and add no time; they are how the cleaner,
+   * the admin list and the Excel export know what kind of place they are going to.
+   *
+   * Same fields the booking page collects in custom mode, and the same defaults (Studio, one
+   * bathroom). Without them a recreated pre-arranged order posted null for both — its own
+   * OrderServices are empty, which is exactly where the payload used to read them from — and the
+   * crew got a job sheet with no property details on it at all.
+   */
+  informationalBedrooms = 0;
+  informationalBathrooms = 1;
+
   // ─── The form ───────────────────────────────────────────────────────────────────────────
   serviceDate = '';           // yyyy-MM-dd; deliberately starts EMPTY (see resetForm)
   serviceTime = '';
@@ -249,6 +262,12 @@ export class RecreateOrderModalComponent implements OnChanges {
     this.customCleaners = Number(p.customCleaners) || 1;
     this.customDuration = Number(p.customDuration) || 0;
 
+    // The source order's own display columns. Null is a real answer here — every pre-arranged
+    // order booked before this was fixed carries it — so it falls back to the booking page's
+    // defaults rather than staying blank, and the admin sees the steppers and can correct them.
+    this.informationalBedrooms = p.bedroomsQuantity == null ? 0 : Number(p.bedroomsQuantity);
+    this.informationalBathrooms = p.bathroomsQuantity == null ? 1 : Number(p.bathroomsQuantity);
+
     this.resetForm(p);
     this.recalculate();
   }
@@ -333,6 +352,34 @@ export class RecreateOrderModalComponent implements OnChanges {
   /** Levels is excluded here because it has its own chips block, exactly like the booking page. */
   get stepperServices(): SelectedService[] {
     return this.selectedServices.filter(s => !isLevelsService(s.service));
+  }
+
+  /**
+   * Whether to offer the informational bed/bath steppers: only when NEITHER is priced on this
+   * order, which is the custom ("Pre-Arranged") case and the cleaner+hours one. Mirrors
+   * shouldShowStandaloneBedroomBathroom on the booking page — gated on the LINES rather than on
+   * the type's name, so an order that does carry a priced bedrooms row can never end up with two
+   * controls for one number.
+   */
+  showInformationalBedBath(): boolean {
+    if (!this.serviceType) return false;
+    return !this.selectedServices.some(
+      s => s.service.serviceKey === 'bedrooms' || s.service.serviceKey === 'bathrooms');
+  }
+
+  /** Studio at zero, same wording the booking page and the admin panel use. */
+  get informationalBedroomsLabel(): string {
+    return this.informationalBedrooms === 0 ? 'Studio' : String(this.informationalBedrooms);
+  }
+
+  changeInformationalBedrooms(delta: number): void {
+    // A house has no studio — the same floor the priced bedrooms row gets from getServiceMinValue.
+    const min = isHouse(this.propertyType) ? 1 : 0;
+    this.informationalBedrooms = Math.min(Math.max(this.informationalBedrooms + delta, min), 10);
+  }
+
+  changeInformationalBathrooms(delta: number): void {
+    this.informationalBathrooms = Math.min(Math.max(this.informationalBathrooms + delta, 0), 10);
   }
 
   getServiceMinValue(service: Service): number {
@@ -464,7 +511,9 @@ export class RecreateOrderModalComponent implements OnChanges {
       this.levelsQuantity = null;
       this.setLevelsLineQuantity(1);
     } else {
-      // A house has no studio — raise bedrooms to at least one before anything is priced.
+      // A house has no studio — raise bedrooms to at least one before anything is priced. The
+      // informational count follows the same rule; it is priced by nothing, so it just moves.
+      if (this.informationalBedrooms < 1) this.informationalBedrooms = 1;
       const bedrooms = this.selectedServices.find(s => s.service.serviceKey === 'bedrooms');
       if (bedrooms && bedrooms.quantity < 1) {
         this.updateServiceQuantity(bedrooms.service, 1);
@@ -890,8 +939,13 @@ export class RecreateOrderModalComponent implements OnChanges {
       customCleaners: this.serviceType!.isCustom ? this.customCleaners : undefined,
       customDuration: this.serviceType!.isCustom ? this.customDuration : undefined,
 
-      bedroomsQuantity: this.selectedServices.find(s => s.service.serviceKey === 'bedrooms')?.quantity ?? null,
-      bathroomsQuantity: this.selectedServices.find(s => s.service.serviceKey === 'bathrooms')?.quantity ?? null,
+      // A PRICED line always wins — it is what the customer is charged from. When the type
+      // prices neither (custom / cleaner+hours) the informational steppers are the only record,
+      // exactly as they are on the booking page.
+      bedroomsQuantity: this.selectedServices.find(s => s.service.serviceKey === 'bedrooms')?.quantity
+        ?? (this.showInformationalBedBath() ? this.informationalBedrooms : null),
+      bathroomsQuantity: this.selectedServices.find(s => s.service.serviceKey === 'bathrooms')?.quantity
+        ?? (this.showInformationalBedBath() ? this.informationalBathrooms : null),
       propertyType: this.propertyType ?? null,
       levelsQuantity: this.levelsQuantity,
       floorTypes: prefill.floorTypes || null,
@@ -907,6 +961,8 @@ export class RecreateOrderModalComponent implements OnChanges {
     this.serviceType = null;
     this.selectedServices = [];
     this.selectedExtraServices = [];
+    this.informationalBedrooms = 0;
+    this.informationalBathrooms = 1;
     this.errorMessage = '';
     this.closed.emit();
   }

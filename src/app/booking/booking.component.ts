@@ -3977,18 +3977,41 @@ export class BookingComponent implements OnInit, OnDestroy {
           }
         }
       }
-      
+
+      // Property type and levels are chips, not FormControls, so nothing above can find them —
+      // an unanswered "what kind of place is it?" used to leave Continue doing nothing visible.
+      // Whichever candidate sits HIGHER on the page wins, so the customer is always taken to the
+      // first thing that is missing rather than to whichever kind of field we looked for first.
+      const propertyErrorElement = this.isPropertyTypeMissing()
+        ? document.querySelector('.form-step.active .property-type-section')
+        : this.isLevelsMissing()
+          ? document.querySelector('.form-step.active .levels-block')
+          : null;
+      if (propertyErrorElement &&
+          (!firstErrorElement ||
+           (propertyErrorElement.compareDocumentPosition(firstErrorElement) &
+            Node.DOCUMENT_POSITION_FOLLOWING))) {
+        firstErrorElement = propertyErrorElement;
+      }
+
       if (firstErrorElement) {
-        firstErrorElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
+        firstErrorElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
         });
-        
+
         // Focus the element if it's an input
-        if (firstErrorElement instanceof HTMLInputElement || 
-            firstErrorElement instanceof HTMLSelectElement || 
+        if (firstErrorElement instanceof HTMLInputElement ||
+            firstErrorElement instanceof HTMLSelectElement ||
             firstErrorElement instanceof HTMLTextAreaElement) {
           firstErrorElement.focus();
+        } else if (firstErrorElement === propertyErrorElement) {
+          // preventScroll: the smooth scroll above is already on its way; focusing normally
+          // would jump the page to the element instantly and cancel it.
+          const firstChoice = firstErrorElement.querySelector('.property-type-card, .level-chip');
+          if (firstChoice instanceof HTMLElement) {
+            firstChoice.focus({ preventScroll: true });
+          }
         }
       }
     }, 100);

@@ -370,9 +370,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** What the Total input shows and edits: the tip-free total. Kept in sync by recalculateEditPricing. */
   editOrderTotalInput: number | null = null;
   /**
-   * Set only while a typed Total is in force: the exact tax split out of it, plus the discounted
-   * subtotal it was split from. Both travel to the server, which honours the tax only if the base
-   * still matches — so a stale override can never silently mis-price an order.
+   * The exact tax this order is priced with, plus the discounted subtotal it was split out of.
+   * Both travel to the server, which honours the tax only if the base still matches — so a stale
+   * override can never silently mis-price an order.
+   *
+   * Set when the admin types a Total, AND seeded from the order's OWN stored tax on open (see
+   * resolveStoredTaxOverride) so merely opening the editor cannot move what the customer pays.
    */
   editOrderTaxOverride: { tax: number; base: number } | null = null;
 
@@ -4409,7 +4412,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.editingOrder = true;
     this.setEditTimeFromForm(timeStr);
     // A typed Total belongs to one editing session; recalculateEditPricing below seeds the input.
-    this.editOrderTaxOverride = null;
+    // The order's OWN tax carries over, though, so opening the editor cannot move the total by a
+    // cent all on its own — see resolveStoredTaxOverride.
+    this.editOrderTaxOverride = this.resolveStoredTaxOverride();
     this.editOrderTotalInput = null;
     const parsed = this.parseFloorTypesForEdit(this.selectedOrder.floorTypes, this.selectedOrder.floorTypeOther);
     this.editFloorTypes = parsed.types;
@@ -4675,7 +4680,51 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * Anything that moves the subtotal or a discount invalidates a typed Total — the figure no
+   * The order's OWN tax, carried into the editor so OPENING it cannot move the total.
+   *
+   * A Custom ("Pre-Arranged") order is priced from a TAX-INCLUSIVE amount an admin typed: the
+   * subtotal and the tax are both split out of it (splitTaxInclusiveAmount) and add back to it
+   * exactly. Re-deriving the tax as `round2(discountedSubTotal × rate)` instead lands a cent
+   * away on roughly one amount in twenty, because no cent-valued subtotal satisfies
+   * `S + round2(S × 8.875%) = 300.00`. The booking page already solves this by carrying the
+   * split tax as an override; the editor did not, so it opened a $300.00 order showing $300.01
+   * and every admin sent that cent through the approval queue without seeing it move.
+   *
+   * Rules that make this safe rather than "trust whatever is stored":
+   *   - It is only honoured while the taxed amount still equals `base` (calculateTotals checks,
+   *     and the server re-checks against TaxOverrideBase). Touch the subtotal or a discount and
+   *     the ordinary rate math takes over again, exactly as before.
+   *   - Only a difference of ONE CENT is carried. That is the entire range a tax-inclusive split
+   *     can produce, so a genuinely wrong stored tax — a legacy $0, a hand-edited figure — is
+   *     still corrected on open rather than perpetuated.
+   *
+   * Returns null when there is nothing to carry, which is every ordinary order: their stored tax
+   * already IS the rate math, so nothing is sent and nothing changes for them.
+   */
+  private resolveStoredTaxOverride(): { tax: number; base: number } | null {
+    const order = this.selectedOrder;
+    if (!order) return null;
+
+    const storedTax = round2(Number(order.tax ?? 0) || 0);
+    const base = round2(
+      (Number(order.subTotal ?? 0) || 0)
+      - (Number(order.discountAmount ?? 0) || 0)
+      - (Number((order as any).subscriptionDiscountAmount ?? 0) || 0)
+      - (Number(order.loyaltyDiscountAmount ?? 0) || 0));
+    if (base <= 0) return null;
+
+    const rateTax = round2(base * SALES_TAX_RATE);
+    if (rateTax === storedTax) return null;
+    // Anything beyond a cent is not a tax-inclusive split — leave it to be recomputed. Compared
+    // in whole CENTS, not as a float: 24.46 - 24.45 is 0.010000000000001563 in binary floating
+    // point, so `> 0.01` threw away the very case this exists for.
+    if (Math.abs(Math.round(rateTax * 100) - Math.round(storedTax * 100)) > 1) return null;
+
+    return { tax: storedTax, base };
+  }
+
+  /**
+   * Anything that moves the subtotal or a discount invalidates the tax figure in force — it no
    * longer describes what is owed, so pricing goes back to subtotal + rate math. Tips are
    * excluded on purpose: they sit outside the taxed amount, so they cannot invalidate it.
    */
@@ -4812,9 +4861,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   recalcSubtotalFromServicesAndExtras(): void {
-    // The subtotal is about to be rebuilt from the lines, which is precisely what a typed Total
-    // was overriding.
-    this.clearEditTotalOverride();
+    // The subtotal is about to be rebuilt from the lines, which is precisely what the tax figure
+    // in force was overriding — EXCEPT on a custom ("Pre-Arranged") order, where this method
+    // deliberately leaves the subtotal alone (extras there are informational, $0 and 0 minutes).
+    // Nothing moves, so nothing invalidates the split tax; clearing it anyway made ticking an
+    // extra onto a $300.00 job silently re-derive the tax and charge $300.01.
+    if (!this.isCustomModeOrder()) {
+      this.clearEditTotalOverride();
+    }
     const built = this.buildEditQuote();
 
     if (built) {

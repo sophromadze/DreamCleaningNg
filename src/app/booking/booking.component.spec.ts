@@ -811,6 +811,88 @@ describe('BookingComponent', () => {
         expect(missingLevels.levelsMissing).toBeTrue();
       });
     });
+
+    /**
+     * REGRESSION: property type and levels are chips, not FormControls, so the "scroll to the
+     * first error" pass could not see them. Continue revealed the inline error far below the
+     * fold and left the customer looking at an unchanged page with nothing apparently wrong.
+     *
+     * The DOM is stubbed and inserted as the FIRST child of the body so document order is
+     * deterministic: the scroll target is whichever candidate sits higher on the page, and
+     * anything the live fixture renders comes after this stub.
+     */
+    describe('a blocked Continue scrolls to the unanswered property type', () => {
+      let stub: HTMLDivElement;
+
+      const mountStep1 = (html: string) => {
+        stub = document.createElement('div');
+        stub.innerHTML = html;
+        document.body.insertBefore(stub, document.body.firstChild);
+      };
+
+      afterEach(() => stub?.remove());
+
+      // Real timers rather than fakeAsync: the component's own startup requests are in flight
+      // and a fake-async zone turns each of them into "Cannot make XHRs from within a fake
+      // async test". The scroll runs on a 100ms setTimeout, so 150ms is enough.
+      const afterScrollPass = (assert: () => void, done: DoneFn) =>
+        setTimeout(() => { assert(); done(); }, 150);
+
+      it('scrolls to the property-type section when nothing above it is invalid', (done) => {
+        mountStep1(`
+          <div class="form-step active">
+            <section class="property-type-section">
+              <button class="property-type-card"></button>
+            </section>
+          </div>
+        `);
+        const section = stub.querySelector('.property-type-section') as HTMLElement;
+        const scrollSpy = spyOn(section, 'scrollIntoView');
+
+        component.onNextButtonClick();
+
+        afterScrollPass(() => expect(scrollSpy).toHaveBeenCalled(), done);
+      });
+
+      it('scrolls to the levels chips when only the level count is missing', (done) => {
+        mountStep1(`
+          <div class="form-step active">
+            <section class="property-type-section">
+              <div class="levels-block"><button class="level-chip">1</button></div>
+            </section>
+          </div>
+        `);
+        component.selectPropertyType('House');
+        const levels = stub.querySelector('.levels-block') as HTMLElement;
+        const scrollSpy = spyOn(levels, 'scrollIntoView');
+
+        component.onNextButtonClick();
+
+        afterScrollPass(() => expect(scrollSpy).toHaveBeenCalled(), done);
+      });
+
+      it('still prefers a form error that sits ABOVE the property-type section', (done) => {
+        mountStep1(`
+          <div class="form-step active">
+            <input class="ng-invalid ng-touched" />
+            <section class="property-type-section">
+              <button class="property-type-card"></button>
+            </section>
+          </div>
+        `);
+        const input = stub.querySelector('input') as HTMLElement;
+        const section = stub.querySelector('.property-type-section') as HTMLElement;
+        const inputSpy = spyOn(input, 'scrollIntoView');
+        const sectionSpy = spyOn(section, 'scrollIntoView');
+
+        component.onNextButtonClick();
+
+        afterScrollPass(() => {
+          expect(inputSpy).toHaveBeenCalled();
+          expect(sectionSpy).not.toHaveBeenCalled();
+        }, done);
+      });
+    });
   });
 
   /**

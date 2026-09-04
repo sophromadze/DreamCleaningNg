@@ -2,6 +2,21 @@
 // Sits above the mobile sticky CTA bar (z-index 1002) and clear of the desktop
 // floating action buttons (middle-right) and the first-time-offer popup (bottom-left).
 
+// How much room the mobile sticky CTA bar takes at the bottom of the screen (its ~35px row
+// plus the breathing space above it). Pages that hide the bar — /booking, /order, the staff
+// pages — set it to 0 through .no-sticky-cta so the widget drops into the space instead of
+// floating with an empty strip beneath it. It is a VARIABLE rather than an overriding
+// `bottom` so the panel's full-screen takeover below, which sets `bottom: auto` at lower
+// specificity, still wins on a phone.
+.chat-fab,
+.chat-panel {
+  --chat-cta-offset: 54px;
+
+  &.no-sticky-cta {
+    --chat-cta-offset: 0px;
+  }
+}
+
 .chat-fab {
   position: fixed;
   bottom: 24px;
@@ -30,9 +45,9 @@
     box-shadow: var(--btn-primary-shadow-hover);
   }
 
-  // Above the mobile sticky CTA bar (fixed bottom, ~35px + safe-area).
+  // Above the mobile sticky CTA bar (fixed bottom, ~35px + safe-area) where it is showing.
   @media (max-width: 768px), (hover: none) {
-    bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(24px + var(--chat-cta-offset) + env(safe-area-inset-bottom, 0px));
     right: 16px;
     width: 52px;
     height: 52px;
@@ -57,7 +72,7 @@
 
   @media (max-width: 768px), (hover: none) {
     right: 16px;
-    bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(86px + var(--chat-cta-offset) + env(safe-area-inset-bottom, 0px));
     height: min(520px, calc(100vh - 190px));
   }
 

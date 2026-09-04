@@ -8,6 +8,7 @@ import {
   ChatHistoryMessage
 } from '../services/chat-widget.service';
 import { AuthService } from '../services/auth.service';
+import { StickyCtaService } from '../services/sticky-cta.service';
 import { ChatMarkdownPipe } from '../shared/pipes/chat-markdown.pipe';
 
 interface WidgetMessage {
@@ -78,6 +79,14 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   /** Polling suspended after IDLE_TIMEOUT_MS of no user activity. When the panel is open
    *  this drives the "Paused due to inactivity" banner; when closed it's silent. */
   paused = false;
+  /**
+   * Whether the mobile sticky CTA bar is on screen. On phones the widget floats ABOVE that
+   * bar, so on the pages that hide it (/booking, /order, the staff pages — the list lives in
+   * StickyMobileCtaComponent) the widget was left hanging with an empty strip beneath it.
+   * Read from StickyCtaService rather than re-testing the route here, so there is one answer
+   * to "is the bar showing" and it already accounts for touch devices and window width.
+   */
+  stickyCtaVisible = false;
 
   /** Wall-clock of the last user interaction (send / open panel / click or keydown in the
    *  open panel). Drives the idle-timeout check; refreshed by registerActivity(). */
@@ -94,6 +103,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   private restoreAttempted = false;
   private authSub?: Subscription;
   private routerSub?: Subscription;
+  private stickyCtaSub?: Subscription;
   private lastAuthKey = 'uninitialized';
   private readonly isBrowser: boolean;
   /** Full-screen-mode plumbing (see the mobile keyboard section at the bottom). */
@@ -108,6 +118,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   constructor(
     private chatService: ChatWidgetService,
     private authService: AuthService,
+    private stickyCtaService: StickyCtaService,
     private router: Router,
     private ngZone: NgZone,
     @Inject(PLATFORM_ID) platformId: Object
@@ -128,6 +139,11 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
       this.lastAuthKey = key;
       this.checkVisibility();
     });
+
+    // How far off the bottom the widget floats. The bar publishes its own visibility on
+    // every route change and resize, so this stays correct across SPA navigation.
+    this.stickyCtaSub = this.stickyCtaService.visible$
+      .subscribe(visible => this.stickyCtaVisible = visible);
 
     // Treat a hidden tab as "not watching" even when the panel is open — so a reply
     // arriving while the customer is on another tab still raises the badge, and
@@ -152,6 +168,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     this.stopBackgroundPolling();
     this.authSub?.unsubscribe();
     this.routerSub?.unsubscribe();
+    this.stickyCtaSub?.unsubscribe();
     this.exitFullscreenMode(); // never leave the page scroll-locked behind us
     if (this.isBrowser) {
       document.removeEventListener('visibilitychange', this.onVisibilityChange);

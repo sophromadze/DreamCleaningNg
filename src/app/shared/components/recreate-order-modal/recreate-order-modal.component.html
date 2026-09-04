@@ -283,6 +283,46 @@
         </div>
       </section>
 
+      <!-- Bed/bath for a type that prices neither (pre-arranged, cleaner+hours). Recorded for
+           the crew and the admin list; they cost nothing and add no time. -->
+      <section class="rom-section" *ngIf="showInformationalBedBath()">
+        <h4>The place</h4>
+        <div class="rom-services">
+          <div class="rom-service-item">
+            <label>Bedrooms</label>
+            <div class="rom-service-input">
+              <span class="rom-stepper">
+                <button type="button" aria-label="Decrease"
+                        [disabled]="informationalBedrooms <= (propertyType === houseType ? 1 : 0)"
+                        (click)="changeInformationalBedrooms(-1)">&minus;</button>
+                <span class="rom-stepper__value">{{ informationalBedroomsLabel }}</span>
+                <button type="button" aria-label="Increase"
+                        [disabled]="informationalBedrooms >= 10"
+                        (click)="changeInformationalBedrooms(1)">+</button>
+              </span>
+            </div>
+          </div>
+
+          <div class="rom-service-item">
+            <label>Bathrooms</label>
+            <div class="rom-service-input">
+              <span class="rom-stepper">
+                <button type="button" aria-label="Decrease"
+                        [disabled]="informationalBathrooms <= 0"
+                        (click)="changeInformationalBathrooms(-1)">&minus;</button>
+                <span class="rom-stepper__value">{{ informationalBathrooms }}</span>
+                <button type="button" aria-label="Increase"
+                        [disabled]="informationalBathrooms >= 10"
+                        (click)="changeInformationalBathrooms(1)">+</button>
+              </span>
+            </div>
+          </div>
+        </div>
+        <p class="rom-note">
+          Recorded for the crew and the admin list — they do not change the price or the time.
+        </p>
+      </section>
+
       <!-- Property type + levels -->
       <section class="rom-section" *ngIf="showPropertyTypeSelector()">
         <h4>What kind of place is it?</h4>

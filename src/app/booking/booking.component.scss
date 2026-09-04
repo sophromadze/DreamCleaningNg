@@ -8199,6 +8199,14 @@
     font-size: 1rem;
     font-weight: var(--fw-semibold);
     color: var(--text-primary);
+
+    // Same marker every other required field on the page wears — the choice has no
+    // default and step 1 stays blocked until it is answered.
+    .required {
+      color: var(--bright-red);
+      font-weight: bold;
+      margin-left: 2px;
+    }
   }
 
   .property-type-options {

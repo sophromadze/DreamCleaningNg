@@ -493,6 +493,92 @@ describe('RecreateOrderModalComponent', () => {
     });
   });
 
+  /**
+   * A Custom ("Pre-Arranged") order has NO OrderServices lines at all — the calculator's custom
+   * branch returns before the services loop — so the payload, which read bed/bath off the priced
+   * selection, posted null for both. The recreated job reached the crew and the admin list with
+   * no property details on it whatsoever. Bed/bath are informational on such a type, exactly as
+   * they are on the booking page's custom form, and travel as their own fields.
+   */
+  describe('bed/bath on a type that prices neither', () => {
+    function customType(): any[] {
+      return [{
+        id: 4, name: 'Pre-Arranged Cleaning', basePrice: 0, timeDuration: 0, minimumPrice: 0,
+        isActive: true, hasPoll: false, isCustom: true, collectsPropertyType: true,
+        services: [], extraServices: []
+      }];
+    }
+
+    function customPreview(over: any = {}): ReorderPreview {
+      const p = preview({ isCustomServiceType: true, serviceTypeName: 'Pre-Arranged Cleaning' });
+      p.prefill = {
+        ...p.prefill,
+        serviceTypeId: 4,
+        services: [],
+        extraServices: [],
+        customAmount: 500, customCleaners: 2, customDuration: 180,
+        customServiceDisplayName: 'Deep Cleaning',
+        ...over
+      };
+      return p;
+    }
+
+    function openCustom(p: ReorderPreview = customPreview()): void {
+      fixture.componentRef.setInput('sourceOrderId', SOURCE_ORDER_ID);
+      fixture.componentRef.setInput('open', true);
+      fixture.detectChanges();
+      httpMock.expectOne(SERVICE_TYPES_URL).flush(customType());
+      httpMock.expectOne(PREVIEW_URL(SOURCE_ORDER_ID)).flush(p);
+      fixture.detectChanges();
+    }
+
+    it('offers the steppers and carries the source order\'s counts through', () => {
+      openCustom();
+
+      expect(component.showInformationalBedBath()).toBeTrue();
+      expect(component.informationalBedrooms).toBe(2);
+      expect(component.informationalBathrooms).toBe(1);
+
+      const body = submitWith();
+      expect(body.bookingData.bedroomsQuantity).toBe(2);
+      expect(body.bookingData.bathroomsQuantity).toBe(1);
+    });
+
+    it('submits what the admin set, not null', () => {
+      openCustom();
+
+      component.changeInformationalBedrooms(1);
+      component.changeInformationalBathrooms(1);
+
+      const body = submitWith();
+      expect(body.bookingData.bedroomsQuantity).toBe(3);
+      expect(body.bookingData.bathroomsQuantity).toBe(2);
+    });
+
+    it('falls back to Studio / one bathroom when the source order recorded neither', () => {
+      // Every pre-arranged order booked before this fix carries null for both.
+      openCustom(customPreview({ bedroomsQuantity: null, bathroomsQuantity: null }));
+
+      expect(component.informationalBedrooms).toBe(0);
+      expect(component.informationalBathrooms).toBe(1);
+
+      const body = submitWith();
+      expect(body.bookingData.bedroomsQuantity).toBe(0);
+      expect(body.bookingData.bathroomsQuantity).toBe(1);
+    });
+
+    it('stays out of the way when the type prices bedrooms itself', () => {
+      // The ordinary residential preview: a priced bedrooms row is the answer, and a second
+      // control for the same number is what this must never become.
+      openWith();
+
+      expect(component.showInformationalBedBath()).toBeFalse();
+      const body = submitWith();
+      expect(body.bookingData.bedroomsQuantity).toBe(2);
+      expect(body.bookingData.bathroomsQuantity).toBe(1);
+    });
+  });
+
   it('reports a failed create instead of leaving the button stuck', () => {
     openWith();
     component.step = 'form';

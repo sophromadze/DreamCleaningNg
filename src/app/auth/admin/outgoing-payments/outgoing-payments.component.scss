@@ -1272,6 +1272,98 @@
   }
 }
 
+/* ===== Money still owed on a job that already looks settled =====
+ *
+ * An order edited after payday leaves its paid lines short. Everything here is AMBER, never red:
+ * the same rule the payment pill follows — an unpaid cleaner is work outstanding, not an error,
+ * and nobody did anything wrong by paying the figure that was correct at the time.
+ *
+ * The amber has to beat `.cleaner-row.is-paid`'s green, which is why `.needs-topup` is applied
+ * alongside it rather than instead of it: the line IS paid, and the green stamp underneath still
+ * records that truthfully. Only the surface changes, to say the job is not finished.
+ */
+
+.row-topup {
+  display: block;
+  margin-top: 0.15rem;
+  font-style: normal;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--warning-orange-text);
+}
+
+.summary-topup { color: var(--warning-orange-text) !important; }
+
+.topup-banner,
+.overpaid-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.7rem 0.85rem;
+  margin-bottom: 0.9rem;
+  border-radius: 8px;
+  background: var(--warning-orange-bg);
+  border: 1px solid var(--warning-orange-border);
+
+  strong {
+    font-size: 0.95rem;
+    color: var(--warning-orange-text);
+  }
+
+  span {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+  }
+}
+
+.order-detail-panel {
+  .cleaner-row.needs-topup {
+    background: var(--warning-orange-bg);
+    border-color: var(--warning-orange-border);
+  }
+
+  .cleaner-topup,
+  .cleaner-overpaid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.35rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: 6px;
+    background: var(--surface);
+    border: 1px dashed var(--warning-orange-border);
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+
+    strong { color: var(--warning-orange-text); }
+  }
+
+  .topup-lead {
+    font-weight: 600;
+    color: var(--warning-orange-text);
+  }
+
+  .topup-working { color: var(--text-secondary); }
+}
+
+.modal-topup {
+  margin: 0 0 0.9rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 6px;
+  background: var(--warning-orange-bg);
+  border: 1px solid var(--warning-orange-border);
+  color: var(--warning-orange-text);
+  font-size: 0.78rem;
+}
+
+.modal-lines .modal-line-topup {
+  display: block;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 0.7rem;
+  color: var(--warning-orange-text);
+}
+
 /* ===== Narrow screens ===== */
 
 @media (max-width: 768px) {

@@ -44,8 +44,11 @@ import { resolveServiceTypeShortLabel } from '../../../shared/admin/service-type
  *  - Every figure comes from the server. The component formats and never recomputes; a local
  *    "helpful" recalculation is exactly how the number on screen starts disagreeing with the
  *    number that was paid.
- *  - A PAID line is frozen. Rate and hours are read-only until the payment is undone, because
- *    the recorded amount is a historical fact about money that already left.
+ *  - A recorded PAYMENT is frozen; the LINE is not. `paidAmount` is a historical fact about money
+ *    that already left and nothing on this page rewrites it — but the rate and hours stay
+ *    editable after payment, and raising them leaves the difference showing as still to pay
+ *    (`isTopUp` / `outstandingPayout`, resolved server-side). A line nobody has paid never shows
+ *    that wording; it is simply unpaid, exactly as before.
  */
 @Component({
   selector: 'app-outgoing-payments',
@@ -538,6 +541,14 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
     return ((minutes || 0) / 60).toFixed(2);
   }
 
+  /**
+   * "$10.50", for the sentences built in TypeScript — tooltips and banner text. Markup uses the
+   * number pipe; this exists so a title attribute does not end up reading "$10.5".
+   */
+  money(amount: number | null | undefined): string {
+    return `$${(amount ?? 0).toFixed(2)}`;
+  }
+
   /** "$21 × 4.50 = $94.50" — the whole point of the panel, shown per cleaner. */
   salaryWorking(cleaner: OutgoingPaymentCleaner): string {
     const rate = (cleaner.hourlyRate ?? 0).toFixed(2).replace(/\.00$/, '');
@@ -711,7 +722,9 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   // green = done. Deliberately NOT red — an unpaid cleaner is work outstanding, not an error.
 
   // The pill counts EVERY payout line, named or not — an unassigned slot is a real payout that
-  // can be recorded, so an order is only "Paid" once all of them are settled.
+  // can be recorded, so an order is only "Paid" once all of them are settled. SETTLED, not
+  // merely paid: an order edited after payday leaves its paid lines short, and it has to come
+  // back out of "Paid" or the money still owed is invisible on the list.
 
   payStatusLabel(order: OutgoingPaymentOrder): string {
     if (this.allPayoutLines(order).length === 0) return 'No payouts';
@@ -731,9 +744,38 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
     const lines = this.allPayoutLines(order);
     if (lines.length === 0) return 'This order has no payouts recorded against it';
 
-    const unpaid = lines.filter(c => !c.isPaid);
-    if (unpaid.length === 0) return 'Every payout on this order has been recorded';
-    return `${unpaid.length} of ${lines.length} payout(s) still to record`;
+    // A top-up is named, not counted. "1 of 2 payouts still to record" on an order where both
+    // cleaners were paid reads as a mistake; what actually happened is that the job grew.
+    if (order.topUpPayout > 0) {
+      return `Everyone was paid, then this order changed — ${this.money(order.topUpPayout)} more is owed`;
+    }
+
+    const owed = lines.filter(c => !c.isSettled);
+    if (owed.length === 0) return 'Every payout on this order has been recorded';
+    return `${owed.length} of ${lines.length} payout(s) still to record`;
+  }
+
+  /**
+   * True when money already went out on this order and a later edit left it short. This is the
+   * ONLY switch for "additional to pay" wording anywhere on the page — an order nobody has been
+   * paid for has topUpPayout 0 and reads as plainly unpaid, which is the whole point.
+   */
+  hasTopUp(order: OutgoingPaymentOrder): boolean {
+    return (order.topUpPayout ?? 0) > 0;
+  }
+
+  /** "$84.00 now, $73.50 already paid" — the sentence the top-up banner explains itself with. */
+  topUpSummary(order: OutgoingPaymentOrder): string {
+    const lines = this.allPayoutLines(order).filter(c => c.isTopUp);
+    const paid = lines.reduce((sum, c) => sum + (c.paidAmount || 0), 0);
+    const now = lines.reduce((sum, c) => sum + (c.payout || 0), 0);
+    const who = lines.length === 1 ? this.cleanerName(lines[0]) : `${lines.length} cleaners`;
+    return `${who} already had ${this.money(paid)}; the work is now worth ${this.money(now)}.`;
+  }
+
+  /** Any line paid ABOVE what it is now worth — hours edited down after payment. */
+  hasOverpayment(order: OutgoingPaymentOrder): boolean {
+    return (order.overpaidAmount ?? 0) > 0;
   }
 
   trackByOrder = (_: number, order: OutgoingPaymentOrder) => order.orderId;
@@ -809,8 +851,18 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
     return this.editingKey === this.editKey(order, cleaner);
   }
 
+  /**
+   * Rate and hours stay editable AFTER payment (2026-09) — cleaners routinely report longer
+   * hours once they have been settled, and raising them now shows the difference as still to pay
+   * instead of forcing an undo that would erase the record of what was actually handed over.
+   * An unassigned slot still cannot be edited: there is no per-cleaner row to hang an override on.
+   */
+  canEditLine(cleaner: OutgoingPaymentCleaner): boolean {
+    return !cleaner.isUnassigned;
+  }
+
   startEdit(order: OutgoingPaymentOrder, cleaner: OutgoingPaymentCleaner): void {
-    if (cleaner.isPaid) return;
+    if (!this.canEditLine(cleaner)) return;
     this.editingKey = this.editKey(order, cleaner);
     // Seeded with what is IN FORCE, not with the override — so an untouched line shows the
     // automatic figure and saving it unchanged is a no-op rather than a surprise pin.
@@ -868,7 +920,7 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    * re-priced later, a re-typed one does not.
    */
   resetToAutomatic(order: OutgoingPaymentOrder, cleaner: OutgoingPaymentCleaner): void {
-    if (cleaner.isPaid || this.savingEdit) return;
+    if (!this.canEditLine(cleaner) || this.savingEdit) return;
 
     this.savingEdit = true;
     this.service
@@ -928,12 +980,26 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    * modal is asking you to confirm.
    */
   get unpaidInPayOrder(): OutgoingPaymentCleaner[] {
-    return this.payOrder ? this.allPayoutLines(this.payOrder).filter(c => !c.isPaid) : [];
+    // Everything still OWED, which is not the same as everything unpaid: a line paid before the
+    // order gained an hour is owed the difference, and "Mark all paid" settles it too.
+    return this.payOrder ? this.allPayoutLines(this.payOrder).filter(c => !c.isSettled) : [];
   }
 
+  /**
+   * What the modal is asking you to confirm. Reads OUTSTANDING, never `payout` — on a line
+   * already paid $73.50 and now worth $84.00 the money that has to go out is $10.50, and showing
+   * the full payout would ask the payer to hand over $73.50 of it twice.
+   */
   get payModalTotal(): number {
-    if (this.payCleaner) return this.payCleaner.payout;
-    return this.unpaidInPayOrder.reduce((sum, c) => sum + (c.payout || 0), 0);
+    if (this.payCleaner) return this.payCleaner.outstandingPayout;
+    return this.unpaidInPayOrder.reduce((sum, c) => sum + (c.outstandingPayout || 0), 0);
+  }
+
+  /** True when the modal is settling a shortfall rather than making a first payment. */
+  get payModalIsTopUp(): boolean {
+    return this.payCleaner
+      ? !!this.payCleaner.isTopUp
+      : this.unpaidInPayOrder.some(c => c.isTopUp);
   }
 
   confirmPay(): void {

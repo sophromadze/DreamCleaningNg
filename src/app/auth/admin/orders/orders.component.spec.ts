@@ -819,6 +819,97 @@ describe('OrdersComponent', () => {
       expect(component.editOrderTotalInput).toBe(100);
     });
 
+    /**
+     * A Custom ("Pre-Arranged") order is priced from a TAX-INCLUSIVE amount an admin typed, so
+     * its stored subtotal and tax add back to that amount exactly — and re-deriving the tax as
+     * round2(subtotal x rate) lands a cent away. $300.00 is one of those amounts: no cent-valued
+     * subtotal satisfies S + round2(S x 8.875%) = 300.00.
+     *
+     * Merely OPENING the editor used to do exactly that re-derivation, so a $300.00 order read
+     * $300.01 before anybody touched a field, and the cent went through the approval queue
+     * unnoticed. The order's own tax now carries into the session.
+     */
+    describe('opening the editor on a tax-inclusive (custom-priced) order', () => {
+      const customOrder = (over: any = {}) => plainOrder({
+        subTotal: SPLIT_SUBTOTAL, tax: SPLIT_TAX, total: TYPED, ...over
+      });
+
+      /** startEditOrder seeds the override this way; the resolver is what decides. */
+      const seedFrom = (order: any) => {
+        openEditorOn(order);
+        component.editOrderTaxOverride = (component as any).resolveStoredTaxOverride();
+        component.recalculateEditPricing();
+      };
+
+      it('does not move the total by a cent', () => {
+        seedFrom(customOrder());
+
+        expect(component.editOrderForm.tax).toBe(SPLIT_TAX);
+        expect(component.editOrderForm.total).toBe(TYPED);
+        expect(component.editOrderTotalInput).toBe(TYPED);
+      });
+
+      it('carries the stored tax onto the DTO so the save lands on the same figure', () => {
+        seedFrom(customOrder());
+
+        const dto = (component as any).buildOrderEditDto();
+        expect(dto.taxOverride).toBe(SPLIT_TAX);
+        expect(dto.taxOverrideBase).toBe(SPLIT_SUBTOTAL);
+      });
+
+      it('keeps holding while only tips move, since tips sit outside the taxed amount', () => {
+        seedFrom(customOrder());
+
+        component.editOrderForm.tips = 20;
+        component.recalculateEditPricing();
+
+        expect(component.editOrderForm.tax).toBe(SPLIT_TAX);
+        expect(component.editOrderForm.total).toBe(round2(TYPED + 20));
+      });
+
+      it('hands pricing back to the rate math the moment the subtotal moves', () => {
+        seedFrom(customOrder());
+
+        component.editOrderForm.subTotal = 400;
+        component.onEditSubTotalChange();
+
+        expect(component.editOrderTaxOverride).toBeNull();
+        expect(component.editOrderForm.tax).toBe(round2(400 * 0.08875));
+      });
+
+      it('sends nothing for an ordinary order, whose stored tax already IS the rate math', () => {
+        seedFrom(plainOrder());
+
+        expect(component.editOrderTaxOverride).toBeNull();
+        expect(component.editOrderForm.total).toBe(217.75);
+      });
+
+      it('survives an extras change, which on a custom order moves no money at all', () => {
+        // Extras on a pre-arranged type are informational ($0, 0 minutes) and
+        // recalcSubtotalFromServicesAndExtras deliberately leaves the subtotal untouched — so
+        // nothing invalidates the split tax. Clearing it anyway made ticking an extra onto a
+        // $300.00 job re-derive the tax and charge $300.01.
+        component.serviceTypesCache = [{ id: 4, isCustom: true } as any];
+        seedFrom(customOrder({ serviceTypeId: 4, services: [], extraServices: [] }));
+
+        component.recalcSubtotalFromServicesAndExtras();
+
+        expect(component.editOrderTaxOverride).not.toBeNull();
+        expect(component.editOrderForm.subTotal).toBe(SPLIT_SUBTOTAL);
+        expect(component.editOrderForm.tax).toBe(SPLIT_TAX);
+        expect(component.editOrderForm.total).toBe(TYPED);
+      });
+
+      it('still corrects a stored tax that is more than a cent out', () => {
+        // Not a tax-inclusive split — a legacy or hand-edited figure. Carrying it would
+        // perpetuate the error; only the one-cent rounding gap is ever honoured.
+        seedFrom(customOrder({ tax: 0 }));
+
+        expect(component.editOrderTaxOverride).toBeNull();
+        expect(component.editOrderForm.tax).toBe(round2(SPLIT_SUBTOTAL * 0.08875));
+      });
+    });
+
     it('stays read-only only for a gift card', () => {
       // A gift card's draw is min(balance, totalBeforeGiftCard) — a function of the subtotal we
       // would be solving for — so a typed figure has two equally valid readings. Points and

@@ -4575,10 +4575,10 @@ $order-header-mobile: 60px;
 // No chrome at all — no background, no border, no padding. It sits among the address lines and
 // reads as one of them, with the pin as its only marker.
 //
-// It is deliberately NOT in --primary-text like its two neighbours: it is an <a> (it opens a URL),
-// so link blue invites the browser's :visited rule to repaint it once an admin has opened one, and
-// the same line then looks different from order to order for no reason they can see. Pinning every
-// link state to the one colour is what stops any state recolouring it.
+// It carries the brand blue (--primary-color) so it reads as the one clickable thing on the block.
+// Every link state is still pinned to that one colour, which is what keeps the browser's :visited
+// rule from repainting it once an admin has opened one — without that pinning, the same line would
+// look different from order to order for no reason they could see.
 .address-maps-link {
   display: inline-flex;
   align-items: center;
@@ -4586,7 +4586,7 @@ $order-header-mobile: 60px;
   margin-top: 0.5rem;
   font-size: inherit;
   font-weight: var(--fw-medium);
-  color: var(--text-primary);
+  color: var(--primary-color);
   text-decoration: none;
 
   &,
@@ -4595,7 +4595,7 @@ $order-header-mobile: 60px;
   &:hover,
   &:active,
   &:focus {
-    color: var(--text-primary);
+    color: var(--primary-color);
     text-decoration: none;
   }
 

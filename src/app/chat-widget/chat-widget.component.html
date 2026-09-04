@@ -3,6 +3,7 @@
   <button
     type="button"
     class="chat-fab"
+    [class.no-sticky-cta]="!stickyCtaVisible"
     [class.chat-fab--open]="isOpen"
     (click)="toggleOpen()"
     [attr.aria-label]="isOpen ? 'Close chat' : 'Chat with us'"
@@ -18,6 +19,7 @@
        actively-used chat never pauses (events bubble up from inner controls + input). -->
   <section
     class="chat-panel"
+    [class.no-sticky-cta]="!stickyCtaVisible"
     *ngIf="isOpen"
     aria-label="Chat with Dream Cleaning"
     (click)="registerActivity()"

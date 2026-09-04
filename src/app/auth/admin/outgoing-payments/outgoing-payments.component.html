@@ -283,6 +283,11 @@
       <span class="summary-label">Still to pay</span>
       <span class="summary-value">$ {{ data.summary.unpaidPayout | number:'1.2-2' }}</span>
       <span class="summary-sub">{{ data.summary.unpaidCleanerCount }} cleaner(s)</span>
+      <!-- Named separately because it is money owed on jobs that already LOOK settled — the part
+           of the figure nobody would go looking for. -->
+      <span class="summary-sub summary-topup" *ngIf="data.summary.topUpPayout > 0">
+        incl. $ {{ data.summary.topUpPayout | number:'1.2-2' }} on orders that changed after payment
+      </span>
     </div>
     <div class="summary-card is-paid">
       <span class="summary-label">Already paid</span>
@@ -361,7 +366,16 @@
 
               <td class="amount">$ {{ order.totalWithoutTips | number:'1.2-2' }}</td>
 
-              <td class="amount">$ {{ order.totalPayout | number:'1.2-2' }}</td>
+              <td class="amount">
+                $ {{ order.totalPayout | number:'1.2-2' }}
+                <!-- The shortfall an order edit left behind, on the row so it is visible without
+                     opening the panel — it is the only reason a settled order is back on this
+                     list. Never shown for an order nobody has been paid for. -->
+                <em class="row-topup" *ngIf="hasTopUp(order)"
+                    [title]="topUpSummary(order)">
+                  + $ {{ order.topUpPayout | number:'1.2-2' }} still owed
+                </em>
+              </td>
 
               <td>
                 <span class="status-badge" [ngClass]="payStatusClass(order)" [title]="payStatusTitle(order)">
@@ -423,7 +437,9 @@
            rel="noopener">View order</a>
         <button class="action-btn small save"
                 *ngIf="!order.isFullyPaid && allPayoutLines(order).length > 0"
-                (click)="openPayOrder(order)">Mark all paid</button>
+                (click)="openPayOrder(order)">
+          {{ hasTopUp(order) ? 'Pay remaining' : 'Mark all paid' }}
+        </button>
         <button class="action-btn small discard" (click)="closePanel()">Close</button>
       </div>
     </div>
@@ -436,6 +452,21 @@
       supporting context.
     -->
     <div class="order-panel-body">
+
+      <!--
+        Everyone here was paid, and then the order changed. This is the first thing on the panel
+        because it is the reason the order came back into the unpaid list, and without it the
+        reader sees a "Paid" stamp beside a bigger payout figure and assumes the page is wrong.
+      -->
+      <div class="topup-banner" *ngIf="hasTopUp(order)">
+        <strong>$ {{ order.topUpPayout | number:'1.2-2' }} still to pay</strong>
+        <span>{{ topUpSummary(order) }}</span>
+      </div>
+
+      <div class="overpaid-banner" *ngIf="hasOverpayment(order)">
+        <strong>$ {{ order.overpaidAmount | number:'1.2-2' }} overpaid</strong>
+        <span>The hours came down after payment. Nothing has been clawed back.</span>
+      </div>
 
       <!--
         The order's hourly rate. This is the DEFAULT every assigned cleaner without their own
@@ -484,7 +515,8 @@
         <ul class="cleaner-list">
           <li class="cleaner-row"
               *ngFor="let cleaner of order.cleaners; trackBy: trackByCleaner"
-              [class.is-paid]="cleaner.isPaid">
+              [class.is-paid]="cleaner.isPaid"
+              [class.needs-topup]="cleaner.isTopUp">
 
             <div class="cleaner-identity">
               <span class="cleaner-name">{{ cleanerName(cleaner) }}</span>
@@ -585,13 +617,43 @@
               </div>
             </div>
 
+            <!--
+              The shortfall left by an order edit made AFTER this cleaner was paid. It says all
+              three figures — what went out, what the work is worth now, what is left — because
+              "$10.50 still to pay" on its own is a number nobody can check. Only ever rendered
+              on a line that has actually been paid (isTopUp); an unpaid line is just unpaid.
+            -->
+            <div class="cleaner-topup" *ngIf="cleaner.isTopUp">
+              <span class="topup-lead">This order changed after {{ cleanerName(cleaner) }} was paid.</span>
+              <span class="topup-working">
+                Paid $ {{ cleaner.paidAmount | number:'1.2-2' }} ·
+                now worth $ {{ cleaner.payout | number:'1.2-2' }} ·
+                <strong>$ {{ cleaner.outstandingPayout | number:'1.2-2' }} still to pay</strong>
+              </span>
+            </div>
+
+            <!-- The mirror case: the hours came DOWN after payment. Nothing is clawed back
+                 automatically — it is reported so a person can decide what to do. -->
+            <div class="cleaner-overpaid" *ngIf="cleaner.overpaidAmount > 0">
+              Paid $ {{ cleaner.paidAmount | number:'1.2-2' }}, but the work is now worth
+              $ {{ cleaner.payout | number:'1.2-2' }} —
+              <strong>$ {{ cleaner.overpaidAmount | number:'1.2-2' }} overpaid</strong>.
+            </div>
+
             <div class="cleaner-actions">
-              <ng-container *ngIf="!cleaner.isPaid">
-                <button class="action-btn small edit" type="button" *ngIf="!isEditing(order, cleaner)" (click)="startEdit(order, cleaner)">
-                  Rate / hours
-                </button>
-                <button class="action-btn small save" type="button" (click)="openPayCleaner(order, cleaner)">Mark paid</button>
-              </ng-container>
+              <!-- Rate / hours stay editable after payment: raising them shows the difference as
+                   still to pay rather than rewriting what was handed over. -->
+              <button class="action-btn small edit" type="button"
+                      *ngIf="!isEditing(order, cleaner)"
+                      (click)="startEdit(order, cleaner)">
+                Rate / hours
+              </button>
+
+              <button class="action-btn small save" type="button"
+                      *ngIf="!cleaner.isSettled"
+                      (click)="openPayCleaner(order, cleaner)">
+                {{ cleaner.isTopUp ? 'Pay remaining $ ' + (cleaner.outstandingPayout | number:'1.2-2') : 'Mark paid' }}
+              </button>
 
               <ng-container *ngIf="cleaner.isPaid">
                 <span class="paid-stamp">
@@ -616,7 +678,8 @@
         <ul class="cleaner-list unassigned-list" *ngIf="hasUnassignedSlots(order)">
           <li class="cleaner-row is-unassigned"
               *ngFor="let slot of order.unassignedCleaners; trackBy: trackBySlot"
-              [class.is-paid]="slot.isPaid">
+              [class.is-paid]="slot.isPaid"
+              [class.needs-topup]="slot.isTopUp">
             <div class="cleaner-identity">
               <span class="cleaner-name">Unassigned cleaner</span>
               <span class="cleaner-destination muted">Not in the system — put their name in the payment note</span>
@@ -644,9 +707,24 @@
             <!-- Same pay/undo controls as a named cleaner. Rate and hours are NOT editable here:
                  there is no per-cleaner record to hang an override on, and the order-level rate
                  above already moves this line. -->
+            <div class="cleaner-topup" *ngIf="slot.isTopUp">
+              <span class="topup-lead">This order changed after this slot was paid.</span>
+              <span class="topup-working">
+                Paid $ {{ slot.paidAmount | number:'1.2-2' }} ·
+                now worth $ {{ slot.payout | number:'1.2-2' }} ·
+                <strong>$ {{ slot.outstandingPayout | number:'1.2-2' }} still to pay</strong>
+              </span>
+            </div>
+
+            <div class="cleaner-overpaid" *ngIf="slot.overpaidAmount > 0">
+              Paid $ {{ slot.paidAmount | number:'1.2-2' }}, but the work is now worth
+              $ {{ slot.payout | number:'1.2-2' }} —
+              <strong>$ {{ slot.overpaidAmount | number:'1.2-2' }} overpaid</strong>.
+            </div>
+
             <div class="cleaner-actions">
-              <button class="action-btn small save" type="button" *ngIf="!slot.isPaid" (click)="openPayCleaner(order, slot)">
-                Mark paid
+              <button class="action-btn small save" type="button" *ngIf="!slot.isSettled" (click)="openPayCleaner(order, slot)">
+                {{ slot.isTopUp ? 'Pay remaining $ ' + (slot.outstandingPayout | number:'1.2-2') : 'Mark paid' }}
               </button>
 
               <ng-container *ngIf="slot.isPaid">
@@ -711,8 +789,17 @@
 <!-- Pay confirmation: names what is being recorded before it is recorded -->
 <div class="modal-backdrop" *ngIf="payOrder" (click)="closePayModal()">
   <div class="modal" (click)="$event.stopPropagation()">
-    <h2 *ngIf="payCleaner">Mark {{ cleanerName(payCleaner) }} as paid</h2>
+    <h2 *ngIf="payCleaner">
+      {{ payCleaner.isTopUp ? 'Pay ' + cleanerName(payCleaner) + ' the difference' : 'Mark ' + cleanerName(payCleaner) + ' as paid' }}
+    </h2>
     <h2 *ngIf="!payCleaner">Mark everyone on order #{{ payOrder.orderId }} as paid</h2>
+
+    <!-- A top-up is money going out on top of money that already went out, so the modal says so
+         before the button is pressed rather than quietly showing a smaller total than the line. -->
+    <p class="modal-topup" *ngIf="payModalIsTopUp">
+      This settles what is still owed after the order changed — the earlier payment stays on
+      record and this amount is added to it.
+    </p>
 
     <p class="modal-lead" *ngIf="payCleaner">
       Order #{{ payOrder.orderId }} · {{ payOrder.serviceTypeName }} · {{ payOrder.serviceDate | date:'MM/dd/yy' }}
@@ -724,7 +811,12 @@
         <span class="modal-line-method">
           {{ c.isUnassigned ? 'not in the system' : (methodLabel(c.paymentMethod) || 'no method on file') }}
         </span>
-        <span class="modal-line-amount">$ {{ c.payout | number:'1.2-2' }}</span>
+        <!-- OUTSTANDING, not payout: a line already paid $73.50 and now worth $84.00 needs
+             $10.50, and listing the full payout would ask for $73.50 of it a second time. -->
+        <span class="modal-line-amount">
+          $ {{ c.outstandingPayout | number:'1.2-2' }}
+          <em class="modal-line-topup" *ngIf="c.isTopUp">still owed</em>
+        </span>
       </li>
     </ul>
 
