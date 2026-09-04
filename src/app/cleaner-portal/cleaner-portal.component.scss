@@ -253,7 +253,11 @@
 
 .calendar-cell {
   position: relative;
-  height: 74px;
+  // min-height, not height: the smallest dot band still runs out of room eventually, and a week
+  // row growing a few pixels is a far better answer than a day quietly showing fewer cleanings
+  // than it has. Every square in that week grows with it, so the grid stays square.
+  min-height: 74px;
+  padding: 4px 2px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -275,17 +279,15 @@
 
   &--muted { color: var(--text-muted); }
 
-  // Today is outlined; the SELECTED day is filled. Two different questions, so two different
-  // marks - a cleaner scrolling forward has to keep seeing where today is.
+  // Today COLOURS its number; the SELECTED day fills its square. Two different questions, so two
+  // different marks - a cleaner scrolling forward has to keep seeing where today is.
+  //
+  // It used to be a 32px ring, which is why the number was the only thing in a 74px square with
+  // room to spare: the ring set the floor for everything under it. The colour says the same thing
+  // in no space at all and leaves the dots the room they need on a busy day (owner's call).
   &--today .calendar-day-number {
-    border: 2px solid var(--primary-color);
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: var(--fw-semibold);
+    color: var(--primary-color);
+    font-weight: var(--fw-bold);
   }
 
   // THE WHOLE SQUARE carries the selection - the number keeps its own shape. A filled circle on
@@ -302,19 +304,38 @@
   line-height: 1;
 }
 
+// ONE DOT PER CLEANING - the row is a count, so nothing may be dropped from it. What gives way on
+// a busy day is the SIZE: the band the component picks (lg/md/sm/xs) drives the three variables
+// below, and the row itself never wraps, so the square keeps its shape however many jobs land on
+// the day. The glow shrinks with the dot, or an xs dot would pulse a halo three times its width
+// into its neighbour.
 .calendar-dots {
+  --cal-dot-size: 7px;
+  --cal-dot-gap: 4px;
+  --cal-dot-glow: 5px;
+
   display: flex;
-  gap: 4px;
-  height: 8px;
+  // Wrapping is the last resort behind the size bands, and it is why the square is a min-height:
+  // an exceptional day spills onto a second line instead of running out past the grid.
+  flex-wrap: wrap;
+  gap: var(--cal-dot-gap);
+  row-gap: 2px;
+  min-height: 8px;
+  max-width: 100%;
   align-items: center;
+  justify-content: center;
 }
+
+.calendar-dots--md { --cal-dot-size: 6px; --cal-dot-gap: 3px; --cal-dot-glow: 4px; }
+.calendar-dots--sm { --cal-dot-size: 5px; --cal-dot-gap: 2px; --cal-dot-glow: 3px; }
+.calendar-dots--xs { --cal-dot-size: 4px; --cal-dot-gap: 2px; --cal-dot-glow: 2px; }
 
 // TWO STATES, and the difference is deliberate rather than decorative. Work still ahead has to be
 // findable at a glance across a whole month, so it pulses; a finished job is a record and gets a
 // quiet mark that does not compete with it. Any third state would dilute both.
 .calendar-dot {
-  width: 7px;
-  height: 7px;
+  width: var(--cal-dot-size);
+  height: var(--cal-dot-size);
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -330,7 +351,7 @@
 
 @keyframes cleaner-dot-pulse {
   0%, 100% { transform: scale(1);   box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
-  50%      { transform: scale(1.2); box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+  50%      { transform: scale(1.2); box-shadow: 0 0 0 var(--cal-dot-glow) rgba(239, 68, 68, 0); }
 }
 
 // Project-wide convention: motion is an enhancement, never the only carrier of meaning. The colour
@@ -852,7 +873,14 @@
   .calendar-summary h2 { font-size: 1.35rem; }
 
   .calendar-month { font-size: 1rem; }
-  .calendar-cell { height: 58px; font-size: 0.85rem; }
+  .calendar-cell { min-height: 58px; font-size: 0.85rem; }
+
+  // A seventh of a phone screen is roughly 46px, so every band is a size down from its desktop
+  // figure. Without this a day with five cleanings pushed its dots past the square's edge.
+  .calendar-dots     { --cal-dot-size: 6px; --cal-dot-gap: 3px; --cal-dot-glow: 4px; }
+  .calendar-dots--md { --cal-dot-size: 5px; --cal-dot-gap: 3px; --cal-dot-glow: 3px; }
+  .calendar-dots--sm { --cal-dot-size: 4px; --cal-dot-gap: 2px; --cal-dot-glow: 2px; }
+  .calendar-dots--xs { --cal-dot-size: 3px; --cal-dot-gap: 2px; --cal-dot-glow: 2px; }
 
   .job-card { grid-template-columns: 76px 20px minmax(0, 1fr); }
   .job-arrow { display: none; }
@@ -862,7 +890,7 @@
   .detail-row { grid-template-columns: 1fr; gap: 2px; }
   .detail-panel { width: 100%; }
 
-  .calendar-cell { height: 52px; }
+  .calendar-cell { min-height: 52px; }
   .calendar-weekday { font-size: 0.7rem; }
 
   .day-header { flex-direction: column; align-items: flex-start; gap: 6px; }

@@ -133,7 +133,23 @@
                   </div>
                 </td>
 
-                <td class="col-phone">{{ account.phone || '—' }}</td>
+                <!--
+                  The account's own number if it has one, otherwise the linked cleaner record's -
+                  a self-registered cleaner leaves the optional phone field blank, and a row saying
+                  "-" beside a record whose mobile an admin typed in reads as a bug in the panel.
+                  Where it came from is a HOVER, not a chip on the row (owner's call, 2026-09): the
+                  fallback is the ordinary case rather than the exception, so a badge on almost
+                  every row was noise in a narrow column.
+                -->
+                <td class="col-phone">
+                  <ng-container *ngIf="resolvePhone(account) as resolved">
+                    <span *ngIf="!resolved.value" class="muted">—</span>
+                    <span *ngIf="resolved.value"
+                          [attr.title]="resolved.fromCleanerRecord
+                            ? 'From the linked cleaner record - this account has no phone of its own'
+                            : null">{{ resolved.value }}</span>
+                  </ng-container>
+                </td>
 
                 <td class="col-email">
                   <span *ngIf="!account.email" class="tag-chip no-email" title="No sendable address on this account — nothing can be emailed to it">No email</span>

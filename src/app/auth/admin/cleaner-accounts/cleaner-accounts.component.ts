@@ -151,7 +151,9 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
 
       return [
         a.firstName, a.lastName, `${a.firstName} ${a.lastName}`,
-        a.email, a.phone, a.cleanerName, String(a.userId)
+        // Both numbers, not the resolved one: the box says it searches by phone, and a number an
+        // admin can read off the row has to be a number they can then search for.
+        a.email, a.phone, a.cleanerPhone, a.cleanerName, String(a.userId)
       ].some(v => (v || '').toLowerCase().includes(term));
     });
 
@@ -364,6 +366,29 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
   }
 
   // ── Display helpers ────────────────────────────────────────────────────────────────
+
+  /**
+   * The number to show for a row, and where it came from.
+   *
+   * `phone` is the ACCOUNT's, and it is blank far more often than not: it is optional on the
+   * registration form and a Google or Apple sign-in never supplies one, so a cleaner who made her
+   * own login has nothing there while her mobile sits on her cleaner record, entered by an admin
+   * on the Cleaners Dashboard. Showing only the account's turned that into a row reading "-"
+   * directly beside a linked record whose number the same admin had just typed in.
+   *
+   * The account's own number still WINS when it has one - this tab is about accounts, and the two
+   * are allowed to differ (a personal line vs. a work line). The record's is a fallback, marked as
+   * such on the row rather than silently merged, so "which of the two is this" stays answerable.
+   */
+  resolvePhone(account: CleanerAccount): { value: string | null; fromCleanerRecord: boolean } {
+    const own = (account.phone || '').trim();
+    if (own) return { value: own, fromCleanerRecord: false };
+
+    const record = (account.cleanerPhone || '').trim();
+    return record
+      ? { value: record, fromCleanerRecord: true }
+      : { value: null, fromCleanerRecord: false };
+  }
 
   /** Shared with the Users tab so one person is one colour wherever an admin sees them. */
   getAvatarColor(id: number): string { return getAdminAvatarColor(id); }

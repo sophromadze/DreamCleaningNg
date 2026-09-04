@@ -3,6 +3,7 @@ import { of, throwError } from 'rxjs';
 
 import { CleanerPortalComponent } from './cleaner-portal.component';
 import { CleanerPortalService } from '../services/cleaner-portal.service';
+import { PORTAL_LANGUAGES, portalStrings } from './cleaner-portal.i18n';
 import { testProviders } from '../../testing/test-providers';
 
 /**
@@ -197,6 +198,49 @@ describe('CleanerPortalComponent', () => {
       expect(component.calendarMonthLabel).toBe('November 2026');
       expect(component.calendarCells.some(c => c.key === '2026-11-03' && c.inMonth)).toBeTrue();
     });
+
+    /**
+     * The dot row is a COUNT. It was capped at three, so a Friday with four cleanings wore the
+     * same three dots as a Friday with three - while the day panel directly underneath it said
+     * "4 Cleanings". What gives way on a busy day is the dot SIZE, never a dot.
+     */
+    it('draws one dot per cleaning, however many there are', () => {
+      portal.getMyJobs.and.returnValue(of({
+        current: [
+          job({ orderId: 1 }), job({ orderId: 2 }), job({ orderId: 3 }),
+          job({ orderId: 4 }), job({ orderId: 5 })
+        ],
+        past: [job({ orderId: 6, isCompleted: true })]
+      }));
+      fixture.detectChanges();
+
+      const cell = component.calendarCells.find(c => c.key === '2026-09-10');
+      expect(cell?.jobCount).toBe(6);
+      expect(cell?.dots.length).toBe(6);
+      // Done on the left, still-to-do on the right - a month scanned left to right reads as work
+      // finished then work remaining.
+      expect(cell?.dots).toEqual(['done', 'active', 'active', 'active', 'active', 'active']);
+    });
+
+    it('shrinks the dots as the day fills up, so the square keeps its shape', () => {
+      const bandFor = (count: number) => {
+        portal.getMyJobs.and.returnValue(of({
+          current: Array.from({ length: count }, (_, i) => job({ orderId: i + 1 })),
+          past: []
+        }));
+        const f = TestBed.createComponent(CleanerPortalComponent);
+        f.detectChanges();
+        return f.componentInstance.calendarCells.find(c => c.key === '2026-09-10')?.dotSize;
+      };
+
+      expect(bandFor(1)).toBe('lg');
+      expect(bandFor(3)).toBe('lg');
+      expect(bandFor(4)).toBe('md');
+      expect(bandFor(6)).toBe('sm');
+      expect(bandFor(9)).toBe('xs');
+      // No band past xs: the row wraps rather than dropping anything.
+      expect(bandFor(20)).toBe('xs');
+    });
   });
 
   describe('completed jobs', () => {
@@ -253,6 +297,39 @@ describe('CleanerPortalComponent', () => {
       // otherwise saving once would pin them to it.
       expect(component.languageChoice).toBe('');
       expect(component.t.today).toBe('დღეს');
+    });
+
+    /**
+     * The greeting moves with the New York clock, and it has to move in EVERY language. Georgian
+     * used the generic "hello" (გამარჯობა) for both morning and afternoon, so a cleaner opening
+     * the page at 8am and at 4pm read the same word while every other language on the page
+     * changed - which reads as the Georgian translation being unfinished rather than as a choice.
+     */
+    it('greets by time of day in every language, never with one word for two of them', () => {
+      for (const language of PORTAL_LANGUAGES) {
+        const s = portalStrings(language);
+        const greetings = [s.greetingMorning, s.greetingAfternoon, s.greetingEvening];
+
+        expect(greetings.every(g => !!g && g.trim().length > 0))
+          .withContext(`${language} is missing a greeting`).toBeTrue();
+        expect(new Set(greetings).size)
+          .withContext(`${language} reuses one greeting for two times of day`).toBe(3);
+      }
+    });
+
+    it('reads the greeting off the resolved time of day', () => {
+      portal.getContext.and.returnValue(of({
+        isCleanerView: true, isSystemWideView: false, cleanerId: 7, cleanerName: 'Nino Beridze',
+        language: 'ka', preferredLanguage: 'ka'
+      }));
+      fixture.detectChanges();
+
+      // Whichever band the NY clock is in, it is one of Georgian's three - and the greeting is
+      // never the English fallback.
+      expect([component.t.greetingMorning, component.t.greetingAfternoon, component.t.greetingEvening])
+        .toContain(component.greeting);
+      // FIRST name only: a greeting, not a salutation on a letter.
+      expect(component.greetingName).toBe('Nino');
     });
 
     it('applies a chosen language immediately and persists it', () => {
@@ -410,13 +487,27 @@ describe('CleanerPortalComponent', () => {
       expect(portal.getAllJobs.calls.mostRecent().args[2]).toBeNull();
     });
 
-    it('opens the full read-only detail when a cleaning is clicked', () => {
+    // Clicking a card BROWSES; the detail panel is a decision and takes its own click (owner's
+    // call, 2026-09). A click used to do both, so scanning a day threw a panel over the page and
+    // fetched an order for every card an admin merely glanced at.
+    it('fills the briefing when a cleaning is clicked, and opens nothing', () => {
       asSuperAdmin();
 
       component.selectAdminJob({ ...job(), status: 'Active', assignedCleaners: ['A'], maidsCount: 1, isPaid: true });
 
-      expect(portal.getOrderDetail).toHaveBeenCalledWith(91);
       expect(component.selectedAdminJob?.orderId).toBe(91);
+      expect(portal.getOrderDetail).not.toHaveBeenCalled();
+      expect(component.selectedDetail).toBeNull();
+    });
+
+    it('opens the full read-only detail from the "View full details" button', () => {
+      asSuperAdmin();
+
+      component.selectAdminJob({ ...job(), status: 'Active', assignedCleaners: ['A'], maidsCount: 1, isPaid: true });
+      component.openDetail(91);
+
+      expect(portal.getOrderDetail).toHaveBeenCalledWith(91);
+      expect(component.selectedDetail).toBeTruthy();
     });
 
     it('does NOT throw the detail panel open when a month simply finishes loading', () => {

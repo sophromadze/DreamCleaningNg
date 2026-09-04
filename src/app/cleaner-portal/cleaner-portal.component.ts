@@ -29,6 +29,14 @@ import {
 export type CleanerCalendarDot = 'active' | 'done';
 
 /**
+ * How big the dots under a day are drawn. The row is ONE dot per cleaning and never wraps, so on a
+ * busy day the dots have to give way rather than the square: the band shrinks them (and the gaps
+ * between them) as the count climbs. Four bands rather than a continuous scale because the sizes
+ * are whole pixels - a computed fraction lands on a half pixel and the row renders as fuzz.
+ */
+export type CleanerCalendarDotSize = 'lg' | 'md' | 'sm' | 'xs';
+
+/**
  * One square of the cleaner's month calendar. The dots are what put the month to work: a day with
  * cleanings says so before anything is clicked, and says whether they are still ahead.
  */
@@ -39,8 +47,10 @@ export interface CleanerCalendarCell {
   inMonth: boolean;
   isToday: boolean;
   jobCount: number;
-  /** At most three, so a busy day cannot widen the square. */
+  /** ONE per cleaning - the row is a count, so it has to be countable. */
   dots: CleanerCalendarDot[];
+  /** The band that keeps that row inside the square. See CleanerCalendarDotSize. */
+  dotSize: CleanerCalendarDotSize;
 }
 
 /**
@@ -415,7 +425,7 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
       : this.groupByDate(this.allJobs);
 
     this.buildCalendar();
-    this.selectAdminJob(this.selectedDayAdminJobs[0] ?? null, false);
+    this.selectAdminJob(this.selectedDayAdminJobs[0] ?? null);
   }
 
   private buildCalendar(): void {
@@ -438,7 +448,8 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
         inMonth: day.getMonth() === this.calendarMonthIndex && day.getFullYear() === this.calendarYear,
         isToday: key === this.todayKey,
         jobCount: jobs.length,
-        dots: this.buildDots(jobs)
+        dots: this.buildDots(jobs),
+        dotSize: this.resolveDotSize(jobs.length)
       });
     }
     // Drop a trailing week that belongs entirely to the next month rather than always paying for
@@ -454,22 +465,36 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
    * right reads as work finished then work remaining rather than as the order the jobs happen to
    * be booked in.
    *
-   * Capped at three, past which they stop being countable and the square would start to grow. The
-   * cap keeps at least one of EACH kind whenever both are present: dropping the red ones off a
-   * busy day would say the day was finished when it is not, which is the one thing this mark
-   * exists to answer.
+   * ONE DOT PER CLEANING, with nothing dropped. They were capped at three so a busy day could not
+   * widen the square, and the cost was that the mark stopped being a count: a Friday with four
+   * cleanings wore the same three dots as a Friday with three, and the day panel underneath said
+   * "4 Cleanings" beside it. The square is held by shrinking the dots instead (`resolveDotSize`),
+   * which is the half of the problem that has a solution.
    */
   private buildDots(jobs: { isCompleted: boolean }[]): CleanerCalendarDot[] {
     const done = jobs.filter(j => j.isCompleted).length;
     const active = jobs.length - done;
 
-    const doneShown = Math.min(done, active > 0 ? 2 : 3);
-    const activeShown = Math.min(active, 3 - doneShown);
-
     return [
-      ...Array<CleanerCalendarDot>(doneShown).fill('done'),
-      ...Array<CleanerCalendarDot>(activeShown).fill('active')
+      ...Array<CleanerCalendarDot>(done).fill('done'),
+      ...Array<CleanerCalendarDot>(active).fill('active')
     ];
+  }
+
+  /**
+   * Which size band a day's dots are drawn at. The row never wraps and must not push the square
+   * wider, so past a handful of cleanings the dots and their gaps give way instead.
+   *
+   * The bands are chosen against the NARROWEST square the grid ever draws - a phone, where a
+   * seventh of the screen is about 46px - because a band that only fits on a desktop is a band
+   * that overflows on the device the cleaners actually carry. The stylesheet then trims each band
+   * again under the mobile breakpoints.
+   */
+  private resolveDotSize(count: number): CleanerCalendarDotSize {
+    if (count <= 3) return 'lg';
+    if (count <= 5) return 'md';
+    if (count <= 8) return 'sm';
+    return 'xs';
   }
 
   previousMonth(): void {
@@ -512,7 +537,7 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
     // One view owns the selection at a time. Running both would have the SuperAdmin branch clear
     // the cleaner's freshly-chosen job to null, since the admin index is empty in that mode.
     if (this.context?.isSystemWideView) {
-      this.selectAdminJob(this.selectedDayAdminJobs[0] ?? null, false);
+      this.selectAdminJob(this.selectedDayAdminJobs[0] ?? null);
     } else {
       this.selectedJob = this.firstOpenableJob(this.selectedDayJobs);
     }
@@ -533,14 +558,20 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * The SuperAdmin's selection feeds the side card AND, when it comes from a click, opens the full
-   * read-only detail. Re-indexing after a fetch passes openPanel = false: a month landing must not
-   * throw a panel over the page nobody asked for.
+   * Picking a cleaning fills the BRIEFING beside the list, and stops there. Opening the full
+   * read-only detail is `openDetail`, reached only from the "View full details" button under that
+   * briefing (owner's call, 2026-09).
+   *
+   * A click used to do both, which made scanning a day expensive: every card an admin touched
+   * threw a panel over the page and fired a request for an order they were only glancing at, and
+   * the panel then had to be dismissed before the next one could be read. Selecting is browsing;
+   * opening the detail is a decision, and it now takes its own click. Nothing here opens a panel,
+   * so the earlier `openPanel` flag - which existed so a month LANDING would not open one - has
+   * nothing left to suppress and is gone.
    */
-  selectAdminJob(job: CleanerPortalAdminJob | null, openPanel = true): void {
+  selectAdminJob(job: CleanerPortalAdminJob | null): void {
     this.selectedAdminJob = job;
     this.selectedJob = job;
-    if (job && openPanel) this.openDetail(job.orderId);
   }
 
   /**

@@ -183,8 +183,13 @@ const EN: PortalStrings = {
 };
 
 const KA: PortalStrings = {
-  greetingMorning: 'გამარჯობა',
-  greetingAfternoon: 'გამარჯობა',
+  // The three time-of-day forms, matching English. Two of them were the generic "hello"
+  // (გამარჯობა), which is correct Georgian but not a greeting that says anything: a cleaner
+  // opening the page at 8am and at 4pm read the same word, while every other language on the page
+  // moved with the clock. მშვიდობისა takes the time of day in front of it exactly as "Good ..."
+  // does - დილა morning, დღე day, საღამო evening.
+  greetingMorning: 'დილა მშვიდობისა',
+  greetingAfternoon: 'დღე მშვიდობისა',
   greetingEvening: 'საღამო მშვიდობისა',
   scheduleSubtitle: 'აი თქვენი დასუფთავების განრიგი.',
   roleCleaner: 'ქლინერი',

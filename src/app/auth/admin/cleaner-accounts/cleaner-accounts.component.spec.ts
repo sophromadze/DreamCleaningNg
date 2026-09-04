@@ -313,5 +313,48 @@ describe('CleanerAccountsComponent', () => {
           .withContext(`"${term}" should match account #1`).toBeTrue();
       }
     });
+
+    it('searches the linked cleaner record\'s phone as well as the account\'s own', () => {
+      // The row can be SHOWING the record's number (see the block below), so an admin must be able
+      // to search for the number they can read.
+      admin.getCleanerAccounts.and.returnValue(of([
+        account({ userId: 1, phone: null, cleanerId: 80, cleanerName: 'Teo Akhobadze', cleanerPhone: '7185731923' })
+      ]));
+      fixture.detectChanges();
+
+      component.searchTerm = '7185731923';
+      component.onFilterChanged();
+      expect(component.pagedAccounts.length).toBe(1);
+    });
+  });
+
+  /**
+   * A cleaner who registered her OWN login left the optional phone field blank (and a Google or
+   * Apple sign-in never supplies one), so the account carries no number while her mobile sits on
+   * her cleaner record. The row used to print "-" beside a linked record whose number the same
+   * admin had just typed into the Cleaners Dashboard, which reads as a bug in the panel.
+   */
+  describe('phone', () => {
+    it('falls back to the linked cleaner record when the account has no phone', () => {
+      const resolved = component.resolvePhone(
+        account({ phone: null, cleanerId: 80, cleanerPhone: '7185731923' }));
+
+      expect(resolved.value).toBe('7185731923');
+      expect(resolved.fromCleanerRecord).toBeTrue();
+    });
+
+    it('prefers the account\'s own phone - the two are allowed to differ', () => {
+      const resolved = component.resolvePhone(
+        account({ phone: '5551234567', cleanerId: 80, cleanerPhone: '7185731923' }));
+
+      expect(resolved.value).toBe('5551234567');
+      expect(resolved.fromCleanerRecord).toBeFalse();
+    });
+
+    it('reports no phone when neither side has one', () => {
+      expect(component.resolvePhone(account({ phone: null, cleanerPhone: null })).value).toBeNull();
+      // Whitespace is not a phone number - it would render as a blank cell with no dash.
+      expect(component.resolvePhone(account({ phone: '  ', cleanerPhone: '  ' })).value).toBeNull();
+    });
   });
 });

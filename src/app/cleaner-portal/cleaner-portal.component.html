@@ -136,7 +136,9 @@
 
           <!-- The dots are what make the month itself answer "which days am I working" without
                anything being clicked. Work still ahead PULSES in red so it catches the eye across
-               the grid; a finished job is a quiet green mark that does not compete with it. -->
+               the grid; a finished job is a quiet green mark that does not compete with it.
+               One dot per cleaning, always: the row is a COUNT, so a busy day shrinks its dots
+               (calendar-dots--sm/xs) rather than dropping any. -->
           <button type="button"
                   class="calendar-cell"
                   *ngFor="let cell of calendarCells; trackBy: trackByCellKey"
@@ -145,7 +147,8 @@
                   [class.calendar-cell--selected]="cell.key === selectedDateKey"
                   (click)="selectDay(cell.key)">
             <span class="calendar-day-number">{{ cell.day }}</span>
-            <span class="calendar-dots" *ngIf="cell.dots.length > 0">
+            <span [class]="'calendar-dots calendar-dots--' + cell.dotSize"
+                  *ngIf="cell.dots.length > 0">
               <i *ngFor="let dot of cell.dots" [class]="'calendar-dot calendar-dot--' + dot"></i>
             </span>
           </button>

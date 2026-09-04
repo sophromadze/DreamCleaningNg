@@ -325,6 +325,8 @@ export interface CleanerAccount {
   lastName: string;
   /** Null for a no-email account - never a generated placeholder. */
   email?: string | null;
+  /** The ACCOUNT's own phone - optional at registration and never set by a social sign-in, so
+   *  routinely null even for someone whose mobile is on their cleaner record. See `cleanerPhone`. */
   phone?: string | null;
   profilePictureUrl?: string | null;
   isActive: boolean;
@@ -335,6 +337,9 @@ export interface CleanerAccount {
   cleanerName?: string | null;
   /** After a link this always equals `email`: linking overwrites the record's address. */
   cleanerEmail?: string | null;
+  /** The linked cleaner RECORD's phone - the number the office dials, entered on the Cleaners
+   *  Dashboard. Kept separate from `phone` because they are two different facts. */
+  cleanerPhone?: string | null;
   cleanerIsActive: boolean;
   assignedOrdersCount: number;
 }
