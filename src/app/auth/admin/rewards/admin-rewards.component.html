@@ -1,6 +1,11 @@
+<!--
+  ADMIN -> Rewards. Rendered as a TAB inside the admin panel (2026-09); it used to be its own
+  page at /admin/rewards, which now redirects onto the tab. The panel supplies the page frame and
+  its own h1, so this heading is an h2 and the wrapper carries no page padding of its own.
+-->
 <div class="admin-rewards-page">
   <div class="admin-rewards-header">
-    <h1>🫧 Bubble Rewards Management</h1>
+    <h2>🫧 Bubble Rewards</h2>
     <button class="reset-btn" *ngIf="canEdit" (click)="openResetModal()">Reset Points</button>
     <div class="master-switch-row">
       <label class="switch-label">Rewards System:</label>

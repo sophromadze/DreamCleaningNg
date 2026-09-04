@@ -1,5 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
+
 import { AdminComponent } from './admin.component';
 
 import { testProviders } from '../../../testing/test-providers';
@@ -107,6 +109,93 @@ describe('AdminComponent', () => {
       for (const tab of ['orders', 'users', 'discounts', 'scheduling', 'audit-history']) {
         expect(component.canOpenTab(tab)).toBeTrue();
       }
+    });
+  });
+
+  // Bubble Rewards moved out of the header dropdown into this panel (2026-09). Same gate as
+  // Services and for the same kind of reason: the settings behind it set the points economy
+  // every customer earns and spends against, not one account's balance.
+  describe('the Rewards tab is SuperAdmin-only', () => {
+    const viewPermissions = (role: string) => ({
+      role,
+      permissions: {
+        canView: true,
+        canCreate: true,
+        canUpdate: true,
+        canDelete: true,
+        canActivate: true,
+        canDeactivate: true
+      }
+    });
+
+    const tabLabels = () =>
+      Array.from(fixture.nativeElement.querySelectorAll('.admin-tabs .tab-btn'))
+        .map((b) => (b as HTMLElement).textContent?.trim());
+
+    afterEach(() => {
+      sessionStorage.removeItem('adminActiveTab');
+    });
+
+    it('does not render the Rewards button for a regular Admin who can view', () => {
+      component.userRole = 'Admin';
+      component.userPermissions = viewPermissions('Admin');
+      fixture.detectChanges();
+
+      expect(tabLabels()).not.toContain('Rewards');
+    });
+
+    it('renders it for a SuperAdmin', () => {
+      component.userRole = 'SuperAdmin';
+      component.userPermissions = viewPermissions('SuperAdmin');
+      fixture.detectChanges();
+
+      expect(tabLabels()).toContain('Rewards');
+    });
+
+    it('falls back to Orders when a non-SuperAdmin asks for it', () => {
+      component.userRole = 'Admin';
+
+      component.setActiveTab('rewards');
+
+      expect(component.activeTab).toBe('orders');
+      expect(sessionStorage.getItem('adminActiveTab')).toBe('orders');
+    });
+
+    it('lets a SuperAdmin open it', () => {
+      component.userRole = 'SuperAdmin';
+
+      component.setActiveTab('rewards');
+
+      expect(component.activeTab).toBe('rewards');
+      expect(component.canOpenTab('rewards')).toBeTrue();
+    });
+
+    // /admin/rewards redirects here as ?tab=rewards, so the old bookmark has to land on the tab
+    // rather than on whatever tab was last used.
+    const openWithTab = async (tab: string) => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        providers: [
+          ...testProviders,
+          {
+            provide: ActivatedRoute,
+            useValue: { snapshot: { queryParamMap: convertToParamMap({ tab }) } },
+          },
+        ],
+        imports: [AdminComponent],
+      }).compileComponents();
+
+      const fresh = TestBed.createComponent(AdminComponent);
+      fresh.componentInstance.ngOnInit();
+      return fresh.componentInstance;
+    };
+
+    it('opens the tab named by ?tab=', async () => {
+      expect((await openWithTab('rewards')).activeTab).toBe('rewards');
+    });
+
+    it('ignores a ?tab= naming something that is not a tab', async () => {
+      expect((await openWithTab('not-a-tab')).activeTab).toBe('orders');
     });
   });
 });

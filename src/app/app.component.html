@@ -24,8 +24,9 @@
 <!-- Add auth modal -->
 <app-auth-modal></app-auth-modal>
 
-<!-- Add floating action buttons -->
-<app-floating-action-buttons></app-floating-action-buttons>
+<!-- Floating contact buttons (Call / Email / Book / Quote). Customer-facing, so they stay off the
+     cleaner portal - see isCleanerPortalRoute. -->
+<app-floating-action-buttons *ngIf="showFloatingActions"></app-floating-action-buttons>
 <div *ngIf="showSocialStickyBanners" class="social-sticky-banners" aria-label="Social media links">
   <a href="https://www.facebook.com/profile.php?id=61563387757936" target="_blank" rel="noopener noreferrer" aria-label="Facebook" class="social-sticky-banner social-sticky-banner-facebook">
     <i class="fa-brands fa-facebook-f"></i>

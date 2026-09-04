@@ -14,6 +14,8 @@ import { SchedulingComponent } from './scheduling/scheduling.component';
 import { BeforeAfterPhotosComponent } from './before-after-photos/before-after-photos.component';
 import { ChatAgentSettingsComponent } from './chat-agent-settings/chat-agent-settings.component';
 import { ChatSessionsComponent } from './chat-sessions/chat-sessions.component';
+import { CleanerAccountsComponent } from './cleaner-accounts/cleaner-accounts.component';
+import { AdminRewardsComponent } from './rewards/admin-rewards.component';
 
 @Component({
   selector: 'app-admin',
@@ -29,7 +31,9 @@ import { ChatSessionsComponent } from './chat-sessions/chat-sessions.component';
     SchedulingComponent,
     BeforeAfterPhotosComponent,
     ChatAgentSettingsComponent,
-    ChatSessionsComponent
+    ChatSessionsComponent,
+    CleanerAccountsComponent,
+    AdminRewardsComponent
   ],
   templateUrl: './admin.component.html',
   styleUrls: ['./admin.component.scss']
@@ -49,11 +53,18 @@ export class AdminComponent implements OnInit {
     }
   };
 
-  /** Tabs only a SuperAdmin may open. Services edits the price catalogue every quote is built
-   *  from, so it is role-gated rather than permission-gated — canView is held by Admins and
-   *  Moderators too. Mirrors [Authorize(Roles = "SuperAdmin")] on AdminCatalogController's
-   *  catalogue endpoints. */
-  private static readonly SUPER_ADMIN_ONLY_TABS = ['booking-services'];
+  /** Tabs only a SuperAdmin may open. Both are role-gated rather than permission-gated — canView
+   *  is held by Admins and Moderators too. Services edits the price catalogue every quote is built
+   *  from (mirrors [Authorize(Roles = "SuperAdmin")] on AdminCatalogController's catalogue
+   *  endpoints); Rewards sets the points economy every customer earns and spends against, and
+   *  mirrors the same attribute on AdminRewardsController's settings and stats reads. */
+  private static readonly SUPER_ADMIN_ONLY_TABS = ['booking-services', 'rewards'];
+
+  /** Every tab the panel can show, in strip order. Only used to validate an incoming ?tab=. */
+  private static readonly KNOWN_TABS = [
+    'orders', 'users', 'cleaner-accounts', 'booking-services', 'discounts',
+    'scheduling', 'audit-history', 'mails-sms', 'before-after', 'chats', 'rewards'
+  ];
 
   // UI State
   activeTab: string = 'orders';
@@ -83,6 +94,11 @@ export class AdminComponent implements OnInit {
     const orderIdParam = this.route.snapshot.queryParamMap.get('orderId');
     // Same idea in reverse: userId opens the users tab with that customer's detail panel expanded
     const userIdParam = this.route.snapshot.queryParamMap.get('userId');
+    // ?tab= names a tab directly. It exists so a link can point INTO the panel — /admin/rewards
+    // redirects here through it, now that Bubble Rewards is a tab rather than its own page.
+    // Validated against the tab list, so a stale or hand-typed name cannot leave the panel
+    // rendering nothing; canOpenTab still has the final say once the role has loaded.
+    const tabParam = this.route.snapshot.queryParamMap.get('tab');
     if (orderIdParam) {
       const id = parseInt(orderIdParam, 10);
       if (!isNaN(id)) {
@@ -95,6 +111,9 @@ export class AdminComponent implements OnInit {
         this.activeTab = 'users';
         this.pendingUserId = id;
       }
+    } else if (tabParam && AdminComponent.KNOWN_TABS.includes(tabParam)) {
+      this.activeTab = tabParam;
+      sessionStorage.setItem('adminActiveTab', tabParam);
     } else {
       // Restore last active tab from sessionStorage if available
       let savedTab = sessionStorage.getItem('adminActiveTab');

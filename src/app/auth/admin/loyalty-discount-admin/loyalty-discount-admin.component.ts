@@ -9,11 +9,12 @@ import {
 } from '../../../services/admin.service';
 import { formatNyDateTime } from '../../../shared/ny-time.util';
 
-// Panel A: 7-setting form gated to Admin/SuperAdmin. Panel B: read-only audit feed of
+// Panel A: 7-setting form, SuperAdmin only. Panel B: read-only audit feed of
 // LoyaltyDiscount changes for the last 30 days. The whole tab is gated upstream by the
 // admin layout (View permission required to even reach Discounts → Loyalty); within the
-// tab we further gate the Save button on canEdit (Admin/SuperAdmin only — Moderator can
-// see the current settings but can't change them).
+// tab the settings panel is SuperAdmin-only: those seven values re-price the whole customer
+// base, so Admins and Moderators see the audit feed alone. The panel is hidden here as a
+// convenience — the endpoints themselves carry [Authorize(Roles = "SuperAdmin")].
 @Component({
   selector: 'app-loyalty-discount-admin',
   standalone: true,
@@ -42,9 +43,10 @@ export class LoyaltyDiscountAdminComponent implements OnInit {
 
   // ── Permissions ────────────────────────────────────────────────────────────────
   userRole = '';
-  // True for Admin + SuperAdmin. Moderator stays false: settings form is read-only,
-  // Save button is hidden. Audit panel is visible regardless (read-only by design).
-  canEdit = false;
+  // SuperAdmin only. Admin and Moderator never see Panel A at all — the settings decide who
+  // gets a standing discount and how big it is. The audit panel below stays visible to them
+  // (read-only by design).
+  canManageSettings = false;
 
   constructor(private adminService: AdminService) {}
 
@@ -52,14 +54,14 @@ export class LoyaltyDiscountAdminComponent implements OnInit {
     this.adminService.getUserPermissions().subscribe({
       next: (perms: UserPermissions) => {
         this.userRole = perms.role;
-        this.canEdit = perms.role === 'Admin' || perms.role === 'SuperAdmin';
-        // Only fetch settings for roles that can actually see Panel A. Moderator only ever
-        // sees the audit feed below.
-        if (this.canEdit) this.loadSettings();
+        this.canManageSettings = perms.role === 'SuperAdmin';
+        // Only fetch settings for the role that can actually see Panel A. Admin and Moderator
+        // only ever see the audit feed below — and the GET would 403 for them anyway.
+        if (this.canManageSettings) this.loadSettings();
       },
       error: () => {
         this.userRole = '';
-        this.canEdit = false;
+        this.canManageSettings = false;
       },
     });
 
@@ -83,7 +85,7 @@ export class LoyaltyDiscountAdminComponent implements OnInit {
   }
 
   saveSettings(): void {
-    if (!this.canEdit || this.savingSettings) return;
+    if (!this.canManageSettings || this.savingSettings) return;
     this.savingSettings = true;
     this.settingsError = '';
     this.settingsSuccess = '';

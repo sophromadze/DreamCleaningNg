@@ -531,7 +531,15 @@
                   <option value="Moderator">Moderator</option>
                   <option value="Admin">Admin</option>
                   <option value="SuperAdmin" *ngIf="currentUserRole === 'SuperAdmin'">SAdmin</option>
+                  <!-- Choosing this moves the account OUT of this tab and into the Cleaners tab,
+                       where it is linked to a cleaner record. Offered here as well so the change
+                       is available from the row you are already looking at. -->
+                  <option value="Cleaner">Cleaner</option>
                 </select>
+              </span>
+              <span class="pref-row" *ngIf="canModifyUserRole(selectedUser)">
+                <span class="pref-label"></span>
+                <span class="pref-hint">Cleaner moves this account to the Cleaners tab.</span>
               </span>
 
               <!-- Position: Manager or Administrator. NOT a permission — it decides which side of

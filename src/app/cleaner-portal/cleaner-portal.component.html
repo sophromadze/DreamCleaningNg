@@ -1,0 +1,523 @@
+<div class="portal-page" [class.portal-page--embedded]="embedded">
+
+  <!-- The greeting is the cleaner's header; the SuperAdmin keeps the plain title, because "All
+       Cleanings" is a report, not somebody's own day. -->
+  <header class="portal-header portal-header--cleaner" *ngIf="context?.isCleanerView">
+    <div>
+      <!-- FIRST name only: this is a greeting, not a salutation on a letter. `cleanerName` keeps
+           the full name for every other use - see greetingName. -->
+      <h1>{{ greeting }}<ng-container *ngIf="greetingName">, {{ greetingName }}</ng-container>!</h1>
+      <p class="portal-subtitle">{{ t.scheduleSubtitle }}</p>
+    </div>
+
+    <!--
+      The language they read in. "Automatic" follows their nationality; picking one overrides it for
+      good, including in the emails they are sent.
+
+      TWO SELECTS, one list. A native <select> cannot restyle its own options, so the narrow form
+      for a phone has to be a second control - swapped by CSS, never by JS, so it is right on the
+      first paint and under SSR. Both are bound to the same value and the same handler, and both
+      render the same option list, so they cannot offer different choices.
+    -->
+    <div class="portal-user">
+      <label class="language-picker language-picker--full">
+        <span class="sr-only">{{ t.language }}</span>
+        <select [value]="languageChoice"
+                [disabled]="savingLanguage"
+                (change)="onLanguageChange($any($event.target).value)">
+          <option value="">{{ t.language }}: {{ t.languageAutomatic }}</option>
+          <option *ngFor="let option of languageOptions" [value]="option.code">{{ option.name }}</option>
+        </select>
+      </label>
+
+      <label class="language-picker language-picker--short">
+        <span class="sr-only">{{ t.language }}</span>
+        <select [value]="languageChoice"
+                [disabled]="savingLanguage"
+                (change)="onLanguageChange($any($event.target).value)">
+          <option value="">AUTO</option>
+          <option *ngFor="let option of languageOptions" [value]="option.code">{{ option.short }}</option>
+        </select>
+      </label>
+    </div>
+  </header>
+
+  <!-- Suppressed when embedded: the Cleaners page already carries the title and the tab strip that
+       says which half you are looking at, and a second heading under them reads as a nested page. -->
+  <div class="portal-header" *ngIf="!context?.isCleanerView && !embedded">
+    <div>
+      <h1>{{ context?.isSystemWideView ? 'All Cleanings' : 'My Jobs' }}</h1>
+      <p class="portal-subtitle" *ngIf="context?.isSystemWideView">
+        Every cleaning in the system - past, current and upcoming, for every cleaner. Read only.
+      </p>
+    </div>
+  </div>
+
+  <div class="portal-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+  <!--
+    A cleaner account with no cleaner record attached. This has to read as "an admin needs to link
+    you", never as "you have no work" - the two look identical from an empty list, and only one of
+    them is something the person can act on.
+  -->
+  <div class="portal-notice" *ngIf="context?.isCleanerView && !loading && !context?.cleanerId">
+    <h2>{{ t.notLinkedTitle }}</h2>
+    <p>{{ t.notLinkedBody }}</p>
+  </div>
+
+  <div class="loading-note" *ngIf="loading && context?.isCleanerView">{{ t.loadingJobs }}</div>
+
+  <!--
+    SEARCH. The month calendar is how a SuperAdmin browses; the search box is how they look one
+    cleaning up, and it deliberately ignores the visible month - somebody hunting for a customer
+    does not know which month to be standing in first.
+  -->
+  <div class="filters" *ngIf="context?.isSystemWideView">
+    <input type="text"
+           class="filter-input"
+           placeholder="Search every cleaning by customer, address or cleaner..."
+           [ngModel]="searchTerm"
+           (ngModelChange)="onSearchChanged($event)">
+    <button type="button" class="filter-clear" *ngIf="isSearchMode" (click)="clearSearch()">Clear</button>
+  </div>
+
+  <!-- ─────────────────────  SUPERADMIN SEARCH RESULTS (all time)  ───────────────────── -->
+  <ng-container *ngIf="context?.isSystemWideView && isSearchMode">
+
+    <div class="day-header">
+      <div>
+        <h2>Search results</h2>
+        <p>Every cleaning matching "{{ searchTerm }}", newest first.</p>
+      </div>
+      <span class="day-count">{{ allJobs.length }} {{ cleaningsWord(allJobs.length) }}</span>
+    </div>
+
+    <div class="loading-note" *ngIf="loading">Searching...</div>
+
+    <p class="empty-note" *ngIf="!loading && allJobs.length === 0">
+      No cleanings match that search.
+    </p>
+
+    <div class="job-list" *ngIf="!loading && allJobs.length > 0">
+      <ng-container *ngFor="let job of allJobs; trackBy: trackByOrderId">
+        <ng-container *ngTemplateOutlet="adminJobCard; context: { $implicit: job, showDate: true }"></ng-container>
+      </ng-container>
+    </div>
+  </ng-container>
+
+  <!-- ──────────────────  THE CALENDAR (both views share one layout)  ────────────────── -->
+  <div class="schedule-layout" *ngIf="showSchedule">
+
+    <section class="schedule-main">
+
+      <div class="calendar-card">
+
+        <!--
+          THE DAY'S HEADLINE, above the month rather than in a card off to the side. It answers the
+          only question somebody opens this page with - how much work is today - so it reads first,
+          before the grid they would otherwise have to interpret to find out.
+        -->
+        <div class="calendar-summary">
+          <h2>{{ selectedDayCount }} {{ cleaningsWord(selectedDayCount) }}</h2>
+          <span *ngIf="context?.isCleanerView && selectedDayCount > 0">{{ t.goodLuck }}</span>
+          <span *ngIf="context?.isCleanerView && selectedDayCount === 0">{{ t.freeDay }}</span>
+          <span *ngIf="context?.isSystemWideView">Across every cleaner.</span>
+        </div>
+
+        <div class="calendar-toolbar">
+          <button type="button" class="calendar-nav" (click)="previousMonth()" [attr.aria-label]="t.previousMonth">&lsaquo;</button>
+          <h2 class="calendar-month">{{ calendarMonthLabel }}</h2>
+          <button type="button" class="calendar-nav" (click)="nextMonth()" [attr.aria-label]="t.nextMonth">&rsaquo;</button>
+          <button type="button" class="calendar-today" (click)="goToToday()">{{ t.today }}</button>
+        </div>
+
+        <div class="calendar-grid">
+          <div class="calendar-weekday" *ngFor="let weekday of t.weekdays">{{ weekday }}</div>
+
+          <!-- The dots are what make the month itself answer "which days am I working" without
+               anything being clicked. Work still ahead PULSES in red so it catches the eye across
+               the grid; a finished job is a quiet green mark that does not compete with it. -->
+          <button type="button"
+                  class="calendar-cell"
+                  *ngFor="let cell of calendarCells; trackBy: trackByCellKey"
+                  [class.calendar-cell--muted]="!cell.inMonth"
+                  [class.calendar-cell--today]="cell.isToday"
+                  [class.calendar-cell--selected]="cell.key === selectedDateKey"
+                  (click)="selectDay(cell.key)">
+            <span class="calendar-day-number">{{ cell.day }}</span>
+            <span class="calendar-dots" *ngIf="cell.dots.length > 0">
+              <i *ngFor="let dot of cell.dots" [class]="'calendar-dot calendar-dot--' + dot"></i>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <div class="day-header">
+        <div>
+          <h2>{{ selectedDayLongLabel }}</h2>
+          <p *ngIf="context?.isCleanerView">{{ t.dayHeaderSubtitle }}</p>
+          <p *ngIf="context?.isSystemWideView">Every cleaning booked for this day.</p>
+        </div>
+        <span class="day-count">{{ selectedDayCount }} {{ cleaningsWord(selectedDayCount) }}</span>
+      </div>
+
+      <div class="loading-note" *ngIf="loading && context?.isSystemWideView">Loading this month...</div>
+
+      <p class="empty-note" *ngIf="!loading && selectedDayCount === 0">{{ t.nothingScheduled }}</p>
+
+      <!--
+        THE CLEANER'S CARD IS DATE, TIME, CLEANING TYPE AND WHERE. Those four are what somebody
+        planning their day needs from a LIST - the address most of all, since it is how they judge
+        whether two jobs on one day are near each other. Everything else needed to DO the job (the
+        customer, the supplies, the instructions) is a briefing, and a briefing belongs on the one
+        job being looked at rather than repeated down a list being scanned.
+      -->
+      <div class="job-list" *ngIf="context?.isCleanerView && selectedDayJobs.length > 0">
+        <article class="job-card"
+                 *ngFor="let job of selectedDayJobs; trackBy: trackByOrderId"
+                 [class.job-card--active]="selectedJob?.orderId === job.orderId"
+                 [class.job-card--done]="job.isCompleted"
+                 (click)="selectJob(job)">
+
+          <div class="job-time">
+            <strong>{{ formatTime(job.serviceTime) }}</strong>
+            <span class="job-date">{{ formatDate(job.serviceDate) }}</span>
+          </div>
+
+          <div class="job-rail" aria-hidden="true">
+            <span class="job-rail-dot" [class.job-rail-dot--done]="job.isCompleted"></span>
+            <span class="job-rail-line"></span>
+          </div>
+
+          <div class="job-body">
+            <div class="job-title-row">
+              <h3 class="job-service">{{ job.serviceTypeName }}</h3>
+              <span class="status-badge status-done" *ngIf="job.isCompleted">{{ t.completed }}</span>
+            </div>
+
+            <!-- A finished job does not carry the address. The server already strips it (see
+                 CleanerJobView.RedactCompletedJob); this keeps the row from rendering an empty
+                 pin beside it. -->
+            <p class="job-address" *ngIf="!job.isCompleted">
+              <span aria-hidden="true">📍</span> {{ job.address || '-' }}
+            </p>
+          </div>
+
+          <!-- A completed job opens into nothing, so it wears no affordance to open it. -->
+          <span class="job-arrow" aria-hidden="true" *ngIf="!job.isCompleted">&rsaquo;</span>
+        </article>
+      </div>
+
+      <!-- ── Every cleaner's jobs, for the SuperAdmin ── -->
+      <div class="job-list" *ngIf="context?.isSystemWideView && selectedDayAdminJobs.length > 0">
+        <ng-container *ngFor="let job of selectedDayAdminJobs; trackBy: trackByOrderId">
+          <ng-container *ngTemplateOutlet="adminJobCard; context: { $implicit: job, showDate: false }"></ng-container>
+        </ng-container>
+      </div>
+
+    </section>
+
+    <!-- ── Right: the day at a glance, then the briefing for the chosen job ── -->
+    <aside class="schedule-side">
+
+      <!--
+        THE BRIEFING. Service first, because "what kind of cleaning is this" is the question that
+        frames every answer under it. Then who and where, then the job itself, then the two things
+        that change what happens on the doorstep: the supplies and the instructions.
+      -->
+      <div class="side-card" *ngIf="selectedJob">
+
+        <div class="side-block side-block--lead">
+          <span class="side-label">{{ t.service }}</span>
+          <h2>{{ selectedJob.serviceTypeName }}</h2>
+        </div>
+
+        <div class="side-row">
+          <span class="side-icon" aria-hidden="true">👤</span>
+          <div><span class="side-inline-label">{{ t.customerName }}</span> - {{ selectedJob.customerName || '-' }}</div>
+        </div>
+
+        <div class="side-row">
+          <span class="side-icon" aria-hidden="true">📅</span>
+          <div>{{ formatDate(selectedJob.serviceDate) }}</div>
+        </div>
+
+        <div class="side-row">
+          <span class="side-icon" aria-hidden="true">🕘</span>
+          <div>
+            {{ formatTime(selectedJob.serviceTime) }}
+            <span class="detail-secondary" *ngIf="selectedJob.serviceDurationMinutes">
+              {{ t.durationLabel }}: {{ formatDuration(selectedJob.serviceDurationMinutes) }}
+            </span>
+          </div>
+        </div>
+
+        <div class="side-row">
+          <span class="side-icon" aria-hidden="true">📍</span>
+          <div>
+            {{ selectedJob.address || '-' }}
+            <a *ngIf="selectedJob.address"
+               [href]="mapsUrl(selectedJob.address)"
+               target="_blank"
+               rel="noopener">{{ t.openInMaps }}</a>
+          </div>
+        </div>
+
+        <!-- How to get in, straight after where. An address with no way through the door is the
+             one failure the address alone cannot prevent. -->
+        <div class="side-row" *ngIf="selectedJob.entryMethod">
+          <span class="side-icon" aria-hidden="true">🔑</span>
+          <div>
+            <span class="side-inline-label">{{ t.entryInstruction }}</span>
+            <span class="side-entry">{{ selectedJob.entryMethod }}</span>
+          </div>
+        </div>
+
+        <div class="side-divider" *ngIf="selectedJob.services.length > 0 || selectedJob.propertyType"></div>
+
+        <div class="side-block" *ngIf="selectedJob.services.length > 0 || selectedJob.propertyType">
+          <span class="side-label">{{ t.detailsLabel }}</span>
+          <div class="job-tags">
+            <span *ngIf="selectedJob.propertyType">{{ propertyTypeLabel(selectedJob.propertyType) }}</span>
+            <span *ngIf="selectedJob.levelsQuantity">{{ levelsLabel(selectedJob.levelsQuantity) }}</span>
+            <span *ngFor="let line of selectedJob.services">{{ formatServiceLine(line) }}</span>
+          </div>
+        </div>
+
+        <div class="side-divider" *ngIf="selectedJob.floorTypes.length > 0"></div>
+
+        <div class="side-block" *ngIf="selectedJob.floorTypes.length > 0">
+          <span class="side-label">{{ t.floorTypes }}</span>
+          <div class="job-tags">
+            <span *ngFor="let floor of selectedJob.floorTypes">{{ floor }}</span>
+          </div>
+        </div>
+
+        <div class="side-divider" *ngIf="selectedJob.extraServices.length > 0"></div>
+
+        <div class="side-block" *ngIf="selectedJob.extraServices.length > 0">
+          <span class="side-label">{{ t.extraServices }}</span>
+          <div class="job-tags">
+            <span class="job-tag--extra" *ngFor="let extra of selectedJob.extraServices">{{ extra }}</span>
+          </div>
+        </div>
+
+        <!-- Cleaners at once, for the SuperAdmin only - a cleaner already knows who they are. -->
+        <ng-container *ngIf="selectedAdminJob && context?.isSystemWideView">
+          <div class="side-divider"></div>
+
+          <div class="side-block">
+            <span class="side-label">Cleaners</span>
+            <div class="job-tags">
+              <span *ngFor="let cleaner of selectedAdminJob.assignedCleaners">{{ cleaner }}</span>
+              <span class="muted" *ngIf="selectedAdminJob.assignedCleaners.length === 0">Not staffed</span>
+            </div>
+          </div>
+        </ng-container>
+
+        <!--
+          The supplies line is the one thing here that changes what somebody puts in the car, so it
+          is a banner rather than another row in the list.
+        -->
+        <div class="supplies-flag" [class.supplies-flag--bring]="selectedJob.bringCleaningSupplies">
+          <ng-container *ngIf="selectedJob.bringCleaningSupplies">{{ t.suppliesBring }}</ng-container>
+          <ng-container *ngIf="!selectedJob.bringCleaningSupplies">{{ t.suppliesProvided }}</ng-container>
+        </div>
+
+        <!-- Both instruction sources, each labelled with WHO wrote it: what the customer asked for
+             and what the office added when staffing the job are different kinds of instruction. -->
+        <div class="side-note" *ngIf="selectedJob.customerInstructions">
+          <span class="side-label">{{ t.customerInstructions }}</span>
+          <p>{{ selectedJob.customerInstructions }}</p>
+        </div>
+
+        <div class="side-note side-note--office" *ngIf="selectedJob.cleanerInstructions">
+          <span class="side-label">{{ t.cleanerInstructions }}</span>
+          <p>{{ selectedJob.cleanerInstructions }}</p>
+        </div>
+
+        <button type="button"
+                class="side-details-btn"
+                *ngIf="selectedAdminJob && context?.isSystemWideView"
+                (click)="openDetail(selectedAdminJob.orderId)">
+          View full details
+        </button>
+      </div>
+
+    </aside>
+  </div>
+
+  <!--
+    THE SUPERADMIN'S JOB CARD, used by the day schedule and by the search results. One template
+    rather than two, so a row cannot describe the same cleaning differently depending on how it was
+    reached. It deliberately carries more than the cleaner's card: an admin is scanning a day for
+    the one job they mean, and eight identical "Deep Cleaning" rows would tell them nothing.
+  -->
+  <ng-template #adminJobCard let-job let-showDate="showDate">
+    <article class="job-card"
+             [class.job-card--active]="selectedAdminJob?.orderId === job.orderId"
+             (click)="selectAdminJob(job)">
+
+      <div class="job-time">
+        <strong>{{ formatTime(job.serviceTime) }}</strong>
+        <span class="job-date" *ngIf="showDate">{{ formatDate(job.serviceDate) }}</span>
+      </div>
+
+      <div class="job-rail" aria-hidden="true">
+        <span class="job-rail-dot" [class.job-rail-dot--done]="job.isCompleted"></span>
+        <span class="job-rail-line"></span>
+      </div>
+
+      <div class="job-body">
+        <div class="job-title-row">
+          <h3 class="job-service">{{ job.serviceTypeName }}</h3>
+          <span class="status-badge" [ngClass]="statusClass(job.status)">{{ job.status }}</span>
+        </div>
+
+        <p class="job-customer">{{ job.customerName || '-' }}</p>
+        <p class="job-address"><span aria-hidden="true">📍</span> {{ job.address || '-' }}</p>
+
+        <p class="job-cleaners">
+          <span *ngIf="job.assignedCleaners.length > 0">{{ job.assignedCleaners.join(', ') }}</span>
+          <span class="muted" *ngIf="job.assignedCleaners.length === 0">Not staffed</span>
+          <!-- Priced for more people than are on file. Advisory only - the staffing itself is
+               done in the admin orders panel, not here. -->
+          <span class="understaffed-flag"
+                *ngIf="isUnderstaffed(job)"
+                [title]="'Priced for ' + job.maidsCount + ' cleaner(s), ' + job.assignedCleaners.length + ' assigned'">⚠</span>
+        </p>
+      </div>
+
+      <span class="job-arrow" aria-hidden="true">&rsaquo;</span>
+    </article>
+  </ng-template>
+
+  <!-- ──────────────────────  SUPERADMIN DETAIL PANEL (read only)  ────────────────────── -->
+  <div class="detail-overlay" *ngIf="selectedDetail || detailLoading || detailError" (click)="closeDetail()"></div>
+
+  <aside class="detail-panel" *ngIf="selectedDetail || detailLoading || detailError">
+    <header class="detail-head">
+      <h2>
+        <ng-container *ngIf="selectedDetail">Order #{{ selectedDetail.order.id }}</ng-container>
+        <ng-container *ngIf="!selectedDetail">Order</ng-container>
+      </h2>
+      <button type="button" class="detail-close" (click)="closeDetail()" aria-label="Close">×</button>
+    </header>
+
+    <div class="loading-note" *ngIf="detailLoading">Loading order...</div>
+    <div class="portal-error" *ngIf="detailError">{{ detailError }}</div>
+
+    <div class="detail-body" *ngIf="selectedDetail">
+
+      <!-- This block is EXACTLY the cleaner view, so the SuperAdmin can see what the crew was
+           told before reading anything the crew is not shown. -->
+      <section class="detail-section">
+        <h3>What the cleaner sees</h3>
+        <div class="detail-row"><span>Service</span><strong>{{ selectedDetail.cleanerView.serviceTypeName }}</strong></div>
+        <div class="detail-row"><span>Date &amp; time</span><strong>{{ formatDate(selectedDetail.cleanerView.serviceDate) }} · {{ formatTime(selectedDetail.cleanerView.serviceTime) }}</strong></div>
+        <div class="detail-row"><span>Duration</span><strong>{{ formatDuration(selectedDetail.cleanerView.serviceDurationMinutes) }} per cleaner</strong></div>
+        <div class="detail-row"><span>Customer</span><strong>{{ selectedDetail.cleanerView.customerName || '-' }}</strong></div>
+        <div class="detail-row"><span>Address</span><strong>{{ selectedDetail.cleanerView.address || '-' }}</strong></div>
+        <div class="detail-row" *ngIf="selectedDetail.cleanerView.services.length > 0">
+          <span>Services</span>
+          <strong>
+            <ul class="plain-list">
+              <li *ngFor="let line of selectedDetail.cleanerView.services">{{ formatServiceLine(line) }}</li>
+            </ul>
+          </strong>
+        </div>
+        <div class="detail-row" *ngIf="selectedDetail.cleanerView.floorTypes.length > 0">
+          <span>Floor types</span><strong>{{ selectedDetail.cleanerView.floorTypes.join(', ') }}</strong>
+        </div>
+        <div class="detail-row" *ngIf="selectedDetail.cleanerView.extraServices.length > 0">
+          <span>Extra services</span>
+          <strong>
+            <ul class="plain-list">
+              <li *ngFor="let extra of selectedDetail.cleanerView.extraServices">{{ extra }}</li>
+            </ul>
+          </strong>
+        </div>
+        <div class="detail-row">
+          <span>Supplies</span>
+          <strong>{{ selectedDetail.cleanerView.bringCleaningSupplies ? 'Cleaner brings them' : 'Customer provides them' }}</strong>
+        </div>
+      </section>
+
+      <section class="detail-section">
+        <h3>Staffing</h3>
+        <div class="detail-row"><span>Priced for</span><strong>{{ selectedDetail.order.maidsCount }} cleaner(s)</strong></div>
+        <p class="muted" *ngIf="selectedDetail.assignedCleaners.length === 0">Nobody assigned yet.</p>
+        <div class="cleaner-line" *ngFor="let cleaner of selectedDetail.assignedCleaners">
+          <strong>{{ cleaner.name }}</strong>
+          <span class="muted" *ngIf="cleaner.phone">{{ cleaner.phone }}</span>
+          <span class="muted" *ngIf="cleaner.email">{{ cleaner.email }}</span>
+          <span class="muted">
+            {{ cleaner.assignmentNotificationSentAt ? 'Notified' : 'Not notified yet' }}
+          </span>
+        </div>
+      </section>
+
+      <section class="detail-section">
+        <h3>Order</h3>
+        <div class="detail-row"><span>Status</span><strong>{{ selectedDetail.order.status }}</strong></div>
+        <div class="detail-row"><span>Booked</span><strong>{{ formatDate(selectedDetail.order.orderDate) }}</strong></div>
+        <div class="detail-row"><span>Duration</span><strong>{{ selectedDetail.order.totalDuration }} min</strong></div>
+        <div class="detail-row" *ngIf="selectedDetail.order.propertyType">
+          <span>Property</span>
+          <strong>
+            {{ selectedDetail.order.propertyType }}
+            <ng-container *ngIf="selectedDetail.order.levelsQuantity"> · {{ selectedDetail.order.levelsQuantity }} level(s)</ng-container>
+          </strong>
+        </div>
+        <div class="detail-row" *ngIf="selectedDetail.order.entryMethod">
+          <span>Entry</span><strong>{{ selectedDetail.order.entryMethod }}</strong>
+        </div>
+        <div class="detail-row" *ngIf="selectedDetail.order.specialInstructions">
+          <span>Instructions</span><strong>{{ selectedDetail.order.specialInstructions }}</strong>
+        </div>
+      </section>
+
+      <section class="detail-section">
+        <h3>Customer</h3>
+        <div class="detail-row"><span>Name</span><strong>{{ selectedDetail.order.contactFirstName }} {{ selectedDetail.order.contactLastName }}</strong></div>
+        <div class="detail-row"><span>Phone</span><strong>{{ selectedDetail.order.contactPhone || '-' }}</strong></div>
+        <div class="detail-row"><span>Email</span><strong>{{ selectedDetail.order.contactEmail || '-' }}</strong></div>
+      </section>
+
+      <section class="detail-section">
+        <h3>Money</h3>
+        <div class="detail-row"><span>Subtotal</span><strong>{{ selectedDetail.order.subTotal | currency }}</strong></div>
+        <div class="detail-row" *ngIf="selectedDetail.order.discountAmount">
+          <span>Discount</span><strong>-{{ selectedDetail.order.discountAmount | currency }}</strong>
+        </div>
+        <div class="detail-row" *ngIf="selectedDetail.order.subscriptionDiscountAmount">
+          <span>Plan discount</span><strong>-{{ selectedDetail.order.subscriptionDiscountAmount | currency }}</strong>
+        </div>
+        <div class="detail-row" *ngIf="selectedDetail.order.loyaltyDiscountAmount">
+          <span>Loyalty discount</span><strong>-{{ selectedDetail.order.loyaltyDiscountAmount | currency }}</strong>
+        </div>
+        <div class="detail-row"><span>Tax</span><strong>{{ selectedDetail.order.tax | currency }}</strong></div>
+        <div class="detail-row" *ngIf="selectedDetail.order.tips"><span>Tips</span><strong>{{ selectedDetail.order.tips | currency }}</strong></div>
+        <div class="detail-row detail-row--total"><span>Total</span><strong>{{ selectedDetail.order.total | currency }}</strong></div>
+        <div class="detail-row">
+          <span>Paid</span>
+          <strong>{{ selectedDetail.order.isPaid ? 'Yes' : (selectedDetail.order.paymentMethod && selectedDetail.order.paymentMethod !== 'Normal' ? selectedDetail.order.paymentMethod : 'No') }}</strong>
+        </div>
+        <div class="detail-row"><span>Cleaner rate</span><strong>{{ selectedDetail.order.cleanerHourlyRate | currency }}/h</strong></div>
+        <div class="detail-row"><span>Cleaner salary</span><strong>{{ selectedDetail.order.cleanerTotalSalary | currency }}</strong></div>
+      </section>
+
+      <section class="detail-section" *ngIf="selectedDetail.adminNotes">
+        <h3>Internal note</h3>
+        <p class="admin-note">{{ selectedDetail.adminNotes }}</p>
+      </section>
+
+      <!-- Read-only by design. Editing lives in the admin orders panel, where the pricing and
+           approval rules are enforced; a second editor would be a second place to get them wrong. -->
+      <p class="read-only-note">
+        This view is read only. Edit this order from Admin Panel &rarr; Orders.
+      </p>
+    </div>
+  </aside>
+
+</div>

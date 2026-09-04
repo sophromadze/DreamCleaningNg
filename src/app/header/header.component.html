@@ -255,10 +255,19 @@
                 <span class="unpaid-orders-indicator" *ngIf="hasUnpaidOrders"></span>
                 <!-- New order indicator for admins -->
                 <span class="new-order-indicator" *ngIf="hasUnviewedNewOrders && isAdminOrSuperAdmin"></span>
-                <!-- Pending personal tasks indicator for admins (yellow) -->
-                <span class="task-indicator" *ngIf="hasPendingPersonalTasks && isAdminOrSuperAdmin"></span>
-                <!-- Unchecked done tasks indicator for admins (green) -->
-                <span class="done-task-indicator" *ngIf="hasUncheckedDoneTasks && isAdminOrSuperAdmin"></span>
+                <!--
+                  RETIRED (2026-09) along with the Tasks menu entry below: Tasks is not in use for
+                  now. The avatar dots went with the link rather than after it - a notification dot
+                  with nothing in the menu to click is a dot that leads nowhere.
+
+                  Nothing behind them was removed. `hasPendingPersonalTasks` /
+                  `hasUncheckedDoneTasks` are still computed and still refreshed over SignalR, and
+                  /admin/tasks is untouched, so bringing this back is uncommenting these two lines
+                  and the menu entry.
+
+                  <span class="task-indicator" *ngIf="hasPendingPersonalTasks && isAdminOrSuperAdmin"></span>
+                  <span class="done-task-indicator" *ngIf="hasUncheckedDoneTasks && isAdminOrSuperAdmin"></span>
+                -->
                 <svg class="chevron-down" viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
                   <g fill-rule="evenodd" transform="translate(-448 -544)">
                     <path fill-rule="nonzero" d="M452.707 549.293a1 1 0 0 0-1.414 1.414l4 4a1 1 0 0 0 1.414 0l4-4a1 1 0 0 0-1.414-1.414L456 552.586l-3.293-3.293z"></path>
@@ -289,12 +298,19 @@
                     </span>
                   </button>
                 </div>
-                <a routerLink="/profile" (click)="closeAllMenus(); $event.stopPropagation()">Profile</a>
-                <a routerLink="/profile/orders" (click)="closeAllMenus(); $event.stopPropagation()" class="orders-menu-item">
+                <!-- Cleaner accounts have no customer side: no profile to edit, no orders of
+                     their own and no rewards balance. Their one destination is the portal. -->
+                <a routerLink="/cleaner-portal"
+                   (click)="closeAllMenus(); $event.stopPropagation()"
+                   *ngIf="isCleanerAccount">
+                  My Jobs
+                </a>
+                <a routerLink="/profile" (click)="closeAllMenus(); $event.stopPropagation()" *ngIf="!isCleanerAccount">Profile</a>
+                <a routerLink="/profile/orders" (click)="closeAllMenus(); $event.stopPropagation()" class="orders-menu-item" *ngIf="!isCleanerAccount">
                   My Orders
                   <span class="unpaid-orders-menu-indicator" *ngIf="hasUnpaidOrders"></span>
                 </a>
-                <a routerLink="/rewards" (click)="closeAllMenus(); $event.stopPropagation()">My Rewards</a>
+                <a routerLink="/rewards" (click)="closeAllMenus(); $event.stopPropagation()" *ngIf="!isCleanerAccount">My Rewards</a>
                 <a routerLink="/admin"
                    (click)="closeAllMenus(); $event.stopPropagation()"
                    *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'"
@@ -334,26 +350,37 @@
                    *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'">
                   Cleaners
                 </a>
-                <a routerLink="/admin/tasks"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin'"
-                   class="tasks-menu-item">
-                  Tasks
-                  <span class="task-menu-indicator" *ngIf="hasPendingPersonalTasks"></span>
-                  <span class="done-task-menu-indicator" *ngIf="hasUncheckedDoneTasks && !hasPendingPersonalTasks"></span>
-                </a>
+                <!--
+                  "All Cleanings" MOVED (2026-09) into /cleaners-dashboard as its Portal tab, so an
+                  admin has one door to the cleaners section instead of two entries that opened
+                  different halves of it. The Cleaners link above reaches both tabs, and
+                  /cleaner-portal now redirects a system-wide role there, so old bookmarks land on
+                  the Portal tab rather than 404ing or opening an orphaned copy.
+                -->
+                <!--
+                  RETIRED (2026-09): Tasks is not in use for now. Only this menu entry and the two
+                  avatar dots went - /admin/tasks, its route, its guard and everything on the page
+                  are untouched, and the counts behind the badges are still computed, so restoring
+                  is uncommenting this block.
+
+                  <a routerLink="/admin/tasks"
+                     (click)="closeAllMenus(); $event.stopPropagation()"
+                     *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin'"
+                     class="tasks-menu-item">
+                    Tasks
+                    <span class="task-menu-indicator" *ngIf="hasPendingPersonalTasks"></span>
+                    <span class="done-task-menu-indicator" *ngIf="hasUncheckedDoneTasks && !hasPendingPersonalTasks"></span>
+                  </a>
+                -->
                 <a routerLink="/admin/shifts"
                    (click)="closeAllMenus(); $event.stopPropagation()"
                    *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin'">
                   Shifts
                 </a>
                 <!-- Statistics / Expenses / Finances collapsed into the single "Company" entry above.
-                     Bubble Rewards is its own page (admin/rewards), not a Company tab, so it stays. -->
-                <a routerLink="/admin/rewards"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="canViewPage('bubble-rewards')">
-                  Bubble Rewards
-                </a>
+                     Bubble Rewards MOVED (2026-09) into the admin panel as its SuperAdmin-only
+                     Rewards tab, so it has no entry of its own here either; /admin/rewards
+                     redirects onto that tab. -->
                 <a (click)="logout(); closeAllMenus(); $event.stopPropagation()">Logout</a>
               </div>
             </div>

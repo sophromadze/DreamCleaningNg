@@ -1,0 +1,873 @@
+// The cleaner portal renders standalone, outside the admin shell, so it declares its own page
+// wrapper. Every colour is a token from styles.scss - the page has to be readable in day and
+// night, and a cleaner reads it on a phone in a stairwell, so contrast is not optional here.
+
+.portal-page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+  color: var(--text-primary);
+}
+
+// Rendered inside the Cleaners page's Portal tab rather than as a route of its own. The host owns
+// the page width and gutters, so keeping them here would inset the calendar twice and narrow it
+// against the Dashboard tab beside it. Everything below this stays identical - the tab is the same
+// component, not a second calendar.
+.portal-page--embedded {
+  max-width: none;
+  padding: 0 0 24px;
+}
+
+.portal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+
+  h1 {
+    margin: 0 0 4px;
+    font-size: 1.6rem;
+    font-weight: var(--fw-bold);
+  }
+}
+
+// The cleaner's own header greets them by name and carries the language picker; the SuperAdmin's
+// stays a plain report title.
+.portal-header--cleaner {
+  align-items: center;
+  margin-bottom: 24px;
+
+  h1 {
+    font-size: 1.85rem;
+    letter-spacing: -0.02em;
+  }
+}
+
+.portal-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+// The language they read in. A small, quiet control - it is set once and then forgotten, so it
+// must not compete with the schedule for attention.
+//
+// Two controls, swapped by media query rather than by JS: a native <select> cannot restyle its own
+// options, and a JS swap would be wrong on the first paint and under SSR.
+.language-picker {
+  display: inline-flex;
+
+  select {
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+
+    &:hover { color: var(--text-primary); }
+    &:disabled { opacity: 0.6; cursor: default; }
+  }
+
+  &--short { display: none; }
+}
+
+// Present for screen readers, absent on screen - the select's own text already labels it.
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.portal-subtitle {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.portal-error {
+  background: var(--soft-red);
+  color: var(--bright-red);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+}
+
+// The "nobody has linked your account" state. Deliberately prominent: from an empty list it is
+// indistinguishable from having no work, and only one of those is something to act on.
+.portal-notice {
+  background: var(--soft-yellow);
+  color: var(--soft-yellow-text);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+
+  h2 { margin: 0 0 8px; font-size: 1.1rem; }
+  p  { margin: 0; font-size: 0.92rem; line-height: 1.5; }
+}
+
+.loading-note,
+.empty-note {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 8px 0;
+}
+
+.muted { color: var(--text-secondary); font-size: 0.85rem; }
+
+.plain-list {
+  margin: 0;
+  padding-left: 18px;
+
+  li { margin: 2px 0; }
+}
+
+// ── Cleaner view: month calendar on the left, the day at a glance on the right ───────────
+
+.schedule-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 20px;
+  align-items: start;
+}
+
+.schedule-main { min-width: 0; }
+
+.schedule-side {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: sticky;
+  top: 16px;
+}
+
+// ── Calendar ────────────────────────────────────────────────────────────────────────────
+
+.calendar-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 16px var(--shadow-color);
+  overflow: hidden;
+}
+
+// The day's headline, above the month. It answers the question the page is opened with, so it
+// reads before the grid rather than from a tile off to the side.
+.calendar-summary {
+  // 10px is the cap on every side (owner's call, 2026-09) — it is a one-line headline above the
+  // grid, and it was taking more vertical room than the week it summarises.
+  padding: 10px;
+  border-bottom: 1px solid var(--border-color);
+  text-align: center;
+  background: var(--soft-blue);
+
+  h2 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: var(--fw-bold);
+    letter-spacing: -0.02em;
+    color: var(--text-primary);
+  }
+
+  span {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+}
+
+.calendar-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.calendar-month {
+  flex: 1;
+  margin: 0;
+  text-align: center;
+  font-size: 1.15rem;
+  font-weight: var(--fw-bold);
+  color: var(--text-primary);
+}
+
+.calendar-nav {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover { background: var(--surface-subtle); color: var(--text-primary); }
+}
+
+.calendar-today {
+  padding: 9px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--primary-text);
+  font-size: 0.85rem;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+
+  &:hover { background: var(--soft-blue); }
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.calendar-weekday {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: var(--fw-medium);
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+
+  &:nth-child(7n) { border-right: none; }
+}
+
+.calendar-cell {
+  position: relative;
+  height: 74px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  border: none;
+  border-right: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+
+  &:nth-child(7n) { border-right: none; }
+  &:hover { background: var(--soft-blue); }
+
+  &--muted { color: var(--text-muted); }
+
+  // Today is outlined; the SELECTED day is filled. Two different questions, so two different
+  // marks - a cleaner scrolling forward has to keep seeing where today is.
+  &--today .calendar-day-number {
+    border: 2px solid var(--primary-color);
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--fw-semibold);
+  }
+
+  // THE WHOLE SQUARE carries the selection - the number keeps its own shape. A filled circle on
+  // top of a filled square was two marks for one state, and it collided with the ring that means
+  // "today": a day that was both wore a circle inside a circle.
+  &--selected {
+    background: var(--soft-blue);
+
+    .calendar-day-number { font-weight: var(--fw-semibold); }
+  }
+}
+
+.calendar-day-number {
+  line-height: 1;
+}
+
+.calendar-dots {
+  display: flex;
+  gap: 4px;
+  height: 8px;
+  align-items: center;
+}
+
+// TWO STATES, and the difference is deliberate rather than decorative. Work still ahead has to be
+// findable at a glance across a whole month, so it pulses; a finished job is a record and gets a
+// quiet mark that does not compete with it. Any third state would dilute both.
+.calendar-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.calendar-dot--active {
+  background: var(--bright-red);
+  animation: cleaner-dot-pulse 1.8s ease-in-out infinite;
+}
+
+.calendar-dot--done {
+  background: var(--fresh-green);
+}
+
+@keyframes cleaner-dot-pulse {
+  0%, 100% { transform: scale(1);   box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+  50%      { transform: scale(1.2); box-shadow: 0 0 0 5px rgba(239, 68, 68, 0); }
+}
+
+// Project-wide convention: motion is an enhancement, never the only carrier of meaning. The colour
+// still separates the two states with the animation off.
+@media (prefers-reduced-motion: reduce) {
+  .calendar-dot--active { animation: none; }
+}
+
+// ── The chosen day ──────────────────────────────────────────────────────────────────────
+
+.day-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 26px 2px 14px;
+
+  h2 {
+    margin: 0 0 4px;
+    font-size: 1.15rem;
+    font-weight: var(--fw-semibold);
+  }
+
+  p {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+  }
+}
+
+.day-count {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  font-weight: var(--fw-medium);
+}
+
+.job-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.job-card {
+  display: grid;
+  grid-template-columns: 110px 24px minmax(0, 1fr) 26px;
+  align-items: start;
+
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 18px 16px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 6px 20px var(--shadow-color);
+    transform: translateY(-1px);
+  }
+
+  // The card whose briefing fills the side panel.
+  &--active {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 1px var(--primary-color) inset;
+  }
+
+  // A finished job. It stays in the list - the cleaner worked it and the month should say so - but
+  // it opens into nothing, so it wears no hover affordance that promises otherwise.
+  &--done {
+    cursor: default;
+    background: var(--surface-subtle);
+
+    &:hover {
+      border-color: var(--border-color);
+      box-shadow: none;
+      transform: none;
+    }
+  }
+}
+
+.job-time strong {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: var(--fw-semibold);
+}
+
+.job-rail {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-self: stretch;
+}
+
+.job-rail-dot {
+  position: relative;
+  z-index: 1;
+  width: 13px;
+  height: 13px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: var(--primary-color);
+
+  &--done { background: var(--fresh-green); }
+}
+
+.job-rail-line {
+  position: absolute;
+  top: 14px;
+  bottom: 0;
+  width: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--soft-blue);
+}
+
+.job-body { padding-left: 6px; }
+
+.job-service {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: var(--fw-semibold);
+}
+
+.job-customer {
+  margin: 10px 0 0;
+  font-size: 0.95rem;
+  font-weight: var(--fw-semibold);
+}
+
+.job-address {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  word-break: break-word;
+}
+
+.job-tags {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  span {
+    padding: 5px 10px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-subtle);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+  }
+
+  .job-tag--extra {
+    background: var(--soft-blue);
+    color: var(--primary-text);
+  }
+}
+
+// The SuperAdmin's card carries a status beside the service name and a cleaner line under the
+// address; the cleaner's card has neither, and nothing else about the two differs.
+.job-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.job-date {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.job-cleaners {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.job-arrow {
+  align-self: center;
+  color: var(--text-muted);
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+// The supplies answer changes what somebody loads into the car, so it is a banner rather than
+// one more row nobody reads.
+.supplies-flag {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  font-weight: var(--fw-medium);
+  background: var(--mint-fresh);
+  color: var(--mint-fresh-text);
+
+  &--bring {
+    background: var(--warning-orange-bg);
+    color: var(--warning-orange-text);
+  }
+}
+
+// ── Right column ────────────────────────────────────────────────────────────────────────
+
+.side-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 16px var(--shadow-color);
+  padding: 20px;
+}
+
+// SERVICE FIRST. "What kind of cleaning is this" frames every answer under it, so it leads rather
+// than sitting among the rows.
+.side-block--lead {
+  gap: 4px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+
+  h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: var(--fw-bold);
+    word-break: break-word;
+  }
+}
+
+.side-entry {
+  display: block;
+  margin-top: 2px;
+  word-break: break-word;
+}
+
+.side-inline-label {
+  color: var(--text-muted);
+}
+
+.side-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+
+  a {
+    display: block;
+    margin-top: 4px;
+    color: var(--primary-text);
+    font-weight: var(--fw-medium);
+    text-decoration: none;
+
+    &:hover { text-decoration: underline; }
+  }
+}
+
+.side-icon { font-size: 1rem; line-height: 1.4; }
+
+.detail-secondary {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.side-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 16px 0;
+}
+
+.side-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+
+  .job-tags { margin-top: 2px; }
+}
+
+.side-label {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+// The two instruction sources, each carrying who wrote it. What the customer asked for and what
+// the office added when staffing the job are different kinds of instruction, and a cleaner acts on
+// them differently, so they are never merged into one block.
+.side-note {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+
+  p {
+    margin: 6px 0 0;
+    font-size: 0.88rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  &--office {
+    background: var(--soft-blue);
+  }
+}
+
+// SuperAdmin only - the cleaner's side card is already everything there is to see.
+.side-details-btn {
+  width: 100%;
+  margin-top: 20px;
+  padding: 13px 18px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--btn-primary);
+  color: #fff;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--btn-primary-shadow-hover);
+  }
+}
+
+// ── SuperAdmin view ─────────────────────────────────────────────────────────────────────
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.filter-input {
+  flex: 1 1 260px;
+  min-width: 200px;
+  padding: 9px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.filter-clear {
+  padding: 9px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &:hover { background: var(--page-bg); }
+}
+
+// Priced for more people than are on file. Advisory only - the staffing itself is done in the
+// admin orders panel, not here.
+.understaffed-flag {
+  margin-left: 6px;
+  color: var(--warning-orange-text);
+  cursor: help;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+
+  &.status-pending   { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+  &.status-active    { background: var(--soft-blue);   color: var(--primary-color); }
+  &.status-done      { background: var(--mint-fresh);  color: var(--mint-fresh-text); }
+  &.status-cancelled { background: var(--soft-red);    color: var(--bright-red); }
+}
+
+// ── SuperAdmin detail panel (read only) ─────────────────────────────────────────────────
+
+.detail-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-dark);
+  z-index: 1200;
+}
+
+.detail-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(520px, 100%);
+  background: var(--surface);
+  border-left: 1px solid var(--border-color);
+  box-shadow: -4px 0 24px var(--shadow-color);
+  z-index: 1201;
+  overflow-y: auto;
+  padding: 0 20px 32px;
+}
+
+.detail-head {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 0 14px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 16px;
+  z-index: 1;
+
+  h2 { margin: 0; font-size: 1.1rem; }
+}
+
+.detail-close {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+
+  &:hover { color: var(--text-primary); }
+}
+
+.detail-section {
+  margin-bottom: 22px;
+
+  h3 {
+    margin: 0 0 10px;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+  }
+}
+
+.detail-row {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 0.9rem;
+  align-items: start;
+
+  > span { color: var(--text-secondary); }
+  > strong { font-weight: var(--fw-medium); word-break: break-word; }
+
+  &--total {
+    border-top: 1px solid var(--border-color);
+    margin-top: 6px;
+    padding-top: 10px;
+
+    > strong { font-weight: var(--fw-bold); color: var(--primary-color); }
+  }
+}
+
+.cleaner-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.9rem;
+
+  &:last-child { border-bottom: none; }
+}
+
+.admin-note {
+  margin: 0;
+  padding: 12px;
+  background: var(--page-bg);
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.read-only-note {
+  margin: 20px 0 0;
+  padding: 10px 12px;
+  background: var(--soft-blue);
+  color: var(--primary-color);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+}
+
+// ── Responsive ──────────────────────────────────────────────────────────────────────────
+
+@media (max-width: 1100px) {
+  .schedule-layout { grid-template-columns: 1fr; }
+
+  // One card left in this column since the day-summary tile moved into the calendar, so it takes
+  // the full width rather than sitting in half of a two-column grid with nothing beside it.
+  .schedule-side {
+    position: static;
+    display: block;
+  }
+}
+
+@media (max-width: 768px) {
+  .portal-header--cleaner h1 { font-size: 1.4rem; }
+
+  // Three letters instead of the full name - the header is narrow, and the choice is already made.
+  .language-picker--full { display: none; }
+  .language-picker--short { display: inline-flex; }
+
+  .calendar-summary h2 { font-size: 1.35rem; }
+
+  .calendar-month { font-size: 1rem; }
+  .calendar-cell { height: 58px; font-size: 0.85rem; }
+
+  .job-card { grid-template-columns: 76px 20px minmax(0, 1fr); }
+  .job-arrow { display: none; }
+}
+
+@media (max-width: 640px) {
+  .detail-row { grid-template-columns: 1fr; gap: 2px; }
+  .detail-panel { width: 100%; }
+
+  .calendar-cell { height: 52px; }
+  .calendar-weekday { font-size: 0.7rem; }
+
+  .day-header { flex-direction: column; align-items: flex-start; gap: 6px; }
+
+  .job-card { grid-template-columns: 68px 16px minmax(0, 1fr); padding: 16px 12px; }
+  .job-time strong { font-size: 0.9rem; }
+  .job-service { font-size: 0.95rem; }
+}

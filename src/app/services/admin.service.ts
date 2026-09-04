@@ -314,6 +314,52 @@ export interface UserPermissions {
   };
 }
 
+// ─── Cleaners tab (mirrors DTOs/CleanerPortalDtos.cs) ───────────────────────────────
+//
+// A cleaner LOGIN ACCOUNT and the cleaner record it drives. The two are separate entities on
+// purpose: orders are assigned to a Cleaner row, and most cleaners have no account at all.
+
+export interface CleanerAccount {
+  userId: number;
+  firstName: string;
+  lastName: string;
+  /** Null for a no-email account - never a generated placeholder. */
+  email?: string | null;
+  phone?: string | null;
+  profilePictureUrl?: string | null;
+  isActive: boolean;
+  createdAt: string;
+
+  /** Null when nobody has linked this account yet - the case this tab exists to catch. */
+  cleanerId?: number | null;
+  cleanerName?: string | null;
+  /** After a link this always equals `email`: linking overwrites the record's address. */
+  cleanerEmail?: string | null;
+  cleanerIsActive: boolean;
+  assignedOrdersCount: number;
+}
+
+/** A cleaner record offered for linking. Rows taken by another account are flagged, not hidden. */
+export interface LinkableCleaner {
+  cleanerId: number;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+  isActive: boolean;
+  linkedUserId?: number | null;
+  linkedUserEmail?: string | null;
+}
+
+/** A customer account offered for promotion into the Cleaner role. */
+export interface PromotableUser {
+  userId: number;
+  firstName: string;
+  lastName: string;
+  email?: string | null;
+  phone?: string | null;
+  role: string;
+}
+
 /** Assigned cleaner row from admin API (includes whether assignment email was sent). */
 export interface AssignedCleanerAdmin {
   id: number;
@@ -1307,6 +1353,55 @@ export class AdminService {
 
   updateUserRole(userId: number, role: string): Observable<any> {
     return this.http.put(`${this.apiUrl}/users/${userId}/role`, { role });
+  }
+
+  // ─── Cleaners tab (api/admin/cleaner-accounts) ─────────────────────────────────
+  //
+  // The LOGIN ACCOUNTS cleaners use to open the read-only portal, and the link from each one to
+  // a row on the Cleaners Dashboard. Distinct from cleaner-management.service.ts, which manages
+  // the cleaners themselves.
+
+  getCleanerAccounts(): Observable<CleanerAccount[]> {
+    return this.http.get<CleanerAccount[]>(`${this.apiUrl}/cleaner-accounts`);
+  }
+
+  /**
+   * Cleaners on file, including ones already attached to another account (flagged, not hidden).
+   *
+   * The search term is matched SERVER-side against first name, last name, the two together, email
+   * and phone. A blank term returns everybody, so the picker opens on the full roster and the box
+   * only ever narrows it.
+   */
+  getLinkableCleaners(search?: string): Observable<LinkableCleaner[]> {
+    const term = (search || '').trim();
+    return this.http.get<LinkableCleaner[]>(
+      `${this.apiUrl}/cleaner-accounts/linkable-cleaners`,
+      term ? { params: new HttpParams().set('search', term) } : {}
+    );
+  }
+
+  /** Customer accounts matching a search term, offered for promotion to the Cleaner role. */
+  getPromotableUsers(search: string): Observable<PromotableUser[]> {
+    return this.http.get<PromotableUser[]>(
+      `${this.apiUrl}/cleaner-accounts/promotable-users`,
+      { params: new HttpParams().set('search', search) }
+    );
+  }
+
+  /**
+   * Attaches an account to a cleaner record. The server also OVERWRITES that record's email with
+   * the address the account signs in with - the whole reason to link by hand is that the record's
+   * email is missing or stale, and leaving it stale would keep the assignment mail going nowhere.
+   */
+  linkCleanerAccount(userId: number, cleanerId: number): Observable<CleanerAccount> {
+    return this.http.put<CleanerAccount>(
+      `${this.apiUrl}/cleaner-accounts/${userId}/link`,
+      { cleanerId }
+    );
+  }
+
+  unlinkCleanerAccount(userId: number): Observable<CleanerAccount> {
+    return this.http.delete<CleanerAccount>(`${this.apiUrl}/cleaner-accounts/${userId}/link`);
   }
 
   /** SuperAdmin: grant/revoke a regular Admin read-only access to restricted admin pages. */

@@ -121,6 +121,19 @@ export interface CleanerDetail extends CleanerListItem {
   notes: CleanerNote[];
   assignedOrders: CleanerAssignedOrder[];
   vacations: CleanerVacation[];
+
+  // ── The login account behind this cleaner (Cleaner.UserId), managed on the admin Cleaners tab ──
+  linkedUserId?: number | null;
+  linkedAccountName?: string | null;
+  /** The address that account signs in with; null for a no-email account. */
+  linkedAccountEmail?: string | null;
+  /**
+   * Whether Email is read-only on this record. The SERVER decides
+   * (CleanerAccountLink.EmailIsManagedByAccount) and this is rendered as given - the same
+   * predicate rejects the write, so a client-side copy of the rule could only disagree with what
+   * the API will accept.
+   */
+  isEmailManagedByAccount?: boolean;
 }
 
 export interface CreateCleanerPayload {

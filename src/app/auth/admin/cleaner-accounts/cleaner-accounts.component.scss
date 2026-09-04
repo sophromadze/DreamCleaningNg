@@ -1,0 +1,163 @@
+// Cleaners tab — LOCAL styles only.
+//
+// The section shell, filters, table, chips, row actions, pagination and every dark-mode override
+// come from user-management.component.scss, which is listed FIRST in this component's styleUrls
+// (the same arrangement outgoing-payments uses with orders.component.scss). What is left here is
+// the two things the Users tab has no equivalent of: the "make an account a cleaner" panel, and
+// the link editor that opens inline underneath a row.
+//
+// Colours are tokens from styles.scss so both flip with the day/night toggle.
+
+// ── Column widths, alongside the shared ones the Users tab declares ──
+.data-table {
+  // Six narrower columns than the Users tab's five, so the shared 1100px floor would force a
+  // horizontal scrollbar onto a table that fits.
+  .user-table.ca-table { min-width: 900px; }
+
+  .col-cleaner { min-width: 200px; }
+  .col-jobs { width: 80px; text-align: center; }
+}
+
+// ── "Make an account a cleaner" panel ──
+.ca-panel {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+
+  h3 { margin: 0 0 0.35rem; font-size: 0.95rem; color: var(--text-primary); }
+}
+
+.ca-hint {
+  margin: 0 0 0.6rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.5;
+
+  &--warn { color: var(--warning-orange-text); }
+}
+
+// The Users tab scopes .search-input under `.filters-section .search-box`, so these two boxes -
+// which live in a panel and inside a table row - get none of it. Same metrics, restated once,
+// rather than widening that selector and restyling the Users tab as a side effect.
+.ca-input {
+  width: 100%;
+  max-width: 520px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  }
+}
+
+.ca-result-list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  max-width: 620px;
+}
+
+.ca-result {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+
+  &:last-child { border-bottom: none; }
+}
+
+.ca-result-name { font-weight: 600; }
+.ca-result-meta { flex: 1; color: var(--text-secondary); font-size: 0.78rem; }
+
+// ── Inline link editor ──
+.ca-editor-row > td {
+  padding: 0.9rem 0.75rem;
+  background: var(--page-bg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.ca-editor {
+  display: grid;
+  gap: 0.6rem;
+  max-width: 640px;
+}
+
+.ca-editor-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ca-editor-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+// The cleaner picker. A scrolling list rather than a <select> so each row can carry the email and
+// phone the admin is matching against — which is the whole point of searching by them.
+.ca-cleaner-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.ca-cleaner {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: var(--page-bg); }
+
+  &.selected {
+    background: var(--soft-blue);
+    box-shadow: inset 3px 0 0 var(--primary-color);
+  }
+
+  // Taken by another account: still listed and named, never silently absent, but unpickable.
+  &.taken {
+    cursor: not-allowed;
+    opacity: 0.65;
+    &:hover { background: transparent; }
+  }
+}
+
+.ca-cleaner-name {
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.ca-cleaner-meta {
+  flex: 1;
+  min-width: 160px;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+}
+
+@media (max-width: 480px) {
+  .ca-result { flex-wrap: wrap; }
+}

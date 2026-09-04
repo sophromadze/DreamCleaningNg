@@ -22,6 +22,7 @@ import { AdminBonusService, AdminBonusSummary } from '../../../services/admin-bo
 import { environment } from '../../../../environments/environment';
 import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
 import { ADMIN_VIEWABLE_PAGES } from '../../../shared/admin-viewable-pages';
+import { getAdminAvatarColor, getAdminAvatarInitials } from '../../../shared/admin/admin-avatar.utils';
 import {
   RegisterCustomerModalComponent,
   RegisteredCustomer
@@ -1482,10 +1483,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   /** Returns initials for avatar bubble. */
   getInitials(firstName: string | undefined, lastName: string | undefined): string {
-    const f = (firstName || '').trim().charAt(0);
-    const l = (lastName || '').trim().charAt(0);
-    const combined = (f + l).toUpperCase();
-    return combined || '?';
+    return getAdminAvatarInitials(firstName, lastName);
   }
 
   /**
@@ -1501,10 +1499,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     if (this.selectedUser && this.selectedUser.id === user.id) this.selectedUser.profilePictureUrl = null;
   }
 
-  /** Deterministic avatar bg color from user id. */
+  /** Deterministic avatar bg colour — shared with the Cleaners tab so one person is one colour. */
   getAvatarColor(id: number): string {
-    const palette = ['#4f46e5', '#0891b2', '#ea580c', '#9333ea', '#db2777', '#16a34a', '#0284c7', '#dc2626'];
-    return palette[Math.abs(id) % palette.length];
+    return getAdminAvatarColor(id);
   }
 
   // ── Bubble rewards: existing methods ──

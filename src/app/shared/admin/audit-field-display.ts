@@ -103,6 +103,13 @@ export const AUDIT_FIELD_LABELS: { [field: string]: string } = {
   PaidLinesPinnedToOldRate: 'Already-Paid Lines Pinned To Old Rate',
   LinesKeepingTheirOwnRate: 'Lines Keeping Their Own Rate',
   Cleaner: 'Cleaner',
+  AccountName: 'Account',
+  AccountEmail: 'Account Email',
+  CleanerEmailBefore: 'Cleaner Record Email (before)',
+  CleanerEmailAfter: 'Cleaner Record Email (after)',
+  CleanerEmailKept: 'Cleaner Record Email (unchanged)',
+  ReleasedCleanerIds: 'Also Detached (cleaner ids)',
+  NewRole: 'New Role',
 
   // ── Refunds / payments ──────────────────────────────────────────────────────
   AmountRefunded: 'Amount Refunded',
@@ -520,6 +527,7 @@ export const AUDIT_ENTITY_LABELS: { [entityType: string]: string } = {
   RewardSetting: 'Rewards Setting',
   CleanerDocument: 'Cleaner File',
   CleanerPerformance: 'Cleaner Performance',
+  CleanerAccountLink: 'Cleaner Login Link',
   PricingConfiguration: 'Pricing Import',
   CatalogueCopy: 'Catalogue Copy',
   CampaignAction: 'Campaign Send',

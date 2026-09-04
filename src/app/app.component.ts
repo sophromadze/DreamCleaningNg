@@ -41,9 +41,24 @@ function isProtectedRoute(url: string): boolean {
     path === '/verify-email';
 }
 
+/**
+ * The cleaner portal. Named once and reused by every marketing-chrome predicate below, because it
+ * is ONE fact - this page is a staff tool, not a shop window - and stating it three times is how
+ * the three would end up disagreeing.
+ *
+ * Everything those widgets offer (book a cleaning, get a quote, call sales, follow us on TikTok)
+ * is addressed to a customer. A cleaner opening their schedule on a phone in a stairwell is being
+ * sold to by their own employer, over the top of the job they are trying to read.
+ */
+function isCleanerPortalRoute(url: string): boolean {
+  const path = (url || '').split('?')[0];
+  return path === '/cleaner-portal' || path.startsWith('/cleaner-portal/');
+}
+
 function isChatHiddenRoute(url: string): boolean {
   const path = (url || '').split('?')[0];
-  return path === '/admin' ||
+  return isCleanerPortalRoute(path) ||
+    path === '/admin' ||
     path.startsWith('/admin/') ||
     path.startsWith('/cleaner/cabinet') ||
     path.startsWith('/cleaners-dashboard');
@@ -51,7 +66,8 @@ function isChatHiddenRoute(url: string): boolean {
 
 function isSocialStickyHiddenRoute(url: string): boolean {
   const path = (url || '').split('?')[0];
-  return path === '/admin' ||
+  return isCleanerPortalRoute(path) ||
+    path === '/admin' ||
     path.startsWith('/admin/') ||
     path.startsWith('/cleaner/cabinet') ||
     path.startsWith('/cleaners-dashboard') ||
@@ -98,6 +114,15 @@ export class AppComponent implements OnInit, OnDestroy {
 
   get showSocialStickyBanners(): boolean {
     return !isSocialStickyHiddenRoute(this._path);
+  }
+
+  /**
+   * The Call / Email / Book Now / Free Quote tab on the right edge. It had NO route gate at all -
+   * it has always rendered on every page - so this is the first one, and it is deliberately narrow:
+   * hiding it anywhere else is a separate decision nobody has taken.
+   */
+  get showFloatingActions(): boolean {
+    return !isCleanerPortalRoute(this._path);
   }
 
   get showLiveChat(): boolean {

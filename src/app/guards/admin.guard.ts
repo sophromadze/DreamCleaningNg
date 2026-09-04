@@ -2,6 +2,7 @@ import { inject } from '@angular/core';
 import { Router, CanActivateFn } from '@angular/router';
 import { AuthService } from '../services/auth.service';
 import { filter, take, map } from 'rxjs/operators';
+import { CLEANER_PORTAL_PATH, isCleanerRole } from './cleaner-portal.guard';
 
 /** Waits for auth to be initialized, then allows route for admin roles or redirects. */
 export const adminGuard: CanActivateFn = (route, state) => {
@@ -19,7 +20,9 @@ export const adminGuard: CanActivateFn = (route, state) => {
            currentUser.role === 'Moderator')) {
         return true;
       }
-      router.navigate(['/']);
+      // A Cleaner-role account has exactly one authenticated destination, so send them there
+      // rather than to the homepage - a bounce to '/' reads as something having gone wrong.
+      router.navigate([isCleanerRole(currentUser?.role) ? CLEANER_PORTAL_PATH : '/']);
       return false;
     })
   );

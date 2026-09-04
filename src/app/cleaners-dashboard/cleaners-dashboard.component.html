@@ -1,9 +1,12 @@
 <div class="cleaners-dashboard">
   <header class="dashboard-header">
     <div class="title-block">
-      <h1>Cleaner Dashboard</h1>
+      <h1>Cleaners</h1>
     </div>
-    <div class="header-actions">
+    <!-- Dashboard-only: the Portal tab is a read-only calendar with nothing to search, toggle or
+         add here. Hidden rather than disabled - a control that does nothing on the tab you are
+         looking at is worse than an absent one. -->
+    <div class="header-actions" *ngIf="activeTab === 'dashboard'">
       <div class="search-box">
         <input
           type="text"
@@ -19,6 +22,43 @@
       <button type="button" class="btn-primary" (click)="openCreate()">+ Add Cleaner</button>
     </div>
   </header>
+
+  <!--
+    TWO HALVES OF THE CLEANERS SECTION (2026-09), previously two separate header links:
+      Dashboard - the PEOPLE: documents, ranking, availability, wages, notes.
+      Portal    - every CLEANING in the system, the same read-only calendar the crews see.
+
+    The Portal tab is Admin + SuperAdmin, matching the endpoints behind it; a Moderator reaches the
+    dashboard but not the schedule, so the tab strip is not rendered for them at all rather than
+    showing one tab.
+  -->
+  <nav class="dashboard-tabs" *ngIf="canSeePortal">
+    <button type="button"
+            class="dashboard-tab"
+            [class.active]="activeTab === 'dashboard'"
+            (click)="setTab('dashboard')">
+      Dashboard
+    </button>
+    <button type="button"
+            class="dashboard-tab"
+            [class.active]="activeTab === 'portal'"
+            (click)="setTab('portal')">
+      Portal
+    </button>
+  </nav>
+
+  <!--
+    The cleaner portal component itself, not a second copy of the calendar: it asks the SERVER which
+    mode it is in, so an admin opening it here gets the system-wide view with no flag passed from
+    this page. `embedded` only drops its own page padding and title, which this page already
+    provides.
+
+    Created on first visit and destroyed on leaving the tab, so the month it shows is always freshly
+    fetched - one small request, against a calendar that must not show yesterday's staffing.
+  -->
+  <app-cleaner-portal *ngIf="activeTab === 'portal'" [embedded]="true"></app-cleaner-portal>
+
+  <ng-container *ngIf="activeTab === 'dashboard'">
 
   <div *ngIf="errorMessage" class="error-banner" role="alert">
     {{ errorMessage }}
@@ -174,7 +214,18 @@
         <div class="info-grid">
           <div><label>ID</label><span class="info-id">#{{ selectedDetail.id }}</span></div>
           <div *ngIf="selectedDetail.age != null"><label>Age</label><span>{{ selectedDetail.age }}</span></div>
-          <div *ngIf="selectedDetail.email"><label>Email</label><span>{{ selectedDetail.email }}</span></div>
+          <div *ngIf="selectedDetail.email">
+            <label>Email</label>
+            <span>{{ selectedDetail.email }}</span>
+            <!-- Why the edit form will not let this be changed, said where the value is read. -->
+            <span class="info-sub" *ngIf="selectedDetail.isEmailManagedByAccount">
+              🔒 login account
+            </span>
+          </div>
+          <div *ngIf="selectedDetail.linkedUserId">
+            <label>Cleaner portal login</label>
+            <span>{{ linkedAccountLabel(selectedDetail) }}</span>
+          </div>
           <div><label>Jobs Completed</label><span>{{ jobsCompletedCount }}</span></div>
           <div><label>Operating areas</label><span>{{ boroughsDisplay(selectedDetail.operatingAreas) }}</span></div>
           <div *ngIf="selectedDetail.nationality"><label>Nationality</label><span>{{ selectedDetail.nationality }}</span></div>
@@ -343,6 +394,7 @@
       </ng-container>
     </aside>
   </section>
+  </ng-container>
 </div>
 
 <div *ngIf="addNoteModalOpen" class="modal-overlay" (click)="closeAddNoteModal()">
@@ -416,9 +468,29 @@
             placeholder="10-digit number" />
         </label>
 
+        <!--
+          READ-ONLY when this cleaner has a login account: linking copies the account address onto
+          the record so the assignment mail reaches whoever reads the portal, and editing it here
+          would break that silently (the FK keeps the portal working, only the mail goes astray).
+          readonly rather than disabled so the address can still be read and copied - and so the
+          value round-trips, which is what the server compares against. The lock itself comes from
+          the server (isEmailManagedByAccount); it is never re-derived here.
+        -->
         <label>
           <span>Email</span>
-          <input type="email" [(ngModel)]="formModel.email" name="email" maxlength="100" />
+          <input type="email"
+                 [(ngModel)]="formModel.email"
+                 name="email"
+                 maxlength="100"
+                 [readonly]="emailLockedByAccount"
+                 [class.locked]="emailLockedByAccount"
+                 [attr.aria-readonly]="emailLockedByAccount ? true : null"
+                 [attr.title]="emailLockedByAccount ? 'Set from the linked login account - change it on the account instead' : null" />
+          <small class="field-hint locked-hint" *ngIf="emailLockedByAccount">
+            🔒 Signs in as <strong>{{ lockedAccountEmail }}</strong>, so this is set from that
+            account. Change the address on the account, then re-link them on the admin panel's
+            Cleaners tab - that copies it across.
+          </small>
         </label>
 
         <label>

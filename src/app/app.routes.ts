@@ -1,4 +1,5 @@
-import { Routes } from '@angular/router';
+import { Router, Routes } from '@angular/router';
+import { inject } from '@angular/core';
 import { MainComponent } from './main/main.component';
 import { SERVICE_PRICING } from './shared/service-pricing.data';
 import { authGuard } from './guards/auth.guard';
@@ -15,6 +16,7 @@ import { pendingVerificationGuard } from './guards/pending-verification.guard';
 import { pinSetupGuard } from './guards/pin-setup.guard';
 import { superAdminGuard } from './guards/super-admin.guard';
 import { skipWhenPaymentToken } from './guards/payment-link.guard';
+import { cleanerPortalGuard, notCleanerGuard } from './guards/cleaner-portal.guard';
 
 export const routes: Routes = [
   {
@@ -296,13 +298,16 @@ export const routes: Routes = [
     loadComponent: () => import('./auth/real-email-verify/real-email-verify.component').then(m => m.RealEmailVerifyComponent)
   },
   {
+    // notCleanerGuard sends Cleaner-role accounts to their portal. These authenticated CUSTOMER
+    // pages have nothing on them for a work login - no orders, no rewards, no booking history -
+    // so without it they render as a set of unexplained empty screens.
     path: 'profile',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
+    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
     loadComponent: () => import('./auth/profile/profile.component').then(m => m.ProfileComponent)
   },
   {
     path: 'rewards',
-    canActivate: [authGuard, maintenanceGuard],
+    canActivate: [authGuard, notCleanerGuard, maintenanceGuard],
     loadComponent: () => import('./rewards/rewards.component').then(m => m.RewardsComponent),
     data: {
       title: 'Bubble Rewards | Dream Cleaning',
@@ -353,11 +358,11 @@ export const routes: Routes = [
   // existing bookmarks and the current dropdown links keep working; each page keeps its pageViewGuard
   // on the child route below.
   { path: 'admin/statistics', redirectTo: 'admin/company/statistics', pathMatch: 'full' },
-  {
-    path: 'admin/rewards',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, pageViewGuard('bubble-rewards')],
-    loadComponent: () => import('./auth/admin/rewards/admin-rewards.component').then(m => m.AdminRewardsComponent)
-  },
+  // Bubble Rewards MOVED (2026-09) into the admin panel as its Rewards tab, SuperAdmin-only. It
+  // was its own page reached from the header dropdown; the settings on it govern the whole points
+  // economy, so it sits with the other SuperAdmin-only tabs now. The old path redirects onto that
+  // tab so existing bookmarks land where the page went rather than 404ing.
+  { path: 'admin/rewards', pathMatch: 'full', redirectTo: () => inject(Router).parseUrl('/admin?tab=rewards') },
   { path: 'admin/expenses', redirectTo: 'admin/company/expenses', pathMatch: 'full' },
   { path: 'admin/finances', redirectTo: 'admin/company/finances', pathMatch: 'full' },
   {
@@ -428,17 +433,17 @@ export const routes: Routes = [
 
   {
     path: 'profile/orders',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
+    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
     loadComponent: () => import('./auth/profile/order-history/order-history.component').then(m => m.OrderHistoryComponent)
   },
   {
     path: 'order/:id',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
+    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
     loadComponent: () => import('./auth/profile/order-details/order-details.component').then(m => m.OrderDetailsComponent)
   },
   {
     path: 'order/:id/edit',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
+    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
     loadComponent: () => import('./auth/profile/order-edit/order-edit.component').then(m => m.OrderEditComponent)
   },
   {
@@ -493,6 +498,22 @@ export const routes: Routes = [
     path: 'auth/reset-password',
     canActivate: [noAuthGuard, maintenanceGuard],
     loadComponent: () => import('./auth/reset-password/reset-password.component').then(m => m.ResetPasswordComponent)
+  },
+  {
+    // THE CLEANER PORTAL - read-only, and the only authenticated section a Cleaner-role account
+    // can reach. A SuperAdmin opens the same route and gets the system-wide view instead.
+    //
+    // Deliberately NOT behind pinSetupGuard: the 2FA PIN is for accounts that can move money, and
+    // TwoFactorService excludes Cleaner for the same reason, so the flag is never set for them and
+    // the guard would only be dead weight in front of a page read on a phone in a stairwell.
+    // Not under maintenanceGuard either - maintenance keeps CUSTOMERS off the site, and the crews
+    // still have jobs that day.
+    path: 'cleaner-portal',
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, cleanerPortalGuard],
+    loadComponent: () => import('./cleaner-portal/cleaner-portal.component').then(m => m.CleanerPortalComponent),
+    data: {
+      title: 'Cleaner Portal | Dream Cleaning'
+    }
   },
   {
     path: 'cleaners-dashboard',

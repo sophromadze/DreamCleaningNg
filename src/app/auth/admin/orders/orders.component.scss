@@ -4568,6 +4568,48 @@ $order-header-mobile: 60px;
   &:hover { background: var(--soft-blue); }
 }
 
+// ── "Open in Maps" (details panel, Service Address) ──
+// TOP-LEVEL on purpose: the details panel is an <aside> OUTSIDE .orders-section, so anything
+// nested in that block never reaches it — same reason .view-user-btn above is self-contained.
+//
+// No chrome at all — no background, no border, no padding. It sits among the address lines and
+// reads as one of them, with the pin as its only marker.
+//
+// It is deliberately NOT in --primary-text like its two neighbours: it is an <a> (it opens a URL),
+// so link blue invites the browser's :visited rule to repaint it once an admin has opened one, and
+// the same line then looks different from order to order for no reason they can see. Pinning every
+// link state to the one colour is what stops any state recolouring it.
+.address-maps-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  font-size: inherit;
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  text-decoration: none;
+
+  &,
+  &:link,
+  &:visited,
+  &:hover,
+  &:active,
+  &:focus {
+    color: var(--text-primary);
+    text-decoration: none;
+  }
+
+  .address-maps-icon {
+    font-size: 0.9rem;
+    line-height: 1;
+  }
+
+  // The underline is on the TEXT span, not the anchor: an anchor-level underline runs under the
+  // pin as well, which reads as a stray dash rather than a link cue. Hover only — a permanent
+  // underline is what made it look like a hyperlink in the first place.
+  &:hover .address-maps-text { text-decoration: underline; }
+}
+
 // ── SuperAdmin payment-method editor (details panel "Payment:" line) ──
 // Self-contained: the pricing column isn't covered by the update-history
 // .manual-pay-form / .action-btn scopes, so the editor styles its own controls.

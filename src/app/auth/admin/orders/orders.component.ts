@@ -3764,6 +3764,20 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return `${amount.toFixed(2)}`;
   }
 
+  /**
+   * The address is already on screen; this just saves retyping it into a map app. Parts are joined
+   * in the same order as CleanerJobView.BuildFullAddress / the cleaner portal, so an admin and the
+   * cleaner working the job open the same pin.
+   */
+  serviceAddressMapsUrl(order: Order | null): string {
+    if (!order) return '';
+    const parts = [order.serviceAddress, order.aptSuite, order.city, order.state, order.zipCode]
+      .map(part => (part ?? '').trim())
+      .filter(part => part.length > 0);
+    if (parts.length === 0) return '';
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(parts.join(', '))}`;
+  }
+
   /** Total for display in admin: order amount excluding tips (tips are shown separately). */
   getOrderTotalWithoutTips(order: AdminOrderList): number {
     const total = order.total ?? 0;

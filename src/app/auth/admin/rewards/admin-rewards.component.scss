@@ -1,5 +1,6 @@
+// Rendered inside the admin panel's .tab-content (2026-09), which already supplies the page
+// padding -- only the reading width is kept here.
 .admin-rewards-page {
-  padding: 24px;
   max-width: 900px;
   margin: 0 auto;
 }
@@ -11,7 +12,7 @@
   gap: 16px;
   margin-bottom: 20px;
 
-  h1 {
+  h2 {
     font-size: 22px;
     font-weight: 700;
     color: var(--text-primary);

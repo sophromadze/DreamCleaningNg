@@ -70,6 +70,36 @@
   padding: 18px clamp(14px, 2.6vw, 28px) 72px;
 }
 
+// The two halves of the cleaners section: the PEOPLE, and every CLEANING. An underline strip rather
+// than pills, matching how the admin panel's own tabs read - these switch a view, they do not act.
+.dashboard-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--cd-border);
+
+  .dashboard-tab {
+    appearance: none;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--cd-text-muted);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+
+    &:hover { color: var(--cd-text); }
+
+    &.active {
+      color: var(--cd-accent);
+      border-bottom-color: var(--cd-accent);
+    }
+  }
+}
+
 .dashboard-header {
   display: flex;
   flex-wrap: wrap;
@@ -567,6 +597,14 @@
       font-weight: 700;
       color: var(--cd-accent);
       letter-spacing: 0.3px;
+    }
+
+    // A quiet second line under a value - currently only "this email is owned by a login
+    // account", said where the value is read rather than only in the edit form.
+    span.info-sub {
+      display: block;
+      font-size: 11px;
+      color: var(--cd-text-muted);
     }
   }
 }
@@ -1451,6 +1489,24 @@
     color: var(--cd-text-muted);
     margin-bottom: 4px;
     display: block;
+  }
+
+  // A field whose value belongs somewhere else (today: the email of a cleaner who has a login
+  // account). Kept readable and selectable - the address is worth copying - but visibly not an
+  // input you are being invited to type in, and it takes no focus ring.
+  label input.locked {
+    background: var(--cd-surface-alt);
+    color: var(--cd-text-muted);
+    cursor: default;
+
+    &:focus { border-color: var(--cd-input-border); }
+  }
+
+  .locked-hint {
+    margin: 2px 0 0;
+    color: var(--cd-text-muted);
+
+    strong { color: var(--cd-text); font-weight: 600; }
   }
 }
 

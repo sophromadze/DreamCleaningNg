@@ -50,7 +50,10 @@ export class AdminRewardsComponent implements OnInit {
   undoCreatedAt = '';
   undoScope: 'all' | 'specific' | '' = '';
 
-  /** SuperAdmins can change settings / reset points; view-only Admins see the page read-only. */
+  /** Kept as a belt-and-braces check on the controls. Since 2026-09 the Rewards tab is
+   *  SuperAdmin-only (hidden in the panel, [Authorize(Roles = "SuperAdmin")] on the reads), so
+   *  in practice nobody who gets here is read-only -- but the writes stay gated on it rather
+   *  than assuming the surrounding gate. */
   canEdit = false;
 
   constructor(

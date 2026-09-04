@@ -1,7 +1,8 @@
 <div class="loyalty-discount-admin">
   <!-- ── Panel A: Global Settings ───────────────────────────────────────────────
-       Hidden from Moderator (spec 2.9 / 5.2). Admin + SuperAdmin see + edit. -->
-  <section class="panel" *ngIf="canEdit">
+       SuperAdmin only. Admin and Moderator get the audit feed below and nothing else;
+       the endpoints are gated to match, so this *ngIf is convenience, not the control. -->
+  <section class="panel" *ngIf="canManageSettings">
     <div class="panel-header">
       <h2>Loyalty Discount Settings</h2>
       <button *ngIf="!loadingSettings" type="button" class="action-btn ghost" (click)="loadSettings()">Refresh</button>

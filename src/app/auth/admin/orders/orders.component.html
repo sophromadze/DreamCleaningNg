@@ -1042,6 +1042,16 @@
                       <p *ngIf="selectedOrder.aptSuite">{{selectedOrder.aptSuite}}</p>
                       <p>{{selectedOrder.state}}, {{selectedOrder.city}}</p>
                       <p>{{selectedOrder.zipCode}}</p>
+                      <!-- Same link the cleaner portal offers, built from the same address parts —
+                           saves retyping the address into a map app to see where the job is. -->
+                      <a class="address-maps-link"
+                         *ngIf="serviceAddressMapsUrl(selectedOrder)"
+                         [href]="serviceAddressMapsUrl(selectedOrder)"
+                         target="_blank"
+                         rel="noopener">
+                        <span class="address-maps-icon" aria-hidden="true">📍</span>
+                        <span class="address-maps-text">Open in Maps</span>
+                      </a>
                       <p *ngIf="selectedOrder.entryMethod"><strong>Entry Method:</strong> {{selectedOrder.entryMethod}}</p>
                     </div>
                   </div>

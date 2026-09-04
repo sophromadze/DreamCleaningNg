@@ -12,11 +12,15 @@ export const maintenanceGuard: CanActivateFn = (route, state) => {
   
   const currentUser = authService.currentUserValue;
   
-  // Allow access for SuperAdmin, Admin, and Moderator roles
+  // Allow access for SuperAdmin, Admin, and Moderator roles, and for Cleaners. Maintenance mode
+  // exists to keep CUSTOMERS off the site while work is going on; the crews still have jobs that
+  // day, and a cleaner standing outside an address must not be shown a maintenance page instead of
+  // the entry instructions.
   if (currentUser &&
       (currentUser.role === 'SuperAdmin' ||
        currentUser.role === 'Admin' ||
-       currentUser.role === 'Moderator')) {
+       currentUser.role === 'Moderator' ||
+       currentUser.role === 'Cleaner')) {
     return true;
   }
   

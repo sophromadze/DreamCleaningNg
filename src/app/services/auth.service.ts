@@ -619,6 +619,18 @@ export class AuthService {
       this.router.navigate(['/setup-pin']);
       return;
     }
+    // A cleaner's account has exactly one destination. This runs BEFORE the skipNavigation check
+    // and before returnUrl, both deliberately: a stored returnUrl points at a customer page they
+    // are not allowed to open (notCleanerGuard would bounce them anyway, one flash later), and the
+    // modal login flows have no concept of a portal to stay put on.
+    if (response.user?.role === 'Cleaner') {
+      if (this.isBrowser) {
+        localStorage.removeItem('returnUrl');
+      }
+      this.router.navigate(['/cleaner-portal']);
+      return;
+    }
+
     // Modal flows (auth-modal) handle navigation themselves via navigateAfterLogin,
     // which respects authModalService.getReturnUrl() and stays put when no returnUrl is set.
     // Skipping here prevents the default '/' fallback from stomping the caller's intent.

@@ -8,6 +8,9 @@ export const serverRoutes: ServerRoute[] = [
   { path: 'profile/**', renderMode: RenderMode.Client },
   { path: 'booking', renderMode: RenderMode.Client },
   { path: 'booking/**', renderMode: RenderMode.Client },
+  // The cleaner portal is behind auth and has no SEO value; prerendering it would only ship an
+  // empty shell and fire its API calls during the build pass.
+  { path: 'cleaner-portal', renderMode: RenderMode.Client },
 
   // Blog is dynamic content — per-request SSR, never build-time prerender.
   // (Prerender would only know slugs that existed at build time; every post

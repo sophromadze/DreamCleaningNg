@@ -1,8 +1,11 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterModule } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { NyDatePipe } from '../shared/ny-time.util';
+import { AuthService } from '../services/auth.service';
+import { isSystemWideRole } from '../guards/cleaner-portal.guard';
+import { CleanerPortalComponent } from '../cleaner-portal/cleaner-portal.component';
 import { Subject, of, forkJoin, Observable } from 'rxjs';
 import { debounceTime, distinctUntilChanged, switchMap, takeUntil, catchError, finalize, tap } from 'rxjs/operators';
 import {
@@ -23,6 +26,9 @@ import {
 } from '../services/cleaner-management.service';
 import { compressImage } from '../utils/image-compression';
 import { normalizePhone10, sanitizePhoneInput, telHrefUS } from '../utils/phone.utils';
+
+/** The two halves of the cleaners section: the PEOPLE, and every CLEANING. */
+export type CleanersTab = 'dashboard' | 'portal';
 
 type ModalMode = 'create' | 'edit';
 
@@ -95,7 +101,7 @@ const DAY_LABEL: Record<DayKey, string> = {
 @Component({
   selector: 'app-cleaners-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, NyDatePipe],
+  imports: [CommonModule, FormsModule, RouterModule, NyDatePipe, CleanerPortalComponent],
   templateUrl: './cleaners-dashboard.component.html',
   styleUrls: ['./cleaners-dashboard.component.scss']
 })
@@ -126,6 +132,20 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   formSaving = false;
   formError = '';
   editingId: number | null = null;
+
+  // ── Email is READ-ONLY for a cleaner who has a login account ──
+  //
+  // Linking on the admin Cleaners tab copies the account address onto this record so the
+  // assignment mail reaches whoever reads the portal. Editing it here afterwards would break that
+  // silently - the FK keeps the portal working, only the mail goes astray - so the address is
+  // changed on the ACCOUNT and re-linking copies it across.
+  //
+  // The flag is the SERVER's answer (CleanerAccountLink.EmailIsManagedByAccount), never re-derived
+  // here: the same predicate rejects the write, so a local copy of the rule could only disagree
+  // with what the API accepts.
+  emailLockedByAccount = false;
+  lockedAccountEmail: string | null = null;
+  lockedAccountName: string | null = null;
 
   availableDays: AvailableDays = this.emptyAvailableDays();
   vacations: VacationRow[] = [];
@@ -322,12 +342,43 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     return method ? `${method} · ${details}` : details;
   }
 
+  // ── The two halves of the cleaners section (2026-09) ──
+  //
+  // Dashboard = the PEOPLE (this component). Portal = every CLEANING, rendered by the cleaner
+  // portal component itself rather than a second calendar. They used to be two header links, which
+  // meant two doors into one subject.
+
+  activeTab: CleanersTab = 'dashboard';
+
+  /**
+   * Admin + SuperAdmin only, resolved through the guard's own `isSystemWideRole` so the tab and the
+   * route it mirrors cannot drift. Moderators run no schedule (the endpoints refuse them), so they
+   * get no tab strip at all rather than a strip with one tab in it.
+   */
+  canSeePortal = false;
+
   constructor(
     private cleanerService: CleanerManagementService,
-    private cdr: ChangeDetectorRef
+    private cdr: ChangeDetectorRef,
+    private authService: AuthService,
+    private route: ActivatedRoute,
+    private router: Router
   ) {}
 
   ngOnInit(): void {
+    this.canSeePortal = isSystemWideRole(this.authService.currentUserValue?.role);
+
+    // `?tab=portal` is how an old /cleaner-portal bookmark lands here on the right half — see
+    // cleanerPortalGuard. Anything else, including a Moderator asking for the portal, falls back to
+    // the dashboard rather than rendering a tab they may not read.
+    this.route.queryParamMap
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(params => {
+        const requested = params.get('tab');
+        this.activeTab = requested === 'portal' && this.canSeePortal ? 'portal' : 'dashboard';
+        this.cdr.markForCheck();
+      });
+
     this.search$
       .pipe(
         debounceTime(300),
@@ -338,6 +389,30 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       .subscribe();
 
     this.loadCleaners();
+  }
+
+  /**
+   * Switching tabs writes the query param rather than only a field, so the tab survives a reload and
+   * is linkable — the Portal tab is a working calendar somebody will want to send to a colleague.
+   * The subscription above is what actually moves `activeTab`, so there is one path in.
+   */
+  setTab(tab: CleanersTab): void {
+    if (tab === 'portal' && !this.canSeePortal) return;
+    if (this.activeTab === tab) return;
+
+    // Leaving the dashboard closes what was open on it: a detail panel or a half-filled form still
+    // sitting there on the way back is state nobody asked to keep.
+    if (tab !== 'dashboard') {
+      this.closeDetail();
+      this.closeForm();
+    }
+
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: { tab: tab === 'dashboard' ? null : tab },
+      queryParamsHandling: 'merge',
+      replaceUrl: true
+    });
   }
 
   ngOnDestroy(): void {
@@ -407,6 +482,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   openCreate(): void {
     this.formMode = 'create';
     this.editingId = null;
+    this.clearEmailLock();
     this.formModel = this.emptyFormModel();
     this.availableDays = this.emptyAvailableDays();
     // New cleaners operate in all boroughs by default.
@@ -423,6 +499,9 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   openEdit(detail: CleanerDetail): void {
     this.formMode = 'edit';
     this.editingId = detail.id;
+    this.emailLockedByAccount = !!detail.isEmailManagedByAccount;
+    this.lockedAccountEmail = detail.linkedAccountEmail ?? null;
+    this.lockedAccountName = detail.linkedAccountName ?? null;
     this.formModel = {
       firstName: detail.firstName,
       lastName: detail.lastName,
@@ -464,6 +543,7 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   closeForm(): void {
     this.formOpen = false;
     this.formModel = this.emptyFormModel();
+    this.clearEmailLock();
     this.availableDays = this.emptyAvailableDays();
     this.operatingBoroughs = this.emptyBoroughs(true);
     this.vacations = [];
@@ -1260,6 +1340,21 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       reader.onerror = () => reject(reader.error);
       reader.readAsDataURL(file);
     });
+  }
+
+  private clearEmailLock(): void {
+    this.emailLockedByAccount = false;
+    this.lockedAccountEmail = null;
+    this.lockedAccountName = null;
+  }
+
+  /** Who this cleaner signs in as, for the read-only field's hint and the detail panel. */
+  linkedAccountLabel(detail: CleanerDetail | null): string {
+    if (!detail?.linkedUserId) return '';
+    const name = (detail.linkedAccountName || '').trim();
+    const email = (detail.linkedAccountEmail || '').trim();
+    if (name && email) return `${name} (${email})`;
+    return name || email || 'a login account';
   }
 
   private extractError(err: any): string {

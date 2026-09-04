@@ -259,6 +259,16 @@ export class HeaderComponent implements OnInit, OnDestroy {
     return role === 'SuperAdmin' || role === 'Admin' || role === 'Moderator';
   }
 
+  /**
+   * A cleaner's login. Their whole app is the read-only portal, so the user menu hides the
+   * customer entries (Profile, My Orders, My Rewards) rather than offering links that
+   * notCleanerGuard would immediately bounce them off - an offered link that cannot be followed
+   * reads as the app being broken.
+   */
+  get isCleanerAccount(): boolean {
+    return this.currentUser?.role === 'Cleaner';
+  }
+
   private startNyTimeClock(): void {
     if (!this.isBrowser) return;
     this.updateNyTime();

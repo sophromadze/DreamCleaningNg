@@ -43,6 +43,17 @@
             *ngIf="userPermissions?.permissions?.canView">
       Users
     </button>
+    <!-- The cleaner LOGIN ACCOUNTS and which cleaner record each one drives. Renamed to
+         "Cleaners" by the owner (2026-09); the people themselves - documents, ranking, wages -
+         stay on the separate /cleaners-dashboard page. The tab KEY stays cleaner-accounts: it is
+         persisted in sessionStorage, so renaming it would bounce every admin mid-session back to
+         Orders. Visible to any role holding View; Admins hold Update and do everything in it. -->
+    <button class="tab-btn"
+            [class.active]="activeTab === 'cleaner-accounts'"
+            (click)="setActiveTab('cleaner-accounts')"
+            *ngIf="userPermissions?.permissions?.canView">
+      Cleaners
+    </button>
     <!-- Services edits the price catalogue every quote is built from, so it is SuperAdmin-only —
          deliberately NOT canView, which regular Admins and Moderators hold. Matched by
          [Authorize(Roles = "SuperAdmin")] on the catalogue half of AdminCatalogController. -->
@@ -90,6 +101,16 @@
             *ngIf="userRole === 'Admin' || userRole === 'SuperAdmin'">
       Chats
     </button>
+    <!-- Bubble Rewards MOVED here from the header dropdown (2026-09). SuperAdmin-only: the
+         settings on it set the points economy every customer earns and spends against, so it is
+         role-gated like Services, not canView-gated. Matched by [Authorize(Roles = "SuperAdmin")]
+         on AdminRewardsController's settings and stats reads. -->
+    <button class="tab-btn"
+            [class.active]="activeTab === 'rewards'"
+            (click)="setActiveTab('rewards')"
+            *ngIf="userRole === 'SuperAdmin'">
+      Rewards
+    </button>
   </div>
 
   <!-- Messages -->
@@ -105,6 +126,7 @@
     <ng-container [ngSwitch]="activeTab">
       <app-orders *ngSwitchCase="'orders'" [openOrderId]="pendingOrderId"></app-orders>
       <app-user-management *ngSwitchCase="'users'" [openUserId]="pendingUserId"></app-user-management>
+      <app-cleaner-accounts *ngSwitchCase="'cleaner-accounts'"></app-cleaner-accounts>
       <!-- Guarded as well as hidden: a stale 'booking-services' in sessionStorage would otherwise
            mount the component (and fire its now-403 catalogue GETs) before the role has loaded.
            setActiveTab / the permission load move a non-SuperAdmin back to Orders. -->
@@ -117,6 +139,12 @@
       <app-communications *ngSwitchCase="'mails-sms'"></app-communications>
       <app-before-after-photos *ngSwitchCase="'before-after'"></app-before-after-photos>
       <app-chat-sessions *ngSwitchCase="'chats'" [userRole]="userRole"></app-chat-sessions>
+      <!-- Guarded as well as hidden, same reason as Services above: a stale 'rewards' in
+           sessionStorage would otherwise mount the component and fire its now-403 GETs before the
+           role has loaded. -->
+      <ng-container *ngSwitchCase="'rewards'">
+        <app-admin-rewards *ngIf="userRole === 'SuperAdmin'"></app-admin-rewards>
+      </ng-container>
     </ng-container>
   </div>
 </div>
