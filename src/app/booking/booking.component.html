@@ -1810,8 +1810,7 @@
               <p><strong>If you skip this option, please have the above items ready for our team.</strong></p>
 
               <p><strong>Cleaning Essentials:</strong> add it and we bring the paper towels, garbage
-              bags and toilet brush too. A broom or vacuum cleaner is never included — please have
-              one at home, or add the Vacuum Cleaner extra service.</p>
+              bags, toilet brush and a broom too.</p>
 
               <!-- Live for the CURRENT selection, from the same shared checklist the modal, the
                    confirmation email and the order pages use — a static list here would go stale
@@ -1971,15 +1970,6 @@
                     <span>{{ item }}</span>
                   </li>
                 </ul>
-
-                <!-- Dropped once the Vacuum Cleaner extra is on the order: at that point we ARE
-                     bringing one, so telling the customer to have one at home contradicts what
-                     they just paid for. Same condition the shared checklist uses to drop the
-                     "Broom or vacuum cleaner" line. -->
-                <p class="dc-modal-note dc-modal-note--warning" *ngIf="!vacuumIncluded">
-                  A broom or vacuum cleaner is not included — please have one at home, or add the
-                  Vacuum Cleaner extra service.
-                </p>
 
                 <button type="button"
                         class="dc-modal-btn dc-modal-add"

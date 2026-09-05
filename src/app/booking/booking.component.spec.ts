@@ -536,13 +536,21 @@ describe('BookingComponent', () => {
     // extras are added and always agrees with the confirmation email and SMS.
     it('shrinks the you-provide list as the supply extras are added', () => {
       expect(component.modalSupplyChecklistItems).toContain('Paper towels');
-
-      component.toggleSupplyExtraFromModal(component.cleaningEssentialsExtra);
-      expect(component.modalSupplyChecklistItems).not.toContain('Paper towels');
       expect(component.modalSupplyChecklistItems).toContain('Broom or vacuum cleaner');
 
+      // Essentials covers the broom as well as of 2026-09, so the whole group goes at once.
+      component.toggleSupplyExtraFromModal(component.cleaningEssentialsExtra);
+      expect(component.modalSupplyChecklistItems).not.toContain('Paper towels');
+      expect(component.modalSupplyChecklistItems).not.toContain('Broom or vacuum cleaner');
+
       component.toggleSupplyExtraFromModal(component.cleaningSuppliesExtra);
-      expect(component.modalSupplyChecklistItems).toEqual(['Broom or vacuum cleaner']);
+      expect(component.modalSupplyChecklistItems).toEqual([]);
+    });
+
+    it('lists the broom among the items Cleaning Essentials covers', () => {
+      expect(component.cleaningEssentialsItems).toEqual(
+        ['Paper towels', 'Garbage bags', 'Toilet brush', 'Broom']
+      );
     });
 
     // Not a "show it once" modal: dismissing it with Continue, going back to step 1 and
@@ -570,20 +578,18 @@ describe('BookingComponent', () => {
       expect(component.showCleaningSuppliesConfirm).withContext('both taken').toBe(false);
     });
 
-    // The modal's broom reminder must disappear once we are bringing a vacuum — otherwise it
-    // contradicts the extra the customer just paid for.
-    it('drops the broom reminder once the Vacuum Cleaner extra is selected', () => {
+    // The Vacuum Cleaner extra still drops the broom line on its own — it answers the same need
+    // Cleaning Essentials' broom does, and the customer was only ever asked for one of the pair.
+    it('drops the broom line for the Vacuum Cleaner extra without touching the rest', () => {
       const vacuum = extra(4, 'Vacuum Cleaner', 25);
       component.selectedServiceType = {
         ...serviceType, extraServices: [supplies, essentials, fridge, vacuum]
       };
-
-      expect(component.vacuumIncluded).toBe(false);
-
       component.selectedExtraServices = [{ extraService: vacuum, quantity: 1, hours: 0 }] as any;
 
-      expect(component.vacuumIncluded).toBe(true);
       expect(component.modalSupplyChecklistItems).not.toContain('Broom or vacuum cleaner');
+      expect(component.modalSupplyChecklistItems).toContain('Paper towels');
+      expect(component.modalSupplyChecklistItems).toContain('Toilet brush');
     });
   });
 

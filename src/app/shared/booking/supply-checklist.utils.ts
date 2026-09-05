@@ -9,11 +9,14 @@
  * THREE EXTRAS TAKE ITEMS OFF THE LIST, and each takes off a different thing:
  *   "Cleaning Supplies"   → the products we would otherwise ask them to buy (Zep, Windex,
  *                           cloths, sponge, mop).
- *   "Cleaning Essentials" → paper towels, garbage bags, toilet brush. NEVER the broom or
- *                           vacuum: a cleaner cannot carry one to every job, so the customer
- *                           either owns one or buys the Vacuum Cleaner extra.
+ *   "Cleaning Essentials" → paper towels, garbage bags, toilet brush AND A BROOM. The broom was
+ *                           added 2026-09; before that the customer was always asked for a broom
+ *                           or vacuum, so anything still saying "never included" is stale.
  *   "Vacuum Cleaner"      → the broom-or-vacuum line, and only that line.
- * A customer holding all three is asked for nothing, so `buildSupplyChecklistItems` can
+ * Because Essentials now covers the broom, that line comes off for EITHER of the last two — we
+ * bring a broom, or we bring a vacuum, and the customer was only ever asked for one of the pair.
+ *
+ * Supplies + Essentials together therefore leave NOTHING, so `buildSupplyChecklistItems` can
  * legitimately return an EMPTY array — every surface has to render that as "nothing to prepare"
  * rather than as an empty bulleted box.
  */
@@ -32,7 +35,7 @@ export interface SupplyChecklistExtra {
 export interface SupplyChecklistFacts {
   /** "Cleaning Supplies" bought — WE bring the solutions and the cloths. */
   hasCleaningSupplies: boolean;
-  /** "Cleaning Essentials" bought — WE bring paper towels, garbage bags and a toilet brush. */
+  /** "Cleaning Essentials" bought — WE bring paper towels, garbage bags, a toilet brush and a broom. */
   hasCleaningEssentials: boolean;
   /** "Vacuum Cleaner" bought — we bring one, so they are not asked for a broom or vacuum. */
   weBringVacuum: boolean;
@@ -51,8 +54,9 @@ export const CLEANING_SUPPLIES_MATCH = 'cleaning supplies';
 export const CLEANING_ESSENTIALS_MATCH = 'cleaning essentials';
 export const VACUUM_MATCH = 'vacuum';
 
-/** What the "Cleaning Essentials" extra covers, in checklist order. Shown in the booking modal. */
-export const CLEANING_ESSENTIALS_ITEMS = ['Paper towels', 'Garbage bags', 'Toilet brush'];
+/** What the "Cleaning Essentials" extra covers — the four items WE bring. Shown in the booking
+ *  modal. The broom joined the set in 2026-09. */
+export const CLEANING_ESSENTIALS_ITEMS = ['Paper towels', 'Garbage bags', 'Toilet brush', 'Broom'];
 
 /** The one line the Vacuum Cleaner extra buys the customer out of. */
 export const BROOM_OR_VACUUM_ITEM = 'Broom or vacuum cleaner';
@@ -134,12 +138,13 @@ export function zepLiquidsText(needsOvenCleaner: boolean): string {
 }
 
 /**
- * The checklist itself — what the CUSTOMER has to have on site. Each extra removes only its own
- * items, so the combinations read:
+ * The checklist itself — what the CUSTOMER has to have on site. The combinations read:
  *   nothing bought        → everything;
  *   Cleaning Supplies     → paper towels, garbage bags, broom/vacuum, toilet brush;
- *   Cleaning Essentials   → broom/vacuum, plus all the products we would have brought;
- *   Supplies + Essentials → broom or vacuum cleaner, and nothing else.
+ *   Cleaning Essentials   → only the products we would have brought (it covers the broom as
+ *                           well now, so nothing from this group survives);
+ *   Supplies + Essentials → NOTHING AT ALL;
+ *   Vacuum Cleaner        → drops the broom/vacuum line on its own.
  * A custom ("Pre-Arranged") service type does not use the supplies workflow, so it never gets
  * the products block regardless.
  *
@@ -148,17 +153,15 @@ export function zepLiquidsText(needsOvenCleaner: boolean): string {
 export function buildSupplyChecklistItems(facts: SupplyChecklistFacts): string[] {
   const items: string[] = [];
 
+  // Cleaning Essentials covers this whole group, broom included.
   if (!facts.hasCleaningEssentials) {
-    items.push(CLEANING_ESSENTIALS_ITEMS[0]);
-    items.push(CLEANING_ESSENTIALS_ITEMS[1]);
-  }
-
-  if (!facts.weBringVacuum) {
-    items.push(BROOM_OR_VACUUM_ITEM);
-  }
-
-  if (!facts.hasCleaningEssentials) {
-    items.push(CLEANING_ESSENTIALS_ITEMS[2]);
+    items.push('Paper towels');
+    items.push('Garbage bags');
+    // ...unless we are bringing a vacuum instead, which answers the same need.
+    if (!facts.weBringVacuum) {
+      items.push(BROOM_OR_VACUUM_ITEM);
+    }
+    items.push('Toilet brush');
   }
 
   if (facts.hasCleaningSupplies || facts.isCustomServiceType) {

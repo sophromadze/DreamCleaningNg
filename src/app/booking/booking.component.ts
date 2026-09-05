@@ -83,7 +83,6 @@ import {
   buildSupplyChecklistItems,
   CLEANING_ESSENTIALS_ITEMS,
   extraServiceNamesOf,
-  hasVacuumExtra,
   isCleaningEssentialsExtra,
   isCleaningSuppliesExtra,
   requiresOvenCleaner,
@@ -6270,16 +6269,6 @@ export class BookingComponent implements OnInit, OnDestroy {
   /** What Cleaning Essentials covers, listed in the modal. */
   get cleaningEssentialsItems(): string[] {
     return CLEANING_ESSENTIALS_ITEMS;
-  }
-
-  /**
-   * True once the Vacuum Cleaner extra is selected — we bring one. The modal's
-   * "please have a broom or vacuum at home" reminder is dropped in that case, because it
-   * contradicts what the customer has just paid for. Read through the same shared predicate
-   * that drops the matching line from the checklist, so the two can't disagree.
-   */
-  get vacuumIncluded(): boolean {
-    return hasVacuumExtra(extraServiceNamesOf(this.selectedExtraServices.map(s => s.extraService)));
   }
 
   /**

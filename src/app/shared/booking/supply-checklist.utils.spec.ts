@@ -1,5 +1,6 @@
 import {
   buildSupplyChecklistItems,
+  CLEANING_ESSENTIALS_ITEMS,
   extraServiceNamesOf,
   hasCleaningEssentialsExtra,
   hasCleaningSuppliesExtra,
@@ -78,20 +79,25 @@ describe('supply-checklist.utils', () => {
       ]);
     });
 
-    // The whole point of the extra: it covers paper towels, garbage bags and the toilet brush,
-    // and NOT the broom/vacuum, which a cleaner cannot carry to every job.
-    it('Cleaning Essentials only: broom/vacuum plus the products we would have brought', () => {
+    // The broom joined the extra in 2026-09, so the whole group comes off at once and only the
+    // products Cleaning Supplies would have brought are left.
+    it('Cleaning Essentials only: just the products we would have brought', () => {
       expect(checklistFor(['cleaning essentials'])).toEqual([
-        'Broom or vacuum cleaner',
         'Zep liquids: Green, Floor (or similar)',
         'Windex liquid (or similar)',
         'Cleaning cloths, Sponge and Mop'
       ]);
     });
 
-    it('Supplies + Essentials: only the broom or vacuum cleaner', () => {
-      expect(checklistFor(['cleaning supplies', 'cleaning essentials']))
-        .toEqual(['Broom or vacuum cleaner']);
+    it('Supplies + Essentials: nothing at all', () => {
+      expect(checklistFor(['cleaning supplies', 'cleaning essentials'])).toEqual([]);
+    });
+
+    it('covers the broom, so it is never also asked for', () => {
+      expect(CLEANING_ESSENTIALS_ITEMS).toEqual(
+        ['Paper towels', 'Garbage bags', 'Toilet brush', 'Broom']
+      );
+      expect(checklistFor(['cleaning essentials'])).not.toContain('Broom or vacuum cleaner');
     });
 
     it('keeps the oven-cleaner rule when only Essentials was bought', () => {
@@ -118,15 +124,15 @@ describe('supply-checklist.utils', () => {
       ]);
     });
 
-    // All three bought leaves nothing. Surfaces must render this as "nothing to prepare"
-    // rather than as an empty bulleted box under a "please provide" heading.
+    // An empty checklist must render as "nothing to prepare" rather than as an empty bulleted
+    // box under a "please provide" heading. It now takes only Supplies + Essentials to reach.
     it('all three extras leave an empty checklist', () => {
       expect(checklistFor(['cleaning supplies', 'cleaning essentials', 'vacuum cleaner'])).toEqual([]);
     });
   });
 
   it('a custom service type never gets the products block', () => {
-    expect(buildSupplyChecklistItems(resolveSupplyChecklistFacts(['cleaning essentials'], true)))
-      .toEqual(['Broom or vacuum cleaner']);
+    expect(buildSupplyChecklistItems(resolveSupplyChecklistFacts([], true)))
+      .toEqual(['Paper towels', 'Garbage bags', 'Broom or vacuum cleaner', 'Toilet brush']);
   });
 });
