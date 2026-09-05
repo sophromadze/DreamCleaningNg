@@ -15,10 +15,10 @@ import {
 } from '../../../shared/booking/consent-texts';
 import { CARD_ON_FILE_ENABLED } from '../../../shared/card-on-file.flag';
 import {
+  buildSupplyChecklistItems,
   extraServiceNamesOf,
   hasCleaningSuppliesExtra,
-  requiresOvenCleaner,
-  zepLiquidsText as zepLiquids
+  resolveSupplyChecklistFacts
 } from '../../../shared/booking/supply-checklist.utils';
 
 @Component({
@@ -40,9 +40,13 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   orderTotal: number = 0;
   paymentType: 'order' | 'update' = 'order';
   hasCleaningSupplies = false;
-  /** Deep/Super Deep Cleaning OR the Oven Cleaning extra — see supply-checklist.utils. */
-  needsOvenCleaner = false;
   isCustomServiceType = false;
+  /**
+   * The customer's "please provide" list, straight from the shared checklist builder so this
+   * page, the confirmation email and the SMS cannot name different products. Empty means the
+   * customer bought their way out of every item — rendered as "nothing to prepare".
+   */
+  supplyChecklistItems: string[] = [];
   currentUser: any;
   cardError: string | null = null;
   isLoading = true;
@@ -197,8 +201,10 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
 
         const extraNames = extraServiceNamesOf(order.extraServices ?? []);
         this.hasCleaningSupplies = hasCleaningSuppliesExtra(extraNames);
-        this.needsOvenCleaner = requiresOvenCleaner(extraNames);
         this.isCustomServiceType = this.isCustomServiceTypeOrder(order);
+        this.supplyChecklistItems = buildSupplyChecklistItems(
+          resolveSupplyChecklistFacts(extraNames, this.isCustomServiceType)
+        );
 
         // Consent gate — see the field block above. Only the INITIAL payment of an
         // admin-created order asks; a pending additional amount never does.
@@ -241,10 +247,6 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         console.error('Error loading order:', error);
       }
     });
-  }
-
-  get zepLiquidsText(): string {
-    return zepLiquids(this.needsOvenCleaner);
   }
 
   private isCustomServiceTypeOrder(order: Order): boolean {

@@ -1809,13 +1809,20 @@
 
               <p><strong>If you skip this option, please have the above items ready for our team.</strong></p>
 
-              <p><strong>Always required (you provide):</strong></p>
-              <ul>
-                <li>Paper towels</li>
-                <li>Garbage bags</li>
-                <li>Broom or vacuum cleaner</li>
-                <li>Toilet brush</li>
+              <p><strong>Cleaning Essentials:</strong> add it and we bring the paper towels, garbage
+              bags and toilet brush too. A broom or vacuum cleaner is never included — please have
+              one at home, or add the Vacuum Cleaner extra service.</p>
+
+              <!-- Live for the CURRENT selection, from the same shared checklist the modal, the
+                   confirmation email and the order pages use — a static list here would go stale
+                   the moment Cleaning Essentials or Vacuum Cleaner is added. -->
+              <p><strong>You provide:</strong></p>
+              <ul *ngIf="modalSupplyChecklistItems.length > 0">
+                <li *ngFor="let item of modalSupplyChecklistItems">{{ item }}</li>
               </ul>
+              <p *ngIf="modalSupplyChecklistItems.length === 0">
+                Nothing — we bring everything for this cleaning.
+              </p>
             </div>
 
             <div class="additional-reminders">
@@ -1836,11 +1843,18 @@
           </div>
         </div>
 
-        <!-- Cleaning Supplies Confirmation Modal (Step 1) -->
+        <!-- Supplies & Essentials Modal (Step 1).
+             It offers the two supply extras and shows, live, what the customer is left to
+             provide. Cleaning Essentials is sold ONLY here — it is filtered out of the extras
+             grid — so this modal opens on Continue even when Cleaning Supplies is already
+             selected. The "you provide" list comes from the SHARED checklist builder, so it
+             cannot name different items from the confirmation email, the SMS or the order
+             pages. Both toggles go through the ordinary toggleExtraService, so an added extra
+             lands in the summary total and on the order like any other. -->
         <div class="dc-modal-backdrop" *ngIf="showCleaningSuppliesConfirm" (click)="closeCleaningSuppliesConfirm()">
-          <div class="dc-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Cleaning supplies confirmation">
+          <div class="dc-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Cleaning supplies and essentials">
             <div class="dc-modal-header">
-              <h3>Cleaning Supplies <span class="dc-modal-subtitle">({{ cleaningSuppliesCleaningTypeLabel }})</span></h3>
+              <h3>Supplies &amp; Essentials <span class="dc-modal-subtitle">({{ cleaningSuppliesCleaningTypeLabel }})</span></h3>
               <button type="button" class="dc-modal-close" (click)="closeCleaningSuppliesConfirm()" aria-label="Close">
                 <i class="fas fa-times"></i>
               </button>
@@ -1855,10 +1869,12 @@
                     <circle cx="12" cy="7.2" r="1.2" fill="currentColor"></circle>
                   </svg>
                 </span>
-                <span>If you skip this option, please have all the following items ready for our team.</span>
+                <span>Add what you'd like us to bring — anything you skip, please have ready for our team.</span>
               </div>
 
-              <div class="dc-modal-section dc-modal-section--green">
+              <!-- Cleaning Supplies: the products. Hidden once selected; the "you provide"
+                   list below is what confirms it took effect. -->
+              <div class="dc-modal-section dc-modal-section--green" *ngIf="cleaningSuppliesExtra">
                 <div class="dc-modal-section-header dc-modal-section-header--green">
                   <span class="dc-modal-section-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
@@ -1867,9 +1883,9 @@
                     </svg>
                   </span>
                   <span>
-                    If you select this option, we bring the following items:
+                    Cleaning Supplies — we bring:
                     <span class="dc-modal-cost" *ngIf="cleaningSuppliesExtraCost !== null">
-                      (adds {{ cleaningSuppliesExtraCost | currency:'USD':'symbol':'1.2-2' }})
+                      ({{ cleaningSuppliesExtraCost | currency:'USD':'symbol':'1.2-2' }})
                     </span>
                   </span>
                 </div>
@@ -1916,36 +1932,75 @@
                     <span>Mop</span>
                   </li>
                 </ul>
+
+                <button type="button"
+                        class="dc-modal-btn dc-modal-add"
+                        [class.dc-modal-add--added]="cleaningSuppliesSelected"
+                        (click)="toggleSupplyExtraFromModal(cleaningSuppliesExtra)">
+                  <i class="fas" [ngClass]="cleaningSuppliesSelected ? 'fa-check' : 'fa-plus'" aria-hidden="true"></i>
+                  {{ cleaningSuppliesSelected ? 'Added — tap to remove' : 'Add Cleaning Supplies' }}
+                </button>
               </div>
 
-              <div class="dc-modal-section dc-modal-section--amber">
-                <div class="dc-modal-section-header dc-modal-section-header--amber">
+              <!-- Cleaning Essentials: paper towels, garbage bags, toilet brush. Deliberately
+                   NOT the broom or vacuum — a cleaner can't carry one to every job, so the
+                   customer either owns one or adds the Vacuum Cleaner extra. -->
+              <div class="dc-modal-section dc-modal-section--green" *ngIf="cleaningEssentialsExtra">
+                <div class="dc-modal-section-header dc-modal-section-header--green">
                   <span class="dc-modal-section-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
-                      <path d="M12 3l10 18H2L12 3z" stroke="currentColor" stroke-width="2"></path>
-                      <path d="M12 9v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
-                      <circle cx="12" cy="17.2" r="1.2" fill="currentColor"></circle>
+                      <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"></circle>
+                      <path d="M7.8 12.3l2.7 2.7 5.7-6.2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
                     </svg>
                   </span>
-                  <span>Always required - Please provide the following items:</span>
+                  <span>
+                    Cleaning Essentials — we bring:
+                    <span class="dc-modal-cost" *ngIf="cleaningEssentialsExtraCost !== null">
+                      ({{ cleaningEssentialsExtraCost | currency:'USD':'symbol':'1.2-2' }})
+                    </span>
+                  </span>
                 </div>
 
-                <ul class="dc-modal-list dc-modal-list--dots">
-                  <li><span class="dc-li-dot" aria-hidden="true"></span><span>Paper towels</span></li>
-                  <li><span class="dc-li-dot" aria-hidden="true"></span><span>Garbage bags</span></li>
-                  <li><span class="dc-li-dot" aria-hidden="true"></span><span>Broom or vacuum cleaner</span></li>
-                  <li><span class="dc-li-dot" aria-hidden="true"></span><span>Toilet brush</span></li>
+                <ul class="dc-modal-list dc-modal-list--checks">
+                  <li *ngFor="let item of cleaningEssentialsItems">
+                    <span class="dc-li-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
+                        <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
+                      </svg>
+                    </span>
+                    <span>{{ item }}</span>
+                  </li>
                 </ul>
+
+                <!-- Dropped once the Vacuum Cleaner extra is on the order: at that point we ARE
+                     bringing one, so telling the customer to have one at home contradicts what
+                     they just paid for. Same condition the shared checklist uses to drop the
+                     "Broom or vacuum cleaner" line. -->
+                <p class="dc-modal-note dc-modal-note--warning" *ngIf="!vacuumIncluded">
+                  A broom or vacuum cleaner is not included — please have one at home, or add the
+                  Vacuum Cleaner extra service.
+                </p>
+
+                <button type="button"
+                        class="dc-modal-btn dc-modal-add"
+                        [class.dc-modal-add--added]="cleaningEssentialsSelected"
+                        (click)="toggleSupplyExtraFromModal(cleaningEssentialsExtra)">
+                  <i class="fas" [ngClass]="cleaningEssentialsSelected ? 'fa-check' : 'fa-plus'" aria-hidden="true"></i>
+                  {{ cleaningEssentialsSelected ? 'Added — tap to remove' : 'Add Cleaning Essentials' }}
+                </button>
               </div>
+
+              <!-- No "please provide the following items" recap here. The two sections above
+                   already spell out exactly what each extra covers, so a third list restating
+                   the leftovers was the same information a third time on one small screen. The
+                   full checklist still lives on step 3's accordion, the confirmation email, the
+                   SMS and the order pages — all from the same shared builder. -->
 
             </div>
 
             <div class="dc-modal-actions">
-              <button type="button" class="dc-modal-btn dc-modal-btn--primary" (click)="selectCleaningSuppliesAndContinue()">
-                Select &amp; continue
-              </button>
-              <button type="button" class="dc-modal-btn dc-modal-btn--secondary" (click)="continueWithoutCleaningSupplies()">
-                Continue without supplies
+              <button type="button" class="dc-modal-btn dc-modal-btn--primary" (click)="continueFromCleaningSuppliesConfirm()">
+                Continue
               </button>
             </div>
           </div>

@@ -438,6 +438,156 @@ describe('BookingComponent', () => {
   });
 
   /**
+   * CLEANING ESSENTIALS — paper towels, garbage bags and a toilet brush that WE bring.
+   *
+   * It is an ordinary priced extra everywhere in the system, with one exception: on the booking
+   * page it is sold only from the supplies modal, never as a card in the extras grid. Which
+   * means the modal has to open on Continue even when Cleaning Supplies is already selected —
+   * otherwise there is no way to buy it at all — and must stop opening once it IS selected,
+   * because at that point there is nothing left to offer.
+   */
+  describe('cleaning essentials are sold from the modal, not the grid', () => {
+    const serviceType = {
+      id: 1, name: 'Residential Cleaning', basePrice: 90, timeDuration: 120,
+      isCustom: false, isActive: true, services: [], extraServices: []
+    } as any;
+
+    const extra = (id: number, name: string, price: number, overrides: any = {}) => ({
+      id, name, price, duration: 0, priceMultiplier: 1,
+      isDeepCleaning: false, isSuperDeepCleaning: false, isSameDayService: false,
+      hasQuantity: false, hasHours: false, isActive: true, displayOrder: id,
+      ...overrides
+    }) as any;
+
+    const supplies = extra(1, 'Cleaning Supplies', 30);
+    const essentials = extra(2, 'Cleaning Essentials', 15);
+    const fridge = extra(3, 'Inside the Fridge', 40);
+
+    beforeEach(() => {
+      component.selectedServiceType = { ...serviceType, extraServices: [supplies, essentials, fridge] };
+      component.showCustomPricing = false;
+      component.showPollForm = false;
+      component.currentStep = 1;
+      component.selectedExtraServices = [];
+    });
+
+    it('is filtered out of the extras grid while ordinary extras stay', () => {
+      const offered = component.getFilteredExtraServices().map(e => e.name);
+
+      expect(offered).toEqual(['Cleaning Supplies', 'Inside the Fridge']);
+    });
+
+    // THE RULE: either extra still unbought means the modal opens. Both halves matter — the
+    // narrower "watch Essentials only" gate stopped offering Supplies to anyone who took
+    // Essentials, and left a mistaken Essentials purchase with no way back.
+    it('opens the modal while EITHER supply extra is still unselected', () => {
+      expect(component['shouldConfirmCleaningSuppliesBeforeContinuing']())
+        .withContext('neither selected').toBe(true);
+
+      component.selectedExtraServices = [{ extraService: supplies, quantity: 1, hours: 0 }] as any;
+      expect(component['shouldConfirmCleaningSuppliesBeforeContinuing']())
+        .withContext('supplies taken, essentials not').toBe(true);
+
+      component.selectedExtraServices = [{ extraService: essentials, quantity: 1, hours: 0 }] as any;
+      expect(component['shouldConfirmCleaningSuppliesBeforeContinuing']())
+        .withContext('essentials taken, supplies not').toBe(true);
+    });
+
+    it('stops opening the modal only once BOTH are on the order', () => {
+      component.selectedExtraServices = [
+        { extraService: supplies, quantity: 1, hours: 0 },
+        { extraService: essentials, quantity: 1, hours: 0 }
+      ] as any;
+
+      expect(component['shouldConfirmCleaningSuppliesBeforeContinuing']()).toBe(false);
+    });
+
+    // Configuration is respected rather than assumed. This is also the window before the admin
+    // creates the Cleaning Essentials row: the modal keeps its original Cleaning Supplies job.
+    it('only counts the supply extras this service type actually offers', () => {
+      component.selectedServiceType = { ...serviceType, extraServices: [supplies, fridge] };
+
+      expect(component['shouldConfirmCleaningSuppliesBeforeContinuing']())
+        .withContext('supplies unselected').toBe(true);
+
+      component.selectedExtraServices = [{ extraService: supplies, quantity: 1, hours: 0 }] as any;
+      expect(component['shouldConfirmCleaningSuppliesBeforeContinuing']())
+        .withContext('the only offered extra is taken').toBe(false);
+
+      component.selectedServiceType = { ...serviceType, extraServices: [fridge] };
+      component.selectedExtraServices = [];
+      expect(component['shouldConfirmCleaningSuppliesBeforeContinuing']())
+        .withContext('neither extra configured — never block').toBe(false);
+    });
+
+    it('adds it as an ordinary extra when taken from the modal', () => {
+      component.toggleSupplyExtraFromModal(component.cleaningEssentialsExtra);
+
+      expect(component.selectedExtraServices.map((s: any) => s.extraService.name))
+        .toEqual(['Cleaning Essentials']);
+      expect(component.cleaningEssentialsSelected).toBe(true);
+
+      // ...and can be taken back off from the same button.
+      component.toggleSupplyExtraFromModal(component.cleaningEssentialsExtra);
+      expect(component.selectedExtraServices).toEqual([]);
+    });
+
+    // The "you provide" list (step 3's accordion) is the shared checklist, so it shrinks as
+    // extras are added and always agrees with the confirmation email and SMS.
+    it('shrinks the you-provide list as the supply extras are added', () => {
+      expect(component.modalSupplyChecklistItems).toContain('Paper towels');
+
+      component.toggleSupplyExtraFromModal(component.cleaningEssentialsExtra);
+      expect(component.modalSupplyChecklistItems).not.toContain('Paper towels');
+      expect(component.modalSupplyChecklistItems).toContain('Broom or vacuum cleaner');
+
+      component.toggleSupplyExtraFromModal(component.cleaningSuppliesExtra);
+      expect(component.modalSupplyChecklistItems).toEqual(['Broom or vacuum cleaner']);
+    });
+
+    // Not a "show it once" modal: dismissing it with Continue, going back to step 1 and
+    // pressing Continue again must ask again, because nothing was bought in between.
+    it('reopens on every Continue until something is taken', () => {
+      spyOn(component, 'canProceedToNextStep').and.returnValue(true);
+
+      component.onNextButtonClick();
+      expect(component.showCleaningSuppliesConfirm).withContext('first Continue').toBe(true);
+
+      component.continueFromCleaningSuppliesConfirm();
+      expect(component.showCleaningSuppliesConfirm).withContext('dismissed').toBe(false);
+      component.previousStep();
+
+      component.onNextButtonClick();
+      expect(component.showCleaningSuppliesConfirm).withContext('second Continue').toBe(true);
+
+      // Taking BOTH is what finally lets Continue through untouched.
+      component.toggleSupplyExtraFromModal(component.cleaningSuppliesExtra);
+      component.toggleSupplyExtraFromModal(component.cleaningEssentialsExtra);
+      component.continueFromCleaningSuppliesConfirm();
+      component.previousStep();
+
+      component.onNextButtonClick();
+      expect(component.showCleaningSuppliesConfirm).withContext('both taken').toBe(false);
+    });
+
+    // The modal's broom reminder must disappear once we are bringing a vacuum — otherwise it
+    // contradicts the extra the customer just paid for.
+    it('drops the broom reminder once the Vacuum Cleaner extra is selected', () => {
+      const vacuum = extra(4, 'Vacuum Cleaner', 25);
+      component.selectedServiceType = {
+        ...serviceType, extraServices: [supplies, essentials, fridge, vacuum]
+      };
+
+      expect(component.vacuumIncluded).toBe(false);
+
+      component.selectedExtraServices = [{ extraService: vacuum, quantity: 1, hours: 0 }] as any;
+
+      expect(component.vacuumIncluded).toBe(true);
+      expect(component.modalSupplyChecklistItems).not.toContain('Broom or vacuum cleaner');
+    });
+  });
+
+  /**
    * Property type (apartment vs house) and levels.
    *
    * The rule the whole feature rests on: a house is not inherently more expensive than an

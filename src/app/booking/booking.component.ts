@@ -79,7 +79,16 @@ import {
   normalizePropertyType,
   serviceTypeCollectsPropertyType
 } from '../shared/booking/property-type.utils';
-import { extraServiceNamesOf, requiresOvenCleaner } from '../shared/booking/supply-checklist.utils';
+import {
+  buildSupplyChecklistItems,
+  CLEANING_ESSENTIALS_ITEMS,
+  extraServiceNamesOf,
+  hasVacuumExtra,
+  isCleaningEssentialsExtra,
+  isCleaningSuppliesExtra,
+  requiresOvenCleaner,
+  resolveSupplyChecklistFacts
+} from '../shared/booking/supply-checklist.utils';
 import {
   SMS_CONSENT_LEAD,
   CANCELLATION_CONSENT_TEXT,
@@ -5354,6 +5363,15 @@ export class BookingComponent implements OnInit, OnDestroy {
         return false;
       }
 
+      // Cleaning Essentials is sold ONLY from the supplies modal on Continue, so it never
+      // appears as a card here. Everywhere else — order-edit, reorder, recreate, the chat
+      // agent, the admin order editor — it is an ordinary extra and stays visible. Once
+      // bought it behaves like any other extra: it is priced, it reaches the order, and the
+      // admin panel and cleaner's job details list it by name.
+      if (isCleaningEssentialsExtra(extra.name)) {
+        return false;
+      }
+
       // Custom Pricing ("Pre-Arranged"): extras are informational only — they describe work for
       // the admin panel and the cleaner's job email and are priced at $0 / 0 min. Same Day
       // Service is neither of those: it is a scheduling modifier that forces the calendar to
@@ -5930,6 +5948,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (serviceName.includes('extra cleaners')) return 'fas fa-users';
     if (serviceName.includes('extra minutes')) return 'fas fa-clock';
     if (serviceName.includes('cleaning supplies')) return 'fas fa-spray-can';
+    if (serviceName.includes('cleaning essentials')) return 'fas fa-toilet-paper';
     if (serviceName.includes('vacuum cleaner')) return 'fas fa-stethoscope fa-flip-vertical';
     if (serviceName.includes('pets')) return 'fas fa-paw';
     if (serviceName.includes('fridge')) return 'fas fa-toilet-portable';
@@ -6190,17 +6209,17 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.setBodyScrollLock(false);
   }
 
-  selectCleaningSuppliesAndContinue(): void {
-    const extra = this.getCleaningSuppliesExtraService();
-    if (extra && !this.isExtraServiceSelected(extra)) {
-      this.toggleExtraService(extra);
-    }
-    this.showCleaningSuppliesConfirm = false;
-    this.setBodyScrollLock(false);
-    this.nextStep();
+  /**
+   * Add or remove one of the two supply extras from inside the modal. It goes through the same
+   * toggleExtraService every extras card uses, so the $15 lands in the summary total, the
+   * order records it, and the admin panel and the cleaner's job details see an ordinary extra.
+   */
+  toggleSupplyExtraFromModal(extra: ExtraService | null): void {
+    if (!extra) return;
+    this.toggleExtraService(extra);
   }
 
-  continueWithoutCleaningSupplies(): void {
+  continueFromCleaningSuppliesConfirm(): void {
     this.showCleaningSuppliesConfirm = false;
     this.setBodyScrollLock(false);
     this.nextStep();
@@ -6222,27 +6241,107 @@ export class BookingComponent implements OnInit, OnDestroy {
     );
   }
 
-  get cleaningSuppliesExtraCost(): number | null {
-    const extra = this.getCleaningSuppliesExtraService();
-    const price = extra?.price;
-    return typeof price === 'number' && !Number.isNaN(price) ? price : null;
+  get cleaningSuppliesExtra(): ExtraService | null {
+    return this.getCleaningSuppliesExtraService();
   }
 
+  get cleaningEssentialsExtra(): ExtraService | null {
+    return this.getCleaningEssentialsExtraService();
+  }
+
+  get cleaningSuppliesExtraCost(): number | null {
+    return this.extraServicePrice(this.getCleaningSuppliesExtraService());
+  }
+
+  get cleaningEssentialsExtraCost(): number | null {
+    return this.extraServicePrice(this.getCleaningEssentialsExtraService());
+  }
+
+  get cleaningSuppliesSelected(): boolean {
+    const extra = this.getCleaningSuppliesExtraService();
+    return !!extra && this.isExtraServiceSelected(extra);
+  }
+
+  get cleaningEssentialsSelected(): boolean {
+    const extra = this.getCleaningEssentialsExtraService();
+    return !!extra && this.isExtraServiceSelected(extra);
+  }
+
+  /** What Cleaning Essentials covers, listed in the modal. */
+  get cleaningEssentialsItems(): string[] {
+    return CLEANING_ESSENTIALS_ITEMS;
+  }
+
+  /**
+   * True once the Vacuum Cleaner extra is selected — we bring one. The modal's
+   * "please have a broom or vacuum at home" reminder is dropped in that case, because it
+   * contradicts what the customer has just paid for. Read through the same shared predicate
+   * that drops the matching line from the checklist, so the two can't disagree.
+   */
+  get vacuumIncluded(): boolean {
+    return hasVacuumExtra(extraServiceNamesOf(this.selectedExtraServices.map(s => s.extraService)));
+  }
+
+  /**
+   * The live "you provide" list inside the modal, built by the SHARED checklist so the modal
+   * agrees with the confirmation email, the SMS and the order pages. It reacts to the toggles
+   * in the modal itself, which is the point: the customer sees the list shrink as they add.
+   */
+  get modalSupplyChecklistItems(): string[] {
+    const names = extraServiceNamesOf(this.selectedExtraServices.map(s => s.extraService));
+    // The cleaning TYPE is a form control here rather than an extra, so fold it in — the
+    // stored order will carry the Deep Cleaning extra and reach the same answer.
+    const facts = resolveSupplyChecklistFacts(names, false);
+    return buildSupplyChecklistItems({
+      ...facts,
+      requiresOvenCleaner: facts.requiresOvenCleaner || this.cleaningType?.value === 'deep'
+    });
+  }
+
+  /**
+   * THE MODAL OPENS ON EVERY CONTINUE UNTIL BOTH SUPPLY EXTRAS ARE ON THE ORDER.
+   *
+   * "Either one is still unbought" is the whole rule (owner's call, 2026-09). It replaced a
+   * narrower gate that only watched Cleaning Essentials, which stopped asking the moment that
+   * one extra was taken — so a customer who added Essentials was never offered Supplies again,
+   * and one who added it by mistake could not reach the modal to take it back off. Cleaning
+   * Essentials is hidden from the extras grid, so this modal is the only place either of them
+   * can be changed from the booking page.
+   *
+   * It is deliberately not "shown once": going back to step 1 and pressing Continue again asks
+   * again, because the customer may have changed something in between. Once BOTH are selected
+   * there is nothing left to offer and Continue goes straight through.
+   *
+   * Configuration is respected rather than assumed: only extras that actually exist on this
+   * service type count, so a catalogue with just Cleaning Supplies keeps the modal's original
+   * behaviour, and one with neither never blocks. That is what covers the window before the
+   * admin-created "Cleaning Essentials" row exists.
+   */
   private shouldConfirmCleaningSuppliesBeforeContinuing(): boolean {
     // Only applies to regular bookings on step 1 (not poll, not custom pricing)
     if (this.currentStep !== 1) return false;
     if (this.showPollForm || this.showCustomPricing) return false;
     if (!this.selectedServiceType) return false;
 
-    const cleaningSuppliesExtra = this.getCleaningSuppliesExtraService();
-    if (!cleaningSuppliesExtra) return false; // If service type doesn't offer it, don't block
-    return !this.isExtraServiceSelected(cleaningSuppliesExtra);
+    const offered = [this.getCleaningSuppliesExtraService(), this.getCleaningEssentialsExtraService()]
+      .filter((e): e is ExtraService => !!e);
+
+    return offered.some(extra => !this.isExtraServiceSelected(extra));
   }
 
   private getCleaningSuppliesExtraService(): ExtraService | null {
     const extras = this.selectedServiceType?.extraServices || [];
-    const match = extras.find(e => (e?.name || '').toLowerCase().includes('cleaning supplies'));
-    return match || null;
+    return extras.find(e => isCleaningSuppliesExtra(e?.name)) || null;
+  }
+
+  private getCleaningEssentialsExtraService(): ExtraService | null {
+    const extras = this.selectedServiceType?.extraServices || [];
+    return extras.find(e => isCleaningEssentialsExtra(e?.name)) || null;
+  }
+
+  private extraServicePrice(extra: ExtraService | null): number | null {
+    const price = extra?.price;
+    return typeof price === 'number' && !Number.isNaN(price) ? price : null;
   }
 
   previousStep() {

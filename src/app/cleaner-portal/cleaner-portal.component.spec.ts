@@ -39,6 +39,7 @@ describe('CleanerPortalComponent', () => {
     customerName: 'Dana',
     address: '12 Fake St, Brooklyn, NY, 11201',
     bringCleaningSupplies: true,
+    bringCleaningEssentials: false,
     serviceDurationMinutes: 390,
     propertyType: 'House',
     levelsQuantity: 2,

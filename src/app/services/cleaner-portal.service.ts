@@ -67,6 +67,8 @@ export interface CleanerPortalJob {
    * email's "Supplies: required / not required" line reads.
    */
   bringCleaningSupplies: boolean;
+  /** Paper towels, garbage bags, toilet brush — the "Cleaning Essentials" extra. Never a broom or vacuum. */
+  bringCleaningEssentials: boolean;
 
   /** THIS cleaner's payroll hours - what they were told and are paid for, in minutes. */
   serviceDurationMinutes: number;

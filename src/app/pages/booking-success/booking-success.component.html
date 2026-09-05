@@ -18,31 +18,24 @@
         <a class="bubble-reward-info-btn" routerLink="/rewards">More info</a>
       </div>
 
+      <!-- One list, built by the shared checklist so this page can never name different
+           products from the confirmation email and SMS. It can legitimately come back empty
+           (Cleaning Supplies + Cleaning Essentials + Vacuum Cleaner all bought), which reads as
+           good news rather than as an empty box. -->
       <ng-container *ngIf="suppliesLoaded">
-        <div *ngIf="hasCleaningSupplies && !isCustomServiceType; else noSuppliesTemplate">
-          <p class="redirect-info">Please provide the following items:</p>
+        <p class="redirect-info" *ngIf="supplyChecklistItems.length === 0">
+          Nothing to prepare &mdash; we bring all the supplies for this cleaning.
+        </p>
+        <ng-container *ngIf="supplyChecklistItems.length > 0">
+          <p class="redirect-info">
+            {{ hasCleaningSupplies || isCustomServiceType
+                ? 'Please provide the following items:'
+                : 'Please have all the following items ready for our team:' }}
+          </p>
           <ul class="supplies-list">
-            <li>Paper towels</li>
-            <li>Garbage bags</li>
-            <li>Broom or vacuum cleaner</li>
-            <li>Toilet brush</li>
+            <li *ngFor="let item of supplyChecklistItems">{{ item }}</li>
           </ul>
-        </div>
-
-        <ng-template #noSuppliesTemplate>
-          <p class="redirect-info">Please have all the following items ready for our team:</p>
-          <ul class="supplies-list">
-            <li>Paper towels</li>
-            <li>Garbage bags</li>
-            <li>Broom or vacuum cleaner</li>
-            <li>Toilet brush</li>
-            <li *ngIf="!isCustomServiceType">
-              Zep liquids: {{ zepLiquidsText }}
-            </li>
-            <li *ngIf="!isCustomServiceType">Windex liquid (or similar)</li>
-            <li *ngIf="!isCustomServiceType">Cleaning cloths, Sponge and Mop</li>
-          </ul>
-        </ng-template>
+        </ng-container>
       </ng-container>
 
       

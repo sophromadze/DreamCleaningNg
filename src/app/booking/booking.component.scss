@@ -3195,17 +3195,22 @@
   flex-direction: column;
 }
 
+/* SPACING IS TIGHT HERE, TYPE IS NOT. The supplies modal has to hold two offers and a warning
+   without scrolling on a phone, so the paddings and gaps below are deliberately compact — but
+   16px is a hard floor for every font-size in this modal (the `rem` values never go under 1rem).
+   Anything smaller is unreadable for the older half of the customer base, and on iOS a sub-16px
+   control also triggers the auto-zoom. Buy the space back from padding, never from type. */
 .dc-modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 18px;
+  padding: 12px 14px;
   background: var(--surface-elevated, #f8f8f8);
   border-bottom: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
 
   h3 {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: 1.05rem; /* 16.8px */
     font-weight: 700;
     font-family: 'Poppins', sans-serif;
   }
@@ -3267,7 +3272,7 @@
 .dc-modal-subtitle {
   font-weight: 600;
   color: var(--text-secondary, #666);
-  font-size: 0.95rem;
+  font-size: 1rem; /* was 0.95rem = 15.2px — under the floor */
 }
 
 .dc-modal-cost {
@@ -3296,16 +3301,16 @@
 }
 
 .dc-modal-body {
-  padding: 16px 18px 6px;
-  font-size: 0.95rem;
-  line-height: 1.45;
+  padding: 12px 14px 4px;
+  font-size: 1rem; /* 16px floor — was 0.95rem */
+  line-height: 1.35;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   flex: 1;
 
   p {
-    margin: 0 0 10px;
+    margin: 0 0 8px;
     color: var(--text-secondary, #555);
   }
 
@@ -3315,23 +3320,23 @@
 }
 
 .dc-modal-section {
-  border-radius: 14px;
-  padding: 14px 14px 10px;
-  margin-bottom: 12px;
+  border-radius: 12px;
+  padding: 10px 11px 8px;
+  margin-bottom: 8px;
 }
 
 .dc-modal-section-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   font-weight: 700;
-  margin-bottom: 10px;
+  margin-bottom: 7px;
   font-family: 'Poppins', sans-serif;
 }
 
 .dc-modal-section-icon {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
@@ -3378,9 +3383,9 @@
 .dc-modal-list li {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 1px 0;
-  line-height: 1.35;
+  gap: 8px;
+  padding: 0;
+  line-height: 1.3;
   font-weight: 600;
 }
 
@@ -3405,16 +3410,16 @@
 }
 
 .dc-modal-alert {
-  border-radius: 12px;
-  padding: 10px 12px;
+  border-radius: 10px;
+  padding: 8px 10px;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: flex-start;
   background: #fcebeb;
   border: 1px solid rgba(121, 31, 31, 0.22);
   color: #791f1f;
   font-weight: 500;
-  margin: 2px 0 12px;
+  margin: 0 0 8px;
 }
 
 .dc-modal-alert-icon {
@@ -3425,8 +3430,8 @@
 
 .dc-modal-actions {
   display: flex;
-  gap: 10px;
-  padding: 14px 18px 18px;
+  gap: 8px;
+  padding: 10px 14px 12px;
   border-top: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
   background: var(--surface, #fff);
 
@@ -3447,60 +3452,67 @@
     max-height: 80vh;
   }
 
+  /* Phone: spacing tightens again, type does NOT — every font-size here stays at the 1rem floor.
+     The old 0.9rem body (14.4px) is exactly the case the floor exists to prevent. */
   .dc-modal-header {
-    padding: 12px 12px;
+    padding: 10px 11px;
     h3 {
       font-size: 1rem;
     }
   }
 
   .dc-modal-subtitle {
-    font-size: 0.9rem;
+    font-size: 1rem; /* was 0.9rem = 14.4px */
   }
 
   .dc-modal-close {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     border-radius: 10px;
   }
 
   .dc-modal-body {
-    padding: 12px 12px 6px;
-    font-size: 0.9rem;
+    padding: 10px 11px 4px;
+    font-size: 1rem; /* was 0.9rem = 14.4px */
     p {
-      margin-bottom: 8px;
+      margin-bottom: 7px;
     }
   }
 
   .dc-modal-section {
-    padding: 12px 12px 8px;
-    margin-bottom: 10px;
-    border-radius: 12px;
+    padding: 9px 10px 7px;
+    margin-bottom: 7px;
+    border-radius: 11px;
   }
 
   .dc-modal-section-header {
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: 7px;
+    margin-bottom: 6px;
   }
 
   .dc-modal-section-icon {
-    width: 26px;
-    height: 26px;
+    width: 22px;
+    height: 22px;
   }
 
   .dc-modal-list li {
-    gap: 8px;
-    padding: 1px 0;
+    gap: 7px;
+    padding: 0;
   }
 
   .dc-modal-alert {
-    padding: 9px 10px;
-    gap: 8px;
-    margin-bottom: 10px;
+    padding: 8px 9px;
+    gap: 7px;
+    margin-bottom: 7px;
+  }
+
+  .dc-modal-add {
+    margin-top: 7px;
+    min-height: 38px;
   }
 
   .dc-modal-actions {
-    padding: 12px 12px 12px;
+    padding: 10px 11px 11px;
     gap: 8px;
   }
 
@@ -3539,6 +3551,67 @@
   &:hover {
     background: rgba(0, 0, 0, 0.04);
   }
+}
+
+/* Add/remove toggle inside a supplies modal section. Lives on the green panel, which keeps the
+   same colours in light and dark mode, so these are matched to it rather than tokenized. */
+.dc-modal-add {
+  flex: none;
+  width: 100%;
+  margin-top: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 1rem; /* 16px floor — was 0.9rem */
+  background: #3b6d11;
+  color: #fff;
+  border-color: #3b6d11;
+
+  &:hover {
+    background: #325e0e;
+  }
+}
+
+.dc-modal-add--added {
+  background: transparent;
+  color: #3b6d11;
+  border-color: rgba(59, 109, 17, 0.45);
+
+  &:hover {
+    background: rgba(59, 109, 17, 0.08);
+  }
+}
+
+/* Plain clarification under a modal list. 1rem like everything else in this modal — 0.82rem
+   (13.1px) was well under the floor. */
+.dc-modal-note {
+  margin: 7px 0 0;
+  font-size: 1rem;
+  line-height: 1.3;
+  opacity: 0.85;
+}
+
+/* The "broom or vacuum is not included" line. It is the ONE thing in this modal the customer can
+   still get wrong on the day — everything else here is something we bring — so it is called out
+   in the warning colour. TEXT ONLY: no background, no border. `opacity` is dropped, or the
+   colour would be washed out of it.
+
+   Uses --warning-orange-text-STABLE, not --warning-orange-text: this note sits on
+   .dc-modal-section--green, which deliberately keeps its light green background in both themes,
+   so the dark-mode pale orange the normal token flips to would be nearly invisible here.
+
+   SELECTOR SCOPED ON PURPOSE. `.dc-modal-body p` above sets `color: var(--text-secondary)` and,
+   at 0-1-1, outranks a lone `.dc-modal-note--warning` at 0-1-0 — the note rendered plain grey in
+   day mode and plain white at night. `p.dc-modal-note--warning` inside the body is 0-2-1 and
+   wins on specificity, so no !important is needed. Keep the element qualifier if this moves. */
+.dc-modal-body p.dc-modal-note--warning {
+  margin-top: 7px;
+  opacity: 1;
+  font-weight: 600;
+  color: var(--warning-orange-text-stable);
 }
 
 // Single shimmer while special offers are loading (no card wrapper)

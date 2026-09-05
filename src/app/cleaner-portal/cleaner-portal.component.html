@@ -327,6 +327,14 @@
           <ng-container *ngIf="!selectedJob.bringCleaningSupplies">{{ t.suppliesProvided }}</ng-container>
         </div>
 
+        <!-- Essentials is its own banner for the same reason: paper towels, garbage bags and a
+             toilet brush are things somebody has to actually put in the car, and it is a separate
+             purchase from the supplies above. Never a broom or vacuum — that is its own extra. -->
+        <div class="supplies-flag" [class.supplies-flag--bring]="selectedJob.bringCleaningEssentials">
+          <ng-container *ngIf="selectedJob.bringCleaningEssentials">{{ t.essentialsBring }}</ng-container>
+          <ng-container *ngIf="!selectedJob.bringCleaningEssentials">{{ t.essentialsProvided }}</ng-container>
+        </div>
+
         <!-- Both instruction sources, each labelled with WHO wrote it: what the customer asked for
              and what the office added when staffing the job are different kinds of instruction. -->
         <div class="side-note" *ngIf="selectedJob.customerInstructions">
@@ -443,6 +451,10 @@
         <div class="detail-row">
           <span>Supplies</span>
           <strong>{{ selectedDetail.cleanerView.bringCleaningSupplies ? 'Cleaner brings them' : 'Customer provides them' }}</strong>
+        </div>
+        <div class="detail-row">
+          <span>Essentials</span>
+          <strong>{{ selectedDetail.cleanerView.bringCleaningEssentials ? 'Cleaner brings them' : 'Customer provides them' }}</strong>
         </div>
       </section>
 

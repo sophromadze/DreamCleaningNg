@@ -42,28 +42,20 @@
     
     <div *ngIf="errorMessage" class="error-message">{{ errorMessage }}</div>
   
+  <!-- One list, built by the shared checklist so this page can never name different products
+       from the confirmation email and SMS. It comes back empty when the customer bought
+       Cleaning Supplies + Cleaning Essentials + Vacuum Cleaner, which is good news, not an
+       empty box. -->
   <div *ngIf="!isLoading && order" class="prep-warning">
-    <div class="prep-title">Please provide the following items:</div>
-
-    <div *ngIf="hasCleaningSuppliesSelected(); else noSuppliesTemplate">
+    <ng-container *ngIf="supplyChecklistItems.length > 0; else nothingToPrepare">
+      <div class="prep-title">Please provide the following items:</div>
       <ul class="prep-list">
-        <li>Paper towels</li>
-        <li>Garbage bags</li>
-        <li>Broom or vacuum cleaner</li>
-        <li>Toilet brush</li>
+        <li *ngFor="let item of supplyChecklistItems">{{ item }}</li>
       </ul>
-    </div>
+    </ng-container>
 
-    <ng-template #noSuppliesTemplate>
-      <ul class="prep-list">
-        <li>Paper towels</li>
-        <li>Garbage bags</li>
-        <li>Broom or vacuum cleaner</li>
-        <li>Toilet brush</li>
-        <li>Zep liquids: {{ zepLiquidsText }}</li>
-        <li>Windex liquid (or similar)</li>
-        <li>Cleaning cloths, Sponge and Mop</li>
-      </ul>
+    <ng-template #nothingToPrepare>
+      <div class="prep-title">Nothing to prepare &mdash; we bring all the supplies for this cleaning.</div>
     </ng-template>
   </div>
 

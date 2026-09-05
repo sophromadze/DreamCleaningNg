@@ -1877,6 +1877,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     if (serviceName.includes('extra cleaners')) return 'fas fa-users';
     if (serviceName.includes('extra minutes')) return 'fas fa-clock';
     if (serviceName.includes('cleaning supplies')) return 'fas fa-spray-can';
+    if (serviceName.includes('cleaning essentials')) return 'fas fa-toilet-paper';
     if (serviceName.includes('vacuum cleaner')) return 'fas fa-stethoscope fa-flip-vertical';
     if (serviceName.includes('pets')) return 'fas fa-paw';
     if (serviceName.includes('fridge')) return 'fas fa-toilet-portable';

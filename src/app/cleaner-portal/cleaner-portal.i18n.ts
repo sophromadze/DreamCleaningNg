@@ -107,6 +107,10 @@ export interface PortalStrings {
   supplies: string;
   suppliesBring: string;
   suppliesProvided: string;
+  /** The "Cleaning Essentials" extra: paper towels, garbage bags, toilet brush. */
+  essentials: string;
+  essentialsBring: string;
+  essentialsProvided: string;
   customerInstructions: string;
   cleanerInstructions: string;
 
@@ -167,6 +171,9 @@ const EN: PortalStrings = {
   supplies: 'Supplies',
   suppliesBring: 'Bring cleaning supplies',
   suppliesProvided: 'Supplies not needed - the customer provides them',
+  essentials: 'Essentials',
+  essentialsBring: 'Bring the essentials: paper towels, garbage bags, toilet brush',
+  essentialsProvided: 'Essentials not needed - the customer provides them',
   customerInstructions: 'Instructions from the customer',
   cleanerInstructions: 'Instructions from the office',
 
@@ -230,6 +237,9 @@ const KA: PortalStrings = {
   supplies: 'ხსნარები',
   suppliesBring: 'წაიღეთ საწმენდი საშუალებები',
   suppliesProvided: 'ხსნარები არ არის საჭირო - მომხმარებელი უზრუნველყოფს',
+  essentials: 'საწმენდი ნივთები',
+  essentialsBring: 'წაიღეთ საწმენდი ნივთები: ხელსახოცები, ნაგვის პარკები, უნიტაზის ჯაგრისი',
+  essentialsProvided: 'საწმენდი ნივთები არ არის საჭირო - მომხმარებელი უზრუნველყოფს',
   customerInstructions: 'ინსტრუქცია მომხმარებლისგან',
   cleanerInstructions: 'ინსტრუქცია ოფისისგან',
 
@@ -288,6 +298,9 @@ const RU: PortalStrings = {
   supplies: 'Чистящие средства',
   suppliesBring: 'Возьмите с собой чистящие средства',
   suppliesProvided: 'Средства не нужны - их предоставляет клиент',
+  essentials: 'Расходные материалы',
+  essentialsBring: 'Возьмите расходные материалы: бумажные полотенца, мусорные пакеты, ёршик для унитаза',
+  essentialsProvided: 'Расходные материалы не нужны - их предоставляет клиент',
   customerInstructions: 'Инструкции от клиента',
   cleanerInstructions: 'Инструкции от офиса',
 
@@ -346,6 +359,9 @@ const ES: PortalStrings = {
   supplies: 'Productos de limpieza',
   suppliesBring: 'Lleve los productos de limpieza',
   suppliesProvided: 'No hacen falta productos - los proporciona el cliente',
+  essentials: 'Artículos básicos',
+  essentialsBring: 'Lleve los artículos básicos: toallas de papel, bolsas de basura, escobilla de inodoro',
+  essentialsProvided: 'No hacen falta artículos básicos - los proporciona el cliente',
   customerInstructions: 'Instrucciones del cliente',
   cleanerInstructions: 'Instrucciones de la oficina',
 

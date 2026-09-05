@@ -9,10 +9,8 @@ import { formatNyDate } from '../../../shared/ny-time.util';
 import { AuthService } from '../../../services/auth.service';
 import { ShiftService, ShiftAdmin } from '../../../services/shift.service';
 import {
-  extraServiceNamesOf,
-  hasCleaningSuppliesExtra,
-  requiresOvenCleaner,
-  zepLiquidsText as zepLiquids
+  buildSupplyChecklistItems,
+  resolveSupplyChecklistFactsForExtras
 } from '../../../shared/booking/supply-checklist.utils';
 
 @Component({
@@ -101,20 +99,17 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
     });
   }
 
-  hasCleaningSuppliesSelected(): boolean {
-    if (!this.order) return false;
-    // Custom service types don't use the cleaning-supplies workflow; always show essentials only.
-    if (this.isCustomServiceType()) return true;
-    return hasCleaningSuppliesExtra(extraServiceNamesOf(this.order.extraServices ?? []));
-  }
-
   /**
-   * Oven Cleaner liquid is needed for Deep/Super Deep Cleaning AND for the Oven Cleaning extra
-   * on its own — the checklist used to only look at the cleaning type. Same rule as the
-   * confirmation email/SMS (see shared/booking/supply-checklist.utils).
+   * The customer's "please provide" list, straight from the shared checklist builder so this
+   * page, the confirmation email and the SMS cannot name different products. Empty means the
+   * customer bought their way out of every item (Cleaning Supplies + Cleaning Essentials +
+   * Vacuum Cleaner), which the template renders as "nothing to prepare".
    */
-  get zepLiquidsText(): string {
-    return zepLiquids(requiresOvenCleaner(extraServiceNamesOf(this.order?.extraServices ?? [])));
+  get supplyChecklistItems(): string[] {
+    if (!this.order) return [];
+    return buildSupplyChecklistItems(
+      resolveSupplyChecklistFactsForExtras(this.order.extraServices ?? [], this.isCustomServiceType())
+    );
   }
 
   getServiceDuration(): number {

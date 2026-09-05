@@ -215,30 +215,22 @@
     <p>Your booking has been confirmed.</p>
     <p class="order-info">Order #{{ orderId }}</p>
 
-    <div *ngIf="hasCleaningSupplies && !isCustomServiceType; else noSuppliesTemplate">
-      <p class="redirect-info">Please provide the following items:</p>
+    <!-- One list, built by the shared checklist so this page can never name different products
+         from the confirmation email and SMS. It comes back empty when the customer bought
+         Cleaning Supplies + Cleaning Essentials + Vacuum Cleaner. -->
+    <p class="redirect-info" *ngIf="supplyChecklistItems.length === 0">
+      Nothing to prepare &mdash; we bring all the supplies for this cleaning.
+    </p>
+    <ng-container *ngIf="supplyChecklistItems.length > 0">
+      <p class="redirect-info">
+        {{ hasCleaningSupplies || isCustomServiceType
+            ? 'Please provide the following items:'
+            : 'Please have all the following items ready for our team:' }}
+      </p>
       <ul class="supplies-list">
-        <li>Paper towels</li>
-        <li>Garbage bags</li>
-        <li>Broom or vacuum cleaner</li>
-        <li>Toilet brush</li>
+        <li *ngFor="let item of supplyChecklistItems">{{ item }}</li>
       </ul>
-    </div>
-
-    <ng-template #noSuppliesTemplate>
-      <p class="redirect-info">Please have all the following items ready for our team:</p>
-      <ul class="supplies-list">
-        <li>Paper towels</li>
-        <li>Garbage bags</li>
-        <li>Broom or vacuum cleaner</li>
-        <li>Toilet brush</li>
-        <li *ngIf="!isCustomServiceType">
-          Zep liquids: {{ zepLiquidsText }}
-        </li>
-        <li *ngIf="!isCustomServiceType">Windex liquid (or similar)</li>
-        <li *ngIf="!isCustomServiceType">Cleaning cloths, Sponge and Mop</li>
-      </ul>
-    </ng-template>
+    </ng-container>
     
     <!-- Order pages need login, so guests paying via a link just get the confirmation above. -->
     <a *ngIf="!isGuestMode" [routerLink]="['/order', orderId]" class="view-order-btn">View Order Now</a>

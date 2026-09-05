@@ -167,6 +167,11 @@
   --warning-orange-text: #c2410c;    /* orange-700 — paired foreground on light bg */
   --warning-orange-bg: #ffedd5;      /* orange-100 */
   --warning-orange-border: rgba(249, 115, 22, 0.30);
+  /* THEME-STABLE warning text, for the few panels that keep a LIGHT background in both themes
+     (e.g. the booking supplies modal's green sections). --warning-orange-text flips to a pale
+     orange-300 under dark, which is correct on a dark surface and unreadable on those. Not
+     redefined in [data-theme="dark"] — that is the whole point of it. */
+  --warning-orange-text-stable: #c2410c;
 
   /* Star color (for review ratings) */
   --star-color: #facc15;             /* yellow-400, was hardcoded #ffd700 in many places */

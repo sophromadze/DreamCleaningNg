@@ -7,10 +7,10 @@ import { AuthService } from '../../services/auth.service';
 import { BubbleRewardsService } from '../../services/bubble-rewards.service';
 import { AnalyticsService, AnalyticsUserData } from '../../services/analytics.service';
 import {
+  buildSupplyChecklistItems,
   extraServiceNamesOf,
   hasCleaningSuppliesExtra,
-  requiresOvenCleaner,
-  zepLiquidsText as zepLiquids
+  resolveSupplyChecklistFacts
 } from '../../shared/booking/supply-checklist.utils';
 
 @Component({
@@ -24,10 +24,15 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
   orderId: string = '';
   order: Order | null = null;
   hasCleaningSupplies = false;
-  /** Deep/Super Deep Cleaning OR the Oven Cleaning extra — see supply-checklist.utils. */
-  needsOvenCleaner = false;
   isCustomServiceType = false;
   suppliesLoaded = false;
+  /**
+   * The customer's "please provide" list, straight from the shared checklist builder so this
+   * page, the confirmation email and the SMS cannot name different products. Empty means the
+   * customer bought their way out of every item — rendered as "nothing to prepare", never as
+   * an empty bulleted box.
+   */
+  supplyChecklistItems: string[] = [];
 
   // Bubble points earn preview
   bubblePointsEnabled = false;
@@ -70,8 +75,10 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
             const extraNames = extraServiceNamesOf(order.extraServices ?? []);
 
             this.hasCleaningSupplies = hasCleaningSuppliesExtra(extraNames);
-            this.needsOvenCleaner = requiresOvenCleaner(extraNames);
             this.isCustomServiceType = this.isCustomServiceTypeOrder(order);
+            this.supplyChecklistItems = buildSupplyChecklistItems(
+              resolveSupplyChecklistFacts(extraNames, this.isCustomServiceType)
+            );
             this.suppliesLoaded = true;
             this.loadEstimatedPoints(order);
             this.trackPurchaseConversion(order);
@@ -90,9 +97,6 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
     if (this.resendTimer) clearInterval(this.resendTimer);
   }
 
-  get zepLiquidsText(): string {
-    return zepLiquids(this.needsOvenCleaner);
-  }
 
   viewOrderNow() {
     const user = this.authService.currentUserValue;
