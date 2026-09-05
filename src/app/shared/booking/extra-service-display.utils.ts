@@ -12,6 +12,11 @@ export function getExtraServiceImage(extraService: { name: string }, isSelected:
   if (serviceName.includes('same day')) return `/images/same_day${suffix}.png`;
   if (serviceName.includes('extra cleaners')) return `/images/extra_cleaners${suffix}.png`;
   if (serviceName.includes('extra minutes')) return `/images/extra_minutes${suffix}.png`;
+  // The two supply extras are DIFFERENT purchases and get different icons — "cleaning
+  // essentials" (paper towels, garbage bags, toilet brush, broom) never matches "cleaning
+  // supplies" (the products), which is the same non-overlap the checklist relies on. Essentials
+  // is tested first only to keep the pair together; neither substring contains the other.
+  if (serviceName.includes('cleaning essentials')) return `/images/cleaning_essentials${suffix}.png`;
   if (serviceName.includes('cleaning supplies')) return `/images/cleaning_supplies${suffix}.png`;
   if (serviceName.includes('vacuum cleaner')) return `/images/vacuum_cleaner${suffix}.png`;
   if (serviceName.includes('pets')) return `/images/pets${suffix}.png`;

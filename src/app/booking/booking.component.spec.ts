@@ -435,6 +435,50 @@ describe('BookingComponent', () => {
 
       expect(offered).toEqual(['Inside the Fridge']);
     });
+
+    /**
+     * CLEANING ESSENTIALS IS A CARD ON A PRE-ARRANGED ORDER, unlike a regular booking where it
+     * is sold from the supplies modal on Continue. The modal never opens in custom mode, so
+     * hiding the card here left the extra with no way onto the order at all — and the row is
+     * what tells the cleaner to load the paper towels, garbage bags, toilet brush and broom
+     * (CleanerJobView.RequiresCleanerToBringEssentials reads the order's extras by name,
+     * whatever the service type). Both supply extras behave like every other custom-mode
+     * selection: recorded, and worth $0 / 0 minutes.
+     */
+    it('offers BOTH supply extras as cards, since the supplies modal never opens here', () => {
+      const supplies = extra(5, 'Cleaning Supplies', { price: 30 });
+      const essentials = extra(6, 'Cleaning Essentials', { price: 15 });
+      component.selectedServiceType = {
+        ...customServiceType,
+        extraServices: [fridge, deep, sameDay, extraCleaners, supplies, essentials]
+      };
+
+      const offered = component.getFilteredExtraServices().map(e => e.name);
+
+      expect(offered).toEqual(['Inside the Fridge', 'Cleaning Supplies', 'Cleaning Essentials']);
+      // ...and the modal stays out of the way on this path.
+      component.currentStep = 1;
+      expect(component['shouldConfirmCleaningSuppliesBeforeContinuing']()).toBe(false);
+    });
+
+    it('records the supply extras without charging for them', () => {
+      const supplies = extra(5, 'Cleaning Supplies', { price: 30 });
+      const essentials = extra(6, 'Cleaning Essentials', { price: 15 });
+      component.selectedServiceType = {
+        ...customServiceType,
+        extraServices: [fridge, supplies, essentials]
+      };
+      component.selectedExtraServices = [
+        { extraService: supplies, quantity: 1, hours: 0 },
+        { extraService: essentials, quantity: 1, hours: 0 }
+      ] as any;
+      component.customAmount.setValue('300');
+
+      component.calculateTotal();
+
+      expect(component.calculation.subTotal + component.calculation.tax).toBe(300);
+      expect(component.actualTotalDuration).toBe(480);
+    });
   });
 
   /**

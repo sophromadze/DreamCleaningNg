@@ -5363,11 +5363,20 @@ export class BookingComponent implements OnInit, OnDestroy {
       }
 
       // Cleaning Essentials is sold ONLY from the supplies modal on Continue, so it never
-      // appears as a card here. Everywhere else — order-edit, reorder, recreate, the chat
-      // agent, the admin order editor — it is an ordinary extra and stays visible. Once
-      // bought it behaves like any other extra: it is priced, it reaches the order, and the
-      // admin panel and cleaner's job details list it by name.
-      if (isCleaningEssentialsExtra(extra.name)) {
+      // appears as a card on a REGULAR booking. Everywhere else — order-edit, reorder,
+      // recreate, the chat agent, the admin order editor — it is an ordinary extra and stays
+      // visible. Once bought it behaves like any other extra: it is priced, it reaches the
+      // order, and the admin panel and cleaner's job details list it by name.
+      //
+      // Custom Pricing ("Pre-Arranged") is the exception, and it has to be one: the supplies
+      // modal is skipped entirely on that path (shouldConfirmCleaningSuppliesBeforeContinuing
+      // returns false for it), so hiding the card here left Essentials with NO way onto an
+      // admin's pre-arranged order at all. It shows as an ordinary informational card there —
+      // $0 and 0 minutes like every other custom-mode extra — because the CLEANER-facing half
+      // of the arrangement is not informational: CleanerJobView.RequiresCleanerToBringEssentials
+      // reads the order's extras by NAME, whatever the service type, so that row is what puts
+      // the Essentials line in the assignment email and SMS and the banner in the portal.
+      if (isCleaningEssentialsExtra(extra.name) && !this.showCustomPricing) {
         return false;
       }
 
