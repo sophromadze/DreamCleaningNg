@@ -1,0 +1,181 @@
+.contracts-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.filters {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.search-input,
+.status-select {
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-family: inherit;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--soft-blue);
+  }
+}
+
+.search-input { min-width: 260px; }
+
+.alert.error {
+  background: var(--soft-red);
+  color: var(--bright-red);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.95rem;
+  font-size: 0.87rem;
+}
+
+// The table scrolls inside its own box; the page itself never scrolls sideways.
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+.contracts-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+
+  th {
+    text-align: left;
+    padding: 0.75rem 0.9rem;
+    background: var(--surface-subtle);
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 0.75rem 0.9rem;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-primary);
+    vertical-align: top;
+  }
+
+  .num { text-align: right; }
+  .secondary { color: var(--text-secondary); font-size: 0.82rem; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.82rem; }
+  .sub { font-size: 0.72rem; color: var(--text-muted); }
+
+  tr.clickable {
+    cursor: pointer;
+    &:hover td { background: var(--soft-blue); }
+  }
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 0.25rem 0.65rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--soft-blue);
+  color: var(--primary-color);
+
+  // Paired foreground with each background, never mixed across states.
+  &[data-status="7"], &[data-status="8"] { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &[data-status="3"] { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+  &[data-status="9"], &[data-status="10"] { background: var(--soft-red); color: var(--bright-red); }
+}
+
+.empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1.25rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover { background: var(--primary-color-hover); }
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.btn-ghost {
+  background: var(--surface);
+  color: var(--primary-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 1.1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover { background: var(--soft-blue); }
+}
+
+.back-link {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0 0 0.5rem;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.hidden-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+
+  input { width: 1rem; height: 1rem; }
+}
+
+// A deleted row is legible but clearly marked, rather than looking like an ordinary contract
+// that happens to be in the list.
+.hidden-chip {
+  display: inline-block;
+  margin-left: 0.4rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-pill);
+  background: var(--soft-red);
+  color: var(--bright-red);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

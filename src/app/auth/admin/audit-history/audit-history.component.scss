@@ -410,12 +410,24 @@
 
   // Created and Deleted Values
   .created-values,
-  .deleted-values {
+  .deleted-values,
+  .recorded-values {
     .field-values-list {
       .value-item {
         padding: 2px 0;
       }
     }
+  }
+
+  // What the change happened TO — the cleaner's name on a payroll row, and the like. Sits above
+  // the diff and is deliberately quieter than it: it is the subject, not the change.
+  .audit-context {
+    padding: 5px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
   }
 
   // Loading State

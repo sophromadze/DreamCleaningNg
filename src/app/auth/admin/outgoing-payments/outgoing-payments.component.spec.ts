@@ -297,35 +297,79 @@ describe('OutgoingPaymentsComponent', () => {
     });
   });
 
-  describe('the order hourly rate', () => {
+  /**
+   * ONE editor holding the order's rate AND its hours, shaped like a cleaner's line. It was
+   * briefly two "Change" buttons, which made an admin decide what KIND of change they were making
+   * before they could type anything.
+   */
+  describe('the order defaults', () => {
     beforeEach(() => render());
 
-    it('seeds the editor with the order rate in force', () => {
-      component.startEditOrderRate(component.data!.orders[0]);
-      expect(component.editingOrderRate).toBe(true);
+    it('seeds the rate from the order and the hours from the AUTOMATIC split', () => {
+      // Seeding hours from a line that already carries an override would silently re-apply one
+      // person's exception to the crew.
+      component.startEditOrderDefaults(component.data!.orders[0]);
+
+      expect(component.editingOrderDefaults).toBe(true);
       expect(component.orderRateInput).toBe(21);
+      expect(component.orderHoursInput).toBe(4.5); // 270 minutes
     });
 
-    it('writes the new rate through to the order', () => {
+    it('writes the new rate through to the order, and sends no hours', () => {
+      // Re-sending the seeded HOURS would pin the automatic figure onto every line as an explicit
+      // override, and an explicit value stops tracking the order when it is re-priced.
       const o = component.data!.orders[0];
-      component.startEditOrderRate(o);
+      component.startEditOrderDefaults(o);
       component.orderRateInput = 25;
-      component.saveOrderRate(o);
+      component.saveOrderDefaults(o);
 
       const req = httpMock.expectOne(r => r.method === 'PUT' && r.url.endsWith('/hourly-rate'));
       expect(req.request.body).toEqual({ hourlyRate: 25 });
+      httpMock.expectNone(r => r.url.endsWith('/cleaner-hours'));
 
       req.flush(order({ orderHourlyRate: 25, totalSalary: 225 }));
       flushLoad(list([order({ orderHourlyRate: 25 })]));
 
-      expect(component.editingOrderRate).toBe(false);
+      expect(component.editingOrderDefaults).toBe(false);
+    });
+
+    it('sends both when both moved, rate first', () => {
+      // The rate call pins already-paid lines to the OLD rate before the order moves, and
+      // rate-then-hours is the order the two decisions were made in.
+      const o = component.data!.orders[0];
+      component.startEditOrderDefaults(o);
+      component.orderRateInput = 25;
+      component.orderHoursInput = 4.75;
+      component.saveOrderDefaults(o);
+
+      const rateReq = httpMock.expectOne(r => r.method === 'PUT' && r.url.endsWith('/hourly-rate'));
+      // Sequential: the hours call is not made until the rate call answers.
+      httpMock.expectNone(r => r.url.endsWith('/cleaner-hours'));
+      rateReq.flush(order({ orderHourlyRate: 25 }));
+
+      const hoursReq = httpMock.expectOne(r => r.method === 'PUT' && r.url.endsWith('/cleaner-hours'));
+      expect(hoursReq.request.body).toEqual({ billableMinutes: 285 });
+      hoursReq.flush(order({ orderHourlyRate: 25 }));
+      flushLoad(list([order({ orderHourlyRate: 25 })]));
+
+      expect(component.editingOrderDefaults).toBe(false);
+    });
+
+    it('saving an untouched editor writes nothing at all', () => {
+      // Two no-op writes would put two rows in the audit log saying nothing happened.
+      const o = component.data!.orders[0];
+      component.startEditOrderDefaults(o);
+      component.saveOrderDefaults(o);
+
+      httpMock.expectNone(r => r.method === 'PUT');
+      expect(component.editingOrderDefaults).toBe(false);
     });
 
     it('rejects a negative rate before it reaches the server', () => {
       const o = component.data!.orders[0];
-      component.startEditOrderRate(o);
+      component.startEditOrderDefaults(o);
       component.orderRateInput = -1;
-      component.saveOrderRate(o);
+      component.saveOrderDefaults(o);
 
       httpMock.expectNone(r => r.method === 'PUT');
       expect(component.error).toContain('zero or more');
@@ -342,6 +386,53 @@ describe('OutgoingPaymentsComponent', () => {
 
       expect(component.cleanersOnOrderRate(o)).toBe(1);
       expect(component.cleanersWithOwnRate(o)).toBe(1);
+    });
+
+    it('sends the hours in MINUTES, for every assigned cleaner at once', () => {
+      const o = component.data!.orders[0];
+      component.startEditOrderDefaults(o);
+      component.orderHoursInput = 4.75;
+      component.saveOrderDefaults(o);
+
+      const req = httpMock.expectOne(r => r.method === 'PUT' && r.url.endsWith('/cleaner-hours'));
+      expect(req.request.body).toEqual({ billableMinutes: 285 });
+
+      req.flush(order({ cleaners: [cleaner({ billableMinutes: 285, hoursOverridden: true })] }));
+      flushLoad(list([order()]));
+
+      expect(component.editingOrderDefaults).toBe(false);
+    });
+
+    it('resets with a NULL rather than re-sending the automatic figure', () => {
+      // A cleared override keeps tracking the order if its duration changes later; a re-typed one
+      // does not. Same rule as "reset to automatic" on a single line.
+      const o = order({ cleaners: [cleaner({ hoursOverridden: true })] });
+      component.resetOrderHoursToAutomatic(o);
+
+      const req = httpMock.expectOne(r => r.method === 'PUT' && r.url.endsWith('/cleaner-hours'));
+      expect(req.request.body).toEqual({ billableMinutes: null });
+
+      req.flush(order());
+      flushLoad(list([order()]));
+    });
+
+    it('rejects negative hours before they reach the server', () => {
+      const o = component.data!.orders[0];
+      component.startEditOrderDefaults(o);
+      component.orderHoursInput = -1;
+      component.saveOrderDefaults(o);
+
+      httpMock.expectNone(r => r.method === 'PUT');
+      expect(component.error).toContain('zero or more');
+    });
+
+    it('counts the lines carrying manual hours, so "reset" only offers itself when it would do something', () => {
+      const o = order({
+        cleaners: [cleaner(), cleaner({ orderCleanerId: 2, hoursOverridden: true })]
+      });
+
+      expect(component.cleanersWithOwnHours(o)).toBe(1);
+      expect(component.cleanersWithOwnHours(order())).toBe(0);
     });
   });
 

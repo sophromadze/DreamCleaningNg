@@ -5,7 +5,7 @@ import { round2 } from '../../../shared/pricing/order-pricing.calculator';
 
 import { testProviders } from '../../../../testing/test-providers';
 import { AdminService } from '../../../services/admin.service';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 
 describe('OrdersComponent', () => {
   let component: OrdersComponent;
@@ -1293,6 +1293,279 @@ describe('OrdersComponent', () => {
 
       component.selectedOrderPayroll!.storedTotalSalary = 175;
       expect(component.payrollDisagreesWithStored()).toBe(false);
+    });
+
+    /**
+     * Editing the wage breakdown from the Orders panel (2026-09).
+     *
+     * The figures are the SERVER's: every write answers with the whole breakdown and the panel
+     * redraws from it. What is tested here is the part that is genuinely the component's — who
+     * sees the controls, what gets SENT, and that the stored total is carried back onto the order
+     * so the panel's own headline cannot contradict the lines under it.
+     */
+    describe('editing the wage breakdown', () => {
+      const payroll = (over: any = {}) => ({
+        orderId: 315, totalSalary: 250, storedTotalSalary: 250, splitCount: 3, assignedCount: 2,
+        automaticMinutesPerCleaner: 240, orderHourlyRate: 25,
+        lines: [line({ orderCleanerId: 11 }), line({ orderCleanerId: 12, cleanerId: 2, firstName: 'Marekh' })],
+        unassignedLines: [line({ orderCleanerId: 0, cleanerId: 0, firstName: '', lastName: '', isUnassignedSlot: true })],
+        ...over
+      });
+
+      const admin = (role: string, canUpdate = true) => {
+        component.isSuperAdmin = role === 'SuperAdmin';
+        component.userRole = role;
+        component.userPermissions = { role, permissions: { canUpdate } } as any;
+      };
+
+      it('shows the wages to an Admin, not only to a SuperAdmin', () => {
+        // Admins staff the jobs and take the "we worked till six" call, so a breakdown they
+        // cannot see is a number they have to ask somebody else to check.
+        admin('Admin');
+        expect(component.canViewCleanerPayroll).toBe(true);
+        expect(component.canEditCleanerPayroll).toBe(true);
+      });
+
+      it('keeps a Moderator out — the endpoint answers them 403', () => {
+        admin('Moderator', false);
+        expect(component.canViewCleanerPayroll).toBe(false);
+        expect(component.canEditCleanerPayroll).toBe(false);
+      });
+
+      it('seeds a line editor with what is IN FORCE, not with the override', () => {
+        // Saving an untouched line then pins exactly what was already being paid, rather than
+        // some other number.
+        admin('SuperAdmin');
+        selectOrder();
+        component.selectedOrderPayroll = payroll() as any;
+
+        component.startEditPayrollLine(component.selectedOrderPayroll!.lines[0]);
+
+        expect(component.payrollEditingCleanerId).toBe(11);
+        expect(component.payrollEditHours).toBe(4);   // 240 minutes
+        expect(component.payrollEditRate).toBe(25);
+      });
+
+      it('never opens an editor on an unstaffed slot — there is no row to override', () => {
+        admin('SuperAdmin');
+        selectOrder();
+        component.selectedOrderPayroll = payroll() as any;
+
+        component.startEditPayrollLine(component.selectedOrderPayroll!.unassignedLines[0]);
+
+        expect(component.payrollEditingCleanerId).toBeNull();
+      });
+
+      it('sends hours in MINUTES and carries the new stored total back onto the order', () => {
+        admin('SuperAdmin');
+        selectOrder();
+        component.selectedOrderPayroll = payroll() as any;
+
+        const updated = payroll({ storedTotalSalary: 281.25, totalSalary: 281.25 });
+        const svc = TestBed.inject(AdminService);
+        const spy = spyOn(svc, 'updateOrderCleanerPayroll').and.returnValue(of(updated as any));
+        spyOn(svc, 'getOrdersStaffingWarnings').and.returnValue(of({}));
+
+        component.startEditPayrollLine(component.selectedOrderPayroll!.lines[0]);
+        component.payrollEditHours = 4.25;
+        component.savePayrollLine(component.selectedOrderPayroll!.lines[0]);
+
+        expect(spy).toHaveBeenCalledWith(315, 11, {
+          hourlyRate: 25, billableMinutes: 255, updateHourlyRate: true, updateBillableMinutes: true
+        });
+        // The panel's headline reads Order.CleanerTotalSalary, so leaving it stale would have it
+        // contradict the lines directly beneath it.
+        expect(component.selectedOrder!.cleanerTotalSalary).toBe(281.25);
+        expect(component.payrollEditingCleanerId).toBeNull();
+      });
+
+      it('carries the new figures onto the list row behind the panel', () => {
+        // The row is updated in place rather than by reloading the table: closing the panel must
+        // not leave the list quoting the salary from before the edit.
+        selectOrder();
+        const row = { id: 315, cleanerTotalSalary: 250, cleanerHourlyRate: 25 } as any;
+        component.orders = [row];
+
+        (component as any).applyPayrollTotalsToOrder(315, payroll({
+          storedTotalSalary: 281.25, orderHourlyRate: 28
+        }));
+
+        expect(row.cleanerTotalSalary).toBe(281.25);
+        expect(row.cleanerHourlyRate).toBe(28);
+        expect(component.selectedOrder!.cleanerHourlyRate).toBe(28);
+
+        // Rendering a partial row through the real table template is not what this test is about.
+        component.orders = [];
+      });
+
+      it('clears an override with nulls rather than re-typing the automatic figure', () => {
+        // A cleared override keeps tracking the order if it is re-priced later; a re-typed one
+        // does not. That difference is the whole reason "reset" sends null.
+        admin('SuperAdmin');
+        selectOrder();
+        component.selectedOrderPayroll = payroll() as any;
+
+        const svc = TestBed.inject(AdminService);
+        const spy = spyOn(svc, 'updateOrderCleanerPayroll').and.returnValue(of(payroll() as any));
+        spyOn(svc, 'getOrdersStaffingWarnings').and.returnValue(of({}));
+
+        component.resetPayrollLineToAutomatic(component.selectedOrderPayroll!.lines[1]);
+
+        expect(spy).toHaveBeenCalledWith(315, 12, {
+          hourlyRate: null, billableMinutes: null, updateHourlyRate: true, updateBillableMinutes: true
+        });
+      });
+
+      /**
+       * ONE order-level editor holding both figures, shaped like the per-cleaner one. It was
+       * briefly two buttons, which made an admin decide what KIND of change they were making
+       * before they could type anything.
+       */
+      describe('the for-all editor', () => {
+        beforeEach(() => {
+          admin('SuperAdmin');
+          selectOrder();
+          component.selectedOrderPayroll = payroll() as any;
+        });
+
+        it('seeds hours from the AUTOMATIC split and the rate from the order', () => {
+          // Seeding hours from a line that already carries an override would silently re-apply
+          // one person's exception to the whole crew.
+          component.startEditPayrollForAll();
+
+          expect(component.payrollAllHoursInput).toBe(4);   // 240 minutes
+          expect(component.payrollAllRateInput).toBe(25);
+        });
+
+        it('sends ONLY the hours when only the hours moved', () => {
+          // Re-sending the seeded rate would be harmless; re-sending the seeded HOURS would not —
+          // it writes an explicit override of the automatic figure onto every line, and an
+          // explicit value stops tracking the order when it is re-priced.
+          const svc = TestBed.inject(AdminService);
+          const hoursSpy = spyOn(svc, 'updateOrderCleanerHours').and.returnValue(of(payroll() as any));
+          const rateSpy = spyOn(svc, 'updateOrderCleanerHourlyRate').and.returnValue(of(payroll() as any));
+          spyOn(svc, 'getOrdersStaffingWarnings').and.returnValue(of({}));
+
+          component.startEditPayrollForAll();
+          component.payrollAllHoursInput = 4.25;
+          component.savePayrollForAll();
+
+          expect(hoursSpy).toHaveBeenCalledWith(315, 255);
+          expect(rateSpy).not.toHaveBeenCalled();
+        });
+
+        it('sends ONLY the rate when only the rate moved', () => {
+          const svc = TestBed.inject(AdminService);
+          const hoursSpy = spyOn(svc, 'updateOrderCleanerHours').and.returnValue(of(payroll() as any));
+          const rateSpy = spyOn(svc, 'updateOrderCleanerHourlyRate').and.returnValue(of(payroll() as any));
+          spyOn(svc, 'getOrdersStaffingWarnings').and.returnValue(of({}));
+
+          component.startEditPayrollForAll();
+          component.payrollAllRateInput = 28;
+          component.savePayrollForAll();
+
+          expect(rateSpy).toHaveBeenCalledWith(315, 28);
+          expect(hoursSpy).not.toHaveBeenCalled();
+        });
+
+        it('sends both when both moved, rate first', () => {
+          // The rate call pins already-paid lines to the OLD rate before the order moves, and
+          // rate-then-hours is the order the two decisions were made in.
+          const calls: string[] = [];
+          const svc = TestBed.inject(AdminService);
+          spyOn(svc, 'updateOrderCleanerHourlyRate').and.callFake(() => {
+            calls.push('rate');
+            return of(payroll() as any);
+          });
+          spyOn(svc, 'updateOrderCleanerHours').and.callFake(() => {
+            calls.push('hours');
+            return of(payroll({ storedTotalSalary: 300 }) as any);
+          });
+          spyOn(svc, 'getOrdersStaffingWarnings').and.returnValue(of({}));
+
+          component.startEditPayrollForAll();
+          component.payrollAllHoursInput = 4.25;
+          component.payrollAllRateInput = 28;
+          component.savePayrollForAll();
+
+          expect(calls).toEqual(['rate', 'hours']);
+          // The LAST response is the state after both changes.
+          expect(component.selectedOrder!.cleanerTotalSalary).toBe(300);
+          expect(component.editingPayrollForAll).toBe(false);
+        });
+
+        it('saving an untouched editor writes nothing at all', () => {
+          // Two no-op writes would put two rows in the audit log saying nothing happened.
+          const svc = TestBed.inject(AdminService);
+          const hoursSpy = spyOn(svc, 'updateOrderCleanerHours');
+          const rateSpy = spyOn(svc, 'updateOrderCleanerHourlyRate');
+
+          component.startEditPayrollForAll();
+          component.savePayrollForAll();
+
+          expect(hoursSpy).not.toHaveBeenCalled();
+          expect(rateSpy).not.toHaveBeenCalled();
+          expect(component.editingPayrollForAll).toBe(false);
+        });
+
+        it('still sets the order rate with nobody assigned, and asks for no hours', () => {
+          // There is no assignment row for an override to live on, but the rate is worth setting
+          // ahead of staffing the job.
+          component.selectedOrderPayroll = payroll({
+            assignedCount: 0, lines: [], unassignedLines: []
+          }) as any;
+
+          const svc = TestBed.inject(AdminService);
+          const hoursSpy = spyOn(svc, 'updateOrderCleanerHours');
+          const rateSpy = spyOn(svc, 'updateOrderCleanerHourlyRate').and.returnValue(of(payroll() as any));
+          spyOn(svc, 'getOrdersStaffingWarnings').and.returnValue(of({}));
+
+          component.startEditPayrollForAll();
+          component.payrollAllRateInput = 28;
+          component.savePayrollForAll();
+
+          expect(rateSpy).toHaveBeenCalledWith(315, 28);
+          expect(hoursSpy).not.toHaveBeenCalled();
+        });
+
+        it('opening it closes a half-typed line editor', () => {
+          // Two half-typed figures on screen invite saving the wrong one.
+          component.startEditPayrollLine(component.selectedOrderPayroll!.lines[0]);
+          component.startEditPayrollForAll();
+
+          expect(component.payrollEditingCleanerId).toBeNull();
+          expect(component.editingPayrollForAll).toBe(true);
+        });
+
+        it('reports a rejected write beside the block, not in the page banner', () => {
+          const svc = TestBed.inject(AdminService);
+          spyOn(svc, 'updateOrderCleanerHours').and.returnValue(
+            throwError(() => ({ error: { message: 'Nobody is assigned to this order yet.' } })));
+
+          component.startEditPayrollForAll();
+          component.payrollAllHoursInput = 5;
+          component.savePayrollForAll();
+
+          expect(component.payrollError).toBe('Nobody is assigned to this order yet.');
+          expect(component.errorMessage).toBe('');
+        });
+      });
+
+      it('says the change reaches everyone, including lines set by hand', () => {
+        // "Every cleaner" means every cleaner (owner's call): a line carrying its own rate is
+        // dropped back onto the order's. What it still cannot move earns its own sentence — an
+        // unstaffed slot has no row for an override, and a paid line keeps what it was paid at.
+        selectOrder();
+        component.selectedOrderPayroll = payroll({
+          lines: [line({ orderCleanerId: 11 }), line({ orderCleanerId: 12, rateOverridden: true })]
+        }) as any;
+
+        const reach = component.payrollForAllReach();
+        expect(reach).toContain('including any set by hand');
+        expect(reach).toContain('1 unstaffed slot');
+        expect(reach).toContain('automatic split');
+        expect(reach).toContain('already paid');
+      });
     });
 
   });

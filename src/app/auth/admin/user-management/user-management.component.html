@@ -578,6 +578,59 @@
                 </span>
               </ng-container>
 
+              <!-- Officer title. Moved here from the Contracts tab (2026-09) so it sits with the
+                   other facts about who this person is, beside Role and Position.
+                   Shown on staff accounts only, and deliberately wider than the Position section
+                   above: a SuperAdmin can hold a title too, which is who the officers actually are.
+                   Its authority is NOT the role hierarchy — see the caption when it is locked. -->
+              <ng-container *ngIf="isOfficerTitleApplicable(selectedUser)">
+                <span class="pref-row page-access-head">
+                  <span class="pref-label">Officer title</span>
+                  <span class="pref-hint">Grants full contract access (CEO), plus Void and title assignment (CTO)</span>
+                </span>
+                <span class="pref-row">
+                  <span class="pref-label pref-label-sub">Title</span>
+                  <select class="role-select"
+                          *ngIf="canAssignOrgTitle"
+                          [ngModel]="selectedUser.orgTitle || 'None'"
+                          [disabled]="savingOrgTitleUserId === selectedUser.id"
+                          (ngModelChange)="updateOrgTitle(selectedUser, $event)">
+                    <option *ngFor="let option of orgTitleOptions" [value]="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                  <!-- Read-only for anyone the bootstrap/locked rule does not authorise, with the
+                       same explanation the old Contracts panel gave. -->
+                  <strong *ngIf="!canAssignOrgTitle">{{ selectedUser.orgTitle || 'None' }}</strong>
+                </span>
+                <span class="pref-row" *ngIf="!canAssignOrgTitle">
+                  <span class="pref-label pref-label-sub"></span>
+                  <span class="pref-hint">{{ orgTitleLockReason }}</span>
+                </span>
+              </ng-container>
+
+              <!-- Business flag. Also moved here from the Contracts tab (2026-09). Customer
+                   accounts only, and gated by the CONTRACTS permission matrix rather than the
+                   role hierarchy, which is why the answer comes from the server. -->
+              <ng-container *ngIf="isBusinessFlagApplicable(selectedUser)">
+                <span class="pref-row page-access-head">
+                  <span class="pref-label">Business account</span>
+                  <span class="pref-hint">Required before this customer can be given a commercial contract</span>
+                </span>
+                <span class="pref-row">
+                  <span class="pref-label pref-label-sub">Is a business</span>
+                  <span class="yes-no-toggle" *ngIf="canToggleBusinessFlag">
+                    <span class="yn-btn" [class.active]="selectedUser.isBusiness"
+                          (click)="toggleBusinessFlag(selectedUser, true, $event)"
+                          [class.disabled]="togglingBusinessUserId === selectedUser.id">Yes</span>
+                    <span class="yn-btn" [class.active]="!selectedUser.isBusiness"
+                          (click)="toggleBusinessFlag(selectedUser, false, $event)"
+                          [class.disabled]="togglingBusinessUserId === selectedUser.id">No</span>
+                  </span>
+                  <strong *ngIf="!canToggleBusinessFlag">{{ selectedUser.isBusiness ? 'Yes' : 'No' }}</strong>
+                </span>
+              </ng-container>
+
               <!-- Page access: SuperAdmin grants a regular Admin read-only access to
                    restricted pages (Statistics / Expenses / Bubble Rewards). -->
               <ng-container *ngIf="canManagePageAccess(selectedUser)">

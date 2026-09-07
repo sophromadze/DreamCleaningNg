@@ -557,6 +557,10 @@ export interface UserAdmin {
   flag?: string;
   /** Optional admin note on why this customer is flagged. */
   flagReason?: string | null;
+  /** Marks a customer account as a business — the prerequisite for a commercial contract. */
+  isBusiness?: boolean;
+  /** Officer title on a staff account: 'None' | 'CEO' | 'CTO'. */
+  orgTitle?: string;
 }
 
 // ── Customer-care notes & photos ──
@@ -694,6 +698,9 @@ export interface SuperAdminUpdateOrderDto {
 /** One cleaner's (or one unstaffed slot's) WAGES on an order. Tips are excluded — they are the
  *  customer's money passing through and are never part of reported labour cost. */
 export interface OrderCleanerPayrollLine {
+  /** The ASSIGNMENT row's id — how an edit addresses this line. 0 on an unassigned slot, which
+   *  is why those cannot be edited: there is no row to hang an override on. */
+  orderCleanerId: number;
   cleanerId: number;
   firstName: string;
   lastName: string;
@@ -725,8 +732,8 @@ export interface OrderCleanerPayroll {
   lines: OrderCleanerPayrollLine[];
   /** Counted inside totalSalary — somebody worked those hours, they are just not on file. */
   unassignedLines: OrderCleanerPayrollLine[];
-  // The staffing warnings are NOT here: this response is SuperAdmin-only because it carries
-  // wages, and the warnings have to reach Admins too. See getOrdersStaffingWarnings.
+  // The staffing warnings are NOT here: they come from their own endpoint and cover orders this
+  // breakdown was never asked about. See getOrdersStaffingWarnings.
 }
 
 /**
@@ -1851,11 +1858,58 @@ export class AdminService {
 
   /**
    * The cleaner-wage breakdown behind an order's "Cleaners Total Salary" — the same figures the
-   * Outgoing Payments page pays, itemised. SuperAdmin only; do not call it for other roles, the
-   * endpoint will 403.
+   * Outgoing Payments page pays, itemised. **Admin and SuperAdmin** (2026-09): Admins staff the
+   * jobs and take the "we worked till six" call, so a breakdown they cannot see is a number they
+   * have to ask somebody else about. Moderators are View-only and out.
    */
   getOrderCleanerPayroll(orderId: number): Observable<OrderCleanerPayroll> {
     return this.http.get<OrderCleanerPayroll>(`${this.apiUrl}/orders/${orderId}/cleaner-payroll`);
+  }
+
+  /**
+   * Changes ONE cleaner's rate and/or paid hours on an order, from the Orders panel.
+   *
+   * Same payload and same server-side rules as the Outgoing Payments page's line editor — one
+   * shared service writes both — so a figure set here is the figure that page pays. Null with the
+   * matching `update*` flag CLEARS an override, which is not the same as typing the automatic
+   * number back in: a cleared override keeps tracking the order if it is re-priced.
+   *
+   * Every payroll write answers with the WHOLE breakdown, so the panel redraws from the response
+   * rather than patching itself and hoping it matches what was stored.
+   */
+  updateOrderCleanerPayroll(
+    orderId: number,
+    orderCleanerId: number,
+    payload: {
+      hourlyRate: number | null;
+      billableMinutes: number | null;
+      updateHourlyRate: boolean;
+      updateBillableMinutes: boolean;
+    }
+  ): Observable<OrderCleanerPayroll> {
+    return this.http.put<OrderCleanerPayroll>(
+      `${this.apiUrl}/orders/${orderId}/cleaner-payroll/cleaner/${orderCleanerId}`, payload);
+  }
+
+  /**
+   * Sets the paid hours for EVERY assigned cleaner on the order — "they all stayed another
+   * quarter of an hour". Null clears the overrides and returns the order to the automatic split.
+   *
+   * Does not touch the order's TotalDuration: that is what the customer was quoted and priced on.
+   */
+  updateOrderCleanerHours(orderId: number, billableMinutes: number | null): Observable<OrderCleanerPayroll> {
+    return this.http.put<OrderCleanerPayroll>(
+      `${this.apiUrl}/orders/${orderId}/cleaner-payroll/hours`, { billableMinutes });
+  }
+
+  /**
+   * Sets the ORDER's cleaner hourly rate — the default every assigned cleaner without their own
+   * rate is paid at — and writes it onto the order, so Statistics and Finances follow. Distinct
+   * from the edit form's "Cleaner $/hr" box, which only lands as part of a full order save.
+   */
+  updateOrderCleanerHourlyRate(orderId: number, hourlyRate: number): Observable<OrderCleanerPayroll> {
+    return this.http.put<OrderCleanerPayroll>(
+      `${this.apiUrl}/orders/${orderId}/cleaner-payroll/hourly-rate`, { hourlyRate });
   }
 
   /**

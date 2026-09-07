@@ -223,7 +223,18 @@
                   <!-- Standard view for other entity types (only when not a merged log) -->
                   <div *ngIf="log.entityType !== 'CleanerAssignment' && log.entityType !== 'UserLoyaltyDiscount' && !log.hasServiceChanges">
                     <!-- REMOVED: The "Updated:" label as requested -->
-                    
+
+                    <!-- What the change happened TO. Only for purpose-built payloads (a payroll
+                         override, a payout) — these keys are equal on both sides, so they never
+                         appear in the diff, and without them the table below says a rate went from
+                         $20 to $21 without ever saying whose. -->
+                    <div *ngIf="contextFields(log).length > 0" class="audit-context">
+                      <div class="context-item" *ngFor="let field of contextFields(log)">
+                        <strong>{{ getFieldDisplayName(field) }}:</strong>
+                        {{ getFieldDisplayValue(log.newValues[field], field) }}
+                      </div>
+                    </div>
+
                     <!-- Show changed fields for updates -->
                     <div *ngIf="showChangedFields(log) && hasMeaningfulChangedFields(log)" class="changed-fields">
                       <h4>Changed Fields</h4>
@@ -274,6 +285,21 @@
                           <div *ngIf="shouldShowField(key)">
                             <strong>{{ getFieldDisplayName(key) }}:</strong>
                             {{ getFieldDisplayValue(log.oldValues[key], key) }}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- A one-sided payload under a custom action verb: a payout event, a sync
+                         summary. There is no "before" to diff against, so it is rendered as what
+                         was recorded. Without this block these rows expanded to nothing at all. -->
+                    <div *ngIf="showRecordedValues(log)" class="recorded-values">
+                      <h4>{{ getActionDisplayLabel(log.action) }}</h4>
+                      <div class="field-values-list">
+                        <div *ngFor="let key of getObjectKeys(recordedValues(log))" class="value-item">
+                          <div *ngIf="shouldShowField(key)">
+                            <strong>{{ getFieldDisplayName(key) }}:</strong>
+                            {{ getFieldDisplayValue(recordedValues(log)[key], key) }}
                           </div>
                         </div>
                       </div>

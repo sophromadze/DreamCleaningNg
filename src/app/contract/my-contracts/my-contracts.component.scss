@@ -1,0 +1,110 @@
+// The list page reuses the client-facing contract chrome (cards, headings, status pills) from
+// contract-review.component.scss, which this component lists FIRST in its styleUrls — the same
+// pattern order-edit uses with booking. Only the list itself is defined here.
+
+.awaiting-banner {
+  margin-top: 0.85rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--soft-yellow);
+  color: var(--soft-yellow-text);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.contract-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.contract-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover, &:focus-visible {
+    background: var(--soft-blue);
+    border-color: var(--primary-color);
+    outline: none;
+  }
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
+
+.row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.row-number {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.row-location {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+.row-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+
+  @media (max-width: 640px) { align-items: flex-start; }
+}
+
+.row-status {
+  display: inline-block;
+  padding: 0.22rem 0.65rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--soft-blue);
+  color: var(--primary-color);
+
+  // Paired foreground with each background, never mixed across states.
+  &.awaiting { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+  &.executed { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+}
+
+.row-date {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.row-action {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.needs-you {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--soft-yellow-text);
+}
+
+.chevron {
+  color: var(--text-muted);
+  font-size: 1.3rem;
+  line-height: 1;
+}

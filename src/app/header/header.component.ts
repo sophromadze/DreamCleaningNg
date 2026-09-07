@@ -10,6 +10,7 @@ import { ThemeService } from '../services/theme.service';
 import { NewOrderNotificationService } from '../services/new-order-notification.service';
 import { TaskService } from '../services/task.service';
 import { BlogService } from '../services/blog.service';
+import { ContractService } from '../services/contract.service';
 import { BlogStatusService } from '../services/blog-status.service';
 import { SignalRService } from '../services/signalr.service';
 import { PhoneNumberService } from '../services/phone-number.service';
@@ -45,6 +46,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
   hasUncheckedDoneTasks = false; // Track if admin has unchecked completed tasks they created
   pendingBlogDrafts = 0; // AI blog drafts waiting for review (staff badge)
   blogPublicVisible = false; // Admin-driven master switch; false = "Soon" span (safe default)
+  /** Business customer with at least one contract — drives the My Contracts menu entry. */
+  hasContracts = false;
   stickyCtaVisible = false; // When true, hide header mobile call icon (sticky CTA bar is shown)
   nyTime: string = ''; // Live New York time for admins/superadmins
   private nyTimeInterval: any;
@@ -62,6 +65,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private newOrderNotificationService: NewOrderNotificationService,
     private taskService: TaskService,
     private blogService: BlogService,
+    private contractService: ContractService,
     private blogStatusService: BlogStatusService,
     private signalRService: SignalRService,
     public phoneNumber: PhoneNumberService,
@@ -129,6 +133,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
         if (this.isInternalUser) {
           this.checkPendingBlogDrafts();
         }
+        // Business customers with at least one contract get a My Contracts entry.
+        this.checkMyContracts();
       } else if (isInitialized) {
         // Only clear user data if auth service is initialized and user is null
         this.currentUser = null;
@@ -245,6 +251,13 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   /** Show the single "Company" dropdown entry only when the user can see at least one of its tabs. */
   canViewCompany(): boolean {
+    // Staff gate first, and deliberately not just the page grants. A customer has no viewablePages
+    // and so should already fail below — but the header restores currentUser from a cache on
+    // refresh, so a stale blob left by a previous session on the same browser could otherwise put
+    // an internal link in a customer's account menu. Requiring the role as well means the link
+    // cannot render for a customer whatever that cache holds.
+    if (!this.isInternalUser) return false;
+
     return this.canViewPage('statistics')
       || this.canViewPage('expenses')
       || this.canViewPage('finances')
@@ -337,6 +350,35 @@ export class HeaderComponent implements OnInit, OnDestroy {
         error: () => {
           this.hasPendingPersonalTasks = false;
           this.hasUncheckedDoneTasks = false;
+        }
+      });
+  }
+
+  /**
+   * Decides whether to draw the My Contracts entry. Uses the dedicated boolean endpoint rather
+   * than fetching the contract list: this runs for every logged-in user on every page, and all
+   * the menu needs is one yes/no. The server applies both halves of the rule (business-flagged
+   * AND actually owns a contract), so nothing here has to know what a business flag is.
+   */
+  private checkMyContracts(): void {
+    if (!this.isBrowser) return;
+    // A cleaner's login has no customer side at all, so the check is skipped rather than fired
+    // and discarded — same reasoning as the customer entries hidden from them below.
+    if (this.isCleanerAccount) {
+      this.hasContracts = false;
+      return;
+    }
+
+    this.contractService.hasMyContracts()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: { hasContracts: boolean }) => {
+          this.hasContracts = res?.hasContracts ?? false;
+          this.cdr.detectChanges();
+        },
+        // Safe default: a failed check hides the link rather than offering one that 403s.
+        error: () => {
+          this.hasContracts = false;
         }
       });
   }

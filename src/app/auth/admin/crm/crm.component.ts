@@ -7,7 +7,8 @@ import { CrmSegmentsComponent } from './segments/crm-segments.component';
 import { CrmAutomationComponent } from './automation/crm-automation.component';
 import { CrmCallsComponent } from './calls/crm-calls.component';
 
-// Ads moved to the Company shell (2026-07); it's no longer a CRM tab.
+// Ads moved to the Company shell (2026-07) and Contracts moved to its own top-level section at
+// /admin/contracts (2026-09); neither is a CRM tab any more.
 type CrmTab = 'leads' | 'calls' | 'customers' | 'segments' | 'automation';
 
 @Component({
@@ -43,12 +44,14 @@ export class CrmComponent {
     this.setTab('leads');
   }
 
-  private readonly validTabs: CrmTab[] = ['leads', 'calls', 'customers', 'segments', 'automation'];
+  private readonly validTabs: CrmTab[] =
+    ['leads', 'calls', 'customers', 'segments', 'automation'];
 
   constructor() {
     try {
       const saved = sessionStorage.getItem('crmActiveTab') as CrmTab | null;
-      // Ignore a stale 'ads' (or any unknown) value left over before Ads moved to Company.
+      // Ignore any unknown value left in storage by a tab that has since moved out of the CRM —
+      // 'ads' went to Company, 'contracts' to its own top-level section.
       if (saved && this.validTabs.includes(saved)) this.activeTab = saved;
     } catch { /* SSR / privacy mode */ }
   }

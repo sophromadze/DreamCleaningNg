@@ -11,6 +11,7 @@ import {
   getAuditEntityLabel,
   getAuditFieldLabel,
   shouldShowAuditField,
+  auditRowShowsContext,
 } from '../../../shared/admin/audit-field-display';
 
 @Component({
@@ -769,18 +770,72 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   // UPDATED: Special handling for CleanerAssignment logs
+  /**
+   * Does this row have a before/after table to render?
+   *
+   * It used to also require `action === 'Update'`, which is why every row written under a custom
+   * action verb expanded to "This entry recorded no visible field changes" — PayrollOverrideSet,
+   * PayoutRecorded, PayoutToppedUp, OrderVisibility, and every other pseudo-entity action. Those
+   * rows carry a perfectly good diff; nothing was ever going to render it (2026-09).
+   *
+   * The test is now about the PAYLOAD, not about the verb: two sides and a list of what differs.
+   * Create and Delete are unaffected — they carry one side only and have their own blocks below.
+   */
   showChangedFields(log: AuditLog): boolean {
     // For CleanerAssignment logs, we want to show details differently
     if (log.entityType === 'CleanerAssignment') {
       return true; // Always show details for cleaner assignments
     }
-    
-    return log.action === 'Update' && 
-           !!log.changedFields && 
+
+    return !!log.changedFields &&
            Array.isArray(log.changedFields) &&
            log.changedFields.length > 0 &&
            !!log.oldValues &&
            !!log.newValues;
+  }
+
+  /**
+   * One-sided payloads that are neither a Create nor a Delete — a payout event, a sync summary,
+   * anything logged with only its "after" (or only its "before") state.
+   *
+   * Without this they rendered as nothing at all: `PayoutRecorded` passes null for the old values,
+   * so there is no diff to draw, and the Create block is keyed on the literal action name.
+   */
+  showRecordedValues(log: AuditLog): boolean {
+    if (log.action === 'Create' || log.action === 'Delete') return false;
+    if (log.entityType === 'CleanerAssignment' || log.entityType === 'UserLoyaltyDiscount') return false;
+    if (this.isServiceUpdateLog(log)) return false;
+
+    const single = (!!log.newValues && !log.oldValues) || (!!log.oldValues && !log.newValues);
+    return single && this.getObjectKeys(log.newValues || log.oldValues).some(k => this.shouldShowField(k));
+  }
+
+  /** The side a one-sided row actually carries. */
+  recordedValues(log: AuditLog): any {
+    return log.newValues || log.oldValues;
+  }
+
+  /**
+   * Fields that are present on BOTH sides and did NOT change — the context the change happened
+   * in. On a payroll row that is the cleaner's name and whether the change was applied to
+   * everybody: neither moves, so neither appears in the diff, and without them the expansion says
+   * a rate went from $20 to $21 without saying whose.
+   *
+   * Restricted to entity types whose audit payloads are purpose-built descriptions of an action
+   * rather than snapshots of a row (see AUDIT_CONTEXT_ENTITY_TYPES). On a full-entity Update this
+   * would print fifty unchanged columns, which is how the tab became unreadable in the first place.
+   */
+  contextFields(log: AuditLog): string[] {
+    if (!auditRowShowsContext(log.entityType)) return [];
+    if (!log.oldValues || !log.newValues) return [];
+
+    const changed = new Set(Array.isArray(log.changedFields) ? log.changedFields : []);
+    return this.getObjectKeys(log.newValues)
+      .filter(key => !changed.has(key)
+        && this.shouldShowField(key)
+        && key in log.oldValues
+        && log.newValues[key] !== null
+        && log.newValues[key] !== undefined);
   }
 
   // NEW: Check if there are any meaningful changed fields to display
@@ -898,6 +953,10 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.showChangedFields(log) && this.hasMeaningfulChangedFields(log)) return true;
     if (log.action === 'Create' && log.newValues) return true;
     if (log.action === 'Delete' && log.oldValues) return true;
+    // A one-sided payload under a custom action verb — a payout event, a sync summary. These used
+    // to fall through to "no visible field changes" despite carrying everything about what
+    // happened.
+    if (this.showRecordedValues(log)) return true;
     return false;
   }
 

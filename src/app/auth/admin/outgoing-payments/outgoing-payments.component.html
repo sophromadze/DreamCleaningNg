@@ -469,43 +469,72 @@
       </div>
 
       <!--
-        The order's hourly rate. This is the DEFAULT every assigned cleaner without their own
-        rate is paid at, and saving it writes through to Order.CleanerHourlyRate — the order
-        itself carries the new figure, so Statistics and Finances follow with nothing else to do.
+        The order's defaults, in ONE editor holding both figures — the same shape as a cleaner's
+        line below. Two separate "Change" buttons made an admin decide what KIND of change they
+        were making before they could type anything, when the answer is usually "both".
+
+        The RATE is what every assigned cleaner without their own is paid at, and saving it writes
+        through to Order.CleanerHourlyRate — the order itself carries the new figure, so Statistics
+        and Finances follow with nothing else to do. The HOURS write an explicit override onto
+        every assigned line; unassigned staffing slots are NOT moved (an override lives on the
+        assignment row and there is nobody behind those), which is why the hint says so rather than
+        letting the reader discover it in a total that is not hours × the lines below.
       -->
       <section class="panel-block order-rate-block">
         <div class="order-rate-head">
-          <span class="field-label">Hourly rate for this order</span>
+          <span class="field-label">Defaults for this order</span>
 
-          <div class="order-rate-value" *ngIf="!editingOrderRate">
+          <div class="order-rate-value" *ngIf="!editingOrderDefaults">
             <strong>$ {{ order.orderHourlyRate | number:'1.0-2' }}</strong> / hour
             <span class="pill pill-warn"
                   *ngIf="order.orderHourlyRate !== order.expectedHourlyRate"
                   [title]="'The default for ' + order.serviceTypeName + ' is $' + (order.expectedHourlyRate | number:'1.0-2') + '/hr'">
               off default
             </span>
-            <button class="action-btn small edit" type="button" (click)="startEditOrderRate(order)">Change</button>
+            <ng-container *ngIf="order.cleaners.length > 0">
+              · <strong>{{ formatDuration(order.automaticMinutesPerCleaner) }}</strong> each
+              <span class="pill pill-edited"
+                    *ngIf="cleanersWithOwnHours(order) > 0"
+                    title="Set by hand, not the automatic split">
+                {{ cleanersWithOwnHours(order) }} edited
+              </span>
+            </ng-container>
+            <button class="action-btn small edit" type="button" (click)="startEditOrderDefaults(order)">Change</button>
           </div>
 
-          <div class="order-rate-edit" *ngIf="editingOrderRate">
+          <div class="order-rate-edit" *ngIf="editingOrderDefaults">
             <label>
               <span>$ / hour</span>
               <input type="number" min="0" step="0.5" [(ngModel)]="orderRateInput" name="orderRateInput" />
             </label>
-            <button class="action-btn small save" type="button" [disabled]="savingOrderRate" (click)="saveOrderRate(order)">
-              {{ savingOrderRate ? 'Saving…' : 'Save rate' }}
+            <label *ngIf="order.cleaners.length > 0">
+              <span>Hours each</span>
+              <input type="number" min="0" step="0.25" [(ngModel)]="orderHoursInput" name="orderHoursInput" />
+            </label>
+            <button class="action-btn small save" type="button" [disabled]="savingOrderDefaults" (click)="saveOrderDefaults(order)">
+              {{ savingOrderDefaults ? 'Saving…' : 'Save' }}
             </button>
-            <button class="action-btn small discard" type="button" [disabled]="savingOrderRate" (click)="cancelOrderRateEdit()">Cancel</button>
+            <button class="action-btn small discard" type="button" [disabled]="savingOrderDefaults" (click)="cancelOrderDefaultsEdit()">Cancel</button>
+            <button class="btn-link" type="button"
+                    *ngIf="cleanersWithOwnHours(order) > 0"
+                    [disabled]="savingOrderDefaults"
+                    (click)="resetOrderHoursToAutomatic(order)"
+                    title="Drop every manual hours figure and go back to the even split">
+              Reset hours to automatic
+            </button>
           </div>
         </div>
 
         <p class="order-rate-hint">
-          Applies to {{ cleanersOnOrderRate(order) }} of {{ order.cleaners.length }} cleaner(s) on this
-          order and is saved onto the order itself.
-          <ng-container *ngIf="cleanersWithOwnRate(order) > 0">
-            {{ cleanersWithOwnRate(order) }} cleaner(s) have their own rate and will not move — use
-            “Reset to automatic” on their line to put them back on this one.
+          The rate applies to all {{ order.cleaners.length }} cleaner(s) on this order — including
+          any set by hand — and is saved onto the order itself. A cleaner already paid keeps the
+          rate they were paid at.
+          <ng-container *ngIf="order.unassignedCleaners.length > 0">
+            {{ order.unassignedCleaners.length }} unstaffed slot(s) stay on the automatic split —
+            there is no cleaner record to set hours on.
           </ng-container>
+          The order's own duration is not changed: this is what the cleaners are paid for, not what
+          the customer was quoted.
         </p>
       </section>
 

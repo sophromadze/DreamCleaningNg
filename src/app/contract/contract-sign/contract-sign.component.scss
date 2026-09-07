@@ -1,0 +1,9 @@
+// Signing-page specifics only. The shared client-page chrome (cards, fields, buttons, notices)
+// comes from contract-review.component.scss, listed first in this component's styleUrls, and the
+// capture UI carries its own styles inside SignatureCaptureComponent.
+
+.signing-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}

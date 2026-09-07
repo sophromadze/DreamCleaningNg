@@ -1,0 +1,744 @@
+<main class="home-main commercial-page">
+
+  <!-- =========================================================
+       HERO — mirrors the homepage hero (same .hero-* classes from
+       home-hero.component.scss) but the right-hand card is a
+       commercial quote form instead of the residential booking
+       widget. DOM order is card-then-content; CSS `order` swaps
+       them visually, exactly as on the homepage.
+  ========================================================== -->
+  <section class="hero-section">
+    <div class="hero-bg-glow hero-bg-glow--blue" aria-hidden="true"></div>
+    <div class="hero-bg-glow hero-bg-glow--green" aria-hidden="true"></div>
+
+    <div class="hero-grid">
+
+      <!-- ===== Quote form card ===== -->
+      <aside class="booking-form-card" id="commercial-quote">
+        <header class="booking-form-card__header">
+          <div>
+            <p class="booking-form-card__step">Free walkthrough &amp; quote</p>
+            <h2 class="booking-form-card__title">Get a Commercial Quote</h2>
+          </div>
+          <span class="badge badge--success">Contract optional</span>
+        </header>
+
+        <!-- Success / error banners -->
+        <div class="quote-alert quote-alert--success" *ngIf="showSuccess" role="status">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/>
+          </svg>
+          <span>Thanks - we have your details. We will call you back to arrange the walkthrough, usually the same business day.</span>
+        </div>
+        <div class="quote-alert quote-alert--error" *ngIf="showError" role="alert">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>
+          </svg>
+          <span>{{ errorMessage }}</span>
+        </div>
+
+        <form class="booking-form quote-form" [formGroup]="quoteForm" (ngSubmit)="onSubmit()" novalidate>
+
+          <div class="form-group">
+            <label for="cc-business">Business name *</label>
+            <input type="text" id="cc-business" formControlName="businessName"
+                   class="form-control" [class.error]="hasError('businessName')"
+                   placeholder="e.g. Hudson Dental Group" autocomplete="organization">
+            <div class="error-message" *ngIf="hasError('businessName')">{{ getErrorMessage('businessName') }}</div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="cc-contact">Your name *</label>
+              <input type="text" id="cc-contact" formControlName="contactName"
+                     class="form-control" [class.error]="hasError('contactName')"
+                     placeholder="Full name" autocomplete="name">
+              <div class="error-message" *ngIf="hasError('contactName')">{{ getErrorMessage('contactName') }}</div>
+            </div>
+            <div class="form-group">
+              <label for="cc-phone">Phone *</label>
+              <input type="tel" id="cc-phone" formControlName="phone"
+                     class="form-control" [class.error]="hasError('phone')"
+                     (input)="onPhoneInput($event)" maxlength="10"
+                     placeholder="10-digit number" autocomplete="tel-national" inputmode="numeric">
+              <div class="error-message" *ngIf="hasError('phone')">{{ getErrorMessage('phone') }}</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="cc-email">Email *</label>
+            <input type="email" id="cc-email" formControlName="email"
+                   class="form-control" [class.error]="hasError('email')"
+                   placeholder="Email address" autocomplete="email">
+            <div class="error-message" *ngIf="hasError('email')">{{ getErrorMessage('email') }}</div>
+          </div>
+
+          <div class="form-group">
+            <label for="cc-address">Business address *</label>
+            <input type="text" id="cc-address" formControlName="businessAddress"
+                   class="form-control" [class.error]="hasError('businessAddress')"
+                   placeholder="Street, borough" autocomplete="street-address">
+            <div class="error-message" *ngIf="hasError('businessAddress')">{{ getErrorMessage('businessAddress') }}</div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="cc-type">Type of space *</label>
+              <select id="cc-type" formControlName="facilityType"
+                      class="form-control" [class.error]="hasError('facilityType')">
+                <option value="">Select</option>
+                <option value="Office">Office</option>
+                <option value="Retail / showroom">Retail / showroom</option>
+                <option value="Medical / dental">Medical / dental</option>
+                <option value="Restaurant / cafe">Restaurant / café</option>
+                <option value="Gym / fitness studio">Gym / fitness studio</option>
+                <option value="Salon / spa">Salon / spa</option>
+                <option value="Building common areas">Building common areas</option>
+                <option value="Warehouse / industrial">Warehouse / industrial</option>
+                <option value="Post-construction / renovation">Post-construction / renovation</option>
+                <option value="Other">Other</option>
+              </select>
+              <div class="error-message" *ngIf="hasError('facilityType')">{{ getErrorMessage('facilityType') }}</div>
+            </div>
+            <div class="form-group">
+              <label for="cc-size">Approx. size</label>
+              <input type="text" id="cc-size" formControlName="squareFootage"
+                     class="form-control" placeholder="sq ft (optional)" inputmode="numeric">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="cc-frequency">How often? *</label>
+            <select id="cc-frequency" formControlName="frequency"
+                    class="form-control" [class.error]="hasError('frequency')">
+              <option value="">Select</option>
+              <option value="5-7 nights a week">5-7 nights a week</option>
+              <option value="2-4 times a week">2-4 times a week</option>
+              <option value="Once a week">Once a week</option>
+              <option value="Every other week">Every other week</option>
+              <option value="Monthly">Monthly</option>
+              <option value="One-time clean">One-time clean</option>
+              <option value="Not sure yet">Not sure yet</option>
+            </select>
+            <div class="error-message" *ngIf="hasError('frequency')">{{ getErrorMessage('frequency') }}</div>
+          </div>
+
+          <div class="form-group">
+            <label for="cc-notes">Anything we should know?</label>
+            <textarea id="cc-notes" formControlName="notes" class="form-control" rows="2"
+                      placeholder="Access hours, number of restrooms, COI requirements…"></textarea>
+          </div>
+
+          <button type="submit" class="btn-cta-primary btn-cta-primary--full" [disabled]="isSubmitting">
+            {{ isSubmitting ? 'Sending…' : 'Request My Quote' }}
+          </button>
+
+          <p class="quote-form__reassure">
+            No obligation, and we work with or without a contract. We reply the same business day - or call
+            <a [href]="phoneNumber.telHref()">{{ phoneNumber.displayNumber() }}</a> to skip the form.
+          </p>
+        </form>
+      </aside>
+
+      <!-- ===== Hero copy ===== -->
+      <div class="hero-content">
+        <div class="hero-content__badge">
+          <svg viewBox="0 0 24 24" fill="currentColor" class="star-icon" aria-hidden="true">
+            <path d="M12 2.75 14.86 8.55l6.4.93-4.63 4.51 1.09 6.37L12 17.35 6.28 20.36l1.09-6.37-4.63-4.51 6.4-.93L12 2.75Z"/>
+          </svg>
+          5.0★ Rated · Licensed &amp; Insured NYC Cleaners
+        </div>
+
+        <h1 class="hero-title">
+          Commercial Cleaning Services in <span class="hero-title__accent">NYC</span>
+        </h1>
+        <p class="hero-slogan">Where business feels clean</p>
+
+        <div class="hero-locations">
+          <a routerLink="/services/manhattan-cleaning" class="location-pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+            </svg>
+            Manhattan
+          </a>
+          <a routerLink="/services/brooklyn-cleaning" class="location-pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+            </svg>
+            Brooklyn
+          </a>
+          <a routerLink="/services/queens-cleaning" class="location-pill">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/>
+            </svg>
+            Queens
+          </a>
+        </div>
+
+        <p class="hero-subtitle">
+          Offices, retail, medical practices, restaurants, gyms and building common areas -
+          cleaned after hours by background-checked crews, on a flat monthly price. Work with us
+          on a contract or month to month, whichever your business prefers. Serving Manhattan,
+          Brooklyn and Queens.
+        </p>
+
+        <div class="hero-image-card hero-image-card--commercial">
+          <div class="hero-image-card__media" role="img" aria-label="Commercial office cleaning in NYC by Dream Cleaning"></div>
+          <div class="hero-image-card__overlay" aria-hidden="true"></div>
+
+          <!-- The offer, as the homepage's ticket coupon (`.hero-offer-coupon`, from
+               home-hero.component.scss, which this component already loads) rather than as a
+               second badge style of its own. Two deliberate differences from the homepage's:
+               the percentage is a constant here because commercial work is quoted from a
+               walkthrough and has no special-offer row to read, and the coupon SCROLLS to the
+               quote form instead of linking to /booking, so it is a <button>. -->
+          <button type="button" class="hero-offer-coupon" (click)="scrollToQuoteForm()"
+                  [attr.aria-label]="'New client offer: ' + firstMonthDiscountPercent + '% off your first month of a recurring plan. Request a quote.'">
+            <div class="hero-offer-coupon__body">
+              <svg class="hero-offer-coupon__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20.59 13.41 13.42 20.58a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82Z"/>
+                <circle cx="7" cy="7" r="1.6" fill="currentColor"/>
+              </svg>
+              <span class="hero-offer-coupon__copy">
+                <span class="hero-offer-coupon__eyebrow">New Client Offer</span>
+                <span class="hero-offer-coupon__headline">First month</span>
+              </span>
+            </div>
+            <span class="hero-offer-coupon__perf" aria-hidden="true"></span>
+            <div class="hero-offer-coupon__deal">
+              <span class="hero-offer-coupon__percent">{{ firstMonthDiscountPercent }}%</span>
+              <span class="hero-offer-coupon__off">OFF</span>
+            </div>
+          </button>
+
+          <div class="hero-trust-bar">
+            <div class="hero-trust-bar__item">
+              <svg class="trust-icon trust-icon--amber" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+              </svg>
+              <p class="hero-trust-bar__title">After Hours</p>
+              <p class="hero-trust-bar__sub">Nights &amp; weekends</p>
+            </div>
+            <div class="hero-trust-bar__item">
+              <svg class="trust-icon trust-icon--green" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>
+              </svg>
+              <p class="hero-trust-bar__title">Insured &amp; COI</p>
+              <p class="hero-trust-bar__sub">Certificate on request</p>
+            </div>
+            <div class="hero-trust-bar__item">
+              <svg class="trust-icon trust-icon--blue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
+              </svg>
+              <p class="hero-trust-bar__title">Flat Monthly</p>
+              <p class="hero-trust-bar__sub">No surprise invoices</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- =========================================================
+       COMMERCIAL CLIENT BENEFITS — the five things every business
+       we clean gets, in the owner's order. Sits directly under the
+       hero because it is the answer to "why should I fill this in",
+       and the form is the thing directly above it.
+
+       The cards reuse `.feature-card` from main.component.scss; only
+       the band and the featured (offer) variant are page-specific.
+       The percentage is bound from the component so the card, the
+       hero coupon and the FAQ answer cannot drift apart.
+  ========================================================== -->
+  <section class="commercial-benefits-section">
+    <div class="container-narrow">
+      <div class="section-header section-header--center">
+        <h2 class="section-title-h2">What Every Commercial Client Gets</h2>
+        <p class="section-subtitle">
+          The same five things for every business we clean - from the first phone call to every
+          visit after it.
+        </p>
+      </div>
+
+      <div class="benefits-grid">
+        <article class="feature-card benefit-card">
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"/><path d="m20.5 20.5-4-4"/>
+            </svg>
+          </div>
+          <h3>Free On-Site Assessment</h3>
+          <p>We come to your space and walk it with you - the floors, the restrooms, the traffic and the access hours - before anyone quotes a number. The visit costs nothing and commits you to nothing.</p>
+        </article>
+
+        <article class="feature-card benefit-card">
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 21v-6M4 11V3M12 21v-9M12 8V3M20 21v-4M20 13V3"/>
+              <path d="M1 15h6M9 8h6M17 17h6"/>
+            </svg>
+          </div>
+          <h3>Customized Cleaning Plan</h3>
+          <p>Nothing off a package list. The tasks, the areas and the schedule are built around how your business actually runs, and you get the whole scope in writing before we start.</p>
+        </article>
+
+        <article class="feature-card benefit-card">
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z"/>
+            </svg>
+          </div>
+          <h3>Same-Day Quote</h3>
+          <p>Send the form or call us and you have your price the same business day - a flat figure and the task list it covers, not a proposal that takes a week to arrive.</p>
+        </article>
+
+        <article class="feature-card benefit-card benefit-card--featured">
+          <span class="benefit-card__flag">New client offer</span>
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M20.6 13.4 12.4 21.6a2 2 0 0 1-2.8 0l-7.2-7.2a2 2 0 0 1-.6-1.4V4a2 2 0 0 1 2-2h9a2 2 0 0 1 1.4.6l6.4 6.4a2 2 0 0 1 0 2.8Z"/>
+              <circle cx="7.5" cy="7.5" r="1.5"/>
+            </svg>
+          </div>
+          <h3>{{ firstMonthDiscountPercent }}% Off Your First Month</h3>
+          <p>Start a recurring plan - nightly, weekly or bi-weekly - and your first month of service is {{ firstMonthDiscountPercent }}% off. Applied to the flat monthly price we quote you, with nothing to claim afterwards.</p>
+        </article>
+
+        <article class="feature-card benefit-card">
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>
+            </svg>
+          </div>
+          <h3>100% Satisfaction Guarantee</h3>
+          <p>If anything is missed, tell us within 24 hours and we come back and make it right at no cost. On every visit for as long as you are with us, not just the first one.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       TESTIMONIALS — shared component (Google reviews + stats).
+  ========================================================== -->
+  <app-testimonial-section></app-testimonial-section>
+
+  <!-- =========================================================
+       INDUSTRIES / SERVICES — the commercial equivalent of the
+       homepage "What We Offer" grid.
+  ========================================================== -->
+  <section class="services-overview-section">
+    <div class="container-narrow">
+      <div class="section-header section-header--center">
+        <h2 class="section-title-h2">Commercial Cleaning We Handle</h2>
+        <p class="section-subtitle">
+          From a six-desk startup in Bushwick to a full floor in Midtown, every plan is built around
+          your space, your hours and your budget. Background-checked, insured crews, commercial-grade
+          equipment, and a 100% satisfaction guarantee on every visit.
+        </p>
+      </div>
+
+      <h3 class="offer-heading">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5"/>
+        </svg>
+        Spaces We Clean
+      </h3>
+
+      <div class="offer-grid">
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/office-cleaning-3.webp" alt="Office cleaning service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Office Cleaning</h4>
+            <p class="offer-card__desc">Workstations, conference rooms, break areas and restrooms - cleaned nightly, weekly, or on the schedule that fits your lease.</p>
+            <a routerLink="/services/office-cleaning" class="offer-card__cta">View office cleaning
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </a>
+          </div>
+        </article>
+
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/retail-showrooms.webp" alt="Retail and showroom cleaning service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Retail &amp; Showrooms</h4>
+            <p class="offer-card__desc">Glass, fitting rooms, display surfaces and high-traffic floors turned around before you open - so customers see the shop, not last night's footprints.</p>
+            <button type="button" class="offer-card__cta" (click)="scrollToQuoteForm()">Get a retail quote
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
+        </article>
+
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/medical-dental.webp" alt="Medical and dental office cleaning service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Medical &amp; Dental</h4>
+            <p class="offer-card__desc">Waiting rooms, exam rooms and treatment areas disinfected with EPA-approved products and protocols that stop cross-contamination between rooms.</p>
+            <button type="button" class="offer-card__cta" (click)="scrollToQuoteForm()">Get a medical quote
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
+        </article>
+
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/restaurants-cafes.webp" alt="Restaurant and cafe cleaning service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Restaurants &amp; Cafés</h4>
+            <p class="offer-card__desc">Front of house, restrooms, and the grease and buildup behind the pass - cleaned overnight so you open to an inspection-ready room.</p>
+            <button type="button" class="offer-card__cta" (click)="scrollToQuoteForm()">Get a restaurant quote
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
+        </article>
+
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/gyms-studios.webp" alt="Gym and fitness studio cleaning service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Gyms &amp; Studios</h4>
+            <p class="offer-card__desc">Equipment, mats, mirrors, locker rooms and showers sanitized daily - the part of a fitness business members judge fastest.</p>
+            <button type="button" class="offer-card__cta" (click)="scrollToQuoteForm()">Get a gym quote
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
+        </article>
+
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/building-common-areas.webp" alt="Building common area cleaning service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Building Common Areas</h4>
+            <p class="offer-card__desc">Lobbies, elevators, stairwells, hallways and mail rooms kept presentable for residents, tenants and every prospect who walks in.</p>
+            <button type="button" class="offer-card__cta" (click)="scrollToQuoteForm()">Get a building quote
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </button>
+          </div>
+        </article>
+
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/post-construction-cleaning.webp" alt="Post construction cleaning service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Post-Construction</h4>
+            <p class="offer-card__desc">Construction dust, debris and residue removed from every surface of a build-out so the space is ready to hand over or open.</p>
+            <a routerLink="/services/post-construction-cleaning" class="offer-card__cta">View post-construction cleaning
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </a>
+          </div>
+        </article>
+
+        <article class="offer-card">
+          <div class="offer-card__media">
+            <img src="/images/post-construction-cleaning-2.webp" alt="Post renovation cleaning service in NYC" loading="lazy">
+          </div>
+          <div class="offer-card__body">
+            <h4 class="offer-card__title">Post-Renovation</h4>
+            <p class="offer-card__desc">Fine dust, paint specks and debris cleared after a refit or remodel - the clean between the contractor leaving and business resuming.</p>
+            <a routerLink="/services/post-renovation-cleaning" class="offer-card__cta">View post-renovation cleaning
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+            </a>
+          </div>
+        </article>
+      </div>
+
+      <div class="included-card">
+        <h3 class="services-overview-card__title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>
+          </svg>
+          Included in Every Commercial Plan
+        </h3>
+        <ul class="included-list">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>Background-checked, insured cleaning professionals</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>Commercial-grade products and equipment supplied</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>High-touch surface sanitizing on every visit</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>A written scope of work, so nothing is left to memory</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>Certificate of insurance for your building or landlord</li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg>Flat monthly invoicing with no hidden fees</li>
+        </ul>
+      </div>
+
+      <div class="overview-cta">
+        <button type="button" class="btn-cta-primary" (click)="scrollToQuoteForm()">Get My Free Quote</button>
+        <a [href]="phoneNumber.telHref()" class="btn-cta-secondary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.19 19 19.5 19.5 0 0 1 5 12.81 19.79 19.79 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.12.9.32 1.78.6 2.62a2 2 0 0 1-.45 2.11L8 9.67a16 16 0 0 0 6.33 6.33l1.22-1.22a2 2 0 0 1 2.11-.45c.84.28 1.72.48 2.62.6A2 2 0 0 1 22 16.92Z"/>
+          </svg>
+          {{ phoneNumber.displayNumber() }}
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       WHY CHOOSE US — 6 feature cards, commercial framing.
+  ========================================================== -->
+  <section class="why-choose-section">
+    <div class="container-narrow">
+      <div class="section-header section-header--center">
+        <h2 class="section-title-h2">Why NYC Businesses Choose Dream Cleaning</h2>
+        <p class="section-subtitle">The things that actually go wrong with a commercial cleaner - and what we do about each one.</p>
+      </div>
+
+      <div class="features-grid">
+        <article class="feature-card">
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
+            </svg>
+          </div>
+          <h3>We Work Around You</h3>
+          <p>Evenings, early mornings or weekends - whatever keeps your team and your customers uninterrupted. You set the access window; we work inside it.</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+            </svg>
+          </div>
+          <h3>The Same Crew Every Time</h3>
+          <p>You get a consistent team that learns your floor plan, your alarm code and the details specific to your space - not a different pair of strangers each week.</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/>
+            </svg>
+          </div>
+          <h3>Insured, Vetted, COI-Ready</h3>
+          <p>Every cleaner is background- and reference-checked, and we carry liability insurance. We issue a certificate naming your building as additional insured before day one.</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
+            </svg>
+          </div>
+          <h3>One Flat Monthly Price</h3>
+          <p>Quoted from a walkthrough, not a phone guess. What you agree is what you are invoiced - no surcharges for supplies, equipment or the parts nobody mentioned.</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 11h6M9 15h6M5 7h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/>
+              <path d="M8 7V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3"/>
+            </svg>
+          </div>
+          <h3>A Written Scope of Work</h3>
+          <p>Every task, every area, every frequency in writing before we start. When something is missed there is a document to point at, not an argument about what was implied.</p>
+        </article>
+
+        <article class="feature-card">
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.19 19 19.5 19.5 0 0 1 5 12.81 19.79 19.79 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.12.9.32 1.78.6 2.62a2 2 0 0 1-.45 2.11L8 9.67a16 16 0 0 0 6.33 6.33l1.22-1.22a2 2 0 0 1 2.11-.45c.84.28 1.72.48 2.62.6A2 2 0 0 1 22 16.92Z"/>
+            </svg>
+          </div>
+          <h3>A Real Person Answers</h3>
+          <p>Phone, text or email reaches a staffed office, not a ticket queue. If something needs fixing we come back and fix it - that is the satisfaction guarantee, in practice.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       CHOOSE A SCHEDULE — the commercial read of the homepage's
+       "Choose the right cleaning" trio.
+  ========================================================== -->
+  <section class="services-pick-section">
+    <div class="container-narrow">
+      <div class="section-header section-header--center">
+        <h2 class="section-title-h2">Choose your schedule</h2>
+        <p class="section-subtitle">Most businesses start on one of these three and adjust after the first month.</p>
+      </div>
+
+      <div class="service-pick-grid">
+        <article class="service-pick-card">
+          <svg class="service-pick-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/>
+          </svg>
+          <h3>Nightly Service</h3>
+          <p>For busy offices, clinics, restaurants and gyms. Cleaned every night after close so the space is reset before the first person arrives.</p>
+          <div class="service-pick-card__footer">
+            <span class="service-pick-card__price">5-7 nights a week</span>
+            <button type="button" class="link-pill" (click)="scrollToQuoteForm()">Get a price</button>
+          </div>
+        </article>
+
+        <article class="service-pick-card">
+          <svg class="service-pick-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/>
+          </svg>
+          <h3>Weekly Maintenance</h3>
+          <p>The common choice for small offices, studios and showrooms. A full clean once or twice a week, on a fixed evening you can plan around.</p>
+          <div class="service-pick-card__footer">
+            <span class="service-pick-card__price">1-4 times a week</span>
+            <button type="button" class="link-pill" (click)="scrollToQuoteForm()">Get a price</button>
+          </div>
+        </article>
+
+        <article class="service-pick-card">
+          <svg class="service-pick-card__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/>
+          </svg>
+          <h3>One-Time Clean</h3>
+          <p>Post-construction and post-renovation handovers, end-of-lease cleans, pre-inspection deep cleans, and resets after an event. No plan required.</p>
+          <div class="service-pick-card__footer">
+            <span class="service-pick-card__price">Book once</span>
+            <button type="button" class="link-pill" (click)="scrollToQuoteForm()">Get a price</button>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       HOW IT WORKS — 4 steps to a commercial plan.
+  ========================================================== -->
+  <section class="how-it-works-section">
+    <div class="container-narrow">
+      <div class="section-header section-header--center">
+        <h2 class="section-title-h2">How it works</h2>
+        <p class="section-subtitle">From first call to first clean, usually inside a week.</p>
+      </div>
+
+      <ol class="steps-grid">
+        <li class="step-card">
+          <span class="step-card__num">1</span>
+          <h3>Tell us about the space</h3>
+          <p>Send the form or call. We need the address, roughly how big it is, and when we would be able to get in.</p>
+        </li>
+        <li class="step-card">
+          <span class="step-card__num">2</span>
+          <h3>Free walkthrough</h3>
+          <p>We visit, look at the floors, the restrooms and the traffic, and ask what your last cleaner kept getting wrong.</p>
+        </li>
+        <li class="step-card">
+          <span class="step-card__num">3</span>
+          <h3>Flat price &amp; written scope</h3>
+          <p>You get a fixed monthly price and the task list it covers - on a contract if your business needs one, or month to month. The COI goes to your building.</p>
+        </li>
+        <li class="step-card">
+          <span class="step-card__num">4</span>
+          <h3>We start - and stay consistent</h3>
+          <p>The same crew, on the same schedule. Adjust the scope any month; there is nothing to cancel out of.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       FAQ — rendered from the same array that becomes the
+       FAQPage JSON-LD, so the two can never disagree.
+  ========================================================== -->
+  <section class="commercial-faq-section">
+    <div class="container-narrow">
+      <div class="section-header section-header--center">
+        <h2 class="section-title-h2">Commercial Cleaning FAQ</h2>
+        <p class="section-subtitle">The questions businesses ask us before the walkthrough.</p>
+      </div>
+
+      <div class="faq-grid">
+        <details class="faq-item" *ngFor="let faq of faqs">
+          <summary>
+            {{ faq.q }}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </summary>
+          <p>{{ faq.a }}</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       SERVICE AREAS — borough cards.
+  ========================================================== -->
+  <section class="service-areas-section">
+    <div class="container-narrow">
+      <div class="section-header section-header--center">
+        <h2 class="section-title-h2">Commercial Cleaning Across NYC</h2>
+        <p class="section-subtitle">Dream Cleaning serves 120 ZIP codes across three boroughs - multi-site businesses on one plan and one invoice.</p>
+      </div>
+      <div class="service-areas-grid">
+        <article class="area-card">
+          <h3>Manhattan</h3>
+          <span class="zip-count">24 ZIP Codes</span>
+          <p class="neighborhoods">Midtown, Chelsea, Financial District, SoHo, Tribeca, Flatiron, Upper West Side, East Village</p>
+          <a routerLink="/services/manhattan-cleaning" class="area-link">View Manhattan Services
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </a>
+        </article>
+        <article class="area-card">
+          <h3>Brooklyn</h3>
+          <span class="zip-count">38 ZIP Codes</span>
+          <p class="neighborhoods">DUMBO, Williamsburg, Downtown Brooklyn, Park Slope, Bushwick, Greenpoint, Sunset Park, Bay Ridge</p>
+          <a routerLink="/services/brooklyn-cleaning" class="area-link">View Brooklyn Services
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </a>
+        </article>
+        <article class="area-card">
+          <h3>Queens</h3>
+          <span class="zip-count">58 ZIP Codes</span>
+          <p class="neighborhoods">Long Island City, Astoria, Flushing, Forest Hills, Jamaica, Rego Park, Jackson Heights, Bayside</p>
+          <a routerLink="/services/queens-cleaning" class="area-link">View Queens Services
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </a>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       FINAL CTA
+  ========================================================== -->
+  <section class="final-cta-section">
+    <div class="container-narrow">
+      <div class="final-cta-card">
+        <div class="final-cta-card__main">
+          <h2>Ready for a cleaner workplace?</h2>
+          <p>
+            Tell us about your space and we will walk it, price it, and send a written scope -
+            free and with no obligation. Contract or month to month, whichever suits you.
+            Commercial cleaning across Manhattan, Brooklyn and Queens, backed by our 100%
+            satisfaction guarantee - and {{ firstMonthDiscountPercent }}% off your first month when you start a
+            recurring plan.
+          </p>
+          <div class="final-cta-card__buttons">
+            <button type="button" class="btn-cta-primary" (click)="scrollToQuoteForm()">Request My Free Quote</button>
+            <a [href]="phoneNumber.telHref()" class="btn-cta-secondary">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.19 19 19.5 19.5 0 0 1 5 12.81 19.79 19.79 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.12.9.32 1.78.6 2.62a2 2 0 0 1-.45 2.11L8 9.67a16 16 0 0 0 6.33 6.33l1.22-1.22a2 2 0 0 1 2.11-.45c.84.28 1.72.48 2.62.6A2 2 0 0 1 22 16.92Z"/>
+              </svg>
+              {{ phoneNumber.displayNumber() }}
+            </a>
+          </div>
+        </div>
+
+        <div class="final-cta-card__side">
+          <p class="side-label">Most requested</p>
+          <p class="side-title">After-Hours Office Cleaning</p>
+          <p class="side-sub">Flat monthly price · contract optional · 5.0★ rated</p>
+          <a routerLink="/services/office-cleaning" class="btn-cta-secondary btn-cta-secondary--full">
+            See What's Included
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>

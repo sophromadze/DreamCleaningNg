@@ -1,0 +1,157 @@
+// Contract document rendering. Deliberately paper-like: a serif body, generous measure and
+// tight vertical rhythm, so what a client reads on screen matches the PDF they will file.
+// Every colour is a theme token — the document reads in day and night mode alike.
+
+.dc-document {
+  background: var(--surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 2.5rem 2.75rem;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.9rem;
+  line-height: 1.65;
+
+  @media (max-width: 640px) {
+    padding: 1.25rem 1rem;
+    font-size: 0.85rem;
+  }
+}
+
+.dc-document-body {
+  // Styles below target the server-rendered classes. ::ng-deep is required because the markup
+  // arrives through [innerHTML] and therefore carries no component scoping attribute.
+  ::ng-deep {
+    .dc-doc-title {
+      text-align: center;
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      margin: 0 0 0.25rem;
+      text-transform: uppercase;
+    }
+
+    .dc-doc-heading {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin: 1.75rem 0 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.01em;
+    }
+
+    .dc-doc-subheading {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin: 1.15rem 0 0.35rem;
+    }
+
+    .dc-doc-para {
+      margin: 0 0 0.7rem;
+      text-align: justify;
+      hyphens: auto;
+    }
+
+    .dc-doc-bullet {
+      margin: 0 0 0.4rem 1.25rem;
+    }
+
+    // Exhibit B is a two-column schedule. It scrolls inside its own box rather than pushing the
+    // page sideways on a phone.
+    .dc-doc-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.75rem 0 1.25rem;
+      display: block;
+      overflow-x: auto;
+
+      tbody { display: table; width: 100%; }
+
+      th, td {
+        border: 1px solid var(--border-color);
+        padding: 0.55rem 0.7rem;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        width: 30%;
+        min-width: 150px;
+        font-weight: 700;
+        background: var(--surface-subtle);
+      }
+    }
+  }
+}
+
+.dc-signature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 2rem;
+  margin: 1.5rem 0 2rem;
+}
+
+.dc-signature-party {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 1.1rem 1.25rem;
+  background: var(--surface-subtle);
+}
+
+.dc-signature-party-label {
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.dc-signature-entity {
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.dc-signature-mark {
+  display: flex;
+  align-items: flex-end;
+  min-height: 58px;
+
+  img { max-height: 58px; max-width: 100%; }
+
+  .dc-signature-typed {
+    font-family: 'Segoe Script', 'Brush Script MT', cursive;
+    font-size: 1.5rem;
+    line-height: 1.2;
+  }
+
+  .dc-signature-pending {
+    font-family: system-ui, sans-serif;
+    font-size: 0.75rem;
+    font-style: italic;
+    color: var(--text-muted);
+  }
+}
+
+.dc-signature-rule {
+  border-bottom: 1px solid var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+.dc-signature-caption {
+  font-family: system-ui, sans-serif;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.6rem;
+}
+
+.dc-signature-value {
+  min-height: 1.35rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dc-signature-timestamp {
+  font-family: system-ui, sans-serif;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+}

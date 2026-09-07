@@ -12,6 +12,11 @@ export const serverRoutes: ServerRoute[] = [
   // empty shell and fire its API calls during the build pass.
   { path: 'cleaner-portal', renderMode: RenderMode.Client },
 
+  // Contract review/signing pages are per-token and private. Prerendering is impossible (the
+  // token is only known at request time) and SSR would render one client's agreement into a
+  // cacheable response, so these are client-only.
+  { path: 'contract/**', renderMode: RenderMode.Client },
+
   // Blog is dynamic content — per-request SSR, never build-time prerender.
   // (Prerender would only know slugs that existed at build time; every post
   // published afterwards would be invisible until the next build.)

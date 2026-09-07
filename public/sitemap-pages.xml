@@ -81,6 +81,14 @@
     <priority>0.8</priority>
   </url>
 
+  <!-- Commercial Cleaning Landing Page -->
+  <url>
+    <loc>https://dreamcleaningnyc.com/services/commercial-cleaning</loc>
+    <lastmod>2026-09-06T10:00:00+00:00</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+
   <!-- Office Cleaning Service -->
   <url>
     <loc>https://dreamcleaningnyc.com/services/office-cleaning</loc>

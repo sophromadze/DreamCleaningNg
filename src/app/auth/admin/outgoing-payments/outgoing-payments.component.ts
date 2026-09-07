@@ -2,8 +2,8 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, Inject, PLATFORM_ID } 
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { Subject } from 'rxjs';
-import { debounceTime, distinctUntilChanged, takeUntil } from 'rxjs/operators';
+import { Subject, Observable, concat } from 'rxjs';
+import { debounceTime, distinctUntilChanged, takeUntil, last } from 'rxjs/operators';
 
 import {
   OutgoingPaymentService,
@@ -123,11 +123,30 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   selectedOrder: OutgoingPaymentOrder | null = null;
   selectedOrderId: number | null = null;
 
-  // ===== Order-level hourly rate =====
-  /** True while the order's rate (the default every un-overridden cleaner follows) is being edited. */
-  editingOrderRate = false;
+  // ===== Order-level defaults: the rate AND the hours, in one editor =====
+  //
+  // The rate is the default every cleaner without their own override is paid at; the hours write
+  // an explicit override onto every assigned line. Both were missing a partner at some point —
+  // the rate could be moved for everybody while the HOURS had to be retyped line by line, which
+  // is backwards, because "they all stayed another quarter of an hour" is the change that
+  // actually happens and "one of them was paid differently" is the exception.
+  //
+  // They share ONE editor, shaped like a cleaner's line below: two separate "Change" buttons made
+  // an admin decide what kind of change they were making before they could type anything.
+  editingOrderDefaults = false;
   orderRateInput: number | null = null;
-  savingOrderRate = false;
+  /** Decimal hours, matching the "$21 × 4.25" working the lines print. */
+  orderHoursInput: number | null = null;
+  savingOrderDefaults = false;
+  /**
+   * What the editor was SEEDED with, so the save sends only what actually moved.
+   *
+   * Load-bearing rather than tidy: the hours box is seeded with the AUTOMATIC split, and sending
+   * it back unchanged would write an explicit override of that figure onto every line. An
+   * explicit value stays put when the order is re-priced; a null keeps tracking it — so an admin
+   * who only meant to change the rate must not silently pin everyone's hours.
+   */
+  private orderDefaultsSeed: { hours: number | null; rate: number | null } = { hours: null, rate: null };
 
   // ===== Inline rate/hours editing =====
   /** `${orderId}:${orderCleanerId}` of the line being edited, or null. Only one line at a time. */
@@ -452,7 +471,7 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
     this.selectedOrder = order;
     this.selectedOrderId = order.orderId;
     this.cancelEdit();
-    this.cancelOrderRateEdit();
+    this.cancelOrderDefaultsEdit();
     this.error = '';
   }
 
@@ -460,7 +479,7 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
     this.selectedOrder = null;
     this.selectedOrderId = null;
     this.cancelEdit();
-    this.cancelOrderRateEdit();
+    this.cancelOrderDefaultsEdit();
   }
 
   // ===== Month navigation =====
@@ -783,59 +802,136 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
   /** Unassigned slots share orderCleanerId 0, so they track by slot index instead. */
   trackBySlot = (_: number, slot: OutgoingPaymentCleaner) => slot.slotIndex ?? _;
 
-  // ===== Order-level hourly rate =====
+  // ===== Order-level defaults (rate + hours, one editor) =====
 
-  startEditOrderRate(order: OutgoingPaymentOrder): void {
-    this.editingOrderRate = true;
+  /**
+   * Opens the editor. The rate is seeded with the order's own; the hours with the AUTOMATIC split
+   * — the figure the admin is about to adjust away from ("4 hours each, make it 4:15"). Seeding
+   * the hours from a line that already carries an override would silently re-apply one person's
+   * exception to the whole crew.
+   */
+  startEditOrderDefaults(order: OutgoingPaymentOrder): void {
+    this.editingOrderDefaults = true;
     this.orderRateInput = order.orderHourlyRate;
+    this.orderHoursInput = Number(this.hoursOf(order.automaticMinutesPerCleaner));
+    this.orderDefaultsSeed = { hours: this.orderHoursInput, rate: this.orderRateInput };
     this.error = '';
   }
 
-  cancelOrderRateEdit(): void {
-    this.editingOrderRate = false;
+  cancelOrderDefaultsEdit(): void {
+    this.editingOrderDefaults = false;
     this.orderRateInput = null;
+    this.orderHoursInput = null;
+    this.orderDefaultsSeed = { hours: null, rate: null };
   }
 
-  /** How many cleaners on this order actually follow the order rate (i.e. carry no override). */
+  /**
+   * How many cleaners currently FOLLOW the order rate (i.e. carry no override of their own).
+   *
+   * Note this is no longer the reach of a rate change: since 2026-09 setting the order rate drops
+   * every unpaid line's own rate, so it moves all of them. It is still worth counting, because it
+   * is what the "own rate" pills on the lines below are saying.
+   */
   cleanersOnOrderRate(order: OutgoingPaymentOrder): number {
     return order.cleaners.filter(c => !c.rateOverridden).length;
   }
 
-  /** Cleaners the order rate will NOT move, because they carry their own. */
+  /** Cleaners currently carrying a rate somebody typed for them. */
   cleanersWithOwnRate(order: OutgoingPaymentOrder): number {
     return order.cleaners.filter(c => c.rateOverridden).length;
   }
 
+  /** How many lines carry manual hours — i.e. whether there is anything to reset. */
+  cleanersWithOwnHours(order: OutgoingPaymentOrder): number {
+    return order.cleaners.filter(c => c.hoursOverridden).length;
+  }
+
   /**
-   * Writes the new order rate through to `Order.CleanerHourlyRate`. Every assigned cleaner
-   * without their own rate moves with it, and the order's reported labour cost is re-summed
-   * server-side — so Statistics and Finances pick it up with no further action.
+   * Saves whichever of the two figures actually moved.
+   *
+   * The RATE writes through to `Order.CleanerHourlyRate`: every assigned cleaner without their
+   * own rate moves with it, already-PAID lines are pinned to the old rate server-side, and the
+   * reported labour cost is re-summed — so Statistics and Finances pick it up with no further
+   * action. The HOURS write an explicit override onto every assigned line; unassigned staffing
+   * slots are not moved and cannot be, which is why the hint says so rather than letting the
+   * resulting total read as an arithmetic bug.
+   *
+   * **Only what moved is sent.** The hours box is seeded with the automatic split, so re-sending
+   * it would pin that figure onto every line — and an explicit value stops tracking the order
+   * when it is re-priced. An admin who only meant to change the rate must not do that by accident.
+   *
+   * Rate first when both moved: that call pins already-paid lines to the OLD rate before the
+   * order moves, and it is the order the two decisions were made in.
    */
-  saveOrderRate(order: OutgoingPaymentOrder): void {
-    if (this.savingOrderRate) return;
+  saveOrderDefaults(order: OutgoingPaymentOrder): void {
+    if (this.savingOrderDefaults) return;
 
     const rate = this.orderRateInput;
-    if (rate == null || rate < 0) {
-      this.error = 'An hourly rate must be zero or more.';
+    const hours = this.orderHoursInput;
+    const hasCleaners = order.cleaners.length > 0;
+
+    if (rate == null || rate < 0 || (hasCleaners && (hours == null || hours < 0))) {
+      this.error = 'Rate and hours must both be zero or more.';
       return;
     }
 
-    this.savingOrderRate = true;
+    const writes: Observable<OutgoingPaymentOrder>[] = [];
+    const said: string[] = [];
+
+    if (rate !== this.orderDefaultsSeed.rate) {
+      writes.push(this.service.updateOrderHourlyRate(order.orderId, rate));
+      said.push(`pays $${rate}/hr`);
+    }
+    if (hasCleaners && hours != null && hours !== this.orderDefaultsSeed.hours) {
+      const minutes = Math.round(hours * 60);
+      writes.push(this.service.updateOrderCleanerHours(order.orderId, minutes));
+      said.push(`pays every cleaner for ${this.hoursOf(minutes)}`);
+    }
+
+    // Nothing typed is a cancel that happened to go through Save, not an error — and two no-op
+    // writes would put two rows in the audit log recording that nothing happened.
+    if (writes.length === 0) {
+      this.cancelOrderDefaultsEdit();
+      return;
+    }
+
+    this.writeOrderDefaults(
+      // Sequential, LAST response wins: each endpoint answers with the whole order, so the final
+      // one is the state after both changes. In parallel they would race two re-sums of it.
+      concat(...writes).pipe(last()),
+      `Order #${order.orderId} now ${said.join(' and ')}.`,
+      'Could not save that change.');
+  }
+
+  /**
+   * Clears every per-cleaner hours override at once. Distinct from typing the automatic figure
+   * onto each line: a cleared override keeps tracking the order if its duration changes later.
+   */
+  resetOrderHoursToAutomatic(order: OutgoingPaymentOrder): void {
+    if (this.savingOrderDefaults) return;
+    this.writeOrderDefaults(
+      this.service.updateOrderCleanerHours(order.orderId, null),
+      `Order #${order.orderId} is back on the automatic split.`,
+      'Could not reset the hours.');
+  }
+
+  private writeOrderDefaults(
+    request: Observable<OutgoingPaymentOrder>, message: string, fallback: string): void {
+    this.savingOrderDefaults = true;
     this.error = '';
 
-    this.service
-      .updateOrderHourlyRate(order.orderId, rate)
+    request
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: updated => {
           this.applyUpdatedOrder(updated);
-          this.cancelOrderRateEdit();
-          this.savingOrderRate = false;
-          this.flash(`Order #${order.orderId} now pays $${rate}/hr.`);
+          this.cancelOrderDefaultsEdit();
+          this.savingOrderDefaults = false;
+          this.flash(message);
         },
         error: err => {
-          this.error = extractApiErrorMessage(err, 'Could not change the hourly rate.');
-          this.savingOrderRate = false;
+          this.error = extractApiErrorMessage(err, fallback);
+          this.savingOrderDefaults = false;
           this.cdr.markForCheck();
         }
       });

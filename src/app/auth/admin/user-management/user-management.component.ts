@@ -18,6 +18,10 @@ import { OrderService, OrderList } from '../../../services/order.service';
 import { Apartment, CreateApartment } from '../../../services/profile.service';
 import { formatNy } from '../../../shared/ny-time.util';
 import { BubbleRewardsService } from '../../../services/bubble-rewards.service';
+import {
+  ContractPermissions, ContractService, OrgTitle, OrgTitleOverview
+} from '../../../services/contract.service';
+import { extractApiErrorMessage } from '../../../utils/http-error.utils';
 import { AdminBonusService, AdminBonusSummary } from '../../../services/admin-bonus.service';
 import { environment } from '../../../../environments/environment';
 import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
@@ -186,12 +190,17 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     private adminService: AdminService,
     private orderService: OrderService,
     private bubbleRewardsService: BubbleRewardsService,
-    private adminBonusService: AdminBonusService
+    private adminBonusService: AdminBonusService,
+    private contractService: ContractService
   ) {}
 
   ngOnInit() {
     this.loadUserPermissions();
     this.loadUsers();
+    // Both controls below are authorized by rules the role hierarchy does not express, so the
+    // server is asked rather than inferred from currentUserRole.
+    this.loadContractPermissions();
+    this.loadOrgTitleAccess();
   }
 
   ngAfterViewInit() {
@@ -1157,6 +1166,139 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   /** Same audience as the grants: a SuperAdmin looking at a regular Admin. */
   canManageAdminPosition(user: DetailedUser | UserAdmin | null): boolean {
     return this.canManagePageAccess(user);
+  }
+
+  // ── Officer title (CEO / CTO) ────────────────────────────────────────────────
+  // Relocated here from the Contracts tab (2026-09), so a staff member's title sits with the
+  // other things about who they are, next to Role and Position.
+  //
+  // Its authority is NOT the role hierarchy the rest of this panel uses. Assigning a title is
+  // governed by the bootstrap/locked rule on the server (OrgTitlePolicy): while no CTO exists any
+  // SuperAdmin may assign one, and the moment one does, only that person may. `canAssignOrgTitle`
+  // is the SERVER's answer to "may you", fetched once — never re-derived from a role here.
+
+  /** Bootstrap/locked state for the signed-in account, from GET api/admin/org-titles. */
+  orgTitleAccess: OrgTitleOverview | null = null;
+  savingOrgTitleUserId: number | null = null;
+
+  readonly orgTitleOptions = [
+    { value: 'None', label: 'None' },
+    { value: 'CEO', label: 'CEO' },
+    { value: 'CTO', label: 'CTO' }
+  ];
+
+  /**
+   * Officer titles exist on staff accounts only — a title on a customer or cleaner would mean
+   * nothing. Deliberately wider than canManagePageAccess (SuperAdmin viewing an Admin): a
+   * SuperAdmin can hold a title too, which is exactly who Nodar and Nika are.
+   */
+  isOfficerTitleApplicable(user: DetailedUser | UserAdmin | null): boolean {
+    return !!user && (user.role === 'Admin' || user.role === 'SuperAdmin');
+  }
+
+  get canAssignOrgTitle(): boolean {
+    return this.orgTitleAccess?.canAssign === true;
+  }
+
+  /** Why the dropdown is read-only, in the same words the old Contracts panel used. */
+  get orgTitleLockReason(): string {
+    if (this.orgTitleAccess?.isBootstrapMode) {
+      return 'Only a SuperAdmin can assign officer titles until a CTO exists.';
+    }
+    return 'Locked to the current CTO — only that account can assign or clear officer titles.';
+  }
+
+  private loadOrgTitleAccess(): void {
+    this.contractService.getOrgTitles().subscribe({
+      next: overview => this.orgTitleAccess = overview,
+      // Unknown authority renders the field read-only rather than offering a control the server
+      // would refuse.
+      error: () => this.orgTitleAccess = null
+    });
+  }
+
+  updateOrgTitle(user: DetailedUser | UserAdmin, orgTitle: string, event?: Event) {
+    event?.stopPropagation();
+    if (!this.canAssignOrgTitle || !this.isOfficerTitleApplicable(user)) return;
+    if ((user.orgTitle || 'None') === orgTitle) return;
+
+    const previous = user.orgTitle || 'None';
+    this.savingOrgTitleUserId = user.id;
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    const title = orgTitle === 'CEO' ? OrgTitle.CEO : orgTitle === 'CTO' ? OrgTitle.CTO : OrgTitle.None;
+
+    this.contractService.setOrgTitle(user.id, title).subscribe({
+      next: res => {
+        this.savingOrgTitleUserId = null;
+        this.successMessage = res.message;
+
+        // A title is held by one person at a time, and granting CTO closes bootstrap mode — which
+        // can change who may use this control at all, including the person who just used it. So
+        // the whole list and the authorization state are both refreshed rather than patched.
+        this.loadUsers();
+        this.loadOrgTitleAccess();
+      },
+      error: err => {
+        this.savingOrgTitleUserId = null;
+        user.orgTitle = previous;
+        this.errorMessage = extractApiErrorMessage(err, 'That officer title could not be changed.');
+      }
+    });
+  }
+
+  // ── Business flag ────────────────────────────────────────────────────────────
+  // Also relocated here (2026-09). Gated by the CONTRACTS permission matrix rather than the
+  // ordinary role hierarchy — Manager and CTO hold it, the CEO deliberately does not — so the
+  // answer comes from the server rather than from currentUserRole.
+
+  contractPermissions: ContractPermissions | null = null;
+  togglingBusinessUserId: number | null = null;
+
+  get canToggleBusinessFlag(): boolean {
+    return this.contractPermissions?.toggleBusinessFlag === true;
+  }
+
+  /** The flag only means anything on a customer account. */
+  isBusinessFlagApplicable(user: DetailedUser | UserAdmin | null): boolean {
+    return !!user && user.role === 'Customer';
+  }
+
+  private loadContractPermissions(): void {
+    this.contractService.getMyPermissions().subscribe({
+      next: permissions => this.contractPermissions = permissions,
+      error: () => this.contractPermissions = null
+    });
+  }
+
+  toggleBusinessFlag(user: DetailedUser | UserAdmin, isBusiness: boolean, event?: Event) {
+    event?.stopPropagation();
+    if (!this.canToggleBusinessFlag || !this.isBusinessFlagApplicable(user)) return;
+    if ((user.isBusiness ?? false) === isBusiness) return;
+
+    const previous = user.isBusiness ?? false;
+    this.togglingBusinessUserId = user.id;
+    this.errorMessage = '';
+    this.successMessage = '';
+
+    // Optimistic, like the other toggles in this panel; reverted on failure.
+    user.isBusiness = isBusiness;
+
+    this.contractService.setBusinessFlag(user.id, isBusiness).subscribe({
+      next: res => {
+        this.togglingBusinessUserId = null;
+        user.isBusiness = res.isBusiness;
+        this.successMessage = res.message;
+      },
+      error: err => {
+        this.togglingBusinessUserId = null;
+        user.isBusiness = previous;
+        // The server refuses to unflag an account a contract still depends on, and that message
+        // is the useful one — surfaced verbatim rather than replaced with a generic failure.
+        this.errorMessage = extractApiErrorMessage(err, 'The business flag could not be changed.');
+      }
+    });
   }
 
   isManagerPosition(user: DetailedUser | UserAdmin | null): boolean {

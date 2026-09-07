@@ -168,6 +168,16 @@ export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
       '/setup-pin',
       '/2fa-challenge',
       '/verify-email',
+      // Commercial contracts, every surface of them. '/contract' covers the public token pages
+      // (/contract/review/:token, /contract/sign/:token); '/profile' and '/admin' above already
+      // cover /profile/contracts and /admin/contracts. A residential discount popping up over an
+      // agreement somebody is about to sign is the wrong offer at the worst moment.
+      '/contract',
+      // The commercial landing page sells to businesses, and this popup's offer is the
+      // first-time RESIDENTIAL discount — it links into /booking, which cannot quote a
+      // commercial job. A commercial offer of its own is coming; until then the page
+      // shows no popup rather than the wrong one.
+      '/services/commercial-cleaning',
       '/maintenance'
     ];
     return hiddenPrefixes.some(prefix => path === prefix || path.startsWith(prefix + '/'));

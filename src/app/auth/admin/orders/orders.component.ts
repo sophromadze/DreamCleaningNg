@@ -12,8 +12,8 @@ import { FloorTypeSelection } from '../../../shared/components/floor-type-select
 import { PAYMENT_METHOD_OPTIONS, PaymentMethodValue } from '../../../shared/payment-method';
 import { NewOrderNotificationService } from '../../../services/new-order-notification.service';
 import { BubbleRewardsService } from '../../../services/bubble-rewards.service';
-import { forkJoin, of } from 'rxjs';
-import { catchError, finalize } from 'rxjs/operators';
+import { forkJoin, of, Observable, concat } from 'rxjs';
+import { catchError, finalize, last } from 'rxjs/operators';
 import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
 import { extractApiErrorMessage } from '../../../utils/http-error.utils';
 import { ShiftService, ShiftAdmin } from '../../../services/shift.service';
@@ -296,9 +296,45 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   cleanersLoadedSet: Set<number> = new Set();
   /** Cached resolved residential variant for list rows (without opening details). */
   residentialVariantCache: Map<number, 'Deep' | 'Regular'> = new Map();
-  /** The per-cleaner wage breakdown for the order whose detail panel is open (SuperAdmin only). */
+  /** The per-cleaner wage breakdown for the order whose detail panel is open. */
   selectedOrderPayroll: OrderCleanerPayroll | null = null;
   loadingOrderPayroll = false;
+
+  // ── Editing the wage breakdown, mirroring the Outgoing Payments panel ──────────────
+  //
+  // TWO editors of the same shape — one line, or everybody — each holding BOTH figures. It was
+  // briefly three controls ("change the rate for all" / "change the hours for all" as separate
+  // buttons), which made an admin decide what KIND of change they were making before they could
+  // type anything, when the answer is usually "both". Both go through the same server-side
+  // service the Outgoing Payments page writes with, so the two screens can never record the same
+  // change differently.
+  //
+  // Only ONE editor is open at a time (each start* closes the other): two half-typed figures on
+  // screen invite saving the wrong one.
+
+  /** `orderCleanerId` of the line being edited, or null. Unassigned slots are never editable. */
+  payrollEditingCleanerId: number | null = null;
+  payrollEditRate: number | null = null;
+  /** Decimal hours, matching the "$21 × 4.25" working the row prints. Converted to minutes on save. */
+  payrollEditHours: number | null = null;
+
+  /** The order-level editor: hours for every assigned cleaner, plus the order's default rate. */
+  editingPayrollForAll = false;
+  payrollAllHoursInput: number | null = null;
+  payrollAllRateInput: number | null = null;
+  /**
+   * What the for-all editor was SEEDED with, so the save can send only what actually moved.
+   *
+   * This is load-bearing rather than tidiness: the hours box is seeded with the AUTOMATIC split,
+   * and sending it back unchanged would write an explicit override of that figure onto every
+   * line. An explicit value stays put when the order is re-priced; a null keeps tracking it. So
+   * an admin who only meant to change the rate must not silently pin everyone's hours.
+   */
+  private payrollAllSeed: { hours: number | null; rate: number | null } = { hours: null, rate: null };
+
+  savingPayroll = false;
+  /** Kept out of `errorMessage`: it belongs beside the block that failed, not in the page banner. */
+  payrollError = '';
   /**
    * Staffing warnings by order id, for the table's ⚠ tooltip and the detail panel's warning
    * block. Loaded in one bulk request alongside the orders (Admin + SuperAdmin — unlike the wage
@@ -1861,12 +1897,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.loadOrderSavedCardInfo(orderId);
     this.resetTransferPanel();
     this.resetRefundState();
+    this.resetPayrollEditState();
+    // The breakdown under "Cleaners Total Salary". Admin and SuperAdmin since 2026-09 — the
+    // people who staff the job are the ones told it ran long. Moderators are View-only and the
+    // server answers them 403, so the call is gated on the same test as the block that shows it.
+    if (this.canViewCleanerPayroll) this.loadOrderCleanerPayroll(orderId);
     if (this.isSuperAdmin) {
       this.loadOrderTransfers(orderId);
       this.loadOrderRefunds(orderId);
-      // The breakdown under "Cleaners Total Salary". SuperAdmin-gated at the call site as well
-      // as on the server, so an Admin never fires a request that can only 403.
-      this.loadOrderCleanerPayroll(orderId);
     }
 
     // Acknowledge any active reminders for this order
@@ -1937,6 +1975,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.selectedOrder = null;
     this.selectedOrderPayroll = null;
     this.loadingOrderPayroll = false;
+    this.resetPayrollEditState();
     this.editingOrder = false;
     this.editingPaymentMethod = false;
     this.resetSaveConfirmState();
@@ -2812,6 +2851,292 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const p = this.selectedOrderPayroll;
     if (!p) return false;
     return Math.abs(Number(p.totalSalary) - Number(p.storedTotalSalary)) >= 0.01;
+  }
+
+  // ===== Editing the wage breakdown =====
+
+  /**
+   * May this user SEE what the cleaners are paid on this order?
+   *
+   * Admin and SuperAdmin (2026-09, owner's call). It was SuperAdmin-only, which left the people
+   * who actually staff the jobs unable to check the figure they are asked about on the phone.
+   * Moderators are View-only on the panel and the server answers them 403, so the block is not
+   * drawn for them either — a permanently empty section reads as a broken page.
+   *
+   * Deliberately a role test rather than `canUpdate`: reading is not editing, and
+   * `canEditCleanerPayroll` below is the separate gate on the buttons.
+   */
+  get canViewCleanerPayroll(): boolean {
+    return this.isSuperAdmin || this.userRole === 'Admin';
+  }
+
+  /**
+   * May this user change what a cleaner is paid on this order?
+   *
+   * The same test as editing the order itself (`canEditOrder`), and deliberately so: an Admin who
+   * can move the service date can record that the crew worked an extra quarter of an hour.
+   * Moderators are View-only and out, which the server enforces independently with
+   * `[RequirePermission(Permission.Update)]` — this only decides whether the buttons are drawn.
+   *
+   * Note it is NOT gated on the order-edit APPROVAL grant. A payroll figure moves no
+   * customer-facing price, so it is not a change request: it lands immediately and is audited,
+   * exactly as it is on the Outgoing Payments page.
+   */
+  get canEditCleanerPayroll(): boolean {
+    return this.canEditOrder;
+  }
+
+  /** True when at least one line carries a manual hours figure — i.e. there is something to reset. */
+  payrollHasHoursOverrides(): boolean {
+    return (this.selectedOrderPayroll?.lines ?? []).some(l => l.hoursOverridden);
+  }
+
+  /**
+   * What the for-all editor will and will not move, said before it is saved.
+   *
+   * "Every cleaner" MEANS every cleaner (owner's call, 2026-09): a line carrying its own rate is
+   * dropped back onto the order's, because the control reads as "everyone on this job is paid X"
+   * and leaving two people behind on an old figure made the panel look broken. Two things it
+   * still cannot move, and each earns a sentence — an unstaffed slot has no assignment row for an
+   * hours override to live on, and an already-PAID line keeps the rate its payout was calculated
+   * at, because that money has left.
+   */
+  payrollForAllReach(): string {
+    const p = this.selectedOrderPayroll;
+    if (!p) return '';
+
+    const assigned = p.assignedCount;
+    const parts = [`Applies to all ${assigned} cleaner${assigned === 1 ? '' : 's'} on this order, including any set by hand.`];
+
+    const slots = p.unassignedLines.length;
+    if (slots > 0) {
+      parts.push(`${slots} unstaffed slot${slots === 1 ? '' : 's'} stay on the automatic split — there is no cleaner record to set hours on.`);
+    }
+
+    parts.push('A cleaner already paid keeps the rate they were paid at.');
+
+    return parts.join(' ');
+  }
+
+  /** Decimal hours from minutes, for the edit inputs. 255 -> 4.25. */
+  private payrollHoursOf(minutes: number | null | undefined): number {
+    return Math.round(((Number(minutes) || 0) / 60) * 100) / 100;
+  }
+
+  isEditingPayrollLine(line: OrderCleanerPayrollLine): boolean {
+    return !line.isUnassignedSlot && this.payrollEditingCleanerId === line.orderCleanerId;
+  }
+
+  /**
+   * Opens one line's editor, seeded with what is IN FORCE rather than with the override — so an
+   * untouched line shows the automatic figures and saving it unchanged pins exactly what was
+   * already being paid, instead of some other number.
+   */
+  startEditPayrollLine(line: OrderCleanerPayrollLine): void {
+    if (!this.canEditCleanerPayroll || line.isUnassignedSlot) return;
+    this.cancelPayrollOrderEditors();
+    this.payrollEditingCleanerId = line.orderCleanerId;
+    this.payrollEditRate = Number(line.hourlyRate) || 0;
+    this.payrollEditHours = this.payrollHoursOf(line.billableMinutes);
+    this.payrollError = '';
+  }
+
+  cancelEditPayrollLine(): void {
+    this.payrollEditingCleanerId = null;
+    this.payrollEditRate = null;
+    this.payrollEditHours = null;
+  }
+
+  savePayrollLine(line: OrderCleanerPayrollLine): void {
+    if (!this.isEditingPayrollLine(line) || this.savingPayroll) return;
+
+    const rate = this.payrollEditRate;
+    const hours = this.payrollEditHours;
+    if (rate == null || rate < 0 || hours == null || hours < 0) {
+      this.payrollError = 'Rate and hours must both be zero or more.';
+      return;
+    }
+
+    this.writePayroll(
+      this.adminService.updateOrderCleanerPayroll(this.selectedOrder!.id, line.orderCleanerId, {
+        hourlyRate: rate,
+        billableMinutes: Math.round(hours * 60),
+        updateHourlyRate: true,
+        updateBillableMinutes: true
+      }),
+      'Could not save that change.'
+    );
+  }
+
+  /**
+   * Drops both of this line's overrides so it follows the order again. Distinct from typing the
+   * automatic numbers back in: a cleared override keeps tracking the order if it is re-priced
+   * later, a re-typed one does not.
+   */
+  resetPayrollLineToAutomatic(line: OrderCleanerPayrollLine): void {
+    if (!this.canEditCleanerPayroll || line.isUnassignedSlot || this.savingPayroll) return;
+
+    this.writePayroll(
+      this.adminService.updateOrderCleanerPayroll(this.selectedOrder!.id, line.orderCleanerId, {
+        hourlyRate: null,
+        billableMinutes: null,
+        updateHourlyRate: true,
+        updateBillableMinutes: true
+      }),
+      'Could not reset that line.'
+    );
+  }
+
+  /**
+   * Opens the one order-level editor. Hours are seeded with the AUTOMATIC split — the figure the
+   * admin is about to adjust away from ("4 hours each, make it 4:15") — and the rate with the
+   * order's own. Seeding hours from a line that already carries an override would silently
+   * re-apply one person's exception to the whole crew.
+   */
+  startEditPayrollForAll(): void {
+    if (!this.canEditCleanerPayroll) return;
+    this.cancelEditPayrollLine();
+    this.editingPayrollForAll = true;
+    this.payrollAllHoursInput = this.payrollHoursOf(
+      this.selectedOrderPayroll?.automaticMinutesPerCleaner);
+    this.payrollAllRateInput =
+      Number(this.selectedOrderPayroll?.orderHourlyRate ?? this.selectedOrder?.cleanerHourlyRate) || 0;
+    this.payrollAllSeed = { hours: this.payrollAllHoursInput, rate: this.payrollAllRateInput };
+    this.payrollError = '';
+  }
+
+  cancelEditPayrollForAll(): void {
+    this.editingPayrollForAll = false;
+    this.payrollAllHoursInput = null;
+    this.payrollAllRateInput = null;
+    this.payrollAllSeed = { hours: null, rate: null };
+  }
+
+  /**
+   * Saves the order-level editor — hours for every assigned cleaner, the order's default rate, or
+   * both.
+   *
+   * **Only what actually moved is sent**, and that is not tidiness: the hours box is seeded with
+   * the automatic split, so re-sending it would write an explicit override of that figure onto
+   * every line, and an explicit value stops tracking the order when it is re-priced. An admin who
+   * only meant to change the rate must not silently pin everyone's hours.
+   *
+   * The rate goes FIRST when both moved, because that call pins already-paid lines to the OLD
+   * rate before the order moves. Doing it after an hours change would still pin them correctly,
+   * but rate-then-hours is the order the two decisions were made in, and it is the order the
+   * audit log reads back as.
+   */
+  savePayrollForAll(): void {
+    if (!this.editingPayrollForAll || this.savingPayroll) return;
+
+    const orderId = this.selectedOrder?.id;
+    if (orderId == null) return;
+
+    const hours = this.payrollAllHoursInput;
+    const rate = this.payrollAllRateInput;
+    // With nobody assigned there is no hours box: an override has no row to live on, and the
+    // order rate is still worth setting ahead of staffing the job.
+    const hasAssigned = (this.selectedOrderPayroll?.assignedCount ?? 0) > 0;
+
+    if (rate == null || rate < 0 || (hasAssigned && (hours == null || hours < 0))) {
+      this.payrollError = 'Rate and hours must both be zero or more.';
+      return;
+    }
+
+    const writes: Observable<OrderCleanerPayroll>[] = [];
+    if (rate !== this.payrollAllSeed.rate) {
+      writes.push(this.adminService.updateOrderCleanerHourlyRate(orderId, rate));
+    }
+    if (hasAssigned && hours != null && hours !== this.payrollAllSeed.hours) {
+      writes.push(this.adminService.updateOrderCleanerHours(orderId, Math.round(hours * 60)));
+    }
+
+    // Nothing typed is not an error — it is a cancel that happened to go through the Save button,
+    // and sending two no-op writes would put two rows in the audit log saying so.
+    if (writes.length === 0) {
+      this.cancelEditPayrollForAll();
+      return;
+    }
+
+    // Sequential, and the LAST response wins: each endpoint answers with the whole breakdown, so
+    // the final one is the state after both changes. In parallel they would race two re-sums of
+    // the same order.
+    this.writePayroll(concat(...writes).pipe(last()), 'Could not save that change.');
+  }
+
+  /** Clears every per-cleaner hours override at once, putting the order back on the even split. */
+  resetPayrollHoursForAll(): void {
+    if (!this.canEditCleanerPayroll || this.savingPayroll) return;
+    this.writePayroll(
+      this.adminService.updateOrderCleanerHours(this.selectedOrder!.id, null),
+      'Could not reset the hours.'
+    );
+  }
+
+  /**
+   * Clears every open payroll editor and its error. Called when the panel opens on a DIFFERENT
+   * order and when it closes — a half-typed rate left sitting in an input would otherwise be
+   * saved against the next order the admin opened.
+   */
+  private resetPayrollEditState(): void {
+    this.cancelEditPayrollLine();
+    this.cancelPayrollOrderEditors();
+    this.savingPayroll = false;
+    this.payrollError = '';
+  }
+
+  private cancelPayrollOrderEditors(): void {
+    this.cancelEditPayrollForAll();
+  }
+
+  /**
+   * The one place a payroll write is sent. Every endpoint answers with the WHOLE breakdown, so
+   * the panel redraws from the response rather than patching a line in place — which is what kept
+   * the old edit-form copy of the salary disagreeing with the payout sheet.
+   *
+   * `cleanerTotalSalary` on the open order and on its list row are refreshed from the same
+   * response: they are what Statistics and Finances read, and leaving them stale would have the
+   * panel's own total contradict the lines directly beneath it.
+   */
+  private writePayroll(request: Observable<OrderCleanerPayroll>, fallbackMessage: string): void {
+    const orderId = this.selectedOrder?.id;
+    if (orderId == null) return;
+
+    this.savingPayroll = true;
+    this.payrollError = '';
+
+    request.subscribe({
+      next: (payroll) => {
+        // A late response for an order the admin has already navigated away from must not paint
+        // over the panel they are now looking at.
+        if (this.viewingOrderId !== orderId) return;
+
+        this.selectedOrderPayroll = payroll;
+        this.applyPayrollTotalsToOrder(orderId, payroll);
+        this.cancelEditPayrollLine();
+        this.cancelPayrollOrderEditors();
+        // The staffing warnings include "the rate is not the default for this service type", so
+        // a rate change can clear or raise one.
+        this.preloadStaffingWarnings([orderId]);
+      },
+      error: (err) => {
+        this.payrollError = extractApiErrorMessage(err, fallbackMessage);
+      },
+      complete: () => { this.savingPayroll = false; }
+    });
+  }
+
+  /** Copies the re-summed wage figures onto the open order and its list row. */
+  private applyPayrollTotalsToOrder(orderId: number, payroll: OrderCleanerPayroll): void {
+    if (this.selectedOrder?.id === orderId) {
+      this.selectedOrder.cleanerTotalSalary = payroll.storedTotalSalary;
+      this.selectedOrder.cleanerHourlyRate = payroll.orderHourlyRate;
+    }
+    const row: any = this.orders.find(o => o.id === orderId);
+    if (row) {
+      if ('cleanerTotalSalary' in row) row.cleanerTotalSalary = payroll.storedTotalSalary;
+      if ('cleanerHourlyRate' in row) row.cleanerHourlyRate = payroll.orderHourlyRate;
+    }
   }
 
   /**
@@ -6042,7 +6367,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.selectedOrder) return;
     // The salary can move on any save (services, duration, maids, rate), so the breakdown is
     // refetched with the order rather than left showing the pre-save split.
-    if (this.isSuperAdmin) this.loadOrderCleanerPayroll(this.selectedOrder.id);
+    if (this.canViewCleanerPayroll) this.loadOrderCleanerPayroll(this.selectedOrder.id);
     // So can the warnings — a save that raises the cleaner count or records a payment resolves
     // one. Targeted at this order so a single save does not drag the whole table over the wire.
     this.preloadStaffingWarnings([this.selectedOrder.id]);

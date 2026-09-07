@@ -297,6 +297,20 @@ export class OutgoingPaymentService {
       `${this.apiUrl}/order/${orderId}/hourly-rate`, { hourlyRate });
   }
 
+  /**
+   * Sets the paid hours for EVERY assigned cleaner on the order — the hours counterpart of the
+   * rate above, and the case this page was missing: the rate could be moved for everybody while
+   * the hours had to be retyped line by line, which is backwards. The whole crew staying another
+   * quarter of an hour is the change that actually happens.
+   *
+   * Null clears the overrides and puts the order back on the automatic split. Unassigned staffing
+   * slots are not moved — there is no assignment row to hang an override on.
+   */
+  updateOrderCleanerHours(orderId: number, billableMinutes: number | null): Observable<OutgoingPaymentOrder> {
+    return this.http.put<OutgoingPaymentOrder>(
+      `${this.apiUrl}/order/${orderId}/cleaner-hours`, { billableMinutes });
+  }
+
   markCleanerPaid(
     orderId: number,
     orderCleanerId: number,

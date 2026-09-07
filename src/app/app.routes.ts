@@ -132,6 +132,24 @@ export const routes: Routes = [
     }
   },
   {
+    // Commercial landing page — the destination for the commercial Google Ads campaign.
+    // Laid out like the homepage rather than like the other service pages, and its hero card
+    // is a lead form (commercial buyers price on a walkthrough, not on a bedroom count).
+    path: 'services/commercial-cleaning',
+    loadComponent: () => import('./service-page/services/commercial-cleaning/commercial-cleaning.component').then(m => m.CommercialCleaningComponent),
+    data: {
+      title: 'Commercial Cleaning Services NYC | Offices, Retail & More | Dream Cleaning',
+      description: "Commercial cleaning in NYC for offices, retail, medical practices and restaurants. Free on-site assessment, same-day quote, and 20% off your first month of recurring service. Manhattan, Brooklyn & Queens."
+    }
+  },
+  {
+    // Short alias so ad copy and printed material can use dreamcleaningnyc.com/commercial-cleaning.
+    // The route above stays canonical; this only redirects onto it.
+    path: 'commercial-cleaning',
+    redirectTo: 'services/commercial-cleaning',
+    pathMatch: 'full'
+  },
+  {
     path: 'services/office-cleaning',
     loadComponent: () => import('./service-page/services/office-cleaning/office-cleaning.component').then(m => m.OfficeCleaningComponent),
     data: {
@@ -365,6 +383,23 @@ export const routes: Routes = [
   { path: 'admin/rewards', pathMatch: 'full', redirectTo: () => inject(Router).parseUrl('/admin?tab=rewards') },
   { path: 'admin/expenses', redirectTo: 'admin/company/expenses', pathMatch: 'full' },
   { path: 'admin/finances', redirectTo: 'admin/company/finances', pathMatch: 'full' },
+  // ── Contracts: its own top-level admin section (2026-09) ──────────────────────────────────
+  // Was a tab inside /admin/crm, which gave it no real URL — only a sessionStorage tab and a
+  // ?contractId= param. The :id form is what the revision-request email links to.
+  // Same guard stack as the other top-level admin sections; the Contracts permission matrix is
+  // enforced server-side on top of it.
+  {
+    path: 'admin/contracts',
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
+    loadComponent: () => import('./auth/admin/contracts-page/contracts-page.component')
+      .then(m => m.ContractsPageComponent)
+  },
+  {
+    path: 'admin/contracts/:id',
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
+    loadComponent: () => import('./auth/admin/contracts-page/contracts-page.component')
+      .then(m => m.ContractsPageComponent)
+  },
   {
     path: 'admin/crm',
     canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
@@ -429,6 +464,38 @@ export const routes: Routes = [
     path: 'admin/blog',
     canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
     loadComponent: () => import('./auth/admin/blog/admin-blog.component').then(m => m.AdminBlogComponent)
+  },
+
+  // ── Commercial contracts: the client-facing half ──────────────────────────────────────────
+  // Deliberately UNGUARDED. A commercial counterparty has no account here, so the opaque token
+  // in the URL is the whole authorization — the same shape as the tokenized customer payment
+  // links. Adding authGuard would lock out exactly the people these pages exist for.
+  {
+    path: 'contract/review/:token',
+    loadComponent: () => import('./contract/contract-review/contract-review.component')
+      .then(m => m.ContractReviewComponent)
+  },
+  {
+    path: 'contract/sign/:token',
+    loadComponent: () => import('./contract/contract-sign/contract-sign.component')
+      .then(m => m.ContractSignComponent)
+  },
+
+  // ── My Contracts: the business customer's own contracts ───────────────────────────────────
+  // Guarded like the rest of the customer account area. The route guard is only half of it —
+  // every endpoint behind these pages re-checks ContractClient.SourceUserId against the signed-in
+  // account, so a guessed contract id returns 404 rather than someone else's agreement.
+  {
+    path: 'profile/contracts',
+    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
+    loadComponent: () => import('./contract/my-contracts/my-contracts.component')
+      .then(m => m.MyContractsComponent)
+  },
+  {
+    path: 'profile/contracts/:id',
+    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
+    loadComponent: () => import('./contract/my-contract-detail/my-contract-detail.component')
+      .then(m => m.MyContractDetailComponent)
   },
 
   {

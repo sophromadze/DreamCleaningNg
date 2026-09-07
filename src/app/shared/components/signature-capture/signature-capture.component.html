@@ -1,0 +1,71 @@
+<div class="signature-capture">
+  <div class="capture-fields">
+    <div class="field">
+      <label for="captureName">Name</label>
+      <input id="captureName" name="captureName" type="text"
+             [(ngModel)]="signerName" [readonly]="nameLocked" [class.locked]="nameLocked" />
+      <!-- Locked for the contractor: the name comes from the contractor profile, not from
+           whoever happens to be holding the link or the session. -->
+      <small class="hint" *ngIf="nameLocked">Set on the contractor profile.</small>
+    </div>
+    <div class="field">
+      <label for="captureTitle">Title</label>
+      <input id="captureTitle" name="captureTitle" type="text"
+             [(ngModel)]="signerTitle" [readonly]="titleLocked" [class.locked]="titleLocked" />
+    </div>
+    <div class="field" *ngIf="showEmailField">
+      <label for="captureEmail">Email</label>
+      <input id="captureEmail" name="captureEmail" type="email" [(ngModel)]="signerEmail" />
+    </div>
+  </div>
+
+  <div class="method-switch">
+    <button type="button"
+            [class.active]="method === ContractSignatureMethod.Draw"
+            (click)="setMethod(ContractSignatureMethod.Draw)">Draw</button>
+    <button type="button"
+            [class.active]="method === ContractSignatureMethod.Type"
+            (click)="setMethod(ContractSignatureMethod.Type)">Type</button>
+  </div>
+
+  <!-- The two modes are mutually exclusive in what they RENDER, via *ngIf rather than [hidden].
+       [hidden] only applies `display: none` as a UA style, which the `display: flex` on
+       .signature-input below overrides — so the empty canvas stayed on screen in Type mode. -->
+  <div class="signature-input" *ngIf="method === ContractSignatureMethod.Draw">
+    <canvas #padCanvas class="signature-pad"
+            (pointerdown)="startStroke($event)"
+            (pointermove)="continueStroke($event)"
+            (pointerup)="endStroke($event)"
+            (pointerleave)="endStroke($event)"
+            (pointercancel)="endStroke($event)"></canvas>
+    <div class="pad-actions">
+      <span class="hint">{{ modeCaption }}</span>
+      <button type="button" class="btn-ghost" (click)="clearPad()">Clear</button>
+    </div>
+  </div>
+
+  <div class="signature-input" *ngIf="method === ContractSignatureMethod.Type">
+    <input class="typed-signature" type="text" name="typedSignature"
+           [(ngModel)]="typedSignature" placeholder="Type your full name" />
+    <span class="hint">{{ modeCaption }}</span>
+  </div>
+
+  <label class="consent">
+    <input type="checkbox" name="consent" [(ngModel)]="consentAccepted" />
+    <span>{{ consentText }}</span>
+  </label>
+
+  <div class="error-text" *ngIf="validationError || errorMessage">
+    {{ validationError || errorMessage }}
+  </div>
+
+  <button type="button" class="btn-primary large" (click)="submit()" [disabled]="submitting">
+    {{ submitting ? 'Signing…' : submitLabel }}
+  </button>
+
+  <p class="legal-note">
+    Your name, title, email, the time you signed, your IP address and the unique fingerprint of
+    this exact document version are recorded on the signature certificate attached to the executed
+    agreement.
+  </p>
+</div>

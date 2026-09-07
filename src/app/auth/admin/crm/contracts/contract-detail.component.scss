@@ -1,0 +1,295 @@
+.contract-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.loading-state {
+  color: var(--text-muted);
+  padding: 2rem;
+  text-align: center;
+}
+
+.detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+
+  h2 { margin: 0.35rem 0 0.15rem; font-size: 1.3rem; }
+}
+
+.back-link {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0;
+
+  &.small { font-size: 0.72rem; }
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: var(--soft-blue);
+  color: var(--primary-color);
+  white-space: nowrap;
+
+  // Paired background/foreground per state — mixing them across states reads as a bug.
+  &[data-status="7"], &[data-status="8"] { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &[data-status="3"] { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+  &[data-status="9"], &[data-status="10"] { background: var(--soft-red); color: var(--bright-red); }
+}
+
+.alert {
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.95rem;
+  font-size: 0.87rem;
+
+  &.error { background: var(--soft-red); color: var(--bright-red); }
+  &.success { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &.warn { background: var(--warning-orange-bg); color: var(--warning-orange-text); }
+}
+
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  padding: 0.85rem;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-md);
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 1.25rem;
+  align-items: start;
+
+  @media (max-width: 1100px) { grid-template-columns: 1fr; }
+}
+
+.detail-main { min-width: 0; }
+
+.version-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.strip-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-right: 0.3rem;
+}
+
+.version-chip {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-pill);
+  padding: 0.3rem 0.8rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+
+  &.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+  }
+}
+
+.detail-side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.side-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.1rem;
+
+  h3 {
+    margin: 0 0 0.7rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+}
+
+.link-text, .hash {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  word-break: break-all;
+  margin: 0 0 0.6rem;
+}
+
+.signer {
+  padding: 0.65rem 0;
+  border-bottom: 1px solid var(--border-color);
+  &:last-child { border-bottom: none; padding-bottom: 0; }
+}
+
+.signer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+}
+
+.signer-status {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--soft-yellow);
+  color: var(--soft-yellow-text);
+
+  &[data-status="1"] { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &[data-status="2"] { background: var(--soft-red); color: var(--bright-red); }
+}
+
+.signer-name { font-size: 0.9rem; margin-top: 0.2rem; }
+
+.signer-meta {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.signer-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.45rem;
+}
+
+.file-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-color);
+  &:last-child { border-bottom: none; }
+}
+
+.file-name { font-size: 0.85rem; }
+.file-meta { font-size: 0.72rem; color: var(--text-muted); }
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+
+  li {
+    padding: 0.45rem 0 0.45rem 0.85rem;
+    border-left: 2px solid var(--border-color);
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: -5px;
+      top: 0.75rem;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--primary-color);
+    }
+  }
+}
+
+.timeline-text { font-size: 0.83rem; color: var(--text-primary); }
+.timeline-meta { font-size: 0.7rem; color: var(--text-muted); }
+
+.btn-primary {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--primary-color-hover); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.btn-ghost {
+  background: var(--surface);
+  color: var(--primary-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--soft-blue); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  &.small { padding: 0.3rem 0.7rem; font-size: 0.75rem; }
+}
+
+.btn-danger {
+  background: transparent;
+  color: var(--bright-red);
+  border: 1px solid var(--bright-red);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--soft-red); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+// ── In-app contractor signing ───────────────────────────────────────────────
+// Visually set apart from the document because it is an ACTION on the contract rather than part
+// of it — an admin must never mistake the capture box for the signature block in the document.
+.signing-panel {
+  background: var(--surface);
+  border: 2px solid var(--primary-color);
+  border-radius: var(--radius-md);
+  padding: 1.15rem 1.25rem;
+}
+
+.signing-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+
+  h3 { margin: 0; font-size: 1rem; }
+}
+
+.signing-note {
+  margin: 0 0 1rem;
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+}

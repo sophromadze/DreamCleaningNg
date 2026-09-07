@@ -1,0 +1,156 @@
+<div class="contract-page">
+
+  <div class="contract-shell" *ngIf="loading">
+    <div class="contract-card contract-status-card">Loading your agreement…</div>
+  </div>
+
+  <div class="contract-shell" *ngIf="!loading && loadError">
+    <div class="contract-card contract-status-card error">
+      <h1>We could not open this agreement</h1>
+      <p>{{ loadError }}</p>
+      <button type="button" class="btn-ghost" (click)="back()">Back to My Contracts</button>
+    </div>
+  </div>
+
+  <div class="contract-shell" *ngIf="!loading && page">
+
+    <header class="contract-card contract-header">
+      <button type="button" class="btn-ghost back-link" (click)="back()">← My Contracts</button>
+      <div class="contract-eyebrow">{{ page.contractNumber }} · Version {{ page.versionNumber }}</div>
+      <h1>{{ page.documentTitle }}</h1>
+      <p class="contract-parties">
+        Between <strong>{{ page.contractorDisplayName }}</strong>
+        and <strong>{{ page.clientLegalName }}</strong>
+      </p>
+      <span class="contract-status-pill">{{ page.statusLabel }}</span>
+    </header>
+
+    <div class="contract-card notice" *ngIf="page.message">{{ page.message }}</div>
+
+    <div class="contract-card notice revision" *ngIf="revisionNotice">
+      <strong>Thank you — we are preparing a revised version.</strong>
+      <p>{{ revisionNotice.message }}</p>
+      <ul><li *ngFor="let field of revisionNotice.fields">{{ field }}</li></ul>
+    </div>
+
+    <div class="contract-card notice success" *ngIf="successMessage">{{ successMessage }}</div>
+
+    <div class="contract-card notice success" *ngIf="signed">
+      <strong>{{ signedMessage }}</strong>
+    </div>
+
+    <!-- Your information, before the agreement so corrections happen first -->
+    <section class="contract-card">
+      <div class="section-head">
+        <h2>Your information</h2>
+        <button type="button" class="btn-ghost"
+                *ngIf="page.canEdit && !editing"
+                (click)="startEditing()">Edit</button>
+      </div>
+
+      <p class="muted" *ngIf="page.canEdit && !editing">
+        Please check these details before signing. Correcting a name, title, email or phone is
+        applied straight away.
+      </p>
+
+      <dl class="info-grid" *ngIf="!editing">
+        <div><dt>Company</dt><dd>{{ page.yourInformation.companyLegalName }}</dd></div>
+        <div><dt>Name</dt>
+          <dd>{{ page.yourInformation.firstName }} {{ page.yourInformation.lastName }}</dd></div>
+        <div><dt>Title</dt><dd>{{ page.yourInformation.title || '—' }}</dd></div>
+        <div><dt>Email</dt><dd>{{ page.yourInformation.email || '—' }}</dd></div>
+        <div><dt>Phone</dt><dd>{{ page.yourInformation.phone || '—' }}</dd></div>
+        <div class="wide"><dt>Company address</dt>
+          <dd>{{ page.yourInformation.companyAddress }}, {{ page.yourInformation.city }},
+              {{ page.yourInformation.state }} {{ page.yourInformation.zip }}</dd></div>
+      </dl>
+
+      <form class="info-form" *ngIf="editing" (ngSubmit)="save()">
+        <div class="field wide">
+          <label for="myCompanyLegalName">Company legal name</label>
+          <input id="myCompanyLegalName" name="companyLegalName" type="text"
+                 [(ngModel)]="form.companyLegalName" required />
+        </div>
+        <div class="field">
+          <label for="myFirstName">First name</label>
+          <input id="myFirstName" name="firstName" type="text" [(ngModel)]="form.firstName" required />
+        </div>
+        <div class="field">
+          <label for="myLastName">Last name</label>
+          <input id="myLastName" name="lastName" type="text" [(ngModel)]="form.lastName" required />
+        </div>
+        <div class="field">
+          <label for="myTitle">Title</label>
+          <input id="myTitle" name="title" type="text" [(ngModel)]="form.title" />
+        </div>
+        <div class="field">
+          <label for="myEmail">Email</label>
+          <input id="myEmail" name="email" type="email" [(ngModel)]="form.email" />
+        </div>
+        <div class="field">
+          <label for="myPhone">Phone</label>
+          <input id="myPhone" name="phone" type="tel" [(ngModel)]="form.phone" />
+        </div>
+        <div class="field wide">
+          <label for="myCompanyAddress">Company address</label>
+          <input id="myCompanyAddress" name="companyAddress" type="text"
+                 [(ngModel)]="form.companyAddress" required />
+        </div>
+        <div class="field">
+          <label for="myCity">City</label>
+          <input id="myCity" name="city" type="text" [(ngModel)]="form.city" />
+        </div>
+        <div class="field">
+          <label for="myState">State</label>
+          <input id="myState" name="state" type="text" [(ngModel)]="form.state" />
+        </div>
+        <div class="field">
+          <label for="myZip">ZIP</label>
+          <input id="myZip" name="zip" type="text" [(ngModel)]="form.zip" />
+        </div>
+
+        <div class="field wide revision-warning" *ngIf="willCreateRevision">
+          Changing your legal entity name or company address changes the agreement itself. We will
+          prepare a revised version and confirm it with you before signing.
+        </div>
+
+        <div class="field wide error-text" *ngIf="saveError">{{ saveError }}</div>
+
+        <div class="field wide form-actions">
+          <button type="submit" class="btn-primary" [disabled]="saving">
+            {{ saving ? 'Saving…' : 'Save changes' }}
+          </button>
+          <button type="button" class="btn-ghost" (click)="cancelEditing()" [disabled]="saving">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <!-- The complete agreement -->
+    <section class="contract-card document-card">
+      <h2>The agreement</h2>
+      <app-contract-document [documentHtml]="page.documentHtml"
+                            [signatureBlock]="page.signatureBlock"></app-contract-document>
+    </section>
+
+    <!-- Signing, in the same capture UI the emailed link uses -->
+    <section class="contract-card signing-card" *ngIf="canSign">
+      <h2>Sign this agreement</h2>
+      <app-signature-capture
+        [signerName]="page.yourInformation.firstName + ' ' + page.yourInformation.lastName"
+        [signerTitle]="page.yourInformation.title || ''"
+        [signerEmail]="page.yourInformation.email || ''"
+        [showEmailField]="false"
+        [submitting]="signing"
+        [errorMessage]="signError"
+        (signed)="onSigned($event)"></app-signature-capture>
+    </section>
+
+    <footer class="contract-card contract-footer" *ngIf="isExecuted">
+      <button type="button" class="btn-primary large" (click)="downloadExecuted()">
+        Download the executed agreement
+      </button>
+    </footer>
+  </div>
+</div>

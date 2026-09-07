@@ -1,0 +1,173 @@
+// Self-contained: this component renders identically on the public signing page, inside the
+// admin panel and in the customer portal, so it carries its own styles rather than inheriting
+// from any one host's stylesheet.
+
+.signature-capture {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.capture-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.9rem 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+
+  label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  input {
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-family: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px var(--soft-blue);
+    }
+
+    &.locked {
+      background: var(--surface-subtle);
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+  }
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.method-switch {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  align-self: flex-start;
+
+  button {
+    background: var(--surface);
+    color: var(--text-secondary);
+    border: none;
+    padding: 0.55rem 1.4rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+
+    & + button { border-left: 1px solid var(--border-color); }
+
+    &.active {
+      background: var(--primary-color);
+      color: #fff;
+    }
+  }
+}
+
+.signature-input {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.signature-pad {
+  width: 100%;
+  height: 170px;
+  border: 2px dashed var(--border-color);
+  border-radius: var(--radius-sm);
+  // The pad must own the gesture, or dragging a finger scrolls the page instead of drawing.
+  touch-action: none;
+  cursor: crosshair;
+  // Follows the theme, like the typed-signature field beside it — a forced white box next to a
+  // dark input read as a rendering fault. The component paints the ink to match (see screenInk),
+  // and forces the STORED mark back to dark on export, because the PDF page is white.
+  background: var(--surface);
+}
+
+.pad-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.typed-signature {
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-family: 'Segoe Script', 'Brush Script MT', cursive;
+  font-size: 1.6rem;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--soft-blue);
+  }
+}
+
+.consent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+
+  input { margin-top: 0.2rem; width: 1.05rem; height: 1.05rem; flex-shrink: 0; }
+}
+
+.error-text {
+  color: var(--bright-red);
+  font-size: 0.85rem;
+}
+
+.legal-note {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 1.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--primary-color-hover); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  &.large { padding: 0.85rem 2rem; font-size: 1rem; width: 100%; }
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--primary-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover { background: var(--surface-subtle); }
+}

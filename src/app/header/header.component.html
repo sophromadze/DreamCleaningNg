@@ -45,9 +45,11 @@
                     <a routerLink="/services/residential-cleaning/bathroom" (click)="closeAllMenus()">Bathroom Cleaning</a>
                   </div>
                 </div>
-                <!-- Commercial -->
+                <!-- Commercial — the column heading is a LINK to the commercial landing page,
+                     matching Residential above it. It was a plain <p> while its sub-links went
+                     somewhere, so the category itself had no page to land on. -->
                 <div class="dropdown-column">
-                  <p>Commercial Cleaning</p>
+                  <a routerLink="/services/commercial-cleaning" (click)="closeAllMenus()">Commercial Cleaning</a>
                   <div class="sub-links">
                     <a routerLink="/services/office-cleaning" (click)="closeAllMenus()">Office Cleaning</a>
                     <a routerLink="/services/post-construction-cleaning" (click)="closeAllMenus()">Post-Construction Cleaning</a>
@@ -311,6 +313,14 @@
                   <span class="unpaid-orders-menu-indicator" *ngIf="hasUnpaidOrders"></span>
                 </a>
                 <a routerLink="/rewards" (click)="closeAllMenus(); $event.stopPropagation()" *ngIf="!isCleanerAccount">My Rewards</a>
+                <!-- Business customers only, and only once they actually have a contract. Driven
+                     by one cheap boolean endpoint that applies both halves of that rule, so a
+                     residential customer and a business with nothing on file both see nothing. -->
+                <a routerLink="/profile/contracts"
+                   (click)="closeAllMenus(); $event.stopPropagation()"
+                   *ngIf="!isCleanerAccount && hasContracts">
+                  My Contracts
+                </a>
                 <a routerLink="/admin"
                    (click)="closeAllMenus(); $event.stopPropagation()"
                    *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'"
@@ -322,6 +332,14 @@
                    (click)="closeAllMenus(); $event.stopPropagation()"
                    *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'">
                   CRM
+                </a>
+                <!-- Contracts became its own top-level section (2026-09), out of the CRM shell.
+                     Role-gated the same way as CRM here; the Contracts permission matrix is
+                     enforced server-side on every action inside it. -->
+                <a routerLink="/admin/contracts"
+                   (click)="closeAllMenus(); $event.stopPropagation()"
+                   *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin'">
+                  Contracts
                 </a>
                 <!-- Company shell (Statistics/Expenses/Finances/Ads) — single entry, shown only when
                      the user can see at least one tab. Replaces the old separate Stats/Expenses/

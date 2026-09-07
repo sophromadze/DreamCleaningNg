@@ -1,0 +1,60 @@
+<div class="contract-page">
+
+  <div class="contract-shell" *ngIf="loading">
+    <div class="contract-card contract-status-card">Loading the agreement…</div>
+  </div>
+
+  <div class="contract-shell" *ngIf="!loading && loadError">
+    <div class="contract-card contract-status-card error">
+      <h1>We could not open this signing link</h1>
+      <p>{{ loadError }}</p>
+    </div>
+  </div>
+
+  <div class="contract-shell" *ngIf="!loading && page">
+
+    <header class="contract-card contract-header">
+      <div class="contract-eyebrow">{{ page.contractNumber }} · Version {{ page.versionNumber }}</div>
+      <h1>{{ page.documentTitle }}</h1>
+      <p class="contract-parties">
+        Signing for <strong>{{ page.partyEntityName }}</strong>
+      </p>
+    </header>
+
+    <div class="contract-card notice" *ngIf="page.message">{{ page.message }}</div>
+
+    <div class="contract-card notice success" *ngIf="page.alreadySigned && !completed">
+      You signed this agreement on {{ page.signedAt | date: 'medium' }}. Nothing further is needed
+      from you.
+    </div>
+
+    <div class="contract-card notice success" *ngIf="completed">
+      <strong>{{ completionMessage }}</strong>
+      <p *ngIf="fullyExecuted">A copy of the fully executed agreement, together with the electronic
+        signature certificate, is on its way to your inbox.</p>
+      <p *ngIf="!fullyExecuted">We will let you know as soon as the other party has signed.</p>
+    </div>
+
+    <!-- The whole agreement, above the signing controls -->
+    <section class="contract-card document-card">
+      <app-contract-document [documentHtml]="page.documentHtml"
+                            [signatureBlock]="page.signatureBlock"></app-contract-document>
+    </section>
+
+    <!-- Signing. The capture is the shared component, so this page, the admin panel and the
+         customer portal offer identical methods and identical consent wording. -->
+    <section class="contract-card signing-card" *ngIf="canSign">
+      <h2>Sign this agreement</h2>
+      <app-signature-capture
+        [signerName]="page.signerName"
+        [signerTitle]="page.signerTitle || ''"
+        [signerEmail]="page.signerEmail || ''"
+        [nameLocked]="page.nameLocked"
+        [titleLocked]="page.titleLocked"
+        [consentText]="page.consentText"
+        [submitting]="submitting"
+        [errorMessage]="submitError"
+        (signed)="onSigned($event)"></app-signature-capture>
+    </section>
+  </div>
+</div>

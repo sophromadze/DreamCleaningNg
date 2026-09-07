@@ -1,0 +1,193 @@
+<div class="contract-detail" *ngIf="!loading && detail">
+
+  <div class="detail-header">
+    <div>
+      <button type="button" class="back-link" (click)="back.emit()">← All contracts</button>
+      <h2>{{ detail.contractNumber }}</h2>
+      <p class="muted">
+        {{ (detail.currentSnapshot ?? detail.draft).client.legalEntityName }}
+        · Version {{ detail.currentVersionNumber }}
+        <span *ngIf="detail.createdByAdminName"> · Created by {{ detail.createdByAdminName }}</span>
+      </p>
+    </div>
+    <span class="status-pill" [attr.data-status]="detail.status">{{ detail.statusLabel }}</span>
+  </div>
+
+  <div class="alert error" *ngIf="errorMessage">{{ errorMessage }}</div>
+  <div class="alert success" *ngIf="successMessage">{{ successMessage }}</div>
+
+  <!-- Deleted contracts stay fully readable; the banner explains what state it is in. -->
+  <div class="alert warn" *ngIf="detail.isHidden">
+    This contract is deleted. It is hidden from the list and its signing links have been revoked.
+    It will be permanently removed 6 months after {{ detail.hiddenAt | date: 'mediumDate' }}.
+  </div>
+
+  <div class="alert warn" *ngIf="detail.voidReason">Voided: {{ detail.voidReason }}</div>
+
+  <!-- An unfilled placeholder must never reach a client as a literal {{TOKEN}}. -->
+  <div class="alert warn" *ngIf="detail.unresolvedTokens.length">
+    <strong>Unfilled placeholders in this document:</strong>
+    {{ detail.unresolvedTokens.join(', ') }}. Fill these in before sending it to the client.
+  </div>
+
+  <!-- Actions. Every button is gated on the contract's state AND the server's permission matrix;
+       the API re-checks both, so a hidden button is a courtesy, not the control. -->
+  <div class="action-bar">
+    <button type="button" class="btn-ghost" *ngIf="showEdit"
+            (click)="edit.emit(detail.id)" [disabled]="busy">Back to edit</button>
+
+    <button type="button" class="btn-primary" *ngIf="showSendForReview"
+            (click)="sendForReview()" [disabled]="busy">Approve &amp; send for client review</button>
+
+    <button type="button" class="btn-primary" *ngIf="showSendForSignature"
+            (click)="sendForSignature()" [disabled]="busy">Send for signature</button>
+
+    <button type="button" class="btn-primary" *ngIf="canSignAsContractor && !signingOpen"
+            (click)="openSigning()" [disabled]="busy">Sign as Contractor</button>
+
+    <button type="button" class="btn-ghost" *ngIf="canRevise"
+            (click)="revise()" [disabled]="busy">Create revision</button>
+
+    <button type="button" class="btn-ghost" *ngIf="canRegenerateExecuted"
+            (click)="regenerateExecuted()" [disabled]="busy">Regenerate executed PDF</button>
+
+    <button type="button" class="btn-ghost" *ngIf="canResendExecuted"
+            (click)="resendExecuted()" [disabled]="busy">Re-send executed copy</button>
+
+    <button type="button" class="btn-ghost" *ngIf="canAmend"
+            (click)="duplicate(true)" [disabled]="busy">Create amendment</button>
+    <button type="button" class="btn-ghost" *ngIf="canDuplicate"
+            (click)="duplicate(false)" [disabled]="busy">Duplicate as new contract</button>
+
+    <button type="button" class="btn-ghost" *ngIf="showRestore"
+            (click)="restoreContract()" [disabled]="busy">Restore</button>
+
+    <button type="button" class="btn-danger" *ngIf="showDelete"
+            (click)="deleteContract()" [disabled]="busy">Delete</button>
+  </div>
+
+  <!-- In-app contractor signing: the same capture UI the emailed link uses, inside the panel.
+       The mailed link keeps working in parallel and is not disturbed by this. -->
+  <section class="signing-panel" *ngIf="signingOpen">
+    <div class="signing-head">
+      <h3>Sign as Contractor</h3>
+      <button type="button" class="btn-ghost small" (click)="cancelSigning()">Cancel</button>
+    </div>
+    <p class="signing-note">
+      You are signing for {{ signatureBlock?.contractor?.entityName }} as
+      {{ contractorSigner?.invitedName }}. This is recorded the same way as a signature made from
+      the emailed link, and additionally notes that it came from the admin panel.
+    </p>
+    <app-signature-capture
+      [signerName]="contractorSigner?.invitedName || ''"
+      [signerTitle]="contractorSigner?.invitedTitle || ''"
+      [signerEmail]="contractorSigner?.invitedEmail || ''"
+      [nameLocked]="true"
+      [titleLocked]="true"
+      [showEmailField]="false"
+      [submitting]="signingBusy"
+      [errorMessage]="signingError"
+      (signed)="onSignedAsContractor($event)"></app-signature-capture>
+  </section>
+
+  <div class="detail-grid">
+    <div class="detail-main">
+
+      <div class="version-strip" *ngIf="detail.versions.length > 1">
+        <span class="strip-label">Versions</span>
+        <button type="button" class="version-chip"
+                *ngFor="let v of detail.versions"
+                [class.active]="(viewingVersionId ?? detail.currentVersionId) === v.id"
+                (click)="viewVersion(v.id)">
+          v{{ v.versionNumber }}<span *ngIf="v.isCurrent"> · current</span>
+        </button>
+      </div>
+
+      <div class="alert warn" *ngIf="viewingVersionId">
+        You are viewing a superseded version. Signatures on it were voided when it was replaced.
+      </div>
+
+      <!-- The FULL document: master agreement, signature block, Exhibit A and Exhibit B -->
+      <app-contract-document [documentHtml]="viewingHtml"
+                            [signatureBlock]="signatureBlock"></app-contract-document>
+    </div>
+
+    <aside class="detail-side">
+
+      <section class="side-card" *ngIf="detail.clientReviewUrl">
+        <h3>Client review link</h3>
+        <p class="link-text">{{ detail.clientReviewUrl }}</p>
+        <button type="button" class="btn-ghost small" (click)="copyReviewLink()">Copy link</button>
+      </section>
+
+      <section class="side-card" *ngIf="detail.signers.length">
+        <h3>Signers</h3>
+        <div class="signer" *ngFor="let signer of detail.signers">
+          <div class="signer-head">
+            <strong>{{ signerRoleLabel(signer.role) }}</strong>
+            <span class="signer-status" [attr.data-status]="signer.status">
+              {{ signer.status === ContractSignerStatus.Signed ? 'Signed'
+                 : signer.status === ContractSignerStatus.Voided ? 'Voided' : 'Pending' }}
+            </span>
+          </div>
+          <div class="signer-name">{{ signer.invitedName }}</div>
+          <div class="signer-meta" *ngIf="signer.invitedTitle">{{ signer.invitedTitle }}</div>
+          <div class="signer-meta">{{ signer.invitedEmail || 'No email on file' }}</div>
+          <div class="signer-meta" *ngIf="signer.signedAt">
+            Signed {{ signer.signedAt | date: 'medium' }}
+          </div>
+          <div class="signer-meta" *ngIf="!signer.signedAt && signer.status === ContractSignerStatus.Pending">
+            Link expires {{ signer.tokenExpiresAt | date: 'mediumDate' }}
+          </div>
+          <div class="signer-actions" *ngIf="signer.status === ContractSignerStatus.Pending">
+            <button type="button" class="btn-ghost small"
+                    (click)="resendInvite(signer.id)">Re-send</button>
+            <button type="button" class="btn-ghost small"
+                    (click)="copySigningLink(signer.signingUrl)">Copy link</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="side-card">
+        <h3>Documents</h3>
+        <ng-container *ngFor="let version of detail.versions">
+          <div class="file-row" *ngFor="let file of version.files">
+            <div>
+              <div class="file-name">{{ fileLabel(file.fileType) }}</div>
+              <div class="file-meta">v{{ version.versionNumber }} ·
+                {{ file.createdAt | date: 'mediumDate' }}</div>
+            </div>
+            <button type="button" class="btn-ghost small"
+                    (click)="downloadFile(file.id, file.fileName)">Download</button>
+          </div>
+        </ng-container>
+        <p class="muted" *ngIf="!detail.versions.length">No documents generated yet.</p>
+      </section>
+
+      <section class="side-card">
+        <h3>Document fingerprint</h3>
+        <p class="hash">{{ detail.documentHash || '—' }}</p>
+        <p class="muted small">SHA-256 of the current version. Each signature records the hash it
+          was applied to.</p>
+      </section>
+
+      <section class="side-card">
+        <h3>Activity</h3>
+        <ol class="timeline">
+          <li *ngFor="let entry of detail.auditLog">
+            <div class="timeline-text">{{ entry.eventDescription }}</div>
+            <!-- The description already names the version where it matters ("Version 2
+                 generated"); the row id would read as a version number and mislead. -->
+            <div class="timeline-meta">
+              {{ entry.timestamp | date: 'short' }}
+              <span *ngIf="entry.actorIdentifier"> · {{ entry.actorIdentifier }}</span>
+            </div>
+          </li>
+        </ol>
+        <p class="muted" *ngIf="!detail.auditLog.length">Nothing recorded yet.</p>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<div class="contract-detail loading-state" *ngIf="loading">Loading contract…</div>

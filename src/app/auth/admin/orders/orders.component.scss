@@ -4858,6 +4858,118 @@ $order-header-mobile: 60px;
   background: var(--soft-yellow);
 }
 
+// The Cleaners & Wages card. It reuses .assigned-cleaners-section wholesale — that block was
+// already a card with its own light/dark treatment, and the restructure moved the wage figures
+// and the staffing warnings INTO it rather than inventing a second card shape beside it.
+.cleaners-wages-card {
+  .cleaners-count-row {
+    margin: 0 0 0.75rem;
+  }
+
+  // The money half, separated from the staffing half by a rule rather than a heading: a second
+  // <h5> inside a card this small reads as a nested section.
+  .cleaner-wages-block {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+
+    > p {
+      margin: 0.25rem 0;
+    }
+  }
+
+  // The rate, the total and the button that changes them are one fact, so they share a row and
+  // wrap together rather than stacking three lines of chrome above the breakdown they summarise.
+  .wages-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.25rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .wages-figure {
+    white-space: nowrap;
+  }
+}
+
+// The Edit button sits at the end of the row, after the salary, so the money column stays the
+// thing the eye lands on. Only shown on assigned lines.
+.cp-edit-btn {
+  margin-left: 0.4rem;
+}
+
+// "Reset to automatic" — a quieter action than the two buttons beside it, because it discards
+// figures somebody typed on purpose. Declared here rather than borrowed from the Outgoing
+// Payments stylesheet: that one scopes it inside .outgoing-section, and a sibling component's
+// stylesheet cannot be imported.
+.cleaner-payroll .btn-link {
+  background: none;
+  border: none;
+  padding: 0.2rem 0.3rem;
+  color: var(--primary-text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  text-decoration: underline;
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+// Order-level payroll controls ("change rate/hours for all"), above the lines they move.
+.cp-order-controls {
+  margin: 0 0 0.35rem;
+}
+
+.cp-order-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0;
+}
+
+// Shared by the per-line editor and the two order-level ones, so a rate box is the same width
+// wherever it appears — three differently-sized number inputs on one panel reads as three
+// different kinds of field.
+.cp-edit {
+  label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  input[type="number"] {
+    width: 5.5rem;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+  }
+}
+
+// What a "for all" change will and will not move. Muted: it is orientation, not a warning.
+.cp-hint {
+  flex-basis: 100%;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+// A rejected payroll write. Beside the block that failed rather than in the page banner, because
+// the admin is looking at the line they just tried to change.
+.cleaner-payroll-error {
+  margin: 0.35rem 0 0;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.82rem;
+  color: var(--bright-red);
+  background: var(--soft-red);
+  border-radius: var(--radius-sm);
+}
+
 .cleaner-payroll-empty {
   margin: 0.15rem 0 0;
   font-size: 0.82rem;

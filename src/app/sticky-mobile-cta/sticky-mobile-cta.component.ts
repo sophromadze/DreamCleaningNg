@@ -72,7 +72,12 @@ export class StickyMobileCtaComponent {
     // '/cleaner-portal' for the same reason as the rest of the staff pages: this bar sells a
     // cleaning, and it would sit across the bottom of a cleaner's schedule on the phone they read
     // it on.
-    const hideOnRoutes = ['/booking', '/booking-confirmation', '/booking-success', '/order', '/admin', '/cleaner/cabinet', '/cleaners-dashboard', '/cleaner-portal'];
+    // '/contract' and '/profile/contracts' cover the contract surfaces: the public token
+    // review/sign pages and the business customer's own My Contracts area. The bar sells a
+    // residential cleaning, and on a phone it sits directly across the action button these pages
+    // exist for — "Sign agreement", "Download the executed agreement". The ADMIN contract section
+    // is already covered by '/admin'.
+    const hideOnRoutes = ['/booking', '/booking-confirmation', '/booking-success', '/order', '/admin', '/cleaner/cabinet', '/cleaners-dashboard', '/cleaner-portal', '/contract', '/profile/contracts'];
     const isOnExcludedRoute = hideOnRoutes.some(route =>
       path === route || path.startsWith(route + '/')
     );

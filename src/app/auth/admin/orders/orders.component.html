@@ -742,16 +742,16 @@
                              per-cleaner rows on Outgoing Payments own this figure and the server
                              discards a submitted one, so an editable box here was a control that
                              silently did nothing. -->
-                        <div class="edit-row" *ngIf="isSuperAdmin">
+                        <div class="edit-row" *ngIf="canViewCleanerPayroll">
                           <label>Cleaners Total Salary</label>
                           <input type="number" step="1"
                                  [(ngModel)]="editOrderForm.cleanerTotalSalary"
                                  [readonly]="!canEditCleanerTotalSalary()"
                                  [class.readonly]="!canEditCleanerTotalSalary()">
                         </div>
-                        <div class="edit-row edit-row--hint" *ngIf="isSuperAdmin && !canEditCleanerTotalSalary()">
+                        <div class="edit-row edit-row--hint" *ngIf="canViewCleanerPayroll && !canEditCleanerTotalSalary()">
                           <label></label>
-                          <span class="edit-hint">Set on Outgoing Payments — per-cleaner rates and hours are the source of truth.</span>
+                          <span class="edit-hint">Set from the per-cleaner rates and hours in the wage breakdown below — they are the source of truth.</span>
                         </div>
                       </div>
                     <div class="edit-group edit-group--services" *ngIf="editOrderForm.services && editOrderForm.services.length > 0">
@@ -971,68 +971,6 @@
                            type: -" row would suggest we lost the answer rather than never asked. -->
                       <p *ngIf="getOrderPropertyTypeLabel(selectedOrder)"><strong>Property type:</strong> {{ getOrderPropertyTypeLabel(selectedOrder) }}</p>
                       <p *ngIf="getOrderLevelsLabel(selectedOrder)"><strong>Levels:</strong> {{ getOrderLevelsLabel(selectedOrder) }}</p>
-                      <p><strong>Cleaners Count:</strong> {{selectedOrder.maidsCount}}<ng-container *ngIf="getSuggestedMaidsCountForOrder(selectedOrder) as suggested"> <span class="suggested-maids-hint">(suggested: {{suggested}})</span></ng-container>
-                        <span *ngIf="needsStaffingReviewForSelected()" class="staffing-review-badge" title="Over 6h per cleaner with the current count">⚠ Long job — review cleaner count</span>
-                      </p>
-                      <p><strong>Cleaner Hourly Rate:</strong> ${{selectedOrder.cleanerHourlyRate.toFixed(2)}}/hr</p>
-                      <p *ngIf="isSuperAdmin"><strong>Cleaners Total Salary:</strong> ${{getDisplayCleanerTotalSalary().toFixed(2)}}</p>
-
-                      <!-- The wages behind that total, itemised. Both screens derive from
-                           CleanerPayrollCalculator, so this panel and Outgoing Payments cannot
-                           quote different numbers for the same job without it being visible here.
-                           Unstaffed slots are listed because they are counted in the total -
-                           leaving them out would make the rows fail to add up. Labels stay put
-                           while the values shimmer (project convention). -->
-                      <div class="cleaner-payroll" *ngIf="isSuperAdmin">
-                        <div class="cleaner-payroll-loading" *ngIf="loadingOrderPayroll && !selectedOrderPayroll">
-                          <span class="shimmer-loading">Loading breakdown…</span>
-                        </div>
-
-                        <ng-container *ngIf="selectedOrderPayroll as payroll">
-                          <div class="cleaner-payroll-row" *ngFor="let line of getOrderPayrollLines()"
-                               [class.unassigned]="line.isUnassignedSlot">
-                            <span class="cp-name">{{ getPayrollLineName(line) }}</span>
-                            <span class="cp-hours">{{ getPayrollLineHours(line) }}</span>
-                            <span class="cp-rate">${{ line.hourlyRate.toFixed(2) }}/hr</span>
-                            <span class="cp-salary">${{ line.salary.toFixed(2) }}</span>
-                            <span class="cp-pill cp-pill--rate" *ngIf="line.rateOverridden">OWN RATE</span>
-                            <span class="cp-pill cp-pill--hours" *ngIf="line.hoursOverridden">EDITED</span>
-                          </div>
-
-                          <p class="cleaner-payroll-empty" *ngIf="getOrderPayrollLines().length === 0">
-                            No cleaners assigned yet — the figure above is an estimate from the
-                            cleaner count and hourly rate.
-                          </p>
-
-                          <!-- Should be impossible: every write path routes through
-                               ApplyOrderTotalSalary. Surfaced rather than hidden because a
-                               mismatch means Statistics and Finances are reporting a stale cost. -->
-                          <p class="cleaner-payroll-warning" *ngIf="payrollDisagreesWithStored()">
-                            ⚠ The stored total (${{ payroll.storedTotalSalary.toFixed(2) }}) does not
-                            match these lines (${{ payroll.totalSalary.toFixed(2) }}). Open this order
-                            on Outgoing Payments to re-save it.
-                          </p>
-                        </ng-container>
-                      </div>
-
-                      <!-- The same staffing warnings Outgoing Payments prints for this job —
-                           wrong hourly rate, cleaners who worked but are not on file, more people
-                           than the order was priced for, no duration, unpaid customer. One builder
-                           on the server, so the two screens cannot describe the same order
-                           differently. None of them blocks anything: the order stays editable,
-                           staffable and payable with warnings outstanding.
-
-                           OUTSIDE the *ngIf="isSuperAdmin" wage block above, deliberately: the
-                           breakdown says what each cleaner is PAID, while these say something is
-                           wrong with how the order is STAFFED — which is the Admins' own work, so
-                           a warning only a SuperAdmin can see would be no warning at all. They
-                           come from their own Admin+SuperAdmin endpoint, not from the payroll
-                           response. -->
-                      <div class="order-staffing-warnings" *ngIf="getOrderStaffingWarnings().length > 0">
-                        <div class="staffing-warning-row" *ngFor="let warning of getOrderStaffingWarnings()">
-                          ⚠ {{ warning }}
-                        </div>
-                      </div>
                     </div>
                     
                     <!-- Address -->
@@ -1053,6 +991,179 @@
                         <span class="address-maps-text">Open in Maps</span>
                       </a>
                       <p *ngIf="selectedOrder.entryMethod"><strong>Entry Method:</strong> {{selectedOrder.entryMethod}}</p>
+                    </div>
+                  </div>
+
+                  <!--
+                    CLEANERS & WAGES — one card, directly under Customer Information / Service
+                    Details / Service Address.
+
+                    Everything about the people doing the job lives here: how many the order is
+                    staffed for, who is actually assigned, what is wrong with that staffing, and
+                    what each of them is paid. It used to be split across three places — the count
+                    and the wage breakdown buried among the Service Details rows, the assignment
+                    list far below the pricing tables — so answering "who is on this and what does
+                    it cost" meant scrolling past everything twice.
+                  -->
+                  <div *ngIf="!editingOrder" class="assigned-cleaners-section cleaners-wages-card">
+                    <h5>Wages</h5>
+
+                    <p class="cleaners-count-row">
+                      <strong>Cleaners Count:</strong> {{selectedOrder.maidsCount}}<ng-container *ngIf="getSuggestedMaidsCountForOrder(selectedOrder) as suggested"> <span class="suggested-maids-hint">(suggested: {{suggested}})</span></ng-container>
+                      <span *ngIf="needsStaffingReviewForSelected()" class="staffing-review-badge" title="Over 6h per cleaner with the current count">⚠ Long job — review cleaner count</span>
+                    </p>
+
+                    <!-- The same staffing warnings Outgoing Payments prints for this job —
+                         wrong hourly rate, cleaners who worked but are not on file, more people
+                         than the order was priced for, no duration, unpaid customer. One builder
+                         on the server, so the two screens cannot describe the same order
+                         differently. None of them blocks anything: the order stays editable,
+                         staffable and payable with warnings outstanding.
+
+                         OUTSIDE the wage block below, deliberately: the breakdown says what each
+                         cleaner is PAID, while these say something is wrong with how the order is
+                         STAFFED — which is the Admins' own work, so a warning only a SuperAdmin
+                         can see would be no warning at all. They come from their own
+                         Admin+SuperAdmin endpoint, not from the payroll response. -->
+                    <div class="order-staffing-warnings" *ngIf="getOrderStaffingWarnings().length > 0">
+                      <div class="staffing-warning-row" *ngFor="let warning of getOrderStaffingWarnings()">
+                        ⚠ {{ warning }}
+                      </div>
+                    </div>
+
+                    <div class="cleaner-wages-block">
+                      <!-- The two figures and the control that changes them sit on ONE wrapping
+                           row: they are a single fact ("this job pays $20/hr, $410 in total") and
+                           stacking them put three lines of chrome above the breakdown they
+                           summarise. The rate is ungated, as it always was — a Moderator could
+                           already see it, and widening the block below is about showing Admins
+                           MORE, not about taking a field away from anybody. -->
+                      <div class="wages-summary">
+                        <span class="wages-figure"><strong>Hourly Price:</strong> ${{selectedOrder.cleanerHourlyRate.toFixed(2)}}/hr</span>
+                        <span class="wages-figure" *ngIf="canViewCleanerPayroll"><strong>Total Wages:</strong> ${{getDisplayCleanerTotalSalary().toFixed(2)}}</span>
+                        <button type="button" class="action-btn small edit"
+                                *ngIf="canEditCleanerPayroll && selectedOrderPayroll && !editingPayrollForAll"
+                                [disabled]="savingPayroll"
+                                (click)="startEditPayrollForAll()"
+                                title="Set the hours and rate for every cleaner on this order">
+                          Edit all cleaners
+                        </button>
+                      </div>
+
+                      <!-- The wages behind that total, itemised AND editable — the same controls
+                           the Outgoing Payments panel has, writing through the same server-side
+                           service, so the two screens cannot record one change differently.
+                           Unstaffed slots are listed because they are counted in the total -
+                           leaving them out would make the rows fail to add up - but they cannot be
+                           edited: an override lives on the assignment row and there is nobody
+                           behind them. Labels stay put while the values shimmer (project
+                           convention). -->
+                      <div class="cleaner-payroll" *ngIf="canViewCleanerPayroll">
+                        <div class="cleaner-payroll-loading" *ngIf="loadingOrderPayroll && !selectedOrderPayroll">
+                          <span class="shimmer-loading">Loading breakdown…</span>
+                        </div>
+
+                        <ng-container *ngIf="selectedOrderPayroll as payroll">
+                          <!--
+                            ONE order-level editor holding BOTH figures, shaped exactly like the
+                            per-cleaner one below it. Two buttons ("change the rate" / "change the
+                            hours") made an admin decide which kind of change they were making
+                            before they could type anything, when the answer is usually "both".
+                            The save sends only the field that actually moved, so setting a rate
+                            does not quietly pin the automatic hours onto every line.
+                          -->
+                          <!-- The button that OPENS this editor lives up in the summary row with
+                               the two figures it changes; only the open editor renders here, over
+                               the lines it is about to move. -->
+                          <div class="cp-order-controls" *ngIf="canEditCleanerPayroll && editingPayrollForAll">
+                            <div class="cp-order-row cp-edit">
+                              <span class="cp-name">All cleaners</span>
+                              <label *ngIf="payroll.assignedCount > 0">
+                                <span>Hours each</span>
+                                <input type="number" min="0" step="0.25" [(ngModel)]="payrollAllHoursInput" name="payrollAllHoursInput">
+                              </label>
+                              <label>
+                                <span>$ / hour</span>
+                                <input type="number" min="0" step="0.5" [(ngModel)]="payrollAllRateInput" name="payrollAllRateInput">
+                              </label>
+                              <button type="button" class="action-btn small save" [disabled]="savingPayroll" (click)="savePayrollForAll()">
+                                {{ savingPayroll ? 'Saving…' : 'Save' }}
+                              </button>
+                              <button type="button" class="action-btn small discard" [disabled]="savingPayroll" (click)="cancelEditPayrollForAll()">Cancel</button>
+                              <button type="button" class="btn-link"
+                                      *ngIf="payrollHasHoursOverrides()"
+                                      [disabled]="savingPayroll"
+                                      (click)="resetPayrollHoursForAll()"
+                                      title="Drop every manual hours figure and go back to the even split">
+                                Reset hours to automatic
+                              </button>
+                              <!-- Says what it will and will not move, so the reach is never a
+                                   guess: an unstaffed slot has no row to take an override, and a
+                                   cleaner on their own rate is not moved by the order's. -->
+                              <span class="cp-hint">{{ payrollForAllReach() }}</span>
+                            </div>
+                          </div>
+
+                          <ng-container *ngFor="let line of getOrderPayrollLines()">
+                            <div class="cleaner-payroll-row"
+                                 *ngIf="!isEditingPayrollLine(line)"
+                                 [class.unassigned]="line.isUnassignedSlot">
+                              <span class="cp-name">{{ getPayrollLineName(line) }}</span>
+                              <span class="cp-hours">{{ getPayrollLineHours(line) }}</span>
+                              <span class="cp-rate">${{ line.hourlyRate.toFixed(2) }}/hr</span>
+                              <span class="cp-salary">${{ line.salary.toFixed(2) }}</span>
+                              <span class="cp-pill cp-pill--rate" *ngIf="line.rateOverridden">OWN RATE</span>
+                              <span class="cp-pill cp-pill--hours" *ngIf="line.hoursOverridden">EDITED</span>
+                              <button type="button" class="action-btn small edit cp-edit-btn"
+                                      *ngIf="canEditCleanerPayroll && !line.isUnassignedSlot"
+                                      [disabled]="savingPayroll"
+                                      (click)="startEditPayrollLine(line)"
+                                      title="Change this cleaner's hours or rate on this order">Edit</button>
+                            </div>
+
+                            <!-- Hours are entered in decimal hours to match the "$21 x 4.25"
+                                 working the row prints. -->
+                            <div class="cleaner-payroll-row cp-edit" *ngIf="isEditingPayrollLine(line)">
+                              <span class="cp-name">{{ getPayrollLineName(line) }}</span>
+                              <label>
+                                <span>Hours</span>
+                                <input type="number" min="0" step="0.25" [(ngModel)]="payrollEditHours" name="payrollEditHours">
+                              </label>
+                              <label>
+                                <span>$ / hour</span>
+                                <input type="number" min="0" step="0.5" [(ngModel)]="payrollEditRate" name="payrollEditRate">
+                              </label>
+                              <button type="button" class="action-btn small save" [disabled]="savingPayroll" (click)="savePayrollLine(line)">
+                                {{ savingPayroll ? 'Saving…' : 'Save' }}
+                              </button>
+                              <button type="button" class="action-btn small discard" [disabled]="savingPayroll" (click)="cancelEditPayrollLine()">Cancel</button>
+                              <button type="button" class="btn-link"
+                                      *ngIf="line.rateOverridden || line.hoursOverridden"
+                                      [disabled]="savingPayroll"
+                                      (click)="resetPayrollLineToAutomatic(line)"
+                                      title="Drop the manual values and follow the order again">
+                                Reset to automatic
+                              </button>
+                            </div>
+                          </ng-container>
+
+                          <p class="cleaner-payroll-error" *ngIf="payrollError">⚠ {{ payrollError }}</p>
+
+                          <p class="cleaner-payroll-empty" *ngIf="getOrderPayrollLines().length === 0">
+                            No cleaners assigned yet — the figure above is an estimate from the
+                            cleaner count and hourly rate.
+                          </p>
+
+                          <!-- Should be impossible: every write path routes through
+                               ApplyOrderTotalSalary. Surfaced rather than hidden because a
+                               mismatch means Statistics and Finances are reporting a stale cost. -->
+                          <p class="cleaner-payroll-warning" *ngIf="payrollDisagreesWithStored()">
+                            ⚠ The stored total (${{ payroll.storedTotalSalary.toFixed(2) }}) does not
+                            match these lines (${{ payroll.totalSalary.toFixed(2) }}). Editing any
+                            line here re-saves it.
+                          </p>
+                        </ng-container>
+                      </div>
                     </div>
                   </div>
 
@@ -1542,21 +1653,25 @@
                     </div>
                   </div>
 
-                  <!-- Assigned Cleaners Section with Enhanced Loading States -->
+                  <!-- Assigned Cleaners Section with Enhanced Loading States.
+                       Stays at the BOTTOM of the panel, where it has always been: the wage card
+                       higher up answers "what does this job cost", this answers "who is on it and
+                       do they know" — and the send/resend/remove actions belong with the rest of
+                       the panel's actions rather than in the middle of a figures card. -->
                   <div *ngIf="!editingOrder" class="assigned-cleaners-section">
                     <h5>Assigned Cleaners</h5>
-                    
+
                     <!-- Loading state for assigned cleaners in details -->
                     <div *ngIf="loadingStates.assignedCleaners" class="loading-small">
                       <div class="spinner-small"></div>
                       <span>Loading assigned cleaners...</span>
                     </div>
-                    
+
                     <!-- Cleaners list with removal capability -->
                     <div *ngIf="!loadingStates.assignedCleaners" class="cleaners-content">
-                      <div *ngIf="getAssignedCleanersWithIds(selectedOrder.id).length > 0; else noAssignedCleaners" 
+                      <div *ngIf="getAssignedCleanersWithIds(selectedOrder.id).length > 0; else noAssignedCleaners"
                            class="cleaners-list">
-                        <div *ngFor="let cleaner of getAssignedCleanersWithIds(selectedOrder.id)" 
+                        <div *ngFor="let cleaner of getAssignedCleanersWithIds(selectedOrder.id)"
                              class="cleaner-item">
                           <div class="cleaner-item-main">
                             <span class="cleaner-name">{{ cleaner.name }}</span>
@@ -1569,7 +1684,7 @@
                                     [title]="cleaner.assignmentNotificationSentAt ? 'Resend assignment email' : 'Send assignment email now'">
                               {{ isResendingCleanerAssignmentMail(selectedOrder.id, cleaner.id) ? 'Sending...' : (cleaner.assignmentNotificationSentAt ? 'Resend email' : 'Send email') }}
                             </button>
-                          <button class="remove-cleaner-btn" 
+                          <button class="remove-cleaner-btn"
                                   (click)="removeCleanerFromOrder(selectedOrder.id, cleaner.id, cleaner.name)"
                                   [disabled]="loadingStates.removingCleaner"
                                   title="Remove cleaner from this order">
@@ -1578,7 +1693,7 @@
                           </div>
                         </div>
                       </div>
-                      
+
                       <ng-template #noAssignedCleaners>
                         <p class="no-cleaners-message">No cleaners assigned to this order yet.</p>
                       </ng-template>

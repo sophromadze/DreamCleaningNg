@@ -94,6 +94,12 @@ export const AUDIT_FIELD_LABELS: { [field: string]: string } = {
   SalaryHourlyRate: 'Hourly Rate (this cleaner)',
   SalaryBillableMinutes: 'Paid Hours (this cleaner)',
   BillableMinutes: 'Paid Hours',
+  // Payroll rows log the EFFECTIVE figure plus where it came from, so "None -> $20.00" (which
+  // read as "this cleaner had no rate") became "$21.00 -> $20.00" with the source beside it.
+  RateSource: 'Rate Follows',
+  HoursSource: 'Hours Follow',
+  AppliedTo: 'Applied To',
+  OwnRatesDropped: 'Own Rates Dropped (now on the order rate)',
   PaidAmount: 'Amount Paid',
   PaidVia: 'Paid Via',
   PaidByUserId: 'Paid By',
@@ -278,6 +284,32 @@ const HIDDEN_FIELDS = new Set([
 
 export function shouldShowAuditField(field: string): boolean {
   return !HIDDEN_FIELDS.has(field);
+}
+
+/**
+ * Entity types whose audit payloads DESCRIBE an action rather than snapshot a row.
+ *
+ * For these — and only these — the Audits tab also renders the fields that are present on both
+ * sides and did NOT change, as plain context under the diff. On a payroll row that is the
+ * cleaner's name and whether the change was applied to the whole crew: neither of them moves, so
+ * neither shows up in the changed-field list, and without them the expansion says a rate went
+ * from $20 to $21 without ever saying whose rate it was.
+ *
+ * Deliberately a short explicit list rather than a size heuristic. A full-entity Update carries
+ * fifty columns that did not change, and printing those is exactly what made this tab unreadable
+ * before the field-display sweep — so an entity type that is not listed here simply keeps the old
+ * behaviour, which is the safe direction to fail in.
+ */
+const AUDIT_CONTEXT_ENTITY_TYPES = new Set([
+  // Outgoing Payments / the Orders panel's wage block — both write through one service, so both
+  // produce these rows.
+  'CleanerPayrollOverride',
+  'OrderCleanerHourlyRate',
+  'CleanerPayout',
+]);
+
+export function auditRowShowsContext(entityType?: string | null): boolean {
+  return !!entityType && AUDIT_CONTEXT_ENTITY_TYPES.has(entityType);
 }
 
 /**

@@ -1,0 +1,79 @@
+<div class="contracts-tab">
+
+  <!-- List -->
+  <ng-container *ngIf="view === 'list'">
+    <div class="list-header">
+      <div class="filters">
+        <input type="search" class="search-input" placeholder="Search number, client or address…"
+               [(ngModel)]="search" (ngModelChange)="onSearchChanged()" />
+        <select class="status-select" [(ngModel)]="statusFilter" (ngModelChange)="load()">
+          <option *ngFor="let option of statusOptions" [ngValue]="option.value">{{ option.label }}</option>
+        </select>
+      </div>
+        <!-- Mirrors the orders table's own show-hidden control. -->
+        <label class="hidden-toggle" *ngIf="canDeleteContracts">
+          <input type="checkbox" [(ngModel)]="includeHidden" (ngModelChange)="load()" />
+          <span>Show hidden contracts</span>
+        </label>
+      <button type="button" class="btn-primary" *ngIf="canCreateContract"
+              (click)="startNew()">New contract</button>
+    </div>
+
+    <div class="alert error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+    <div class="table-wrap" *ngIf="!loading">
+      <table class="contracts-table">
+        <thead>
+          <tr>
+            <th>Contract #</th>
+            <th>Client</th>
+            <th>Service location</th>
+            <th>Status</th>
+            <th>Signatures</th>
+            <th class="num">Per visit</th>
+            <th>Created</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let row of contractsList" (click)="openDetail(row.id)" class="clickable">
+            <td class="mono">
+              {{ row.contractNumber }}
+              <span class="hidden-chip" *ngIf="row.isHidden">Deleted</span>
+            </td>
+            <td>{{ row.clientLegalName }}</td>
+            <td class="secondary">{{ row.serviceLocationLabel }}</td>
+            <td>
+              <span class="status-pill" [attr.data-status]="row.status">{{ row.statusLabel }}</span>
+            </td>
+            <td class="secondary">{{ signatureProgress(row) }}</td>
+            <td class="num">{{ row.totalPrice | currency }}</td>
+            <td class="secondary">
+              {{ row.createdAt | date: 'mediumDate' }}
+              <div class="sub" *ngIf="row.createdByAdminName">{{ row.createdByAdminName }}</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p class="empty" *ngIf="!contractsList.length">
+        No contracts yet. Start one with “New contract”.
+      </p>
+    </div>
+
+    <p class="empty" *ngIf="loading">Loading contracts…</p>
+  </ng-container>
+
+  <!-- Create / edit -->
+  <app-contract-form *ngIf="view === 'form'"
+                     [contractId]="selectedContractId"
+                     (generated)="onGenerated($event)"
+                     (cancelled)="backToList()"></app-contract-form>
+
+  <!-- Detail -->
+  <app-contract-detail *ngIf="view === 'detail' && selectedContractId"
+                       [contractId]="selectedContractId"
+                       [preloaded]="preloadedDetail"
+                       [permissions]="permissions"
+                       (back)="backToList()"
+                       (edit)="editContract($event)"></app-contract-detail>
+</div>

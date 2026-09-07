@@ -1,0 +1,515 @@
+/*
+ * Commercial cleaning landing page — PAGE-SPECIFIC styles only.
+ *
+ * The shared look comes from the two homepage stylesheets listed ahead of this one in the
+ * component's styleUrls (home-hero.component.scss for the hero grid / form card, and
+ * main.component.scss for the section headers, CTA buttons and the feature/offer/area/CTA
+ * cards). Everything here is either a block the homepage does not have (the quote form's
+ * fields, the how-it-works steps, the FAQ list) or a deliberate override of one it does —
+ * and the overrides are scoped under `.commercial-page` so they cannot reach the homepage
+ * if these sheets are ever bundled together again.
+ *
+ * No hex literals — tokens only (src/styles.scss).
+ */
+
+/* =============================================================
+   HERO — quote form card
+============================================================= */
+
+/* The homepage hero photo is a kitchen cabinet close-up, which reads residential. */
+.commercial-page .hero-image-card--commercial .hero-image-card__media {
+  background-image: url('/images/office-cleaning.webp');
+}
+
+/* `.booking-form` sets a 63vh min-height so the homepage's short booking widget fills the
+   column. This form is already taller than that, and on a tall screen the min-height only
+   stretches the gaps. */
+.commercial-page .quote-form {
+  min-height: 0;
+}
+
+.commercial-page .form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.commercial-page .quote-form {
+  label {
+    font-size: 0.8125rem;
+    font-weight: var(--fw-extrabold);
+    color: var(--text-secondary);
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 0.75rem 0.875rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+    font-family: inherit;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px var(--soft-blue);
+    }
+
+    &.error {
+      border-color: var(--bright-red);
+    }
+  }
+
+  textarea.form-control {
+    resize: vertical;
+    min-height: 4.5rem;
+  }
+
+  &__reassure {
+    margin: 0;
+    text-align: center;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+
+    a {
+      color: var(--primary-text);
+      font-weight: var(--fw-semibold);
+      text-decoration: none;
+      white-space: nowrap;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+/* Full-width submit — main.component.scss gives .btn-cta-secondary a --full modifier but
+   not .btn-cta-primary, and this page's primary CTA is the one inside the card. */
+.commercial-page .btn-cta-primary--full {
+  width: 100%;
+  margin-top: 0.25rem;
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+.commercial-page .quote-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.75rem 0.875rem;
+  margin-bottom: 0.75rem;
+  border-radius: var(--radius-lg);
+  font-size: 0.875rem;
+  font-weight: var(--fw-semibold);
+  line-height: 1.45;
+
+  svg {
+    width: 1.125rem;
+    height: 1.125rem;
+    flex-shrink: 0;
+    margin-top: 0.0625rem;
+  }
+
+  /* Semantic background + its paired foreground — never mixed across states. */
+  &--success {
+    background: var(--mint-fresh);
+    color: var(--mint-fresh-text);
+  }
+
+  &--error {
+    background: var(--soft-red);
+    color: var(--bright-red);
+  }
+}
+
+/* -------------------------------------------------------------
+   The hero offer coupon.
+
+   The ticket itself is `.hero-offer-coupon` in home-hero.component.scss — the
+   homepage's design, loaded ahead of this sheet and used unchanged, so the two
+   pages' offers stay one component rather than two lookalikes.
+
+   Only the button defaults are cleared here, for the same reason the
+   scroll-to-form CTAs below clear theirs: the homepage coupon is an <a> to
+   /booking, this one moves the page instead. `padding: 0` matters — the ticket
+   sets none of its own (its `&__body` and `&__deal` carry it), so a button's UA
+   padding would push the perforation seam off the punched notches.
+------------------------------------------------------------- */
+.commercial-page button.hero-offer-coupon {
+  padding: 0;
+  border: none;
+  font-family: inherit;
+  text-align: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* =============================================================
+   COMMERCIAL CLIENT BENEFITS
+
+   A `--surface` band between the `--hero-bg` hero and the `--page-bg`
+   testimonials, so the three sections separate without a divider. The cards
+   themselves are `.feature-card` from main.component.scss — only the grid and
+   the featured (offer) variant are defined here.
+============================================================= */
+.commercial-benefits-section {
+  padding: 3rem 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Five cards into a three-column grid. The offer card takes the two free
+   columns on the last row rather than leaving a hole beside it, and at two
+   columns the last card widens instead — so no breakpoint ends on a stray
+   half-empty row. Both spans are inside media queries because at one column
+   `span 2` would overflow the track. */
+.benefits-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (max-width: 580px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 901px) {
+  .benefits-grid .benefit-card--featured {
+    grid-column: span 2;
+  }
+}
+
+@media (min-width: 581px) and (max-width: 900px) {
+  .benefits-grid .benefit-card:last-child {
+    grid-column: span 2;
+  }
+}
+
+/* The offer card. `.feature-card` sits on `--page-bg` inside this band; the
+   featured one swaps to the mint wash and takes its icon and heading colour
+   from the paired foreground, which is what makes it the one card the eye
+   lands on without adding a second card shape. */
+.benefit-card--featured {
+  background: var(--mint-fresh);
+  border-color: color-mix(in srgb, var(--mint-fresh-text) 35%, transparent);
+
+  &:hover {
+    border-color: var(--mint-fresh-text);
+  }
+
+  h3 {
+    color: var(--mint-fresh-text);
+  }
+
+  .feature-card__icon {
+    background: color-mix(in srgb, var(--mint-fresh-text) 14%, transparent);
+    color: var(--mint-fresh-text);
+  }
+}
+
+.benefit-card__flag {
+  align-self: flex-start;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--mint-fresh-text) 14%, transparent);
+  color: var(--mint-fresh-text);
+  font-size: 0.75rem;
+  font-weight: var(--fw-extrabold);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* =============================================================
+   CTAs that scroll to the form instead of navigating.
+
+   `.offer-card__cta` and `.link-pill` are written for <a>, and these CTAs are
+   <button>s because they move the page rather than navigate. Only the defaults a
+   browser puts on a button are cleared here — NOT background, color, padding,
+   font-size or font-weight, all of which the shared rule already sets. Resetting
+   those (a blanket `background: none` / `font: inherit`) is what made the quote
+   buttons render differently from the View links: `button.offer-card__cta` outranks
+   `.offer-card__cta`, so the reset won and the button lost its blue pill.
+
+   `line-height` is listed because an <a> inherits the page's while a button's UA
+   default is `normal` — without it the two pills differ in height by a couple of px.
+============================================================= */
+.commercial-page {
+  button.offer-card__cta,
+  button.link-pill {
+    border: none;
+    font-family: inherit;
+    line-height: inherit;
+    text-align: inherit;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+  }
+}
+
+/* =============================================================
+   "Spaces We Clean" cards — photo is the whole card, text floats on it.
+
+   The shared layout (main.component.scss) stacks a 16/10 media box above an
+   opaque body, so the photo is cropped twice over: once to 16/10 and again by
+   `object-fit: cover`. On these interiors that threw away most of the room.
+   Here the media is taken out of the flow and stretched behind the card, the
+   body is pushed to the bottom by `margin-top: auto`, and the photo shows
+   through a translucent panel behind the text.
+
+   Three overrides are load-bearing:
+     - `flex: 0 0 auto` on the body. The shared rule is `flex: 1`, which with an
+       absolutely-positioned media would grow the panel over the entire card and
+       hide the photo completely.
+     - `min-height` on the card. With the media out of the flow the card has no
+       intrinsic height left, so it would collapse to the height of its text.
+     - `isolation: isolate`, so the z-indexes below stack inside the card and
+       cannot interact with the section around it.
+
+   The panel is mixed from `--surface`, so it is white-ish by day and slate by
+   night and the existing `--text-primary` / `--text-secondary` keep their
+   contrast in both themes. The panel is a flat translucent surface — no
+   `backdrop-filter`, so the photo shows through it unblurred.
+============================================================= */
+.commercial-page .offer-card {
+  position: relative;
+  min-height: 20rem;
+  isolation: isolate;
+
+  .offer-card__media {
+    position: absolute;
+    inset: 0;
+    aspect-ratio: auto;
+    z-index: 0;
+  }
+
+  .offer-card__body {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+    margin-top: auto;
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+    border-top: 1px solid color-mix(in srgb, var(--border-color) 70%, transparent);
+  }
+}
+
+/* ---------------------------------------------------------------
+   Equal-height body panels.
+
+   The panels are the only variable part of a card (titles and CTAs are one
+   line each; the descriptions run 4-5 lines depending on wording and column
+   width), so ragged panel tops were the thing that read as misaligned.
+
+   Each card spans TWO parent rows and adopts them with `grid-template-rows:
+   subgrid`, so the second track is shared by every card in that row and sized
+   to the tallest panel among them — no fixed height to guess, and nothing is
+   ever clipped when the wording or the breakpoint changes the line count.
+   `grid-auto-rows` sizes the pair: the photo track has a floor, the panel
+   track is content-sized. The list cycles, so it applies to every row of
+   cards, not just the first.
+
+   Browsers without subgrid (pre-2023) fall through to the rules above and
+   keep ragged-but-correct panels — this is alignment, not function.
+--------------------------------------------------------------- */
+@supports (grid-template-rows: subgrid) {
+  .commercial-page .offer-grid {
+    grid-auto-rows: minmax(9rem, auto) auto;
+  }
+
+  .commercial-page .offer-grid > .offer-card {
+    display: grid;
+    grid-template-rows: subgrid;
+    grid-row: span 2;
+    min-height: 0;
+  }
+
+  .commercial-page .offer-card .offer-card__body {
+    grid-row: 2;
+    margin-top: 0;
+  }
+}
+
+/* ---------------------------------------------------------------
+   The card itself does not react to hover — only its button does.
+
+   `main.component.scss` lifts the whole card, recolours its border, deepens
+   the shadow and zooms the photo 6%. That reads as an invitation to click the
+   card, and the card is not clickable: half of these CTAs scroll to the quote
+   form rather than navigating, so the only real target is the button. The zoom
+   also moved the photo behind the translucent panel, which made the panel look
+   like it was sliding.
+
+   Overridden rather than removed at the source, because the homepage cards
+   ARE fully clickable and should keep the lift.
+--------------------------------------------------------------- */
+.commercial-page .offer-card:hover {
+  transform: none;
+  border-color: var(--border-color);
+  box-shadow: 0 4px 20px var(--shadow-color);
+}
+
+.commercial-page .offer-card:hover .offer-card__media img {
+  transform: none;
+}
+
+/* =============================================================
+   HOW IT WORKS
+============================================================= */
+.how-it-works-section {
+  padding: 4rem 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+
+  @media (max-width: 980px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.step-card {
+  position: relative;
+  background: var(--page-bg);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-2xl);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+
+  &:hover {
+    transform: translateY(-3px);
+    border-color: var(--primary-color);
+    box-shadow: 0 12px 30px var(--shadow-color);
+  }
+
+  &__num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--radius-pill);
+    background: var(--soft-blue);
+    color: var(--primary-color);
+    font-size: 1rem;
+    font-weight: var(--fw-black);
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 1.0625rem;
+    font-weight: var(--fw-black);
+    color: var(--text-primary);
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    color: var(--text-secondary);
+  }
+}
+
+/* =============================================================
+   FAQ
+============================================================= */
+.commercial-faq-section {
+  padding: 4rem 0;
+  background: var(--page-bg);
+}
+
+.faq-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  align-items: start;
+
+  @media (max-width: 860px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.faq-item {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-2xl);
+  padding: 1.125rem 1.375rem;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+
+  &[open] {
+    border-color: var(--primary-color);
+    box-shadow: 0 8px 24px var(--shadow-color);
+  }
+
+  summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    cursor: pointer;
+    list-style: none;
+    font-size: 1rem;
+    font-weight: var(--fw-extrabold);
+    color: var(--text-primary);
+
+    /* Safari renders a disclosure triangle unless this is cleared too. */
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    svg {
+      width: 1.125rem;
+      height: 1.125rem;
+      flex-shrink: 0;
+      color: var(--primary-color);
+      transition: transform 0.2s ease;
+    }
+  }
+
+  &[open] summary svg {
+    transform: rotate(180deg);
+  }
+
+  p {
+    margin: 0.875rem 0 0;
+    font-size: 0.9375rem;
+    line-height: 1.65;
+    color: var(--text-secondary);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-card,
+  .faq-item summary svg {
+    transition: none;
+  }
+}

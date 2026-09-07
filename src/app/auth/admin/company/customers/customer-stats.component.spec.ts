@@ -170,7 +170,10 @@ describe('CustomerStatsComponent', () => {
       return iso(d);
     };
 
-    const future = { date: shift(30), month: 11, year: nextYear };
+    // A FUNCTION, not a constant: `component` is assigned in beforeEach, so evaluating shift()
+    // here — while the describe body is still being built — dereferenced undefined, threw out of
+    // afterAll and took the whole browser session down with it.
+    const future = () => ({ date: shift(30), month: 11, year: nextYear });
     const past = { date: '2024-03-15', month: 2, year: 2024 };
 
     it('is decided by the END DATE, not by the unit', () => {
@@ -178,7 +181,7 @@ describe('CustomerStatsComponent', () => {
       // range ending later today — nothing here is month-specific.
       (['day', 'week', 'month', 'year'] as const).forEach(unit => {
         component.compareUnit = unit;
-        expect(resolve(future).unfinished)
+        expect(resolve(future()).unfinished)
           .withContext(`${unit} in the future`).toBe(true);
         expect(resolve(past).unfinished)
           .withContext(`${unit} in the past`).toBe(false);

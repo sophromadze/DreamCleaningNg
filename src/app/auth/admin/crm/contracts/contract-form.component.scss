@@ -1,0 +1,280 @@
+// The Create / Edit Contract form. Shares its visual language with the rest of the CRM tabs;
+// every colour is a theme token so the panel reads in day and night mode.
+
+.contract-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.loading-state {
+  color: var(--text-muted);
+  padding: 2rem;
+  text-align: center;
+}
+
+.form-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+
+  h2 { margin: 0; font-size: 1.25rem; }
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0.25rem 0 0;
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+.form-error {
+  background: var(--soft-red);
+  color: var(--bright-red);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  font-size: 0.88rem;
+}
+
+.callout {
+  background: var(--soft-blue);
+  color: var(--primary-color);
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 0.9rem;
+  font-size: 0.83rem;
+  margin: 0 0 0.9rem;
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.panel-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-subtle);
+  border: none;
+  padding: 0.85rem 1.1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+
+  &:hover { background: var(--soft-blue); }
+
+  .chevron {
+    transition: transform 0.15s ease;
+    color: var(--text-muted);
+    &.open { transform: rotate(180deg); }
+  }
+}
+
+.panel-body {
+  padding: 1.1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.9rem 1rem;
+
+  .field.wide, > .check { grid-column: 1 / -1; }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+
+  label {
+    font-size: 0.73rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  input, select {
+    padding: 0.55rem 0.65rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.88rem;
+    font-family: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px var(--soft-blue);
+    }
+  }
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+
+  input { width: 1rem; height: 1rem; flex-shrink: 0; }
+}
+
+.derived {
+  margin: 1rem 0;
+  padding: 0.9rem 1rem;
+  background: var(--mint-fresh);
+  border-radius: var(--radius-sm);
+
+  h4 {
+    margin: 0 0 0.6rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--mint-fresh-text);
+  }
+}
+
+.derived-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.6rem 1rem;
+
+  > div { display: flex; flex-direction: column; }
+
+  span {
+    font-size: 0.72rem;
+    color: var(--mint-fresh-text);
+    opacity: 0.85;
+  }
+
+  strong {
+    font-size: 1rem;
+    color: var(--mint-fresh-text);
+  }
+}
+
+.scope-group {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.85rem;
+}
+
+.scope-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.55rem;
+
+  h4 { margin: 0; font-size: 0.88rem; }
+}
+
+.scope-count {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.scope-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.4rem 1rem;
+
+  .check { position: relative; padding-right: 1.4rem; }
+}
+
+.row-remove {
+  position: absolute;
+  right: 0;
+  background: none;
+  border: none;
+  color: var(--bright-red);
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.2rem;
+}
+
+.scope-add {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+
+  input {
+    flex: 1;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+  }
+}
+
+.form-footer {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 0 0.5rem;
+
+  .muted { margin: 0; max-width: 460px; }
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0.7rem 1.5rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--primary-color-hover); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--primary-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--surface-subtle); }
+}
+
+// Sub-blocks inside a single panel. The Client card holds the company, the person who signs for
+// it and the notice contact — one act of data entry, visually separated so it does not read as
+// one long undifferentiated form.
+.subsection {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+
+  h4 {
+    margin: 0 0 0.75rem;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+
+  .check { margin-bottom: 0.75rem; }
+}

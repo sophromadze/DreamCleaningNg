@@ -1,0 +1,50 @@
+<div class="contract-page">
+  <div class="contract-shell">
+
+    <header class="contract-card contract-header">
+      <h1>My Contracts</h1>
+      <p class="contract-parties">
+        Your service agreements with Dream Cleaning NYC.
+      </p>
+      <div class="awaiting-banner" *ngIf="awaitingCount > 0">
+        {{ awaitingCount === 1
+            ? 'One agreement is waiting for your signature.'
+            : awaitingCount + ' agreements are waiting for your signature.' }}
+      </div>
+    </header>
+
+    <div class="contract-card contract-status-card" *ngIf="loading">Loading your contracts…</div>
+
+    <div class="contract-card contract-status-card error" *ngIf="!loading && errorMessage">
+      <h1>We could not load your contracts</h1>
+      <p>{{ errorMessage }}</p>
+    </div>
+
+    <div class="contract-card" *ngIf="!loading && !errorMessage">
+      <p class="muted" *ngIf="!rows.length">
+        You do not have any contracts yet. When we prepare one for you, it will appear here.
+      </p>
+
+      <ul class="contract-list" *ngIf="rows.length">
+        <li *ngFor="let row of rows" class="contract-row" (click)="open(row)" tabindex="0"
+            (keyup.enter)="open(row)">
+          <div class="row-main">
+            <div class="row-number">{{ row.contractNumber }}</div>
+            <div class="row-location">{{ row.serviceLocationLabel }}</div>
+          </div>
+          <div class="row-meta">
+            <span class="row-status" [class.awaiting]="row.awaitingYourSignature"
+                  [class.executed]="row.isExecuted">{{ row.statusLabel }}</span>
+            <span class="row-date">
+              Version {{ row.versionNumber }} · {{ row.versionDate | date: 'mediumDate' }}
+            </span>
+          </div>
+          <div class="row-action">
+            <span class="needs-you" *ngIf="row.awaitingYourSignature">Signature needed</span>
+            <span class="chevron" aria-hidden="true">›</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>

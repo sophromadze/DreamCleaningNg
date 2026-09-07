@@ -1,0 +1,614 @@
+<div class="contract-form" *ngIf="!loading">
+
+  <div class="form-header">
+    <div>
+      <h2>{{ contractId ? 'Edit contract' : 'Create contract' }}</h2>
+      <p class="muted" *ngIf="contractNumber">{{ contractNumber }}</p>
+    </div>
+    <button type="button" class="btn-ghost" (click)="cancel()">Cancel</button>
+  </div>
+
+  <div class="form-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+  <!-- 5.1 Template -->
+  <section class="panel">
+    <button type="button" class="panel-head" (click)="togglePanel('template')">
+      <span>Template</span>
+      <span class="chevron" [class.open]="isOpen('template')">▾</span>
+    </button>
+    <div class="panel-body" *ngIf="isOpen('template')">
+      <div class="grid">
+        <div class="field">
+          <label for="contractTemplate">Contract template</label>
+          <select id="contractTemplate" name="contractTemplate" [(ngModel)]="model.contractTemplateId">
+            <option *ngFor="let t of templates" [ngValue]="t.id">{{ t.name }} (v{{ t.version }})</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="scopeTemplate">Scope of work template</label>
+          <select id="scopeTemplate" name="scopeTemplate"
+                  [(ngModel)]="model.scopeTemplateId" (ngModelChange)="onScopeTemplateChanged()">
+            <option *ngFor="let t of scopeTemplates" [ngValue]="t.id">{{ t.name }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="effectiveDate">Effective date</label>
+          <input id="effectiveDate" name="effectiveDate" type="date" [(ngModel)]="effectiveDate" />
+        </div>
+        <div class="field">
+          <label for="premisesType">Premises noun</label>
+          <input id="premisesType" name="premisesType" type="text" [(ngModel)]="premisesType"
+                 placeholder="restaurant" />
+          <small class="hint">The word the agreement uses for the premises, e.g. “the restaurant is closed”.</small>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5.2 Contractor -->
+  <section class="panel">
+    <button type="button" class="panel-head" (click)="togglePanel('contractor')">
+      <span>Contractor</span>
+      <span class="chevron" [class.open]="isOpen('contractor')">▾</span>
+    </button>
+    <div class="panel-body" *ngIf="isOpen('contractor')">
+      <div class="field">
+        <label for="contractorProfile">Contractor profile</label>
+        <select id="contractorProfile" name="contractorProfile" [(ngModel)]="model.contractorProfileId">
+          <option *ngFor="let p of contractorProfiles" [ngValue]="p.id">
+            {{ p.legalEntityName }}<span *ngIf="p.dba"> d/b/a {{ p.dba }}</span>
+          </option>
+        </select>
+        <small class="hint">Edit these details under Contractor profile; they apply to every contract.</small>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5.3 Contractor signer -->
+  <section class="panel">
+    <button type="button" class="panel-head" (click)="togglePanel('contractorSigner')">
+      <span>Contractor signer</span>
+      <span class="chevron" [class.open]="isOpen('contractorSigner')">▾</span>
+    </button>
+    <div class="panel-body" *ngIf="isOpen('contractorSigner')">
+      <div class="grid">
+        <div class="field">
+          <label for="contractorSigner">Signer</label>
+          <select id="contractorSigner" name="contractorSigner"
+                  [(ngModel)]="model.contractorSignerContactId">
+            <option *ngFor="let c of contractorSigners" [ngValue]="c.id">
+              {{ c.fullName }}<span *ngIf="c.title"> — {{ c.title }}</span>
+            </option>
+          </select>
+          <!-- Name and title come from the contractor profile and are not per-contract fields;
+               only the address the signing link goes to may need changing. -->
+          <small class="hint">Name and title come from the contractor profile and are fixed per contract.</small>
+        </div>
+        <div class="field">
+          <label for="contractorSignerEmail">Signing link email</label>
+          <input id="contractorSignerEmail" name="contractorSignerEmail" type="email"
+                 [(ngModel)]="model.contractorSignerEmail" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5.4 Client -->
+  <section class="panel">
+    <button type="button" class="panel-head" (click)="togglePanel('client')">
+      <span>Client</span>
+      <span class="chevron" [class.open]="isOpen('client')">▾</span>
+    </button>
+    <div class="panel-body" *ngIf="isOpen('client')">
+      <!-- Linked account first: picking one pre-fills much of what follows, so asking for it
+           after the admin has already typed those fields would waste their work. -->
+      <div class="field">
+        <label for="sourceUser">Linked customer account</label>
+        <select id="sourceUser" name="sourceUser"
+                [ngModel]="model.newClient?.sourceUserId ?? null"
+                (ngModelChange)="model.newClient!.sourceUserId = $event; onSourceUserSelected()">
+          <option [ngValue]="null">— Not linked —</option>
+          <option *ngFor="let customer of businessCustomers" [ngValue]="customer.userId">
+            {{ customer.fullName }} ({{ customer.email }})
+          </option>
+        </select>
+        <small class="hint">
+          Linking a business-flagged account fills in the details below from their profile and lets
+          them read and sign this contract from their own “My Contracts” page. Leave it unlinked to
+          use the emailed link only.
+        </small>
+      </div>
+
+      <div class="field">
+        <label for="clientPicker">Existing client</label>
+        <select id="clientPicker" name="clientPicker"
+                [(ngModel)]="selectedClientId" (ngModelChange)="onClientSelected()">
+          <option [ngValue]="null">— New client —</option>
+          <option *ngFor="let c of clients" [ngValue]="c.id">{{ c.legalEntityName }}</option>
+        </select>
+      </div>
+
+      <div class="grid" *ngIf="model.newClient">
+        <div class="field wide">
+          <label for="clientName">Legal entity name</label>
+          <input id="clientName" name="clientName" type="text"
+                 [(ngModel)]="model.newClient.legalEntityName" />
+        </div>
+        <div class="field">
+          <label for="clientEntityType">Entity type</label>
+          <input id="clientEntityType" name="clientEntityType" type="text"
+                 [(ngModel)]="model.newClient.entityType"
+                 placeholder="a limited liability company" />
+        </div>
+        <div class="field">
+          <label for="clientFormationState">Formation state</label>
+          <input id="clientFormationState" name="clientFormationState" type="text"
+                 [(ngModel)]="model.newClient.formationState" />
+        </div>
+        <div class="field wide">
+          <label for="clientAddress">Principal business address</label>
+          <input id="clientAddress" name="clientAddress" type="text"
+                 [(ngModel)]="model.newClient.principalAddress" />
+        </div>
+        <div class="field">
+          <label for="clientCity">City</label>
+          <input id="clientCity" name="clientCity" type="text" [(ngModel)]="model.newClient.city" />
+        </div>
+        <div class="field">
+          <label for="clientState">State</label>
+          <input id="clientState" name="clientState" type="text" [(ngModel)]="model.newClient.state" />
+        </div>
+        <div class="field">
+          <label for="clientZip">ZIP</label>
+          <input id="clientZip" name="clientZip" type="text" [(ngModel)]="model.newClient.zip" />
+        </div>
+      </div>
+
+      <!-- ── The person signing for this client ─────────────────────────────────
+           Same card as the company, because recording the counterparty is one act
+           of data entry. They stay two entities underneath, which is what lets the
+           same person sign for a second location later. -->
+      <div class="subsection" *ngIf="model.newClientSigner">
+        <h4>Who signs for them</h4>
+
+        <div class="field">
+          <label for="clientSignerPicker">Existing contact</label>
+          <select id="clientSignerPicker" name="clientSignerPicker"
+                  [(ngModel)]="selectedClientSignerId" (ngModelChange)="onClientSignerSelected()">
+            <option [ngValue]="null">— New contact —</option>
+            <option *ngFor="let c of clientSigners" [ngValue]="c.id">{{ c.fullName }}</option>
+          </select>
+        </div>
+
+        <div class="grid">
+          <div class="field">
+            <label for="signerFirstName">First name</label>
+            <input id="signerFirstName" name="signerFirstName" type="text"
+                   [(ngModel)]="model.newClientSigner.firstName" />
+          </div>
+          <div class="field">
+            <label for="signerLastName">Last name</label>
+            <input id="signerLastName" name="signerLastName" type="text"
+                   [(ngModel)]="model.newClientSigner.lastName" />
+          </div>
+          <div class="field">
+            <label for="signerTitle">Title</label>
+            <input id="signerTitle" name="signerTitle" type="text"
+                   [(ngModel)]="model.newClientSigner.title" />
+            <small class="hint">Can be left blank — the client can fill it in when they sign.</small>
+          </div>
+          <div class="field">
+            <label for="signerEmail">Email</label>
+            <input id="signerEmail" name="signerEmail" type="email"
+                   [(ngModel)]="model.newClientSigner.email"
+                   (ngModelChange)="onSignerContactChanged()" />
+          </div>
+          <div class="field">
+            <label for="signerPhone">Phone</label>
+            <input id="signerPhone" name="signerPhone" type="tel"
+                   [(ngModel)]="model.newClientSigner.phone"
+                   (ngModelChange)="onSignerContactChanged()" />
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Notices (Section 32) ──────────────────────────────────────────────
+           The agreement serves notice on the CLIENT's email and phone, which in
+           practice is almost always the signer's. Default to reusing them and only
+           ask for a separate address when the admin says the two genuinely differ. -->
+      <div class="subsection" *ngIf="model.newClient">
+        <h4>Contract notices</h4>
+
+        <label class="check">
+          <input type="checkbox" name="useSignerContact"
+                 [(ngModel)]="useSignerContactForNotices"
+                 (ngModelChange)="onUseSignerContactChanged()" />
+          <span>Use signer email and phone for contract notices</span>
+        </label>
+
+        <div class="grid" *ngIf="!useSignerContactForNotices">
+          <div class="field">
+            <label for="clientNoticeEmail">Notice email</label>
+            <input id="clientNoticeEmail" name="clientNoticeEmail" type="email"
+                   [(ngModel)]="model.newClient.noticeEmail" />
+          </div>
+          <div class="field">
+            <label for="clientPhone">Notice phone</label>
+            <input id="clientPhone" name="clientPhone" type="tel"
+                   [(ngModel)]="model.newClient.phone" />
+          </div>
+        </div>
+
+        <small class="hint" *ngIf="useSignerContactForNotices">
+          Section 32 notices will go to
+          {{ model.newClientSigner?.email || 'the signer’s email' }}.
+        </small>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- 5.6 Service location -->
+  <section class="panel">
+    <button type="button" class="panel-head" (click)="togglePanel('location')">
+      <span>Service location</span>
+      <span class="chevron" [class.open]="isOpen('location')">▾</span>
+    </button>
+    <div class="panel-body" *ngIf="isOpen('location')">
+      <!-- Stated on screen because assuming the two are the same is exactly the mistake this
+           section exists to prevent. -->
+      <p class="callout">This is where the cleaning happens. It is a separate address from the
+        client's principal business address and is never assumed to be the same.</p>
+
+      <div class="field">
+        <label for="locationPicker">Existing location</label>
+        <select id="locationPicker" name="locationPicker"
+                [(ngModel)]="selectedLocationId" (ngModelChange)="onLocationSelected()">
+          <option [ngValue]="null">— New location —</option>
+          <option *ngFor="let l of locations" [ngValue]="l.id">{{ l.displayLabel }}</option>
+        </select>
+      </div>
+
+      <div class="grid" *ngIf="model.newServiceLocation">
+        <div class="field">
+          <label for="brand">Business / brand</label>
+          <input id="brand" name="brand" type="text"
+                 [(ngModel)]="model.newServiceLocation.businessBrand" placeholder="Chick-fil-A" />
+        </div>
+        <div class="field">
+          <label for="locationName">Location name</label>
+          <input id="locationName" name="locationName" type="text"
+                 [(ngModel)]="model.newServiceLocation.locationName" />
+        </div>
+        <div class="field wide">
+          <label for="locationAddress">Address</label>
+          <input id="locationAddress" name="locationAddress" type="text"
+                 [(ngModel)]="model.newServiceLocation.address" />
+        </div>
+        <div class="field">
+          <label for="locationCity">City</label>
+          <input id="locationCity" name="locationCity" type="text"
+                 [(ngModel)]="model.newServiceLocation.city" />
+        </div>
+        <div class="field">
+          <label for="locationState">State</label>
+          <input id="locationState" name="locationState" type="text"
+                 [(ngModel)]="model.newServiceLocation.state" />
+        </div>
+        <div class="field">
+          <label for="locationZip">ZIP</label>
+          <input id="locationZip" name="locationZip" type="text"
+                 [(ngModel)]="model.newServiceLocation.zip" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5.7 Schedule -->
+  <section class="panel">
+    <button type="button" class="panel-head" (click)="togglePanel('schedule')">
+      <span>Service schedule</span>
+      <span class="chevron" [class.open]="isOpen('schedule')">▾</span>
+    </button>
+    <div class="panel-body" *ngIf="isOpen('schedule')">
+      <div class="grid">
+        <div class="field">
+          <label for="visitsPerPeriod">Visits per period</label>
+          <input id="visitsPerPeriod" name="visitsPerPeriod" type="number" min="1"
+                 [(ngModel)]="model.schedule.visitsPerPeriod" />
+        </div>
+        <div class="field">
+          <label for="frequencyUnit">Period</label>
+          <select id="frequencyUnit" name="frequencyUnit" [(ngModel)]="model.schedule.frequencyUnit">
+            <option *ngFor="let unit of frequencyUnits" [ngValue]="unit">{{ unit }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="serviceDay">Regular day</label>
+          <select id="serviceDay" name="serviceDay" [(ngModel)]="model.schedule.serviceDay">
+            <option *ngFor="let day of weekdays" [ngValue]="day">{{ day }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="serviceTime">Approximate start time</label>
+          <input id="serviceTime" name="serviceTime" type="text"
+                 [(ngModel)]="model.schedule.serviceTime" placeholder="9:00 AM" />
+        </div>
+        <div class="field wide">
+          <label for="accessType">Access type</label>
+          <input id="accessType" name="accessType" type="text" [(ngModel)]="model.schedule.accessType" />
+        </div>
+        <label class="check">
+          <input type="checkbox" name="flexibleScheduling"
+                 [(ngModel)]="model.schedule.flexibleScheduling" />
+          <span>Flexible scheduling (day and time are anticipated, not fixed)</span>
+        </label>
+        <label class="check">
+          <input type="checkbox" name="performedWhileClosed"
+                 [(ngModel)]="model.schedule.performedWhileClosed" />
+          <span>Performed while the premises are closed</span>
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5.8 Term -->
+  <section class="panel">
+    <button type="button" class="panel-head" (click)="togglePanel('term')">
+      <span>Contract term</span>
+      <span class="chevron" [class.open]="isOpen('term')">▾</span>
+    </button>
+    <div class="panel-body" *ngIf="isOpen('term')">
+      <div class="grid">
+        <div class="field">
+          <label for="initialTermMonths">Initial term (months)</label>
+          <input id="initialTermMonths" name="initialTermMonths" type="number" min="1"
+                 [(ngModel)]="model.term.initialTermMonths" />
+        </div>
+        <div class="field">
+          <label for="minimumCommitmentMonths">Minimum commitment (months)</label>
+          <input id="minimumCommitmentMonths" name="minimumCommitmentMonths" type="number" min="0"
+                 [(ngModel)]="model.term.minimumCommitmentMonths" />
+        </div>
+        <div class="field">
+          <label for="terminationNoticeDays">Termination notice (days)</label>
+          <input id="terminationNoticeDays" name="terminationNoticeDays" type="number" min="0"
+                 [(ngModel)]="model.term.terminationNoticeDays" />
+        </div>
+        <div class="field">
+          <label for="renewalType">Renewal</label>
+          <input id="renewalType" name="renewalType" type="text" [(ngModel)]="model.term.renewalType"
+                 placeholder="month-to-month" />
+        </div>
+        <div class="field">
+          <label for="governingLawState">Governing law state</label>
+          <input id="governingLawState" name="governingLawState" type="text"
+                 [(ngModel)]="model.term.governingLawState" />
+        </div>
+        <div class="field">
+          <label for="venueCounty">Venue county</label>
+          <input id="venueCounty" name="venueCounty" type="text" [(ngModel)]="model.term.venueCounty" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5.9 Pricing -->
+  <section class="panel">
+    <button type="button" class="panel-head" (click)="togglePanel('pricing')">
+      <span>Pricing &amp; payment</span>
+      <span class="chevron" [class.open]="isOpen('pricing')">▾</span>
+    </button>
+    <div class="panel-body" *ngIf="isOpen('pricing')">
+      <div class="grid">
+        <div class="field">
+          <label for="priceMode">Price mode</label>
+          <select id="priceMode" name="priceMode" [(ngModel)]="model.pricing.priceMode"
+                  (ngModelChange)="onPricingChanged()">
+            <option [ngValue]="ContractPriceMode.PreTax">Pre-tax (tax added on top)</option>
+            <option [ngValue]="ContractPriceMode.TaxInclusive">Tax-inclusive (total the client pays)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="priceInput">Price per visit</label>
+          <input id="priceInput" name="priceInput" type="number" step="0.01" min="0"
+                 [(ngModel)]="model.pricing.priceInput" (ngModelChange)="onPricingChanged()" />
+        </div>
+        <div class="field">
+          <label for="salesTaxRate">Sales tax rate (%)</label>
+          <input id="salesTaxRate" name="salesTaxRate" type="number" step="0.001" min="0"
+                 [(ngModel)]="model.pricing.salesTaxRatePercent" (ngModelChange)="onPricingChanged()" />
+        </div>
+        <div class="field">
+          <label for="cancellationPercent">Short-notice cancellation (%)</label>
+          <input id="cancellationPercent" name="cancellationPercent" type="number" step="1" min="0" max="100"
+                 [(ngModel)]="model.pricing.cancellationPercent" (ngModelChange)="onPricingChanged()" />
+        </div>
+      </div>
+
+      <!-- Every figure below is computed by the server from the four inputs above. Labels stay
+           visible while values resolve, per the project's shimmer convention. -->
+      <div class="derived" *ngIf="pricingPreview">
+        <h4>Computed for Exhibit B</h4>
+        <div class="derived-grid">
+          <div><span>Pre-tax fee</span><strong>{{ pricingPreview.preTaxPrice | currency }}</strong></div>
+          <div><span>Sales tax</span><strong>{{ pricingPreview.salesTaxAmount | currency }}</strong></div>
+          <div><span>Total per visit</span><strong>{{ pricingPreview.totalPrice | currency }}</strong></div>
+          <div><span>Cancellation charge</span><strong>{{ pricingPreview.cancellationAmount | currency }}</strong></div>
+          <div><span>Remaining balance</span><strong>{{ pricingPreview.remainingBalance | currency }}</strong></div>
+          <div><span>Lockout fee</span><strong>{{ pricingPreview.lockoutFee | currency }}</strong></div>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="field wide">
+          <label for="invoiceTiming">Invoice timing</label>
+          <input id="invoiceTiming" name="invoiceTiming" type="text"
+                 [(ngModel)]="model.pricing.invoiceTiming" />
+        </div>
+        <div class="field">
+          <label for="paymentDeadlineHours">Payment deadline (hours before)</label>
+          <input id="paymentDeadlineHours" name="paymentDeadlineHours" type="number" min="0"
+                 [(ngModel)]="model.pricing.paymentDeadlineHours" />
+        </div>
+        <div class="field">
+          <label for="paymentMethod">Payment method</label>
+          <input id="paymentMethod" name="paymentMethod" type="text"
+                 [(ngModel)]="model.pricing.paymentMethod" />
+        </div>
+        <div class="field">
+          <label for="lateChargePercent">Late charge (% per month)</label>
+          <input id="lateChargePercent" name="lateChargePercent" type="number" step="0.1" min="0"
+                 [(ngModel)]="model.pricing.lateChargePercent" />
+        </div>
+        <div class="field">
+          <label for="returnedPaymentFee">Failed payment fee</label>
+          <input id="returnedPaymentFee" name="returnedPaymentFee" type="number" step="0.01" min="0"
+                 [(ngModel)]="model.pricing.returnedPaymentFee" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5.10 Scope of work -->
+  <section class="panel">
+    <button type="button" class="panel-head" (click)="togglePanel('scope')">
+      <span>Scope of work</span>
+      <span class="chevron" [class.open]="isOpen('scope')">▾</span>
+    </button>
+    <div class="panel-body" *ngIf="isOpen('scope')">
+      <p class="muted">Untick anything this contract does not cover. Only ticked items are written
+        into Exhibit A.</p>
+
+      <div class="scope-group" *ngFor="let group of model.scope.groups; let gi = index">
+        <div class="scope-head">
+          <h4>{{ group.title }}</h4>
+          <span class="scope-count">{{ selectedCount(gi) }} of {{ group.items.length }}</span>
+        </div>
+        <div class="scope-items">
+          <label class="check" *ngFor="let item of group.items; let ii = index">
+            <input type="checkbox" [(ngModel)]="item.selected" [name]="'scope-' + gi + '-' + ii" />
+            <span>{{ item.label }}</span>
+            <button type="button" class="row-remove" *ngIf="item.isCustom"
+                    (click)="removeScopeRow(gi, ii)" title="Remove">×</button>
+          </label>
+        </div>
+        <div class="scope-add" *ngIf="allowsCustomScopeRows">
+          <input #newRow type="text" placeholder="Add an item…"
+                 (keyup.enter)="addScopeRow(gi, newRow.value, newRow)" />
+          <button type="button" class="btn-ghost" (click)="addScopeRow(gi, newRow.value, newRow)">Add</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5.11 Advanced terms — collapsed by default -->
+  <section class="panel">
+    <button type="button" class="panel-head" (click)="togglePanel('advanced')">
+      <span>Advanced contract terms</span>
+      <span class="chevron" [class.open]="isOpen('advanced')">▾</span>
+    </button>
+    <div class="panel-body" *ngIf="isOpen('advanced')">
+      <p class="muted">Every remaining fixed figure in the agreement. Defaults reproduce the
+        standard wording — change one only when this contract genuinely differs.</p>
+      <div class="grid">
+        <div class="field">
+          <label for="timelyRescheduleHours">Timely reschedule notice (hours)</label>
+          <input id="timelyRescheduleHours" name="timelyRescheduleHours" type="number" min="0"
+                 [(ngModel)]="model.advanced.timelyRescheduleHours" />
+        </div>
+        <div class="field">
+          <label for="curePeriodDays">Cure period (days) — §4(b)</label>
+          <input id="curePeriodDays" name="curePeriodDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.curePeriodDays" />
+        </div>
+        <div class="field">
+          <label for="pastDueDays">Past-due threshold (days) — §4(c)</label>
+          <input id="pastDueDays" name="pastDueDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.pastDueDays" />
+        </div>
+        <div class="field">
+          <label for="billingDisputeDays">Billing dispute window (days) — §12</label>
+          <input id="billingDisputeDays" name="billingDisputeDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.billingDisputeDays" />
+        </div>
+        <div class="field">
+          <label for="qualityComplaintHours">Quality complaint window (hours) — §22</label>
+          <input id="qualityComplaintHours" name="qualityComplaintHours" type="number" min="0"
+                 [(ngModel)]="model.advanced.qualityComplaintHours" />
+        </div>
+        <div class="field">
+          <label for="visibleDamageHours">Visible damage window (hours) — §21(a)</label>
+          <input id="visibleDamageHours" name="visibleDamageHours" type="number" min="0"
+                 [(ngModel)]="model.advanced.visibleDamageHours" />
+        </div>
+        <div class="field">
+          <label for="latentDamageDays">Latent damage window (days) — §21(b)</label>
+          <input id="latentDamageDays" name="latentDamageDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.latentDamageDays" />
+        </div>
+        <div class="field">
+          <label for="confidentialityYears">Confidentiality (years) — §27</label>
+          <input id="confidentialityYears" name="confidentialityYears" type="number" min="0"
+                 [(ngModel)]="model.advanced.confidentialityYears" />
+        </div>
+        <div class="field">
+          <label for="nonSolicitMonths">Non-solicit (months) — §18</label>
+          <input id="nonSolicitMonths" name="nonSolicitMonths" type="number" min="0"
+                 [(ngModel)]="model.advanced.nonSolicitMonths" />
+        </div>
+        <div class="field">
+          <label for="nonHireDamages">Non-hire liquidated damages</label>
+          <input id="nonHireDamages" name="nonHireDamages" type="number" step="0.01" min="0"
+                 [(ngModel)]="model.advanced.nonHireDamages" />
+        </div>
+        <div class="field">
+          <label for="insurancePerOccurrence">CGL each occurrence — §20(a)</label>
+          <input id="insurancePerOccurrence" name="insurancePerOccurrence" type="number" step="1000" min="0"
+                 [(ngModel)]="model.advanced.insurancePerOccurrence" />
+        </div>
+        <div class="field">
+          <label for="insuranceAggregate">CGL general aggregate — §20(a)</label>
+          <input id="insuranceAggregate" name="insuranceAggregate" type="number" step="1000" min="0"
+                 [(ngModel)]="model.advanced.insuranceAggregate" />
+        </div>
+        <div class="field">
+          <label for="insuranceJurisdiction">Workers' comp jurisdiction — §20(b)</label>
+          <input id="insuranceJurisdiction" name="insuranceJurisdiction" type="text"
+                 [(ngModel)]="model.advanced.insuranceJurisdiction" />
+        </div>
+        <div class="field">
+          <label for="liabilityCapLookbackMonths">Liability cap lookback (months) — §29(b)</label>
+          <input id="liabilityCapLookbackMonths" name="liabilityCapLookbackMonths" type="number" min="0"
+                 [(ngModel)]="model.advanced.liabilityCapLookbackMonths" />
+        </div>
+        <div class="field">
+          <label for="disputeDiscussionDays">Dispute discussion period (days) — §34(a)</label>
+          <input id="disputeDiscussionDays" name="disputeDiscussionDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.disputeDiscussionDays" />
+        </div>
+        <div class="field">
+          <label for="creditReturnDays">Unapplied credit return (days) — §15</label>
+          <input id="creditReturnDays" name="creditReturnDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.creditReturnDays" />
+        </div>
+        <div class="field wide">
+          <label for="mediationVenue">Mediation venue — §34(a)</label>
+          <input id="mediationVenue" name="mediationVenue" type="text"
+                 [(ngModel)]="model.advanced.mediationVenue" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="form-footer">
+    <button type="button" class="btn-primary" (click)="generatePreview()" [disabled]="saving">
+      {{ saving ? 'Generating…' : 'Generate contract preview' }}
+    </button>
+    <!-- Said explicitly: generating is internal, and nobody is emailed until the admin approves. -->
+    <span class="muted">Generating a preview notifies nobody. The client is emailed only when you
+      approve and send it for review.</span>
+  </div>
+</div>
+
+<div class="contract-form loading-state" *ngIf="loading">Loading…</div>
