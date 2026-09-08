@@ -1,0 +1,222 @@
+/* New Commercial Client modal. Tokens throughout — the one literal is the white on the brand
+   button, matching the Clients tab's own .btn-primary (the brand blue is theme-stable).
+   Shared by Commercial → Clients and the Create Invoice form, so nothing here assumes either
+   page's surrounding layout. */
+
+.cc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-dark);
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.cc-modal {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  box-shadow: 0 20px 60px var(--shadow-color);
+  width: 100%;
+  max-width: 620px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cc-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-color);
+
+  .cc-modal-title {
+    margin: 0;
+    font-size: 1.02rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+
+  .cc-close {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--text-muted);
+    cursor: pointer;
+
+    &:hover { color: var(--text-primary); }
+  }
+}
+
+.cc-modal-body {
+  padding: 16px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cc-intro {
+  margin: 0;
+  font-size: 0.83rem;
+  color: var(--text-muted);
+}
+
+.cc-linked {
+  padding: 10px 13px;
+  border-radius: var(--radius-sm);
+  background: var(--soft-blue);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  .cc-linked-note {
+    font-size: 0.79rem;
+    color: var(--text-secondary);
+  }
+}
+
+.cc-error {
+  padding: 10px 13px;
+  border-radius: var(--radius-sm);
+  background: var(--soft-red);
+  color: var(--bright-red);
+  font-size: 0.85rem;
+}
+
+.cc-section {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+
+  h4 {
+    margin: 0;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+.cc-optional {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.72rem;
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-subtle);
+}
+
+.cc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.cc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+
+  &.wide { grid-column: 1 / -1; }
+
+  label {
+    font-size: 0.77rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+
+    .req { color: var(--bright-red); }
+  }
+
+  input,
+  select {
+    padding: 8px 11px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.86rem;
+    font-family: inherit;
+    min-width: 0;
+
+    &:focus { outline: none; border-color: var(--primary-color); }
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+  }
+}
+
+.cc-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  cursor: pointer;
+
+  input { cursor: pointer; }
+}
+
+.cc-hint {
+  margin: 0;
+  font-size: 0.79rem;
+  color: var(--text-muted);
+}
+
+.cc-modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  padding: 13px 18px;
+  border-top: 1px solid var(--border-color);
+}
+
+.cc-btn {
+  border-radius: var(--radius-sm);
+  padding: 8px 17px;
+  font-size: 0.86rem;
+  font-weight: var(--fw-semibold);
+  font-family: inherit;
+  cursor: pointer;
+  border: 1px solid transparent;
+
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  &.ghost {
+    background: var(--surface);
+    border-color: var(--border-color);
+    color: var(--text-secondary);
+
+    &:hover:not(:disabled) { background: var(--surface-subtle); }
+  }
+
+  &.primary {
+    background: var(--primary-color);
+    color: #fff;
+
+    &:hover:not(:disabled) { background: var(--primary-color-hover); }
+  }
+}
+
+/* The two narrow fields sit side by side on a wide modal and stack on a phone, where a
+   four-column address row would leave nothing readable. */
+@media (max-width: 560px) {
+  .cc-grid { grid-template-columns: minmax(0, 1fr); }
+  .cc-modal { max-height: 94vh; }
+}
+
+@media (min-width: 561px) {
+  .cc-field.narrow { grid-column: span 1; }
+}

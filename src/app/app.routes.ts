@@ -383,23 +383,74 @@ export const routes: Routes = [
   { path: 'admin/rewards', pathMatch: 'full', redirectTo: () => inject(Router).parseUrl('/admin?tab=rewards') },
   { path: 'admin/expenses', redirectTo: 'admin/company/expenses', pathMatch: 'full' },
   { path: 'admin/finances', redirectTo: 'admin/company/finances', pathMatch: 'full' },
-  // ── Contracts: its own top-level admin section (2026-09) ──────────────────────────────────
-  // Was a tab inside /admin/crm, which gave it no real URL — only a sessionStorage tab and a
-  // ?contractId= param. The :id form is what the revision-request email links to.
-  // Same guard stack as the other top-level admin sections; the Contracts permission matrix is
-  // enforced server-side on top of it.
+  // ── Commercial: Invoices / Contracts / Clients / Billing Settings ────────────────────────
+  // Contracts moved in here (2026-09) from its own top-level /admin/contracts section, so the
+  // three halves of one workflow — the client, what they signed, and what they are billed — sit
+  // together. The old paths still resolve; see the redirects below.
+  //
+  // Same guard stack as the other top-level admin sections. Role and permission checks are
+  // enforced server-side on every endpoint behind these tabs; the guards here are the outer door.
   {
-    path: 'admin/contracts',
+    path: 'admin/commercial',
     canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
-    loadComponent: () => import('./auth/admin/contracts-page/contracts-page.component')
-      .then(m => m.ContractsPageComponent)
+    loadComponent: () => import('./auth/admin/commercial/commercial.component')
+      .then(m => m.CommercialComponent),
+    children: [
+      { path: '', redirectTo: 'invoices', pathMatch: 'full' },
+
+      // Create BEFORE :id, or "create" would be parsed as an invoice id.
+      {
+        path: 'invoices/create',
+        loadComponent: () => import('./auth/admin/commercial/invoices/invoice-form.component')
+          .then(m => m.InvoiceFormComponent)
+      },
+      {
+        path: 'invoices/:id/edit',
+        loadComponent: () => import('./auth/admin/commercial/invoices/invoice-form.component')
+          .then(m => m.InvoiceFormComponent)
+      },
+      {
+        path: 'invoices/:id',
+        loadComponent: () => import('./auth/admin/commercial/invoices/invoice-detail.component')
+          .then(m => m.InvoiceDetailComponent)
+      },
+      {
+        path: 'invoices',
+        loadComponent: () => import('./auth/admin/commercial/invoices/invoices.component')
+          .then(m => m.CommercialInvoicesComponent)
+      },
+      {
+        path: 'contracts/:id',
+        loadComponent: () => import('./auth/admin/contracts-page/contracts-page.component')
+          .then(m => m.ContractsPageComponent)
+      },
+      {
+        path: 'contracts',
+        loadComponent: () => import('./auth/admin/contracts-page/contracts-page.component')
+          .then(m => m.ContractsPageComponent)
+      },
+      {
+        path: 'clients',
+        loadComponent: () => import('./auth/admin/commercial/clients/commercial-clients.component')
+          .then(m => m.CommercialClientsComponent)
+      },
+      {
+        // SuperAdmin-only in effect: the tab is hidden for anyone else and the PUT is refused
+        // server-side. Left without a guard here on purpose — an Admin who lands on it sees the
+        // settings read-only, which is genuinely useful when a client asks where to pay.
+        path: 'billing-settings',
+        loadComponent: () => import('./auth/admin/commercial/billing-settings/billing-settings.component')
+          .then(m => m.BillingSettingsComponent)
+      }
+    ]
   },
-  {
-    path: 'admin/contracts/:id',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
-    loadComponent: () => import('./auth/admin/contracts-page/contracts-page.component')
-      .then(m => m.ContractsPageComponent)
-  },
+
+  // Contracts kept its old URLs as redirects. The contract revision-request and executed-copy
+  // emails ALREADY SENT link to /admin/contracts/{id}, and those links have to keep working —
+  // ContractService builds that path in two places. Dropping these would break a link in
+  // somebody's inbox, which is precisely the failure the :id route was added to fix.
+  { path: 'admin/contracts', redirectTo: 'admin/commercial/contracts', pathMatch: 'full' },
+  { path: 'admin/contracts/:id', redirectTo: 'admin/commercial/contracts/:id' },
   {
     path: 'admin/crm',
     canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
@@ -479,6 +530,17 @@ export const routes: Routes = [
     path: 'contract/sign/:token',
     loadComponent: () => import('./contract/contract-sign/contract-sign.component')
       .then(m => m.ContractSignComponent)
+  },
+
+  // ── Commercial invoice: the client-facing page ────────────────────────────────────────────
+  // Unguarded for the same reason as the contract pages above: a commercial client has no account
+  // here, so the opaque token IS the authorization. The page is read-only — nothing on it can
+  // change an invoice — and it is RenderMode.Client in app.routes.server.ts, because prerendering
+  // would put one client's invoice and bank details into a cacheable response.
+  {
+    path: 'invoice/:token',
+    loadComponent: () => import('./invoice/public-invoice.component')
+      .then(m => m.PublicInvoiceComponent)
   },
 
   // ── My Contracts: the business customer's own contracts ───────────────────────────────────

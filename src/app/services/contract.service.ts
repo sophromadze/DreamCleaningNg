@@ -143,6 +143,8 @@ export interface ContractClient {
   id: number; legalEntityName: string; entityType: string; formationState?: string;
   principalAddress: string; city: string; state: string; zip: string;
   noticeEmail?: string; phone?: string; isActive: boolean;
+  /** The business-flagged account this client is linked to, when staff named one. */
+  sourceUserId?: number | null;
   serviceLocations: ContractServiceLocation[]; contacts: ContractContact[];
 }
 
@@ -174,6 +176,18 @@ export interface SaveContractServiceLocation {
 export interface SaveContractContact {
   firstName: string; lastName: string; title?: string; email?: string; phone?: string;
   role: ContractContactRole; contractClientId?: number;
+}
+
+/**
+ * Body of `POST api/crm/contract-directory/clients` — a commercial client created on its own.
+ *
+ * Extends the contract form's own client payload so the two cannot validate the company
+ * differently. Both extras are optional; the nested `contractClientId` is omitted because the
+ * client does not exist yet and the server fills it from the row it just inserted.
+ */
+export interface CreateCommercialClient extends SaveContractClient {
+  billingContact?: Omit<SaveContractContact, 'contractClientId'> | null;
+  serviceLocation?: Omit<SaveContractServiceLocation, 'contractClientId'> | null;
 }
 
 /** Only these three drive the money. Everything else on Exhibit B is derived server-side. */
@@ -574,6 +588,43 @@ export class ContractService {
     let params = new HttpParams();
     if (search) params = params.set('search', search);
     return this.http.get<ContractClient[]>(`${this.directoryUrl}/clients`, { params });
+  }
+
+  /**
+   * Creates a commercial client on its own — no contract, no DCC number, no document.
+   *
+   * The endpoint is the one the contract directory already exposed; it simply had no caller until
+   * Commercial → Clients and the invoice form got their "New client" buttons. Creation only:
+   * editing an existing client stays on the contract, where a rename is governed by
+   * ContractClientEditPolicy.
+   */
+  createClient(dto: CreateCommercialClient): Observable<ContractClient> {
+    return this.http.post<ContractClient>(`${this.directoryUrl}/clients`, dto);
+  }
+
+  /**
+   * Edits a commercial client. The link to a customer account is NOT part of this payload — it is
+   * made and unmade by the business flag on the account, because it grants that customer sight of
+   * the client's contracts.
+   */
+  updateClient(id: number, dto: CreateCommercialClient): Observable<ContractClient> {
+    return this.http.put<ContractClient>(`${this.directoryUrl}/clients/${id}`, dto);
+  }
+
+  /**
+   * SOFT delete. Contracts, invoices, payments and reference numbers all survive; the client just
+   * stops being offered. For a client linked to a customer account this also removes that
+   * account's business designation, which is what makes the deletion stick — otherwise the next
+   * sync would put the client straight back.
+   */
+  deactivateClient(id: number): Observable<{ message: string; businessFlagRemoved: boolean }> {
+    return this.http.delete<{ message: string; businessFlagRemoved: boolean }>(
+      `${this.directoryUrl}/clients/${id}`);
+  }
+
+  /** Standalone clients only — a linked one comes back via the business flag on its account. */
+  restoreClient(id: number): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(`${this.directoryUrl}/clients/${id}/restore`, {});
   }
 
   getLocations(clientId: number): Observable<ContractServiceLocation[]> {

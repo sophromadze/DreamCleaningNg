@@ -1,0 +1,629 @@
+/*
+ * The client-facing invoice page.
+ *
+ * Mobile matters most here: a commercial client checks this on a phone to find the amount, the due
+ * date and the bank details. So the amount panel comes FIRST and largest, the ACH block is a
+ * single tap to copy, and the line-item table is the only thing allowed to scroll sideways.
+ *
+ * Tokens only — no hex — so it follows the viewer's day/night preference like the rest of the site.
+ */
+
+.public-invoice-page {
+  min-height: 100vh;
+  background: var(--page-bg);
+  padding: 28px 16px 56px;
+  display: flex;
+  justify-content: center;
+}
+
+.loading-note,
+.error-panel {
+  max-width: 520px;
+  margin: 60px auto;
+  text-align: center;
+  color: var(--text-secondary);
+
+  h1 {
+    font-size: 1.4rem;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+  }
+}
+
+.invoice-sheet {
+  width: 100%;
+  max-width: 860px;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 32px 34px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  box-shadow: 0 4px 24px var(--shadow-color);
+}
+
+.alert-error {
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--soft-red);
+  color: var(--bright-red);
+  font-size: 0.87rem;
+}
+
+.mono { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+
+/* ── Masthead ────────────────────────────────────────────────────────────────────────────── */
+
+.sheet-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding-bottom: 20px;
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.company {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+
+  .logo {
+    height: 38px;
+    width: auto;
+    margin-bottom: 8px;
+    align-self: flex-start;
+  }
+
+  .company-name {
+    font-size: 1.05rem;
+    font-weight: var(--fw-semibold);
+    color: var(--primary-color);
+  }
+
+  .company-dba,
+  .company-line {
+    font-size: 0.81rem;
+    color: var(--text-muted);
+  }
+}
+
+.invoice-id {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  text-align: right;
+
+  .doc-title {
+    font-size: 1.5rem;
+    font-weight: var(--fw-bold);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--primary-color);
+    line-height: 1;
+  }
+
+  .invoice-number {
+    font-size: 1rem;
+    font-weight: var(--fw-semibold);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+  }
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 3px 11px;
+  border-radius: var(--radius-pill);
+  font-size: 0.71rem;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: var(--soft-blue);
+  color: var(--primary-color);
+
+  &.paid { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &.overdue { background: var(--soft-red); color: var(--bright-red); }
+  &.void {
+    background: var(--surface-subtle);
+    color: var(--text-muted);
+    text-decoration: line-through;
+  }
+}
+
+.void-banner {
+  padding: 13px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--soft-red);
+  color: var(--bright-red);
+  font-size: 0.9rem;
+  font-weight: var(--fw-medium);
+}
+
+/* ── Amount panel ────────────────────────────────────────────────────────────────────────── */
+
+.amount-panel {
+  background: var(--surface-subtle);
+  border-radius: var(--radius-md);
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  .amount-label {
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+  }
+
+  .amount-value {
+    font-size: 2.5rem;
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .amount-sub {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+
+    &.paid { color: var(--fresh-green); font-weight: var(--fw-medium); }
+  }
+
+  &.paid {
+    background: var(--mint-fresh);
+    .amount-value { color: var(--mint-fresh-text); }
+    .amount-label { color: var(--mint-fresh-text); }
+  }
+}
+
+/* ── Parties ─────────────────────────────────────────────────────────────────────────────── */
+
+.parties {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 20px;
+}
+
+.party {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  .party-name {
+    font-size: 0.97rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+
+  .party-line {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+}
+
+.block-label {
+  font-size: 0.72rem;
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--primary-color);
+  margin-bottom: 4px;
+}
+
+/* ── Line items ──────────────────────────────────────────────────────────────────────────── */
+
+.table-wrap { overflow-x: auto; }
+
+.items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  min-width: 440px;
+
+  th {
+    text-align: left;
+    padding: 9px 10px;
+    font-size: 0.71rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: var(--fw-semibold);
+    color: var(--primary-color);
+    border-bottom: 1.5px solid var(--primary-color);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 11px 10px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+  }
+
+  .align-right { text-align: right; font-variant-numeric: tabular-nums; }
+}
+
+.totals {
+  margin-top: 16px;
+  margin-left: auto;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.totals-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+
+  &.total {
+    padding-top: 8px;
+    border-top: 2px solid var(--primary-color);
+    font-size: 1.02rem;
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+  }
+
+  &.balance {
+    padding: 10px 13px;
+    margin-top: 6px;
+    background: var(--surface-subtle);
+    border-radius: var(--radius-sm);
+    font-size: 1.05rem;
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+  }
+}
+
+/* ── Payment ─────────────────────────────────────────────────────────────────────────────── */
+
+/*
+ * The payment section.
+ *
+ * Visual weight follows the decision we want the customer to make: one large primary button, a
+ * quieter card button when enabled, then a plain collapsed row for the manual bank details. The
+ * old version led with a wall of account numbers, which asked them to do the hard version of the
+ * job before they had seen the easy one.
+ */
+.payment-section {
+  border: 1px solid var(--border-color);
+  border-top: 3px solid var(--primary-color);
+  border-radius: var(--radius-md);
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pay-alert {
+  padding: 11px 13px;
+  border-radius: var(--radius-sm);
+  font-size: 0.86rem;
+
+  &.error { background: var(--soft-red); color: var(--bright-red); }
+  &.info { background: var(--soft-blue); color: var(--primary-color); }
+}
+
+/* ── Processing ──────────────────────────────────────────────────────────────────────────── */
+/* Amber, not green: money is on its way but nothing has settled, and a green panel here would
+   read as "paid" — the exact misunderstanding this state exists to prevent. */
+.processing-panel {
+  background: var(--warning-orange-bg);
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .processing-title {
+    font-size: 0.98rem;
+    font-weight: var(--fw-bold);
+    color: var(--warning-orange-text);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.89rem;
+    color: var(--text-primary);
+  }
+
+  .processing-note {
+    font-size: 0.83rem;
+    color: var(--text-secondary);
+  }
+}
+
+/* ── Pay buttons ─────────────────────────────────────────────────────────────────────────── */
+
+.pay-primary {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.btn-pay {
+  width: 100%;
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 16px 24px;
+  font-size: 1.02rem;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  /* Deliberately large: this is the action the page exists to get, and it is pressed on a phone. */
+  min-height: 54px;
+
+  &:hover:not(:disabled) { background: var(--primary-color-hover); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.pay-caption {
+  font-size: 0.81rem;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.pay-secondary .btn-pay-alt {
+  width: 100%;
+  background: var(--surface);
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  padding: 12px 20px;
+  font-size: 0.92rem;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  min-height: 46px;
+
+  &:hover:not(:disabled) { background: var(--soft-blue); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+/* ── OR divider ──────────────────────────────────────────────────────────────────────────── */
+
+.pay-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+
+  &::before, &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color);
+  }
+}
+
+/* ── Manual ACH, collapsed by default ────────────────────────────────────────────────────── */
+
+.manual-ach {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.manual-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 15px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+  text-align: left;
+  min-height: 46px;
+
+  &:hover { background: var(--surface-subtle); }
+
+  .manual-chevron { color: var(--text-muted); font-size: 0.8rem; }
+}
+
+.manual-body {
+  padding: 4px 15px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--border-color);
+
+  .manual-intro {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+}
+
+/* ── Paid ────────────────────────────────────────────────────────────────────────────────── */
+
+.paid-panel {
+  border-top-color: var(--fresh-green);
+  background: var(--mint-fresh);
+
+  .paid-title {
+    font-size: 0.98rem;
+    font-weight: var(--fw-bold);
+    color: var(--mint-fresh-text);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.89rem;
+    color: var(--mint-fresh-text);
+  }
+}
+
+.invoice-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.pay-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 13px 22px;
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  /* The reference is the field clients most often leave out; given its own emphasis. */
+  .reference .pay-value {
+    color: var(--primary-color);
+    font-weight: var(--fw-bold);
+  }
+}
+
+.pay-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.pay-value {
+  font-size: 0.95rem;
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  /* Long account numbers must wrap rather than push the card sideways on a phone. */
+  overflow-wrap: anywhere;
+}
+
+.pay-important {
+  margin: 0;
+  padding: 11px 13px;
+  background: var(--soft-blue);
+  border-radius: var(--radius-sm);
+  font-size: 0.86rem;
+  color: var(--text-primary);
+}
+
+.pay-note {
+  margin: 0;
+  font-size: 0.83rem;
+  color: var(--text-muted);
+  white-space: pre-line;
+}
+
+.wire-block {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-color);
+}
+
+.pay-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.btn-primary, .btn-secondary {
+  border-radius: var(--radius-sm);
+  padding: 11px 20px;
+  font-size: 0.9rem;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  border: 1px solid transparent;
+  /* Comfortable tap targets — this page is used on a phone more than a desktop. */
+  min-height: 44px;
+
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: #fff;
+  &:hover:not(:disabled) { background: var(--primary-color-hover); }
+}
+
+.btn-secondary {
+  background: var(--surface);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  &:hover:not(:disabled) { background: var(--soft-blue); }
+}
+
+/* ── Notes and footer ────────────────────────────────────────────────────────────────────── */
+
+.customer-note {
+  p {
+    margin: 0;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    white-space: pre-line;
+  }
+}
+
+.sheet-foot {
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+
+  p {
+    margin: 0 0 3px;
+    font-size: 0.79rem;
+    color: var(--text-muted);
+  }
+
+  .foot-meta { font-size: 0.74rem; }
+}
+
+/* ── Phone ───────────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .public-invoice-page { padding: 14px 10px 40px; }
+
+  .invoice-sheet {
+    padding: 20px 17px 20px;
+    gap: 20px;
+    border-radius: var(--radius-md);
+  }
+
+  .sheet-head { gap: 14px; }
+
+  .invoice-id {
+    align-items: flex-start;
+    text-align: left;
+    .doc-title { font-size: 1.25rem; }
+  }
+
+  .amount-panel {
+    padding: 18px 18px;
+    .amount-value { font-size: 2.1rem; }
+  }
+
+  .totals { max-width: none; }
+
+  /* Full-width buttons: easier to hit, and there is nothing to sit beside them. */
+  .pay-actions {
+    flex-direction: column;
+    button { width: 100%; }
+  }
+}

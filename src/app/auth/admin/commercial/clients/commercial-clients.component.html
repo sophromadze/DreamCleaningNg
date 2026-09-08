@@ -1,0 +1,185 @@
+<div class="clients-page">
+
+  <div class="page-head">
+    <h2>Commercial Clients</h2>
+
+    <div class="head-actions">
+      <input type="text" class="search-input" [(ngModel)]="search"
+             placeholder="Search company, contact, email, address, contract #…"
+             aria-label="Search commercial clients">
+
+      <button type="button" class="btn-primary" *ngIf="canCreate" (click)="openCreate()">
+        + New Client
+      </button>
+    </div>
+  </div>
+
+  <p class="page-intro">
+    Manage your commercial customers, billing information, service locations, contracts and
+    invoices.
+  </p>
+
+  <label class="inactive-toggle">
+    <input type="checkbox" [(ngModel)]="showInactive" (change)="onShowInactiveChange()">
+    Show removed clients
+  </label>
+
+  <div class="alert alert-error" *ngIf="error">{{ error }}</div>
+  <div class="alert alert-notice" *ngIf="notice">{{ notice }}</div>
+  <div class="loading-note" *ngIf="loading">Loading clients…</div>
+
+  <p class="empty" *ngIf="!loading && !filtered.length">
+    {{ search
+        ? 'No clients match that search.'
+        : (canCreate
+            ? 'No commercial clients yet. Add one with “New Client”, or flag a customer as a business on the Users tab.'
+            : 'No commercial clients yet.') }}
+  </p>
+
+  <div class="client-list" *ngIf="!loading">
+    <div class="client-card" *ngFor="let c of filtered"
+         [class.expanded]="expandedId === c.id" [class.inactive]="!c.isActive">
+
+      <button type="button" class="client-head" (click)="toggle(c.id)"
+              [attr.aria-expanded]="expandedId === c.id">
+        <div class="client-main">
+          <span class="client-name">
+            {{ c.legalEntityName }}
+            <span class="removed-tag" *ngIf="!c.isActive">Removed</span>
+          </span>
+          <span class="client-meta">
+            {{ c.billingContactName || c.billingEmail || 'No billing contact' }}
+          </span>
+        </div>
+
+        <div class="client-counts">
+          <!-- Where this client came from. Everything else about the two is identical. -->
+          <span class="count-pill" [class.linked]="isLinked(c)">
+            {{ isLinked(c) ? 'Linked account' : 'Standalone' }}
+          </span>
+          <span class="count-pill" *ngIf="c.contracts.length">
+            {{ c.contracts.length }} contract{{ c.contracts.length === 1 ? '' : 's' }}
+          </span>
+          <span class="count-pill" *ngIf="c.invoiceCount">
+            {{ c.invoiceCount }} invoice{{ c.invoiceCount === 1 ? '' : 's' }}
+          </span>
+          <span class="chevron">{{ expandedId === c.id ? '▴' : '▾' }}</span>
+        </div>
+      </button>
+
+      <div class="client-body" *ngIf="expandedId === c.id">
+
+        <div class="body-section">
+          <span class="label">Billing</span>
+          <div class="body-line">{{ c.billingAddress || 'No billing address on file' }}</div>
+          <div class="body-line" *ngIf="c.billingEmail">{{ c.billingEmail }}</div>
+          <div class="body-line" *ngIf="c.billingPhone">{{ c.billingPhone }}</div>
+          <div class="body-line warn" *ngIf="!c.billingEmail">
+            No billing email — invoices for this client cannot be sent until one is added.
+          </div>
+        </div>
+
+        <!-- The account's own email is SHOWN beside the billing one, never merged into it: one is
+             a login, the other is where invoices go, and they are allowed to differ. -->
+        <div class="body-section" *ngIf="isLinked(c)">
+          <span class="label">Customer account</span>
+          <div class="body-line">
+            {{ c.linkedAccountName }}
+            <span class="muted" *ngIf="c.linkedAccountEmail"> · {{ c.linkedAccountEmail }}</span>
+            <span class="muted" *ngIf="!c.linkedAccountEmail"> · no account email</span>
+          </div>
+        </div>
+
+        <div class="body-section">
+          <span class="label">Service locations</span>
+          <p class="empty-small" *ngIf="!c.locations.length">None on file.</p>
+          <div class="body-line" *ngFor="let l of c.locations">
+            <strong>{{ l.label }}</strong> — {{ l.address }}
+          </div>
+        </div>
+
+        <div class="body-section">
+          <span class="label">Contracts</span>
+          <p class="empty-small" *ngIf="!c.contracts.length">
+            None — this client can still be invoiced.
+          </p>
+          <div class="body-line" *ngFor="let k of c.contracts">
+            <a [routerLink]="['/admin/commercial/contracts', k.id]" class="mono">{{ k.contractNumber }}</a>
+            <span class="muted"> · {{ k.statusLabel }}</span>
+            <span class="muted" *ngIf="k.serviceAddress"> · {{ k.serviceAddress }}</span>
+          </div>
+        </div>
+
+        <div class="body-actions">
+          <ng-container *ngIf="c.isActive">
+            <button type="button" class="btn-secondary" *ngIf="canUpdate" (click)="openEdit(c)">
+              Edit
+            </button>
+            <button type="button" class="btn-primary" (click)="createInvoice(c)">
+              Create invoice
+            </button>
+            <button type="button" class="btn-danger" *ngIf="canDeactivate" (click)="askDelete(c)">
+              Delete
+            </button>
+          </ng-container>
+
+          <ng-container *ngIf="!c.isActive">
+            <button type="button" class="btn-secondary"
+                    *ngIf="canDeactivate && !isLinked(c)" (click)="restore(c)">
+              Restore
+            </button>
+            <span class="muted" *ngIf="isLinked(c)">
+              Turn the business flag back on for {{ c.linkedAccountName }} in the Users tab to list
+              this client again.
+            </span>
+          </ng-container>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Delete confirmation ────────────────────────────────────────────────────────────────
+       The linked wording is the important half: staff have to know the customer loses their
+       business designation, because that is what stops the client reappearing. -->
+  <div class="cc-confirm-overlay" *ngIf="pendingDelete" (click)="cancelDelete()">
+    <div class="cc-confirm" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+      <h3>Remove {{ pendingDelete.legalEntityName }}?</h3>
+
+      <p *ngIf="isLinked(pendingDelete)">
+        This client is linked to a Business customer account. Removing it from Commercial → Clients
+        will also remove the Business designation from
+        <strong>{{ pendingDelete.linkedAccountName }}</strong>.
+      </p>
+
+      <p>
+        Their contracts, invoices and payment history are kept and stay exactly as they are. The
+        client simply stops appearing when you create a new invoice or contract.
+      </p>
+
+      <p class="cc-confirm-back" *ngIf="isLinked(pendingDelete)">
+        You can list them again later by turning the business flag back on for that customer in
+        the Users tab.
+      </p>
+      <p class="cc-confirm-back" *ngIf="!isLinked(pendingDelete)">
+        You can list them again from “Show removed clients”.
+      </p>
+
+      <div class="cc-confirm-actions">
+        <button type="button" class="btn-secondary" (click)="cancelDelete()" [disabled]="deleting">
+          Cancel
+        </button>
+        <button type="button" class="btn-danger" (click)="confirmDelete()" [disabled]="deleting">
+          {{ deleting ? 'Removing…' : 'Remove client' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <app-commercial-client-modal
+    [open]="modalOpen"
+    [client]="editing"
+    (closed)="modalOpen = false"
+    (created)="onClientCreated($event.id)"
+    (saved)="onClientSaved($event)">
+  </app-commercial-client-modal>
+</div>

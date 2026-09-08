@@ -1,0 +1,363 @@
+<div class="invoice-form-page">
+
+  <div class="page-head">
+    <div>
+      <a class="back-link" routerLink="/admin/commercial/invoices">← Invoices</a>
+      <h2>{{ isEdit ? 'Edit Invoice' : 'Create Invoice' }}</h2>
+    </div>
+    <div class="head-number" *ngIf="existing">
+      <span class="label">Invoice #</span>
+      <span class="mono">{{ existing.invoiceNumber }}</span>
+    </div>
+  </div>
+
+  <div class="alert alert-error" *ngIf="error">{{ error }}</div>
+
+  <!-- The client already has a copy of this invoice; changing it silently would leave the two
+       out of step with nobody told. -->
+  <div class="alert alert-warning" *ngIf="sentWarning && !monetaryLocked">
+    This invoice has already been sent to the customer. If you change the amounts, resend it so
+    their copy matches.
+  </div>
+
+  <div class="alert alert-warning" *ngIf="monetaryLocked">
+    This invoice is paid. Amounts, dates and line items are locked — only the notes and references
+    can be changed. To correct the figures, void it and issue a replacement.
+  </div>
+
+  <div class="alert alert-info" *ngIf="prefillWarning">{{ prefillWarning }}</div>
+
+  <div class="loading-note" *ngIf="loading">Loading…</div>
+
+  <form *ngIf="!loading" (ngSubmit)="saveDraft()" #form="ngForm">
+
+    <!-- ── Section A: Client ─────────────────────────────────────────────────────────── -->
+    <section class="card">
+      <h3>Client</h3>
+
+      <div class="field">
+        <label for="client">Commercial client *</label>
+
+        <!-- The picker and the escape hatch sit on one row: "the client isn't in this list" is a
+             thing you discover while looking at the list, and sending the admin to another page
+             to fix it would discard everything already typed on this form. -->
+        <div class="client-picker">
+          <select id="client" [(ngModel)]="clientId" name="clientId"
+                  (change)="onClientChange()" [disabled]="monetaryLocked" required>
+            <option [ngValue]="null" disabled>Select a client…</option>
+            <option *ngFor="let c of clients" [ngValue]="c.id">{{ c.legalEntityName }}</option>
+          </select>
+
+          <button type="button" class="btn-secondary" *ngIf="canCreateClient && !monetaryLocked"
+                  (click)="openClientModal()">
+            + New client
+          </button>
+        </div>
+
+        <p class="hint" *ngIf="!clients.length && !loading">
+          No commercial clients yet.{{ canCreateClient ? ' Create one with “New client” — no contract needed.' : '' }}
+        </p>
+      </div>
+
+      <!-- Loaded automatically from the client record; read-only here so an invoice cannot
+           quietly disagree with the client it is addressed to. -->
+      <div class="prefill-grid" *ngIf="selectedClient">
+        <div><span class="label">Billing contact</span>
+          <span>{{ selectedClient.billingContactName || '—' }}</span></div>
+        <div><span class="label">Email</span>
+          <span>{{ selectedClient.billingEmail || 'No billing email on file' }}</span></div>
+        <div><span class="label">Phone</span>
+          <span>{{ selectedClient.billingPhone || '—' }}</span></div>
+        <div><span class="label">Billing address</span>
+          <span>{{ selectedClient.billingAddress || '—' }}</span></div>
+      </div>
+
+      <div class="alert alert-warning inline" *ngIf="selectedClient && !selectedClient.billingEmail">
+        This client has no billing email address. You can still save a draft, but sending will ask
+        you for an address.
+      </div>
+
+      <div class="field" *ngIf="availableLocations.length">
+        <label for="location">Service location</label>
+        <select id="location" [(ngModel)]="locationId" name="locationId"
+                (change)="onLocationChange()" [disabled]="monetaryLocked">
+          <option [ngValue]="null">— None —</option>
+          <option *ngFor="let l of availableLocations" [ngValue]="l.id">
+            {{ l.label }} — {{ l.address }}
+          </option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label for="serviceAddress">Service address (as billed)</label>
+        <input id="serviceAddress" type="text" [(ngModel)]="serviceAddress" name="serviceAddress"
+               [disabled]="monetaryLocked" placeholder="1569 Flatbush Ave, Brooklyn, NY">
+      </div>
+    </section>
+
+    <!-- ── Related contract ─────────────────────────────────────────────────────────── -->
+    <section class="card">
+      <h3>Related Contract</h3>
+      <p class="hint">Optional — not every invoice is billed against an agreement.</p>
+
+      <div class="field">
+        <label for="contract">Contract</label>
+        <select id="contract" [(ngModel)]="contractId" name="contractId"
+                (change)="onContractChange()" [disabled]="monetaryLocked || !clientId">
+          <option [ngValue]="null">— No contract —</option>
+          <option *ngFor="let c of availableContracts" [ngValue]="c.id">
+            {{ c.contractNumber }} · {{ c.statusLabel }}{{ c.serviceAddress ? ' · ' + c.serviceAddress : '' }}
+          </option>
+        </select>
+      </div>
+
+      <div class="hint" *ngIf="!clientId">Select a client first to see their contracts.</div>
+      <div class="hint" *ngIf="clientId && !availableContracts.length">
+        This client has no contracts on file.
+      </div>
+    </section>
+
+    <!-- ── Invoice details ──────────────────────────────────────────────────────────── -->
+    <section class="card">
+      <h3>Invoice Details</h3>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Invoice number</label>
+          <!-- Allocated by the server and frozen once issued: it is the client's payment memo. -->
+          <input type="text" class="mono readonly"
+                 [value]="existing?.invoiceNumber || 'Assigned when saved'" readonly disabled>
+        </div>
+
+        <div class="field">
+          <label for="invoiceDate">Invoice date</label>
+          <input id="invoiceDate" type="date" [(ngModel)]="invoiceDate" name="invoiceDate"
+                 (change)="onDueTermsChange()" [disabled]="monetaryLocked">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="dueTerms">Payment terms</label>
+          <select id="dueTerms" [(ngModel)]="dueTerms" name="dueTerms"
+                  (change)="onDueTermsChange()" [disabled]="monetaryLocked">
+            <option *ngFor="let t of dueTermsOptions" [ngValue]="t.value">{{ t.label }}</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="dueDate">Due date</label>
+          <input id="dueDate" type="date" name="customDueDate"
+                 *ngIf="dueTerms === InvoiceDueTerms.Custom"
+                 [(ngModel)]="customDueDate" [disabled]="monetaryLocked">
+          <input type="date" *ngIf="dueTerms !== InvoiceDueTerms.Custom"
+                 [value]="resolvedDueDate" readonly disabled class="readonly">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="serviceStart">Service period — from</label>
+          <input id="serviceStart" type="date" [(ngModel)]="serviceStartDate" name="serviceStartDate"
+                 [disabled]="monetaryLocked">
+        </div>
+        <div class="field">
+          <label for="serviceEnd">Service period — to</label>
+          <input id="serviceEnd" type="date" [(ngModel)]="serviceEndDate" name="serviceEndDate"
+                 [disabled]="monetaryLocked">
+        </div>
+      </div>
+      <p class="hint">Leave both blank for a one-off job with no stated period.</p>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="po">PO number</label>
+          <input id="po" type="text" [(ngModel)]="poNumber" name="poNumber" placeholder="Optional">
+        </div>
+        <div class="field">
+          <label for="clientRef">Client reference</label>
+          <input id="clientRef" type="text" [(ngModel)]="clientReference" name="clientReference"
+                 placeholder="Optional">
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Line items ───────────────────────────────────────────────────────────────── -->
+    <section class="card">
+      <h3>Items</h3>
+
+      <div class="items-table">
+        <div class="items-head">
+          <span>Description</span>
+          <span class="align-right">Qty</span>
+          <span class="align-right">Rate</span>
+          <span class="align-right">Amount</span>
+          <span></span>
+        </div>
+
+        <div class="items-row" *ngFor="let line of lines; let i = index">
+          <input type="text" [(ngModel)]="line.description" [name]="'desc' + i"
+                 [disabled]="monetaryLocked" placeholder="Recurring commercial cleaning">
+          <input type="number" class="align-right" [(ngModel)]="line.quantity" [name]="'qty' + i"
+                 [disabled]="monetaryLocked" min="0" step="0.01">
+          <input type="number" class="align-right" [(ngModel)]="line.unitPrice" [name]="'rate' + i"
+                 [disabled]="monetaryLocked" min="0" step="0.01">
+          <span class="line-amount">{{ lineAmount(line) | currency:'USD' }}</span>
+          <button type="button" class="remove-line" (click)="removeLine(i)"
+                  [disabled]="monetaryLocked" aria-label="Remove line">×</button>
+        </div>
+      </div>
+
+      <button type="button" class="btn-ghost" (click)="addLine()" [disabled]="monetaryLocked">
+        + Add item
+      </button>
+    </section>
+
+    <!-- ── Discount, tax and totals ─────────────────────────────────────────────────── -->
+    <section class="card">
+      <h3>Discount &amp; Tax</h3>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="discountType">Discount</label>
+          <select id="discountType" [(ngModel)]="discountType" name="discountType"
+                  [disabled]="monetaryLocked">
+            <option [ngValue]="InvoiceDiscountType.None">No discount</option>
+            <option [ngValue]="InvoiceDiscountType.FixedAmount">Fixed amount ($)</option>
+            <option [ngValue]="InvoiceDiscountType.Percentage">Percentage (%)</option>
+          </select>
+        </div>
+
+        <div class="field" *ngIf="discountType !== InvoiceDiscountType.None">
+          <label for="discountValue">
+            {{ discountType === InvoiceDiscountType.Percentage ? 'Percent off' : 'Amount off' }}
+          </label>
+          <input id="discountValue" type="number" [(ngModel)]="discountValue" name="discountValue"
+                 [disabled]="monetaryLocked" min="0" step="0.01">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="taxType">Sales tax</label>
+          <!-- Three explicit choices, no default assumed: existing commercial agreements were
+               quoted both tax-inclusive and tax-added, and guessing would misstate what is owed. -->
+          <select id="taxType" [(ngModel)]="taxType" name="taxType" [disabled]="monetaryLocked">
+            <option [ngValue]="InvoiceTaxType.Exempt">Tax exempt</option>
+            <option [ngValue]="InvoiceTaxType.Included">Tax included in the amounts above</option>
+            <option [ngValue]="InvoiceTaxType.Added">Tax added on top</option>
+          </select>
+        </div>
+
+        <div class="field" *ngIf="taxType !== InvoiceTaxType.Exempt">
+          <label for="taxRate">Tax rate (%)</label>
+          <input id="taxRate" type="number" [(ngModel)]="taxRate" name="taxRate"
+                 [disabled]="monetaryLocked" min="0" step="0.001" placeholder="8.875">
+        </div>
+      </div>
+
+      <p class="hint" *ngIf="taxType === InvoiceTaxType.Included">
+        The total stays exactly what the line items add up to; the tax is split back out of it for
+        your records and shown on the invoice as “Included”.
+      </p>
+
+      <!-- Totals preview. Recalculated by the server on save — this is what it will arrive at. -->
+      <div class="totals">
+        <div class="totals-row">
+          <span>Subtotal</span><span>{{ totals.subTotal | currency:'USD' }}</span>
+        </div>
+        <div class="totals-row" *ngIf="totals.discountAmount > 0">
+          <span>Discount</span><span>−{{ totals.discountAmount | currency:'USD' }}</span>
+        </div>
+        <div class="totals-row">
+          <span>Tax</span>
+          <span *ngIf="taxType === InvoiceTaxType.Exempt">Exempt</span>
+          <span *ngIf="taxType === InvoiceTaxType.Included">Included</span>
+          <span *ngIf="taxType === InvoiceTaxType.Added">{{ totals.taxAmount | currency:'USD' }}</span>
+        </div>
+        <div class="totals-row total">
+          <span>Total</span><span>{{ totals.total | currency:'USD' }}</span>
+        </div>
+        <!-- Positive, matching the public invoice, the PDF and Payment History. See the note there. -->
+        <div class="totals-row" *ngIf="amountPaid > 0">
+          <span>Amount paid</span><span>{{ amountPaid | currency:'USD' }}</span>
+        </div>
+        <div class="totals-row balance">
+          <span>Balance due</span><span>{{ balanceDue | currency:'USD' }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Payment method ───────────────────────────────────────────────────────────── -->
+    <section class="card">
+      <h3>Payment Method</h3>
+
+      <div class="radio-row">
+        <label class="radio">
+          <input type="radio" name="paymentMethod" [(ngModel)]="paymentMethod"
+                 [value]="InvoicePaymentMethod.AchBankTransfer" [disabled]="monetaryLocked">
+          <span>ACH Bank Transfer <em>preferred</em></span>
+        </label>
+        <label class="radio">
+          <input type="radio" name="paymentMethod" [(ngModel)]="paymentMethod"
+                 [value]="InvoicePaymentMethod.Card" [disabled]="monetaryLocked">
+          <span>Card</span>
+        </label>
+        <label class="radio">
+          <input type="radio" name="paymentMethod" [(ngModel)]="paymentMethod"
+                 [value]="InvoicePaymentMethod.Other" [disabled]="monetaryLocked">
+          <span>Other</span>
+        </label>
+      </div>
+
+      <p class="hint">
+        Bank details come from Commercial → Billing Settings and are printed on the invoice
+        automatically. The invoice number is used as the payment reference.
+      </p>
+    </section>
+
+    <!-- ── Notes ────────────────────────────────────────────────────────────────────── -->
+    <section class="card">
+      <h3>Notes</h3>
+
+      <div class="field">
+        <label for="customerNote">Customer note</label>
+        <textarea id="customerNote" rows="3" [(ngModel)]="customerNote" name="customerNote"
+                  placeholder="Thank you for choosing Dream Cleaning NYC."></textarea>
+        <span class="hint">Shown on the invoice, the PDF and the email.</span>
+      </div>
+
+      <div class="field">
+        <label for="internalNote">Internal note</label>
+        <textarea id="internalNote" rows="3" [(ngModel)]="internalNote" name="internalNote"
+                  placeholder="Only your team can see this."></textarea>
+        <!-- Stated on screen because an admin needs to know before they type, not after. -->
+        <span class="hint">
+          Admin only. Never appears on the invoice, the PDF or any email to the client.
+        </span>
+      </div>
+    </section>
+
+    <!-- ── Actions ──────────────────────────────────────────────────────────────────── -->
+    <div class="form-actions">
+      <button type="button" class="btn-ghost" (click)="cancel()" [disabled]="saving">Cancel</button>
+      <button type="button" class="btn-secondary" (click)="saveDraft()" [disabled]="!canSave">
+        {{ saving ? 'Saving…' : 'Save Draft' }}
+      </button>
+      <button type="button" class="btn-primary" (click)="saveAndSend()" [disabled]="!canSave">
+        {{ saving ? 'Saving…' : 'Save & Send' }}
+      </button>
+    </div>
+  </form>
+
+  <!-- Outside the <form> on purpose: its own inputs are not part of this invoice, and nesting
+       them would put them in the invoice form's validity and submission. -->
+  <!-- Create only from here: [client] stays null, so editing an existing one is the Clients tab's
+       job and this form never becomes a second place to rename a counterparty. -->
+  <app-commercial-client-modal
+    [open]="showClientModal"
+    [client]="null"
+    (closed)="showClientModal = false"
+    (created)="onClientCreated($event)">
+  </app-commercial-client-modal>
+</div>

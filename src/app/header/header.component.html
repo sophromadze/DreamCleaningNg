@@ -333,13 +333,14 @@
                    *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'">
                   CRM
                 </a>
-                <!-- Contracts became its own top-level section (2026-09), out of the CRM shell.
-                     Role-gated the same way as CRM here; the Contracts permission matrix is
-                     enforced server-side on every action inside it. -->
-                <a routerLink="/admin/contracts"
+                <!-- Contracts became its own top-level section (2026-09), then joined Invoices
+                     and Clients under Commercial. Role-gated the same way as CRM here; the
+                     Contracts permission matrix and the invoicing role checks are both enforced
+                     server-side on every action inside it. -->
+                <a routerLink="/admin/commercial"
                    (click)="closeAllMenus(); $event.stopPropagation()"
                    *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin'">
-                  Contracts
+                  Commercial
                 </a>
                 <!-- Company shell (Statistics/Expenses/Finances/Ads) — single entry, shown only when
                      the user can see at least one tab. Replaces the old separate Stats/Expenses/

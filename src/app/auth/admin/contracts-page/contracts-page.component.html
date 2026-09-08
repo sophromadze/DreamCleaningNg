@@ -1,11 +1,10 @@
+<!--
+  No header of its own: this component is always rendered inside the Commercial shell
+  (/admin/commercial), which already supplies the back-link, the title and the tab bar. It kept
+  one while Contracts was a standalone /admin/contracts section; leaving it in would print
+  "Contracts" twice, once under the shell's own heading.
+-->
 <div class="contracts-page">
-  <div class="contracts-page-header">
-    <div class="contracts-page-title">
-      <a routerLink="/admin" class="back-link">← Admin</a>
-      <h1>Contracts</h1>
-    </div>
-  </div>
-
   <div class="contracts-page-content">
     <app-contracts [openContractId]="openContractId"></app-contracts>
   </div>

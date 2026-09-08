@@ -1,0 +1,255 @@
+<div class="cc-modal-overlay" *ngIf="open" (click)="close()">
+  <div class="cc-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true"
+       aria-labelledby="cc-modal-title">
+
+    <div class="cc-modal-head">
+      <h3 class="cc-modal-title" id="cc-modal-title">
+        {{ isEdit ? 'Edit Client' : 'New Commercial Client' }}
+      </h3>
+      <button type="button" class="cc-close" (click)="close()" aria-label="Close">×</button>
+    </div>
+
+    <div class="cc-modal-body">
+
+      <!-- Where the details came from, and what they mean for the customer's own account. -->
+      <div class="cc-linked" *ngIf="isEdit && isLinked">
+        <strong>{{ linkedAccountName }}</strong>
+        <span *ngIf="linkedAccountEmail"> · {{ linkedAccountEmail }}</span>
+        <span class="cc-linked-note">
+          Linked customer account. Its login email is separate from the billing email below and is
+          not changed here; the phone number is kept in step with the account.
+        </span>
+      </div>
+
+      <div class="cc-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+
+      <!-- Said plainly because the opposite is what people assume. -->
+      <p class="cc-hint" *ngIf="isEdit && contractCount">
+        This client has {{ contractCount }} contract{{ contractCount === 1 ? '' : 's' }}. Those
+        documents keep the details they were signed with — changes here apply to new contracts and
+        invoices.
+      </p>
+
+      <!-- ── Company ─────────────────────────────────────────────────────────────────── -->
+      <section class="cc-section">
+        <h4>Company</h4>
+
+        <div class="cc-grid">
+          <div class="cc-field wide">
+            <label for="cc-name">Legal entity name <span class="req">*</span></label>
+            <input id="cc-name" type="text" [(ngModel)]="form.legalEntityName"
+                   (input)="onFieldInput()" [disabled]="saving"
+                   placeholder="Chick Tastic LLC" autocomplete="off">
+          </div>
+
+          <div class="cc-field">
+            <label for="cc-entity">Entity type <span class="req">*</span></label>
+            <input id="cc-entity" type="text" [(ngModel)]="form.entityType"
+                   (input)="onFieldInput()" [disabled]="saving"
+                   placeholder="a limited liability company" list="cc-entity-types">
+            <datalist id="cc-entity-types">
+              <option value="a limited liability company"></option>
+              <option value="a corporation"></option>
+              <option value="a sole proprietorship"></option>
+              <option value="a partnership"></option>
+            </datalist>
+          </div>
+
+          <div class="cc-field">
+            <label for="cc-formation">Formation state</label>
+            <input id="cc-formation" type="text" [(ngModel)]="form.formationState"
+                   (input)="onFieldInput()" [disabled]="saving" placeholder="New York">
+          </div>
+
+          <div class="cc-field wide">
+            <label for="cc-address">Principal business address <span class="req">*</span></label>
+            <input id="cc-address" type="text" [(ngModel)]="form.principalAddress"
+                   (input)="onFieldInput()" [disabled]="saving"
+                   placeholder="1569 Flatbush Ave." autocomplete="off">
+          </div>
+
+          <div class="cc-field">
+            <label for="cc-city">City <span class="req">*</span></label>
+            <input id="cc-city" type="text" [(ngModel)]="form.city"
+                   (input)="onFieldInput()" [disabled]="saving">
+          </div>
+
+          <div class="cc-field narrow">
+            <label for="cc-state">State <span class="req">*</span></label>
+            <input id="cc-state" type="text" [(ngModel)]="form.state"
+                   (input)="onFieldInput()" [disabled]="saving">
+          </div>
+
+          <div class="cc-field narrow">
+            <label for="cc-zip">ZIP <span class="req">*</span></label>
+            <input id="cc-zip" type="text" [(ngModel)]="form.zip"
+                   (input)="onFieldInput()" [disabled]="saving">
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Billing ─────────────────────────────────────────────────────────────────── -->
+      <section class="cc-section">
+        <h4>Billing</h4>
+
+        <div class="cc-grid">
+          <div class="cc-field wide">
+            <label for="cc-email">Billing / notice email</label>
+            <input id="cc-email" type="email" [(ngModel)]="form.noticeEmail"
+                   (input)="onFieldInput()" [disabled]="saving"
+                   placeholder="accounts@example.com" autocomplete="off">
+          </div>
+
+          <div class="cc-field">
+            <label for="cc-phone">Phone</label>
+            <input id="cc-phone" type="tel" inputmode="numeric" [ngModel]="form.phone"
+                   (input)="onPhoneInput($event, 'phone')" [disabled]="saving"
+                   placeholder="10-digit number">
+          </div>
+        </div>
+
+        <p class="cc-hint" *ngIf="!form.noticeEmail.trim() && !form.contactEmail.trim()">
+          Without an email address, invoices for this client can be created but not sent. You can
+          add one later.
+        </p>
+      </section>
+
+      <!-- ── Primary billing contact ─────────────────────────────────────────────────── -->
+      <section class="cc-section">
+        <h4>Primary billing contact <span class="cc-optional">optional</span></h4>
+
+        <div class="cc-grid">
+          <div class="cc-field">
+            <label for="cc-cfirst">First name</label>
+            <input id="cc-cfirst" type="text" [(ngModel)]="form.contactFirstName"
+                   (input)="onFieldInput()" [disabled]="saving">
+          </div>
+
+          <div class="cc-field">
+            <label for="cc-clast">Last name</label>
+            <input id="cc-clast" type="text" [(ngModel)]="form.contactLastName"
+                   (input)="onFieldInput()" [disabled]="saving">
+          </div>
+
+          <div class="cc-field">
+            <label for="cc-ctitle">Title</label>
+            <input id="cc-ctitle" type="text" [(ngModel)]="form.contactTitle"
+                   (input)="onFieldInput()" [disabled]="saving" placeholder="Owner">
+          </div>
+
+          <div class="cc-field">
+            <label for="cc-cemail">Contact email</label>
+            <input id="cc-cemail" type="email" [(ngModel)]="form.contactEmail"
+                   (input)="onFieldInput()" [disabled]="saving" autocomplete="off">
+          </div>
+
+          <div class="cc-field">
+            <label for="cc-cphone">Contact phone</label>
+            <input id="cc-cphone" type="tel" inputmode="numeric" [ngModel]="form.contactPhone"
+                   (input)="onPhoneInput($event, 'contactPhone')" [disabled]="saving"
+                   placeholder="10-digit number">
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Service location ────────────────────────────────────────────────────────── -->
+      <section class="cc-section">
+        <h4>Service location <span class="cc-optional">optional</span></h4>
+
+        <label class="cc-check">
+          <input type="checkbox" [(ngModel)]="form.addLocation" (change)="onFieldInput()"
+                 [disabled]="saving">
+          Add a premises we clean for this client
+        </label>
+
+        <ng-container *ngIf="form.addLocation">
+          <label class="cc-check">
+            <input type="checkbox" [(ngModel)]="form.sameAsCompany" (change)="onFieldInput()"
+                   [disabled]="saving">
+            Same address as the company
+          </label>
+
+          <div class="cc-grid">
+            <div class="cc-field">
+              <!-- The trading name lives here because that is where the model keeps it: a client
+                   row has no DBA column, a location has BusinessBrand. -->
+              <label for="cc-brand">DBA / brand</label>
+              <input id="cc-brand" type="text" [(ngModel)]="form.businessBrand"
+                     (input)="onFieldInput()" [disabled]="saving" placeholder="Chick-fil-A">
+            </div>
+
+            <div class="cc-field">
+              <label for="cc-locname">Location name</label>
+              <input id="cc-locname" type="text" [(ngModel)]="form.locationName"
+                     (input)="onFieldInput()" [disabled]="saving" placeholder="Flatbush Ave.">
+            </div>
+
+            <ng-container *ngIf="!form.sameAsCompany">
+              <div class="cc-field wide">
+                <label for="cc-locaddr">Address <span class="req">*</span></label>
+                <input id="cc-locaddr" type="text" [(ngModel)]="form.locationAddress"
+                       (input)="onFieldInput()" [disabled]="saving" autocomplete="off">
+              </div>
+
+              <div class="cc-field">
+                <label for="cc-loccity">City <span class="req">*</span></label>
+                <input id="cc-loccity" type="text" [(ngModel)]="form.locationCity"
+                       (input)="onFieldInput()" [disabled]="saving">
+              </div>
+
+              <div class="cc-field narrow">
+                <label for="cc-locstate">State <span class="req">*</span></label>
+                <input id="cc-locstate" type="text" [(ngModel)]="form.locationState"
+                       (input)="onFieldInput()" [disabled]="saving">
+              </div>
+
+              <div class="cc-field narrow">
+                <label for="cc-loczip">ZIP <span class="req">*</span></label>
+                <input id="cc-loczip" type="text" [(ngModel)]="form.locationZip"
+                       (input)="onFieldInput()" [disabled]="saving">
+              </div>
+            </ng-container>
+          </div>
+        </ng-container>
+      </section>
+
+      <!-- ── Linked account ─────────────────────────────────────────────────────────────
+           CREATE ONLY. An existing client's link is owned by the business flag on the customer's
+           account, because it is what opens their view of this company's contracts. -->
+      <section class="cc-section" *ngIf="!isEdit">
+        <h4>Linked business customer <span class="cc-optional">optional</span></h4>
+
+        <div class="cc-field wide">
+          <label for="cc-source">Customer account</label>
+          <select id="cc-source" [(ngModel)]="form.sourceUserId"
+                  (ngModelChange)="onSourceUserSelected()" [disabled]="saving || loadingCustomers">
+            <option [ngValue]="null">— Not linked —</option>
+            <option *ngFor="let customer of businessCustomers" [ngValue]="customer.userId">
+              {{ customer.fullName }} · {{ customer.email }}
+            </option>
+          </select>
+        </div>
+
+        <p class="cc-hint" *ngIf="loadingCustomers">Loading business accounts…</p>
+        <p class="cc-hint" *ngIf="!loadingCustomers && !businessCustomers.length">
+          No business-flagged accounts yet. Turn on the business flag on a customer's account to
+          offer it here.
+        </p>
+        <p class="cc-hint">
+          Linking lets that customer see this client's contracts in their own account, and fills in
+          any blank details above from their profile. Leave it unlinked if they have no account —
+          that is the common case, and it changes nothing about billing.
+        </p>
+      </section>
+    </div>
+
+    <div class="cc-modal-foot">
+      <button type="button" class="cc-btn ghost" (click)="close()" [disabled]="saving">Cancel</button>
+      <button type="button" class="cc-btn primary" (click)="submit()" [disabled]="!canSubmit">
+        {{ saving
+            ? (isEdit ? 'Saving…' : 'Creating…')
+            : (isEdit ? 'Save changes' : 'Create client') }}
+      </button>
+    </div>
+  </div>
+</div>

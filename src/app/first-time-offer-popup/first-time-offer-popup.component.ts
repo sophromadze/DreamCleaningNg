@@ -173,6 +173,10 @@ export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
       // cover /profile/contracts and /admin/contracts. A residential discount popping up over an
       // agreement somebody is about to sign is the wrong offer at the worst moment.
       '/contract',
+      // The public commercial invoice, for the same reason. A business is reading their bill and
+      // looking for the bank details; a residential first-clean discount over it is noise at
+      // best, and at worst it looks like the invoice itself is trying to sell them something.
+      '/invoice',
       // The commercial landing page sells to businesses, and this popup's offer is the
       // first-time RESIDENTIAL discount — it links into /booking, which cannot quote a
       // commercial job. A commercial offer of its own is coming; until then the page

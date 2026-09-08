@@ -1,0 +1,462 @@
+<div class="invoice-detail-page" *ngIf="!loading; else loadingTpl">
+
+  <a class="back-link" routerLink="/admin/commercial/invoices">← Invoices</a>
+
+  <div class="alert alert-error" *ngIf="error">{{ error }}</div>
+  <div class="alert alert-success" *ngIf="notice">{{ notice }}</div>
+
+  <ng-container *ngIf="invoice as inv">
+
+    <!-- Header -->
+    <div class="detail-head">
+      <div class="head-left">
+        <h2 class="mono">{{ inv.invoiceNumber }}</h2>
+        <span class="status-badge" [ngClass]="statusClass(inv.status)">{{ inv.statusLabel }}</span>
+      </div>
+      <div class="client-name">{{ inv.clientName }}</div>
+    </div>
+
+    <div class="alert alert-warning" *ngIf="isVoid">
+      <strong>This invoice is void.</strong>
+      {{ inv.voidReason }}
+      <span *ngIf="inv.voidedAt">— voided {{ inv.voidedAt | date:'MMM d, y' }}.</span>
+      Its number stays permanently reserved and is never reused.
+    </div>
+
+    <!-- Actions. Every button is gated on a server capability flag, not a local status test. -->
+    <div class="action-bar">
+      <button type="button" class="btn-ghost" *ngIf="inv.canEdit" (click)="edit()">Edit</button>
+
+      <button type="button" class="btn-primary" *ngIf="inv.canSend" (click)="openSend()">
+        {{ inv.firstSentAt ? 'Resend invoice' : 'Send invoice' }}
+      </button>
+
+      <button type="button" class="btn-ghost" (click)="downloadPdf()">Download PDF</button>
+
+      <button type="button" class="btn-secondary"
+              *ngIf="inv.canRecordPayment && inv.balanceDue > 0" (click)="openPayment(false)">
+        Record payment
+      </button>
+
+      <button type="button" class="btn-secondary"
+              *ngIf="inv.canRecordPayment && inv.balanceDue > 0" (click)="openPayment(true)">
+        Mark as paid
+      </button>
+
+      <button type="button" class="btn-ghost" *ngIf="inv.canSendReminder" (click)="openReminder()">
+        Send reminder
+      </button>
+
+      <button type="button" class="btn-ghost" *ngIf="isPaid" (click)="sendReceipt()" [disabled]="busy">
+        Send receipt
+      </button>
+
+      <button type="button" class="btn-ghost" *ngIf="inv.status !== InvoiceStatus.Draft"
+              (click)="copyLink()">Copy invoice link</button>
+
+      <button type="button" class="btn-ghost" (click)="duplicate()" [disabled]="busy">Duplicate</button>
+
+      <button type="button" class="btn-danger" *ngIf="inv.canVoid" (click)="openVoid()">Void</button>
+
+      <button type="button" class="btn-danger" *ngIf="inv.canDelete" (click)="deleteDraft()">
+        Delete draft
+      </button>
+    </div>
+
+    <div class="detail-grid">
+
+      <!-- ── Left column ─────────────────────────────────────────────────────────────── -->
+      <div class="detail-main">
+
+        <!-- Headline total -->
+        <section class="card total-card" [class.paid]="isPaid">
+          <span class="total-label">{{ inv.balanceDue > 0 ? 'Balance due' : 'Total' }}</span>
+          <span class="total-value">
+            {{ (inv.balanceDue > 0 ? inv.balanceDue : inv.total) | currency:'USD' }}
+          </span>
+          <span class="total-sub" *ngIf="inv.balanceDue > 0">
+            Due {{ inv.dueDate | date:'MMM d, y' }}
+          </span>
+          <span class="total-sub paid-note" *ngIf="isPaid && inv.paidAt">
+            Paid in full on {{ inv.paidAt | date:'MMMM d, y' }}
+          </span>
+          <span class="total-sub warn" *ngIf="inv.overpayment > 0">
+            Overpaid by {{ inv.overpayment | currency:'USD' }}
+          </span>
+        </section>
+
+        <!-- Facts -->
+        <section class="card">
+          <h3>Details</h3>
+          <div class="fact-grid">
+            <div><span class="label">Invoice date</span><span>{{ inv.invoiceDate | date:'MMM d, y' }}</span></div>
+            <div><span class="label">Due date</span><span>{{ inv.dueDate | date:'MMM d, y' }}</span></div>
+            <div *ngIf="servicePeriod">
+              <span class="label">Service period</span><span>{{ servicePeriod }}</span>
+            </div>
+            <div>
+              <span class="label">Contract</span>
+              <span>
+                <a *ngIf="inv.contractId" [routerLink]="['/admin/commercial/contracts', inv.contractId]">
+                  {{ inv.contractNumber }}
+                </a>
+                <span *ngIf="!inv.contractId">—</span>
+              </span>
+            </div>
+            <div><span class="label">Service location</span><span>{{ inv.serviceAddress || '—' }}</span></div>
+            <div><span class="label">Billing contact</span><span>{{ inv.billingContactName || '—' }}</span></div>
+            <div><span class="label">Email</span><span>{{ inv.billingEmail || 'None on file' }}</span></div>
+            <div><span class="label">Billing address</span><span>{{ inv.billingAddress || '—' }}</span></div>
+            <div *ngIf="inv.poNumber"><span class="label">PO number</span><span>{{ inv.poNumber }}</span></div>
+            <div *ngIf="inv.clientReference">
+              <span class="label">Client reference</span><span>{{ inv.clientReference }}</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Line items -->
+        <section class="card">
+          <h3>Line Items</h3>
+          <div class="table-wrap">
+            <table class="line-table">
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th class="align-right">Qty</th>
+                  <th class="align-right">Rate</th>
+                  <th class="align-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of inv.items">
+                  <td>{{ item.description }}</td>
+                  <td class="align-right">{{ item.quantity }}</td>
+                  <td class="align-right">{{ item.unitPrice | currency:'USD' }}</td>
+                  <td class="align-right">{{ item.amount | currency:'USD' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="totals">
+            <div class="totals-row"><span>Subtotal</span><span>{{ inv.subTotal | currency:'USD' }}</span></div>
+            <div class="totals-row" *ngIf="inv.discountAmount > 0">
+              <span>Discount</span><span>−{{ inv.discountAmount | currency:'USD' }}</span>
+            </div>
+            <div class="totals-row">
+              <span>Tax</span>
+              <span *ngIf="inv.taxType === InvoiceTaxType.Exempt">Exempt</span>
+              <!-- Stated in words, not as a number: an amount printed beside a total it is already
+                   inside reads as an extra charge. -->
+              <span *ngIf="inv.taxType === InvoiceTaxType.Included">Included</span>
+              <span *ngIf="inv.taxType === InvoiceTaxType.Added">{{ inv.taxAmount | currency:'USD' }}</span>
+            </div>
+            <div class="totals-row total"><span>Total</span><span>{{ inv.total | currency:'USD' }}</span></div>
+            <div class="totals-row"><span>Amount paid</span><span>{{ inv.amountPaid | currency:'USD' }}</span></div>
+            <div class="totals-row balance">
+              <span>Balance due</span><span>{{ inv.balanceDue | currency:'USD' }}</span>
+            </div>
+          </div>
+        </section>
+
+        <!--
+          Online payment. Shown only when there is one — a manual-only invoice gets no empty card.
+          The banner matters most: an admin about to chase an invoice needs to know the money is
+          already on its way.
+        -->
+        <section class="card" *ngIf="inv.paymentAttempts.length">
+          <h3>Online Payment</h3>
+
+          <div class="processing-banner" *ngIf="inv.hasPaymentInProgress">
+            <strong>ACH payment processing.</strong>
+            The customer has authorized a bank payment and Stripe is settling it. This takes
+            several business days — no reminder will be sent while it is in flight.
+          </div>
+
+          <div class="attempt" *ngFor="let a of inv.paymentAttempts">
+            <div class="attempt-head">
+              <span class="attempt-method">{{ a.paymentMethodLabel }}</span>
+              <span class="attempt-status" [ngClass]="attemptStatusClass(a)">{{ a.statusLabel }}</span>
+              <span class="attempt-amount">{{ a.amount | currency:'USD' }}</span>
+            </div>
+
+            <div class="attempt-meta">
+              Started {{ a.createdAt | date:'MMM d, y, h:mm a' }}
+              <ng-container *ngIf="a.completedAt">
+                · finished {{ a.completedAt | date:'MMM d, y, h:mm a' }}
+              </ng-container>
+            </div>
+
+            <!-- Bank/card name and last four only — all Stripe exposes, all anyone needs. -->
+            <div class="attempt-meta" *ngIf="a.paymentSourceLabel">
+              Paid from {{ a.paymentSourceLabel }}
+            </div>
+
+            <!-- Stripe's own failure text, admin-facing only; the customer sees fixed wording. -->
+            <div class="attempt-failure" *ngIf="a.failureMessage">
+              {{ a.failureCode ? a.failureCode + ': ' : '' }}{{ a.failureMessage }}
+            </div>
+
+            <div class="attempt-meta mono" *ngIf="a.stripePaymentIntentId">
+              {{ a.stripePaymentIntentId }}
+            </div>
+          </div>
+        </section>
+
+        <!-- Payments -->
+        <section class="card">
+          <h3>Payment History</h3>
+
+          <p class="empty" *ngIf="!inv.payments.length">No payments recorded yet.</p>
+
+          <div class="table-wrap" *ngIf="inv.payments.length">
+            <table class="line-table">
+              <thead>
+                <tr>
+                  <th>Date</th><th>Method</th><th>Reference</th>
+                  <th class="align-right">Amount</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let p of inv.payments" [class.reversal]="p.isReversal">
+                  <td>{{ p.paymentDate | date:'MMM d, y' }}</td>
+                  <td>{{ p.paymentMethodLabel }}</td>
+                  <td class="muted">{{ p.transactionReference || '—' }}</td>
+                  <td class="align-right">{{ p.amount | currency:'USD' }}</td>
+                  <td class="align-right">
+                    <!-- No edit and no delete: a correction is its own auditable entry. -->
+                    <button type="button" class="link-button"
+                            *ngIf="!p.isReversal && !isVoid" (click)="openReverse(p)">Reverse</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Notes -->
+        <section class="card" *ngIf="inv.customerNote || inv.internalNote">
+          <h3>Notes</h3>
+          <div class="note-block" *ngIf="inv.customerNote">
+            <span class="label">Customer note — shown on the invoice</span>
+            <p>{{ inv.customerNote }}</p>
+          </div>
+          <div class="note-block internal" *ngIf="inv.internalNote">
+            <span class="label">Internal note — never sent to the client</span>
+            <p>{{ inv.internalNote }}</p>
+          </div>
+        </section>
+      </div>
+
+      <!-- ── Right column ────────────────────────────────────────────────────────────── -->
+      <aside class="detail-side">
+
+        <section class="card">
+          <h3>Delivery</h3>
+          <div class="fact-list">
+            <div><span class="label">First sent</span>
+              <span>{{ inv.firstSentAt ? (inv.firstSentAt | date:'MMM d, y, h:mm a') : 'Not sent' }}</span></div>
+            <div *ngIf="inv.lastSentAt"><span class="label">Last sent</span>
+              <span>{{ inv.lastSentAt | date:'MMM d, y, h:mm a' }}</span></div>
+            <div><span class="label">First viewed</span>
+              <span>{{ inv.firstViewedAt ? (inv.firstViewedAt | date:'MMM d, y, h:mm a') : 'Not opened yet' }}</span></div>
+            <div *ngIf="inv.viewCount"><span class="label">Times opened</span>
+              <span>{{ inv.viewCount }}</span></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h3>Email History</h3>
+          <p class="empty" *ngIf="!inv.emailHistory.length">No emails sent yet.</p>
+          <ul class="event-list">
+            <li *ngFor="let e of inv.emailHistory" [class.failed]="isFailed(e)">
+              <span class="event-title">
+                {{ e.emailTypeLabel }}
+                <em *ngIf="isFailed(e)">failed</em>
+              </span>
+              <span class="event-meta">{{ e.sentAt | date:'MMM d, y, h:mm a' }} · to {{ e.recipient }}</span>
+              <span class="event-error" *ngIf="e.failureReason">{{ e.failureReason }}</span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="card">
+          <h3>Activity</h3>
+          <ul class="event-list">
+            <li *ngFor="let a of inv.activity">
+              <span class="event-title">{{ a.description }}</span>
+              <span class="event-meta">
+                {{ a.createdAt | date:'MMM d, y, h:mm a' }}
+                <ng-container *ngIf="a.actorName"> · {{ a.actorName }}</ng-container>
+              </span>
+            </li>
+          </ul>
+        </section>
+      </aside>
+    </div>
+  </ng-container>
+
+  <!-- ── Modals ──────────────────────────────────────────────────────────────────────── -->
+
+  <div class="modal-backdrop" *ngIf="modal !== 'none'" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+
+      <!-- Record payment -->
+      <ng-container *ngIf="modal === 'payment'">
+        <h3>Record Payment</h3>
+        <p class="modal-hint">
+          ACH transfers arrive directly in the company bank account. Record it here once you have
+          confirmed it on the statement.
+        </p>
+
+        <div class="field">
+          <label for="payAmount">Amount received *</label>
+          <input id="payAmount" type="number" [(ngModel)]="payAmount" min="0.01" step="0.01">
+          <span class="hint" *ngIf="invoice">
+            Balance due is {{ invoice.balanceDue | currency:'USD' }}.
+          </span>
+        </div>
+
+        <div class="field">
+          <label for="payDate">Payment date *</label>
+          <input id="payDate" type="date" [(ngModel)]="payDate">
+        </div>
+
+        <div class="field">
+          <label for="payMethod">Payment method *</label>
+          <select id="payMethod" [(ngModel)]="payMethod">
+            <option *ngFor="let m of paymentMethods" [ngValue]="m.value">{{ m.label }}</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="payRef">Bank reference / transaction ID</label>
+          <input id="payRef" type="text" [(ngModel)]="payReference" placeholder="ACH-482910298">
+        </div>
+
+        <div class="field">
+          <label for="payNote">Internal note</label>
+          <textarea id="payNote" rows="2" [(ngModel)]="payNote"></textarea>
+        </div>
+
+        <!-- An overpayment is surfaced and must be acknowledged, never silently banked. -->
+        <div class="alert alert-warning" *ngIf="overpaymentBlocked">
+          That is more than the balance outstanding.
+          <label class="checkbox">
+            <input type="checkbox" [(ngModel)]="payAllowOverpayment">
+            <span>Yes, the client overpaid — record it anyway</span>
+          </label>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
+          <button type="button" class="btn-primary" (click)="recordPayment()"
+                  [disabled]="busy || !payAmount || payAmount <= 0 || overpaymentBlocked">
+            {{ busy ? 'Saving…' : 'Record payment' }}
+          </button>
+        </div>
+      </ng-container>
+
+      <!-- Reverse payment -->
+      <ng-container *ngIf="modal === 'reverse'">
+        <h3>Reverse Payment</h3>
+        <p class="modal-hint">
+          The original payment is kept exactly as it is and a reversing entry is added, so the
+          history shows both what happened and the correction.
+        </p>
+
+        <div class="field">
+          <label for="reverseReason">Reason *</label>
+          <textarea id="reverseReason" rows="3" [(ngModel)]="reverseReason"
+                    placeholder="Entered against the wrong invoice"></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
+          <button type="button" class="btn-danger" (click)="reversePayment()"
+                  [disabled]="busy || !reverseReason.trim()">
+            {{ busy ? 'Saving…' : 'Reverse payment' }}
+          </button>
+        </div>
+      </ng-container>
+
+      <!-- Send / resend -->
+      <ng-container *ngIf="modal === 'send'">
+        <h3>{{ invoice?.firstSentAt ? 'Resend Invoice' : 'Send Invoice' }}</h3>
+
+        <div class="field">
+          <label for="sendEmail">Send to *</label>
+          <input id="sendEmail" type="email" [(ngModel)]="sendEmail"
+                 placeholder="accounting@example.com">
+          <span class="hint">Defaults to the client's billing contact.</span>
+        </div>
+
+        <div class="field">
+          <label for="sendMessage">Message (optional)</label>
+          <textarea id="sendMessage" rows="3" [(ngModel)]="sendMessage"></textarea>
+        </div>
+
+        <label class="checkbox">
+          <input type="checkbox" [(ngModel)]="sendAttachPdf">
+          <span>Attach the invoice PDF</span>
+        </label>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
+          <button type="button" class="btn-primary" (click)="send()" [disabled]="busy">
+            {{ busy ? 'Sending…' : 'Send invoice' }}
+          </button>
+        </div>
+      </ng-container>
+
+      <!-- Reminder -->
+      <ng-container *ngIf="modal === 'reminder'">
+        <h3>Send Payment Reminder</h3>
+
+        <div class="field">
+          <label for="reminderEmail">Send to *</label>
+          <input id="reminderEmail" type="email" [(ngModel)]="sendEmail">
+        </div>
+
+        <label class="checkbox">
+          <input type="checkbox" [(ngModel)]="reminderForce">
+          <span>Send even if a reminder already went out today</span>
+        </label>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
+          <button type="button" class="btn-primary" (click)="sendReminder()" [disabled]="busy">
+            {{ busy ? 'Sending…' : 'Send reminder' }}
+          </button>
+        </div>
+      </ng-container>
+
+      <!-- Void -->
+      <ng-container *ngIf="modal === 'void'">
+        <h3>Void Invoice</h3>
+        <p class="modal-hint">
+          The invoice is kept and its number stays permanently reserved — an issued invoice is
+          never deleted. It can no longer be paid.
+        </p>
+
+        <div class="field">
+          <label for="voidReason">Reason *</label>
+          <textarea id="voidReason" rows="3" [(ngModel)]="voidReason"
+                    placeholder="Issued in error — replaced by a corrected invoice"></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
+          <button type="button" class="btn-danger" (click)="voidInvoice()"
+                  [disabled]="busy || !voidReason.trim()">
+            {{ busy ? 'Voiding…' : 'Void invoice' }}
+          </button>
+        </div>
+      </ng-container>
+    </div>
+  </div>
+</div>
+
+<ng-template #loadingTpl>
+  <div class="loading-note">Loading invoice…</div>
+</ng-template>

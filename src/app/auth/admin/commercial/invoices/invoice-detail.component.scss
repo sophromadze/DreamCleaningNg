@@ -1,0 +1,545 @@
+/* Invoice detail. Tokens only — no hex — so the page follows the day/night toggle. */
+
+.invoice-detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.back-link {
+  color: var(--primary-text);
+  text-decoration: none;
+  font-size: 0.86rem;
+  font-weight: var(--fw-medium);
+  align-self: flex-start;
+  &:hover { text-decoration: underline; }
+}
+
+.loading-note {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 24px 0;
+}
+
+.mono { font-variant-numeric: tabular-nums; }
+
+.alert {
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.86rem;
+
+  &.alert-error { background: var(--soft-red); color: var(--bright-red); }
+  &.alert-success { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &.alert-warning { background: var(--warning-orange-bg); color: var(--warning-orange-text); }
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────────────────────── */
+
+.detail-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .head-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+
+    h2 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: var(--text-primary);
+    }
+  }
+
+  .client-name {
+    font-size: 1rem;
+    color: var(--text-secondary);
+  }
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 11px;
+  border-radius: var(--radius-pill);
+  font-size: 0.73rem;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+
+  &.status-draft { background: var(--surface-subtle); color: var(--text-muted); }
+  &.status-sent { background: var(--soft-blue); color: var(--primary-color); }
+  &.status-viewed {
+    background: var(--soft-blue);
+    color: var(--primary-color-hover);
+    border: 1px solid var(--primary-color);
+  }
+  &.status-partial { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+  &.status-paid { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &.status-overdue { background: var(--soft-red); color: var(--bright-red); }
+  &.status-void {
+    background: var(--surface-subtle);
+    color: var(--text-muted);
+    text-decoration: line-through;
+  }
+}
+
+/* ── Action bar ──────────────────────────────────────────────────────────────────────────── */
+
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-primary, .btn-secondary, .btn-ghost, .btn-danger {
+  border-radius: var(--radius-sm);
+  padding: 8px 15px;
+  font-size: 0.85rem;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  border: 1px solid transparent;
+  white-space: nowrap;
+
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: #fff;
+  &:hover:not(:disabled) { background: var(--primary-color-hover); }
+}
+
+.btn-secondary {
+  background: var(--surface);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  &:hover:not(:disabled) { background: var(--soft-blue); }
+}
+
+.btn-ghost {
+  background: var(--surface);
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+  &:hover:not(:disabled) { background: var(--surface-subtle); }
+}
+
+.btn-danger {
+  background: var(--surface);
+  border-color: var(--bright-red);
+  color: var(--bright-red);
+  &:hover:not(:disabled) { background: var(--soft-red); }
+}
+
+.link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--primary-color);
+  font-size: 0.8rem;
+  cursor: pointer;
+  &:hover { text-decoration: underline; }
+}
+
+/* ── Layout ──────────────────────────────────────────────────────────────────────────────── */
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 16px;
+  align-items: start;
+}
+
+.detail-main, .detail-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+
+  h3 {
+    margin: 0 0 12px;
+    font-size: 0.95rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+}
+
+/* The one number the whole page exists to answer. */
+.total-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+
+  .total-label {
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+
+  .total-value {
+    font-size: 2.1rem;
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+    line-height: 1.15;
+  }
+
+  .total-sub {
+    font-size: 0.83rem;
+    color: var(--text-secondary);
+
+    &.paid-note { color: var(--fresh-green); font-weight: var(--fw-medium); }
+    &.warn { color: var(--warning-orange-text); font-weight: var(--fw-medium); }
+  }
+
+  &.paid .total-value { color: var(--fresh-green); }
+}
+
+/* ── Facts ───────────────────────────────────────────────────────────────────────────────── */
+
+.fact-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 11px 18px;
+}
+
+.fact-grid > div,
+.fact-list > div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+  min-width: 0;
+
+  a { color: var(--primary-color); text-decoration: none; &:hover { text-decoration: underline; } }
+}
+
+.fact-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.label {
+  font-size: 0.71rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+/* ── Tables ──────────────────────────────────────────────────────────────────────────────── */
+
+.table-wrap { overflow-x: auto; }
+
+.line-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+
+  th {
+    text-align: left;
+    padding: 8px 10px;
+    font-size: 0.71rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+    font-weight: var(--fw-semibold);
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-primary);
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  .align-right { text-align: right; font-variant-numeric: tabular-nums; }
+  .muted { color: var(--text-muted); }
+
+  /* A reversal is history, not a payment — shown differently so the ledger reads correctly. */
+  tr.reversal td {
+    color: var(--text-muted);
+    font-style: italic;
+  }
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* ── Online payment attempts ─────────────────────────────────────────────────────────────── */
+
+/* Amber, not green. Money is on its way but nothing has settled — a green banner here would say
+   "paid", which is exactly the misreading the attempt model exists to prevent. */
+.processing-banner {
+  padding: 11px 13px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-orange-bg);
+  color: var(--warning-orange-text);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.attempt {
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border-color);
+
+  &:last-child { border-bottom: none; padding-bottom: 0; }
+
+  .attempt-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    flex-wrap: wrap;
+    margin-bottom: 3px;
+  }
+
+  .attempt-method {
+    font-size: 0.88rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+
+  .attempt-amount {
+    margin-left: auto;
+    font-size: 0.88rem;
+    font-weight: var(--fw-semibold);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+  }
+
+  .attempt-meta {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+
+    &.mono { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  }
+
+  .attempt-failure {
+    margin-top: 3px;
+    font-size: 0.78rem;
+    color: var(--bright-red);
+  }
+}
+
+.attempt-status {
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  font-size: 0.69rem;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
+
+  &.attempt-succeeded { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &.attempt-processing { background: var(--warning-orange-bg); color: var(--warning-orange-text); }
+  &.attempt-failed { background: var(--soft-red); color: var(--bright-red); }
+  &.attempt-inactive { background: var(--surface-subtle); color: var(--text-muted); }
+}
+
+/* ── Totals ──────────────────────────────────────────────────────────────────────────────── */
+
+.totals {
+  margin-top: 14px;
+  margin-left: auto;
+  max-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.totals-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  font-size: 0.86rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+
+  &.total {
+    padding-top: 7px;
+    border-top: 2px solid var(--primary-color);
+    font-size: 0.97rem;
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+  }
+
+  &.balance {
+    padding: 8px 11px;
+    margin-top: 5px;
+    background: var(--surface-subtle);
+    border-radius: var(--radius-sm);
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+  }
+}
+
+/* ── Notes ───────────────────────────────────────────────────────────────────────────────── */
+
+.note-block {
+  margin-bottom: 12px;
+
+  p {
+    margin: 4px 0 0;
+    font-size: 0.87rem;
+    color: var(--text-primary);
+    white-space: pre-line;
+  }
+
+  /* Visually distinct so nobody mistakes it for something the client can see. */
+  &.internal {
+    padding: 10px 12px;
+    background: var(--soft-yellow);
+    border-radius: var(--radius-sm);
+
+    .label, p { color: var(--soft-yellow-text); }
+  }
+}
+
+/* ── Event lists ─────────────────────────────────────────────────────────────────────────── */
+
+.event-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  max-height: 340px;
+  overflow-y: auto;
+
+  li {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding-left: 11px;
+    border-left: 2px solid var(--border-color);
+
+    &.failed { border-left-color: var(--bright-red); }
+  }
+
+  .event-title {
+    font-size: 0.84rem;
+    color: var(--text-primary);
+
+    em {
+      font-style: normal;
+      color: var(--bright-red);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      margin-left: 5px;
+    }
+  }
+
+  .event-meta {
+    font-size: 0.74rem;
+    color: var(--text-muted);
+  }
+
+  .event-error {
+    font-size: 0.74rem;
+    color: var(--bright-red);
+  }
+}
+
+/* ── Modals ──────────────────────────────────────────────────────────────────────────────── */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1200;
+}
+
+.modal {
+  background: var(--surface-elevated);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
+  width: 100%;
+  max-width: 460px;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px var(--shadow-color);
+
+  h3 {
+    margin: 0 0 8px;
+    font-size: 1.08rem;
+    color: var(--text-primary);
+  }
+
+  .modal-hint {
+    margin: 0 0 16px;
+    font-size: 0.83rem;
+    color: var(--text-muted);
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 13px;
+
+    label {
+      font-size: 0.8rem;
+      font-weight: var(--fw-medium);
+      color: var(--text-secondary);
+    }
+
+    input, select, textarea {
+      padding: 9px 11px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-primary);
+      font-size: 0.88rem;
+      font-family: inherit;
+
+      &:focus { outline: none; border-color: var(--primary-color); }
+    }
+
+    textarea { resize: vertical; }
+
+    .hint { font-size: 0.76rem; color: var(--text-muted); }
+  }
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 18px;
+}
+
+/* Tablet and below: the side column drops beneath the main one rather than squeezing. */
+@media (max-width: 1000px) {
+  .detail-grid { grid-template-columns: 1fr; }
+}

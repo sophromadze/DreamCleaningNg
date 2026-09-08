@@ -1,34 +1,11 @@
-// Page chrome only. Everything inside is the existing ContractsComponent, unchanged by the move.
-// Mirrors the CRM shell's header so the two top-level sections read as siblings.
+// A thin wrapper around the existing ContractsComponent, unchanged by the move into the
+// Commercial shell (2026-09).
+//
+// The page header and its own max-width/padding are gone: the Commercial shell
+// (commercial.component.scss) now supplies the back-link, the title, the tab bar and the page
+// gutter, so repeating them here would double the chrome and indent the content twice.
 
 .contracts-page {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: 1.5rem 1rem 3rem;
-}
-
-.contracts-page-header {
-  margin-bottom: 1.25rem;
-}
-
-.contracts-page-title {
-  display: flex;
-  align-items: baseline;
-  gap: 0.85rem;
-  flex-wrap: wrap;
-
-  h1 {
-    margin: 0;
-    font-size: 1.5rem;
-    color: var(--text-primary);
-  }
-}
-
-.back-link {
-  color: var(--primary-color);
-  text-decoration: none;
-  font-size: 0.85rem;
-  font-weight: 600;
-
-  &:hover { text-decoration: underline; }
+  // Full width of the shell's content area; the shell owns the outer padding.
+  width: 100%;
 }

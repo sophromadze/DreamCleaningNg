@@ -1,23 +1,28 @@
 import { Component, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { ContractsComponent } from '../crm/contracts/contracts.component';
 
 /**
- * Commercial contracts as their own top-level admin section at /admin/contracts.
+ * Commercial contracts, as the Contracts tab of the Commercial shell
+ * (/admin/commercial/contracts).
  *
- * Moved out of the CRM shell (2026-09): contracts are their own body of work rather than a stage
- * in the sales pipeline, and being a CRM tab meant they had no real URL — only a sessionStorage
- * tab selection and a ?contractId= query param. A dedicated route means a contract can be linked
- * to, bookmarked and opened directly, which is what the revision-request email needs.
+ * History, because the URL has moved twice and the redirects only make sense with it: contracts
+ * began as a CRM tab, which gave them no real URL — only a sessionStorage tab and a ?contractId=
+ * query param. They became their own top-level /admin/contracts section (2026-09) so a contract
+ * could be linked to and bookmarked, which is what the revision-request email needs. They then
+ * joined Invoices and Clients under Commercial, because those three are one workflow. The old
+ * /admin/contracts paths REDIRECT here rather than being removed — links to them are already
+ * sitting in people's inboxes.
  *
- * Matches the /admin/crm and /admin/company pattern: a thin page shell with a back link to the
- * admin panel, wrapping the existing feature component unchanged.
+ * This stays a thin wrapper around the unchanged ContractsComponent, which takes the contract to
+ * open as an @Input and so needs something to read the route param for it. The page chrome that
+ * used to live here belongs to the Commercial shell now.
  */
 @Component({
   selector: 'app-contracts-page',
   standalone: true,
-  imports: [CommonModule, RouterLink, ContractsComponent],
+  imports: [CommonModule, ContractsComponent],
   templateUrl: './contracts-page.component.html',
   styleUrls: ['./contracts-page.component.scss']
 })

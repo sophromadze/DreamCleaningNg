@@ -17,6 +17,11 @@ export const serverRoutes: ServerRoute[] = [
   // cacheable response, so these are client-only.
   { path: 'contract/**', renderMode: RenderMode.Client },
 
+  // The public commercial invoice, for exactly the same reasons — plus one more: this page
+  // carries the company's bank details and the client's balance, and neither belongs in anything
+  // a cache or a prerender pass could hold onto.
+  { path: 'invoice/**', renderMode: RenderMode.Client },
+
   // Blog is dynamic content — per-request SSR, never build-time prerender.
   // (Prerender would only know slugs that existed at build time; every post
   // published afterwards would be invisible until the next build.)

@@ -1,0 +1,293 @@
+<div class="public-invoice-page">
+
+  <div class="loading-note" *ngIf="loading">Loading your invoice…</div>
+
+  <div class="error-panel" *ngIf="!loading && error && !invoice">
+    <h1>Invoice unavailable</h1>
+    <p>{{ error }}</p>
+  </div>
+
+  <div class="invoice-sheet" *ngIf="invoice as inv">
+
+    <div class="alert alert-error" *ngIf="error">{{ error }}</div>
+
+    <!-- ── Masthead ─────────────────────────────────────────────────────────────────── -->
+    <header class="sheet-head">
+      <div class="company">
+        <!-- (error) rather than an inline onerror handler: a missing asset must degrade to the
+             company name in text, not to a broken-image icon on a client's invoice. -->
+        <img *ngIf="!logoFailed" src="/images/logo-full.png" alt="Dream Cleaning NYC"
+             class="logo" (error)="logoFailed = true">
+        <div class="company-name">{{ inv.company.legalName }}</div>
+        <div class="company-dba" *ngIf="inv.company.dbaName">DBA {{ inv.company.dbaName }}</div>
+        <div class="company-line" *ngIf="inv.company.address">{{ inv.company.address }}</div>
+        <div class="company-line" *ngIf="inv.company.cityStateZip">{{ inv.company.cityStateZip }}</div>
+        <div class="company-line" *ngIf="inv.company.phone">{{ inv.company.phone }}</div>
+        <div class="company-line" *ngIf="inv.company.email">{{ inv.company.email }}</div>
+      </div>
+
+      <div class="invoice-id">
+        <div class="doc-title">Invoice</div>
+        <div class="invoice-number">{{ inv.invoiceNumber }}</div>
+        <span class="status-badge" [class.paid]="isPaid" [class.overdue]="isOverdue"
+              [class.void]="isVoid">{{ inv.statusLabel }}</span>
+      </div>
+    </header>
+
+    <div class="void-banner" *ngIf="isVoid">
+      This invoice has been cancelled and is not payable. Please contact us if you have questions.
+    </div>
+
+    <!-- ── The amount due, first and largest: on a phone this is the whole question. ──── -->
+    <section class="amount-panel" [class.paid]="isPaid">
+      <div class="amount-label">{{ inv.balanceDue > 0 ? 'Amount Due' : 'Total' }}</div>
+      <div class="amount-value">
+        {{ (inv.balanceDue > 0 ? inv.balanceDue : inv.total) | currency:'USD' }}
+      </div>
+      <div class="amount-sub" *ngIf="inv.balanceDue > 0">
+        Due {{ inv.dueDate | date:'MMMM d, y' }}
+      </div>
+      <div class="amount-sub paid" *ngIf="isPaid">
+        Paid in full<span *ngIf="inv.paidAt"> on {{ inv.paidAt | date:'MMMM d, y' }}</span>. Thank you.
+      </div>
+    </section>
+
+    <!-- ── Parties ──────────────────────────────────────────────────────────────────── -->
+    <section class="parties">
+      <div class="party">
+        <span class="block-label">Bill To</span>
+        <div class="party-name">{{ inv.clientName }}</div>
+        <div class="party-line" *ngIf="inv.billingContactName">Attn: {{ inv.billingContactName }}</div>
+        <div class="party-line" *ngIf="inv.billingAddress">{{ inv.billingAddress }}</div>
+      </div>
+
+      <div class="party">
+        <span class="block-label">Service Location</span>
+        <div class="party-line">{{ inv.serviceAddress || 'Same as billing address' }}</div>
+        <div class="party-line" *ngIf="servicePeriod">Service period: {{ servicePeriod }}</div>
+      </div>
+
+      <div class="party">
+        <span class="block-label">Details</span>
+        <div class="party-line">Invoice date: {{ inv.invoiceDate | date:'MMMM d, y' }}</div>
+        <div class="party-line">Due date: {{ inv.dueDate | date:'MMMM d, y' }}</div>
+        <div class="party-line" *ngIf="inv.contractNumber">Contract: {{ inv.contractNumber }}</div>
+        <div class="party-line" *ngIf="inv.poNumber">PO number: {{ inv.poNumber }}</div>
+        <div class="party-line" *ngIf="inv.clientReference">Reference: {{ inv.clientReference }}</div>
+      </div>
+    </section>
+
+    <!-- ── Line items ───────────────────────────────────────────────────────────────── -->
+    <section class="items">
+      <div class="table-wrap">
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th class="align-right">Qty</th>
+              <th class="align-right">Rate</th>
+              <th class="align-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of inv.items">
+              <td>{{ item.description }}</td>
+              <td class="align-right">{{ item.quantity }}</td>
+              <td class="align-right">{{ item.unitPrice | currency:'USD' }}</td>
+              <td class="align-right">{{ item.amount | currency:'USD' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="totals">
+        <div class="totals-row"><span>Subtotal</span><span>{{ inv.subTotal | currency:'USD' }}</span></div>
+        <div class="totals-row" *ngIf="inv.discountAmount > 0">
+          <span>Discount</span><span>−{{ inv.discountAmount | currency:'USD' }}</span>
+        </div>
+        <div class="totals-row">
+          <span>Sales tax</span>
+          <span *ngIf="inv.taxType === InvoiceTaxType.Exempt">Exempt</span>
+          <!-- "Included" in words: a number beside a total it is already part of reads as an
+               additional charge, which is the most common way this is misunderstood. -->
+          <span *ngIf="inv.taxType === InvoiceTaxType.Included">Included</span>
+          <span *ngIf="inv.taxType === InvoiceTaxType.Added">{{ inv.taxAmount | currency:'USD' }}</span>
+        </div>
+        <div class="totals-row total"><span>Total</span><span>{{ inv.total | currency:'USD' }}</span></div>
+        <!--
+          MONEY RECEIVED IS SHOWN POSITIVE, on every surface. The ledger stores a payment as a
+          positive row and only a reversal as a negative one, so a hand-written "−" here made a
+          successful payment look like a charge reversed against the customer. The Discount row
+          above keeps its sign because that IS a reduction of what is billed; this row is not.
+        -->
+        <div class="totals-row" *ngIf="inv.amountPaid > 0">
+          <span>Amount paid</span><span>{{ inv.amountPaid | currency:'USD' }}</span>
+        </div>
+        <div class="totals-row balance">
+          <span>Balance due</span><span>{{ inv.balanceDue | currency:'USD' }}</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Payment ──────────────────────────────────────────────────────────────────── -->
+    <!--
+      Hierarchy, deliberately: the primary online action first, card second when enabled, and the
+      bank details LAST and collapsed. Leading with an account number asks the customer to do the
+      hard version of the job before they have seen the easy one.
+    -->
+    <section class="payment-section" *ngIf="!isPaid && !isVoid">
+
+      <!-- Something went wrong starting the payment. Manual ACH remains available below. -->
+      <div class="pay-alert error" *ngIf="paymentError">{{ paymentError }}</div>
+
+      <div class="pay-alert info" *ngIf="checkoutCancelled && !isProcessing">
+        Your payment was cancelled. Nothing has been charged.
+      </div>
+
+      <!--
+        PAYMENT PROCESSING. ACH takes several business days to settle, and the invoice reads
+        unpaid for the whole of that time — so this is stated plainly, and both pay buttons are
+        gone, rather than leaving a customer to wonder whether their payment went through and pay
+        a second time.
+      -->
+      <div class="processing-panel" *ngIf="isProcessing">
+        <span class="processing-title">Payment processing</span>
+        <p>
+          Your bank payment<span *ngIf="options?.processingAmount">
+            of {{ options!.processingAmount | currency:'USD' }}</span> has been initiated.
+        </p>
+        <p class="processing-note">
+          ACH payments can take several business days to complete. You do not need to submit
+          another payment while this one is processing — we will email you as soon as it clears.
+        </p>
+      </div>
+
+      <ng-container *ngIf="!isProcessing">
+        <!-- The customer's last attempt failed. Fixed wording; no Stripe error detail. -->
+        <div class="pay-alert error" *ngIf="options?.lastAttemptFailed && !paymentError">
+          {{ options!.lastFailureMessage }}
+        </div>
+
+        <!-- Primary: Pay from Bank -->
+        <div class="pay-primary" *ngIf="options?.stripeAchAvailable">
+          <button type="button" class="btn-pay" (click)="payFromBank()" [disabled]="startingPayment">
+            {{ startingPayment ? 'Opening secure payment…' : 'Pay from Bank' }}
+          </button>
+          <span class="pay-caption">Secure ACH bank payment powered by Stripe.</span>
+        </div>
+
+        <!-- Secondary: card, only when the owner has enabled it -->
+        <div class="pay-secondary" *ngIf="options?.stripeCardAvailable">
+          <button type="button" class="btn-pay-alt" (click)="payByCard()" [disabled]="startingPayment">
+            Pay by Card
+          </button>
+        </div>
+      </ng-container>
+
+      <!-- Divider only when there is something on both sides of it. -->
+      <div class="pay-divider"
+           *ngIf="options?.manualAchAvailable && (options?.stripeAchAvailable || options?.stripeCardAvailable || isProcessing)">
+        <span>OR</span>
+      </div>
+
+      <!-- Fallback: manual bank transfer, collapsed until asked for. -->
+      <div class="manual-ach" *ngIf="options?.manualAchAvailable">
+        <button type="button" class="manual-toggle" (click)="toggleManualAch()"
+                [attr.aria-expanded]="manualAchExpanded">
+          <span>Pay by Manual ACH Transfer</span>
+          <span class="manual-chevron">{{ manualAchExpanded ? '▴' : '▾' }}</span>
+        </button>
+
+        <div class="manual-body" *ngIf="manualAchExpanded && inv.paymentInstructions as pay">
+          <p class="manual-intro">
+            Send an ACH transfer from your own bank using the details below.
+          </p>
+
+          <div class="pay-grid">
+        <div *ngIf="pay.accountHolder">
+          <span class="pay-label">Account Holder</span><span class="pay-value">{{ pay.accountHolder }}</span>
+        </div>
+        <div *ngIf="pay.bankName">
+          <span class="pay-label">Bank</span><span class="pay-value">{{ pay.bankName }}</span>
+        </div>
+        <div *ngIf="pay.routingNumber">
+          <span class="pay-label">Routing Number</span>
+          <span class="pay-value mono">{{ pay.routingNumber }}</span>
+        </div>
+        <div *ngIf="pay.accountNumber">
+          <span class="pay-label">Account Number</span>
+          <span class="pay-value mono">{{ pay.accountNumber }}</span>
+        </div>
+        <div *ngIf="pay.accountType">
+          <span class="pay-label">Account Type</span><span class="pay-value">{{ pay.accountType }}</span>
+        </div>
+        <div class="reference">
+          <span class="pay-label">Payment Reference</span>
+          <span class="pay-value mono">{{ pay.paymentReference }}</span>
+        </div>
+      </div>
+
+          <!-- The one instruction that makes a bank transfer matchable on our side. -->
+          <p class="pay-important">
+            <strong>Important:</strong> please include invoice number
+            <strong>{{ inv.invoiceNumber }}</strong> in your payment memo or reference field.
+          </p>
+
+          <p class="pay-note" *ngIf="pay.achInstructions">{{ pay.achInstructions }}</p>
+
+          <div class="wire-block" *ngIf="pay.wireInstructions">
+            <span class="pay-label">Wire transfers</span>
+            <p class="pay-note">{{ pay.wireInstructions }}</p>
+          </div>
+
+          <button type="button" class="btn-secondary" (click)="copyPaymentDetails()">
+            {{ copied ? 'Copied ✓' : 'Copy Payment Details' }}
+          </button>
+        </div>
+      </div>
+
+      <!--
+        Every route is off and nothing is in flight. Says so plainly rather than showing an empty
+        panel — this is what an admin sees if they disable both methods, and the customer needs to
+        know to get in touch rather than assume the page is broken.
+      -->
+      <div class="pay-alert info"
+           *ngIf="!isProcessing && !options?.stripeAchAvailable
+                  && !options?.stripeCardAvailable && !options?.manualAchAvailable">
+        Payment options are not available for this invoice online. Please contact us and we will
+        arrange payment with you.
+      </div>
+    </section>
+
+    <!-- Paid: no payment routes at all, and the settlement stated with its date. -->
+    <section class="payment-section paid-panel" *ngIf="isPaid">
+      <span class="paid-title">Paid in full</span>
+      <p *ngIf="inv.paidAt">
+        We received your payment of {{ inv.amountPaid | currency:'USD' }} on
+        {{ inv.paidAt | date:'MMMM d, y' }}. Thank you.
+      </p>
+      <p *ngIf="!inv.paidAt">
+        We received your payment of {{ inv.amountPaid | currency:'USD' }}. Thank you.
+      </p>
+    </section>
+
+    <!-- The download stays available whatever the payment state. -->
+    <div class="invoice-actions">
+      <button type="button" class="btn-primary" (click)="downloadPdf()" [disabled]="downloading">
+        {{ downloading ? 'Preparing…' : 'Download invoice' }}
+      </button>
+    </div>
+
+    <section class="customer-note" *ngIf="inv.customerNote">
+      <p>{{ inv.customerNote }}</p>
+    </section>
+
+    <footer class="sheet-foot">
+      <p *ngIf="inv.company.footerText">{{ inv.company.footerText }}</p>
+      <p class="foot-meta">
+        {{ inv.company.legalName }}<span *ngIf="inv.company.email"> · {{ inv.company.email }}</span>
+        <span *ngIf="inv.company.phone"> · {{ inv.company.phone }}</span>
+      </p>
+    </footer>
+  </div>
+</div>

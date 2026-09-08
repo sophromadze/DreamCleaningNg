@@ -1,0 +1,20 @@
+<div class="commercial-container">
+  <div class="commercial-header">
+    <div class="commercial-title">
+      <a routerLink="/admin" class="back-link">← Admin</a>
+      <h1>Commercial</h1>
+    </div>
+  </div>
+
+  <div class="commercial-tabs">
+    <a class="commercial-tab" routerLink="invoices" routerLinkActive="active">Invoices</a>
+    <a class="commercial-tab" routerLink="contracts" routerLinkActive="active">Contracts</a>
+    <a class="commercial-tab" routerLink="clients" routerLinkActive="active">Clients</a>
+    <a class="commercial-tab" *ngIf="canManageBilling"
+       routerLink="billing-settings" routerLinkActive="active">Billing Settings</a>
+  </div>
+
+  <div class="commercial-content">
+    <router-outlet></router-outlet>
+  </div>
+</div>

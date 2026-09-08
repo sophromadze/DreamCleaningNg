@@ -1,0 +1,269 @@
+<div class="billing-settings-page">
+
+  <div class="page-head">
+    <h2>Billing Settings</h2>
+  </div>
+
+  <p class="page-intro">
+    The company details and bank account printed on every commercial invoice. Invoices read these
+    values at send time, so changing them here updates every future invoice at once — nothing is
+    hardcoded anywhere else.
+  </p>
+
+  <div class="alert alert-error" *ngIf="error">{{ error }}</div>
+  <div class="alert alert-success" *ngIf="notice">{{ notice }}</div>
+
+  <div class="loading-note" *ngIf="loading">Loading…</div>
+
+  <form *ngIf="!loading && settings" (ngSubmit)="save()">
+
+    <section class="card">
+      <h3>Company</h3>
+
+      <div class="field">
+        <label for="legalName">Legal entity name *</label>
+        <input id="legalName" type="text" [(ngModel)]="form.companyLegalName" name="companyLegalName"
+               [disabled]="!canEdit" required>
+      </div>
+
+      <div class="field">
+        <label for="dba">DBA name</label>
+        <input id="dba" type="text" [(ngModel)]="form.companyDbaName" name="companyDbaName"
+               [disabled]="!canEdit" placeholder="Dream Cleaning NYC">
+      </div>
+
+      <div class="field">
+        <label for="address">Address</label>
+        <input id="address" type="text" [(ngModel)]="form.companyAddress" name="companyAddress"
+               [disabled]="!canEdit">
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="city">City</label>
+          <input id="city" type="text" [(ngModel)]="form.companyCity" name="companyCity"
+                 [disabled]="!canEdit">
+        </div>
+        <div class="field">
+          <label for="state">State</label>
+          <input id="state" type="text" [(ngModel)]="form.companyState" name="companyState"
+                 [disabled]="!canEdit">
+        </div>
+        <div class="field">
+          <label for="zip">ZIP</label>
+          <input id="zip" type="text" [(ngModel)]="form.companyZip" name="companyZip"
+                 [disabled]="!canEdit">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="phone">Phone</label>
+          <input id="phone" type="text" [(ngModel)]="form.companyPhone" name="companyPhone"
+                 [disabled]="!canEdit">
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" type="email" [(ngModel)]="form.companyEmail" name="companyEmail"
+                 [disabled]="!canEdit">
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Online Payments</h3>
+      <p class="hint block">
+        What the customer is offered on the invoice page. No processing fee is ever added to the
+        customer, whichever method they use.
+      </p>
+
+      <label class="toggle-row">
+        <input type="checkbox" [(ngModel)]="form.stripeAchEnabled" name="stripeAchEnabled"
+               [disabled]="!canEdit">
+        <span class="toggle-text">
+          <strong>Stripe ACH Direct Debit</strong>
+          <span class="toggle-note">
+            The customer pays straight from their US bank account. Stripe collects the account
+            details and the authorization — they never reach our servers.
+          </span>
+        </span>
+      </label>
+
+      <label class="toggle-row">
+        <input type="checkbox" [(ngModel)]="form.stripeCardEnabled" name="stripeCardEnabled"
+               [disabled]="!canEdit">
+        <span class="toggle-text">
+          <strong>Stripe Card</strong>
+          <span class="toggle-note">
+            Off by default. Card fees on a four-figure commercial invoice are material, so this is
+            a commercial decision rather than a default.
+          </span>
+        </span>
+      </label>
+
+      <label class="toggle-row">
+        <input type="checkbox" [(ngModel)]="form.manualAchEnabled" name="manualAchEnabled"
+               [disabled]="!canEdit">
+        <span class="toggle-text">
+          <strong>Manual ACH Bank Transfer</strong>
+          <span class="toggle-note">
+            The customer sends a transfer from their own bank using the details below, and an admin
+            records it. This is the fallback whenever online payment is unavailable.
+          </span>
+        </span>
+      </label>
+
+      <!--
+        The warning that stops misleading instructions going out: manual ACH switched on but
+        missing the fields a customer actually needs to pay.
+      -->
+      <div class="alert alert-warning" *ngIf="form.manualAchEnabled && !settings.manualAchComplete">
+        <strong>Manual ACH is enabled but incomplete.</strong>
+        The bank details below are missing:
+        {{ settings.missingManualAchFields.join(', ') }}.
+        Invoices will not show manual transfer instructions until these are filled in — an
+        incomplete block is worse than none, because the customer only finds out at their bank.
+      </div>
+
+      <div class="alert alert-warning"
+           *ngIf="!form.stripeAchEnabled && !form.stripeCardEnabled && !form.manualAchEnabled">
+        <strong>No payment method is enabled.</strong>
+        Customers will have no way to pay their invoices online or by transfer.
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Manual Bank Transfer — ACH</h3>
+
+      <!-- Says plainly what these values are and are not, so nobody is tempted to store a
+           credential here later. -->
+      <p class="security-note">
+        These are <strong>receiving</strong> details only — they are printed on every invoice
+        because a client cannot pay without them. Never store online-banking credentials, API keys
+        or secrets here; they do not belong in the database. Every change to this section is
+        recorded in the audit log.
+      </p>
+
+      <div class="field">
+        <label for="accountHolder">Account holder</label>
+        <input id="accountHolder" type="text" [(ngModel)]="form.bankAccountHolder"
+               name="bankAccountHolder" [disabled]="!canEdit"
+               placeholder="Nodar Alania Inc. DBA Dream Cleaning NYC">
+        <span class="hint">
+          Exactly as the bank has it. A mismatch here is what makes a transfer bounce.
+        </span>
+      </div>
+
+      <div class="field">
+        <label for="bankName">Bank name</label>
+        <input id="bankName" type="text" [(ngModel)]="form.bankName" name="bankName"
+               [disabled]="!canEdit">
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="routing">Routing number</label>
+          <input id="routing" type="text" [(ngModel)]="form.bankRoutingNumber"
+                 name="bankRoutingNumber" [disabled]="!canEdit" autocomplete="off">
+        </div>
+
+        <div class="field">
+          <label for="account">Account number</label>
+          <!-- Starts empty on purpose: leaving it blank keeps the stored number. -->
+          <input id="account" type="text" [(ngModel)]="newAccountNumber" name="newAccountNumber"
+                 [disabled]="!canEdit" autocomplete="off"
+                 placeholder="Leave blank to keep the current number">
+          <span class="hint">
+            Currently {{ settings.bankAccountNumber || 'not set' }}. Type a new number only to
+            replace it.
+          </span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="accountType">Account type</label>
+        <input id="accountType" type="text" [(ngModel)]="form.bankAccountType"
+               name="bankAccountType" [disabled]="!canEdit" placeholder="Business Checking">
+      </div>
+
+      <div class="field">
+        <label for="achInstructions">ACH instructions</label>
+        <textarea id="achInstructions" rows="3" [(ngModel)]="form.achInstructions"
+                  name="achInstructions" [disabled]="!canEdit"></textarea>
+        <span class="hint">Shown under the bank details on the invoice and the PDF.</span>
+      </div>
+
+      <div class="field">
+        <label for="wireRouting">Wire routing number</label>
+        <input id="wireRouting" type="text" [(ngModel)]="form.bankWireRoutingNumber"
+               name="bankWireRoutingNumber" [disabled]="!canEdit" autocomplete="off">
+        <span class="hint">
+          Optional. Some banks use a different routing number for wires — it is never required for
+          ACH, and leaving it blank does not hold up manual transfers.
+        </span>
+      </div>
+
+      <div class="field">
+        <label for="wireInstructions">Wire instructions</label>
+        <textarea id="wireInstructions" rows="3" [(ngModel)]="form.wireInstructions"
+                  name="wireInstructions" [disabled]="!canEdit"></textarea>
+        <span class="hint">Optional — the wire block is hidden entirely when this is blank.</span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h3>Invoice Defaults</h3>
+      <p class="hint block">
+        Applied to <strong>new</strong> invoices only. Changing them never alters an invoice that
+        already exists.
+      </p>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="defaultTaxType">Default sales tax treatment</label>
+          <select id="defaultTaxType" [(ngModel)]="form.defaultTaxType" name="defaultTaxType"
+                  [disabled]="!canEdit">
+            <option [ngValue]="InvoiceTaxType.Exempt">Tax exempt</option>
+            <option [ngValue]="InvoiceTaxType.Included">Tax included</option>
+            <option [ngValue]="InvoiceTaxType.Added">Tax added on top</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="defaultTaxRate">Default tax rate (%)</label>
+          <input id="defaultTaxRate" type="number" step="0.001" [(ngModel)]="form.defaultTaxRate"
+                 name="defaultTaxRate" [disabled]="!canEdit" placeholder="8.875">
+        </div>
+
+        <div class="field">
+          <label for="defaultDueTerms">Default payment terms</label>
+          <select id="defaultDueTerms" [(ngModel)]="form.defaultDueTerms" name="defaultDueTerms"
+                  [disabled]="!canEdit">
+            <option *ngFor="let t of dueTermsOptions" [ngValue]="t.value">{{ t.label }}</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="defaultNote">Default customer note</label>
+        <textarea id="defaultNote" rows="2" [(ngModel)]="form.defaultCustomerNote"
+                  name="defaultCustomerNote" [disabled]="!canEdit"></textarea>
+      </div>
+
+      <div class="field">
+        <label for="footer">Invoice footer text</label>
+        <input id="footer" type="text" [(ngModel)]="form.invoiceFooterText"
+               name="invoiceFooterText" [disabled]="!canEdit">
+      </div>
+    </section>
+
+    <div class="form-actions" *ngIf="canEdit">
+      <span class="updated-at" *ngIf="settings.updatedAt">
+        Last updated {{ settings.updatedAt | date:'MMM d, y, h:mm a' }}
+      </span>
+      <button type="submit" class="btn-primary" [disabled]="saving || !form.companyLegalName">
+        {{ saving ? 'Saving…' : 'Save billing settings' }}
+      </button>
+    </div>
+  </form>
+</div>

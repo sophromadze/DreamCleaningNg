@@ -1,0 +1,172 @@
+<div class="invoices-page" (click)="closeMenu()">
+
+  <!-- Header -->
+  <div class="page-head">
+    <h2>Commercial Invoices</h2>
+    <a class="btn-primary" routerLink="/admin/commercial/invoices/create">+ Create Invoice</a>
+  </div>
+
+  <div class="alert alert-error" *ngIf="error">{{ error }}</div>
+  <div class="alert alert-success" *ngIf="notice">{{ notice }}</div>
+
+  <!-- Summary cards. Labels stay put while values shimmer — the project-wide convention. -->
+  <div class="summary-cards">
+    <div class="summary-card">
+      <span class="card-value" [class.shimmer-loading]="loading">
+        {{ loading ? '' : (summary.totalOutstanding | currency:'USD') }}
+      </span>
+      <span class="card-label">Outstanding</span>
+      <span class="card-sub" *ngIf="!loading">{{ summary.outstandingCount }} invoice(s)</span>
+    </div>
+
+    <div class="summary-card">
+      <span class="card-value positive" [class.shimmer-loading]="loading">
+        {{ loading ? '' : (summary.paidThisMonth | currency:'USD') }}
+      </span>
+      <span class="card-label">Paid This Month</span>
+      <span class="card-sub" *ngIf="!loading">received this calendar month</span>
+    </div>
+
+    <div class="summary-card">
+      <span class="card-value" [class.negative]="summary.overdue > 0" [class.shimmer-loading]="loading">
+        {{ loading ? '' : (summary.overdue | currency:'USD') }}
+      </span>
+      <span class="card-label">Overdue</span>
+      <span class="card-sub" *ngIf="!loading">{{ summary.overdueCount }} invoice(s)</span>
+    </div>
+
+    <div class="summary-card">
+      <span class="card-value" [class.shimmer-loading]="loading">
+        {{ loading ? '' : summary.draftCount }}
+      </span>
+      <span class="card-label">Drafts</span>
+      <span class="card-sub" *ngIf="!loading">not yet sent</span>
+    </div>
+  </div>
+
+  <!-- Search and filters -->
+  <div class="filter-bar">
+    <input type="text" class="search-input" [(ngModel)]="search" (input)="onSearchInput()"
+           placeholder="Search invoice #, client, contact, email, address, contract #…"
+           aria-label="Search invoices">
+
+    <select [(ngModel)]="statusFilter" (change)="onFilterChange()" aria-label="Filter by status">
+      <option *ngFor="let o of statusOptions" [ngValue]="o.value">{{ o.label }}</option>
+    </select>
+
+    <select [(ngModel)]="clientFilter" (change)="onFilterChange()" aria-label="Filter by client">
+      <option [ngValue]="null">All clients</option>
+      <option *ngFor="let c of clients" [ngValue]="c.id">{{ c.legalEntityName }}</option>
+    </select>
+
+    <select [(ngModel)]="paymentMethodFilter" (change)="onFilterChange()"
+            aria-label="Filter by payment method">
+      <option *ngFor="let o of paymentMethodOptions" [ngValue]="o.value">{{ o.label }}</option>
+    </select>
+
+    <select [(ngModel)]="dateRange" (change)="onFilterChange()" aria-label="Filter by date">
+      <option *ngFor="let o of dateOptions" [ngValue]="o.value">{{ o.label }}</option>
+    </select>
+
+    <ng-container *ngIf="dateRange === 'custom'">
+      <input type="date" [(ngModel)]="customFrom" (change)="onFilterChange()" aria-label="From date">
+      <input type="date" [(ngModel)]="customTo" (change)="onFilterChange()" aria-label="To date">
+    </ng-container>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table class="invoices-table">
+      <thead>
+        <tr>
+          <th>Invoice #</th>
+          <th>Client</th>
+          <th class="hide-sm">Service Location</th>
+          <th class="hide-sm">Invoice Date</th>
+          <th>Due Date</th>
+          <th class="align-right">Amount</th>
+          <th>Status</th>
+          <th class="hide-sm">Payment</th>
+          <th class="align-right">Actions</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr *ngIf="loading">
+          <td colspan="9" class="empty-cell">Loading invoices…</td>
+        </tr>
+
+        <tr *ngIf="!loading && invoices.length === 0">
+          <td colspan="9" class="empty-cell">
+            No invoices match these filters.
+          </td>
+        </tr>
+
+        <tr *ngFor="let inv of invoices" class="invoice-row"
+            [class.row-overdue]="isOverdue(inv)" (click)="view(inv)">
+          <td class="mono">{{ inv.invoiceNumber }}</td>
+          <td>{{ inv.clientName }}</td>
+          <td class="hide-sm muted">{{ inv.serviceAddress || '—' }}</td>
+          <td class="hide-sm">{{ inv.invoiceDate | date:'MMM d, y' }}</td>
+          <td>
+            {{ inv.dueDate | date:'MMM d, y' }}
+            <!-- A paid invoice shows WHEN, because "paid" without a date is the next question. -->
+            <div class="paid-on" *ngIf="inv.paidAt">Paid {{ inv.paidAt | date:'MMM d, y' }}</div>
+          </td>
+          <td class="align-right">
+            <div class="amount">{{ inv.total | currency:'USD' }}</div>
+            <div class="balance" *ngIf="inv.balanceDue > 0 && inv.amountPaid > 0">
+              {{ inv.balanceDue | currency:'USD' }} due
+            </div>
+          </td>
+          <td>
+            <span class="status-badge" [ngClass]="statusClass(inv.status)">{{ inv.statusLabel }}</span>
+          </td>
+          <td class="hide-sm muted">{{ paymentMethodLabel(inv.paymentMethod) }}</td>
+          <td class="align-right actions-cell">
+            <button type="button" class="menu-button" (click)="toggleMenu(inv.id, $event)"
+                    [attr.aria-expanded]="openMenuId === inv.id" aria-label="Invoice actions">
+              •••
+            </button>
+
+            <!-- Every entry is gated on what the SERVER says is possible for this invoice. -->
+            <div class="action-menu" *ngIf="openMenuId === inv.id" (click)="$event.stopPropagation()">
+              <button type="button" (click)="view(inv)">View</button>
+
+              <button type="button" *ngIf="inv.status !== InvoiceStatus.Void"
+                      (click)="edit(inv, $event)">Edit</button>
+
+              <button type="button" *ngIf="inv.status !== InvoiceStatus.Void"
+                      (click)="view(inv)">
+                {{ inv.hasBeenSent ? 'Resend invoice' : 'Send invoice' }}
+              </button>
+
+              <button type="button" (click)="downloadPdf(inv, $event)">Download PDF</button>
+              <button type="button" (click)="duplicate(inv, $event)">Duplicate invoice</button>
+
+              <button type="button"
+                      *ngIf="inv.status !== InvoiceStatus.Void && inv.status !== InvoiceStatus.Draft"
+                      (click)="view(inv)">
+                {{ inv.balanceDue > 0 ? 'Record payment' : 'Payment history' }}
+              </button>
+
+              <button type="button" *ngIf="inv.status !== InvoiceStatus.Draft"
+                      (click)="copyLink(inv, $event)">Copy invoice link</button>
+
+              <button type="button" class="danger"
+                      *ngIf="inv.status !== InvoiceStatus.Void && inv.status !== InvoiceStatus.Paid"
+                      (click)="view(inv)">Void invoice</button>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Paging -->
+  <div class="pager" *ngIf="totalPages > 1">
+    <button type="button" (click)="goToPage(page - 1)" [disabled]="page <= 1">← Previous</button>
+    <span>Page {{ page }} of {{ totalPages }} · {{ totalCount }} invoice(s)</span>
+    <button type="button" (click)="goToPage(page + 1)" [disabled]="page >= totalPages">Next →</button>
+  </div>
+</div>

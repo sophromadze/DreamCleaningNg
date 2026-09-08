@@ -1,0 +1,181 @@
+/* Billing settings. Tokens only — no hex. */
+
+.billing-settings-page {
+  max-width: 780px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.page-head h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: var(--text-primary);
+}
+
+.page-intro {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+}
+
+.alert {
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.86rem;
+
+  &.alert-error { background: var(--soft-red); color: var(--bright-red); }
+  &.alert-success { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+}
+
+.loading-note {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 18px 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+
+  h3 {
+    margin: 0 0 13px;
+    font-size: 0.97rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+}
+
+/* The bank card carries a standing warning about what must never be stored here. */
+.security-note {
+  margin: 0 0 16px;
+  padding: 11px 13px;
+  background: var(--soft-yellow);
+  color: var(--soft-yellow-text);
+  border-radius: var(--radius-sm);
+  font-size: 0.83rem;
+  line-height: 1.5;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 13px;
+  flex: 1 1 200px;
+
+  label {
+    font-size: 0.8rem;
+    font-weight: var(--fw-medium);
+    color: var(--text-secondary);
+  }
+
+  input, select, textarea {
+    padding: 9px 11px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.88rem;
+    font-family: inherit;
+
+    &:focus { outline: none; border-color: var(--primary-color); }
+
+    &:disabled {
+      background: var(--surface-subtle);
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+  }
+
+  textarea { resize: vertical; }
+}
+
+.field-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* Payment-method toggles. Each carries its own explanation, because "Stripe Card: off" without a
+   reason invites someone to switch it on without knowing what it costs. */
+.toggle-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 12px 13px;
+  margin-bottom: 9px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+
+  &:hover { background: var(--surface-subtle); }
+
+  input { margin-top: 3px; flex-shrink: 0; }
+
+  .toggle-text {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+
+    strong {
+      font-size: 0.9rem;
+      font-weight: var(--fw-semibold);
+      color: var(--text-primary);
+    }
+  }
+
+  .toggle-note {
+    font-size: 0.79rem;
+    color: var(--text-muted);
+    line-height: 1.45;
+  }
+}
+
+.alert-warning {
+  padding: 11px 13px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-orange-bg);
+  color: var(--warning-orange-text);
+  font-size: 0.84rem;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+
+.hint {
+  font-size: 0.77rem;
+  color: var(--text-muted);
+
+  &.block { display: block; margin: 0 0 13px; }
+}
+
+.form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding-bottom: 24px;
+
+  .updated-at {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 20px;
+  font-size: 0.89rem;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--primary-color-hover); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}

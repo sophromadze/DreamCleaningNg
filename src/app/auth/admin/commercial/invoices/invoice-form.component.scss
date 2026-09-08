@@ -1,0 +1,365 @@
+/* Create / edit invoice. Tokens only — no hex — so the form follows the day/night toggle. */
+
+.invoice-form-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 940px;
+}
+
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+
+  h2 {
+    margin: 4px 0 0;
+    font-size: 1.35rem;
+    color: var(--text-primary);
+  }
+
+  .back-link {
+    color: var(--primary-text);
+    text-decoration: none;
+    font-size: 0.86rem;
+    font-weight: var(--fw-medium);
+    &:hover { text-decoration: underline; }
+  }
+
+  .head-number {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+
+    .label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+  }
+}
+
+.mono { font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); }
+
+.alert {
+  padding: 11px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.86rem;
+
+  &.inline { margin-top: 10px; }
+
+  &.alert-error {
+    background: var(--soft-red);
+    color: var(--bright-red);
+  }
+
+  &.alert-warning {
+    background: var(--warning-orange-bg);
+    color: var(--warning-orange-text);
+  }
+
+  &.alert-info {
+    background: var(--soft-blue);
+    color: var(--primary-color);
+  }
+}
+
+.loading-note {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  padding: 20px 0;
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────────────────────────── */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  margin-bottom: 14px;
+
+  h3 {
+    margin: 0 0 14px;
+    font-size: 0.98rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+}
+
+.hint {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+
+/* ── Fields ──────────────────────────────────────────────────────────────────────────────── */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 13px;
+  flex: 1 1 220px;
+
+  label {
+    font-size: 0.8rem;
+    font-weight: var(--fw-medium);
+    color: var(--text-secondary);
+  }
+
+  input, select, textarea {
+    padding: 9px 11px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.88rem;
+    font-family: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+
+    &:disabled, &.readonly {
+      background: var(--surface-subtle);
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+  }
+
+  textarea { resize: vertical; }
+}
+
+/* The client select plus its "+ New client" escape hatch. The select takes the slack so the
+   button keeps its label on one line; on a narrow screen the button drops beneath it. */
+.client-picker {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+
+  select { flex: 1 1 260px; min-width: 0; }
+
+  .btn-secondary {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 9px 15px;
+  }
+}
+
+.field-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+/* Client details loaded from the client record — presented as facts, not editable fields. */
+.prefill-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 10px 18px;
+  padding: 13px 15px;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-sm);
+  margin-bottom: 13px;
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    font-size: 0.86rem;
+    color: var(--text-primary);
+  }
+
+  .label {
+    font-size: 0.71rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+}
+
+/* ── Line items ──────────────────────────────────────────────────────────────────────────── */
+
+.items-table {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 12px;
+  /* The grid is wider than a phone; let it scroll in its own box rather than break the page. */
+  overflow-x: auto;
+}
+
+.items-head, .items-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 3fr) 86px 116px 116px 34px;
+  gap: 8px;
+  align-items: center;
+  min-width: 600px;
+}
+
+.items-head {
+  font-size: 0.71rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-weight: var(--fw-semibold);
+  padding: 0 2px 4px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.items-row {
+  input {
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.86rem;
+    width: 100%;
+
+    &:focus { outline: none; border-color: var(--primary-color); }
+    &:disabled { background: var(--surface-subtle); color: var(--text-muted); }
+  }
+
+  .line-amount {
+    text-align: right;
+    font-size: 0.88rem;
+    font-weight: var(--fw-semibold);
+    font-variant-numeric: tabular-nums;
+    color: var(--text-primary);
+  }
+}
+
+.align-right { text-align: right; }
+
+.remove-line {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 7px;
+
+  &:hover:not(:disabled) {
+    color: var(--bright-red);
+    background: var(--soft-red);
+  }
+  &:disabled { opacity: 0.4; cursor: not-allowed; }
+}
+
+/* ── Totals ──────────────────────────────────────────────────────────────────────────────── */
+
+.totals {
+  margin-top: 16px;
+  margin-left: auto;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.totals-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+
+  &.total {
+    padding-top: 8px;
+    margin-top: 3px;
+    border-top: 2px solid var(--primary-color);
+    font-size: 1rem;
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+  }
+
+  /* The one figure that answers "what does the client owe" — given its own weight. */
+  &.balance {
+    padding: 9px 12px;
+    margin-top: 6px;
+    background: var(--surface-subtle);
+    border-radius: var(--radius-sm);
+    font-size: 1.02rem;
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+  }
+}
+
+/* ── Payment method ──────────────────────────────────────────────────────────────────────── */
+
+.radio-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.radio {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  cursor: pointer;
+
+  em {
+    font-style: normal;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--fresh-green);
+    margin-left: 4px;
+  }
+}
+
+/* ── Actions ─────────────────────────────────────────────────────────────────────────────── */
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding-bottom: 24px;
+}
+
+.btn-primary, .btn-secondary, .btn-ghost {
+  border-radius: var(--radius-sm);
+  padding: 10px 20px;
+  font-size: 0.89rem;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  border: 1px solid transparent;
+
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: #fff;
+  &:hover:not(:disabled) { background: var(--primary-color-hover); }
+}
+
+.btn-secondary {
+  background: var(--surface);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  &:hover:not(:disabled) { background: var(--soft-blue); }
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border-color);
+  color: var(--text-secondary);
+  &:hover:not(:disabled) { background: var(--surface-subtle); }
+}

@@ -77,7 +77,7 @@ export class StickyMobileCtaComponent {
     // residential cleaning, and on a phone it sits directly across the action button these pages
     // exist for — "Sign agreement", "Download the executed agreement". The ADMIN contract section
     // is already covered by '/admin'.
-    const hideOnRoutes = ['/booking', '/booking-confirmation', '/booking-success', '/order', '/admin', '/cleaner/cabinet', '/cleaners-dashboard', '/cleaner-portal', '/contract', '/profile/contracts'];
+    const hideOnRoutes = ['/booking', '/booking-confirmation', '/booking-success', '/order', '/admin', '/cleaner/cabinet', '/cleaners-dashboard', '/cleaner-portal', '/contract', '/profile/contracts', '/invoice'];
     const isOnExcludedRoute = hideOnRoutes.some(route =>
       path === route || path.startsWith(route + '/')
     );
