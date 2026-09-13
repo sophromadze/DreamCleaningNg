@@ -118,12 +118,35 @@
   </div>
 </div>
 
-<!-- ──────────────  SLIDE-IN DETAIL PANEL  ────────────── -->
+<!-- ──────────────  SLIDE-IN DETAIL PANEL  ──────────────
+     TWO HALVES OF ONE CUSTOMER, two tabs, one slot. A business client is a commercial entity AND
+     a customer account; which of our tables the record lives in is our filing problem, not the
+     admin's. The customer half is the REAL Users panel in its panel-only mode, not a summary of
+     it — see UserManagementComponent.embeddedUserId for why it is mounted rather than copied.
+
+     They are SIBLINGS sharing the slot, never nested: `.detail-panel` is transformed and
+     overflow-hidden, so it would become the containing block for the customer panel's
+     fixed-position photo lightbox and recreate-order modal and clip both away. -->
 <div class="detail-overlay"
      *ngIf="selectedClientId !== null"
      (click)="closeDetailPanel()"></div>
 
-<aside class="detail-panel" [class.open]="selectedClientId !== null">
+<!-- ONE strip, rendered into whichever panel is up — plain markup in the commercial one, and
+     projected into the customer one. Two copies would be two things to keep in step. -->
+<ng-template #clientPanelTabs>
+  <div class="detail-tabs">
+    <button type="button" class="tab"
+            [class.active]="panelTab === 'business'"
+            (click)="setPanelTab('business')">Business client</button>
+    <button type="button" class="tab"
+            [class.active]="panelTab === 'customer'"
+            (click)="setPanelTab('customer')">Customer account</button>
+  </div>
+</ng-template>
+
+<aside class="detail-panel"
+       *ngIf="!showsCustomerPanel"
+       [class.open]="selectedClientId !== null">
   <ng-container *ngIf="selectedClient as c">
     <div class="detail-header">
       <div class="detail-header__main">
@@ -175,7 +198,27 @@
       </div>
     </div>
 
-    <div class="stats-row">
+    <ng-container *ngTemplateOutlet="clientPanelTabs"></ng-container>
+
+    <!-- The customer half with no customer behind it. The tab is still offered rather than hidden
+         (owner's call): a standalone client is a company we invoice that has never booked through
+         the site, and that is worth saying once, where somebody looked for it. -->
+    <div class="detail-body" *ngIf="panelTab === 'customer'">
+      <div class="overview-details">
+        <div class="info-card">
+          <h6>Customer account</h6>
+          <p class="muted">
+            {{ c.legalEntityName }} has no website account — it is a commercial client typed in by
+            hand, with contracts and invoices but no login, no bookings and no cleaning history.
+          </p>
+          <p class="hint-line">
+            One appears here automatically when a customer account is flagged as a business.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="stats-row" *ngIf="panelTab === 'business'">
       <div class="stat">
         <span class="stat-label">Origin</span>
         <span class="stat-value">{{ isLinked(c) ? 'Linked account' : 'Standalone' }}</span>
@@ -194,7 +237,7 @@
       </div>
     </div>
 
-    <div class="detail-body">
+    <div class="detail-body" *ngIf="panelTab === 'business'">
       <div class="overview-details">
 
         <div class="info-card">
@@ -261,6 +304,8 @@
 
           <p class="muted" *ngIf="loadingLinkedAccount">Loading the customer account…</p>
 
+          <!-- Opens the OTHER TAB of this panel, not another page. The record stays where the
+               admin is looking. -->
           <button type="button" class="action-btn small ghost inline cc-account-link"
                   (click)="openLinkedAccount(c)">
             Open the full customer record →
@@ -304,6 +349,18 @@
     </div>
   </ng-container>
 </aside>
+
+<!-- THE CUSTOMER HALF — the Users panel itself, in its panel-only mode. Every tab it has on the
+     Customers list (Details, Notes, Cleaning History, Photos, Invoices) and every action it
+     allows, under the same permission gates, because it IS that panel. Mounted only while its tab
+     is the one on screen, so an admin who never asks for it never pays for the load. -->
+<app-user-management *ngIf="showsCustomerPanel"
+                     [embeddedUserId]="linkedUserId"
+                     (closed)="closeDetailPanel()">
+  <div panel-tabs>
+    <ng-container *ngTemplateOutlet="clientPanelTabs"></ng-container>
+  </div>
+</app-user-management>
 
 <!-- ── Delete confirmation ────────────────────────────────────────────────────────────────
      The linked wording is the important half: staff have to know the customer loses their

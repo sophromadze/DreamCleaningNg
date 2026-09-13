@@ -8,6 +8,7 @@ import { InvoiceService, InvoiceClientOption } from '../../../../services/invoic
 import { ContractService } from '../../../../services/contract.service';
 import { AdminService, UserProfile } from '../../../../services/admin.service';
 import { CommercialClientModalComponent } from '../../../../shared/components/commercial-client-modal/commercial-client-modal.component';
+import { UserManagementComponent } from '../../user-management/user-management.component';
 import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
 import { getAdminAvatarColor, getAdminAvatarInitials } from '../../../../shared/admin/admin-avatar.utils';
 
@@ -50,7 +51,9 @@ import { getAdminAvatarColor, getAdminAvatarInitials } from '../../../../shared/
 @Component({
   selector: 'app-commercial-clients',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, CommercialClientModalComponent],
+  imports: [
+    CommonModule, FormsModule, RouterLink, CommercialClientModalComponent, UserManagementComponent
+  ],
   templateUrl: './commercial-clients.component.html',
   styleUrls: [
     '../../user-management/user-management.component.scss',
@@ -114,6 +117,42 @@ export class CommercialClientsComponent implements OnInit {
   linkedAccount: UserProfile | null = null;
   loadingLinkedAccount = false;
   private linkedAccountUserId: number | null = null;
+
+  /**
+   * WHICH HALF OF THE CLIENT the panel is showing — the commercial record, or the customer one.
+   *
+   * A business client is one customer filed in two tables, so the panel offers both rather than
+   * sending an admin to the Customers tab for the second: that tab deliberately HIDES exactly
+   * these accounts (they are the ones this list is showing), so the trip was to a list the record
+   * is not in, to read a panel that opened over it.
+   *
+   * The customer half is the real Users panel, mounted in its panel-only mode — see
+   * `UserManagementComponent.embeddedUserId`. Not a summary of it: an admin reading a customer
+   * wants the notes, the cleaning history and the flags, and a second view of those would be a
+   * second view to keep in step.
+   */
+  panelTab: 'business' | 'customer' = 'business';
+
+  /** The account behind the open client, or null when the client is standalone. */
+  get linkedUserId(): number | null {
+    return this.selectedClient?.sourceUserId ?? null;
+  }
+
+  /**
+   * True while the customer half is the one on screen. The two panels are SIBLINGS occupying the
+   * same slot, never nested: `.detail-panel` is a transformed, overflow-hidden box, which would
+   * become the containing block for the customer panel's fixed-position photo lightbox and
+   * recreate-order modal and then clip them out of existence.
+   */
+  get showsCustomerPanel(): boolean {
+    return this.selectedClientId !== null
+      && this.panelTab === 'customer'
+      && this.linkedUserId !== null;
+  }
+
+  setPanelTab(tab: 'business' | 'customer'): void {
+    this.panelTab = tab;
+  }
 
   ngOnInit(): void {
     this.adminService.getUserPermissions().subscribe({
@@ -179,6 +218,9 @@ export class CommercialClientsComponent implements OnInit {
       return;
     }
     this.selectedClientId = client.id;
+    // Every client opens on its commercial record. The customer half is a deliberate second look,
+    // not a mode the panel remembers from whoever was open before.
+    this.panelTab = 'business';
     this.syncLinkedAccount();
   }
 
@@ -186,6 +228,7 @@ export class CommercialClientsComponent implements OnInit {
     this.selectedClientId = null;
     this.linkedAccount = null;
     this.linkedAccountUserId = null;
+    this.panelTab = 'business';
   }
 
   /**
@@ -247,12 +290,17 @@ export class CommercialClientsComponent implements OnInit {
       });
   }
 
-  /** Opens this client's customer account on the Customers tab. */
+  /**
+   * Opens this client's customer record — in place, as the panel's other tab.
+   *
+   * It used to navigate to `/admin?userId=…&usersTab=customers`, which was wrong twice over: the
+   * router reuses the admin panel when it is already the open route, so from Users → Business
+   * Clients the link changed the URL and nothing else; and the Customers tab hides exactly these
+   * accounts, so even when it worked it landed on a list the record was not in.
+   */
   openLinkedAccount(client: InvoiceClientOption): void {
     if (client.sourceUserId == null) return;
-    this.router.navigate(['/admin'], {
-      queryParams: { userId: client.sourceUserId, usersTab: 'customers' }
-    });
+    this.setPanelTab('customer');
   }
 
   isLinked(client: InvoiceClientOption): boolean {

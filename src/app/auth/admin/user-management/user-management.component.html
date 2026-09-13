@@ -1,4 +1,8 @@
-<div class="user-management-section" [class.detail-open]="viewingUserId !== null">
+<!-- The list, and everything that drives it. Panel-only mode (see `embeddedUserId`) draws none of
+     it: the host has its own list, and this instance is there for the detail panel alone. -->
+<div class="user-management-section"
+     *ngIf="!isEmbedded"
+     [class.detail-open]="viewingUserId !== null">
   <div class="section-header">
     <div class="header-left">
       <h2>User Management</h2>
@@ -209,11 +213,27 @@
 </div>
 
 <!-- ──────────────  SLIDE-IN DETAIL PANEL  ────────────── -->
+<!-- The click-away overlay belongs to whoever owns the panel's place on screen. In panel-only
+     mode that is the host, which already has one up for its own panel — a second would sit on
+     top of the first and swallow the click. -->
 <div class="detail-overlay"
-     *ngIf="viewingUserId !== null"
-     (click)="closeDetailPanel()"></div>
+     *ngIf="viewingUserId !== null && !isEmbedded"
+     (click)="dismissDetailPanel()"></div>
 
-<aside class="detail-panel" [class.open]="viewingUserId !== null">
+<!-- Held open from the first frame when embedded: the host has just swapped its own panel out for
+     this one, and waiting on the list load would blank the slot they were both standing in. -->
+<aside class="detail-panel" [class.open]="viewingUserId !== null || isEmbedded">
+  <!-- A host's own tab strip, above this panel's header — how Business Clients puts "Business
+       client / Customer account" over the record without a second copy of the record. Outside the
+       *ngIf below on purpose, so the strip is there to switch back with while the account loads. -->
+  <ng-content select="[panel-tabs]"></ng-content>
+
+  <!-- The list's own error slot lives inside the section, which panel-only mode does not draw —
+       so a load that fails here would otherwise sit on "Loading…" with the reason off screen. -->
+  <div *ngIf="isEmbedded && !selectedUser" class="detail-loading">
+    {{ errorMessage || 'Loading customer record…' }}
+  </div>
+
   <ng-container *ngIf="selectedUser">
     <!-- Header -->
     <div class="detail-header">
@@ -250,7 +270,7 @@
       <div class="detail-header__actions">
         <div class="actions-row">
           <button class="action-btn small" *ngIf="canEditUserDetails(selectedUser) && !editingUser" (click)="startEditUser()">Edit</button>
-          <button class="action-btn small ghost" (click)="closeDetailPanel()" aria-label="Close">✕</button>
+          <button class="action-btn small ghost" (click)="dismissDetailPanel()" aria-label="Close">✕</button>
         </div>
         <button class="action-btn small"
                 *ngIf="canEditUserDetails(selectedUser) && !editingUser && selectedUser.role === 'Customer'"

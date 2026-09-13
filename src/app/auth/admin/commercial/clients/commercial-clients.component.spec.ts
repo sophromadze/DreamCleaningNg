@@ -272,6 +272,63 @@ describe('CommercialClientsComponent', () => {
       expect(component.linkedAccount).toBeNull();
     });
 
+    /**
+     * TWO HALVES, TWO TABS, ONE PANEL.
+     *
+     * "Open the full customer record" used to navigate to /admin?userId=…&usersTab=customers,
+     * which was wrong twice over: the router reuses the admin panel when it is already the open
+     * route, so from Users → Business Clients the link changed the URL and nothing else; and the
+     * Customers tab hides exactly these accounts, so even when it worked it landed on a list the
+     * record is not in.
+     */
+    describe('the panel opens the customer record in place', () => {
+      it('switches to the customer tab instead of navigating away', () => {
+        const router = TestBed.inject(Router);
+        const navigate = spyOn(router, 'navigate');
+        start();
+        component.openClientDetails(LINKED);
+
+        component.openLinkedAccount(LINKED);
+
+        expect(component.panelTab).toBe('customer');
+        expect(component.showsCustomerPanel).toBeTrue();
+        expect(navigate).not.toHaveBeenCalled();
+      });
+
+      it('has no customer half to show for a standalone client', () => {
+        start();
+        component.openClientDetails(STANDALONE);
+
+        component.setPanelTab('customer');
+
+        // The tab is still offered — it is where somebody looks for the answer — but there is no
+        // account to mount, so the commercial panel stays up and says so.
+        expect(component.linkedUserId).toBeNull();
+        expect(component.showsCustomerPanel).toBeFalse();
+      });
+
+      it('opens every client on its commercial record', () => {
+        start();
+        component.openClientDetails(LINKED);
+        component.setPanelTab('customer');
+
+        component.openClientDetails(STANDALONE);
+
+        expect(component.panelTab).toBe('business');
+      });
+
+      it('goes back to the commercial record when the panel is closed', () => {
+        start();
+        component.openClientDetails(LINKED);
+        component.setPanelTab('customer');
+
+        component.closeDetailPanel();
+
+        expect(component.panelTab).toBe('business');
+        expect(component.showsCustomerPanel).toBeFalse();
+      });
+    });
+
     it('drops the account when the panel closes, so it cannot bleed onto the next client', () => {
       start();
       component.openClientDetails(LINKED);

@@ -1,4 +1,7 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input } from '@angular/core';
+import {
+  Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input, Output,
+  EventEmitter
+} from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -67,6 +70,34 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
    * never widen what the filter narrowed.
    */
   @Input() scope: 'customers' | 'staff' = 'customers';
+
+  /**
+   * PANEL-ONLY MODE: render just this one account's detail panel, with no list around it.
+   *
+   * Business Clients opens the customer behind a linked client in place, as a second tab of its
+   * own panel, rather than sending the admin to the Customers tab to read the other half of a
+   * customer they already have open. What it shows there has to be the REAL record — every tab,
+   * every action, the same permission gates — so this mounts the component itself rather than
+   * lifting the panel's 850 lines of markup into a shared child.
+   *
+   * Extracting it was the other option and is the wrong trade here: the panel's styles live in
+   * this component's stylesheet, which Cleaners and Business Clients both list FIRST in their own
+   * styleUrls to get the shell, the table and the slide-in panel. Moving those rules into a child
+   * would take them away from two other panels that render the same classes in their own
+   * templates — so extraction buys a second stylesheet or a copy of one, and this buys neither.
+   *
+   * Everything below is untouched by it: the same handlers, the same loads, the same guards. The
+   * mode only decides what is DRAWN — the list, the filters, the header and the click-away
+   * overlay all belong to the host in this mode, not to us.
+   */
+  @Input() embeddedUserId: number | null = null;
+
+  /** Closed from inside the panel (its ✕), so an embedding host can drop it. */
+  @Output() closed = new EventEmitter<void>();
+
+  get isEmbedded(): boolean {
+    return this.embeddedUserId !== null;
+  }
 
   /** The roles that count as STAFF. SuperAdmin / Admin / Moderator — never a customer. */
   private static readonly STAFF_ROLES = ['superadmin', 'admin', 'moderator'];
@@ -219,6 +250,11 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   ) {}
 
   ngOnInit() {
+    // Panel-only mode opens straight onto its account, through the SAME path the ?userId= deep
+    // link uses — so the panel is filled by exactly the code that fills it on the Users tab, and
+    // there is no second way for a record to arrive in it.
+    if (this.embeddedUserId !== null) this.openUserId = this.embeddedUserId;
+
     this.loadUserPermissions();
     this.loadUsers();
     // Both controls below are authorized by rules the role hierarchy does not express, so the
@@ -232,6 +268,10 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private initializeStickyHeader() {
+    // No table in panel-only mode — without this the retry loop below ticks through all of its
+    // attempts on every load, waiting for an element that is never going to be drawn.
+    if (this.isEmbedded) return;
+
     if (!this.tableWrapper || !this.tableHeader) {
       if (this.initializationRetries < this.maxRetries) {
         this.initializationRetries++;
@@ -676,6 +716,16 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.setDetailTab(tab);
   }
 
+  /**
+   * The ✕ and the click-away overlay — a person closing the panel, as opposed to the panel being
+   * emptied by a reload. `loadUsers` calls `closeDetailPanel` on every refresh, so the two cannot
+   * share a handler: an embedding host would be told to unmount on the component's first load.
+   */
+  dismissDetailPanel(): void {
+    this.closeDetailPanel();
+    this.closed.emit();
+  }
+
   closeDetailPanel(): void {
     this.viewingUserId = null;
     this.selectedUser = null;
@@ -706,7 +756,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       return;
     }
     if (this.viewingUserId !== null) {
-      this.closeDetailPanel();
+      this.dismissDetailPanel();
     }
   }
 
