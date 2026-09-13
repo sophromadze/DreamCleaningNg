@@ -1,14 +1,22 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Router } from '@angular/router';
 
 import { InvoiceFormComponent } from './invoice-form.component';
+import { InvoiceEligibleOrder, InvoiceTaxType, InvoiceStatus } from '../../../../services/invoice.service';
 import { ContractClient } from '../../../../services/contract.service';
 import { environment } from '../../../../../environments/environment';
 
 const CLIENTS_URL = `${environment.apiUrl}/admin/commercial/invoices/clients`;
 const SETTINGS_URL = `${environment.apiUrl}/admin/commercial/billing-settings`;
+
+/**
+ * The commercial billing DEFAULTS — the tax mode, rate and terms a new invoice starts from, and
+ * the same row the contract form reads. A narrower endpoint than the settings above, because this
+ * form needs those five values and never displays the company's bank account.
+ */
+const DEFAULTS_URL = `${environment.apiUrl}/admin/commercial/billing-settings/defaults`;
 const PERMISSIONS_URL = `${environment.apiUrl}/admin/permissions`;
 
 /**
@@ -75,16 +83,132 @@ describe('InvoiceFormComponent', () => {
 
     httpMock.expectOne(PERMISSIONS_URL).flush({ role: 'Admin', permissions: { canCreate: true } });
     httpMock.expectOne(CLIENTS_URL).flush([CLIENT_A]);
+
+    // Tax-inclusive at 8.875%, from the ONE saved source of commercial billing defaults.
+    httpMock.expectOne(DEFAULTS_URL).flush({
+      defaultTaxType: 1, defaultTaxRate: 8.875, defaultContractPriceMode: 0, defaultDueTerms: 2,
+      achCustomerFeeEnabled: true, achCustomerFeeRatePercent: 0.8, achCustomerFeeCapAmount: 5
+    });
+
+    // The customer note still comes from the full settings read; nothing else here does.
     httpMock.expectOne(SETTINGS_URL).flush({
       companyLegalName: 'Dream Cleaning NYC',
-      defaultTaxType: 0, defaultDueTerms: 1, defaultCustomerNote: 'Thank you.'
+      defaultTaxType: 1, defaultDueTerms: 2, defaultCustomerNote: 'Thank you.'
     });
   });
 
-  afterEach(() => httpMock.verify());
+  /**
+   * Picking a client also loads the CLEANINGS that client has, for the "which visits does this
+   * invoice cover?" picker. It is optional information — an invoice can perfectly well be raised
+   * without linking any cleaning, and the component treats a failure as non-fatal — so these
+   * tests, which are about the client dropdown, drain it rather than asserting on it.
+   */
+  function drainEligibleOrderRequests(): void {
+    for (const request of httpMock.match(r => r.url.includes('/eligible-orders/'))) {
+      request.flush({ contractClientId: 0, orders: [] });
+    }
+  }
+
+  afterEach(() => {
+    drainEligibleOrderRequests();
+    httpMock.verify();
+  });
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  const PREVIEW_URL = `${environment.apiUrl}/admin/commercial/invoices/orders/preview`;
+  function linkedRows(prices = [925.43, 925.43, 925.43]): InvoiceEligibleOrder[] {
+    return ['2026-09-13', '2026-09-27', '2026-10-04'].map((date, i) => ({
+      orderId: i + 1, serviceDate: date, serviceTime: '09:00:00', serviceTypeName: 'Commercial cleaning',
+      serviceAddress: 'Test address', status: 'Pending', total: prices[i], contactName: 'Test',
+      isOnThisInvoice: false, canSelect: true
+    }));
+  }
+  function previewResponse(rows: InvoiceEligibleOrder[], amounts = rows.map(o => o.total)) {
+    return { invoiceId: 0, invoiceNumber: '', defaultTotal: rows.reduce((s, o) => s + o.total, 0),
+      invoiceTotal: amounts.reduce((s, n) => s + n, 0), warnings: [],
+      serviceDates: rows.map(o => o.serviceDate),
+      items: rows.map((o, i) => ({ description: `Commercial cleaning - ${o.serviceDate}`, quantity: 1, unitPrice: amounts[i], sortOrder: i })),
+      allocations: rows.map((o, i) => ({ orderId: o.orderId, serviceDate: o.serviceDate, description: 'Cleaning',
+        originalOrderTotal: o.total, allocatedAmount: amounts[i], isProposal: true, orderStatus: o.status })) };
+  }
+  function prepareLinkedDraft(prices?: number[]): void {
+    component.clientId = 7;
+    component.eligibleOrders = linkedRows(prices);
+    component.lines = [{ description: 'Cloned old single line', quantity: 1, unitPrice: 925.43 }];
+    component.serviceDates = ['2026-09-13']; component.serviceStartDate = '2026-09-13'; component.serviceEndDate = '2026-09-13';
+    component.taxType = InvoiceTaxType.Included; component.taxRate = 8.875;
+  }
+
+  it('derives all selected lines and dates immediately on an unsaved cloned draft', async () => {
+    prepareLinkedDraft(); component.selectAllEligible();
+    expect(component.lines.length).toBe(3); expect(component.totals.total).toBe(2776.29);
+    expect(component.serviceDates).toEqual(['2026-09-13', '2026-09-27', '2026-10-04']);
+    expect(component.serviceStartDate).toBe('2026-09-13'); expect(component.serviceEndDate).toBe('2026-10-04');
+    const request = httpMock.expectOne(PREVIEW_URL);
+    expect(request.request.body.orderIds).toEqual([1, 2, 3]);
+    request.flush(previewResponse(component.eligibleOrders)); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    expect(component.totals.preTaxTotal).toBe(2549.98); expect(component.totals.taxAmount).toBe(226.31);
+    expect(component.balanceDue).toBe(2776.29);
+    expect(fixture.nativeElement.querySelector('.service-dates')).toBeNull();
+    expect(fixture.nativeElement.querySelector('#serviceStart').disabled).toBeTrue();
+    expect(fixture.nativeElement.querySelector('#serviceEnd').disabled).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.totals').textContent).toContain('$2,549.98');
+    component.toggleOrder(component.eligibleOrders[2]);
+    expect(component.serviceEndDate).toBe('2026-09-27'); expect(component.totals.total).toBe(1850.86);
+    httpMock.expectOne(PREVIEW_URL).flush(previewResponse(component.eligibleOrders.slice(0, 2)));
+    component.clearOrderSelection(); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.service-dates')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('#serviceStart').disabled).toBeFalse();
+    expect(component.lines[0].description).toBe('Cloned old single line');
+    expect(component.serviceDates).toEqual(['2026-09-13']);
+  });
+
+  it('sums unequal current prices and lets the server allocate an agreed total before first save', () => {
+    prepareLinkedDraft([900, 950, 1000]); component.selectAllEligible();
+    expect(component.totals.total).toBe(2850);
+    httpMock.expectOne(PREVIEW_URL).flush(previewResponse(component.eligibleOrders));
+    component.negotiatingTotal = true; component.negotiatedGroupTotal = 2500; component.previewAllocation();
+    const request = httpMock.expectOne(PREVIEW_URL); expect(request.request.body.negotiatedGroupTotal).toBe(2500);
+    request.flush(previewResponse(component.eligibleOrders, [833.34, 833.33, 833.33]));
+    expect(component.totals.total).toBe(2500); expect(component.balanceDue).toBe(2500);
+    component.cancelNegotiatedTotal();
+    httpMock.expectOne(PREVIEW_URL).flush(previewResponse(component.eligibleOrders));
+    expect(component.totals.total).toBe(2850);
+  });
+
+  it('ignores an older preview after the selected dates have changed', () => {
+    prepareLinkedDraft(); component.selectAllEligible(); const old = httpMock.expectOne(PREVIEW_URL);
+    component.toggleOrder(component.eligibleOrders[2]); const fresh = httpMock.expectOne(PREVIEW_URL);
+    fresh.flush(previewResponse(component.eligibleOrders.slice(0, 2)));
+    old.flush(previewResponse(component.eligibleOrders));
+    expect(component.lines.length).toBe(2); expect(component.totals.total).toBe(1850.86);
+    expect(component.serviceEndDate).toBe('2026-09-27');
+  });
+
+  it('saves the selection and invoice together without a second mutating selection request', () => {
+    prepareLinkedDraft(); component.selectAllEligible();
+    httpMock.expectOne(PREVIEW_URL).flush(previewResponse(component.eligibleOrders));
+    spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
+    component.saveDraft();
+    const request = httpMock.expectOne(`${environment.apiUrl}/admin/commercial/invoices`);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body.orderIds).toEqual([1, 2, 3]);
+    expect(request.request.body.items.length).toBe(3);
+    expect(request.request.body.serviceEndDate).toBe('2026-10-04');
+    request.flush({ id: 12 });
+    httpMock.expectNone(`${environment.apiUrl}/admin/commercial/invoices/12/orders`);
+    expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith(['/admin/commercial/invoices', 12]);
+  });
+
+  it('keeps finalized snapshots intact even when their underlying order prices differ', () => {
+    prepareLinkedDraft(); component.selectedOrderIds = [1, 2, 3];
+    component.existing = { status: InvoiceStatus.Sent } as any;
+    component.previewAllocation(); component.toggleOrder(component.eligibleOrders[2]);
+    httpMock.expectNone(PREVIEW_URL);
+    expect(component.lines.length).toBe(1); expect(component.selectedOrderIds).toEqual([1, 2, 3]);
   });
 
   describe('a client created from this page is usable immediately', () => {

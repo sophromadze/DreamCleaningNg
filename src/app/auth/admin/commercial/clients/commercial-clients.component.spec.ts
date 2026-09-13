@@ -80,7 +80,20 @@ describe('CommercialClientsComponent', () => {
     httpMock = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => httpMock.verify());
+  /**
+   * Opening a LINKED client's panel also loads the customer account behind it, so the panel can
+   * show both halves of a business client in one place. Drained here rather than in each test: it
+   * is incidental to almost everything these specs assert, and the combined-panel behaviour has
+   * its own block below.
+   */
+  const drainLinkedAccount = () =>
+    httpMock.match(r => r.url.includes('/users/55/details'))
+      .forEach(r => r.flush({ id: 55, firstName: 'Casey', lastName: 'Client', isActive: true }));
+
+  afterEach(() => {
+    drainLinkedAccount();
+    httpMock.verify();
+  });
 
   it('should create', () => {
     start();
@@ -180,7 +193,7 @@ describe('CommercialClientsComponent', () => {
       component.onClientSaved(7);
       httpMock.expectOne(CLIENTS_URL).flush([LINKED, STANDALONE]);
 
-      expect(component.expandedId).toBe(7);
+      expect(component.selectedClientId).toBe(7);
     });
 
     it('clears the search after a creation so the new client cannot be hidden', () => {
@@ -191,7 +204,141 @@ describe('CommercialClientsComponent', () => {
       httpMock.expectOne(CLIENTS_URL).flush([LINKED, STANDALONE]);
 
       expect(component.search).toBe('');
-      expect(component.expandedId).toBe(91);
+      expect(component.selectedClientId).toBe(91);
+    });
+  });
+
+  describe('right-side detail panel', () => {
+    it('opens the selected client on the right when a row is clicked', () => {
+      start();
+
+      component.openClientDetails(LINKED);
+
+      expect(component.selectedClientId).toBe(7);
+      expect(component.selectedClient).toBe(LINKED);
+    });
+
+    it('closes when the same row is clicked again', () => {
+      start();
+      component.openClientDetails(LINKED);
+
+      component.openClientDetails(LINKED);
+
+      expect(component.selectedClientId).toBeNull();
+    });
+  });
+
+  /**
+   * ONE PANEL, BOTH HALVES (2026-09).
+   *
+   * A business client is a commercial entity AND a customer account, and staff think of them as
+   * one customer. Which of our tables the record lives in is our filing problem, not theirs — so
+   * opening either side shows the other, rather than sending somebody to a different tab to read
+   * the rest of the same customer.
+   */
+  describe('the customer account behind a linked client', () => {
+    const ACCOUNT_URL = `${environment.apiUrl}/admin/users/55/details`;
+
+    it('loads the account when a linked client is opened', () => {
+      start();
+
+      component.openClientDetails(LINKED);
+      httpMock.expectOne(ACCOUNT_URL).flush({
+        id: 55, firstName: 'Casey', lastName: 'Client', phone: '7185550100',
+        isActive: true, totalOrders: 12, totalSpent: 4820.5
+      });
+
+      expect(component.linkedAccount?.id).toBe(55);
+      expect(component.linkedAccount?.totalOrders).toBe(12);
+    });
+
+    it('asks for nothing on a standalone client — there is no account to ask about', () => {
+      start();
+
+      component.openClientDetails(STANDALONE);
+
+      httpMock.expectNone(r => r.url.includes('/details'));
+      expect(component.linkedAccount).toBeNull();
+    });
+
+    it('drops the account when the panel closes, so it cannot bleed onto the next client', () => {
+      start();
+      component.openClientDetails(LINKED);
+      httpMock.expectOne(ACCOUNT_URL).flush({ id: 55, firstName: 'Casey', lastName: 'Client' });
+
+      component.closeDetailPanel();
+
+      expect(component.linkedAccount).toBeNull();
+    });
+  });
+
+  /**
+   * The ?clientId= deep link — how the Orders panel's "View User" lands on the COMMERCIAL record
+   * for an invoice-billed cleaning instead of on the customer list.
+   */
+  describe('opening a client from a link', () => {
+    it('expands the client the link named', () => {
+      component.openClientId = 7;
+      start();
+
+      expect(component.selectedClientId).toBe(7);
+    });
+
+    it('does not drag the panel back on a later reload', () => {
+      // The URL describes the arrival, not the session: an admin who has since opened a different
+      // client must not be yanked back to this one by a refresh or a filter change.
+      component.openClientId = 7;
+      start();
+      drainLinkedAccount();
+
+      component.openClientDetails(STANDALONE);
+      component.load();
+      httpMock.expectOne(CLIENTS_URL).flush([LINKED, STANDALONE]);
+
+      expect(component.selectedClientId).toBe(91);
+    });
+  });
+
+  /**
+   * ONE REQUEST, TWO ACTS. Deactivating a linked client is what takes the business designation off
+   * the customer's account — which is the thing an admin usually means, so it is offered in those
+   * words. A standalone client has no account to go back to and keeps the Delete wording.
+   */
+  describe('moving a linked client back to Customers', () => {
+    const panelButtons = () =>
+      Array.from(fixture.nativeElement.querySelectorAll('.detail-panel .action-btn'))
+        .map((b: any) => (b.textContent || '').trim());
+
+    it('offers "Move to Customers" on a linked client, and not a delete', () => {
+      start();
+
+      component.openClientDetails(LINKED);
+      fixture.detectChanges();
+
+      expect(panelButtons()).toContain('Move to Customers');
+      expect(panelButtons()).not.toContain('Delete');
+    });
+
+    it('still says Delete for a standalone client', () => {
+      start();
+
+      component.openClientDetails(STANDALONE);
+      fixture.detectChanges();
+
+      expect(panelButtons()).toContain('Delete');
+      expect(panelButtons()).not.toContain('Move to Customers');
+    });
+
+    it('tells the admin the account becomes an ordinary customer before it happens', () => {
+      start();
+      component.askDelete(LINKED);
+      fixture.detectChanges();
+
+      const confirm = fixture.nativeElement.querySelector('.cc-confirm').textContent;
+      expect(confirm).toContain('Move Chick Tastic LLC back to Customers?');
+      expect(confirm).toContain('Casey Client');
+      // The account survives — that is the whole reason this is not worded as a deletion.
+      expect(confirm).toContain('ordinary customer');
     });
   });
 

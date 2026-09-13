@@ -77,12 +77,12 @@
       &:hover:not(:disabled) { background: var(--btn-primary-hover); }
     }
 
-    &.btn-secondary {
-      background: var(--btn-secondary);
+    &.btn-brand {
+      background: var(--btn-brand);
       color: white;
-      box-shadow: var(--btn-secondary-shadow);
+      box-shadow: var(--btn-brand-shadow);
 
-      &:hover:not(:disabled) { background: var(--btn-secondary-hover); }
+      &:hover:not(:disabled) { background: var(--btn-brand-hover); }
     }
 
     &.btn-ghost {

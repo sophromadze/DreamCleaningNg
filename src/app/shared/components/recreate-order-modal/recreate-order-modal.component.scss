@@ -103,6 +103,9 @@
   margin: 0.5rem 0 0;
   font-size: 0.8rem;
   color: var(--text-muted);
+
+  /* A note the admin has to act on rather than merely read — paired token, never a lone hex. */
+  &--warn { color: var(--warning-orange-text); }
 }
 
 .rom-muted { color: var(--text-muted); }

@@ -77,13 +77,23 @@
     align-self: flex-start;
   }
 
+  // THE TRADING NAME IS THE PRIMARY IDENTITY on this page: bold, brand blue, and larger than
+  // everything under it. The registered entity sits below in secondary type. The customer booked
+  // Dream Cleaning NYC and will look for it on a bank statement; the corporate name is the legal
+  // footnote, and leading with it made the invoice read as though it came from a stranger.
   .company-name {
-    font-size: 1.05rem;
-    font-weight: var(--fw-semibold);
+    font-size: 1.15rem;
+    font-weight: var(--fw-bold);
     color: var(--primary-color);
+    line-height: 1.25;
   }
 
-  .company-dba,
+  .company-dba {
+    font-size: 0.86rem;
+    color: var(--text-secondary, var(--text-muted));
+    margin-bottom: 0.15rem;
+  }
+
   .company-line {
     font-size: 0.81rem;
     color: var(--text-muted);
@@ -417,26 +427,81 @@
   overflow: hidden;
 }
 
+// A real second payment method, laid out like the Stripe block above it: icon, title, one line of
+// explanation, and a small neutral badge. It used to be a bare text toggle with a loose green
+// sentence underneath, which read as leftover chrome rather than a way to pay.
 .manual-toggle {
   width: 100%;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  align-items: flex-start;
   gap: 12px;
-  padding: 13px 15px;
+  padding: 14px 15px;
   background: transparent;
   border: none;
   cursor: pointer;
   font-family: inherit;
-  font-size: 0.92rem;
-  font-weight: var(--fw-medium);
   color: var(--text-primary);
   text-align: left;
-  min-height: 46px;
 
   &:hover { background: var(--surface-subtle); }
 
-  .manual-chevron { color: var(--text-muted); font-size: 0.8rem; }
+  &:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: -2px;
+  }
+
+  .manual-icon {
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    background: var(--soft-blue);
+    color: var(--primary-color);
+  }
+
+  .manual-copy {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .manual-title {
+    font-size: 0.95rem;
+    font-weight: var(--fw-semibold);
+  }
+
+  .manual-sub {
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    line-height: 1.4;
+  }
+
+  .manual-chevron {
+    flex: 0 0 auto;
+    align-self: center;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+  }
+}
+
+// A chip, not a sentence. Neutral-positive so it reads as reassurance rather than a success state,
+// and it says only what is true: DREAM CLEANING adds no fee. The customer's own bank might.
+.manual-badge {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--mint-fresh);
+  color: var(--mint-fresh-text, var(--fresh-green));
+  border: 1px solid var(--mint-fresh-border);
+  font-size: 0.72rem;
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.01em;
+  line-height: 1.5;
 }
 
 .manual-body {
@@ -626,4 +691,115 @@
     flex-direction: column;
     button { width: 100%; }
   }
+}
+
+// ── The ACH processing fee, disclosed before the customer commits ────────────
+//
+// Sits directly under the "Pay from Bank" button and again in the confirmation panel. The whole
+// point is that the extra amount is never a surprise: a customer who discovers a $5.00 difference
+// on their bank statement has been treated badly, whatever the fee is for.
+.fee-summary {
+  margin-top: 0.75rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  font-size: 0.85rem;
+}
+
+.fee-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.2rem 0;
+  color: var(--text-secondary, var(--text-muted));
+
+  &.fee-total {
+    margin-top: 0.35rem;
+    padding-top: 0.45rem;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-weight: 700;
+  }
+}
+
+// The confirmation shown after pressing the button and before Stripe takes over.
+.pay-confirm {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface);
+
+  h3 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    color: var(--text-primary);
+  }
+
+  .pay-caption {
+    display: block;
+    margin-top: 0.75rem;
+  }
+}
+
+.pay-confirm-actions {
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 1rem;
+
+  > * { flex: 1; }
+}
+
+// Cancel, beside "Continue to Stripe". Neutral secondary — NEVER the green/success treatment, and
+// never a bare native button: backing out of a payment is not an achievement, and it must read as
+// the quieter of the two actions while still being obviously a button. Same height, radius and
+// padding as .btn-pay so the pair sits on one line without one looking half-drawn.
+.btn-pay-cancel {
+  width: 100%;
+  background: var(--surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 16px 24px;
+  font-family: inherit;
+  font-size: 1.02rem;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  min-height: 54px;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--surface-subtle);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+  }
+
+  &:active:not(:disabled) { background: var(--surface-subtle); }
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+// The same three-line breakdown as the pre-checkout summary, repeated inside the amber processing
+// panel: the customer's bank statement will show ONE debit, and this is the page that has to
+// explain why it is larger than the invoice.
+.processing-breakdown {
+  margin-top: 0.75rem;
+  margin-bottom: 0.25rem;
+  background: var(--surface);
+  border-color: var(--warning-orange-border, var(--border-color));
+
+  .fee-row { color: var(--text-secondary); }
+  .fee-row.fee-total { color: var(--text-primary); }
+}
+
+// "(included)" beside a tax amount that is already inside the total.
+.tax-note {
+  color: var(--text-muted);
+  font-size: 0.72rem;
 }

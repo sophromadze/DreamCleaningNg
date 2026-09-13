@@ -40,14 +40,14 @@
   padding: 10px 18px;
   border: none;
   border-radius: var(--radius-md);
-  background: var(--btn-secondary);
+  background: var(--btn-brand);
   color: #fff;
   font-weight: var(--fw-semibold);
   cursor: pointer;
   transition: background 0.15s ease;
 
   &:hover:not(:disabled) {
-    background: var(--btn-secondary-hover);
+    background: var(--btn-brand-hover);
   }
 
   &:disabled {

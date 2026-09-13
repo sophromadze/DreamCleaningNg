@@ -363,3 +363,218 @@
   color: var(--text-secondary);
   &:hover:not(:disabled) { background: var(--surface-subtle); }
 }
+
+// ── Service dates covered ────────────────────────────────────────────────────
+// The individual cleanings an invoice bills for. Chips rather than a list of date inputs: four
+// Wednesdays are read at a glance, and removing one is a single click.
+.service-dates {
+  margin-top: 1rem;
+}
+
+.service-dates-label {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.date-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  list-style: none;
+}
+
+.date-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--soft-blue);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+
+.chip-remove {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover { color: var(--bright-red); }
+}
+
+.date-add {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  input { max-width: 12rem; }
+}
+
+// A mismatch the admin should see but is allowed to overrule — a warning, never a block.
+.warn {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: var(--warning-orange-bg);
+  color: var(--warning-orange-text);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+// ── A protected value with an Edit control ──
+// Used for the sales tax rate, matching the contract form: the same figure on every commercial
+// document, so confirming it is the common case and typing it is the exception.
+.locked-field {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+}
+
+.locked-value {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--primary-color);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover { text-decoration: underline; }
+}
+
+// "(included)" beside a tax amount that is already inside the total.
+.muted-inline {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+}
+
+/* ── Which cleanings this invoice covers ─────────────────────────────────────────────────── */
+
+.draft-warning {
+  /* Stacked one per warning rather than joined into a paragraph: price drift and tax drift are
+     two separate things to check, and running them together invites reading one and acting on
+     neither. */
+  margin-bottom: 8px;
+}
+
+.covered-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.covered-row {
+  display: grid;
+  grid-template-columns: auto 8rem 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.88rem;
+  cursor: pointer;
+
+  &:last-child { border-bottom: none; }
+
+  /* A cleaning that cannot be billed is dimmed but still LISTED, with its reason beside it —
+     one that vanished from the picker is the thing an admin cannot debug. */
+  &--blocked {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
+
+  @media (max-width: 640px) {
+    grid-template-columns: auto 1fr;
+    row-gap: 2px;
+  }
+}
+
+.covered-date { font-weight: var(--fw-medium); color: var(--text-primary); }
+.covered-type { color: var(--text-secondary); }
+.covered-total { color: var(--text-primary); text-align: right; }
+
+.covered-blocked {
+  grid-column: 1 / -1;
+  font-size: 0.78rem;
+  color: var(--warning-orange-text);
+}
+
+.negotiated {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+}
+
+.negotiated-default {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.negotiated-edit {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.allocation {
+  margin-top: 10px;
+  background: var(--surface-elevated);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.allocation-head {
+  margin: 0 0 6px;
+  font-size: 0.8rem;
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.allocation-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 0.86rem;
+  color: var(--text-primary);
+}
+
+/* The price the cleaning carried BEFORE the agreed total — the auditable half of the override,
+   shown so an admin can see what is about to move rather than only what it moves to. */
+.allocation-was {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.items-table--readonly .items-row--readonly {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  color: var(--text-primary);
+}

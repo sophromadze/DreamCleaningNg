@@ -32,6 +32,7 @@
             <th>Signatures</th>
             <th class="num">Per visit</th>
             <th>Created</th>
+            <th class="actions-col">Billing</th>
           </tr>
         </thead>
         <tbody>
@@ -50,6 +51,26 @@
             <td class="secondary">
               {{ row.createdAt | date: 'mediumDate' }}
               <div class="sub" *ngIf="row.createdByAdminName">{{ row.createdByAdminName }}</div>
+            </td>
+
+            <!--
+              BILLING THE CONTRACT IS A LIST ACTION, not something to go looking for.
+
+              It produces a DRAFT and emails nobody — the admin lands on the draft's edit form and
+              reviews the dates and figures before pressing Send. It is offered on every contract
+              past Draft whether or not one has ever been invoiced before: the FIRST invoice on a
+              new agreement is the one an admin most needs this for.
+
+              (click)$event.stopPropagation() because the whole row opens the detail view.
+            -->
+            <td class="actions-col" (click)="$event.stopPropagation()">
+              <button type="button" class="btn-row-action"
+                      *ngIf="canCreateNextInvoice(row); else noBilling"
+                      (click)="createNextInvoice(row)"
+                      [disabled]="billingContractId === row.id">
+                {{ billingContractId === row.id ? 'Creating…' : 'Create next invoice' }}
+              </button>
+              <ng-template #noBilling><span class="secondary">—</span></ng-template>
             </td>
           </tr>
         </tbody>
@@ -75,5 +96,6 @@
                        [preloaded]="preloadedDetail"
                        [permissions]="permissions"
                        (back)="backToList()"
-                       (edit)="editContract($event)"></app-contract-detail>
+                       (edit)="editContract($event)"
+                       (invoiceCreated)="openInvoice($event)"></app-contract-detail>
 </div>

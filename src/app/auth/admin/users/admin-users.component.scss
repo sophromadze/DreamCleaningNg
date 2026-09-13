@@ -1,0 +1,23 @@
+@use '../../../../styles/admin-tab-nav' as *;
+
+/* The SAME strip as the panel's own navigation and Commercial's, one level down. Sharing the
+   mixin is what keeps a nested tab row from becoming a third visual language. */
+.admin-users-tabs {
+  @include admin-tab-nav('.tab-btn');
+  margin-bottom: 16px;
+
+  /* Slightly quieter than the top-level row: this is navigation WITHIN a tab, and matching the
+     parent's weight exactly would leave the eye with two rows of equal importance. */
+  .tab-btn {
+    font-size: 0.88rem;
+    padding: 8px 14px;
+  }
+
+  /* Four labels always fit; on a narrow phone they scroll rather than wrap onto two lines. */
+  @media (max-width: 480px) {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
+  }
+}

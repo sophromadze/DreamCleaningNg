@@ -1,185 +1,364 @@
-<div class="clients-page">
+<!--
+  Commercial → Clients / Users → Business Clients.
 
-  <div class="page-head">
-    <h2>Commercial Clients</h2>
-
-    <div class="head-actions">
-      <input type="text" class="search-input" [(ngModel)]="search"
-             placeholder="Search company, contact, email, address, contract #…"
-             aria-label="Search commercial clients">
-
-      <button type="button" class="btn-primary" *ngIf="canCreate" (click)="openCreate()">
+  Deliberately built out of the Users tab's class names (.user-management-section, .filters-section,
+  .data-table/.table-wrapper/table.user-table, .tag-chip, .detail-panel) with
+  user-management.component.scss listed first in styleUrls — the same arrangement Cleaners uses.
+  Expanding a row used to open an accordion; clicking now opens the shared right-side detail panel
+  so this tab does not look like a different product from Customers / Cleaners / Staff.
+-->
+<div class="user-management-section" [class.detail-open]="selectedClientId !== null">
+  <div class="section-header">
+    <div class="header-left">
+      <h2>Business Clients</h2>
+      <span class="user-count" *ngIf="!loading">{{ clients.length }} total</span>
+    </div>
+    <div class="header-right">
+      <button type="button" class="action-btn register-customer" *ngIf="canCreate" (click)="openCreate()">
         + New Client
       </button>
+      <button type="button" class="action-btn refresh" (click)="load()" [disabled]="loading">
+        {{ loading ? 'Loading…' : 'Refresh' }}
+      </button>
     </div>
   </div>
 
-  <p class="page-intro">
-    Manage your commercial customers, billing information, service locations, contracts and
-    invoices.
-  </p>
+  <div class="messages">
+    <div class="error-message" *ngIf="error">{{ error }}</div>
+    <div class="success-message" *ngIf="notice">{{ notice }}</div>
+  </div>
 
-  <label class="inactive-toggle">
-    <input type="checkbox" [(ngModel)]="showInactive" (change)="onShowInactiveChange()">
-    Show removed clients
-  </label>
+  <div class="filters-section">
+    <div class="search-box">
+      <input type="text"
+             class="search-input"
+             [(ngModel)]="search"
+             placeholder="Search company, contact, email, address, contract #…"
+             aria-label="Search business clients">
+    </div>
+    <div class="filter-controls">
+      <label class="inactive-toggle">
+        <input type="checkbox" [(ngModel)]="showInactive" (change)="onShowInactiveChange()">
+        Show removed clients
+      </label>
+    </div>
+  </div>
 
-  <div class="alert alert-error" *ngIf="error">{{ error }}</div>
-  <div class="alert alert-notice" *ngIf="notice">{{ notice }}</div>
-  <div class="loading-note" *ngIf="loading">Loading clients…</div>
+  <div class="users-list">
+    <div class="data-table">
+      <div class="table-wrapper">
+        <table class="user-table cc-table">
+          <thead>
+            <tr>
+              <th class="col-name">Contact</th>
+              <th class="col-company">Company</th>
+              <th class="col-email">Billing email</th>
+              <th class="col-origin">Origin</th>
+              <th class="col-counts">History</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of filtered; trackBy: trackByClientId"
+                class="user-row"
+                [class.row-selected]="selectedClientId === c.id"
+                [class.row-blocked]="!c.isActive"
+                (click)="openClientDetails(c)">
 
-  <p class="empty" *ngIf="!loading && !filtered.length">
-    {{ search
-        ? 'No clients match that search.'
-        : (canCreate
-            ? 'No commercial clients yet. Add one with “New Client”, or flag a customer as a business on the Users tab.'
-            : 'No commercial clients yet.') }}
-  </p>
+              <td class="col-name">
+                <div class="customer-cell">
+                  <span class="avatar"
+                        [style.background]="getAvatarColor(c.id)"
+                        [attr.title]="c.billingContactName || 'No contact name'">
+                    <span class="avatar-initials">{{ getAvatarInitials(c.billingContactName || '') }}</span>
+                  </span>
+                  <div class="customer-meta">
+                    <span class="customer-name">
+                      <span class="customer-id">#{{ c.id }}</span>
+                      {{ c.billingContactName || '—' }}
+                    </span>
+                    <span class="customer-tags" *ngIf="!c.isActive">
+                      <span class="tag-chip blocked">Removed</span>
+                    </span>
+                  </div>
+                </div>
+              </td>
 
-  <div class="client-list" *ngIf="!loading">
-    <div class="client-card" *ngFor="let c of filtered"
-         [class.expanded]="expandedId === c.id" [class.inactive]="!c.isActive">
+              <td class="col-company">{{ c.legalEntityName }}</td>
 
-      <button type="button" class="client-head" (click)="toggle(c.id)"
-              [attr.aria-expanded]="expandedId === c.id">
-        <div class="client-main">
-          <span class="client-name">
+              <td class="col-email">
+                <span *ngIf="!c.billingEmail" class="muted">—</span>
+                <span *ngIf="c.billingEmail" class="ellipsis-text">{{ c.billingEmail }}</span>
+              </td>
+
+              <td class="col-origin">
+                <span class="tag-chip" [class.first-time]="isLinked(c)">
+                  {{ isLinked(c) ? 'Linked account' : 'Standalone' }}
+                </span>
+              </td>
+
+              <td class="col-counts">
+                {{ c.contracts.length }} contract{{ c.contracts.length === 1 ? '' : 's' }}
+                · {{ c.invoiceCount }} invoice{{ c.invoiceCount === 1 ? '' : 's' }}
+              </td>
+            </tr>
+
+            <tr *ngIf="!loading && filtered.length === 0">
+              <td colspan="5" class="empty-row">
+                {{ search
+                    ? 'No clients match that search.'
+                    : (canCreate
+                        ? 'No business clients yet. Add one with “New Client”, or flag a customer as a business on the Customers tab.'
+                        : 'No business clients yet.') }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ──────────────  SLIDE-IN DETAIL PANEL  ────────────── -->
+<div class="detail-overlay"
+     *ngIf="selectedClientId !== null"
+     (click)="closeDetailPanel()"></div>
+
+<aside class="detail-panel" [class.open]="selectedClientId !== null">
+  <ng-container *ngIf="selectedClient as c">
+    <div class="detail-header">
+      <div class="detail-header__main">
+        <div class="detail-avatar" [style.background]="getAvatarColor(c.id)">
+          <span class="avatar-initials">{{ getAvatarInitials(c.legalEntityName) }}</span>
+        </div>
+        <div class="detail-identity">
+          <h3 class="detail-name">
             {{ c.legalEntityName }}
-            <span class="removed-tag" *ngIf="!c.isActive">Removed</span>
-          </span>
-          <span class="client-meta">
-            {{ c.billingContactName || c.billingEmail || 'No billing contact' }}
-          </span>
+            <span *ngIf="!c.isActive" class="tag-chip blocked">Removed</span>
+          </h3>
+          <div class="detail-contact">
+            <span *ngIf="c.billingPhone" title="Phone">📞 {{ c.billingPhone }}</span>
+            <span *ngIf="c.billingEmail" title="Email">✉ {{ c.billingEmail }}</span>
+            <span *ngIf="!c.billingEmail" class="tag-chip blocked" title="Invoices cannot be sent without a billing email">No billing email</span>
+          </div>
+          <div class="detail-address-line" *ngIf="c.billingAddress">📍 {{ c.billingAddress }}</div>
         </div>
-
-        <div class="client-counts">
-          <!-- Where this client came from. Everything else about the two is identical. -->
-          <span class="count-pill" [class.linked]="isLinked(c)">
-            {{ isLinked(c) ? 'Linked account' : 'Standalone' }}
-          </span>
-          <span class="count-pill" *ngIf="c.contracts.length">
-            {{ c.contracts.length }} contract{{ c.contracts.length === 1 ? '' : 's' }}
-          </span>
-          <span class="count-pill" *ngIf="c.invoiceCount">
-            {{ c.invoiceCount }} invoice{{ c.invoiceCount === 1 ? '' : 's' }}
-          </span>
-          <span class="chevron">{{ expandedId === c.id ? '▴' : '▾' }}</span>
+      </div>
+      <div class="detail-header__actions">
+        <div class="actions-row">
+          <button type="button" class="action-btn small" *ngIf="c.isActive && canUpdate"
+                  (click)="openEdit(c)">Edit</button>
+          <button type="button" class="action-btn small ghost"
+                  (click)="closeDetailPanel()" aria-label="Close">✕</button>
         </div>
-      </button>
+        <button type="button" class="action-btn small primary" *ngIf="c.isActive"
+                (click)="createInvoice(c)">
+          Create invoice
+        </button>
+        <!-- Same endpoint, two different acts. For a LINKED client this takes the business
+             designation off the customer's account, which lists them under Customers again and
+             nothing else — so it is offered in those words, and not painted as a deletion. -->
+        <button type="button" class="action-btn small"
+                *ngIf="c.isActive && canDeactivate && isLinked(c)"
+                (click)="askDelete(c)">
+          Move to Customers
+        </button>
+        <button type="button" class="action-btn small danger"
+                *ngIf="c.isActive && canDeactivate && !isLinked(c)"
+                (click)="askDelete(c)">
+          Delete
+        </button>
+        <button type="button" class="action-btn small"
+                *ngIf="!c.isActive && canDeactivate && !isLinked(c)"
+                (click)="restore(c)">
+          Restore
+        </button>
+      </div>
+    </div>
 
-      <div class="client-body" *ngIf="expandedId === c.id">
+    <div class="stats-row">
+      <div class="stat">
+        <span class="stat-label">Origin</span>
+        <span class="stat-value">{{ isLinked(c) ? 'Linked account' : 'Standalone' }}</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Contracts</span>
+        <span class="stat-value">{{ c.contracts.length }}</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Invoices</span>
+        <span class="stat-value">{{ c.invoiceCount }}</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label">Locations</span>
+        <span class="stat-value">{{ c.locations.length }}</span>
+      </div>
+    </div>
 
-        <div class="body-section">
-          <span class="label">Billing</span>
-          <div class="body-line">{{ c.billingAddress || 'No billing address on file' }}</div>
-          <div class="body-line" *ngIf="c.billingEmail">{{ c.billingEmail }}</div>
-          <div class="body-line" *ngIf="c.billingPhone">{{ c.billingPhone }}</div>
-          <div class="body-line warn" *ngIf="!c.billingEmail">
+    <div class="detail-body">
+      <div class="overview-details">
+
+        <div class="info-card">
+          <h6>Billing</h6>
+          <div class="info-grid">
+            <div>
+              <span>Contact</span>
+              <strong>{{ c.billingContactName || '—' }}</strong>
+            </div>
+            <div>
+              <span>Email</span>
+              <strong>{{ c.billingEmail || '—' }}</strong>
+            </div>
+            <div>
+              <span>Phone</span>
+              <strong>{{ c.billingPhone || '—' }}</strong>
+            </div>
+            <div class="cc-span-2">
+              <span>Address</span>
+              <strong>{{ c.billingAddress || 'No billing address on file' }}</strong>
+            </div>
+          </div>
+          <p class="hint-line cc-warn" *ngIf="!c.billingEmail">
             No billing email — invoices for this client cannot be sent until one is added.
-          </div>
+          </p>
         </div>
 
-        <!-- The account's own email is SHOWN beside the billing one, never merged into it: one is
-             a login, the other is where invoices go, and they are allowed to differ. -->
-        <div class="body-section" *ngIf="isLinked(c)">
-          <span class="label">Customer account</span>
-          <div class="body-line">
-            {{ c.linkedAccountName }}
-            <span class="muted" *ngIf="c.linkedAccountEmail"> · {{ c.linkedAccountEmail }}</span>
-            <span class="muted" *ngIf="!c.linkedAccountEmail"> · no account email</span>
+        <!-- ONE PANEL, BOTH HALVES. A business client is a commercial entity AND a customer
+             account, and an admin looking at one almost always wants the other — which tab the
+             record happens to live in is our filing problem, not theirs.
+
+             The two are shown SIDE BY SIDE rather than merged: the account's email is a login and
+             the billing email is where invoices go, and they are allowed to differ. Merging them
+             would silently pick a winner. -->
+        <div class="info-card" *ngIf="isLinked(c)">
+          <h6>Customer account</h6>
+          <div class="info-grid">
+            <div>
+              <span>Name</span>
+              <strong>{{ c.linkedAccountName || '—' }}</strong>
+            </div>
+            <div>
+              <span>Account email</span>
+              <strong>{{ c.linkedAccountEmail || 'no account email' }}</strong>
+            </div>
+
+            <ng-container *ngIf="linkedAccount as u">
+              <div><span>User ID</span><strong>{{ u.id }}</strong></div>
+              <div><span>Phone</span><strong>{{ u.phone || '—' }}</strong></div>
+              <div>
+                <span>Status</span>
+                <strong [class.text-ok]="u.isActive" [class.text-danger]="!u.isActive">
+                  {{ u.isActive ? 'Active' : 'Blocked' }}
+                </strong>
+              </div>
+              <div><span>Role</span><strong>{{ u.role || 'Customer' }}</strong></div>
+              <div><span>Cleanings</span><strong>{{ u.totalOrders ?? (u.orders?.length || 0) }}</strong></div>
+              <div>
+                <span>Total spent</span>
+                <strong>{{ (u.totalSpent || 0) | currency:'USD' }}</strong>
+              </div>
+            </ng-container>
           </div>
+
+          <p class="muted" *ngIf="loadingLinkedAccount">Loading the customer account…</p>
+
+          <button type="button" class="action-btn small ghost inline cc-account-link"
+                  (click)="openLinkedAccount(c)">
+            Open the full customer record →
+          </button>
         </div>
 
-        <div class="body-section">
-          <span class="label">Service locations</span>
-          <p class="empty-small" *ngIf="!c.locations.length">None on file.</p>
-          <div class="body-line" *ngFor="let l of c.locations">
-            <strong>{{ l.label }}</strong> — {{ l.address }}
-          </div>
+        <div class="info-card">
+          <h6>Service locations</h6>
+          <p class="muted" *ngIf="!c.locations.length">None on file.</p>
+          <ul class="cc-list" *ngIf="c.locations.length">
+            <li *ngFor="let l of c.locations">
+              <strong>{{ l.label }}</strong> — {{ l.address }}
+            </li>
+          </ul>
         </div>
 
-        <div class="body-section">
-          <span class="label">Contracts</span>
-          <p class="empty-small" *ngIf="!c.contracts.length">
+        <div class="info-card">
+          <h6>Contracts</h6>
+          <p class="muted" *ngIf="!c.contracts.length">
             None — this client can still be invoiced.
           </p>
-          <div class="body-line" *ngFor="let k of c.contracts">
-            <a [routerLink]="['/admin/commercial/contracts', k.id]" class="mono">{{ k.contractNumber }}</a>
-            <span class="muted"> · {{ k.statusLabel }}</span>
-            <span class="muted" *ngIf="k.serviceAddress"> · {{ k.serviceAddress }}</span>
-          </div>
+          <ul class="cc-list" *ngIf="c.contracts.length">
+            <li *ngFor="let k of c.contracts">
+              <a [routerLink]="['/admin/commercial/contracts', k.id]" class="cc-mono">{{ k.contractNumber }}</a>
+              <span class="muted"> · {{ k.statusLabel }}</span>
+              <span class="muted" *ngIf="k.serviceAddress"> · {{ k.serviceAddress }}</span>
+            </li>
+          </ul>
         </div>
 
-        <div class="body-actions">
-          <ng-container *ngIf="c.isActive">
-            <button type="button" class="btn-secondary" *ngIf="canUpdate" (click)="openEdit(c)">
-              Edit
-            </button>
-            <button type="button" class="btn-primary" (click)="createInvoice(c)">
-              Create invoice
-            </button>
-            <button type="button" class="btn-danger" *ngIf="canDeactivate" (click)="askDelete(c)">
-              Delete
-            </button>
-          </ng-container>
-
-          <ng-container *ngIf="!c.isActive">
-            <button type="button" class="btn-secondary"
-                    *ngIf="canDeactivate && !isLinked(c)" (click)="restore(c)">
-              Restore
-            </button>
-            <span class="muted" *ngIf="isLinked(c)">
-              Turn the business flag back on for {{ c.linkedAccountName }} in the Users tab to list
-              this client again.
-            </span>
-          </ng-container>
+        <div class="info-card" *ngIf="!c.isActive && isLinked(c)">
+          <h6>Restore</h6>
+          <p class="muted">
+            {{ c.linkedAccountName }} is an ordinary customer again. Turn the business flag back on
+            for them in the Customers tab to list this client — with its contracts and invoices —
+            once more.
+          </p>
         </div>
+
       </div>
     </div>
-  </div>
+  </ng-container>
+</aside>
 
-  <!-- ── Delete confirmation ────────────────────────────────────────────────────────────────
-       The linked wording is the important half: staff have to know the customer loses their
-       business designation, because that is what stops the client reappearing. -->
-  <div class="cc-confirm-overlay" *ngIf="pendingDelete" (click)="cancelDelete()">
-    <div class="cc-confirm" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
-      <h3>Remove {{ pendingDelete.legalEntityName }}?</h3>
+<!-- ── Delete confirmation ────────────────────────────────────────────────────────────────
+     The linked wording is the important half: staff have to know the customer loses their
+     business designation, because that is what stops the client reappearing. -->
+<div class="cc-confirm-overlay" *ngIf="pendingDelete" (click)="cancelDelete()">
+  <div class="cc-confirm" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
+    <h3 *ngIf="isLinked(pendingDelete)">
+      Move {{ pendingDelete.legalEntityName }} back to Customers?
+    </h3>
+    <h3 *ngIf="!isLinked(pendingDelete)">Remove {{ pendingDelete.legalEntityName }}?</h3>
 
-      <p *ngIf="isLinked(pendingDelete)">
-        This client is linked to a Business customer account. Removing it from Commercial → Clients
-        will also remove the Business designation from
-        <strong>{{ pendingDelete.linkedAccountName }}</strong>.
-      </p>
+    <p *ngIf="isLinked(pendingDelete)">
+      <strong>{{ pendingDelete.linkedAccountName }}</strong> loses the Business designation and
+      goes back to being an ordinary customer. The account itself is untouched — same login, same
+      bookings, same history.
+    </p>
 
-      <p>
-        Their contracts, invoices and payment history are kept and stay exactly as they are. The
-        client simply stops appearing when you create a new invoice or contract.
-      </p>
+    <p>
+      Their contracts, invoices and payment history are kept and stay exactly as they are. The
+      client simply stops appearing when you create a new invoice or contract.
+    </p>
 
-      <p class="cc-confirm-back" *ngIf="isLinked(pendingDelete)">
-        You can list them again later by turning the business flag back on for that customer in
-        the Users tab.
-      </p>
-      <p class="cc-confirm-back" *ngIf="!isLinked(pendingDelete)">
-        You can list them again from “Show removed clients”.
-      </p>
+    <p class="cc-confirm-back" *ngIf="isLinked(pendingDelete)">
+      Turning the business flag back on for that customer brings this same client back, with its
+      contracts and invoices.
+    </p>
+    <p class="cc-confirm-back" *ngIf="!isLinked(pendingDelete)">
+      You can list them again from “Show removed clients”.
+    </p>
 
-      <div class="cc-confirm-actions">
-        <button type="button" class="btn-secondary" (click)="cancelDelete()" [disabled]="deleting">
-          Cancel
-        </button>
-        <button type="button" class="btn-danger" (click)="confirmDelete()" [disabled]="deleting">
-          {{ deleting ? 'Removing…' : 'Remove client' }}
-        </button>
-      </div>
+    <div class="cc-confirm-actions">
+      <button type="button" class="action-btn ghost" (click)="cancelDelete()" [disabled]="deleting">
+        Cancel
+      </button>
+      <button type="button" class="action-btn" *ngIf="isLinked(pendingDelete)"
+              (click)="confirmDelete()" [disabled]="deleting">
+        {{ deleting ? 'Moving…' : 'Move to Customers' }}
+      </button>
+      <button type="button" class="action-btn danger" *ngIf="!isLinked(pendingDelete)"
+              (click)="confirmDelete()" [disabled]="deleting">
+        {{ deleting ? 'Removing…' : 'Remove client' }}
+      </button>
     </div>
   </div>
-
-  <app-commercial-client-modal
-    [open]="modalOpen"
-    [client]="editing"
-    (closed)="modalOpen = false"
-    (created)="onClientCreated($event.id)"
-    (saved)="onClientSaved($event)">
-  </app-commercial-client-modal>
 </div>
+
+<!-- As a right-side panel, not a centred modal: this is an edit opened from a table row, the
+     same shape as every other detail/edit panel in the admin area. Same component, same form -
+     only the frame differs. The Create Invoice form keeps the modal, where a client is created
+     over a half-finished invoice. -->
+<app-commercial-client-modal
+  [panel]="true"
+  [open]="modalOpen"
+  [client]="editing"
+  (closed)="modalOpen = false"
+  (created)="onClientCreated($event.id)"
+  (saved)="onClientSaved($event)">
+</app-commercial-client-modal>

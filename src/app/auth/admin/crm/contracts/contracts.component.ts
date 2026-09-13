@@ -1,12 +1,14 @@
 import { Component, Input, OnInit, SimpleChanges, OnChanges, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 import { Subject, debounceTime } from 'rxjs';
 import { ContractFormComponent } from './contract-form.component';
 import { ContractDetailComponent } from './contract-detail.component';
 import {
   ContractDetail, ContractListItem, ContractPermissions, ContractService, ContractStatus
 } from '../../../../services/contract.service';
+import { InvoiceService, ExistingDraftInvoice } from '../../../../services/invoice.service';
 import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
 
 type ContractsView = 'list' | 'form' | 'detail';
@@ -30,6 +32,8 @@ export class ContractsComponent implements OnInit, OnChanges {
   @Input() openContractId?: number;
 
   private contracts = inject(ContractService);
+  private invoices = inject(InvoiceService);
+  private router = inject(Router);
 
   view: ContractsView = 'list';
   contractsList: ContractListItem[] = [];
@@ -133,6 +137,17 @@ export class ContractsComponent implements OnInit, OnChanges {
     this.view = 'form';
   }
 
+  /**
+   * "Create next invoice" lands on the new DRAFT's edit form.
+   *
+   * The edit form rather than the detail view because reviewing and correcting the generated dates
+   * and figures is the entire next step - the draft exists precisely so somebody looks at it
+   * before it is sent, and dropping the admin on a read-only page would make them hunt for Edit.
+   */
+  openInvoice(invoiceId: number): void {
+    this.router.navigate(['/admin/commercial/invoices', invoiceId, 'edit']);
+  }
+
   /** Generate Preview lands straight on the preview, which is the whole point of the button. */
   onGenerated(detail: ContractDetail): void {
     this.selectedContractId = detail.id;
@@ -146,6 +161,80 @@ export class ContractsComponent implements OnInit, OnChanges {
     this.selectedContractId = null;
     this.preloadedDetail = null;
     this.load();
+  }
+
+  // ── Create next invoice, from the list ─────────────────────────────────────
+  //
+  // The action existed only inside one contract's detail view, in an action bar that can carry ten
+  // buttons — so billing a contract meant opening it and finding "Create next invoice" among
+  // Revise, Amend, Duplicate, Regenerate and the rest. Nobody reported a broken button; they
+  // reported not being able to find one. It is a per-row action here.
+
+  /** The row whose draft is being created, so only that button says "Creating…". */
+  billingContractId: number | null = null;
+
+  /**
+   * Whether this contract can be billed — the SERVER'S answer, carried on the row.
+   *
+   * It used to be re-derived here as "not hidden and past Draft", which was too generous: a
+   * contract awaiting signatures, partially signed, needing revision, voided or expired all
+   * passed, and invoicing any of those bills a client for terms they have not accepted. The rule
+   * now lives in ONE place (`ContractInvoiceEligibility`), and the endpoint enforces it — hiding
+   * the button is the convenience, that check is the control.
+   *
+   * HAVING NO PREVIOUS INVOICE IS STILL NOT A REASON TO HIDE IT. The generator falls back to the
+   * contract's own pricing and schedule when there is nothing to model on, and the first invoice
+   * of an agreement is exactly the one an admin wants this for.
+   */
+  canCreateNextInvoice(row: ContractListItem): boolean {
+    return row.canCreateNextInvoice;
+  }
+
+  /**
+   * Produces a DRAFT and emails nobody, then lands on its edit form — the same contract of the
+   * detail view's button, including the duplicate-period confirmation, which is a question rather
+   * than a refusal and is asked once.
+   */
+  createNextInvoice(row: ContractListItem, allowDuplicatePeriod = false, acknowledgeUndatedDraft = false): void {
+    if (this.billingContractId !== null) return;
+
+    this.errorMessage = '';
+    this.billingContractId = row.id;
+
+    this.invoices.createNextFromContract(row.id, allowDuplicatePeriod, acknowledgeUndatedDraft).subscribe({
+      next: result => {
+        this.billingContractId = null;
+        this.openInvoice(result.invoice.id);
+      },
+      error: err => {
+        this.billingContractId = null;
+
+        const message = extractApiErrorMessage(err, 'The next invoice could not be created.');
+
+        // 409 — an unsent DRAFT already exists for this contract. Not an error: the thing being
+        // asked for is already there, so the useful response is to open it. This is the commonest
+        // operational mistake (pressing the button twice, or forgetting last week's draft) and it
+        // used to produce a second identical draft that could be sent alongside the first.
+        const existingDraft: ExistingDraftInvoice | undefined = err?.error?.existingDraft;
+        if (err?.status === 409 && existingDraft) {
+          if (confirm(`${existingDraft.message}\n\nOpen that draft?`)) {
+            this.openInvoice(existingDraft.invoiceId);
+          } else if (confirm(existingDraft.isUndated ? 'Leave the undated draft intact and create a draft for the intended period?' : 'Create a SECOND draft for this period anyway?')) {
+            this.createNextInvoice(row, existingDraft.isUndated ? allowDuplicatePeriod : true, existingDraft.isUndated || acknowledgeUndatedDraft);
+          }
+          return;
+        }
+
+        if (err?.status === 400 && !allowDuplicatePeriod && message.includes('already covers')) {
+          if (confirm(`${message}\n\nCreate a second invoice for the same period anyway?`)) {
+            this.createNextInvoice(row, true, acknowledgeUndatedDraft);
+          }
+          return;
+        }
+
+        this.errorMessage = message;
+      }
+    });
   }
 
   // ── list helpers ───────────────────────────────────────────────────────────

@@ -110,6 +110,11 @@ function preview(overrides: Partial<ReorderPreview> = {}): ReorderPreview {
     notificationEmail: 'customer@example.com',
     notificationPhone: '5551234567',
     customerHasNoAccountEmail: false,
+    // The source order's method, which the modal now defaults to. Stripe here so the fixture
+    // exercises the case the old hardcoded 'Cash' silently broke.
+    sourcePaymentMethod: 'Normal',
+    sourceContractClientId: null,
+    sourceContractClientName: null,
     ...overrides
   };
 }
@@ -455,6 +460,83 @@ describe('RecreateOrderModalComponent', () => {
   });
 
   /**
+   * THE DEFECT THIS BLOCK PINS DOWN (2026-09): the payment method was hardcoded to 'Cash'
+   * whatever the source order used. Recreating a Stripe booking therefore produced a cash job —
+   * marked Active, never charged, counted as settled revenue, and invisible to every
+   * unpaid-order sweep.
+   *
+   * ONLY THE METHOD IS COPIED. Old transaction state cannot travel: the payload is a booking
+   * request, and it has no field a PaymentIntent, a reference, a paid flag or an invoice link
+   * could live in.
+   */
+  describe('the payment method comes from the source order', () => {
+    it('defaults to Stripe when the source order was Stripe', () => {
+      openWith(preview({ sourcePaymentMethod: 'Normal' }));
+      expect(component.paymentMethod).toBe('Normal');
+    });
+
+    it('defaults to Cash when the source order was cash', () => {
+      openWith(preview({ sourcePaymentMethod: 'Cash' }));
+      expect(component.paymentMethod).toBe('Cash');
+    });
+
+    (['Zelle', 'Check', 'Other'] as const).forEach(method => {
+      it(`defaults to ${method} when the source order was ${method}`, () => {
+        openWith(preview({ sourcePaymentMethod: method }));
+        expect(component.paymentMethod).toBe(method);
+      });
+    });
+
+    it('defaults to Invoice, carrying the commercial client with it', () => {
+      openWith(preview({
+        sourcePaymentMethod: 'Invoice',
+        sourceContractClientId: 42,
+        sourceContractClientName: 'Acme Holdings LLC'
+      }));
+
+      expect(component.paymentMethod).toBe('Invoice');
+      expect(component.contractClientId).toBe(42);
+      expect(component.contractClientName).toBe('Acme Holdings LLC');
+    });
+
+    it('sends the source method on the create request', () => {
+      openWith(preview({ sourcePaymentMethod: 'Zelle' }));
+      const body = submitWith();
+      expect(body.paymentMethod).toBe('Zelle');
+    });
+
+    it('sends NO old payment transaction state', () => {
+      openWith(preview({ sourcePaymentMethod: 'Normal' }));
+      const body = submitWith();
+
+      // The envelope and the booking data both. A recreated order is a new financial
+      // transaction; nothing about the old one's money may reach it.
+      for (const forbidden of [
+        'paymentIntentId', 'transactionId', 'isPaid', 'paidAt', 'amountPaid',
+        'invoiceId', 'commercialInvoiceId', 'invoicePaidAt'
+      ]) {
+        expect(body[forbidden]).toBeUndefined();
+        expect(body.bookingData[forbidden]).toBeUndefined();
+      }
+
+      // A Stripe recreation carries no reference or notes either — those describe money that
+      // has already changed hands.
+      expect(body.paymentReference).toBeNull();
+      expect(body.paymentNotes).toBeNull();
+    });
+
+    it('refuses to submit an Invoice order with no commercial client', () => {
+      openWith(preview({ sourcePaymentMethod: 'Invoice', sourceContractClientId: null }));
+
+      component.serviceDate = '2026-03-14';
+      component.submit();
+
+      httpMock.expectNone(CREATE_URL);
+      expect(component.errorMessage).toContain('commercial client');
+    });
+  });
+
+  /**
    * The status default follows the date and the payment method until the admin decides for
    * themselves — a job re-entered after the fact has already happened.
    */
@@ -479,6 +561,24 @@ describe('RecreateOrderModalComponent', () => {
       openWith();
       component.serviceDate = '2099-01-15';
       component.paymentMethod = 'Normal';
+      component.onScheduleChange();
+      expect(component.orderStatus).toBe('Pending');
+    });
+
+    it('is Pending for Invoice, which is also unpaid at creation', () => {
+      // Invoice is handled outside Stripe but is NOT money that has arrived — the order becomes
+      // Active when a commercial invoice covering it is paid in full, never before.
+      openWith();
+      component.serviceDate = '2099-01-15';
+      component.paymentMethod = 'Invoice';
+      component.onScheduleChange();
+      expect(component.orderStatus).toBe('Pending');
+    });
+
+    it('is Pending for a back-dated Invoice order too', () => {
+      openWith();
+      component.serviceDate = '2020-01-15';
+      component.paymentMethod = 'Invoice';
       component.onScheduleChange();
       expect(component.orderStatus).toBe('Pending');
     });

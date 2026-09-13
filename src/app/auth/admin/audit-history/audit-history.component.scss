@@ -512,12 +512,12 @@
     }
 
     &.secondary {
-      background: var(--btn-secondary);
-      box-shadow: var(--btn-secondary-shadow);
+      background: var(--btn-brand);
+      box-shadow: var(--btn-brand-shadow);
 
       &:hover:not(:disabled) {
-        background: var(--btn-secondary-hover);
-        box-shadow: var(--btn-secondary-shadow-hover);
+        background: var(--btn-brand-hover);
+        box-shadow: var(--btn-brand-shadow-hover);
       }
 
       &:disabled {

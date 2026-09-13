@@ -42,14 +42,46 @@
     </div>
   </header>
 
-  <!-- Suppressed when embedded: the Cleaners page already carries the title and the tab strip that
-       says which half you are looking at, and a second heading under them reads as a nested page. -->
-  <div class="portal-header" *ngIf="!context?.isCleanerView && !embedded">
-    <div>
-      <h1>{{ context?.isSystemWideView ? 'All Cleanings' : 'My Jobs' }}</h1>
+  <!--
+    The TITLE is suppressed when embedded - the Cleaners page already carries it along with the tab
+    strip that says which half you are looking at, and a second heading under them reads as a nested
+    page. The header ROW itself stays, because the language picker lives in it and the Portal tab is
+    where an admin needs it most.
+  -->
+  <div class="portal-header" *ngIf="context && !context.isCleanerView">
+    <div *ngIf="!embedded">
+      <!-- No `?.`: the wrapping *ngIf above already narrowed `context` to non-null. -->
+      <h1>{{ context.isSystemWideView ? 'All Cleanings' : 'My Jobs' }}</h1>
       <p class="portal-subtitle" *ngIf="context?.isSystemWideView">
         Every cleaning in the system - past, current and upcoming, for every cleaner. Read only.
       </p>
+    </div>
+
+    <!--
+      THE ADMIN'S PICKER IS A PREVIEW, not a preference - see isLanguagePreview. It re-renders this
+      page in a cleaner's language so an admin can read the briefing, the supplies list and the
+      essentials list in the words that actually reach the crew. Nothing is saved to anybody's
+      record, so there is no "Automatic" option here: an admin has no nationality to follow, and
+      the page's own language (English) is simply one of the four.
+
+      Same two-select arrangement as the cleaner's header, for the same reason - a native <select>
+      cannot restyle its own options, so the narrow form for a phone is a second control swapped by
+      CSS rather than by JS.
+    -->
+    <div class="portal-user">
+      <label class="language-picker language-picker--full">
+        <span class="sr-only">{{ t.language }}</span>
+        <select [value]="languageChoice" (change)="onLanguageChange($any($event.target).value)">
+          <option *ngFor="let option of languageOptions" [value]="option.code">{{ option.name }}</option>
+        </select>
+      </label>
+
+      <label class="language-picker language-picker--short">
+        <span class="sr-only">{{ t.language }}</span>
+        <select [value]="languageChoice" (change)="onLanguageChange($any($event.target).value)">
+          <option *ngFor="let option of languageOptions" [value]="option.code">{{ option.short }}</option>
+        </select>
+      </label>
     </div>
   </div>
 
@@ -322,17 +354,33 @@
           The supplies line is the one thing here that changes what somebody puts in the car, so it
           is a banner rather than another row in the list.
         -->
+        <!-- BOTH directions name the items (owner's call, 2026-09). "Supplies: not needed" on its
+             own is not something a cleaner can act on - required or not, what they need to know is
+             WHICH products, and it is the same list either way: ours to load, or the customer's to
+             have ready when we arrive. The keys are resolved server-side so this list is the list
+             in the assignment mail. -->
         <div class="supplies-flag" [class.supplies-flag--bring]="selectedJob.bringCleaningSupplies">
-          <ng-container *ngIf="selectedJob.bringCleaningSupplies">{{ t.suppliesBring }}</ng-container>
-          <ng-container *ngIf="!selectedJob.bringCleaningSupplies">{{ t.suppliesProvided }}</ng-container>
+          <span class="supplies-flag__head">
+            <ng-container *ngIf="selectedJob.bringCleaningSupplies">{{ t.suppliesBring }}</ng-container>
+            <ng-container *ngIf="!selectedJob.bringCleaningSupplies">{{ t.suppliesProvided }}</ng-container>
+          </span>
+          <ul class="supplies-flag__items" *ngIf="supplyItemNames(selectedJob.suppliesItemKeys).length > 0">
+            <li *ngFor="let item of supplyItemNames(selectedJob.suppliesItemKeys)">{{ item }}</li>
+          </ul>
         </div>
 
-        <!-- Essentials is its own banner for the same reason: paper towels, garbage bags and a
-             toilet brush are things somebody has to actually put in the car, and it is a separate
-             purchase from the supplies above. Never a broom or vacuum — that is its own extra. -->
+        <!-- Essentials is its own banner for the same reason: paper towels, garbage bags, a toilet
+             brush and a broom are things somebody has to actually put in the car, and it is a
+             separate purchase from the supplies above. A VACUUM is still its own extra, which is
+             why the customer-provides list can read "broom or vacuum cleaner" instead. -->
         <div class="supplies-flag" [class.supplies-flag--bring]="selectedJob.bringCleaningEssentials">
-          <ng-container *ngIf="selectedJob.bringCleaningEssentials">{{ t.essentialsBring }}</ng-container>
-          <ng-container *ngIf="!selectedJob.bringCleaningEssentials">{{ t.essentialsProvided }}</ng-container>
+          <span class="supplies-flag__head">
+            <ng-container *ngIf="selectedJob.bringCleaningEssentials">{{ t.essentialsBring }}</ng-container>
+            <ng-container *ngIf="!selectedJob.bringCleaningEssentials">{{ t.essentialsProvided }}</ng-container>
+          </span>
+          <ul class="supplies-flag__items" *ngIf="supplyItemNames(selectedJob.essentialsItemKeys).length > 0">
+            <li *ngFor="let item of supplyItemNames(selectedJob.essentialsItemKeys)">{{ item }}</li>
+          </ul>
         </div>
 
         <!-- Both instruction sources, each labelled with WHO wrote it: what the customer asked for
@@ -448,13 +496,26 @@
             </ul>
           </strong>
         </div>
+        <!-- The items are listed here too: this panel is where an admin answers a crew ringing to
+             ask what they were supposed to bring, and "Customer provides them" on its own is no
+             more of an answer here than it was in the briefing. -->
         <div class="detail-row">
           <span>Supplies</span>
-          <strong>{{ selectedDetail.cleanerView.bringCleaningSupplies ? 'Cleaner brings them' : 'Customer provides them' }}</strong>
+          <strong>
+            {{ selectedDetail.cleanerView.bringCleaningSupplies ? 'Cleaner brings them' : 'Customer provides them' }}
+            <ul class="plain-list">
+              <li *ngFor="let item of supplyItemNames(selectedDetail.cleanerView.suppliesItemKeys)">{{ item }}</li>
+            </ul>
+          </strong>
         </div>
         <div class="detail-row">
           <span>Essentials</span>
-          <strong>{{ selectedDetail.cleanerView.bringCleaningEssentials ? 'Cleaner brings them' : 'Customer provides them' }}</strong>
+          <strong>
+            {{ selectedDetail.cleanerView.bringCleaningEssentials ? 'Cleaner brings them' : 'Customer provides them' }}
+            <ul class="plain-list">
+              <li *ngFor="let item of supplyItemNames(selectedDetail.cleanerView.essentialsItemKeys)">{{ item }}</li>
+            </ul>
+          </strong>
         </div>
       </section>
 

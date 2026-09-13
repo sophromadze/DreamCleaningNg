@@ -1283,6 +1283,57 @@ describe('BookingComponent', () => {
    * off there is no target-user slot to select into, and silently turning it on would change what
    * the Book Now button is about to do.
    */
+  /**
+   * The booking window has two audiences. A customer books 8:00 AM - 6:00 PM, and no earlier
+   * than 9:30 AM at the weekend. An Admin/SuperAdmin books through to 8:00 PM on every day —
+   * they enter jobs agreed by phone that the self-service window cannot express.
+   *
+   * The window itself is asserted in shared/booking/service-time-slots.spec.ts; what matters
+   * here is that this page asks it the right question, i.e. that the evening slots follow the
+   * signed-in ROLE and a customer can never reach them.
+   */
+  describe('admins book the evening window', () => {
+    // A Monday and the Saturday of the same week.
+    const monday = '2026-09-14';
+    const saturday = '2026-09-19';
+
+    function asAdmin(isAdmin: boolean) {
+      spyOnProperty(component, 'hasExtendedBookingHours', 'get').and.returnValue(isAdmin);
+    }
+
+    it('stops a customer at 6:00 PM', () => {
+      asAdmin(false);
+      component.serviceDate.setValue(monday);
+
+      const slots = component.getAvailableTimeSlots();
+      expect(slots[slots.length - 1]).toBe('18:00');
+      expect(slots).not.toContain('18:30');
+    });
+
+    it('runs an admin through to 8:00 PM', () => {
+      asAdmin(true);
+      component.serviceDate.setValue(monday);
+
+      const slots = component.getAvailableTimeSlots();
+      expect(slots).toContain('18:30');
+      expect(slots).toContain('19:30');
+      expect(slots[slots.length - 1]).toBe('20:00');
+      expect(slots).not.toContain('20:30');
+    });
+
+    it('keeps the weekend 9:30 floor for a customer only', () => {
+      asAdmin(false);
+      component.serviceDate.setValue(saturday);
+      expect(component.getAvailableTimeSlots()[0]).toBe('09:30');
+    });
+
+    it('lets an admin take a Saturday 8:00 AM job', () => {
+      asAdmin(true);
+      component.serviceDate.setValue(saturday);
+      expect(component.getAvailableTimeSlots()[0]).toBe('08:00');
+    });
+  });
+
   describe('register customer from the booking header', () => {
     const newCustomer = {
       id: 501,

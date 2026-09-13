@@ -6,12 +6,15 @@ import { OrderService, OrderList, Order } from '../../../services/order.service'
 import { FormPersistenceService } from '../../../services/form-persistence.service';
 import { formatNyDate } from '../../../shared/ny-time.util';
 import { normalizeTipAmount } from '../../../shared/booking/tip-amount.utils';
+import {
+  UpcomingRecurringOrdersComponent
+} from '../../../shared/components/upcoming-recurring-orders/upcoming-recurring-orders.component';
 
 
 @Component({
   selector: 'app-order-history',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, UpcomingRecurringOrdersComponent],
   templateUrl: './order-history.component.html',
   styleUrls: ['./order-history.component.scss']
 })
@@ -77,12 +80,22 @@ export class OrderHistoryComponent implements OnInit {
     return `${displayHour}:${minutes} ${ampm}`;
   }
 
-  /** An order needs no payment from the website when it's Stripe-paid (isPaid) OR was
-   *  settled outside Stripe — Cash/Zelle/Check/Other, i.e. paymentMethod !== 'Normal'.
-   *  Manual-paid orders keep isPaid=false by backend design, so we must treat them as
-   *  paid here to suppress the Unpaid badge and Pay button. */
+  /**
+   * An order needs no payment from the website when it's Stripe-paid (isPaid) OR was settled
+   * outside Stripe — Cash/Zelle/Check/Other. Those keep isPaid=false by backend design, so they
+   * have to be treated as paid here to suppress the Unpaid badge and the Pay button.
+   *
+   * INVOICE IS THE EXCEPTION (2026-09). It is handled outside Stripe like the others, but
+   * choosing it settles nothing: the customer's commercial client pays an invoice later, and
+   * `invoicePaidAt` is stamped when that invoice reaches a zero balance. Without this clause an
+   * unpaid commercial cleaning would show a green "Paid" badge from the day it was booked.
+   * Mirrors Helpers/OrderPaymentFilter on the backend.
+   */
   isEffectivelyPaid(order: OrderList): boolean {
-    return !!order.isPaid || (!!order.paymentMethod && order.paymentMethod !== 'Normal');
+    if (order.isPaid) return true;
+    if (!order.paymentMethod || order.paymentMethod === 'Normal') return false;
+    if (order.paymentMethod === 'Invoice') return !!order.invoicePaidAt;
+    return true;
   }
 
   /** Additional amount to pay. Backend sends the correct difference (current − tips) − (original − tips). Show it as-is; do not add tips. */
@@ -99,6 +112,7 @@ export class OrderHistoryComponent implements OnInit {
   }
 
   canEditOrder(order: OrderList): boolean {
+    if (order.recurringSeriesId) return false;
     // Check if service type is custom
     if (order.isCustomServiceType) {
       return false;
@@ -190,6 +204,7 @@ export class OrderHistoryComponent implements OnInit {
   cancelReason = '';
 
   canCancelOrder(order: OrderList): boolean {
+    if (order.recurringSeriesId) return false;
     return order.status === 'Active' && !!order.isPaid;
   }
 

@@ -16,6 +16,7 @@ import { PhoneNumberService } from '../../../services/phone-number.service';
 import { AnalyticsService } from '../../../services/analytics.service';
 import { OrderSoundService } from '../../../services/order-sound.service';
 import { extractApiErrorMessage } from '../../../utils/http-error.utils';
+import { COMMERCIAL_FIRST_MONTH_DISCOUNT_PERCENT } from '../../../shared/commercial-offer.data';
 
 /**
  * Commercial cleaning landing page — the destination for the commercial Google Ads
@@ -61,16 +62,14 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
   /**
    * New commercial client offer: 20% off the first month of a recurring plan.
    *
-   * Lives here rather than in `service-pricing.data.ts` because that file holds marketing
-   * PRICES shared across many pages, while this is a promotion that appears only on this one —
-   * in the benefits card, the hero coupon, the closing CTA and the FAQ answer.
-   * Binding all four to one field is what keeps them from drifting apart.
+   * Shared with the office-cleaning page through `commercial-offer.data.ts` so the
+   * offer stays consistent across both pages.
    *
    * Unrelated to the residential recurring discounts (weekly / bi-weekly / monthly), which are
    * admin-configurable in the database and must never be hardcoded: commercial work is quoted
    * from a walkthrough and never priced through the booking flow, so there is no DB value to read.
    */
-  readonly firstMonthDiscountPercent = 20;
+  readonly firstMonthDiscountPercent = COMMERCIAL_FIRST_MONTH_DISCOUNT_PERCENT;
 
   quoteForm: FormGroup;
   isSubmitting = false;

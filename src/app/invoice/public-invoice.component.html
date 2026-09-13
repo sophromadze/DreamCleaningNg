@@ -18,8 +18,14 @@
              company name in text, not to a broken-image icon on a client's invoice. -->
         <img *ngIf="!logoFailed" src="/images/logo-full.png" alt="Dream Cleaning NYC"
              class="logo" (error)="logoFailed = true">
-        <div class="company-name">{{ inv.company.legalName }}</div>
-        <div class="company-dba" *ngIf="inv.company.dbaName">DBA {{ inv.company.dbaName }}</div>
+        <!-- THE TRADING NAME LEADS. It used to read "Nodar Alania Inc." with "DBA Dream Cleaning
+             NYC" in small grey underneath, which is the wrong way round for a customer: the name
+             they booked with, recognise and will look for on a bank statement is Dream Cleaning
+             NYC, and the registered entity is the legal footnote. Both halves come pre-resolved
+             from the server so this page, the PDF and the email cannot each decide it
+             differently. -->
+        <div class="company-name">{{ inv.company.primaryName }}</div>
+        <div class="company-dba" *ngIf="inv.company.secondaryName">{{ inv.company.secondaryName }}</div>
         <div class="company-line" *ngIf="inv.company.address">{{ inv.company.address }}</div>
         <div class="company-line" *ngIf="inv.company.cityStateZip">{{ inv.company.cityStateZip }}</div>
         <div class="company-line" *ngIf="inv.company.phone">{{ inv.company.phone }}</div>
@@ -64,7 +70,12 @@
       <div class="party">
         <span class="block-label">Service Location</span>
         <div class="party-line">{{ inv.serviceAddress || 'Same as billing address' }}</div>
-        <div class="party-line" *ngIf="servicePeriod">Service period: {{ servicePeriod }}</div>
+        <!-- The label follows the shape: "Service date" for one cleaning, "Service dates" for a
+             list, "Service period" for a range - and NOTHING at all when the invoice records none,
+             rather than inventing a range no schedule supports. -->
+        <div class="party-line" *ngIf="servicePeriod">
+          {{ inv.serviceDateLabel || 'Service period' }}: {{ servicePeriod }}
+        </div>
       </div>
 
       <div class="party">
@@ -105,12 +116,22 @@
         <div class="totals-row" *ngIf="inv.discountAmount > 0">
           <span>Discount</span><span>−{{ inv.discountAmount | currency:'USD' }}</span>
         </div>
+        <!--
+          THE REAL TAX AMOUNT, ALWAYS — inclusive as much as added.
+
+          This row printed the bare word "Included" on a tax-inclusive invoice, on the reasoning
+          that a number beside a total it is already part of reads as an extra charge. In practice
+          the opposite was worse: the client's invoice showed "Subtotal $925.43 / Sales tax:
+          Included / Total $925.43", which states the tax nowhere, cannot be reconciled against a
+          sales-tax return, and makes the subtotal wrong as well — the tax-exclusive subtotal is
+          $850.00. The "(included)" note handles the original misreading directly instead.
+        -->
         <div class="totals-row">
-          <span>Sales tax</span>
+          <span>Sales tax<span *ngIf="inv.taxRate"> ({{ inv.taxRate }}%)</span></span>
           <span *ngIf="inv.taxType === InvoiceTaxType.Exempt">Exempt</span>
-          <!-- "Included" in words: a number beside a total it is already part of reads as an
-               additional charge, which is the most common way this is misunderstood. -->
-          <span *ngIf="inv.taxType === InvoiceTaxType.Included">Included</span>
+          <span *ngIf="inv.taxType === InvoiceTaxType.Included">
+            {{ inv.taxAmount | currency:'USD' }} <small class="tax-note">(included)</small>
+          </span>
           <span *ngIf="inv.taxType === InvoiceTaxType.Added">{{ inv.taxAmount | currency:'USD' }}</span>
         </div>
         <div class="totals-row total"><span>Total</span><span>{{ inv.total | currency:'USD' }}</span></div>
@@ -150,15 +171,34 @@
         gone, rather than leaving a customer to wonder whether their payment went through and pay
         a second time.
       -->
+      <!--
+        THE BANNER NAMES THE ACTUAL DEBIT, not just the invoice amount. Saying "your bank payment
+        of $925.43 has been initiated" when $930.43 leaves the account is the kind of small
+        discrepancy that costs trust precisely because the customer can check it against their
+        statement. The breakdown is shown whenever a fee rode along.
+      -->
       <div class="processing-panel" *ngIf="isProcessing">
         <span class="processing-title">Payment processing</span>
-        <p>
-          Your bank payment<span *ngIf="options?.processingAmount">
-            of {{ options!.processingAmount | currency:'USD' }}</span> has been initiated.
-        </p>
+        <p>Your ACH payment has been submitted and is processing.</p>
+
+        <div class="fee-summary processing-breakdown" *ngIf="options?.processingAmount">
+          <div class="fee-row">
+            <span>Invoice payment</span>
+            <span>{{ options!.processingAmount | currency:'USD' }}</span>
+          </div>
+          <div class="fee-row" *ngIf="(options?.processingFeeAmount ?? 0) > 0">
+            <span>{{ options!.achProcessingFeeLabel }}</span>
+            <span>{{ options!.processingFeeAmount | currency:'USD' }}</span>
+          </div>
+          <div class="fee-row fee-total" *ngIf="options?.processingTotalCharged">
+            <span>Total bank debit</span>
+            <span>{{ options!.processingTotalCharged | currency:'USD' }}</span>
+          </div>
+        </div>
+
         <p class="processing-note">
-          ACH payments can take several business days to complete. You do not need to submit
-          another payment while this one is processing — we will email you as soon as it clears.
+          ACH payments can take several business days to settle. You do not need to submit another
+          payment while this payment is processing — we will email you as soon as it clears.
         </p>
       </div>
 
@@ -169,11 +209,72 @@
         </div>
 
         <!-- Primary: Pay from Bank -->
+        <!--
+          THE FEE IS SHOWN BEFORE THE CUSTOMER COMMITS TO ANYTHING. Not buried in a confirmation,
+          not discovered on a bank statement: the exact dollar amount and the exact total debit sit
+          next to the button, and again in the confirmation panel below.
+
+          It is DISPLAY ONLY. Every figure here is computed on the server from the invoice's own
+          balance, and the checkout request carries no amount and no fee at all — so a tampered
+          page can change what is on screen and nothing else.
+        -->
         <div class="pay-primary" *ngIf="options?.stripeAchAvailable">
           <button type="button" class="btn-pay" (click)="payFromBank()" [disabled]="startingPayment">
             {{ startingPayment ? 'Opening secure payment…' : 'Pay from Bank' }}
           </button>
           <span class="pay-caption">Secure ACH bank payment powered by Stripe.</span>
+
+          <div class="fee-summary" *ngIf="achFee > 0">
+            <div class="fee-row">
+              <span>Invoice balance</span><span>{{ inv.balanceDue | currency:'USD' }}</span>
+            </div>
+            <div class="fee-row">
+              <!-- Named, never a bare "Fee": a vague label on a payment page reads as a hidden
+                   markup, and the customer is entitled to know what the charge is for. -->
+              <span>{{ options!.achProcessingFeeLabel }}</span>
+              <span>{{ achFee | currency:'USD' }}</span>
+            </div>
+            <div class="fee-row fee-total">
+              <span>Total if paid by bank</span>
+              <span>{{ options!.achTotalWithFee | currency:'USD' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- The confirmation the customer sees after pressing the button and before we hand them
+             to Stripe. Same three lines, so nothing about the amount is a surprise at any point. -->
+        <!--
+          #payConfirm + tabindex="-1": the component scrolls this into view and moves focus to the
+          heading when the panel OPENS, so on a short viewport the customer sees it appear instead
+          of nothing seeming to happen, and a keyboard/screen-reader user lands inside it.
+        -->
+        <div class="pay-confirm" *ngIf="confirmingBankPayment"
+             #payConfirm tabindex="-1" role="group" aria-labelledby="payConfirmHeading">
+          <h3 id="payConfirmHeading">Confirm bank payment</h3>
+          <div class="fee-row">
+            <span>Invoice balance</span><span>{{ inv.balanceDue | currency:'USD' }}</span>
+          </div>
+          <div class="fee-row" *ngIf="achFee > 0">
+            <span>{{ options!.achProcessingFeeLabel }}</span><span>{{ achFee | currency:'USD' }}</span>
+          </div>
+          <div class="fee-row fee-total">
+            <span>Total bank debit</span>
+            <span>{{ (achFee > 0 ? options!.achTotalWithFee : inv.balanceDue) | currency:'USD' }}</span>
+          </div>
+          <p class="pay-caption">
+            You will be taken to Stripe to authorize the debit from your bank account. ACH transfers
+            take several business days to settle.
+          </p>
+          <div class="pay-confirm-actions">
+            <!-- Neutral secondary, never the green/positive treatment: cancelling is not a
+                 success action, and it must not compete with Continue to Stripe. -->
+            <button type="button" class="btn-pay-cancel" (click)="cancelBankPayment()"
+                    [disabled]="startingPayment">Cancel</button>
+            <button type="button" class="btn-pay" (click)="confirmBankPayment()"
+                    [disabled]="startingPayment">
+              {{ startingPayment ? 'Opening secure payment…' : 'Continue to Stripe' }}
+            </button>
+          </div>
         </div>
 
         <!-- Secondary: card, only when the owner has enabled it -->
@@ -190,17 +291,45 @@
         <span>OR</span>
       </div>
 
-      <!-- Fallback: manual bank transfer, collapsed until asked for. -->
+      <!--
+        THE SECOND LEGITIMATE PAYMENT METHOD, not a footnote.
+
+        Stripe stays primary, but this used to be a bare text toggle with a loose bright-green
+        sentence hanging under it, which read as leftover chrome rather than a way to pay. It is
+        now a card with an icon, a title, a one-line explanation and a small neutral badge — the
+        same shape as the Stripe block above it.
+      -->
       <div class="manual-ach" *ngIf="options?.manualAchAvailable">
         <button type="button" class="manual-toggle" (click)="toggleManualAch()"
                 [attr.aria-expanded]="manualAchExpanded">
-          <span>Pay by Manual ACH Transfer</span>
-          <span class="manual-chevron">{{ manualAchExpanded ? '▴' : '▾' }}</span>
+          <span class="manual-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor"
+                 stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 10h18M5 10V19M19 10V19M9 10V19M15 10V19M3 19h18M12 3 21 8H3z"/>
+            </svg>
+          </span>
+
+          <span class="manual-copy">
+            <span class="manual-title">Pay by Manual ACH Transfer</span>
+            <span class="manual-sub">
+              Send payment directly from your bank using the account details below.
+            </span>
+            <!-- A badge, not a loose green sentence — and the SERVER's wording, unchanged: Dream
+                 Cleaning adds no fee. It deliberately does NOT claim the customer's own bank never
+                 charges one, which is not ours to promise. -->
+            <span class="manual-badge" *ngIf="options?.manualAchFeeNote">
+              {{ options!.manualAchFeeNote }}
+            </span>
+          </span>
+
+          <span class="manual-chevron" aria-hidden="true">{{ manualAchExpanded ? '▴' : '▾' }}</span>
         </button>
 
         <div class="manual-body" *ngIf="manualAchExpanded && inv.paymentInstructions as pay">
           <p class="manual-intro">
             Send an ACH transfer from your own bank using the details below.
+            The amount to send is <strong>{{ inv.balanceDue | currency:'USD' }}</strong> —
+            {{ options!.manualAchFeeNote | lowercase }}.
           </p>
 
           <div class="pay-grid">

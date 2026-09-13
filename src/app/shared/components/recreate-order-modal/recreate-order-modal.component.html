@@ -206,7 +206,10 @@
             </select>
           </label>
         </div>
-        <ng-container *ngIf="paymentMethod !== 'Normal'">
+        <!-- Reference and notes describe money that has ALREADY changed hands, so they are
+             offered for cash/Zelle/cheque/other and NOT for Invoice — an invoice-billed order has
+             not been paid yet, and a reference for it would be a record of nothing. -->
+        <ng-container *ngIf="isSettledMethod">
           <div class="rom-grid">
             <label class="rom-field">
               <span>Payment reference</span>
@@ -221,6 +224,15 @@
         <p class="rom-note" *ngIf="paymentMethod === 'Normal'">
           Stripe: the order is created unpaid. Nothing is charged here, and no payment link goes
           out unless you turn a notification on below.
+        </p>
+        <p class="rom-note" *ngIf="paymentMethod === 'Invoice'">
+          Invoice{{ contractClientName ? ' — billed to ' + contractClientName : '' }}: the order is
+          created Pending. It becomes Active when a commercial invoice covering it is paid in full.
+        </p>
+        <p class="rom-note rom-note--warn"
+           *ngIf="paymentMethod === 'Invoice' && !contractClientId">
+          The original order has no commercial client on it, so this one cannot be billed by
+          invoice. Choose a different payment method.
         </p>
       </section>
 

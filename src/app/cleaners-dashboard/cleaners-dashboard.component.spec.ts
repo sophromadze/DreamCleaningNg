@@ -263,4 +263,122 @@ describe('CleanersDashboardComponent', () => {
       expect(component.paymentDetailsCopied).toBe(false);
     });
   });
+
+  /**
+   * EMBEDDED MODE (2026-09) — Admin → Users → Cleaners mounts this component detail-only so that
+   * clicking a cleaner account opens the SAME detail panel and the SAME edit form this page shows,
+   * rather than a second rendering of the record that would drift from it.
+   *
+   * What these pin is the handful of places where "there is no list" changes behaviour.
+   */
+  describe('embedded mode', () => {
+    const detail = (over: any = {}) => ({
+      id: 80, firstName: 'Maria', lastName: 'K', phone: '7185551234',
+      ranking: 1, experience: 'Standard', alreadyWorkedWithUs: true,
+      busyDaysOfWeek: [], vacations: [], notes: [], assignedOrders: [],
+      isActive: true, createdAt: '2026-01-01T00:00:00Z', ...over
+    });
+
+    const mountEmbedded = () => {
+      component.embedded = true;
+      component.focusCleanerId = 80;
+      fixture.detectChanges();
+      return httpMock.expectOne(r => r.url.endsWith('/admin/cleaners/80'));
+    };
+
+    it('fetches only the one cleaner — never the list', () => {
+      mountEmbedded().flush(detail());
+
+      // The host has its own table; a roster fetch here would be a second list nobody renders.
+      expect(httpMock.match(r => r.url.endsWith('/admin/cleaners')).length).toBe(0);
+      expect(component.selectedDetail?.id).toBe(80);
+    });
+
+    it('brings its own Edit button rather than opening the form for the host', () => {
+      mountEmbedded().flush(detail());
+
+      // The host clicks a ROW and gets the DETAILS; Edit is the panel's own button, sitting next
+      // to the record it edits, exactly as on the dashboard. Nothing opens the form on arrival.
+      expect(component.formOpen).toBeFalse();
+
+      component.openEdit(component.selectedDetail!);
+
+      expect(component.formMode).toBe('edit');
+      expect(component.editingId).toBe(80);
+    });
+
+    /**
+     * WHERE the form renders. One <ng-template> backs both, so the markup cannot drift; what
+     * changes is the frame. A centred modal floating over a 760px drawer is a window on top of a
+     * window, and every other edit in the Users area happens inside the panel itself.
+     */
+    it('renders the edit form IN the panel, not in a modal over it', () => {
+      mountEmbedded().flush(detail());
+      component.openEdit(component.selectedDetail!);
+      fixture.detectChanges();
+
+      expect(component.showsInlineForm).toBeTrue();
+
+      const el: HTMLElement = fixture.nativeElement;
+      expect(el.querySelector('.inline-form-wrap')).not.toBeNull();
+      expect(el.querySelector('.modal-overlay')).toBeNull();
+
+      // The panel body is replaced while editing, the way the Users tab replaces its detail body.
+      expect(el.querySelector('.info-grid')).toBeNull();
+      // ...and Delete steps aside, so it cannot be hit above a half-typed form.
+      expect(el.querySelector('.detail-actions .btn-danger')).toBeNull();
+    });
+
+    it('keeps the modal on the full page, where there is no panel to sit in', () => {
+      fixture.detectChanges();
+      httpMock.match(r => r.url.endsWith('/admin/cleaners')).forEach(r => r.flush([]));
+
+      component.openCreate();
+      fixture.detectChanges();
+
+      expect(component.showsInlineForm).toBeFalse();
+      expect(fixture.nativeElement.querySelector('.modal-overlay')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('.inline-form-wrap')).toBeNull();
+    });
+
+    it('reports a save upward instead of reloading a list it does not have', () => {
+      mountEmbedded().flush(detail());
+
+      const changed = jasmine.createSpy('changed');
+      component.changed.subscribe(changed);
+
+      // Every write path ends in loadCleaners(); embedded that is the signal the host's table
+      // just went stale, not a refetch.
+      component.loadCleaners();
+
+      expect(changed).toHaveBeenCalled();
+      expect(httpMock.match(r => r.url.endsWith('/admin/cleaners')).length).toBe(0);
+    });
+
+    it('asks the host to close rather than closing a drawer it does not own', () => {
+      mountEmbedded().flush(detail());
+
+      const closed = jasmine.createSpy('closed');
+      component.closed.subscribe(closed);
+
+      component.closeDetail();
+
+      expect(closed).toHaveBeenCalled();
+    });
+
+    it('ignores the host route\'s own ?tab= parameter', () => {
+      // The admin panel navigates with ?tab=users. Answering to it here would be this component
+      // reading a parameter that was never about it.
+      queryParams$.next(convertToParamMap({ tab: 'portal' }));
+      asRole('SuperAdmin');
+      mountEmbedded().flush(detail());
+
+      expect(component.activeTab).toBe('dashboard');
+    });
+
+    it('still loads the whole list when NOT embedded', () => {
+      fixture.detectChanges();
+      expect(httpMock.match(r => r.url.endsWith('/admin/cleaners')).length).toBe(1);
+    });
+  });
 });

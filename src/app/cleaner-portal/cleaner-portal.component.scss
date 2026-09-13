@@ -49,6 +49,9 @@
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
+  // Embedded, the title beside it is suppressed and space-between has nothing to push against, so
+  // the picker would sit on the left where the heading used to be. It hugs the right either way.
+  margin-left: auto;
 }
 
 // The language they read in. A small, quiet control - it is set once and then forgotten, so it
@@ -551,6 +554,25 @@
   &--bring {
     background: var(--warning-orange-bg);
     color: var(--warning-orange-text);
+  }
+
+  // The direction leads and the items hang under it: "bring / do not bring" is the instruction,
+  // the list is what it is about. Both inherit the banner's colour, so the pair reads as one
+  // statement rather than as a heading with a note attached to it.
+  &__head {
+    display: block;
+    font-weight: var(--fw-semibold);
+  }
+
+  // Items inherit the banner's own weight and colour - they are the same statement, not a note
+  // attached to it.
+  &__items {
+    margin: 6px 0 0;
+    padding-left: 18px;
+
+    li {
+      margin: 2px 0;
+    }
   }
 }
 

@@ -4,7 +4,10 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormControl, 
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
 import { HttpClientModule } from '@angular/common/http';
 import { BookingService, ServiceType, Service, ExtraService, Subscription, BookingCalculation, BlockedTimeSlot } from '../services/booking.service';
-import { PAYMENT_METHOD_OPTIONS, PaymentMethodValue } from '../shared/payment-method';
+import {
+  PAYMENT_METHOD_OPTIONS, PaymentMethodValue, isSettledOnRecord
+} from '../shared/payment-method';
+import { InvoiceService, InvoiceClientOption } from '../services/invoice.service';
 import { CARD_ON_FILE_ENABLED } from '../shared/card-on-file.flag';
 import { AuthService } from '../services/auth.service';
 import { AuthModalService } from '../services/auth-modal.service';
@@ -15,7 +18,7 @@ import { DurationUtils } from '../utils/duration.utils';
 import { SpecialOfferService, UserSpecialOffer, PublicSpecialOffer } from '../services/special-offer.service';
 import { FormPersistenceService, BookingFormData } from '../services/form-persistence.service';
 import { OrderService, OrderList, Order } from '../services/order.service';
-import { Subject, takeUntil, debounceTime, startWith, distinctUntilChanged, map, skip } from 'rxjs';
+import { Subject, takeUntil, debounceTime, startWith, distinctUntilChanged, map, skip, finalize } from 'rxjs';
 import { PollService, PollQuestion, PollAnswer, PollSubmission } from '../services/poll.service';
 import { DomSanitizer, SafeUrl } from '@angular/platform-browser';
 import { DurationSelectorComponent } from './duration-selector/duration-selector.component';
@@ -67,6 +70,12 @@ import {
 } from '../shared/pricing/order-pricing.calculator';
 import { buildCustomServiceTypeNameOptions } from '../shared/booking/custom-service-type.util';
 import { normalizeTipAmount } from '../shared/booking/tip-amount.utils';
+import {
+  buildServiceTimeSlots,
+  getAllServiceTimeSlots,
+  getEarliestStartTimeForDate,
+  getLatestStartTime
+} from '../shared/booking/service-time-slots';
 import {
   LEVEL_OPTIONS,
 
@@ -173,6 +182,16 @@ export class BookingComponent implements OnInit, OnDestroy {
   get isAdminOrSuperAdmin(): boolean {
     const role = this.authService.currentUserValue?.role;
     return role === 'Admin' || role === 'SuperAdmin';
+  }
+
+  /**
+   * Admins get the evening window (to 8:00 PM) and skip the weekend 9:30 floor. It follows the
+   * ROLE, not Admin Mode: an admin taking a job by phone books it from their own account either
+   * way, and a customer can never reach it. Moderators are customers here, as elsewhere in this
+   * file. See shared/booking/service-time-slots.
+   */
+  get hasExtendedBookingHours(): boolean {
+    return this.isAdminOrSuperAdmin;
   }
   subscriptions: Subscription[] = [];
   currentUser: any = null;
@@ -518,6 +537,18 @@ export class BookingComponent implements OnInit, OnDestroy {
   adminPaymentReference = '';
   adminPaymentNotes = '';
 
+  /**
+   * The commercial client an INVOICE-method booking is billed to.
+   *
+   * A ContractClient, not a User: plenty of commercial clients have no website account, and
+   * ContractClient is the entity invoices, contracts and billing contacts already hang off. The
+   * server refuses an Invoice order without one — a cleaning no invoice can pick up would sit
+   * Pending forever with nothing able to settle it.
+   */
+  adminContractClientId: number | null = null;
+  adminContractClients: InvoiceClientOption[] = [];
+  loadingContractClients = false;
+
   /** Set by discardAdminDraftIfPresent() — drives the "session was not restored" banner. */
   adminDraftDiscarded = false;
 
@@ -542,7 +573,9 @@ export class BookingComponent implements OnInit, OnDestroy {
     @Inject(PLATFORM_ID) private platformId: Object,
     private injector: Injector,
     private googleMapsLoader: GoogleMapsLoaderService,
-    private bubbleRewardsService: BubbleRewardsService
+    private bubbleRewardsService: BubbleRewardsService,
+    // Only used by the Invoice payment method's commercial-client picker in Admin Mode.
+    private invoiceService: InvoiceService
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
     
@@ -1544,9 +1577,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   private getMinimumStartTimeForDate(date: Date): string {
-    // JS getDay(): 0 = Sunday, 6 = Saturday
-    const dayOfWeek = date.getDay();
-    return dayOfWeek === 0 || dayOfWeek === 6 ? '09:30' : '08:00';
+    // The weekend 9:30 floor is a customer rule; admins start at 8:00 on every day.
+    return getEarliestStartTimeForDate(date, this.hasExtendedBookingHours);
   }
 
   private ensureValidServiceTimeForSelectedDate(): void {
@@ -3575,9 +3607,17 @@ export class BookingComponent implements OnInit, OnDestroy {
     const emailLabel = user.isNoEmailUser ? 'no email on file' : user.email;
     const methodLabel = this.paymentMethodOptions.find(o => o.value === this.adminPaymentMethod)?.label
       ?? this.adminPaymentMethod;
-    const paymentLine = this.adminPaymentMethod === 'Normal'
-      ? `Payment: ${methodLabel} — a Pay Now link will be sent to the customer. Nothing is charged to you.`
-      : `Payment: ${methodLabel} — recorded as already paid. The customer gets a booking confirmation only.`;
+    // Three outcomes, not two: Invoice is handled outside Stripe like cash, but the money has
+    // NOT arrived — saying "recorded as already paid" for it would be plainly false, and the
+    // admin confirming this dialog is the last person who can catch that.
+    const client = this.adminContractClients.find(c => c.id === this.adminContractClientId);
+    const paymentLine =
+      this.adminPaymentMethod === 'Normal'
+        ? `Payment: ${methodLabel} — a Pay Now link will be sent to the customer. Nothing is charged to you.`
+        : this.adminPaymentMethod === 'Invoice'
+          ? `Payment: Invoice${client ? ` to ${client.legalEntityName}` : ''} — the order stays `
+            + `Pending Payment until an invoice covering it is paid in full. No payment link is sent.`
+          : `Payment: ${methodLabel} — recorded as already paid. The customer gets a booking confirmation only.`;
 
     return window.confirm(
       `Create this booking for:\n\n` +
@@ -3633,6 +3673,15 @@ export class BookingComponent implements OnInit, OnDestroy {
     // Also check custom pricing fields if applicable
     if (this.showCustomPricing && (!this.customAmount.valid || !this.customCleaners.valid || !this.customDuration.valid || !this.entryMethod.value || !this.customServiceName.value)) {
       this.customServiceName.markAsTouched();
+      this.scrollToFirstError();
+      return;
+    }
+
+    // An Invoice booking has to say who is billed. Checked before the confirmation rather than
+    // after, so the admin fixes the field instead of reading a dialog that names no client — and
+    // the server refuses it either way.
+    if (submitTarget === 'admin-for-user' && this.invoiceClientMissing) {
+      this.errorMessage = 'Choose the commercial client this invoice order is billed to.';
       this.scrollToFirstError();
       return;
     }
@@ -3804,8 +3853,11 @@ export class BookingComponent implements OnInit, OnDestroy {
         targetUser.id,
         bookingData,
         this.adminPaymentMethod,
-        this.adminPaymentMethod !== 'Normal' ? this.adminPaymentReference : null,
-        this.adminPaymentMethod !== 'Normal' ? this.adminPaymentNotes : null
+        // Reference and notes describe money that has ALREADY changed hands, so they travel for
+        // cash/Zelle/cheque/other and not for Invoice — which is unpaid by definition.
+        isSettledOnRecord(this.adminPaymentMethod) ? this.adminPaymentReference : null,
+        isSettledOnRecord(this.adminPaymentMethod) ? this.adminPaymentNotes : null,
+        { contractClientId: this.adminContractClientId }
       ).subscribe({
         next: (response) => {
           this.isLoading = false;
@@ -3814,9 +3866,15 @@ export class BookingComponent implements OnInit, OnDestroy {
           // Show success message. The follow-up sentence has to match what the backend actually
           // did: Normal leaves the order Pending and sends a Pay Now link, manual methods mark
           // it Active and send a booking confirmation only.
-          const outcome = this.adminPaymentMethod === 'Normal'
-            ? 'A payment request has been sent to them; the order also appears in their profile.'
-            : `Recorded as paid by ${this.adminPaymentMethod}. They were sent a booking confirmation — no payment request.`;
+          const outcome =
+            this.adminPaymentMethod === 'Normal'
+              ? 'A payment request has been sent to them; the order also appears in their profile.'
+              : this.adminPaymentMethod === 'Invoice'
+                // Invoice is handled outside Stripe but is NOT settled: saying "recorded as paid"
+                // would be false, and this alert is where an admin would believe it.
+                ? 'Billed by invoice. The order stays Pending Payment until an invoice covering it '
+                  + 'is paid in full — no payment request was sent.'
+                : `Recorded as paid by ${this.adminPaymentMethod}. They were sent a booking confirmation — no payment request.`;
           alert(`Booking created successfully for ${targetUser.firstName} ${targetUser.lastName}. Order ID: ${response.orderId}. ${outcome}`);
           
           // Reset form
@@ -4599,6 +4657,36 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.adminPaymentMethod = 'Normal';
     this.adminPaymentReference = '';
     this.adminPaymentNotes = '';
+    this.adminContractClientId = null;
+  }
+
+  /**
+   * Loads the commercial clients an Invoice booking can be billed to — on demand, the first time
+   * the method is chosen, rather than on every booking-page load. Almost every booking taken here
+   * is residential, and the roster is of no use to those.
+   */
+  onAdminPaymentMethodChange(): void {
+    if (this.adminPaymentMethod !== 'Invoice') {
+      this.adminContractClientId = null;
+      return;
+    }
+
+    if (this.adminContractClients.length || this.loadingContractClients) return;
+
+    this.loadingContractClients = true;
+    this.invoiceService.clients()
+      .pipe(finalize(() => { this.loadingContractClients = false; }))
+      .subscribe({
+        next: list => { this.adminContractClients = list; },
+        // Left empty: the submit guard below refuses an Invoice booking with no client chosen,
+        // so a failed roster fetch cannot produce an unbillable order.
+        error: () => { this.adminContractClients = []; }
+      });
+  }
+
+  /** True when the admin has chosen Invoice but not said who is billed. Blocks submit. */
+  get invoiceClientMissing(): boolean {
+    return this.adminPaymentMethod === 'Invoice' && !this.adminContractClientId;
   }
 
   clearSelectedUser() {
@@ -5262,6 +5350,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   // continues to work without any rewiring downstream.
   private applyLoyaltyStacking(subTotal: number): void {
     this.loyaltyDiscountAmount = 0;
+    if (this.isAdminMode && (this.adminPaymentMethod === 'Invoice' || this.adminContractClientId)) return;
     if (this.loyaltyDiscountPercentage <= 0 || subTotal <= 0) return;
 
     // Single stacking implementation lives in the shared calculator (mirrored by the backend).
@@ -5701,11 +5790,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     const cleanDate = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
     // If the date is fully blocked, all hours are blocked
     if (this.blockedFullDays.has(cleanDate)) {
-      return [
-        '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-        '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-        '16:00', '16:30', '17:00', '17:30', '18:00'
-      ];
+      return getAllServiceTimeSlots(this.hasExtendedBookingHours);
     }
     return Array.from(this.getBlockedHoursForDate(cleanDate));
   }
@@ -5731,19 +5816,10 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (!selectedDate) return [];
 
     const selectedDateObj = this.parseServiceDate(selectedDate);
-    const minStartTime = selectedDateObj
-      ? this.getMinimumStartTimeForDate(selectedDateObj)
-      : '08:00';
 
-    // Time slots from 8:00 AM to 6:00 PM (30-minute intervals) for all days
-    const timeSlots = [
-      '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-      '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-      '16:00', '16:30', '17:00', '17:30', '18:00'
-    ];
-
-    // Weekend rule: for Saturday/Sunday, earliest start is 9:30 AM.
-    let filteredSlots = timeSlots.filter(timeSlot => timeSlot >= minStartTime);
+    // Customers: 8:00 AM - 6:00 PM, no earlier than 9:30 AM on Sat/Sun.
+    // Admin/SuperAdmin: 8:00 AM - 8:00 PM, every day. See shared/booking/service-time-slots.
+    let filteredSlots = buildServiceTimeSlots(selectedDateObj, this.hasExtendedBookingHours);
 
     // If same day service is selected, filter time slots based on current time.
     // Admins / SuperAdmins skip this filter — they can pick any time for same-day.
@@ -6127,9 +6203,10 @@ export class BookingComponent implements OnInit, OnDestroy {
       roundedHour += 1;
     }
     
-    // Ensure we don't exceed 6:00 PM (18:00)
-    if (roundedHour >= 18) {
-      return '18:00'; // 6:00 PM
+    // Ensure we don't exceed the latest start time this audience may pick.
+    const latestStartTime = getLatestStartTime(this.hasExtendedBookingHours);
+    if (roundedHour * 60 + roundedMinute > this.timeToMinutes(latestStartTime)) {
+      return latestStartTime;
     }
 
     // Ensure we don't go earlier than the day-specific minimum start time.

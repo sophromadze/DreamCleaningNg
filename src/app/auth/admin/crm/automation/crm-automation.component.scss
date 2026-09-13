@@ -118,7 +118,7 @@ section h3 {
       font-weight: var(--fw-medium);
       &:disabled { opacity: 0.5; cursor: not-allowed; }
     }
-    .btn-save { border: none; background: var(--btn-secondary); color: #fff; }
+    .btn-save { border: none; background: var(--btn-brand); color: #fff; }
     .btn-run { border: 1px solid var(--primary-color); background: transparent; color: var(--primary-text); }
   }
 
@@ -217,7 +217,7 @@ section h3 {
     font-size: 0.78rem;
     font-weight: var(--fw-medium);
   }
-  .btn-done { border: none; background: var(--btn-secondary); color: #fff; }
+  .btn-done { border: none; background: var(--btn-brand); color: #fff; }
   .btn-dismiss { border: 1px solid var(--border-color); background: var(--surface); color: var(--text-secondary); }
   .btn-reopen { border: 1px solid var(--border-color); background: var(--surface); color: var(--text-secondary); }
   .btn-snooze { border: 1px solid var(--primary-color); background: transparent; color: var(--primary-text); }

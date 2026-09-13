@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, Input, Output, EventEmitter, HostBinding } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -106,6 +106,45 @@ const DAY_LABEL: Record<DayKey, string> = {
   styleUrls: ['./cleaners-dashboard.component.scss']
 })
 export class CleanersDashboardComponent implements OnInit, OnDestroy {
+  // ── EMBEDDED MODE (2026-09) ────────────────────────────────────────────────────────
+  //
+  // Admin -> Users -> Cleaners lists the login ACCOUNTS; clicking one has to show the PERSON -
+  // the same detail panel and the same edit form this page already owns. Rather than a second
+  // copy of the detail markup, the host mounts THIS component with `embedded` set and one cleaner
+  // id: the header, tab strip, filters and card list are dropped and the detail panel is all that
+  // renders. It is the arrangement `<app-cleaner-portal [embedded]="true">` already uses inside
+  // this very page, for the same reason.
+  //
+  // Consequence to preserve: in embedded mode there IS no list, so `loadCleaners()` must not try
+  // to fetch one - it reports upward instead, which is how the accounts table learns that a
+  // cleaner was renamed or deleted under it.
+
+  /** Detail-only: no header, no tabs, no filters, no card list. */
+  @Input() @HostBinding('class.embedded') embedded = false;
+
+  /** The cleaner record to open on mount. Only read when `embedded`. */
+  @Input() focusCleanerId: number | null = null;
+
+  /** The panel asked to close - the host owns the drawer, so it does the closing. */
+  @Output() closed = new EventEmitter<void>();
+
+  /** A cleaner was saved or deleted. The host's own list is now stale. */
+  @Output() changed = new EventEmitter<void>();
+
+  /**
+   * Where the edit form renders.
+   *
+   * On the full page it is a centred modal, which is what a two-column layout wants. Inside the
+   * Users tab's slide-in panel it replaces the panel body in place instead - the arrangement the
+   * Users tab itself uses for editing a customer - because a modal floating over a 760px drawer is
+   * a window on top of a window.
+   *
+   * ONE template backs both; only the frame around it changes.
+   */
+  get showsInlineForm(): boolean {
+    return this.embedded && this.formOpen;
+  }
+
   cleaners: CleanerListItem[] = [];
   loading = false;
   errorMessage = '';
@@ -368,6 +407,15 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.canSeePortal = isSystemWideRole(this.authService.currentUserValue?.role);
 
+    // Embedded: one cleaner, no list, and deliberately NO query-param subscription. The host's
+    // route carries its own `?tab=` (the admin panel uses one), and reading it here would be this
+    // component answering to a parameter that was never about it.
+    if (this.embedded) {
+      this.activeTab = 'dashboard';
+      if (this.focusCleanerId) this.openDetailById(this.focusCleanerId);
+      return;
+    }
+
     // `?tab=portal` is how an old /cleaner-portal bookmark lands here on the right half — see
     // cleanerPortalGuard. Anything else, including a Moderator asking for the portal, falls back to
     // the dashboard rather than rendering a tab they may not read.
@@ -429,7 +477,18 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     this.loadCleaners();
   }
 
+  /**
+   * Every write path ends here — saving a cleaner, deleting one. Embedded there is NO list to
+   * refresh, so the refresh becomes a report to the host, whose own table is the thing that just
+   * went stale. Keeping that inside this one method is why `saveForm` and `deleteCleaner` needed
+   * no embedded branch of their own.
+   */
   loadCleaners(): void {
+    if (this.embedded) {
+      this.changed.emit();
+      return;
+    }
+
     this.loading = true;
     this.errorMessage = '';
     this.fetchCleaners$().subscribe();
@@ -456,19 +515,29 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
   }
 
   openDetail(cleaner: CleanerListItem): void {
+    this.openDetailById(cleaner.id);
+  }
+
+  /**
+   * The id is all the fetch ever needed; the list item was only ever the thing that carried it.
+   * Embedded there is no card to have clicked, so this is the entry point.
+   */
+  openDetailById(cleanerId: number): void {
     this.loadingDetail = true;
     this.selectedDetail = null;
-    this.cleanerService.getById(cleaner.id).subscribe({
+    this.cleanerService.getById(cleanerId).subscribe({
       next: detail => {
         this.selectedDetail = detail;
         this.cleaners = this.cleaners.map(item =>
           item.id === detail.id ? { ...item, mainNote: detail.mainNote ?? null } : item
         );
         this.loadingDetail = false;
+        this.cdr.markForCheck();
       },
       error: err => {
         this.errorMessage = this.extractError(err) || 'Failed to load cleaner details';
         this.loadingDetail = false;
+        this.cdr.markForCheck();
       }
     });
   }
@@ -477,6 +546,8 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
     this.selectedDetail = null;
     this.newNote = { text: '', orderId: null, orderPerformance: null };
     this.cancelEditNote();
+    // Embedded there is nothing behind the panel — the host owns the drawer, so it closes it.
+    if (this.embedded) this.closed.emit();
   }
 
   openCreate(): void {
@@ -679,6 +750,9 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
       next: () => {
         this.selectedDetail = null;
         this.loadCleaners();
+        // The record the drawer was opened on no longer exists; leaving it open would show an
+        // empty panel over a row that is about to disappear from the table underneath.
+        if (this.embedded) this.closed.emit();
       },
       error: err => {
         this.errorMessage = this.extractError(err) || 'Failed to delete cleaner';

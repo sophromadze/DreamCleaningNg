@@ -4,6 +4,12 @@
       <a routerLink="/booking" class="new-order-btn">Book New Service</a>
     </div>
   
+    <!-- Upcoming recurring cleanings, nearest first, with what may be paid now. Sits ABOVE the
+         history rather than inside it: the list below is "everything that has ever happened", and
+         this answers "what is coming up on my plan". Recurring orders still appear in the list
+         below like every other order — nothing was moved out of it. -->
+    <app-upcoming-recurring-orders (paid)="loadOrders()"></app-upcoming-recurring-orders>
+
     <div *ngIf="isLoading" class="loading">Loading orders...</div>
     
     <div *ngIf="errorMessage" class="error-message">{{ errorMessage }}</div>
@@ -53,7 +59,7 @@
   
         <div class="order-actions">
           <!-- Pay and Cancel buttons for unpaid orders (not cancelled) -->
-          <div class="unpaid-actions" *ngIf="!isEffectivelyPaid(order) && order.status !== 'Cancelled'">
+          <div class="unpaid-actions" *ngIf="!order.recurringSeriesId && !isEffectivelyPaid(order) && order.status !== 'Cancelled'">
             <button
               (click)="payOrder(order.id)"
               class="pay-btn">

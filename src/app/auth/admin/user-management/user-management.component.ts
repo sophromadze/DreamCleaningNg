@@ -32,8 +32,13 @@ import {
   RegisteredCustomer
 } from '../../../shared/components/register-customer-modal/register-customer-modal.component';
 import { RecreateOrderModalComponent } from '../../../shared/components/recreate-order-modal/recreate-order-modal.component';
+import { Router } from '@angular/router';
+import { finalize } from 'rxjs/operators';
+import {
+  InvoiceService, InvoiceClientOption, LinkedInvoiceSummary
+} from '../../../services/invoice.service';
 
-type DetailTab = 'details' | 'history' | 'photos' | 'notes' | 'tasks';
+type DetailTab = 'details' | 'history' | 'photos' | 'notes' | 'tasks' | 'invoices';
 
 @Component({
   selector: 'app-user-management',
@@ -48,6 +53,23 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   /** Set from the ?userId= query param (e.g. the orders panel's "View User" button) — auto-opens that user. */
   @Input() openUserId: number | null = null;
+
+  /**
+   * WHICH AUDIENCE this instance lists — Users → Customers, or Users → Staff.
+   *
+   * ONE COMPONENT, TWO SCOPES, deliberately. Customers and staff are the same records with the
+   * same detail panel, the same notes, the same flags and the same permission model; the only
+   * difference is which roles belong on screen. A second component would be a second copy of two
+   * thousand lines that would drift on the first change either side.
+   *
+   * Defaults to 'customers' so the tab an admin lands on shows what "Users" has always meant.
+   * Filtering is applied on TOP of the ordinary role filter — see `scopedUsers` — so a scope can
+   * never widen what the filter narrowed.
+   */
+  @Input() scope: 'customers' | 'staff' = 'customers';
+
+  /** The roles that count as STAFF. SuperAdmin / Admin / Moderator — never a customer. */
+  private static readonly STAFF_ROLES = ['superadmin', 'admin', 'moderator'];
 
   users: UserAdmin[] = [];
   loadingUsers = false;
@@ -191,7 +213,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     private orderService: OrderService,
     private bubbleRewardsService: BubbleRewardsService,
     private adminBonusService: AdminBonusService,
-    private contractService: ContractService
+    private contractService: ContractService,
+    private invoiceService: InvoiceService,
+    private router: Router
   ) {}
 
   ngOnInit() {
@@ -534,6 +558,81 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.loadUserTasksList(user.id);
     this.loadCleaningPhotos(user.id);
     this.loadAdminBonusStats(user);
+    this.loadUserInvoices(user.id);
+    this.loadBusinessClient(user);
+  }
+
+  // ── Invoices, and the commercial record behind a business account ──────────────────────────
+  //
+  // TWO SEPARATE QUESTIONS, deliberately:
+  //
+  //  • "Does this customer have invoices?" is asked of EVERY account. An ordinary customer can
+  //    have them — one of their cleanings may have been billed on a company's invoice — so the
+  //    tab is driven by what comes back, not by whether the account is flagged as a business.
+  //    An empty result hides the tab entirely: a tab that opens onto "no invoices" is a tab that
+  //    trains people not to click it.
+  //
+  //  • "Is this account also a commercial client?" adds the OTHER HALF of a business customer to
+  //    this same panel, so nobody has to cross to the Business Clients tab to read the billing
+  //    entity, its contracts and where its invoices go. The two records are shown side by side
+  //    rather than merged — an account email is a login and a notice email is where invoices go,
+  //    and they are allowed to differ.
+
+  userInvoices: LinkedInvoiceSummary[] = [];
+  loadingUserInvoices = false;
+
+  businessClient: InvoiceClientOption | null = null;
+  loadingBusinessClient = false;
+
+  private loadUserInvoices(userId: number): void {
+    this.userInvoices = [];
+    this.loadingUserInvoices = true;
+
+    this.invoiceService.invoicesForUser(userId)
+      .pipe(finalize(() => this.loadingUserInvoices = false))
+      .subscribe({
+        next: rows => {
+          // The panel may have moved on to another user while this was in flight.
+          if (this.viewingUserId !== userId) return;
+          this.userInvoices = rows ?? [];
+
+          // The tab is hidden when the list is empty, so a panel sitting on it would render an
+          // empty pane with no tab selected. Only reachable when a deep link or a previous user
+          // left the panel there.
+          if (!this.hasInvoices && this.detailTab === 'invoices') this.detailTab = 'details';
+        },
+        // Non-fatal, and it fails CLOSED: no rows means no tab, which is the same thing an
+        // account with no invoices sees. A broken tab would be worse than a missing one.
+        error: () => { if (this.viewingUserId === userId) this.userInvoices = []; }
+      });
+  }
+
+  private loadBusinessClient(user: UserAdmin): void {
+    this.businessClient = null;
+
+    // Asked only of accounts the server has already told us are business clients, so an ordinary
+    // customer's panel does not fire a request that can only answer "no".
+    if (!user.hasActiveBusinessClient && !user.isBusiness) return;
+
+    this.loadingBusinessClient = true;
+
+    this.invoiceService.clientForUser(user.id)
+      .pipe(finalize(() => this.loadingBusinessClient = false))
+      .subscribe({
+        next: client => { if (this.viewingUserId === user.id) this.businessClient = client ?? null; },
+        error: () => { if (this.viewingUserId === user.id) this.businessClient = null; }
+      });
+  }
+
+  /** The Invoices tab exists only when there is something in it. */
+  get hasInvoices(): boolean {
+    return this.userInvoices.length > 0;
+  }
+
+  /** Opens the commercial record for this account on the Business Clients tab. */
+  openBusinessClient(): void {
+    if (!this.businessClient) return;
+    this.router.navigate(['/admin'], { queryParams: { clientId: this.businessClient.id } });
   }
 
   // Only fetched for users with the Admin role — the bonus system doesn't apply to others.
@@ -585,6 +684,8 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.lightboxPhoto = null;
     this.adminBonusAllTime = null;
     this.adminBonusThisMonth = null;
+    this.userInvoices = [];
+    this.businessClient = null;
   }
 
   setDetailTab(tab: DetailTab): void {
@@ -666,7 +767,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   loyaltyDiscount: LoyaltyDiscountDto | null = null;
   loadingLoyalty = false;
   editingLoyalty = false;
-  loyaltyForm: { percentage: number } = { percentage: 0 };
+  loyaltyForm: { percentage: number; isLifetime: boolean } = { percentage: 0, isLifetime: false };
   savingLoyalty = false;
   loyaltyError = '';
   loyaltySuccess = '';
@@ -680,7 +781,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       next: (dto) => {
         if (this.selectedUser?.id !== userId) return;
         this.loyaltyDiscount = dto;
-        this.loyaltyForm = { percentage: dto?.percentage ?? 0 };
+        this.loyaltyForm = { percentage: dto?.percentage ?? 0, isLifetime: dto?.isLifetime ?? false };
         this.loadingLoyalty = false;
       },
       error: () => { this.loadingLoyalty = false; }
@@ -688,7 +789,10 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   startEditLoyaltyDiscount(): void {
-    this.loyaltyForm = { percentage: this.loyaltyDiscount?.percentage ?? 0 };
+    this.loyaltyForm = {
+      percentage: this.loyaltyDiscount?.percentage ?? 0,
+      isLifetime: this.loyaltyDiscount?.isLifetime ?? false
+    };
     this.loyaltyError = '';
     this.loyaltySuccess = '';
     this.editingLoyalty = true;
@@ -705,7 +809,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.savingLoyalty = true;
     this.loyaltyError = '';
     this.loyaltySuccess = '';
-    this.adminService.setUserLoyaltyDiscount(userId, this.loyaltyForm.percentage).subscribe({
+    this.adminService.setUserLoyaltyDiscount(
+      userId, this.loyaltyForm.percentage, this.loyaltyForm.isLifetime
+    ).subscribe({
       next: (dto) => {
         if (this.selectedUser?.id !== userId) { this.savingLoyalty = false; return; }
         this.loyaltyDiscount = dto;
@@ -731,7 +837,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       next: (dto) => {
         if (this.selectedUser?.id !== userId) { this.savingLoyalty = false; return; }
         this.loyaltyDiscount = dto;
-        this.loyaltyForm = { percentage: 0 };
+        this.loyaltyForm = { percentage: 0, isLifetime: false };
         this.editingLoyalty = false;
         this.savingLoyalty = false;
         this.loyaltySuccess = 'Loyalty discount cleared.';
@@ -1284,21 +1390,49 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
     // Optimistic, like the other toggles in this panel; reverted on failure.
     user.isBusiness = isBusiness;
+    this.syncBusinessTabMembership(user.id, isBusiness);
 
     this.contractService.setBusinessFlag(user.id, isBusiness).subscribe({
       next: res => {
         this.togglingBusinessUserId = null;
         user.isBusiness = res.isBusiness;
+        this.syncBusinessTabMembership(user.id, res.isBusiness);
         this.successMessage = res.message;
       },
       error: err => {
         this.togglingBusinessUserId = null;
         user.isBusiness = previous;
+        this.syncBusinessTabMembership(user.id, previous);
         // The server refuses to unflag an account a contract still depends on, and that message
         // is the useful one — surfaced verbatim rather than replaced with a generic failure.
         this.errorMessage = extractApiErrorMessage(err, 'The business flag could not be changed.');
       }
     });
+  }
+
+  /**
+   * Moves the row between the Customers and Business Clients sub-tabs, in step with the flag.
+   *
+   * `scopedUsers` partitions on `hasActiveBusinessClient` — the SERVER's answer to "is this
+   * account on the Business Clients tab" — and the optimistic flag flip above does not touch it,
+   * so without this the row sat on Customers until the next full list load and the account looked
+   * like it had been flagged twice. Setting the flag is precisely what makes the linked client
+   * active or inactive (BusinessClientService's state machine is exhaustive: on ⇒ active client,
+   * off ⇒ deactivated), so the flag IS the local answer until the list is fetched again.
+   *
+   * Reloading the list instead would be the wrong trade: `loadUsers` resets to page 1 and closes
+   * the detail panel the admin is toggling from.
+   *
+   * Looked up by id rather than written through `user`, because the toggle lives in the detail
+   * panel and `selectedUser` is a SEPARATE object from the table row it was opened from — the row
+   * in `users` is the only one the tab filters, and the one the flip never reached.
+   */
+  private syncBusinessTabMembership(userId: number, isBusiness: boolean): void {
+    const row = this.users.find(u => u.id === userId);
+    if (!row) return;
+
+    row.isBusiness = isBusiness;
+    row.hasActiveBusinessClient = isBusiness;
   }
 
   isManagerPosition(user: DetailedUser | UserAdmin | null): boolean {
@@ -1513,9 +1647,37 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     });
   }
 
+  /**
+   * The rows this tab is ABOUT, before any of the user-chosen filters run.
+   *
+   * Staff is the three admin roles; Customers is everybody else. A row with no role at all falls
+   * in with Customers, because an unrecognised role is far more likely to be a legacy customer
+   * than a staff member — and hiding a real customer from the customer tab is the worse failure
+   * of the two (they would appear nowhere at all).
+   *
+   * That same "worse failure" is why Customers hides a business account on exactly ONE test:
+   * `hasActiveBusinessClient`, which is the server's answer to "is this account on the Business
+   * Clients tab right now". The tabs then partition the accounts between them, and an account
+   * that is not on Business Clients is always on Customers. Testing `isBusiness` here as well
+   * looks harmless and is not: the two facts are separate columns, and any state where the flag
+   * outlives an active link (a failed auto-create, a client deactivated by another route) hides
+   * the customer from every tab in the panel. Deactivating the client is exactly what "Move to
+   * Customers" does, so that state is reachable and was the bug (2026-09).
+   */
+  private get scopedUsers(): UserAdmin[] {
+    const isStaff = (u: UserAdmin) =>
+      !!u.role && UserManagementComponent.STAFF_ROLES.includes(u.role.toLowerCase());
+
+    return this.scope === 'staff'
+      ? this.users.filter(isStaff)
+      : this.users.filter(u => !isStaff(u) && !u.hasActiveBusinessClient);
+  }
+
   /** Every user matching the current filters, sorted — before pagination slices it. */
   private get matchingUsers(): UserAdmin[] {
-    let filtered = this.users;
+    // The SCOPE comes first and the filters narrow within it, so no filter can ever surface a
+    // staff account on the Customers tab (or the reverse).
+    let filtered = this.scopedUsers;
     if (this.searchTerm) {
       const search = this.searchTerm.toLowerCase();
       filtered = filtered.filter(user =>

@@ -1,0 +1,465 @@
+/* The Recurrence card sits inside the admin order detail panel, so it borrows that panel's card
+   shape (.assigned-cleaners-section) from the host rather than inventing a second one — the host
+   puts that class on the component element. Everything here is the card's INNER layout. */
+
+:host {
+  display: block;
+}
+
+.rsp {
+  h5 {
+    margin: 0 0 10px;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+  }
+}
+
+.rsp-loading,
+.rsp-muted {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0 0 8px;
+}
+
+.rsp-tiny { font-size: 0.78rem; }
+
+.rsp-summary {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rsp-line {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+
+  /* The two lines that state what will and will not happen on its own. Slightly stronger than
+     the surrounding detail because they are the ones people assume wrongly. */
+  &--fact { color: var(--text-primary); }
+}
+
+.rsp-chip {
+  font-size: 0.72rem;
+  font-weight: var(--fw-semibold);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--mint-fresh);
+  color: var(--fresh-green);
+
+  &--off {
+    background: var(--soft-yellow);
+    color: var(--soft-yellow-text);
+  }
+}
+
+.rsp-warn {
+  margin: 8px 0;
+  font-size: 0.82rem;
+  font-weight: var(--fw-medium);
+  color: var(--warning-orange-text);
+  background: var(--warning-orange-bg);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+}
+
+.rsp-alert {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.83rem;
+
+  p { margin: 0 0 8px; }
+  p:last-child { margin-bottom: 0; }
+
+  &--error {
+    background: var(--soft-red);
+    color: var(--bright-red);
+  }
+
+  &--notice {
+    background: var(--soft-blue);
+    color: var(--primary-color);
+  }
+}
+
+.rsp-subhead {
+  margin: 14px 0 6px;
+  font-size: 0.82rem;
+  font-weight: var(--fw-semibold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.rsp-list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+.rsp-occurrence {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.85rem;
+
+  &:last-child { border-bottom: none; }
+}
+
+.rsp-occ-date {
+  min-width: 96px;
+  color: var(--text-primary);
+  font-weight: var(--fw-medium);
+}
+
+.rsp-occ-total {
+  min-width: 76px;
+  color: var(--text-secondary);
+}
+
+.rsp-occ-status {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+
+  &--paid { color: var(--fresh-green); }
+}
+
+.rsp-occ-tag {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--soft-blue);
+  color: var(--primary-color);
+}
+
+.rsp-occ-warn {
+  font-size: 0.72rem;
+  font-weight: var(--fw-semibold);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-orange-bg);
+  color: var(--warning-orange-text);
+}
+
+// ── Form ───────────────────────────────────────────────────────────────────────────────────
+//
+// The form asks three separate questions — when it repeats, what it costs, how it behaves — and
+// they are grouped so they read that way. Before this, a flat run of labels made the discount
+// field look like part of the schedule and the estimate look like part of the discount.
+
+.rsp-group {
+  margin: 0 0 16px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--border-color);
+
+  &:last-of-type {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+}
+
+.rsp-group-title {
+  margin: 0 0 10px;
+  font-size: 0.72rem;
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.rsp-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+.rsp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1 1 170px;
+  min-width: 0;
+  margin-bottom: 12px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.rsp-label {
+  font-size: 0.8rem;
+  font-weight: var(--fw-medium);
+  color: var(--text-primary);
+}
+
+/* "optional" is a property of the field, not part of its name — so it is set apart rather than
+   left inside the label where it reads as two words of the question. */
+.rsp-optional {
+  margin-left: 4px;
+  font-size: 0.68rem;
+  font-weight: var(--fw-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.rsp-hint {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+.rsp-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  font-family: inherit;
+  line-height: 1.3;
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--soft-blue);
+  }
+
+  &--count { flex: 0 0 74px; }
+}
+
+/* "Repeat every [2] [week(s)]" is one sentence, so the number and the unit sit on one line. The
+   old markup faked the alignment with an empty &nbsp; label above the select. */
+.rsp-inline {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+
+  select { flex: 1 1 auto; min-width: 0; }
+}
+
+// ── Source-order discounts ────────────────────────────────────────────────────────────────
+
+.rsp-note {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--page-bg);
+  border: 1px solid var(--border-color);
+}
+
+.rsp-note-title {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.rsp-note-body {
+  margin: 0 0 8px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.rsp-source-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    padding: 3px 0;
+    font-size: 0.8rem;
+  }
+}
+
+.rsp-source-label { color: var(--text-secondary); }
+
+.rsp-source-amount {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+// ── Percentage vs fixed amount ────────────────────────────────────────────────────────────
+//
+// A segmented control rather than a dropdown: there are exactly two answers, and both being
+// visible is the point — the bare number box it replaced never said which one you were typing.
+
+.rsp-mode {
+  display: inline-flex;
+  /* The field is a flex COLUMN, so without this the two-option control stretches to the full
+     width of the card and stops reading as a choice between two things. */
+  align-self: flex-start;
+  padding: 2px;
+  gap: 2px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--page-bg);
+}
+
+.rsp-mode-btn {
+  padding: 5px 12px;
+  border: none;
+  border-radius: calc(var(--radius-sm) - 2px);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.79rem;
+  font-weight: var(--fw-medium);
+  font-family: inherit;
+  cursor: pointer;
+
+  &:hover:not(.rsp-mode-btn--on) { color: var(--text-primary); }
+
+  &--on {
+    background: var(--surface);
+    color: var(--primary-color);
+    font-weight: var(--fw-semibold);
+    box-shadow: 0 1px 2px var(--shadow-color);
+  }
+}
+
+/* The unit sits BESIDE the box rather than inside it: a number input carries spinner arrows on
+   its right edge in most browsers, and an absolutely-positioned "%" lands underneath them. */
+.rsp-adorned {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+
+  .rsp-input { flex: 1 1 auto; min-width: 0; }
+}
+
+.rsp-adorn {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: var(--fw-medium);
+}
+
+// ── Estimate ──────────────────────────────────────────────────────────────────────────────
+
+.rsp-estimate {
+  margin: 12px 0 0;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--soft-blue);
+}
+
+.rsp-estimate-title {
+  margin: 0 0 8px;
+  font-size: 0.72rem;
+  font-weight: var(--fw-semibold);
+  color: var(--primary-color);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rsp-estimate-rows {
+  margin: 0 0 8px;
+
+  dt, dd { margin: 0; }
+}
+
+.rsp-estimate-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 3px 0;
+  font-size: 0.83rem;
+  color: var(--text-secondary);
+
+  dd { font-variant-numeric: tabular-nums; }
+
+  &--total {
+    margin-top: 4px;
+    padding-top: 7px;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.92rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+}
+
+/* Where the discount came from — the source and the percentage — belongs with the row it
+   explains, not on a line of its own competing with the figures. */
+.rsp-estimate-note {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+// ── Checkboxes / radios ───────────────────────────────────────────────────────────────────
+
+.rsp-check {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  cursor: pointer;
+
+  input {
+    margin: 2px 0 0;
+    flex: 0 0 auto;
+    accent-color: var(--primary-color);
+  }
+
+  small {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    line-height: 1.45;
+    margin-top: 3px;
+  }
+}
+
+.rsp-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.rsp-btn {
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.84rem;
+  font-weight: var(--fw-medium);
+  font-family: inherit;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { border-color: var(--text-muted); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  &--primary {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+
+    &:hover:not(:disabled) { filter: brightness(0.95); }
+  }
+
+  /* Sits in the middle of an occurrence row, so it must not out-weigh the date beside it. */
+  &--tiny {
+    padding: 3px 9px;
+    font-size: 0.75rem;
+  }
+}

@@ -37,22 +37,15 @@
             *ngIf="userPermissions?.permissions?.canView">
       Orders
     </button>
-    <button class="tab-btn" 
+    <!-- ONE Users area with four sub-tabs (2026-09): Customers / Cleaners / Business Clients /
+         Staff. The old top-level "Cleaners" tab moved inside it; its key still resolves (see
+         AdminComponent.LEGACY_TAB_REDIRECTS) so a bookmarked ?tab=cleaner-accounts and a stale
+         sessionStorage value both land on Users → Cleaners rather than on Orders. -->
+    <button class="tab-btn"
             [class.active]="activeTab === 'users'"
             (click)="setActiveTab('users')"
             *ngIf="userPermissions?.permissions?.canView">
       Users
-    </button>
-    <!-- The cleaner LOGIN ACCOUNTS and which cleaner record each one drives. Renamed to
-         "Cleaners" by the owner (2026-09); the people themselves - documents, ranking, wages -
-         stay on the separate /cleaners-dashboard page. The tab KEY stays cleaner-accounts: it is
-         persisted in sessionStorage, so renaming it would bounce every admin mid-session back to
-         Orders. Visible to any role holding View; Admins hold Update and do everything in it. -->
-    <button class="tab-btn"
-            [class.active]="activeTab === 'cleaner-accounts'"
-            (click)="setActiveTab('cleaner-accounts')"
-            *ngIf="userPermissions?.permissions?.canView">
-      Cleaners
     </button>
     <!-- Services edits the price catalogue every quote is built from, so it is SuperAdmin-only —
          deliberately NOT canView, which regular Admins and Moderators hold. Matched by
@@ -125,8 +118,12 @@
   <div class="tab-content">
     <ng-container [ngSwitch]="activeTab">
       <app-orders *ngSwitchCase="'orders'" [openOrderId]="pendingOrderId"></app-orders>
-      <app-user-management *ngSwitchCase="'users'" [openUserId]="pendingUserId"></app-user-management>
-      <app-cleaner-accounts *ngSwitchCase="'cleaner-accounts'"></app-cleaner-accounts>
+      <!-- The Users shell owns the four sub-tabs; `initialUsersTab` is set only when a legacy
+           deep link asked for the old top-level Cleaners tab. -->
+      <app-admin-users *ngSwitchCase="'users'"
+                       [openUserId]="pendingUserId"
+                       [openClientId]="pendingClientId"
+                       [initialTab]="initialUsersTab"></app-admin-users>
       <!-- Guarded as well as hidden: a stale 'booking-services' in sessionStorage would otherwise
            mount the component (and fire its now-403 catalogue GETs) before the role has loaded.
            setActiveTab / the permission load move a non-SuperAdmin back to Orders. -->

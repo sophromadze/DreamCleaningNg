@@ -3,6 +3,14 @@
    Shared by Commercial → Clients and the Create Invoice form, so nothing here assumes either
    page's surrounding layout. */
 
+// 630px is `$panel-width` from user-management.component.scss, which every admin detail panel
+// uses - Commercial → Clients included. Matching it means the edit panel lands EXACTLY over the
+// detail panel it was opened from, so it reads as that panel switching into edit mode rather than
+// a second panel sliding in beside it.
+$cc-panel-width: 630px;
+$cc-header-desktop: 80px;
+$cc-header-mobile: 60px;
+
 .cc-modal-overlay {
   position: fixed;
   inset: 0;
@@ -25,6 +33,43 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* ── Panel variant ──────────────────────────────────────────────────────────────
+   Same form, different frame: pinned to the right edge, full height, square-edged,
+   below the app header — the geometry the Users tab's detail panel uses, so an edit
+   opened from a table looks like every other edit opened from a table.
+
+   Only the box moves. Head, body and foot below are shared by both variants, which
+   is the point: there is one commercial client form, not two. */
+.cc-modal-overlay.as-panel {
+  // The base rule's inset:0 puts it under the app header; a panel starts below it.
+  top: $cc-header-desktop;
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
+
+  @media (max-width: 768px), (hover: none) { top: $cc-header-mobile; }
+
+  .cc-modal {
+    width: min(#{$cc-panel-width}, 100vw);
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    border-radius: 0;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    box-shadow: -8px 0 24px var(--shadow-color);
+    animation: cc-panel-in 0.22s ease-out;
+  }
+}
+
+// The transform is gone once the animation finishes (no fill-mode), so it never
+// becomes a containing block for anything fixed the form might later grow.
+@keyframes cc-panel-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
 }
 
 .cc-modal-head {
@@ -156,6 +201,20 @@
     &:focus { outline: none; border-color: var(--primary-color); }
     &:disabled { opacity: 0.6; cursor: not-allowed; }
   }
+
+  // The one field the error line above is talking about. Submit is never disabled, so this is
+  // what turns "Enter the city." into somewhere to look.
+  &.cc-invalid {
+    label { color: var(--bright-red); }
+
+    input,
+    select {
+      border-color: var(--bright-red);
+      background: var(--soft-red);
+
+      &:focus { border-color: var(--bright-red); }
+    }
+  }
 }
 
 .cc-check {
@@ -173,6 +232,14 @@
   margin: 0;
   font-size: 0.79rem;
   color: var(--text-muted);
+
+  // Not an error — a saved client legitimately arrives with company details still to fill in.
+  &.cc-warn {
+    padding: 8px 11px;
+    border-radius: var(--radius-sm);
+    background: var(--warning-orange-bg);
+    color: var(--warning-orange-text);
+  }
 }
 
 .cc-modal-foot {

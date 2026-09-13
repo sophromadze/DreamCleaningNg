@@ -1,0 +1,167 @@
+<div class="business-types">
+
+  <!--
+    Every change on this screen affects FUTURE contracts only. Choosing a business type on a
+    contract deep-copies its checklist into that contract's own snapshot, and generating a version
+    freezes the copy — so nothing here can reach an agreement that already exists. Said once, at
+    the top, because an admin editing a shared template needs to know that before they start.
+  -->
+  <p class="scope-notice">
+    These are the scope-of-work templates offered when creating a contract. Editing one changes
+    what <strong>new</strong> contracts start from — contracts already created or signed keep the
+    scope they were built with.
+  </p>
+
+  <div class="alert alert-danger" *ngIf="error">{{ error }}</div>
+  <div class="alert alert-success" *ngIf="notice">{{ notice }}</div>
+
+  <div class="bt-layout">
+
+    <!-- ── The list of business types ──────────────────────────────────────────── -->
+    <aside class="bt-list">
+      <h3>Business types</h3>
+
+      <p class="loading" *ngIf="loading">Loading…</p>
+
+      <ul class="type-list" *ngIf="!loading">
+        <li *ngFor="let t of templates">
+          <button type="button" class="type-row"
+                  [class.active]="selected?.id === t.id"
+                  [class.archived]="t.isActive === false"
+                  (click)="open(t.id)">
+            <span class="type-name">{{ t.name }}</span>
+            <span class="type-premises">{{ t.premisesType }}</span>
+            <span class="type-badge" *ngIf="t.isActive === false">Archived</span>
+          </button>
+          <button type="button" class="link-btn restore" *ngIf="t.isActive === false"
+                  (click)="restoreType(t.id)">Restore</button>
+        </li>
+      </ul>
+
+      <label class="check">
+        <input type="checkbox" [(ngModel)]="includeArchived" name="includeArchived"
+               (ngModelChange)="onIncludeArchivedChange()">
+        <span>Show archived</span>
+      </label>
+
+      <div class="add-type">
+        <input type="text" [(ngModel)]="newTypeName" name="newTypeName"
+               placeholder="e.g. Gym / Fitness Studio" (keyup.enter)="createType()">
+        <button type="button" class="btn-secondary" [disabled]="!newTypeName.trim() || saving"
+                (click)="createType()">Add business type</button>
+      </div>
+    </aside>
+
+    <!-- ── The selected type's checklist ───────────────────────────────────────── -->
+    <section class="bt-editor" *ngIf="selected as t">
+
+      <div class="editor-head">
+        <div class="field">
+          <label for="typeName">Name</label>
+          <input id="typeName" type="text" [(ngModel)]="t.name" name="typeName">
+        </div>
+        <div class="field">
+          <label for="premisesType">Premises noun</label>
+          <input id="premisesType" type="text" [(ngModel)]="t.premisesType" name="premisesType"
+                 placeholder="restaurant">
+          <small class="hint">
+            The word the agreement uses: “the {{ t.premisesType || 'premises' }} operated by
+            Client”.
+          </small>
+        </div>
+        <label class="check">
+          <input type="checkbox" [(ngModel)]="t.allowsCustomRows" name="allowsCustomRows">
+          <span>Let admins type extra rows on an individual contract</span>
+        </label>
+      </div>
+
+      <!-- ── Categories ──────────────────────────────────────────────────────── -->
+      <div class="category" *ngFor="let g of groups; let gi = index; trackBy: trackByIndex"
+           [class.archived]="g.archived">
+
+        <header class="category-head">
+          <input type="text" [(ngModel)]="g.title" [name]="'groupTitle' + gi"
+                 class="category-title" [disabled]="!!g.archived">
+
+          <select [(ngModel)]="g.kind" [name]="'groupKind' + gi" [disabled]="!!g.archived">
+            <option value="included">Included</option>
+            <option value="excluded">Not included</option>
+          </select>
+
+          <span class="category-count">
+            {{ selectedItemCount(g) }}/{{ activeItemCount(g) }} ticked
+          </span>
+
+          <div class="category-actions">
+            <button type="button" class="icon-btn" (click)="moveCategory(gi, -1)"
+                    [disabled]="gi === 0" title="Move up">▲</button>
+            <button type="button" class="icon-btn" (click)="moveCategory(gi, 1)"
+                    [disabled]="gi === groups.length - 1" title="Move down">▼</button>
+            <button type="button" class="link-btn" (click)="removeCategory(gi)">
+              {{ g.archived ? 'Un-archive' : 'Archive' }}
+            </button>
+          </div>
+        </header>
+
+        <p class="archived-note" *ngIf="g.archived">
+          Archived. It will not appear on new contracts, and contracts that already use it are
+          unchanged.
+        </p>
+
+        <ul class="item-list" *ngIf="!g.archived">
+          <li *ngFor="let item of g.items; let ii = index; trackBy: trackByIndex"
+              [class.archived]="item.archived">
+            <label class="check item-check">
+              <input type="checkbox" [(ngModel)]="item.selected"
+                     [name]="'item' + gi + '_' + ii" [disabled]="!!item.archived">
+              <span class="sr-only">Ticked by default</span>
+            </label>
+
+            <input type="text" [(ngModel)]="item.label" [name]="'itemLabel' + gi + '_' + ii"
+                   class="item-label" [disabled]="!!item.archived">
+
+            <div class="item-actions">
+              <button type="button" class="icon-btn" (click)="moveItem(gi, ii, -1)"
+                      [disabled]="ii === 0" title="Move up">▲</button>
+              <button type="button" class="icon-btn" (click)="moveItem(gi, ii, 1)"
+                      [disabled]="ii === g.items.length - 1" title="Move down">▼</button>
+              <button type="button" class="link-btn" (click)="removeItem(gi, ii)">
+                {{ item.archived ? 'Un-archive' : 'Archive' }}
+              </button>
+              <!-- Outright delete only for something archived: nothing on a live template is ever
+                   removed without the archive step in between. -->
+              <button type="button" class="link-btn danger" *ngIf="item.archived"
+                      (click)="deleteItem(gi, ii)">Delete</button>
+            </div>
+          </li>
+        </ul>
+
+        <div class="add-item" *ngIf="!g.archived">
+          <input type="text" [(ngModel)]="newItemLabels[gi]" [name]="'newItem' + gi"
+                 placeholder="Add an item…" (keyup.enter)="addItem(gi)">
+          <button type="button" class="btn-ghost small" (click)="addItem(gi)"
+                  [disabled]="!newItemLabels[gi]">Add</button>
+        </div>
+      </div>
+
+      <div class="add-category">
+        <input type="text" [(ngModel)]="newCategoryTitle" name="newCategoryTitle"
+               placeholder="Add a category, e.g. “Restroom Cleaning”" (keyup.enter)="addCategory()">
+        <button type="button" class="btn-ghost" [disabled]="!newCategoryTitle.trim()"
+                (click)="addCategory()">Add category</button>
+      </div>
+
+      <div class="editor-actions">
+        <button type="button" class="btn-danger" (click)="archiveType()"
+                *ngIf="t.isActive !== false">Archive business type</button>
+        <button type="button" class="btn-primary" (click)="save()" [disabled]="saving">
+          {{ saving ? 'Saving…' : 'Save changes' }}
+        </button>
+      </div>
+    </section>
+
+    <section class="bt-editor empty" *ngIf="!selected && !loading">
+      <p class="muted">Select a business type on the left, or add a new one.</p>
+    </section>
+  </div>
+</div>

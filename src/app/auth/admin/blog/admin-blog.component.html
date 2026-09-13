@@ -92,7 +92,7 @@
            [href]="'/blog/' + editingPost.slug" target="_blank" rel="noopener">View live ↗</a>
       </div>
       <div class="editor-actions" *ngIf="canManage">
-        <button type="button" class="btn btn-secondary" [disabled]="editorBusy" (click)="savePost(false)">Save Draft</button>
+        <button type="button" class="btn btn-brand" [disabled]="editorBusy" (click)="savePost(false)">Save Draft</button>
         <button type="button" class="btn btn-primary"
                 *ngIf="editingPost.status !== BlogPostStatus.Published"
                 [disabled]="editorBusy" (click)="savePost(true)">Publish</button>
@@ -166,7 +166,7 @@
           <div class="image-row">
             <img *ngIf="editorForm.featuredImagePath" [src]="editorForm.featuredImagePath" alt="Featured image preview" class="image-preview" />
             <div class="image-controls">
-              <label class="btn btn-secondary upload-btn" *ngIf="canManage">
+              <label class="btn btn-brand upload-btn" *ngIf="canManage">
                 {{ uploadBusy ? 'Uploading…' : (editorForm.featuredImagePath ? 'Replace Image' : 'Upload Image') }}
                 <input type="file" accept="image/*" (change)="uploadFeaturedImage($event)" [disabled]="uploadBusy" hidden />
               </label>
@@ -200,7 +200,7 @@
       <div class="topics-main">
         <div class="toolbar">
           <h2>Queued Topics</h2>
-          <button type="button" class="btn btn-secondary" *ngIf="canManage" [disabled]="suggestBusy" (click)="suggestTopics()">
+          <button type="button" class="btn btn-brand" *ngIf="canManage" [disabled]="suggestBusy" (click)="suggestTopics()">
             {{ suggestBusy ? 'Asking AI…' : '✨ Suggest Topics with AI' }}
           </button>
         </div>

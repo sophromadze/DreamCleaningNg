@@ -321,6 +321,14 @@
                    *ngIf="!isCleanerAccount && hasContracts">
                   My Contracts
                 </a>
+                <!-- Its own boolean, not a reuse of hasContracts: commercial work is routinely
+                     invoiced without a signed agreement, and an agreement may have nothing billed
+                     against it yet. Each entry appears on its own evidence. -->
+                <a routerLink="/profile/invoices"
+                   (click)="closeAllMenus(); $event.stopPropagation()"
+                   *ngIf="!isCleanerAccount && hasInvoices">
+                  My Invoices
+                </a>
                 <a routerLink="/admin"
                    (click)="closeAllMenus(); $event.stopPropagation()"
                    *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'"

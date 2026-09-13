@@ -1,3 +1,5 @@
+@use '../../../../styles/admin-tab-nav' as *;
+
 /* Mirrors the Company and CRM shells so all three admin areas read as one system. */
 .commercial-container {
   max-width: 1400px;
@@ -29,29 +31,9 @@
   }
 }
 
+/* This strip is the VISUAL REFERENCE for every admin tab row — the rules moved into
+   styles/_admin-tab-nav.scss so the main Admin panel could adopt the same look without a second
+   copy of them. Nothing about how Commercial renders changed. */
 .commercial-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  border-bottom: 1px solid var(--border-color);
-  margin-bottom: 18px;
-
-  .commercial-tab {
-    border: none;
-    background: transparent;
-    padding: 10px 16px;
-    cursor: pointer;
-    font-size: 0.92rem;
-    font-weight: var(--fw-medium);
-    color: var(--text-secondary);
-    text-decoration: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-
-    &:hover { color: var(--text-primary); }
-    &.active {
-      color: var(--active-nav-link);
-      border-bottom-color: var(--primary-color);
-    }
-  }
+  @include admin-tab-nav('.commercial-tab');
 }

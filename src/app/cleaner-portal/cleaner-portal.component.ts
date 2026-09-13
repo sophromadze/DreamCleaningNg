@@ -1,5 +1,5 @@
-import { Component, Input, OnDestroy, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, Inject, Input, OnDestroy, OnInit, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import {
@@ -100,6 +100,16 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
   language: PortalLanguage = 'en';
   preferredLanguage: string | null = null;
   savingLanguage = false;
+
+  /**
+   * Where the admin's language choice is remembered. The Portal tab is created and destroyed with
+   * *ngIf, so without this an admin checking a Georgian briefing is back in English the moment
+   * they glance at the Dashboard tab - the control would technically work and be unusable.
+   *
+   * Session-scoped, and per BROWSER SESSION rather than per account, because it is a way of
+   * looking at the page and not a fact about anybody.
+   */
+  private static readonly ADMIN_LANGUAGE_KEY = 'cleanerPortalAdminLanguage';
   // Both forms of every option, so the narrow picker on a phone is the SAME list abbreviated
   // rather than a second list free to drift from this one.
   readonly languageOptions = PORTAL_LANGUAGES.map(code => ({
@@ -159,7 +169,10 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
   private readonly searchInput$ = new Subject<string>();
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private portal: CleanerPortalService) {}
+  constructor(
+    private portal: CleanerPortalService,
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {}
 
   ngOnInit(): void {
     this.searchInput$
@@ -214,12 +227,37 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
    * The picker's value: '' for Automatic, a code otherwise. Bound to preferredLanguage rather than
    * to the rendered language, so somebody following their nationality sees "Automatic" and not the
    * language that happens to have resolved from it.
+   *
+   * An ADMIN has no nationality on file and no cleaner row to follow, so there is no "Automatic"
+   * for them to be in - their picker is bound to the language actually being rendered.
    */
   get languageChoice(): string {
-    return this.preferredLanguage || '';
+    return this.isLanguagePreview ? this.language : (this.preferredLanguage || '');
+  }
+
+  /**
+   * TWO PICKERS, TWO DIFFERENT THINGS.
+   *
+   * For a CLEANER the language is a preference on their record: it is saved, and it follows them
+   * into the emails and texts we send. For an ADMIN or SuperAdmin it is a PREVIEW - the way to
+   * check what a Georgian cleaner is actually reading on the job they are staffing, which is the
+   * only way to see the supplies list, the essentials list and the briefing in the words that
+   * reach them. Nothing is saved, because there is nobody to save it for: SetLanguage writes to
+   * the CALLER'S OWN cleaner row and 400s for an account that has none.
+   */
+  get isLanguagePreview(): boolean {
+    return !!this.context && !this.context.isCleanerView;
   }
 
   onLanguageChange(value: string): void {
+    // The admin's preview changes what THIS page renders and nothing else - no request, and
+    // above all no write onto somebody's record from a screen about somebody else's schedule.
+    if (this.isLanguagePreview) {
+      this.language = resolvePortalLanguage(value);
+      this.rememberPreviewLanguage(this.language);
+      return;
+    }
+
     const choice = value ? value : null;
 
     // Applied optimistically: the page is already translated client-side, so waiting on the round
@@ -243,6 +281,32 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * Reads the remembered preview language, or null when there is none.
+   *
+   * Every access is guarded twice: isPlatformBrowser because this component prerenders, and
+   * try/catch because a browser set to block site data THROWS on the accessor itself rather than
+   * returning empty. A page that cannot remember a preview still has to render.
+   */
+  private readPreviewLanguage(): PortalLanguage | null {
+    if (!isPlatformBrowser(this.platformId)) return null;
+    try {
+      const stored = sessionStorage.getItem(CleanerPortalComponent.ADMIN_LANGUAGE_KEY);
+      return stored ? resolvePortalLanguage(stored) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  private rememberPreviewLanguage(language: PortalLanguage): void {
+    if (!isPlatformBrowser(this.platformId)) return;
+    try {
+      sessionStorage.setItem(CleanerPortalComponent.ADMIN_LANGUAGE_KEY, language);
+    } catch {
+      // Nothing to do and nothing to report - the preview simply will not survive the tab switch.
+    }
+  }
+
   // ── Loading ─────────────────────────────────────────────────────────────────────────────
 
   private loadContext(): void {
@@ -252,6 +316,14 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
         this.context = ctx;
         this.language = resolvePortalLanguage(ctx.language);
         this.preferredLanguage = ctx.preferredLanguage ?? null;
+
+        // A cleaner's language is the server's answer and is never overridden from storage: it is
+        // their record, and the page must show what their mail is sent in. Only the admin's
+        // preview is restored, and only after the context says that is who is looking.
+        if (!ctx.isCleanerView) {
+          const remembered = this.readPreviewLanguage();
+          if (remembered) this.language = remembered;
+        }
 
         if (ctx.isCleanerView) {
           this.loadMyJobs();
@@ -676,6 +748,18 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
   /** "Cleaning" / "Cleanings" / "уборки" - correct for the count AND the language. */
   cleaningsWord(count: number): string {
     return plural(this.language, count, this.t.cleanings);
+  }
+
+  /**
+   * The supplies / essentials items in this cleaner's language.
+   *
+   * The KEYS come off the job, resolved by the server from the same helper the assignment email
+   * and SMS read, so all three surfaces name the same items in the same order - this only
+   * translates them. An unknown key is shown as itself rather than dropped: a missing translation
+   * has to look like a missing translation, not like one less thing to bring.
+   */
+  supplyItemNames(keys: string[] | null | undefined): string[] {
+    return (keys || []).map(key => this.t.supplyItems[key] || key);
   }
 
   /** Localised "Apartment" / "House", or empty when the order never recorded one. */

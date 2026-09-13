@@ -3,12 +3,28 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, forkJoin } from 'rxjs';
 import {
-  AdvancedTermsSnapshot, BusinessCustomer, ContractClient, ContractContact, ContractContactRole, ContractDetail,
+  AdvancedTermsSnapshot, BillingCadenceSnapshot, BusinessCustomer, ContractBillingFrequency,
+  ContractClient, ContractContact, ContractContactRole, ContractDetail,
   ContractPricingInput, ContractPricingPreview, ContractPriceMode, ContractService,
   ContractServiceLocation, ContractSnapshot, ContractTemplate, ContractorProfile,
   SaveContract, ScheduleSnapshot, ScopeStructure, ScopeTemplate, TermSnapshot
 } from '../../../../services/contract.service';
+import { InvoiceService, InvoiceTaxType } from '../../../../services/invoice.service';
 import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
+import { applyInferredEntityType } from '../../../../utils/entity-type.utils';
+
+/**
+ * The regular service weekdays a schedule actually has.
+ *
+ * The list is authoritative; the legacy single `serviceDay` is the fallback for a contract drafted
+ * before multiple days existed. Reading them the other way round is the bug this exists to prevent
+ * — it would silently collapse a Mon/Wed/Fri schedule to one day.
+ */
+export function resolveServiceDays(schedule: ScheduleSnapshot | undefined): string[] {
+  if (!schedule) return [];
+  if (schedule.serviceDays?.length) return [...schedule.serviceDays];
+  return schedule.serviceDay ? [schedule.serviceDay] : [];
+}
 
 /**
  * Which collapsible panel is open. Several may be open at once.
@@ -20,7 +36,7 @@ import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
  */
 type PanelKey =
   | 'template' | 'contractor' | 'contractorSigner' | 'client'
-  | 'location' | 'schedule' | 'term' | 'pricing' | 'scope' | 'advanced';
+  | 'location' | 'schedule' | 'billing' | 'term' | 'pricing' | 'scope' | 'advanced';
 
 /**
  * The Create / Edit Contract form: one page of collapsible sections in the order the spec lays
@@ -51,6 +67,7 @@ export class ContractFormComponent implements OnInit {
   @Output() cancelled = new EventEmitter<void>();
 
   private contracts = inject(ContractService);
+  private invoices = inject(InvoiceService);
 
   loading = true;
   saving = false;
@@ -69,6 +86,13 @@ export class ContractFormComponent implements OnInit {
   businessCustomers: BusinessCustomer[] = [];
   contractorSigners: ContractContact[] = [];
 
+  /**
+   * True once the entity type is somebody's answer rather than something this form guessed from
+   * the legal name's suffix — an admin typed it, or a saved client arrived carrying one. While it
+   * is false the field follows the name; once true it is never guessed over again.
+   */
+  private entityTypeManuallyEdited = false;
+
   // Selection state. `null` in a picker means "a new one, typed below".
   selectedClientId: number | null = null;
   selectedLocationId: number | null = null;
@@ -83,8 +107,22 @@ export class ContractFormComponent implements OnInit {
   openPanels = new Set<PanelKey>(['template', 'client', 'location', 'schedule', 'pricing']);
 
   readonly ContractPriceMode = ContractPriceMode;
+  readonly ContractBillingFrequency = ContractBillingFrequency;
   readonly weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   readonly frequencyUnits = ['calendar week', 'calendar month', 'two calendar weeks'];
+
+  /**
+   * The tax rate is shown LOCKED with an Edit control rather than as a live field.
+   *
+   * It is the same rate on every commercial document the business issues, so the common case is
+   * "confirm it" rather than "type it" — and an always-editable number invites an accidental
+   * keystroke on a field that decides what a client is charged. Unlocking it is one click, and it
+   * is what reveals "save as the default for future documents".
+   */
+  taxRateUnlocked = false;
+
+  /** True once the saved commercial defaults have been applied to a NEW draft. */
+  private defaultsApplied = false;
 
   private pricingChanged$ = new Subject<void>();
 
@@ -134,7 +172,13 @@ export class ContractFormComponent implements OnInit {
 
   private applyDefaults(): void {
     this.model = this.emptyModel();
-    this.model.contractTemplateId = this.templates[0]?.id ?? 0;
+    // THE DEFAULT-FLAGGED TEMPLATE, not the first row — same rule as the contractor profile below.
+    // The master agreement is versioned by ADDING a row rather than editing one, so "first" is the
+    // OLDEST version: taking it meant every new contract silently kept rendering superseded
+    // language (v1.0 wording, no multiple service days, no billing-cadence row) even though a
+    // newer default existed.
+    this.model.contractTemplateId =
+      (this.templates.find(t => t.isDefault) ?? this.templates[0])?.id ?? 0;
     this.model.contractorProfileId =
       (this.contractorProfiles.find(p => p.isDefault) ?? this.contractorProfiles[0])?.id ?? 0;
 
@@ -143,7 +187,53 @@ export class ContractFormComponent implements OnInit {
 
     this.model.contractorSignerEmail = this.contractorSigners[0]?.email ?? '';
     this.model.contractorSignerContactId = this.contractorSigners[0]?.id ?? null;
+
+    this.applyBillingDefaults();
     this.refreshPricingPreview();
+  }
+
+  /**
+   * Seeds the tax rate and price mode from the ONE saved source of commercial billing defaults,
+   * shared with the invoice form.
+   *
+   * NEW DRAFTS ONLY. An existing contract is hydrated from its own snapshot, which is the whole
+   * point of snapshotting the rate per document — a contract signed at 8.875% must not silently
+   * re-rate because the default moved afterwards.
+   *
+   * A failed load is not fatal: the form keeps the values already on screen and the admin can
+   * still type. Blocking contract creation on a settings read would be the wrong trade.
+   */
+  private applyBillingDefaults(): void {
+    this.invoices.getBillingDefaults().subscribe({
+      next: defaults => {
+        this.defaultsApplied = true;
+
+        // 0 = tax-inclusive, 1 = pre-tax; the two enums are deliberately identical.
+        const mode = defaults.defaultContractPriceMode === ContractPriceMode.PreTax
+          ? ContractPriceMode.PreTax
+          : ContractPriceMode.TaxInclusive;
+
+        const rate = defaults.defaultTaxType === InvoiceTaxType.Exempt
+          ? 0
+          : defaults.defaultTaxRate ?? this.model.pricing.salesTaxRatePercent;
+
+        const changed = mode !== this.model.pricing.priceMode
+          || rate !== this.model.pricing.salesTaxRatePercent;
+
+        this.model.pricing.priceMode = mode;
+        this.model.pricing.salesTaxRatePercent = rate;
+
+        // Only re-ask when something actually moved. The form already requested a preview with
+        // its own defaults, and a second identical round trip on every page load is noise.
+        if (changed) this.refreshPricingPreview();
+      },
+      error: () => { this.defaultsApplied = true; }
+    });
+  }
+
+  /** Unlocks the protected tax rate for editing. One click, and it reveals the "save" option. */
+  unlockTaxRate(): void {
+    this.taxRateUnlocked = true;
   }
 
   private loadExisting(id: number): void {
@@ -203,7 +293,10 @@ export class ContractFormComponent implements OnInit {
         contractClientId: snapshot.client.id
       },
       premisesType: snapshot.premisesType,
-      schedule: { ...snapshot.schedule },
+      // serviceDays is normalised below rather than taken raw: a pre-2026-09 snapshot has an empty
+      // list and its day in the legacy field, and reopening such a draft must show the day it has.
+      schedule: { ...snapshot.schedule, serviceDays: resolveServiceDays(snapshot.schedule) },
+      billing: { ...(snapshot.billing ?? this.defaultBilling()) },
       term: { ...snapshot.term },
       pricing: {
         priceMode: snapshot.pricing.priceMode,
@@ -214,7 +307,10 @@ export class ContractFormComponent implements OnInit {
         paymentDeadlineHours: snapshot.pricing.paymentDeadlineHours,
         paymentMethod: snapshot.pricing.paymentMethod,
         lateChargePercent: snapshot.pricing.lateChargePercent,
-        returnedPaymentFee: snapshot.pricing.returnedPaymentFee
+        // Round-tripped, never re-defaulted. A contract drafted before the fee was retired still
+        // carries $35, and reopening it must not silently drop a term it already states.
+        returnedPaymentFee: snapshot.pricing.returnedPaymentFee,
+        saveAsDefault: false
       },
       advanced: { ...snapshot.advanced },
       scope: JSON.parse(JSON.stringify(snapshot.scope ?? { groups: [] }))
@@ -228,6 +324,9 @@ export class ContractFormComponent implements OnInit {
     const noticePhone = (snapshot.client.phone ?? '').trim();
     const signerPhone = (snapshot.clientSigner.phone ?? '').trim();
     this.useSignerContactForNotices = noticeEmail === signerEmail && noticePhone === signerPhone;
+
+    // Whatever the draft was saved with is an answer already given.
+    this.entityTypeManuallyEdited = !!snapshot.client.entityType?.trim();
 
     this.selectedClientId = snapshot.client.id || null;
     this.selectedLocationId = snapshot.serviceLocation.id || null;
@@ -250,6 +349,25 @@ export class ContractFormComponent implements OnInit {
 
   // ── pickers ────────────────────────────────────────────────────────────────
 
+  /**
+   * ENTITY TYPE FOLLOWS THE LEGAL NAME'S SUFFIX until an admin answers it themselves.
+   *
+   * "Chick Tastic LLC" fills in "a limited liability company" — the sentence fragment the
+   * agreement body prints, which was being retyped by hand for every client. A name with no
+   * recognized suffix says nothing and leaves the field alone, so this can never blank it.
+   */
+  onClientLegalNameChange(value: string): void {
+    if (!this.model.newClient) return;
+
+    const inferred = applyInferredEntityType(value, this.entityTypeManuallyEdited);
+    if (inferred !== null) this.model.newClient.entityType = inferred;
+  }
+
+  /** A typed answer — or one picked from the list — is final and is never guessed over again. */
+  onClientEntityTypeChange(): void {
+    this.entityTypeManuallyEdited = true;
+  }
+
   onClientSelected(): void {
     if (!this.selectedClientId) {
       // "New client": clear the fields rather than leaving the previous client's details behind.
@@ -259,6 +377,7 @@ export class ContractFormComponent implements OnInit {
       this.clientSigners = [];
       this.selectedLocationId = null;
       this.selectedClientSignerId = null;
+      this.entityTypeManuallyEdited = false;
       return;
     }
 
@@ -266,8 +385,15 @@ export class ContractFormComponent implements OnInit {
     if (!client) return;
 
     this.model.contractClientId = client.id;
-    // Copied into the editable fields: the form stays fully editable for an existing client, and
-    // the server applies whatever comes back.
+
+    // EVERY piece of the client's master data, in one gesture. Selecting a client used to hydrate
+    // the company fields and silently drop `sourceUserId`, so re-saving an existing contract could
+    // sever a linked account's access to their own My Contracts area - and the admin had to pick
+    // the linked customer separately to get the rest of the hydration, which is the confusion this
+    // whole selector was meant to end.
+    // A saved client's entity type is already somebody's answer — never re-guess it from the name.
+    this.entityTypeManuallyEdited = !!client.entityType?.trim();
+
     this.model.newClient = {
       legalEntityName: client.legalEntityName,
       entityType: client.entityType,
@@ -277,18 +403,70 @@ export class ContractFormComponent implements OnInit {
       state: client.state,
       zip: client.zip,
       noticeEmail: client.noticeEmail,
-      phone: client.phone
+      phone: client.phone,
+      sourceUserId: client.sourceUserId ?? null
     };
+
+    // A saved client's own notice contact is what it is; mirroring the signer's over it would
+    // overwrite an address staff deliberately set. The checkbox re-ticks only if they already match.
+    this.useSignerContactForNotices =
+      !client.noticeEmail && !client.phone;
+
     this.loadClientChildren(client.id);
   }
 
+  /**
+   * The account this client belongs to, for the read-only "Linked account" line.
+   *
+   * The ContractClient is the commercial source of truth; the account is a relationship it HAS,
+   * shown so an admin can see it rather than offered as a second thing to choose. It is only
+   * selectable while creating a NEW client, where there is nothing to link yet.
+   */
+  get linkedAccountLabel(): string | null {
+    const client = this.clients.find(c => c.id === this.selectedClientId);
+    if (!client?.sourceUserId) return null;
+
+    const name = client.sourceUserName?.trim();
+    const email = client.sourceUserEmail?.trim();
+
+    if (name && email) return `${name} (${email})`;
+    return name || email || `Account #${client.sourceUserId}`;
+  }
+
+  /** True while creating a new client, which is the only time the link can be chosen. */
+  get isNewClient(): boolean {
+    return !this.selectedClientId;
+  }
+
+  /**
+   * Loads everything hanging off the selected client: its premises and its contacts.
+   *
+   * The contacts drive "Who signs for them", and the PRIMARY BILLING CONTACT is preselected when
+   * the client has one - which is what makes a business account seeded from its website user show
+   * that person here automatically instead of leaving the section blank.
+   */
   private loadClientChildren(clientId: number): void {
     this.contracts.getLocations(clientId).subscribe({
-      next: rows => this.locations = rows,
+      next: rows => {
+        this.locations = rows;
+        // One premises: preselect it. A client with several is asked, because picking the first of
+        // three addresses on their behalf is how a cleaner ends up at the wrong site.
+        if (rows.length === 1 && !this.selectedLocationId) {
+          this.selectedLocationId = rows[0].id;
+          this.onLocationSelected();
+        }
+      },
       error: () => this.locations = []
     });
+
     this.contracts.getContacts(ContractContactRole.ClientSigner, clientId).subscribe({
-      next: rows => this.clientSigners = rows,
+      next: rows => {
+        this.clientSigners = rows;
+        if (rows.length > 0 && !this.selectedClientSignerId) {
+          this.selectedClientSignerId = rows[0].id;
+          this.onClientSignerSelected();
+        }
+      },
       error: () => this.clientSigners = []
     });
   }
@@ -326,6 +504,22 @@ export class ContractFormComponent implements OnInit {
   onSourceUserSelected(): void {
     const userId = this.model.newClient?.sourceUserId ?? null;
     if (!userId || !this.model.newClient) return;
+
+    // ── That account may ALREADY be a commercial client ──
+    //
+    // Ticking the business flag on a customer auto-creates their ContractClient, so by the time an
+    // admin can pick the account here, its client almost always exists. Switching the selector to
+    // it is what the admin meant, and it is the difference between hydrating a company that has
+    // history and starting a second, empty record for the same business. The server adopts the
+    // existing row either way — the unique link column makes a duplicate impossible — but doing it
+    // here means the form shows the real client, its contacts and its locations immediately rather
+    // than only after a save.
+    const existing = this.clients.find(c => c.sourceUserId === userId);
+    if (existing) {
+      this.selectedClientId = existing.id;
+      this.onClientSelected();
+      return;
+    }
 
     const customer = this.businessCustomers.find(c => c.userId === userId);
     if (!customer) return;
@@ -398,6 +592,101 @@ export class ContractFormComponent implements OnInit {
     this.syncNoticeContact();
   }
 
+  // ── schedule: regular service days ─────────────────────────────────────────
+  //
+  // "Regular day" stops meaning anything once a client is cleaned three times a week, so the
+  // control is a MULTI-SELECT and the label follows the count. One day and several days are the
+  // same control, not two - a single-visit contract simply has one chip ticked.
+
+  /** Ticked days, always read through the legacy fallback. */
+  get selectedServiceDays(): string[] {
+    return resolveServiceDays(this.model.schedule);
+  }
+
+  isServiceDaySelected(day: string): boolean {
+    return this.selectedServiceDays.includes(day);
+  }
+
+  /**
+   * Toggles one weekday.
+   *
+   * The legacy `serviceDay` is kept in step with the first selected day so an export, an older
+   * reader or a partially-deployed instance never shows a weekday the contract does not have. The
+   * server normalises this again on save; doing it here as well is what keeps the FORM honest
+   * while the admin is still typing.
+   */
+  toggleServiceDay(day: string): void {
+    const current = this.selectedServiceDays;
+    const next = current.includes(day)
+      ? current.filter(d => d !== day)
+      : [...current, day];
+
+    // Monday-first, so "Friday, Monday, Wednesday" never reaches the agreement.
+    const ordered = this.weekdays.filter(d => next.includes(d));
+
+    this.model.schedule.serviceDays = ordered;
+    this.model.schedule.serviceDay = ordered[0] ?? '';
+  }
+
+  /** "Regular service day" for one, "Regular service days" for several. */
+  get serviceDaysLabel(): string {
+    return this.model.schedule.visitsPerPeriod > 1 || this.selectedServiceDays.length > 1
+      ? 'Regular service days'
+      : 'Regular day';
+  }
+
+  /**
+   * The mismatch warning between how many visits were promised and how many days were picked.
+   *
+   * A WARNING, NEVER A BLOCK, and it is silent when scheduling is flexible: a flexible contract
+   * describes ANTICIPATED days, and an incomplete list there is a legitimate statement about an
+   * arrangement that is not fixed yet. With flexible scheduling off the days ARE the schedule, and
+   * promising three visits while naming two days is a contradiction the client would spot.
+   */
+  get serviceDayCountWarning(): string | null {
+    if (this.model.schedule.flexibleScheduling) return null;
+
+    const picked = this.selectedServiceDays.length;
+    const promised = Math.max(1, this.model.schedule.visitsPerPeriod);
+
+    if (picked === 0) {
+      return 'Choose at least one regular service day.';
+    }
+    if (picked !== promised) {
+      return `This contract promises ${promised} visit${promised === 1 ? '' : 's'} per `
+        + `${this.model.schedule.frequencyUnit} but names ${picked} service `
+        + `day${picked === 1 ? '' : 's'}. Adjust one of the two, or turn on flexible scheduling.`;
+    }
+    return null;
+  }
+
+  // ── billing cadence ────────────────────────────────────────────────────────
+
+  /** Whether the "every N" box is meaningful for the chosen cadence. */
+  get showBillingInterval(): boolean {
+    return this.model.billing.frequency !== ContractBillingFrequency.PerServiceVisit;
+  }
+
+  /** Plain-language echo of the cadence, so "every 1 weeks" never appears on screen. */
+  get billingCadenceText(): string {
+    const n = Math.max(1, this.model.billing.intervalCount || 1);
+
+    switch (this.model.billing.frequency) {
+      case ContractBillingFrequency.PerServiceVisit:
+        return 'An invoice is issued for each scheduled cleaning.';
+      case ContractBillingFrequency.Weekly:
+        return n === 1
+          ? 'An invoice is issued every week.'
+          : `An invoice is issued every ${n} weeks.`;
+      case ContractBillingFrequency.CustomDays:
+        return `An invoice is issued every ${n} days.`;
+      default:
+        return n === 1
+          ? 'An invoice is issued every month.'
+          : `An invoice is issued every ${n} months.`;
+    }
+  }
+
   // ── scope ──────────────────────────────────────────────────────────────────
 
   onScopeTemplateChanged(): void {
@@ -430,6 +719,46 @@ export class ContractFormComponent implements OnInit {
 
   removeScopeRow(groupIndex: number, itemIndex: number): void {
     this.model.scope.groups[groupIndex].items.splice(itemIndex, 1);
+  }
+
+  /**
+   * Adds a whole category to THIS draft — "Outdoor seating", say.
+   *
+   * The key is derived from the title and prefixed so it can never collide with one of the
+   * standard keys the agreement body inlines ({{SCOPE:included-areas}} and friends). A key the
+   * body does not know is APPENDED to the document under "Additional Scope" rather than dropped,
+   * which is what makes a custom category safe to add without touching the template.
+   */
+  addScopeGroup(title: string, input: HTMLInputElement): void {
+    const trimmed = (title ?? '').trim();
+    if (!trimmed) return;
+
+    const key = 'custom-' + trimmed
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 50);
+
+    this.model.scope.groups.push({
+      key: key === 'custom-' ? 'custom-scope' : key,
+      title: trimmed,
+      kind: 'included',
+      inline: true,
+      items: []
+    });
+
+    input.value = '';
+  }
+
+  /**
+   * Removes a category from THIS draft only.
+   *
+   * The master business type is a deep copy away and is untouched — retiring a category there is
+   * a separate, deliberate act on the Business Types screen, and it would affect every future
+   * contract rather than this one.
+   */
+  removeScopeGroup(groupIndex: number): void {
+    this.model.scope.groups.splice(groupIndex, 1);
   }
 
   selectedCount(groupIndex: number): number {
@@ -531,6 +860,7 @@ export class ContractFormComponent implements OnInit {
       newClientSigner: this.emptySigner(),
       premisesType: '',
       schedule: this.defaultSchedule(),
+      billing: this.defaultBilling(),
       term: this.defaultTerm(),
       pricing: this.defaultPricing(),
       advanced: this.defaultAdvanced(),
@@ -564,26 +894,49 @@ export class ContractFormComponent implements OnInit {
   private defaultSchedule(): ScheduleSnapshot {
     return {
       frequencyUnit: 'calendar week', visitsPerPeriod: 1,
-      serviceDay: 'Sunday', serviceTime: '9:00 AM',
+      serviceDay: 'Sunday', serviceDays: ['Sunday'], serviceTime: '9:00 AM',
       flexibleScheduling: true, performedWhileClosed: true,
       accessType: 'key or other access credentials provided by Client'
     };
   }
 
+  /** Monthly-every-one: the arrangement almost every commercial client is actually on. */
+  private defaultBilling(): BillingCadenceSnapshot {
+    return {
+      frequency: ContractBillingFrequency.Monthly,
+      intervalCount: 1,
+      anchorDate: null
+    };
+  }
+
+  /**
+   * Committed for six months, then month-to-month with sixty days notice (2026-09).
+   *
+   * These are the terms actually being offered. They apply to NEW drafts only — every generated
+   * version carries its own frozen copy, so nothing already signed moves when this changes.
+   */
   private defaultTerm(): TermSnapshot {
     return {
-      initialTermMonths: 12, minimumCommitmentMonths: 3, terminationNoticeDays: 30,
+      initialTermMonths: 6, minimumCommitmentMonths: 6, terminationNoticeDays: 60,
       renewalType: 'month-to-month', governingLawState: 'New York', venueCounty: 'Kings County'
     };
   }
 
+  /**
+   * Tax-inclusive at 8.875%, and NO returned-payment fee.
+   *
+   * The tax mode and rate are overwritten from the saved commercial defaults as soon as they
+   * load — these are only what the form shows in the moment before that arrives. The fee is
+   * hard zero: it is retired for new contracts and is not on the form at all, so there is nothing
+   * for it to be overwritten from.
+   */
   private defaultPricing(): ContractPricingInput {
     return {
-      priceMode: ContractPriceMode.PreTax, priceInput: 0, salesTaxRatePercent: 8.875,
+      priceMode: ContractPriceMode.TaxInclusive, priceInput: 0, salesTaxRatePercent: 8.875,
       cancellationPercent: 50,
       invoiceTiming: 'In advance of each scheduled service visit, generally several days before service.',
       paymentDeadlineHours: 48, paymentMethod: 'ACH or bank-to-bank transfer',
-      lateChargePercent: 1.5, returnedPaymentFee: 35
+      lateChargePercent: 1.5, returnedPaymentFee: 0, saveAsDefault: false
     };
   }
 

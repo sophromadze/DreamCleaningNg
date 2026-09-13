@@ -24,12 +24,20 @@
             <option *ngFor="let t of templates" [ngValue]="t.id">{{ t.name }} (v{{ t.version }})</option>
           </select>
         </div>
+        <!-- BUSINESS TYPE. It is the same row as the scope template — Restaurant, Gym/Studio,
+             Office — and naming it for what the admin is actually choosing is why. Picking one
+             loads its default checklist into the Scope of work panel below, where every item can
+             be unticked, edited or added to for THIS contract; the copy is deep, so nothing done
+             there can reach the master template. -->
         <div class="field">
-          <label for="scopeTemplate">Scope of work template</label>
+          <label for="scopeTemplate">Business type</label>
           <select id="scopeTemplate" name="scopeTemplate"
                   [(ngModel)]="model.scopeTemplateId" (ngModelChange)="onScopeTemplateChanged()">
             <option *ngFor="let t of scopeTemplates" [ngValue]="t.id">{{ t.name }}</option>
           </select>
+          <small class="hint">
+            Loads the default scope of work for this kind of premises. Adjust it below.
+          </small>
         </div>
         <div class="field">
           <label for="effectiveDate">Effective date</label>
@@ -100,10 +108,40 @@
       <span class="chevron" [class.open]="isOpen('client')">▾</span>
     </button>
     <div class="panel-body" *ngIf="isOpen('client')">
-      <!-- Linked account first: picking one pre-fills much of what follows, so asking for it
-           after the admin has already typed those fields would waste their work. -->
+      <!--
+        ONE PRIMARY SELECTOR. Picking a client hydrates everything it owns in a single gesture:
+        legal entity, entity type, formation state, principal address, billing email and phone, its
+        service locations, its contacts, and the website account it is linked to.
+
+        The "Linked customer account" dropdown that used to sit above this is gone for an EXISTING
+        client. It was a second, independent way of saying who the counterparty is, and choosing
+        the client and the account separately was the confusion this panel was rebuilt to end -
+        the ContractClient is the commercial source of truth, and the account is a relationship it
+        HAS. It is still offered while creating a NEW client, where there is nothing to link yet.
+      -->
       <div class="field">
-        <label for="sourceUser">Linked customer account</label>
+        <label for="clientPicker">Client</label>
+        <select id="clientPicker" name="clientPicker"
+                [(ngModel)]="selectedClientId" (ngModelChange)="onClientSelected()">
+          <option [ngValue]="null">— New client —</option>
+          <option *ngFor="let c of clients" [ngValue]="c.id">
+            {{ c.legalEntityName || '(company name not set)' }}
+          </option>
+        </select>
+      </div>
+
+      <!-- The relationship, stated rather than offered. Read-only on purpose: the link grants that
+           customer sight of this client's contracts, so it is made and unmade by the business flag
+           on the Users tab, not by a contract form. -->
+      <p class="linked-account" *ngIf="linkedAccountLabel">
+        <span class="linked-account-label">Linked account</span>
+        <strong>{{ linkedAccountLabel }}</strong>
+      </p>
+
+      <!-- Only while creating a NEW client. There is nothing linked yet, and picking the account
+           here is what seeds the signer and the address from their profile. -->
+      <div class="field" *ngIf="isNewClient">
+        <label for="sourceUser">Link to a customer account (optional)</label>
         <select id="sourceUser" name="sourceUser"
                 [ngModel]="model.newClient?.sourceUserId ?? null"
                 (ngModelChange)="model.newClient!.sourceUserId = $event; onSourceUserSelected()">
@@ -113,31 +151,27 @@
           </option>
         </select>
         <small class="hint">
-          Linking a business-flagged account fills in the details below from their profile and lets
-          them read and sign this contract from their own “My Contracts” page. Leave it unlinked to
-          use the emailed link only.
+          Linking a business-flagged account fills in the signer and address below from their
+          profile and lets them read and sign this contract from their own “My Contracts” page.
+          Their name is <strong>not</strong> used as the legal entity name — a company is not its
+          owner, so enter the registered company name yourself.
         </small>
-      </div>
-
-      <div class="field">
-        <label for="clientPicker">Existing client</label>
-        <select id="clientPicker" name="clientPicker"
-                [(ngModel)]="selectedClientId" (ngModelChange)="onClientSelected()">
-          <option [ngValue]="null">— New client —</option>
-          <option *ngFor="let c of clients" [ngValue]="c.id">{{ c.legalEntityName }}</option>
-        </select>
       </div>
 
       <div class="grid" *ngIf="model.newClient">
         <div class="field wide">
           <label for="clientName">Legal entity name</label>
           <input id="clientName" name="clientName" type="text"
-                 [(ngModel)]="model.newClient.legalEntityName" />
+                 [(ngModel)]="model.newClient.legalEntityName"
+                 (ngModelChange)="onClientLegalNameChange($event)" />
         </div>
         <div class="field">
+          <!-- Filled in from the name's suffix ("… LLC" → "a limited liability company"), which is
+               the wording the agreement body prints. Typing here takes it over for good. -->
           <label for="clientEntityType">Entity type</label>
           <input id="clientEntityType" name="clientEntityType" type="text"
                  [(ngModel)]="model.newClient.entityType"
+                 (ngModelChange)="onClientEntityTypeChange()"
                  placeholder="a limited liability company" />
         </div>
         <div class="field">
@@ -323,12 +357,27 @@
             <option *ngFor="let unit of frequencyUnits" [ngValue]="unit">{{ unit }}</option>
           </select>
         </div>
-        <div class="field">
-          <label for="serviceDay">Regular day</label>
-          <select id="serviceDay" name="serviceDay" [(ngModel)]="model.schedule.serviceDay">
-            <option *ngFor="let day of weekdays" [ngValue]="day">{{ day }}</option>
-          </select>
+        <!-- REGULAR SERVICE DAYS. "Regular day" stopped meaning anything once a client is cleaned
+             three times a week, so this is a multi-select and the label follows the count. One day
+             and several days are the same control - a single-visit contract simply has one chip
+             ticked - which is what keeps the whole thing one concept rather than two. -->
+        <div class="field wide">
+          <label>{{ serviceDaysLabel }}</label>
+          <div class="day-chips">
+            <button type="button" class="day-chip" *ngFor="let day of weekdays"
+                    [class.selected]="isServiceDaySelected(day)"
+                    [attr.aria-pressed]="isServiceDaySelected(day)"
+                    (click)="toggleServiceDay(day)">
+              {{ day.substring(0, 3) }}
+            </button>
+          </div>
+          <small class="hint" *ngIf="model.schedule.flexibleScheduling">
+            These are the anticipated service days. With flexible scheduling on, the agreement says
+            they are not permanently fixed, so an incomplete list is fine.
+          </small>
+          <small class="warn" *ngIf="serviceDayCountWarning">{{ serviceDayCountWarning }}</small>
         </div>
+
         <div class="field">
           <label for="serviceTime">Approximate start time</label>
           <input id="serviceTime" name="serviceTime" type="text"
@@ -349,6 +398,47 @@
           <span>Performed while the premises are closed</span>
         </label>
       </div>
+    </div>
+  </section>
+
+  <!-- 5.7b Billing cadence -->
+  <!--
+    SEPARATE FROM THE SERVICE SCHEDULE ABOVE, deliberately. "When do we clean?" and "how often do
+    we invoice?" are different questions: "every Wednesday, billed monthly" is an ordinary
+    arrangement, and a monthly invoice for weekly cleaning legitimately covers four or five visits.
+    This is what "Create Next Invoice" reads to work out the next billing period.
+  -->
+  <section class="panel">
+    <button type="button" class="panel-head" (click)="togglePanel('billing')">
+      <span>Billing cadence</span>
+      <span class="chevron" [class.open]="isOpen('billing')">▾</span>
+    </button>
+    <div class="panel-body" *ngIf="isOpen('billing')">
+      <div class="grid">
+        <div class="field">
+          <label for="billingFrequency">Invoice how often?</label>
+          <select id="billingFrequency" name="billingFrequency"
+                  [(ngModel)]="model.billing.frequency">
+            <option [ngValue]="ContractBillingFrequency.PerServiceVisit">Per service visit</option>
+            <option [ngValue]="ContractBillingFrequency.Weekly">Weekly / every N weeks</option>
+            <option [ngValue]="ContractBillingFrequency.Monthly">Monthly / every N months</option>
+            <option [ngValue]="ContractBillingFrequency.CustomDays">Custom interval (days)</option>
+          </select>
+        </div>
+        <div class="field" *ngIf="showBillingInterval">
+          <label for="billingInterval">Every</label>
+          <input id="billingInterval" name="billingInterval" type="number" min="1" max="52"
+                 [(ngModel)]="model.billing.intervalCount" />
+          <small class="hint">Two weeks is “Weekly” with an interval of 2.</small>
+        </div>
+        <div class="field">
+          <label for="billingAnchor">Billing starts on (optional)</label>
+          <input id="billingAnchor" name="billingAnchor" type="date"
+                 [(ngModel)]="model.billing.anchorDate" />
+          <small class="hint">Leave blank to count from the effective date.</small>
+        </div>
+      </div>
+      <p class="hint">{{ billingCadenceText }}</p>
     </div>
   </section>
 
@@ -390,6 +480,17 @@
           <input id="venueCounty" name="venueCounty" type="text" [(ngModel)]="model.term.venueCounty" />
         </div>
       </div>
+
+      <!-- "Month-to-month" is the phrase most likely to be read as "cancel any time", which is
+           exactly what the minimum commitment above says it is not. Spelling the sequence out here
+           is cheaper than an admin explaining it wrongly on a phone call. -->
+      <p class="hint">
+        The client is committed for the initial term of
+        <strong>{{ model.term.initialTermMonths }} month{{ model.term.initialTermMonths === 1 ? '' : 's' }}</strong>.
+        After it expires the agreement continues <strong>{{ model.term.renewalType }}</strong> until
+        terminated with <strong>{{ model.term.terminationNoticeDays }} days</strong> written notice.
+        Termination for convenience is not available during the minimum commitment period.
+      </p>
     </div>
   </section>
 
@@ -414,10 +515,27 @@
           <input id="priceInput" name="priceInput" type="number" step="0.01" min="0"
                  [(ngModel)]="model.pricing.priceInput" (ngModelChange)="onPricingChanged()" />
         </div>
+        <!-- PROTECTED WITH AN EDIT CONTROL. It is the same rate on every commercial document the
+             business issues, so the common case is confirming it rather than typing it - and an
+             always-editable number invites a stray keystroke on a field that decides what a client
+             is charged. Unlocking it reveals the "save as default" option. -->
         <div class="field">
           <label for="salesTaxRate">Sales tax rate (%)</label>
-          <input id="salesTaxRate" name="salesTaxRate" type="number" step="0.001" min="0"
+          <div class="locked-field" *ngIf="!taxRateUnlocked">
+            <span class="locked-value">{{ model.pricing.salesTaxRatePercent }}%</span>
+            <button type="button" class="link-btn" (click)="unlockTaxRate()">Edit</button>
+          </div>
+          <input *ngIf="taxRateUnlocked"
+                 id="salesTaxRate" name="salesTaxRate" type="number" step="0.001" min="0"
                  [(ngModel)]="model.pricing.salesTaxRatePercent" (ngModelChange)="onPricingChanged()" />
+          <label class="check" *ngIf="taxRateUnlocked">
+            <input type="checkbox" name="saveTaxDefault" [(ngModel)]="model.pricing.saveAsDefault" />
+            <span>Save this rate and price mode as the default for future contracts and invoices</span>
+          </label>
+          <small class="hint" *ngIf="taxRateUnlocked">
+            Saving the default changes what new documents are prefilled with. Contracts already
+            signed and invoices already finalized keep the rate they were issued under.
+          </small>
         </div>
         <div class="field">
           <label for="cancellationPercent">Short-notice cancellation (%)</label>
@@ -461,11 +579,11 @@
           <input id="lateChargePercent" name="lateChargePercent" type="number" step="0.1" min="0"
                  [(ngModel)]="model.pricing.lateChargePercent" />
         </div>
-        <div class="field">
-          <label for="returnedPaymentFee">Failed payment fee</label>
-          <input id="returnedPaymentFee" name="returnedPaymentFee" type="number" step="0.01" min="0"
-                 [(ngModel)]="model.pricing.returnedPaymentFee" />
-        </div>
+        <!-- The $35 failed-payment fee is RETIRED and has no field here any more. It defaults to
+             zero, and at zero the clause is dropped from the generated agreement rather than
+             printed as "$0.00". Historical contracts keep theirs: their frozen snapshots still
+             carry the figure, so an executed document renders exactly what was signed, and
+             reopening such a draft round-trips it untouched. -->
       </div>
     </div>
   </section>
@@ -484,6 +602,11 @@
         <div class="scope-head">
           <h4>{{ group.title }}</h4>
           <span class="scope-count">{{ selectedCount(gi) }} of {{ group.items.length }}</span>
+          <!-- Removes the whole category from THIS draft. The master business type is a deep copy
+               away and is not touched — retiring one there is a separate, deliberate act on the
+               Business Types screen. -->
+          <button type="button" class="row-remove" (click)="removeScopeGroup(gi)"
+                  [title]="'Remove ' + group.title + ' from this contract'">×</button>
         </div>
         <div class="scope-items">
           <label class="check" *ngFor="let item of group.items; let ii = index">
@@ -493,11 +616,24 @@
                     (click)="removeScopeRow(gi, ii)" title="Remove">×</button>
           </label>
         </div>
-        <div class="scope-add" *ngIf="allowsCustomScopeRows">
+        <!-- Adding an item is always available on a DRAFT, whatever the business type allows on
+             its master checklist: the template's flag governs the shared list, and a one-off
+             addition here belongs to this contract alone. -->
+        <div class="scope-add">
           <input #newRow type="text" placeholder="Add an item…"
                  (keyup.enter)="addScopeRow(gi, newRow.value, newRow)" />
           <button type="button" class="btn-ghost" (click)="addScopeRow(gi, newRow.value, newRow)">Add</button>
         </div>
+      </div>
+
+      <!-- A whole extra category for this contract, e.g. "Outdoor Seating". Appended to the
+           document under Additional Scope, because the agreement body only inlines the standard
+           keys — dropping it instead would silently lose something an admin typed. -->
+      <div class="scope-add scope-add-group">
+        <input #newGroup type="text" placeholder="Add a category, e.g. “Outdoor seating”…"
+               (keyup.enter)="addScopeGroup(newGroup.value, newGroup)" />
+        <button type="button" class="btn-ghost"
+                (click)="addScopeGroup(newGroup.value, newGroup)">Add category</button>
       </div>
     </div>
   </section>

@@ -180,6 +180,7 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
 
   canEditOrder(): boolean {
     if (!this.order) return false;
+    if (this.order.recurringSeriesId) return false;
 
     // Don't allow editing custom service type orders
     if (this.isCustomServiceType()) return false;
@@ -192,6 +193,7 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
 
   canCancelOrder(): boolean {
     if (!this.order) return false;
+    if (this.order.recurringSeriesId) return false;
     return this.order.status === 'Active';
   }
 

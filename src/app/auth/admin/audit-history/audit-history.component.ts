@@ -14,6 +14,8 @@ import {
   auditRowShowsContext,
 } from '../../../shared/admin/audit-field-display';
 
+import { normalizeAuditValues, meaningfulAuditChanges, auditSummaryFields, auditCollectionChanges } from '../../../shared/admin/audit-presentation';
+
 @Component({
   selector: 'app-audit-history',
   standalone: true,
@@ -524,7 +526,7 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
           processedLog.oldValues = JSON.parse(processedLog.oldValues);
         } catch (e) {
           console.error('Failed to parse oldValues:', e);
-          processedLog.oldValues = {};
+          processedLog.oldValues = null;
         }
       } else if (!processedLog.oldValues) {
         processedLog.oldValues = {};
@@ -536,7 +538,7 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
           processedLog.newValues = JSON.parse(processedLog.newValues);
         } catch (e) {
           console.error('Failed to parse newValues:', e);
-          processedLog.newValues = {};
+          processedLog.newValues = null;
         }
       } else if (!processedLog.newValues) {
         processedLog.newValues = {};
@@ -554,6 +556,9 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
         processedLog.changedFields = [];
       }
 
+      processedLog.oldValues = normalizeAuditValues(processedLog.oldValues);
+      processedLog.newValues = normalizeAuditValues(processedLog.newValues);
+      processedLog.changedFields = meaningfulAuditChanges(processedLog);
       // Process changed fields to combine ServiceDate and ServiceTime
       processedLog.changedFields = this.processChangedFields(processedLog.changedFields, processedLog.oldValues, processedLog.newValues);
   
@@ -782,12 +787,13 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
    * Create and Delete are unaffected — they carry one side only and have their own blocks below.
    */
   showChangedFields(log: AuditLog): boolean {
+    if (log.action === 'Create' || log.action === 'Delete') return false;
     // For CleanerAssignment logs, we want to show details differently
     if (log.entityType === 'CleanerAssignment') {
       return true; // Always show details for cleaner assignments
     }
 
-    return !!log.changedFields &&
+    return this.meaningfulChangedFields(log).length > 0 && !!log.changedFields &&
            Array.isArray(log.changedFields) &&
            log.changedFields.length > 0 &&
            !!log.oldValues &&
@@ -801,6 +807,14 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
    * Without this they rendered as nothing at all: `PayoutRecorded` passes null for the old values,
    * so there is no diff to draw, and the Create block is keyed on the literal action name.
    */
+  summaryFields(log: AuditLog, values: any): string[] { return auditSummaryFields(log, values); }
+
+  collectionChanges = auditCollectionChanges;
+
+  meaningfulChangedFields(log: AuditLog): string[] {
+    return this.processChangedFields(meaningfulAuditChanges(log), log.oldValues, log.newValues);
+  }
+
   showRecordedValues(log: AuditLog): boolean {
     if (log.action === 'Create' || log.action === 'Delete') return false;
     if (log.entityType === 'CleanerAssignment' || log.entityType === 'UserLoyaltyDiscount') return false;
@@ -845,7 +859,7 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     
     // Check if there are any fields that should be shown
-    return log.changedFields.some(field => this.shouldShowField(field));
+    return this.meaningfulChangedFields(log).length > 0;
   }
 
   // NEW: Get cleaner assignment details for display
@@ -936,6 +950,8 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
    * The conditions below mirror the template's gates one for one. Keep them in step.
    */
   hasAnyRenderableDetail(log: any): boolean {
+    const collection = this.collectionChanges(log);
+    if (collection.added.length || collection.removed.length) return true;
     if (log.entityType === 'BubblePointsAdjustment') return !!log.newValues;
     if (log.entityType === 'CleanerAssignment') return !!this.getCleanerAssignmentDetails(log);
     if (log.entityType === 'UserLoyaltyDiscount') return true;

@@ -411,7 +411,22 @@
 
     <div *ngIf="!loadingStates.orderDetails && selectedOrder" class="order-details-content">
                   <div class="order-details-header-row">
-                    <h4>Order Details</h4>
+                    <!-- Marketing origin: first-touch channel, plus the converting-session channel
+                         only when it differs (repeat visitor). It sits where the "Order Details"
+                         heading used to — the panel already announces what it is showing, so the
+                         heading was a duplicate. Hidden entirely for orders with no attribution,
+                         which is why the pills push themselves right with margin-left:auto rather
+                         than the row relying on space-between. -->
+                    <div class="order-origin" *ngIf="originFirstTouch(selectedOrder)"
+                         [title]="originTooltip(selectedOrder)">
+                      <span class="origin-dot" aria-hidden="true"></span>
+                      <span class="origin-label">Origin</span>
+                      <span class="origin-first">{{ originFirstTouch(selectedOrder) }}</span>
+                      <ng-container *ngIf="originConverted(selectedOrder)">
+                        <span class="origin-arrow" aria-hidden="true">&rarr;</span>
+                        <span class="origin-converted">{{ originConverted(selectedOrder) }}</span>
+                      </ng-container>
+                    </div>
 
                     <div class="order-header-pills">
                     <!-- Booked-by pill: who created the order (admin create-for-user vs customer
@@ -480,17 +495,6 @@
                     </div>
                   </div>
 
-                  <!-- Marketing origin: first-touch channel, plus the converting-session channel only
-                       when it differs (repeat visitor). Hidden entirely for orders with no attribution. -->
-                  <div class="order-origin" *ngIf="originFirstTouch(selectedOrder)"
-                       [title]="originTooltip(selectedOrder)">
-                    <span class="origin-label">Origin:</span>
-                    <span class="origin-first">{{ originFirstTouch(selectedOrder) }}</span>
-                    <span class="origin-converted" *ngIf="originConverted(selectedOrder)">
-                      · converted via {{ originConverted(selectedOrder) }}
-                    </span>
-                  </div>
-
                   <!-- The OWNER'S ACCOUNT has no email. Stated right above the send buttons because
                        the order's own contact email is frozen at booking time and can look perfectly
                        real — that disagreement is what made a skipped send read as a bug. Each line
@@ -531,15 +535,31 @@
                       {{ loadingStates.sendAssignmentMails ? 'Sending…' : (getPendingAssignmentEmailCleaners(selectedOrder.id).length > 0 ? 'Send assignment email (' + getPendingAssignmentEmailCleaners(selectedOrder.id).length + ' pending)' : 'All cleaners notified') }}
                     </button>
                     <!-- Re-send the original payment-link email/SMS to the customer's current
-                         account email/phone (after fixing a mistyped contact). -->
+                         account email/phone (after fixing a mistyped contact).
+
+                         HIDDEN for a commercially billed cleaning: that client pays an invoice,
+                         not a Stripe checkout, so a payment link would collect the same money
+                         twice through a route nobody agreed. "Send Invoice" takes its place. -->
                     <button type="button"
                             class="action-btn send-payment-link"
+                            *ngIf="!isInvoiceBilledOrder"
                             (click)="openSendPaymentLinkModal()"
                             [disabled]="loadingStates.sendPaymentLink"
                             [title]="customerHasNoAccountEmail
                               ? 'No email on this account — the payment link can only be texted'
                               : 'Re-send the payment link to the current account email / phone on file'">
                       {{ loadingStates.sendPaymentLink ? 'Sending…' : 'Send Payment Link' }}
+                    </button>
+
+                    <!-- The commercial counterpart. Opens a panel listing the invoices that cover
+                         this cleaning; it never sends anything on its own. -->
+                    <button type="button"
+                            class="action-btn send-invoice"
+                            *ngIf="isInvoiceBilledOrder || invoiceClientForOrder"
+                            (click)="openSendInvoiceModal()"
+                            [disabled]="loadingOrderInvoices"
+                            title="Email this cleaning's commercial invoice, or start a draft for it">
+                      {{ loadingOrderInvoices ? 'Loading…' : 'Send Invoice' }}
                     </button>
                     <!-- Re-send the booking confirmation with the order's CURRENT details. The
                          template reads live order values, so after a reschedule this is the
@@ -866,12 +886,18 @@
                       </p>
                       <p><strong>Phone:</strong> {{selectedOrder.contactPhone}}</p>
 
-                      <!-- Opens the Users tab in a new browser tab with this customer's detail panel expanded -->
+                      <!-- Opens the record this ORDER is about: the business client for a
+                           commercially billed cleaning, the customer account otherwise. Both
+                           panels show the other half, so either landing is recoverable. -->
                       <button type="button" class="view-user-btn"
-                              *ngIf="selectedOrder.userId"
-                              (click)="openUserInAdmin(selectedOrder.userId)">
-                        View User
+                              *ngIf="selectedOrder.userId || invoiceClientForOrder"
+                              (click)="viewOrderCustomer()">
+                        {{ invoiceClientForOrder ? 'View Business Client' : 'View User' }}
                       </button>
+                      <p class="account-email-note" *ngIf="invoiceClientForOrder">
+                        <span class="tag-chip">Business client</span>
+                        {{ invoiceClientForOrder.name }}
+                      </p>
 
                       <!-- SuperAdmin-only: move this order (and everything it earned) to another customer -->
                       <div class="order-transfer" *ngIf="isSuperAdmin">
@@ -1303,7 +1329,10 @@
                               <option *ngFor="let opt of paymentMethodOptions" [value]="opt.value">{{ opt.label }}</option>
                             </select>
                           </div>
-                          <ng-container *ngIf="paymentMethodEdit !== 'Normal'">
+                          <!-- Reference and notes record money that has ALREADY changed hands,
+                               so they are offered for cash/Zelle/cheque/other and not for
+                               Invoice, which is unpaid by definition until its invoice settles. -->
+                          <ng-container *ngIf="isSettledPaymentMethod(paymentMethodEdit)">
                             <div class="manual-pay-row">
                               <label>Reference</label>
                               <input type="text" [(ngModel)]="paymentMethodEditReference"
@@ -1316,9 +1345,30 @@
                                      maxlength="1000" placeholder="Optional" />
                             </div>
                           </ng-container>
-                          <p class="pm-editor-hint" *ngIf="paymentMethodEdit !== 'Normal'">
+
+                          <!-- Invoice: who is billed. Required — the server refuses an Invoice
+                               order with no client, because a cleaning no invoice can pick up
+                               would sit Pending forever with nothing able to settle it. -->
+                          <ng-container *ngIf="paymentMethodEdit === 'Invoice'">
+                            <div class="manual-pay-row">
+                              <label>Billed to</label>
+                              <select [(ngModel)]="paymentMethodEditClientId">
+                                <option [ngValue]="null">— Choose a commercial client —</option>
+                                <option *ngFor="let c of commercialClients" [ngValue]="c.id">
+                                  {{ c.legalEntityName }}
+                                </option>
+                              </select>
+                            </div>
+                          </ng-container>
+
+                          <p class="pm-editor-hint" *ngIf="isSettledPaymentMethod(paymentMethodEdit)">
                             The order moves to the manual-payment flow: treated as paid outside the
                             website, no Stripe fees in statistics, and a Pending order becomes Active.
+                          </p>
+                          <p class="pm-editor-hint" *ngIf="paymentMethodEdit === 'Invoice'">
+                            The order is billed by commercial invoice and stays Pending Payment. It
+                            becomes Active when an invoice covering it is paid in full — choosing
+                            this method settles nothing on its own.
                           </p>
                           <p class="pm-editor-hint" *ngIf="paymentMethodEdit === 'Normal' && (selectedOrder.paymentMethod || 'Normal') !== 'Normal'">
                             The order returns to the Stripe flow: it counts as awaiting online payment
@@ -1653,6 +1703,19 @@
                     </div>
                   </div>
 
+                  <!-- RECURRENCE — "repeat this cleaning". Its own card beside the others rather
+                       than a control buried in the edit form: a schedule is a fact about the
+                       CUSTOMER'S arrangement, not a property of this one order, and it creates
+                       real bookings weeks ahead that somebody has to be able to see. -->
+                  <app-recurring-series-panel
+                    *ngIf="!editingOrder"
+                    class="assigned-cleaners-section"
+                    [orderId]="selectedOrder.id"
+                    [canCreate]="userPermissions.permissions.canCreate"
+                    [canUpdate]="userPermissions.permissions.canUpdate"
+                    (ordersGenerated)="onRecurringOrdersGenerated()">
+                  </app-recurring-series-panel>
+
                   <!-- Assigned Cleaners Section with Enhanced Loading States.
                        Stays at the BOTTOM of the panel, where it has always been: the wage card
                        higher up answers "what does this job cost", this answers "who is on it and
@@ -1675,7 +1738,20 @@
                              class="cleaner-item">
                           <div class="cleaner-item-main">
                             <span class="cleaner-name">{{ cleaner.name }}</span>
-                            <span *ngIf="!cleaner.assignmentNotificationSentAt" class="cleaner-mail-pending" title="Assignment email not sent yet">Pending email</span>
+                            <!--
+                              AUTO-ASSIGNED, NOT NOTIFIED. A recurring series copies the template
+                              order's cleaners onto each generated occurrence and deliberately
+                              contacts nobody — the Send / Resend button beside this row is still
+                              the only thing that mails or texts them. Without this the row would
+                              look identical to a hand assignment whose email had simply not gone
+                              out yet, which is a different (and much less urgent) situation.
+                            -->
+                            <span *ngIf="cleaner.autoAssignedFromSeriesId && !cleaner.assignmentNotificationSentAt"
+                                  class="cleaner-auto-assigned"
+                                  title="Copied from the recurring series. No email or SMS was sent — use Send email to notify them.">
+                              Auto-assigned from recurring series — not notified
+                            </span>
+                            <span *ngIf="!cleaner.autoAssignedFromSeriesId && !cleaner.assignmentNotificationSentAt" class="cleaner-mail-pending" title="Assignment email not sent yet">Pending email</span>
                           </div>
                           <div class="cleaner-item-actions">
                             <button class="resend-cleaner-mail-btn"
@@ -2235,6 +2311,113 @@
           {{ loadingStates.sendPaymentLink ? 'Sending…' : 'Send' }}
         </button>
         <button class="btn-secondary" (click)="closeSendPaymentLinkModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Send Invoice ─────────────────────────────────────────────────────────────────────────
+     The commercial counterpart of the payment-link modal. It lists the invoices that already
+     cover this cleaning and, when none does, offers to START A DRAFT.
+
+     NOTHING IS SENT BY OPENING IT, and creating never sends either: the draft opens in the
+     invoice form, where the admin reads the figures and presses Send there. That gap is the
+     safety of the whole flow — an invoice going to a client with numbers nobody checked is the
+     one outcome this must not make easy. -->
+<div class="modal-overlay" *ngIf="showSendInvoiceModal" (click)="closeSendInvoiceModal()">
+  <div class="modal-content send-invoice-modal" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Send Invoice — Order #{{ selectedOrder?.id }}</h3>
+      <button class="close-btn" (click)="closeSendInvoiceModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+
+      <p class="send-payment-link-note" *ngIf="invoiceClientForOrder">
+        This cleaning is billed to <strong>{{ invoiceClientForOrder.name }}</strong>. Commercial
+        clients pay an invoice rather than a payment link.
+      </p>
+
+      <!-- ── Invoices that already cover it ── -->
+      <div class="order-invoice-list" *ngIf="coveringInvoices.length > 0">
+        <div class="order-invoice-row" *ngFor="let inv of coveringInvoices">
+          <div class="order-invoice-main">
+            <a class="order-invoice-number"
+               [href]="'/admin/commercial/invoices/' + inv.id"
+               target="_blank" rel="noopener">{{ inv.invoiceNumber }}</a>
+            <span class="tag-chip">{{ inv.statusLabel }}</span>
+          </div>
+
+          <div class="order-invoice-meta">
+            <span>{{ inv.total | currency:'USD' }} total</span>
+            <span *ngIf="inv.balanceDue > 0">· {{ inv.balanceDue | currency:'USD' }} due</span>
+            <span *ngIf="inv.coveredOrderCount > 1">· covers {{ inv.coveredOrderCount }} cleanings</span>
+            <span *ngIf="inv.allocatedAmount != null">
+              · {{ inv.allocatedAmount | currency:'USD' }} on this one
+            </span>
+          </div>
+
+          <!-- Said BEFORE the send, not discovered by the admin afterwards — the same rule the
+               no-account-email warning follows for residential mail. -->
+          <p class="send-payment-link-note warn" *ngIf="!inv.billingEmail">
+            ⚠ This client has <strong>no billing email</strong>, so the invoice cannot be emailed.
+            Add one on the client record first.
+          </p>
+
+          <p class="order-invoice-hint" *ngIf="inv.allocationIsProposal">
+            Sending applies the agreed price to this cleaning. Until then nothing on the order has
+            changed.
+          </p>
+
+          <div class="order-invoice-actions">
+            <button class="btn-primary"
+                    *ngIf="inv.canSend"
+                    (click)="sendInvoiceForOrder(inv)"
+                    [disabled]="sendingInvoiceId !== null || !inv.billingEmail">
+              {{ sendingInvoiceId === inv.id
+                   ? 'Sending…'
+                   : (inv.hasBeenSent ? 'Resend invoice' : 'Send invoice') }}
+            </button>
+            <span class="order-invoice-sent" *ngIf="inv.hasBeenSent && inv.lastSentAt">
+              Last sent {{ inv.lastSentAt | date:'MMM d, y' }}
+            </span>
+            <span class="order-invoice-sent" *ngIf="!inv.canSend">
+              This invoice was voided and cannot be sent.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Nothing covers it yet ── -->
+      <ng-container *ngIf="coveringInvoices.length === 0">
+        <p class="send-payment-link-note" *ngIf="orderInvoices?.canBeInvoiced && invoiceClientForOrder">
+          No invoice covers this cleaning yet. Creating one opens the invoice form as a
+          <strong>draft</strong> with this cleaning already selected — nothing is emailed until you
+          send it there.
+        </p>
+
+        <div class="send-payment-link-note warn" *ngIf="!invoiceClientForOrder">
+          ⚠ This cleaning is not linked to a commercial client, so there is nothing to invoice it
+          under. Tick <strong>Business</strong> on the customer's account, or pick the client on
+          the order, first.
+        </div>
+
+        <div class="send-payment-link-note warn"
+             *ngIf="invoiceClientForOrder && orderInvoices && !orderInvoices.canBeInvoiced">
+          ⚠ {{ orderInvoices.blockedReason }}
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-primary"
+                  *ngIf="orderInvoices?.canBeInvoiced && invoiceClientForOrder"
+                  (click)="createInvoiceForOrder()">
+            Create invoice for this cleaning
+          </button>
+          <button class="btn-secondary" (click)="closeSendInvoiceModal()">Close</button>
+        </div>
+      </ng-container>
+
+      <div class="modal-actions" *ngIf="coveringInvoices.length > 0">
+        <button class="btn-secondary" (click)="closeSendInvoiceModal()">Close</button>
       </div>
     </div>
   </div>

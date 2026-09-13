@@ -6,6 +6,7 @@ import { ServiceType, Service, ExtraService, Subscription, ServiceThreshold, Ser
 import { Order, OrderList } from './order.service';
 import { Apartment, CreateApartment } from './profile.service';
 import { UserSpecialOffer } from './special-offer.service';
+import { PaymentMethodValue } from '../shared/payment-method';
 
 // ─── "Recreate this order" preview (mirrors DTOs/ReorderDtos.cs) ────────────────────────────
 
@@ -80,6 +81,20 @@ export interface ReorderPreview {
   notificationEmail: string | null;
   notificationPhone: string | null;
   customerHasNoAccountEmail: boolean;
+
+  /**
+   * The SOURCE order's payment method, so the modal can default to it.
+   *
+   * ONLY THE METHOD TRAVELS. `prefill` is a CreateBookingDto and has no field a PaymentIntent,
+   * a reference, a paid flag or an invoice link could live in, so old transaction state is
+   * unrepresentable rather than merely omitted — the recreated order is a new financial
+   * transaction that happens to be settled the same way.
+   */
+  sourcePaymentMethod: PaymentMethodValue;
+
+  /** The commercial client an Invoice-method source order was billed to. Null otherwise. */
+  sourceContractClientId: number | null;
+  sourceContractClientName: string | null;
 }
 
 export interface ExpenseBreakdownItem {
@@ -241,6 +256,16 @@ export interface AdminOrderList {
   isHidden?: boolean;
 }
 
+/**
+ * One order still carrying the green new-order highlight FOR THE CALLING ADMIN.
+ * `createdAt` is what the 24-hour window is measured from, so an open tab can age the row
+ * out on its own instead of asking the server again.
+ */
+export interface UnviewedNewOrder {
+  orderId: number;
+  createdAt: string;
+}
+
 export interface AuditLog {
   id: number;
   entityType?: string;
@@ -370,6 +395,16 @@ export interface AssignedCleanerAdmin {
   id: number;
   name: string;
   assignmentNotificationSentAt?: string | null;
+
+  /**
+   * Set when the RECURRING GENERATOR copied this assignment from the series' template order
+   * rather than an admin choosing it on this job.
+   *
+   * Paired with a null `assignmentNotificationSentAt` it means "auto-assigned from recurring
+   * series — cleaner has not been notified". Copying an assignment deliberately contacts nobody;
+   * the existing Send / Resend controls stay the only thing that mails or texts a cleaner.
+   */
+  autoAssignedFromSeriesId?: number | null;
 }
 
 export interface UsersResponse {
@@ -559,6 +594,13 @@ export interface UserAdmin {
   flagReason?: string | null;
   /** Marks a customer account as a business — the prerequisite for a commercial contract. */
   isBusiness?: boolean;
+  /**
+   * True while this account is ON Users -> Business Clients: its linked ContractClient exists AND
+   * is active. That is what the Customers tab hides, so the two tabs partition every account.
+   * "Move to Customers" deactivates the client without deleting it, so the ACTIVE half is what
+   * lets a moved-back customer reappear under Customers.
+   */
+  hasActiveBusinessClient?: boolean;
   /** Officer title on a staff account: 'None' | 'CEO' | 'CTO'. */
   orgTitle?: string;
 }
@@ -1114,7 +1156,14 @@ export interface LoyaltyDiscountDto {
   isManualOverride: boolean;
   activatedAt: string | null;
   lastUsedAt: string | null;
-  status: 'None' | 'Auto' | 'Manual' | 'Used';
+  status: 'None' | 'Auto' | 'Manual' | 'Lifetime' | 'Used';
+
+  /**
+   * LIFETIME mode: the discount is not consumed by an order and the 60/90-day inactivity
+   * automation is suspended for this customer until an admin clears it. Mirrors
+   * User.LoyaltyDiscountIsLifetime.
+   */
+  isLifetime: boolean;
 }
 
 export interface LoyaltyDiscountSettingsDto {
@@ -2013,15 +2062,21 @@ export class AdminService {
   /** SuperAdmin-only: switch an order between the Stripe (Normal) flow and a manual payment
    *  method. The backend re-routes the order (manual tracking fields, Pending/Active status,
    *  Stripe-fee accounting) and returns the resulting method + status to mirror locally. */
+  /**
+   * @param contractClientId Required when switching to the Invoice method — who the order is
+   * billed to. Ignored for every other method; omitting it on an order that already carries a
+   * client means "keep the one it has".
+   */
   updateOrderPaymentMethod(
     orderId: number,
     paymentMethod: string,
     paymentReference: string | null,
-    paymentNotes: string | null
+    paymentNotes: string | null,
+    contractClientId: number | null = null
   ): Observable<{ message: string; paymentMethod: string; paymentReference: string | null; paymentNotes: string | null; status: string }> {
     return this.http.put<{ message: string; paymentMethod: string; paymentReference: string | null; paymentNotes: string | null; status: string }>(
       `${this.apiUrl}/orders/${orderId}/payment-method`,
-      { paymentMethod, paymentReference, paymentNotes }
+      { paymentMethod, paymentReference, paymentNotes, contractClientId }
     );
   }
 
@@ -2167,9 +2222,10 @@ export class AdminService {
     );
   }
 
-  // New Order Notifications
-  getUnviewedNewOrders(): Observable<number[]> {
-    return this.http.get<number[]>(`${this.apiUrl}/orders/unviewed-new`);
+  // New Order Notifications. The highlight is per-admin and expires 24h after the order was
+  // created, so the caller needs createdAt to age a row out without a round trip.
+  getUnviewedNewOrders(): Observable<UnviewedNewOrder[]> {
+    return this.http.get<UnviewedNewOrder[]>(`${this.apiUrl}/orders/unviewed-new`);
   }
 
   markOrderViewed(orderId: number): Observable<{ message: string }> {
@@ -2214,10 +2270,21 @@ export class AdminService {
     return this.http.get<LoyaltyDiscountDto>(`${this.apiUrl}/users/${userId}/loyalty-discount`);
   }
 
-  setUserLoyaltyDiscount(userId: number, percentage: number): Observable<LoyaltyDiscountDto> {
+  /**
+   * Sets the customer's loyalty discount.
+   *
+   * `isLifetime` defaults to FALSE, which is the pre-existing ONE-TIME behaviour — a caller that
+   * omits it produces exactly the discount this endpoint always produced. Lifetime has to be
+   * asked for, and is written on every save in both directions, so editing a lifetime discount
+   * back down to a one-time one actually demotes it rather than leaving a standing entitlement
+   * the admin believes they removed.
+   */
+  setUserLoyaltyDiscount(
+    userId: number, percentage: number, isLifetime = false
+  ): Observable<LoyaltyDiscountDto> {
     return this.http.put<LoyaltyDiscountDto>(
       `${this.apiUrl}/users/${userId}/loyalty-discount`,
-      { percentage }
+      { percentage, isLifetime }
     );
   }
 

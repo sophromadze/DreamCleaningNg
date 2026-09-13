@@ -45,6 +45,11 @@
     <button type="button" class="btn-primary" *ngIf="canSignAsContractor && !signingOpen"
             (click)="openSigning()" [disabled]="busy">Sign as Contractor</button>
 
+    <!-- Produces a DRAFT invoice and emails nobody. Named for what it does: the admin reviews the
+         dates and the figures, then presses Send on the invoice itself. -->
+    <button type="button" class="btn-primary" *ngIf="canCreateNextInvoice"
+            (click)="createNextInvoice()" [disabled]="busy">Create next invoice</button>
+
     <button type="button" class="btn-ghost" *ngIf="canRevise"
             (click)="revise()" [disabled]="busy">Create revision</button>
 

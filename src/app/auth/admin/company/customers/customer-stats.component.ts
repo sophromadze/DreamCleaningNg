@@ -1397,8 +1397,12 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
       // "Best" is decided among the cells we are willing to print. A suppressed 45% from a
       // three-customer month must never win the row it would otherwise dominate.
       const live = cells.filter(c => !c.suppressed).map(c => c.value);
+      // The tie guard needs something to tie: with one live cell `every` is vacuously true, which
+      // left the ONLY reportable period in the row unmarked next to a dash. A row where every
+      // printable period genuinely matches still has no winner, and live.length === 0 (nothing
+      // reportable at all) still has none either.
       const bestValue = def.betterWhen === 'none' || live.length === 0
-        || live.every(v => v === live[0])
+        || (live.length > 1 && live.every(v => v === live[0]))
         ? null
         : (def.betterWhen === 'high' ? Math.max(...live) : Math.min(...live));
 

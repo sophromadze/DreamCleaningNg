@@ -37,15 +37,18 @@
         <option value="active">Active</option>
         <option value="inactive">Blocked</option>
       </select>
-      <select [(ngModel)]="roleFilter" class="filter-select">
+      <!-- Only the roles this tab can actually contain. Offering "Customer" on the Staff tab
+           (or the three admin roles on Customers) would be a filter that always returns nothing,
+           which reads as a broken list rather than an empty one. -->
+      <select [(ngModel)]="roleFilter" class="filter-select" *ngIf="scope === 'staff'">
         <option value="all">All Roles</option>
         <option value="SuperAdmin">SAdmin</option>
         <option value="Admin">Admin</option>
         <option value="Moderator">Moderator</option>
-        <option value="Customer">Customer</option>
       </select>
-      <!-- Customer type by non-cancelled order count: new = 1, returning = 2+ -->
-      <select [(ngModel)]="customerTypeFilter" class="filter-select">
+      <!-- Customer type by non-cancelled order count: new = 1, returning = 2+.
+           Meaningless for staff, who are not booking cleanings. -->
+      <select [(ngModel)]="customerTypeFilter" class="filter-select" *ngIf="scope === 'customers'">
         <option value="all">All Customers</option>
         <option value="new">New (1 order)</option>
         <option value="returning">Returning (2+)</option>
@@ -448,14 +451,97 @@
         <span class="badge" *ngIf="(selectedUser.orders?.length || 0) > 0">{{ selectedUser.orders?.length }}</span>
       </button>
       <button class="tab" [class.active]="detailTab === 'photos'" (click)="setDetailTab('photos')">Photos</button>
+      <!-- Shown only when there is something in it. An empty Invoices tab on every customer in
+           the business is a tab nobody would ever click twice. -->
+      <button class="tab" *ngIf="hasInvoices"
+              [class.active]="detailTab === 'invoices'" (click)="setDetailTab('invoices')">Invoices
+        <span class="badge">{{ userInvoices.length }}</span>
+      </button>
     </nav>
 
     <!-- Tab body scrolls -->
     <div class="detail-body" *ngIf="!editingUser">
 
+      <!-- ─── INVOICES ─────────────────────────────────────────────────────────────────────
+           Every invoice that belongs to this customer, from BOTH directions: the ones addressed
+           to the commercial client their account is linked to, and any invoice covering one of
+           their own cleanings. The second is why an ordinary customer can legitimately have a
+           tab here — their cleaning may have been billed on a company's invoice.
+
+           Read-only. Sending, editing and recording payment all live in Commercial → Invoices,
+           so there is exactly one place each of those can happen. -->
+      <section *ngIf="detailTab === 'invoices'" class="tab-pane">
+        <div class="um-invoice-list">
+          <a class="um-invoice-row" *ngFor="let inv of userInvoices"
+             [href]="'/admin/commercial/invoices/' + inv.id" target="_blank" rel="noopener">
+            <div class="um-invoice-main">
+              <span class="um-invoice-number">{{ inv.invoiceNumber }}</span>
+              <span class="tag-chip">{{ inv.statusLabel }}</span>
+            </div>
+            <div class="um-invoice-meta">
+              <span>{{ inv.clientName }}</span>
+              <span>· {{ inv.invoiceDate | date:'MMM d, y' }}</span>
+              <span *ngIf="inv.coveredOrderCount > 0">· {{ inv.coveredOrderCount }} cleaning(s)</span>
+            </div>
+            <div class="um-invoice-amounts">
+              <strong>{{ inv.total | currency:'USD' }}</strong>
+              <span *ngIf="inv.balanceDue > 0" class="text-danger">
+                {{ inv.balanceDue | currency:'USD' }} due
+              </span>
+              <span *ngIf="inv.balanceDue <= 0" class="text-ok">Paid</span>
+            </div>
+          </a>
+        </div>
+      </section>
+
       <!-- ─── DETAILS ─── -->
       <section *ngIf="detailTab === 'details'" class="tab-pane">
         <div class="overview-details">
+          <!-- ONE PANEL, BOTH HALVES — the commercial record of a business customer, beside their
+               account rather than on another tab. The mirror of the "Customer account" card on
+               Business Clients; between them, opening either record shows the whole picture.
+
+               The two are NOT merged. A legal entity name is not a person's name and a notice
+               email is not a login, so where they differ the panel shows both. -->
+          <div class="info-card um-business-card" *ngIf="businessClient as bc">
+            <h6>Business client</h6>
+            <div class="info-grid">
+              <div class="um-span-2"><span>Legal entity</span><strong>{{ bc.legalEntityName }}</strong></div>
+              <div><span>Entity type</span><strong>{{ bc.entityType || '—' }}</strong></div>
+              <div><span>Client ID</span><strong>{{ bc.id }}</strong></div>
+              <div><span>Billing contact</span><strong>{{ bc.billingContactName || '—' }}</strong></div>
+              <div>
+                <span>Invoices go to</span>
+                <strong>{{ bc.billingEmail || 'no billing email' }}</strong>
+              </div>
+              <div><span>Billing phone</span><strong>{{ bc.billingPhone || '—' }}</strong></div>
+              <div><span>Contracts</span><strong>{{ bc.contracts.length }}</strong></div>
+              <div class="um-span-2">
+                <span>Billing address</span>
+                <strong>{{ bc.billingAddress || 'No billing address on file' }}</strong>
+              </div>
+            </div>
+
+            <!-- Said here because it is the reason an invoice for this client cannot be sent, and
+                 an admin finding that out at the send is finding out too late. -->
+            <p class="hint-line um-warn" *ngIf="!bc.billingEmail">
+              No billing email — invoices for this client cannot be emailed until one is added.
+            </p>
+            <p class="hint-line" *ngIf="!bc.isActive">
+              This client is removed from the Business Clients list. Its contracts and invoices are
+              unaffected; turning the Business flag back on lists it again.
+            </p>
+
+            <button type="button" class="action-btn small ghost inline um-business-link"
+                    (click)="openBusinessClient()">
+              Open the commercial record →
+            </button>
+          </div>
+          <div class="info-card" *ngIf="loadingBusinessClient && !businessClient">
+            <h6>Business client</h6>
+            <p class="muted">Loading the commercial record…</p>
+          </div>
+
           <div class="info-card">
             <h6>Account</h6>
             <div class="info-grid">
@@ -693,7 +779,10 @@
                   <span>Status</span>
                   <strong [ngSwitch]="loyaltyDiscount.status">
                     <span *ngSwitchCase="'Auto'">Auto</span>
-                    <span *ngSwitchCase="'Manual'">Manual (admin set)</span>
+                    <span *ngSwitchCase="'Manual'">Manual (admin set, one-time)</span>
+                    <!-- Lifetime outranks Manual: both are admin-set, but only one survives being
+                         used, and that is the fact somebody reading this needs. -->
+                    <span *ngSwitchCase="'Lifetime'">Lifetime (admin set)</span>
                     <span *ngSwitchCase="'Used'">Recently used</span>
                     <span *ngSwitchDefault>None</span>
                   </strong>
@@ -729,6 +818,24 @@
                          [(ngModel)]="loyaltyForm.percentage"
                          class="small-input">
                 </label>
+                <!--
+                  ONE-TIME vs LIFETIME. The default is one-time, which is what this control has
+                  always produced; lifetime has to be chosen. The consequences are spelled out
+                  because two of them are not obvious from the words: it is not consumed by an
+                  order, and it switches the 60/90-day inactivity automation off for this
+                  customer entirely.
+                -->
+                <label class="loyalty-lifetime">
+                  <input type="checkbox" [(ngModel)]="loyaltyForm.isLifetime">
+                  <span>
+                    Lifetime discount
+                    <small>
+                      Applies to every future eligible order instead of being used up once, and
+                      stops the automatic 60/90-day discounts for this customer until you clear
+                      it. It still does not stack — the best single discount wins per order.
+                    </small>
+                  </span>
+                </label>
                 <div class="loyalty-edit__actions">
                   <button class="action-btn small primary"
                           (click)="saveLoyaltyDiscount()"
@@ -742,7 +849,10 @@
                   </button>
                 </div>
               </div>
-              <p class="muted hint">Setting to 0 clears the discount and re-enables auto management.</p>
+              <p class="muted hint">
+                Setting to 0 clears the discount — including Lifetime — and hands the customer back
+                to the automatic 60/90-day rules.
+              </p>
             </div>
 
             <div class="error-message" *ngIf="loyaltyError">{{ loyaltyError }}</div>

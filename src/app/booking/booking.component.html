@@ -86,12 +86,16 @@
               <label *ngFor="let opt of paymentMethodOptions" class="radio-row">
                 <input type="radio" name="paymentMethod"
                        [(ngModel)]="adminPaymentMethod"
-                       [value]="opt.value">
+                       [value]="opt.value"
+                       (ngModelChange)="onAdminPaymentMethodChange()">
                 <span>{{ opt.label }}</span>
               </label>
             </div>
 
-            <ng-container *ngIf="adminPaymentMethod !== 'Normal'">
+            <!-- Reference and notes record money that has ALREADY changed hands, so they are
+                 offered for cash/Zelle/cheque/other and not for Invoice — which is unpaid by
+                 definition until its invoice is settled. -->
+            <ng-container *ngIf="adminPaymentMethod !== 'Normal' && adminPaymentMethod !== 'Invoice'">
               <div class="field">
                 <label>Reference (Zelle ID, check #, etc.)</label>
                 <input type="text"
@@ -104,6 +108,28 @@
                 <textarea [(ngModel)]="adminPaymentNotes"
                           rows="2"
                           maxlength="1000"></textarea>
+              </div>
+            </ng-container>
+
+            <!-- INVOICE: who is billed. Required — a cleaning no invoice can pick up would sit
+                 Pending forever with nothing able to settle it, so the server refuses one
+                 without a client and this asks for it up front. -->
+            <ng-container *ngIf="adminPaymentMethod === 'Invoice'">
+              <div class="field">
+                <label>Billed to (commercial client)</label>
+                <select [(ngModel)]="adminContractClientId">
+                  <option [ngValue]="null">— Choose a commercial client —</option>
+                  <option *ngFor="let c of adminContractClients" [ngValue]="c.id">
+                    {{ c.legalEntityName }}
+                  </option>
+                </select>
+                <small class="payment-method-hint" *ngIf="loadingContractClients">
+                  Loading commercial clients…
+                </small>
+                <small class="payment-method-hint" *ngIf="!loadingContractClients">
+                  The order stays Pending Payment. It becomes Active when an invoice covering it
+                  is paid in full — no payment link is sent to the customer.
+                </small>
               </div>
             </ng-container>
           </div>

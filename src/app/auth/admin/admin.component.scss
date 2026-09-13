@@ -1,3 +1,5 @@
+@use '../../../styles/admin-tab-nav' as *;
+
 .admin-container {
   max-width: 1400px;
   margin: 0 auto 0;
@@ -128,61 +130,30 @@
   }
 }
 
+/* The SAME text-tab strip as Commercial - text labels, a bottom divider, a blue active
+   underline - via the shared mixin rather than a copy of its CSS.
+
+   The old treatment here was a row of equal-width bordered boxes (flex: 1) painted with
+   hardcoded #e0e0e0 / #666 / #007bff, which is why it needed its own block under
+   [data-theme="dark"] further down; that block is gone with it. Only the tab NAVIGATION
+   changed - cards, tables and buttons in the panel are untouched. */
 .admin-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0;
   margin-top: 1rem;
+  @include admin-tab-nav('.tab-btn');
 
-  @media (max-width: 768px) {
-    margin-top: 0.75rem;
-    margin-bottom: 1.25rem;
-    gap: 0;
-  }
+  @media (max-width: 768px) { margin-top: 0.75rem; }
+  @media (max-width: 480px) { margin-top: 0.5rem; }
 
-  @media (max-width: 480px) {
-    margin-top: 0.5rem;
-    margin-bottom: 1rem;
-    gap: 0;
-  }
-  
-  .tab-btn {
-    background: none;
-    border: 1px solid #e0e0e0;
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #666;
-    cursor: pointer;
-    transition: all 0.3s ease;
-    white-space: nowrap;
-    flex: 1;
+  /* The panel has a dozen tabs, so on a phone the row scrolls sideways instead of stacking
+     into five ragged lines - Commercial has five and wraps comfortably. */
+  @media (max-width: 640px) {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
 
-    @media (max-width: 768px) {
-      padding: 0.65rem 1.15rem;
-      font-size: 0.9rem;
-    }
-
-    @media (max-width: 480px) {
-      padding: 0.55rem 0.9rem;
-      font-size: 0.85rem;
-    }
-
-    @media (max-width: 320px) {
-      padding: 0.5rem 0.75rem;
-      font-size: 0.8rem;
-    }
-    
-    &:hover {
-      color: #333;
-      border-color: #ccc;
-    }
-    
-    &.active {
-      color: #007bff;
-      border-color: #007bff;
-      background-color: #f0f8ff;
-    }
+    .tab-btn { padding: 10px 12px; font-size: 0.86rem; }
   }
 }
 
@@ -251,19 +222,11 @@
     color: var(--text-primary);
   }
 
-  .admin-tabs .tab-btn {
-    border-color: var(--border-color);
-    color: var(--text-secondary);
-    &:hover {
-      color: var(--text-primary);
-      border-color: var(--text-muted);
-    }
-    &.active {
-      color: #007bff;
-      border-color: #007bff;
-      background-color: rgba(0, 123, 255, 0.15);
-    }
-  }
+  /* NO .admin-tabs BLOCK HERE ANY MORE. The shared strip is built entirely from theme-aware
+     tokens (--text-secondary / --text-primary / --active-nav-link / --primary-color /
+     --border-color), so day and night follow the toggle on their own — exactly as they already
+     did on Commercial. The override this replaced existed only because the old tabs were painted
+     with hardcoded hex values that could not flip. */
 
   .error-message {
     background-color: rgba(220, 53, 69, 0.25);

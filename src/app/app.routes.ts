@@ -435,6 +435,15 @@ export const routes: Routes = [
           .then(m => m.CommercialClientsComponent)
       },
       {
+        // Business types and their scope-of-work checklists. Ordinary Admin work, gated by the
+        // directory controller's per-action permissions rather than by a role here: editing one
+        // changes what NEW contracts start from and cannot reach a signed agreement, which carries
+        // its own frozen copy of the scope.
+        path: 'business-types',
+        loadComponent: () => import('./auth/admin/commercial/business-types/business-types.component')
+          .then(m => m.BusinessTypesComponent)
+      },
+      {
         // SuperAdmin-only in effect: the tab is hidden for anyone else and the PUT is refused
         // server-side. Left without a guard here on purpose — an Admin who lands on it sees the
         // settings read-only, which is genuinely useful when a client asks where to pay.
@@ -558,6 +567,18 @@ export const routes: Routes = [
     canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
     loadComponent: () => import('./contract/my-contract-detail/my-contract-detail.component')
       .then(m => m.MyContractDetailComponent)
+  },
+
+  // ── My Invoices: the business customer's own invoices ──────────────────────────────────────
+  // Guarded exactly like My Contracts beside it. There is no detail route: opening an invoice
+  // goes to /invoice/{token}, the same page the emailed link uses, which already carries the
+  // breakdown, the payment options and the PDF. A second payment surface would be a second place
+  // for those rules to drift.
+  {
+    path: 'profile/invoices',
+    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
+    loadComponent: () => import('./invoice/my-invoices/my-invoices.component')
+      .then(m => m.MyInvoicesComponent)
   },
 
   {

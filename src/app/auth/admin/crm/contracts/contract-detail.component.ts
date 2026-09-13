@@ -10,6 +10,7 @@ import {
   ContractDetail, ContractFileType, ContractPermissions, ContractService, ContractSignatureBlock,
   ContractSignerStatus, ContractStatus
 } from '../../../../services/contract.service';
+import { InvoiceService, ExistingDraftInvoice } from '../../../../services/invoice.service';
 import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
 
 /**
@@ -41,7 +42,11 @@ export class ContractDetailComponent implements OnInit, OnChanges {
   @Output() back = new EventEmitter<void>();
   @Output() edit = new EventEmitter<number>();
 
+  /** A draft invoice was generated from this contract — the shell opens it for review. */
+  @Output() invoiceCreated = new EventEmitter<number>();
+
   private contracts = inject(ContractService);
+  private invoices = inject(InvoiceService);
 
   detail: ContractDetail | null = null;
   signatureBlock: ContractSignatureBlock | null = null;
@@ -148,6 +153,91 @@ export class ContractDetailComponent implements OnInit, OnChanges {
         this.errorMessage = extractApiErrorMessage(err, 'That action could not be completed.');
       }
     };
+  }
+
+  // ── Create Next Invoice ────────────────────────────────────────────────────
+  //
+  // DELIBERATELY NOT CALLED "SEND NEW INVOICE". Pressing it produces a DRAFT and emails nobody:
+  // the admin reviews the dates, the line items and the total, and only then presses Send. That
+  // gap is the whole safety of recurring billing — everything the generator gets wrong is fixable
+  // on a screen before it reaches a client.
+
+  /**
+   * Whether this contract can be billed at all.
+   *
+   * A DRAFT contract is excluded: an agreement nobody has generated, let alone signed, has no
+   * price anyone has agreed to. Everything from a generated preview onwards is fair game, because
+   * ad-hoc billing against an in-flight agreement is ordinary commercial practice.
+   */
+  get canCreateNextInvoice(): boolean {
+    // The SERVER'S answer, carried on the detail DTO — the same rule the endpoint enforces
+    // (ContractInvoiceEligibility), so this view and the Contracts list cannot disagree about
+    // whether a contract may be billed. The old local test ("not hidden and past Draft") let an
+    // unsigned or voided agreement through.
+    return this.detail?.canCreateNextInvoice === true;
+  }
+
+  /** Why not, for the tooltip. Null when the button is offered. */
+  get cannotCreateNextInvoiceReason(): string | null {
+    return this.detail?.cannotCreateNextInvoiceReason ?? null;
+  }
+
+  createNextInvoice(allowDuplicatePeriod = false, acknowledgeUndatedDraft = false): void {
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.busy = true;
+
+    this.invoices.createNextFromContract(this.contractId, allowDuplicatePeriod, acknowledgeUndatedDraft).subscribe({
+      next: result => {
+        this.busy = false;
+
+        const parts = [
+          result.clonedFromInvoiceNumber
+            ? `Draft ${result.invoice.invoiceNumber} created, modelled on ${result.clonedFromInvoiceNumber}.`
+            : `Draft ${result.invoice.invoiceNumber} created from this contract's pricing.`,
+          ...result.warnings
+        ];
+
+        // Warnings are shown WITH the success, not instead of it. The draft exists either way, and
+        // the admin needs to know both that it was created and what to look at first.
+        this.successMessage = parts.join(' ');
+        this.invoiceCreated.emit(result.invoice.id);
+      },
+      error: err => {
+        this.busy = false;
+
+        const message = extractApiErrorMessage(
+          err, 'The next invoice could not be created.');
+
+        // A 409 is the DUPLICATE-DRAFT guard: an unsent draft already exists for this contract.
+        // Not an error — the thing being asked for is already there — so the useful answer is to
+        // open it. This is the mistake that actually happens: the button pressed twice, or a
+        // draft from last week nobody remembered, producing two identical invoices either of
+        // which could be sent.
+        const existingDraft: ExistingDraftInvoice | undefined = err?.error?.existingDraft;
+        if (err?.status === 409 && existingDraft) {
+          if (confirm(`${existingDraft.message}\n\nOpen that draft?`)) {
+            this.invoiceCreated.emit(existingDraft.invoiceId);
+          } else if (confirm(existingDraft.isUndated ? 'Leave the undated draft intact and create a draft for the intended period?' : 'Create a SECOND draft for this period anyway?')) {
+            this.createNextInvoice(existingDraft.isUndated ? allowDuplicatePeriod : true, existingDraft.isUndated || acknowledgeUndatedDraft);
+          }
+          return;
+        }
+
+        // A 400 here is the duplicate-period guard: an issued invoice already covers the period
+        // the schedule worked out. It is a confirmation rather than a refusal, so it is offered as
+        // one - but only once, and never automatically.
+        if (err?.status === 400 && !allowDuplicatePeriod && message.includes('already covers')) {
+          if (confirm(`${message}\n\nCreate a second invoice for the same period anyway?`)) {
+            this.createNextInvoice(true, acknowledgeUndatedDraft);
+            return;
+          }
+          return;
+        }
+
+        this.errorMessage = message;
+      }
+    });
   }
 
   sendForReview(): void {

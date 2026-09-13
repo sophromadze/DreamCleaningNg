@@ -1,0 +1,205 @@
+:host { display: block; }
+
+.uro {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  margin-bottom: 24px;
+}
+
+.uro-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+
+  h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+  }
+}
+
+.uro-intro,
+.uro-loading {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.uro-error {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: var(--bright-red);
+}
+
+.uro-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.uro-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+
+  &:last-child { border-bottom: none; }
+
+  /* A settled cleaning is still worth seeing — it is part of the schedule — but it is not
+     what the customer is being asked to look at. */
+  &--paid { opacity: 0.72; }
+}
+
+.uro-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.uro-date {
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.uro-type {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.uro-item-money {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.uro-total {
+  font-weight: var(--fw-semibold);
+  color: var(--text-primary);
+}
+
+.uro-paid {
+  font-size: 0.8rem;
+  font-weight: var(--fw-semibold);
+  color: var(--fresh-green);
+  background: var(--mint-fresh);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+}
+
+/* The one that CAN be paid gets the only button on screen. */
+.uro-pay-btn {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 7px 16px;
+  font-size: 0.85rem;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+
+  &:hover:not(:disabled) { filter: brightness(0.95); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+/* Deliberately quiet, and deliberately WORDED. A row that is simply inert reads as broken. */
+.uro-blocked {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  max-width: 22rem;
+  text-align: right;
+}
+
+.uro-payall-btn {
+  background: transparent;
+  color: var(--primary-text);
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  padding: 7px 14px;
+  font-size: 0.85rem;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--soft-blue); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+// ── Combined payment modal ────────────────────────────────────────────────────────────────
+
+.uro-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1200;
+}
+
+.uro-modal {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  padding: 22px;
+  width: min(440px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+
+  h4 {
+    margin: 0 0 8px;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+  }
+}
+
+.uro-modal-summary {
+  margin: 0 0 10px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.uro-modal-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+  font-size: 0.83rem;
+  color: var(--text-muted);
+
+  li:empty { display: none; }
+}
+
+.uro-card-element {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  background: var(--surface-elevated);
+  margin-bottom: 12px;
+}
+
+.uro-modal-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.uro-cancel-btn {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 7px 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}

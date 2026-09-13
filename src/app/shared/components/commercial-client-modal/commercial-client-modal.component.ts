@@ -10,6 +10,40 @@ import { InvoiceClientOption } from '../../../services/invoice.service';
 import { extractApiErrorMessage } from '../../../utils/http-error.utils';
 import { describeEmailProblem } from '../../../utils/email.utils';
 import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
+import { applyInferredEntityType } from '../../../utils/entity-type.utils';
+
+/**
+ * A field of this form that validation can point at. Only the ones that can actually be reported;
+ * a name here must have an entry in {@link CLIENT_FORM_FIELD_IDS}.
+ */
+export type ClientFormField =
+  | 'legalEntityName' | 'entityType' | 'principalAddress' | 'city' | 'state' | 'zip'
+  | 'noticeEmail' | 'contactFirstName' | 'contactLastName' | 'contactEmail'
+  | 'locationAddress' | 'locationCity' | 'locationState' | 'locationZip';
+
+/** What is wrong, and which box it is about. */
+interface ClientFormProblem {
+  field: ClientFormField;
+  message: string;
+}
+
+/** Field → the input's DOM id, so a reported problem can scroll to and focus its box. */
+const CLIENT_FORM_FIELD_IDS: Record<ClientFormField, string> = {
+  legalEntityName: 'cc-name',
+  entityType: 'cc-entity',
+  principalAddress: 'cc-address',
+  city: 'cc-city',
+  state: 'cc-state',
+  zip: 'cc-zip',
+  noticeEmail: 'cc-email',
+  contactFirstName: 'cc-cfirst',
+  contactLastName: 'cc-clast',
+  contactEmail: 'cc-cemail',
+  locationAddress: 'cc-locaddr',
+  locationCity: 'cc-loccity',
+  locationState: 'cc-locstate',
+  locationZip: 'cc-loczip'
+};
 
 /**
  * The commercial client form — create AND edit, the ONE implementation, used by
@@ -70,6 +104,19 @@ export class CommercialClientModalComponent implements OnChanges {
   @Input() open = false;
 
   /**
+   * Render as a right-side slide-in panel rather than a centred modal.
+   *
+   * The FORM is identical either way — only the frame around it changes, so there is still one
+   * implementation of the commercial client form and no second copy to drift.
+   *
+   * Commercial → Clients and Admin → Users → Business Clients pass it: editing a record listed in
+   * a table is what the admin area's detail panels are for, and every other edit in the Users area
+   * happens in one. The Create Invoice form deliberately does NOT: there the client is created
+   * mid-invoice, over a form the admin is halfway through, which is exactly what a modal is for.
+   */
+  @Input() panel = false;
+
+  /**
    * The client being edited, or null to create a new one. Read once per opening — the host does
    * not have to keep it in step while the modal is up.
    */
@@ -102,17 +149,32 @@ export class CommercialClientModalComponent implements OnChanges {
   errorMessage = '';
   saving = false;
 
+  /**
+   * The field the last failed validation named, so the template can mark it and `submit` can focus
+   * it. Cleared by the next keystroke anywhere in the form.
+   */
+  invalidField: ClientFormField | null = null;
+
+  /**
+   * True once the entity type is somebody's answer rather than something this form guessed — the
+   * admin typed in the box, or an existing client arrived with one already stored. While it is
+   * false the field follows the legal entity name; once true it never moves on its own again.
+   */
+  private entityTypeManuallyEdited = false;
+
   ngOnChanges(changes: SimpleChanges): void {
     const opened = changes['open'];
     if (!opened || !opened.currentValue || opened.previousValue) return;
 
     this.errorMessage = '';
+    this.invalidField = null;
     this.saving = false;
     this.form = this.emptyForm();
     this.editingId = null;
     this.linkedAccountName = '';
     this.linkedAccountEmail = '';
     this.contractCount = 0;
+    this.entityTypeManuallyEdited = false;
 
     if (this.client) {
       this.fillFrom(this.client);
@@ -129,6 +191,10 @@ export class CommercialClientModalComponent implements OnChanges {
     this.linkedAccountName = client.linkedAccountName ?? '';
     this.linkedAccountEmail = client.linkedAccountEmail ?? '';
     this.contractCount = client.contracts?.length ?? 0;
+
+    // A stored entity type is already somebody's answer. Renaming the client on an edit must not
+    // overwrite what is printed on their existing paperwork's successors.
+    this.entityTypeManuallyEdited = !!client.entityType?.trim();
 
     const location = client.primaryLocation;
     const hasContact = !!client.billingContactFirstName;
@@ -253,23 +319,70 @@ export class CommercialClientModalComponent implements OnChanges {
 
   onFieldInput(): void {
     if (this.errorMessage) this.errorMessage = '';
+    this.invalidField = null;
+  }
+
+  /**
+   * ENTITY TYPE FOLLOWS THE NAME until somebody says otherwise.
+   *
+   * "Chick Tastic LLC" fills in "a limited liability company", which is the sentence fragment the
+   * agreement body prints. The moment the admin types in the entity-type box themselves that stops
+   * for good — see `onEntityTypeChange`. A name with no recognized suffix says nothing and leaves
+   * whatever is there, so this can never blank a field.
+   */
+  onLegalEntityNameChange(value: string): void {
+    this.onFieldInput();
+
+    const inferred = applyInferredEntityType(value, this.entityTypeManuallyEdited);
+    if (inferred !== null) this.form.entityType = inferred;
+  }
+
+  /**
+   * Any keystroke — or a pick from the datalist — in the entity-type box is a manual answer, and a
+   * manual answer is final. Renaming the client afterwards must not quietly undo it.
+   */
+  onEntityTypeChange(): void {
+    this.entityTypeManuallyEdited = true;
+    this.onFieldInput();
   }
 
   close(): void {
     if (this.saving) return;
     this.errorMessage = '';
+    this.invalidField = null;
     this.closed.emit();
   }
 
-  /** True once every required company field carries something. Drives the submit button. */
+  /**
+   * Only "is a save already in flight". **Deliberately NOT a completeness test.**
+   *
+   * It used to require all six company fields, which left the button dead on arrival for exactly
+   * the clients that most need editing: a client auto-created from a business-flagged account is
+   * seeded with an EMPTY legal entity name and entity type on purpose (`BusinessClientMapper` — a
+   * company is not its owner), and with an empty address as well when the account has no apartment
+   * on file. So an admin opened Edit on a linked client, found "Save changes" greyed out, and had
+   * no way to learn which box was holding it. A disabled button that never says why is the same
+   * bug as an API error an admin cannot act on.
+   *
+   * `validate()` is the gate instead — it names the first thing wrong in the order the form reads,
+   * and `invalidField` puts the cursor in the box it is talking about.
+   */
   get canSubmit(): boolean {
-    return !this.saving
-      && !!this.form.legalEntityName.trim()
-      && !!this.form.entityType.trim()
-      && !!this.form.principalAddress.trim()
-      && !!this.form.city.trim()
-      && !!this.form.state.trim()
-      && !!this.form.zip.trim();
+    return !this.saving;
+  }
+
+  /**
+   * True while a required company field is still blank. Used only to EXPLAIN, never to disable:
+   * on edit it is the normal state of a client seeded from a business-flagged account, and saying
+   * so up front beats letting the admin discover it by pressing Save.
+   */
+  get hasBlankRequiredFields(): boolean {
+    return !this.form.legalEntityName.trim()
+      || !this.form.entityType.trim()
+      || !this.form.principalAddress.trim()
+      || !this.form.city.trim()
+      || !this.form.state.trim()
+      || !this.form.zip.trim();
   }
 
   submit(): void {
@@ -277,12 +390,15 @@ export class CommercialClientModalComponent implements OnChanges {
 
     const problem = this.validate();
     if (problem) {
-      this.errorMessage = problem;
+      this.errorMessage = problem.message;
+      this.invalidField = problem.field;
+      this.focusInvalidField();
       return;
     }
 
     this.saving = true;
     this.errorMessage = '';
+    this.invalidField = null;
 
     const payload = this.buildPayload();
     const request = this.isEdit
@@ -312,24 +428,30 @@ export class CommercialClientModalComponent implements OnChanges {
    * Email problems are DESCRIBED rather than detected — a missing `@` says so — because an error
    * an admin cannot act on is a bug. See `utils/email.utils.ts`.
    */
-  private validate(): string | null {
-    if (!this.form.legalEntityName.trim()) return 'Enter the legal entity name of the client.';
-    if (!this.form.entityType.trim()) return 'Enter the entity type, e.g. "a limited liability company".';
-    if (!this.form.principalAddress.trim()) return 'Enter the principal business address.';
-    if (!this.form.city.trim()) return 'Enter the city.';
-    if (!this.form.state.trim()) return 'Enter the state.';
-    if (!this.form.zip.trim()) return 'Enter the ZIP code.';
+  private validate(): ClientFormProblem | null {
+    const required: ReadonlyArray<[ClientFormField, string, string]> = [
+      ['legalEntityName', this.form.legalEntityName, 'Enter the legal entity name of the client.'],
+      ['entityType', this.form.entityType, 'Enter the entity type, e.g. "a limited liability company".'],
+      ['principalAddress', this.form.principalAddress, 'Enter the principal business address.'],
+      ['city', this.form.city, 'Enter the city.'],
+      ['state', this.form.state, 'Enter the state.'],
+      ['zip', this.form.zip, 'Enter the ZIP code.']
+    ];
+
+    for (const [field, value, message] of required) {
+      if (!value.trim()) return { field, message };
+    }
 
     const billingEmail = this.form.noticeEmail.trim();
     if (billingEmail) {
       const problem = describeEmailProblem(billingEmail);
-      if (problem) return `Billing email: ${problem}`;
+      if (problem) return { field: 'noticeEmail', message: `Billing email: ${problem}` };
     }
 
     const contactEmail = this.form.contactEmail.trim();
     if (contactEmail) {
       const problem = describeEmailProblem(contactEmail);
-      if (problem) return `Billing contact email: ${problem}`;
+      if (problem) return { field: 'contactEmail', message: `Billing contact email: ${problem}` };
     }
 
     // A half-entered contact is a mistake worth naming: a first name with no last name reaches
@@ -337,18 +459,42 @@ export class CommercialClientModalComponent implements OnChanges {
     const hasContactName = !!this.form.contactFirstName.trim() || !!this.form.contactLastName.trim();
     if (hasContactName
       && (!this.form.contactFirstName.trim() || !this.form.contactLastName.trim())) {
-      return 'Enter both a first and last name for the billing contact, or leave both blank.';
+      return {
+        field: this.form.contactFirstName.trim() ? 'contactLastName' : 'contactFirstName',
+        message: 'Enter both a first and last name for the billing contact, or leave both blank.'
+      };
     }
 
     if (this.form.addLocation) {
       const location = this.resolvedLocation();
-      if (!location.address) return 'Enter the service location address, or turn the location off.';
-      if (!location.city) return 'Enter the service location city.';
-      if (!location.state) return 'Enter the service location state.';
-      if (!location.zip) return 'Enter the service location ZIP code.';
+      // With "same as company" on, the company boxes are the ones to fix and they were already
+      // checked above — so a blank reaching here can only be the location's own field.
+      if (!location.address) {
+        return {
+          field: 'locationAddress',
+          message: 'Enter the service location address, or turn the location off.'
+        };
+      }
+      if (!location.city) return { field: 'locationCity', message: 'Enter the service location city.' };
+      if (!location.state) return { field: 'locationState', message: 'Enter the service location state.' };
+      if (!location.zip) return { field: 'locationZip', message: 'Enter the service location ZIP code.' };
     }
 
     return null;
+  }
+
+  /**
+   * Puts the cursor in the box the message is about. The modal body scrolls and the offending
+   * field is regularly out of view — an admin who cannot see the empty box reads the message as
+   * the form arguing with them.
+   */
+  private focusInvalidField(): void {
+    const id = this.invalidField ? CLIENT_FORM_FIELD_IDS[this.invalidField] : null;
+    if (!id || typeof document === 'undefined') return;
+
+    const input = document.getElementById(id) as HTMLElement | null;
+    input?.scrollIntoView({ block: 'center' });
+    input?.focus();
   }
 
   /** The location fields with "same as company" applied. */

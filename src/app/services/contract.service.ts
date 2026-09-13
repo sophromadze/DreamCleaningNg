@@ -37,7 +37,17 @@ export enum ContractPriceMode { TaxInclusive = 0, PreTax = 1 }
 
 // ── Scope checklist ──
 
-export interface ScopeItem { label: string; selected: boolean; isCustom?: boolean; }
+export interface ScopeItem {
+  label: string;
+  /**
+   * On a MASTER template this is the default the admin sees pre-ticked when they pick the
+   * business type; on a CONTRACT it is their own choice for that draft.
+   */
+  selected: boolean;
+  isCustom?: boolean;
+  /** Retired on the master template. Hidden from new contracts; never removed from signed ones. */
+  archived?: boolean;
+}
 
 export interface ScopeGroup {
   /** Stable key the agreement body references as {{SCOPE:key}}. Never renamed in the UI. */
@@ -45,6 +55,8 @@ export interface ScopeGroup {
   title: string;
   kind: 'included' | 'excluded' | string;
   inline: boolean;
+  /** Retired on the master template. Same reasoning as ScopeItem.archived. */
+  archived?: boolean;
   items: ScopeItem[];
 }
 
@@ -78,8 +90,43 @@ export interface SignerSnapshot {
 
 export interface ScheduleSnapshot {
   frequencyUnit: string; visitsPerPeriod: number;
-  serviceDay: string; serviceTime: string;
+
+  /**
+   * LEGACY, kept forever. Before multiple service days existed this single field WAS the
+   * schedule, so every pre-2026-09 contract has its day here and nowhere else. Read
+   * `serviceDays` and fall back to this — never the other way round.
+   */
+  serviceDay: string;
+
+  /**
+   * The regular service weekdays: Monday / Wednesday / Friday for three visits a week.
+   * Empty on an older snapshot, which is why nothing reads it without the fallback above.
+   */
+  serviceDays?: string[];
+
+  serviceTime: string;
   flexibleScheduling: boolean; performedWhileClosed: boolean; accessType: string;
+}
+
+/** Mirrors ContractBillingFrequency. "Every N weeks" is Weekly with an interval count. */
+export enum ContractBillingFrequency {
+  PerServiceVisit = 0,
+  Weekly = 1,
+  Monthly = 2,
+  CustomDays = 3
+}
+
+/**
+ * How often the contract is INVOICED — a different question from how often it is cleaned.
+ * "Every Wednesday, billed monthly" is an ordinary arrangement, and a monthly invoice for weekly
+ * cleaning legitimately covers four or five visits.
+ */
+export interface BillingCadenceSnapshot {
+  frequency: ContractBillingFrequency;
+  /** N in "every N weeks" / "every N months" / "every N days". Minimum 1. */
+  intervalCount: number;
+  /** Where the first billing period starts. Null falls back to the effective date. */
+  anchorDate?: string | null;
 }
 
 export interface TermSnapshot {
@@ -115,7 +162,7 @@ export interface ContractSnapshot {
   contractor: ContractorSnapshot; client: ClientSnapshot;
   serviceLocation: ServiceLocationSnapshot;
   contractorSigner: SignerSnapshot; clientSigner: SignerSnapshot;
-  schedule: ScheduleSnapshot; term: TermSnapshot;
+  schedule: ScheduleSnapshot; billing: BillingCadenceSnapshot; term: TermSnapshot;
   pricing: PricingSnapshot; advanced: AdvancedTermsSnapshot;
   scope: ScopeStructure; premisesType: string;
 }
@@ -143,19 +190,52 @@ export interface ContractClient {
   id: number; legalEntityName: string; entityType: string; formationState?: string;
   principalAddress: string; city: string; state: string; zip: string;
   noticeEmail?: string; phone?: string; isActive: boolean;
-  /** The business-flagged account this client is linked to, when staff named one. */
+  /**
+   * The business-flagged account this client is linked to, when staff named one.
+   *
+   * Shown as a read-only relationship, not offered as a second selector: the ContractClient is the
+   * commercial source of truth and the account is something it HAS. The link is made and unmade by
+   * the business flag on the Users tab, because it grants that customer sight of these contracts.
+   */
   sourceUserId?: number | null;
+  sourceUserName?: string;
+  sourceUserEmail?: string;
   serviceLocations: ContractServiceLocation[]; contacts: ContractContact[];
 }
 
+/**
+ * A BUSINESS TYPE and its default scope-of-work checklist — Restaurant, Gym/Studio, Office, and
+ * whatever an admin adds next. The categories and items live inside `structure`, so a new premises
+ * type is a data row rather than a code change.
+ */
 export interface ScopeTemplate {
   id: number; name: string; premisesType: string;
   allowsCustomRows: boolean; structure: ScopeStructure;
+  sortOrder?: number;
+  /** False for an archived type: still resolvable by old contracts, no longer offered. */
+  isActive?: boolean;
+}
+
+/** Creating or editing a business type. The whole checklist is sent as one document. */
+export interface SaveScopeTemplate {
+  name: string;
+  premisesType?: string;
+  allowsCustomRows: boolean;
+  sortOrder: number;
+  /** Omit to leave the stored checklist untouched, so a rename need not resend it. */
+  structure?: ScopeStructure;
 }
 
 export interface ContractTemplate {
   id: number; name: string; version: string; description?: string;
-  isActive: boolean; bodyText?: string;
+  isActive: boolean;
+  /**
+   * The body a NEW contract starts from. The create form must preselect THIS, not the first row
+   * it receives: the master agreement is versioned by adding a row, so "first" is the oldest
+   * version and preselecting it silently keeps issuing superseded language.
+   */
+  isDefault?: boolean;
+  bodyText?: string;
 }
 
 // ── Save payloads ──
@@ -190,12 +270,26 @@ export interface CreateCommercialClient extends SaveContractClient {
   serviceLocation?: Omit<SaveContractServiceLocation, 'contractClientId'> | null;
 }
 
-/** Only these three drive the money. Everything else on Exhibit B is derived server-side. */
+/** Only these drive the money. Everything else on Exhibit B is derived server-side. */
 export interface ContractPricingInput {
   priceMode: ContractPriceMode; priceInput: number; salesTaxRatePercent: number;
   cancellationPercent: number;
   invoiceTiming: string; paymentDeadlineHours: number; paymentMethod: string;
-  lateChargePercent: number; returnedPaymentFee: number;
+  lateChargePercent: number;
+
+  /**
+   * RETIRED for new contracts and no longer offered on the form, so it is sent as 0 and the
+   * clause drops out of the document. The field stays because historical contracts agreed to
+   * $35 and an amendment has to round-trip what the original actually says.
+   */
+  returnedPaymentFee: number;
+
+  /**
+   * Persist the tax rate and price mode typed here as the default for FUTURE contracts and
+   * invoices. Writes to the billing settings only — it cannot reach a signed contract or a
+   * finalized invoice, both of which carry their own snapshot.
+   */
+  saveAsDefault?: boolean;
 }
 
 export interface SaveContract {
@@ -206,7 +300,7 @@ export interface SaveContract {
   contractorSignerEmail?: string; contractorSignerContactId?: number | null;
   clientSignerContactId?: number | null; newClientSigner?: SaveContractContact;
   premisesType?: string;
-  schedule: ScheduleSnapshot; term: TermSnapshot;
+  schedule: ScheduleSnapshot; billing: BillingCadenceSnapshot; term: TermSnapshot;
   pricing: ContractPricingInput; advanced: AdvancedTermsSnapshot;
   scope: ScopeStructure;
 }
@@ -226,6 +320,18 @@ export interface ContractListItem {
   signedCount: number; signerCount: number;
   /** Only ever true when "Show hidden contracts" is on. */
   isHidden: boolean;
+
+  /**
+   * Whether "Create Next Invoice" is available, resolved SERVER-SIDE by the same rule the
+   * endpoint enforces (`ContractInvoiceEligibility`). Only an executed agreement —
+   * FullySigned or Completed — may be billed against; a draft, one awaiting or partially
+   * signed, one needing revision, a voided or an expired one may not.
+   *
+   * Read rather than re-derived, so the button and the authorization cannot drift apart.
+   */
+  canCreateNextInvoice: boolean;
+  /** Why not, in words an admin can act on. Null when it is available. */
+  cannotCreateNextInvoiceReason?: string | null;
 }
 
 export interface ContractFileRef {
@@ -279,6 +385,13 @@ export interface ContractDetail {
   /** Soft-deleted: hidden from the default list, restorable, purged after 6 months. */
   isHidden: boolean; hiddenAt?: string;
   canDelete: boolean; canRestore: boolean;
+  /**
+   * Whether "Create Next Invoice" is available. Same server-resolved rule as the list's flag
+   * (`ContractInvoiceEligibility`) — the detail page and the list must not be able to disagree
+   * about whether a contract can be billed.
+   */
+  canCreateNextInvoice: boolean;
+  cannotCreateNextInvoiceReason?: string | null;
   /** True when the signed-in account IS this contract's pending contractor signer. */
   isPendingContractorSigner: boolean;
 }
@@ -639,8 +752,47 @@ export class ContractService {
     return this.http.get<ContractContact[]>(`${this.directoryUrl}/contacts`, { params });
   }
 
-  getScopeTemplates(): Observable<ScopeTemplate[]> {
-    return this.http.get<ScopeTemplate[]>(`${this.directoryUrl}/scope-templates`);
+  // ── Business types and their scope-of-work templates ──
+  //
+  // EVERY EDIT HERE AFFECTS FUTURE CONTRACTS ONLY. Selecting a business type on a contract deep
+  // copies its checklist into that contract's snapshot, and generating a version freezes the copy,
+  // so renaming a category or retiring an item cannot reach a document that already exists.
+
+  /**
+   * The business types offered when creating a contract.
+   *
+   * Archived categories and items are stripped by default: they exist so a retired row keeps
+   * rendering on the signed contracts that used it, not so it keeps being offered on new ones.
+   * The editor passes `includeArchived` to see and un-retire them.
+   */
+  getScopeTemplates(includeArchived = false): Observable<ScopeTemplate[]> {
+    const params = includeArchived
+      ? new HttpParams().set('includeArchived', 'true')
+      : undefined;
+    return this.http.get<ScopeTemplate[]>(`${this.directoryUrl}/scope-templates`, { params });
+  }
+
+  /** One business type in full, INCLUDING archived rows, for the template editor. */
+  getScopeTemplate(id: number): Observable<ScopeTemplate> {
+    return this.http.get<ScopeTemplate>(`${this.directoryUrl}/scope-templates/${id}`);
+  }
+
+  createScopeTemplate(dto: SaveScopeTemplate): Observable<ScopeTemplate> {
+    return this.http.post<ScopeTemplate>(`${this.directoryUrl}/scope-templates`, dto);
+  }
+
+  updateScopeTemplate(id: number, dto: SaveScopeTemplate): Observable<ScopeTemplate> {
+    return this.http.put<ScopeTemplate>(`${this.directoryUrl}/scope-templates/${id}`, dto);
+  }
+
+  /** Archive, never a hard delete — existing contracts still resolve the template by id. */
+  archiveScopeTemplate(id: number): Observable<{ message: string }> {
+    return this.http.delete<{ message: string }>(`${this.directoryUrl}/scope-templates/${id}`);
+  }
+
+  restoreScopeTemplate(id: number): Observable<{ message: string }> {
+    return this.http.post<{ message: string }>(
+      `${this.directoryUrl}/scope-templates/${id}/restore`, {});
   }
 
   getContractTemplates(): Observable<ContractTemplate[]> {

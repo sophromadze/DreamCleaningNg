@@ -23,7 +23,7 @@ import { AnalyticsService } from '../../services/analytics.service';
         </p>
         <div class="actions">
           <button class="btn-primary" (click)="goHome()">Return to Home</button>
-          <button class="btn-secondary" (click)="bookAnother()">Request Another Quote</button>
+          <button class="btn-brand" (click)="bookAnother()">Request Another Quote</button>
         </div>
       </div>
     </div>
@@ -90,7 +90,7 @@ import { AnalyticsService } from '../../services/analytics.service';
     }
 
     .btn-primary,
-    .btn-secondary {
+    .btn-brand {
       padding: 0.75rem 1.5rem;
       border: none;
       border-radius: 6px;
@@ -109,14 +109,14 @@ import { AnalyticsService } from '../../services/analytics.service';
       }
     }
 
-    .btn-secondary {
-      background: var(--btn-secondary);
+    .btn-brand {
+      background: var(--btn-brand);
       color: white;
-      box-shadow: var(--btn-secondary-shadow);
+      box-shadow: var(--btn-brand-shadow);
 
       &:hover {
-        background: var(--btn-secondary-hover);
-        box-shadow: var(--btn-secondary-shadow-hover);
+        background: var(--btn-brand-hover);
+        box-shadow: var(--btn-brand-shadow-hover);
       }
     }
   `]

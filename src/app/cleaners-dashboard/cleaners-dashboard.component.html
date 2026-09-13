@@ -1,5 +1,10 @@
-<div class="cleaners-dashboard">
-  <header class="dashboard-header">
+<!--
+  EMBEDDED (Admin -> Users -> Cleaners): everything that belongs to the PAGE - the title, the tab
+  strip, the filters and the card list - is dropped, and the detail panel is all that renders. The
+  host supplies the cleaner id and the frame around it. See CleanersDashboardComponent.
+-->
+<div class="cleaners-dashboard" [class.embedded]="embedded">
+  <header class="dashboard-header" *ngIf="!embedded">
     <div class="title-block">
       <h1>Cleaners</h1>
     </div>
@@ -32,7 +37,7 @@
     dashboard but not the schedule, so the tab strip is not rendered for them at all rather than
     showing one tab.
   -->
-  <nav class="dashboard-tabs" *ngIf="canSeePortal">
+  <nav class="dashboard-tabs" *ngIf="canSeePortal && !embedded">
     <button type="button"
             class="dashboard-tab"
             [class.active]="activeTab === 'dashboard'"
@@ -56,7 +61,7 @@
     Created on first visit and destroyed on leaving the tab, so the month it shows is always freshly
     fetched - one small request, against a calendar that must not show yesterday's staffing.
   -->
-  <app-cleaner-portal *ngIf="activeTab === 'portal'" [embedded]="true"></app-cleaner-portal>
+  <app-cleaner-portal *ngIf="activeTab === 'portal' && !embedded" [embedded]="true"></app-cleaner-portal>
 
   <ng-container *ngIf="activeTab === 'dashboard'">
 
@@ -65,7 +70,7 @@
     <button type="button" (click)="errorMessage = ''">&times;</button>
   </div>
 
-  <div class="list-controls">
+  <div class="list-controls" *ngIf="!embedded">
     <label class="control">
       <span class="control-label">Sort</span>
       <select [(ngModel)]="sortBy" aria-label="Sort cleaners">
@@ -102,8 +107,8 @@
     <span class="result-count" *ngIf="!loading && cleaners.length > 0">{{ displayedCleaners.length }} shown</span>
   </div>
 
-  <section class="dashboard-body">
-    <div class="cards-column">
+  <section class="dashboard-body" [class.embedded]="embedded">
+    <div class="cards-column" *ngIf="!embedded">
       <div *ngIf="loading && cleaners.length === 0" class="loading-state">Loading cleaners…</div>
       <div *ngIf="!loading && cleaners.length === 0" class="empty-state">No cleaners found.</div>
       <div *ngIf="!loading && cleaners.length > 0 && displayedCleaners.length === 0" class="empty-state">
@@ -154,7 +159,7 @@
       </article>
     </div>
 
-    <aside class="detail-column" *ngIf="selectedDetail || loadingDetail">
+    <aside class="detail-column" *ngIf="selectedDetail || loadingDetail || embedded">
       <div *ngIf="loadingDetail" class="loading-state">Loading details…</div>
 
       <ng-container *ngIf="selectedDetail && !loadingDetail">
@@ -193,12 +198,28 @@
               </button>
             </div>
           </div>
+          <!--
+            While the inline form is up, Edit and Delete are hidden and the form's own Cancel /
+            Save are the only way out of it - a Delete sitting above a half-typed form is an
+            invitation to lose the edit. Close stays: it shuts the whole panel either way.
+          -->
           <div class="detail-actions">
-            <button type="button" class="btn-secondary" (click)="openEdit(selectedDetail)">Edit</button>
-            <button type="button" class="btn-danger" (click)="deleteCleaner(selectedDetail)">Delete</button>
+            <button type="button" class="btn-secondary" *ngIf="!showsInlineForm" (click)="openEdit(selectedDetail)">Edit</button>
+            <button type="button" class="btn-danger" *ngIf="!showsInlineForm" (click)="deleteCleaner(selectedDetail)">Delete</button>
             <button type="button" class="btn-close" (click)="closeDetail()" aria-label="Close">&times;</button>
           </div>
         </div>
+
+        <!--
+          EMBEDDED: the form replaces the panel body in place, the way the Users tab's edit form
+          replaces its detail body. Same markup as the modal - it is ONE template, rendered here or
+          inside the overlay depending on which surface is asking.
+        -->
+        <div class="inline-form-wrap" *ngIf="showsInlineForm">
+          <ng-container *ngTemplateOutlet="cleanerFormTpl"></ng-container>
+        </div>
+
+        <ng-container *ngIf="!showsInlineForm">
 
         <div class="pinned-note-row" *ngIf="selectedDetail.mainNote || selectedDetail.location">
           <div *ngIf="selectedDetail.mainNote" class="pinned-note">
@@ -391,6 +412,8 @@
             <li *ngIf="completedOrders.length === 0" class="empty-state">No completed jobs yet.</li>
           </ul>
         </section>
+
+        </ng-container>
       </ng-container>
     </aside>
   </section>
@@ -425,8 +448,21 @@
   </div>
 </div>
 
-<div *ngIf="formOpen" class="modal-overlay" (click)="closeForm()">
+<!--
+  ONE form, TWO surfaces. On the full Cleaners Dashboard it opens as a centred modal, which is what
+  a two-column page wants. Inside the Users tab's slide-in panel it renders in place instead - see
+  the .inline-form-wrap above - because a modal floating over a 760px drawer is a second window on
+  top of a window, and every other edit in the Users area happens inside the panel.
+
+  The template is the single copy of the markup; only the frame around it differs.
+-->
+<div *ngIf="formOpen && !embedded" class="modal-overlay" (click)="closeForm()">
   <div class="modal" (click)="$event.stopPropagation()">
+    <ng-container *ngTemplateOutlet="cleanerFormTpl"></ng-container>
+  </div>
+</div>
+
+<ng-template #cleanerFormTpl>
     <header class="modal-header">
       <h2>{{ formMode === 'create' ? 'Add Cleaner' : 'Edit Cleaner' }}</h2>
       <button type="button" class="btn-close" (click)="closeForm()">&times;</button>
@@ -702,8 +738,7 @@
         </button>
       </div>
     </form>
-  </div>
-</div>
+</ng-template>
 
 <div *ngIf="performanceModalOpen && performanceModal" class="modal-overlay" (click)="closePerformanceModal()">
   <div class="modal perf-modal" (click)="$event.stopPropagation()">

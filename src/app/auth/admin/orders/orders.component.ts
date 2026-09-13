@@ -9,7 +9,10 @@ import { BookingService, ServiceType, ExtraService, Service } from '../../../ser
 import { DurationUtils } from '../../../utils/duration.utils';
 import { OrderReminderService } from '../../../services/order-reminder.service';
 import { FloorTypeSelection } from '../../../shared/components/floor-type-selector/floor-type-selector.component';
-import { PAYMENT_METHOD_OPTIONS, PaymentMethodValue } from '../../../shared/payment-method';
+import {
+  PAYMENT_METHOD_OPTIONS, PaymentMethodValue, isSettledOnRecord
+} from '../../../shared/payment-method';
+import { InvoiceService, InvoiceClientOption, OrderInvoices, LinkedInvoiceSummary } from '../../../services/invoice.service';
 import { NewOrderNotificationService } from '../../../services/new-order-notification.service';
 import { BubbleRewardsService } from '../../../services/bubble-rewards.service';
 import { forkJoin, of, Observable, concat } from 'rxjs';
@@ -59,6 +62,9 @@ import { buildCustomServiceTypeNameOptions } from '../../../shared/booking/custo
 import { composeTime24h, parseTime12h } from '../../../shared/booking/extra-service-display.utils';
 // Aliased: the component has a field of the same name holding the resolved answer.
 import { canSaveOrderEditsDirectly as canSaveOrderEditsDirectlyFor } from '../../../shared/order-edit-approval.policy';
+import {
+  RecurringSeriesPanelComponent
+} from '../../../shared/components/recurring-series-panel/recurring-series-panel.component';
 
 /** One row of an order-edit review table (approval modal and save-confirmation modal). */
 export interface OrderEditChange {
@@ -115,7 +121,7 @@ export interface AdminOrderList extends OrderList {
 @Component({
   selector: 'app-orders',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RecurringSeriesPanelComponent],
   templateUrl: './orders.component.html',
   styleUrls: ['./orders.component.scss']
 })
@@ -554,7 +560,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     private bubbleRewardsService: BubbleRewardsService,
     private cardOnFileService: CardOnFileService,
     private cdr: ChangeDetectorRef,
-    private shiftService: ShiftService
+    private shiftService: ShiftService,
+    // Only used by the Invoice payment method's commercial-client picker.
+    private invoiceService: InvoiceService
   ) {}
 
   ngOnInit() {
@@ -1610,12 +1618,192 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  /** Mirror of the Users tab's openOrderInAdmin — opens the Users tab with this customer expanded. */
+  /** Opens the Users tab with this customer's account expanded. Always the CUSTOMERS list. */
   openUserInAdmin(userId: number): void {
-    window.open('/admin?userId=' + userId, '_blank');
+    window.open('/admin?userId=' + userId + '&usersTab=customers', '_blank');
   }
 
+  /**
+   * "View User" for the order on screen — and for a commercial order that means the BUSINESS
+   * CLIENT, not the customer list.
+   *
+   * The old behaviour sent every order to Users → Customers, so opening an invoice-billed
+   * cleaning showed a plain customer record with none of the billing entity, contracts or
+   * invoices the admin had come to see. The record they want is decided by the ORDER: one billed
+   * to a commercial client (or belonging to an account linked to one) opens that client.
+   *
+   * Both panels now show the other half as well, so landing on either is recoverable — this only
+   * decides which one opens first.
+   */
+  viewOrderCustomer(): void {
+    const clientId = this.orderInvoices?.contractClientId
+                  ?? this.orderInvoices?.suggestedContractClientId
+                  ?? null;
+
+    if (clientId) {
+      window.open('/admin?clientId=' + clientId, '_blank');
+      return;
+    }
+    if (this.selectedOrder?.userId) this.openUserInAdmin(this.selectedOrder.userId);
+  }
+
+  // ── "Send Invoice" — the commercial replacement for Send Payment Link ──────────────────────
+  //
+  // A cleaning billed on a commercial invoice is never paid through a Stripe payment link: the
+  // client receives an invoice and pays it by bank transfer or ACH. Offering the residential link
+  // there would send the customer to a checkout for money the invoice is already collecting —
+  // which is the same reasoning that suppresses the residential booking confirmation for these
+  // orders (ResidentialBookingCommunicationPolicy).
+  //
+  // NOTHING IS SENT OR CREATED BY OPENING THIS. The panel is a read; sending goes through the
+  // existing invoice send endpoint, and creating opens the invoice form as a DRAFT.
+
+  /** Which invoices cover the open order, and which client a new one would bill. */
+  orderInvoices: OrderInvoices | null = null;
+  loadingOrderInvoices = false;
+  showSendInvoiceModal = false;
+  sendingInvoiceId: number | null = null;
+
+  private loadOrderInvoices(orderId: number): void {
+    this.orderInvoices = null;
+    this.invoiceClientForOrder = null;
+    this.showSendInvoiceModal = false;
+    this.sendingInvoiceId = null;
+    this.loadingOrderInvoices = true;
+
+    this.invoiceService.invoicesForOrder(orderId)
+      .pipe(finalize(() => this.loadingOrderInvoices = false))
+      .subscribe({
+        next: res => {
+          // The panel may have moved on to another order while this was in flight.
+          if (this.viewingOrderId !== orderId) return;
+          this.orderInvoices = res;
+          this.resolveInvoiceClientForOrder(res);
+        },
+        // Non-fatal: without it the panel simply keeps offering the payment link, which is the
+        // behaviour every order had before this existed.
+        error: () => {
+          if (this.viewingOrderId !== orderId) return;
+          this.orderInvoices = null;
+          this.invoiceClientForOrder = null;
+        }
+      });
+  }
+
+  /**
+   * True when this cleaning is billed commercially and the payment link is the wrong offer.
+   *
+   * Reads the ORDER's own payment method first — that is the fact that decides — and falls back
+   * to "an invoice already covers it", which catches a cleaning adopted by an invoice whose
+   * method has not been re-read into the panel yet.
+   */
+  get isInvoiceBilledOrder(): boolean {
+    return this.selectedOrder?.paymentMethod === 'Invoice'
+        || (this.orderInvoices?.invoices?.length ?? 0) > 0;
+  }
+
+  /** The invoices covering the open order, newest first. */
+  get coveringInvoices(): LinkedInvoiceSummary[] {
+    return this.orderInvoices?.invoices ?? [];
+  }
+
+  /**
+   * The client a new invoice for this cleaning would be raised for, if any.
+   *
+   * A FIELD, not a getter. The template reads it on every change-detection pass, and a getter
+   * returning a fresh object literal each time would allocate one per pass for a value that only
+   * changes when a different order is opened.
+   */
+  invoiceClientForOrder: { id: number; name: string } | null = null;
+
+  private resolveInvoiceClientForOrder(res: OrderInvoices | null): void {
+    const id = res?.contractClientId ?? res?.suggestedContractClientId;
+    this.invoiceClientForOrder = id
+      ? { id, name: res?.clientName || res?.suggestedClientName || 'this client' }
+      : null;
+  }
+
+  openSendInvoiceModal(): void {
+    if (!this.selectedOrder) return;
+    this.showSendInvoiceModal = true;
+  }
+
+  closeSendInvoiceModal(): void {
+    this.showSendInvoiceModal = false;
+  }
+
+  /**
+   * Emails one invoice to its client — the SAME endpoint Commercial → Invoices uses, so sending
+   * from here commits the covered cleanings' agreed prices and stamps the invoice Sent exactly as
+   * sending it from the invoice page does. There is deliberately no second send path.
+   */
+  sendInvoiceForOrder(invoice: LinkedInvoiceSummary): void {
+    if (this.sendingInvoiceId) return;
+
+    this.sendingInvoiceId = invoice.id;
+    this.errorMessage = '';
+
+    // attachPdf: the client's own copy of the bill travels with the mail, same as sending from
+    // the invoice page. An invoice email with no invoice attached is the thing clients reply to.
+    this.invoiceService.send(invoice.id, { attachPdf: true })
+      .pipe(finalize(() => this.sendingInvoiceId = null))
+      .subscribe({
+        next: () => {
+          this.successMessage = `Invoice ${invoice.invoiceNumber} was emailed to ${invoice.clientName}.`;
+          this.showSendInvoiceModal = false;
+          this.clearMessagesAfterDelay();
+          // Sending ADOPTS the cleaning — its price, payment method and billing client can all
+          // have moved — so both the panel's copy and this list are re-read rather than patched.
+          if (this.viewingOrderId) {
+            this.loadOrderInvoices(this.viewingOrderId);
+            this.refreshSelectedOrderFromServer(this.viewingOrderId);
+          }
+        },
+        error: err => {
+          this.errorMessage = extractApiErrorMessage(
+            err, `Invoice ${invoice.invoiceNumber} could not be emailed.`);
+        }
+      });
+  }
+
+  /**
+   * Starts a DRAFT invoice for this cleaning. Opens the invoice form with the client selected and
+   * the cleaning ticked; nothing is created until the admin saves, and nothing is emailed until
+   * they press Send there. That gap is deliberate — an invoice going out with figures nobody
+   * reviewed is the failure this flow exists to avoid.
+   */
+  createInvoiceForOrder(): void {
+    const client = this.invoiceClientForOrder;
+    if (!client || !this.selectedOrder) return;
+
+    window.open(
+      `/admin/commercial/invoices/create?clientId=${client.id}&orderId=${this.selectedOrder.id}`,
+      '_blank');
+  }
+
+  /** Re-reads the open order after an action that can have changed it server-side. */
+  private refreshSelectedOrderFromServer(orderId: number): void {
+    this.adminService.getOrderDetails(orderId).subscribe({
+      next: order => { if (this.viewingOrderId === orderId) this.selectedOrder = order; },
+      error: () => { /* the panel keeps what it has; the list reload below is the safety net */ }
+    });
+  }
+
+  /**
+   * A recurring series just created (or filled in) future orders.
+   *
+   * The list is reloaded because those orders are real bookings that belong in it immediately —
+   * an admin who has just set up a fortnightly clean expects to see the next three appear, and
+   * leaving them out until the next refresh reads as the button having failed.
+   */
+  onRecurringOrdersGenerated(): void {
+    this.loadOrders();
+  }
+
+  private ordersLoadVersion = 0;
+
   loadOrders() {
+    const version = ++this.ordersLoadVersion;
     this.loadingStates.orders = true;
     this.assignedCleanersCache.clear();
     this.cleanersLoadedSet.clear();
@@ -1625,6 +1813,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.userRole && this.userRole !== 'Customer') {
       this.adminService.getAllOrders(this.showHiddenOrders).subscribe({
         next: (orders) => {
+          if (version !== this.ordersLoadVersion) return;
           this.orders = orders as AdminOrderList[];
           this.preloadResidentialVariants();
           this.preloadAssignedCleaners();
@@ -1641,10 +1830,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           }
         },
         error: (error) => {
+          if (version !== this.ordersLoadVersion) return;
           console.error('Error loading orders:', error);
           this.errorMessage = 'Failed to load orders. Please try again.';
         },
         complete: () => {
+          if (version !== this.ordersLoadVersion) return;
           this.loadingStates.orders = false;
           // Re-initialize sticky header after data loads (in case view changed)
           setTimeout(() => {
@@ -1659,14 +1850,17 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     } else {
       this.orderService.getUserOrders().subscribe({
         next: (orders) => {
+          if (version !== this.ordersLoadVersion) return;
           this.orders = orders as AdminOrderList[];
           this.preloadResidentialVariants();
         },
         error: (error) => {
+          if (version !== this.ordersLoadVersion) return;
           console.error('Error loading orders:', error);
           this.errorMessage = 'Failed to load orders. Please try again.';
         },
         complete: () => {
+          if (version !== this.ordersLoadVersion) return;
           this.loadingStates.orders = false;
           // Re-initialize sticky header after data loads (in case view changed)
           setTimeout(() => {
@@ -1898,6 +2092,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.resetTransferPanel();
     this.resetRefundState();
     this.resetPayrollEditState();
+    this.loadOrderInvoices(orderId);
     // The breakdown under "Cleaners Total Salary". Admin and SuperAdmin since 2026-09 — the
     // people who staff the job are the ones told it ran long. Moderators are View-only and the
     // server answers them 403, so the call is gated on the same test as the block that shows it.
@@ -1982,6 +2177,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.resetOrderPhotoState();
     this.resetOrderNoteState();
     this.resetRefundState();
+    this.orderInvoices = null;
+    this.invoiceClientForOrder = null;
+    this.showSendInvoiceModal = false;
+    this.sendingInvoiceId = null;
   }
 
   /** Drop an unconfirmed save so it can never be applied to a different order. */
@@ -2293,10 +2492,21 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   paymentMethodEditReference = '';
   paymentMethodEditNotes = '';
 
+  /** Who an Invoice-method order is billed to, and the roster to pick from. */
+  paymentMethodEditClientId: number | null = null;
+  commercialClients: InvoiceClientOption[] = [];
+  loadingCommercialClients = false;
+
   /** SuperAdmin, and never once Stripe actually charged the card — a real charge is
    *  corrected with a refund, not a relabel (backend enforces the same rule). */
   get canEditPaymentMethod(): boolean {
     return this.isSuperAdmin && !!this.selectedOrder && !this.selectedOrder.isPaid;
+  }
+
+  /** Does choosing this method mean the money has ALREADY arrived? Mirrors the backend's
+   *  PaymentMethodRules — Invoice is the one outside-Stripe method where it is false. */
+  isSettledPaymentMethod(method: PaymentMethodValue): boolean {
+    return isSettledOnRecord(method);
   }
 
   startEditPaymentMethod(): void {
@@ -2304,7 +2514,22 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.paymentMethodEdit = ((this.selectedOrder.paymentMethod as PaymentMethodValue) || 'Normal');
     this.paymentMethodEditReference = this.selectedOrder.paymentReference || '';
     this.paymentMethodEditNotes = this.selectedOrder.paymentNotes || '';
+    this.paymentMethodEditClientId = this.selectedOrder.contractClientId ?? null;
     this.editingPaymentMethod = true;
+
+    // Loaded once and kept: an admin switching orders to Invoice billing does it repeatedly, and
+    // the roster does not change between two clicks.
+    if (!this.commercialClients.length && !this.loadingCommercialClients) {
+      this.loadingCommercialClients = true;
+      this.invoiceService.clients()
+        .pipe(finalize(() => { this.loadingCommercialClients = false; }))
+        .subscribe({
+          next: list => { this.commercialClients = list; },
+          // The save guard below refuses an Invoice change with no client, so a failed roster
+          // fetch cannot produce an unbillable order.
+          error: () => { this.commercialClients = []; }
+        });
+    }
   }
 
   cancelEditPaymentMethod(): void {
@@ -2315,14 +2540,22 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.selectedOrder || this.savingPaymentMethod) return;
     const orderId = this.selectedOrder.id;
     const method = this.paymentMethodEdit;
+
+    if (method === 'Invoice' && !this.paymentMethodEditClientId) {
+      this.errorMessage = 'Choose the commercial client this order is billed to.';
+      return;
+    }
+
     this.savingPaymentMethod = true;
     this.errorMessage = '';
     this.successMessage = '';
     this.adminService.updateOrderPaymentMethod(
       orderId,
       method,
-      method !== 'Normal' ? (this.paymentMethodEditReference?.trim() || null) : null,
-      method !== 'Normal' ? (this.paymentMethodEditNotes?.trim() || null) : null
+      // Only a settled method carries a reference or notes — see isSettledPaymentMethod.
+      isSettledOnRecord(method) ? (this.paymentMethodEditReference?.trim() || null) : null,
+      isSettledOnRecord(method) ? (this.paymentMethodEditNotes?.trim() || null) : null,
+      method === 'Invoice' ? this.paymentMethodEditClientId : null
     ).subscribe({
       next: (res) => {
         this.editingPaymentMethod = false;

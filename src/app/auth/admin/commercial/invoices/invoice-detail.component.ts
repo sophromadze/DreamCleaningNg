@@ -58,6 +58,20 @@ export class InvoiceDetailComponent implements OnInit {
   payNote = '';
   payAllowOverpayment = false;
 
+  /**
+   * The admin has read the "a bank payment is already settling" warning and wants to record a
+   * separate payment anyway.
+   *
+   * ACH IS ASYNCHRONOUS, and this is the window a double-count happens in: the customer authorized
+   * a debit days ago, nothing has settled, and the invoice legitimately still reads unpaid. The
+   * server refuses without this, and records the override on the payment's own note so a later
+   * duplicate is explainable rather than mysterious.
+   */
+  payAcknowledgeProcessing = false;
+
+  /** True when this modal was opened by "Mark as Paid" rather than "Record payment". */
+  markingAsPaid = false;
+
   // Void
   voidReason = '';
 
@@ -99,17 +113,54 @@ export class InvoiceDetailComponent implements OnInit {
 
   // ── Modals ──
 
+  /**
+   * Opens the Record Payment modal. "Mark as Paid" is the same modal with the balance prefilled.
+   *
+   * IT IS NOT A STATUS ASSIGNMENT, and there is deliberately no endpoint that writes Status = Paid.
+   * An admin marking an invoice paid still confirms the amount, the date, the method and
+   * (optionally) the bank's reference, because a paid invoice with no payment behind it cannot be
+   * reconciled against a bank statement six months later.
+   *
+   * The payment recorded here is always MANUAL — money that arrived by bank transfer, cheque or
+   * cash and was read off a statement. Nothing on this path is ever presented as a Stripe payment:
+   * the two reconcile against completely different records, and only Stripe's own webhook writes
+   * a Stripe-provider row.
+   */
   openPayment(markPaid: boolean): void {
     if (!this.invoice) return;
-    // "Mark as paid" only PREFILLS the balance - the admin still confirms the date and method, so
-    // the payment record says what actually happened rather than what was assumed.
+
+    this.markingAsPaid = markPaid;
     this.payAmount = markPaid ? this.invoice.balanceDue : null;
     this.payDate = this.today();
     this.payMethod = InvoicePaymentRecordMethod.AchBankTransfer;
     this.payReference = '';
     this.payNote = '';
     this.payAllowOverpayment = false;
+    this.payAcknowledgeProcessing = false;
     this.modal = 'payment';
+  }
+
+  /** Whether the ACH-still-settling warning applies to this invoice right now. */
+  get processingPaymentWarning(): boolean {
+    return !!this.invoice?.hasProcessingStripePayment;
+  }
+
+  /** The in-flight Stripe attempt, so the warning can name the amount and the date. */
+  get processingAttempt(): InvoicePaymentAttempt | undefined {
+    return this.invoice?.paymentAttempts
+      ?.find(a => a.status === InvoicePaymentAttemptStatus.Processing);
+  }
+
+  /**
+   * Whether Record Payment is blocked pending an acknowledgement.
+   *
+   * Two separate confirmations, for two separate mistakes: recording more than is owed, and
+   * recording a payment while a bank debit for the same money is still settling. Either can be
+   * legitimate, so both are confirmations rather than refusals.
+   */
+  get paymentBlocked(): boolean {
+    return this.overpaymentBlocked
+      || (this.processingPaymentWarning && !this.payAcknowledgeProcessing);
   }
 
   openVoid(): void {
@@ -161,7 +212,8 @@ export class InvoiceDetailComponent implements OnInit {
       paymentMethod: this.payMethod,
       transactionReference: this.payReference.trim() || undefined,
       internalNote: this.payNote.trim() || undefined,
-      allowOverpayment: this.payAllowOverpayment
+      allowOverpayment: this.payAllowOverpayment,
+      acknowledgeProcessingPayment: this.payAcknowledgeProcessing
     })
       .pipe(finalize(() => this.busy = false))
       .subscribe({
@@ -323,8 +375,21 @@ export class InvoiceDetailComponent implements OnInit {
     return new Date().toISOString().slice(0, 10);
   }
 
-  /** "September 1–30, 2026" style, matching the PDF's own formatting. */
+  /**
+   * What cleanings this invoice covers, and the label that fits the shape.
+   *
+   * RESOLVED BY THE SERVER, not here. `serviceDateLabel` / `serviceDateText` come off the DTO so
+   * this panel, the customer's web invoice, the PDF and the email describe the same invoice
+   * identically — a local reimplementation is exactly how "September 8-12" appeared on one surface
+   * and "September 7" on another. The fallback below only fires for an older cached response.
+   */
+  get serviceDateLabel(): string {
+    return this.invoice?.serviceDateLabel ?? 'Service period';
+  }
+
   get servicePeriod(): string | null {
+    if (this.invoice?.serviceDateText) return this.invoice.serviceDateText;
+
     if (!this.invoice?.serviceStartDate && !this.invoice?.serviceEndDate) return null;
 
     const start = new Date(this.invoice.serviceStartDate ?? this.invoice.serviceEndDate!);

@@ -89,27 +89,34 @@
 
   /* ==============================================================
      Button gradients (theme-stable)
+
+     RENAMED 2026-09: the green family is --btn-brand*, was --btn-secondary*.
+     Values are byte-for-byte unchanged; only the name moved. "Secondary" had come to mean two
+     incompatible things — the marketing site's green CTA and the admin panel's quiet grey button
+     — and the class name resolved to green, so every neutral button in the app had to override it.
+     Green is the BRAND button now (.btn-brand); .btn-secondary is the neutral one.
+
      -- OLD defaults --
        --btn-primary: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
        --btn-primary-hover: linear-gradient(135deg, #339cff 0%, #1a82ff 100%);
-       --btn-secondary: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
-       --btn-secondary-hover: linear-gradient(135deg, #48d164 0%, #34ce57 100%);
+       --btn-brand: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+       --btn-brand-hover: linear-gradient(135deg, #48d164 0%, #34ce57 100%);
        --btn-danger: linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%);
        --btn-danger-hover: linear-gradient(135deg, #ff8787 0%, #ff7979 100%);
-     -- INTERIM (homepage redesign v1, --btn-secondary used emerald #10b981 -> #059669):
-        --btn-secondary: linear-gradient(135deg, #10b981 0%, #059669 100%);
-        --btn-secondary-hover: linear-gradient(135deg, #34d399 0%, #10b981 100%);
-        --btn-secondary-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
-        --btn-secondary-shadow-hover: 0 10px 25px rgba(16, 185, 129, 0.35);
+     -- INTERIM (homepage redesign v1, the green used emerald #10b981 -> #059669):
+        --btn-brand: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        --btn-brand-hover: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+        --btn-brand-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+        --btn-brand-shadow-hover: 0 10px 25px rgba(16, 185, 129, 0.35);
      -- NEW defaults
-        primary  : Tailwind blue-600 → blue-700
-        secondary: Tailwind green-500 → green-600 (matches React mockup `bg-green-500`
-                   and `shadow-green-500/40`; brighter, more saturated than emerald)
+        primary: Tailwind blue-600 → blue-700
+        brand  : Tailwind green-500 → green-600 (matches React mockup `bg-green-500`
+                 and `shadow-green-500/40`; brighter, more saturated than emerald)
      ============================================================== */
   --btn-primary: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
   --btn-primary-hover: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-  --btn-secondary: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);          /* green-500 → green-600 */
-  --btn-secondary-hover: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);    /* green-400 → green-500 */
+  --btn-brand: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);              /* green-500 → green-600 */
+  --btn-brand-hover: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);        /* green-400 → green-500 */
   --btn-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
   --btn-danger-hover: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
 
@@ -117,18 +124,33 @@
      -- OLD --
        --btn-primary-shadow: 0 4px 5px rgba(0, 123, 255, 0.3);
        --btn-primary-shadow-hover: 0 8px 15px rgba(0, 123, 255, 0.4);
-       --btn-secondary-shadow: 0 4px 5px rgba(40, 167, 69, 0.3);
-       --btn-secondary-shadow-hover: 0 8px 15px rgba(40, 167, 69, 0.4);
+       --btn-brand-shadow: 0 4px 5px rgba(40, 167, 69, 0.3);
+       --btn-brand-shadow-hover: 0 8px 15px rgba(40, 167, 69, 0.4);
        --btn-danger-shadow: 0 4px 5px rgba(255, 107, 107, 0.3);
        --btn-danger-shadow-hover: 0 8px 15px rgba(255, 107, 107, 0.4);
      -- NEW (rgba of new brand colors) --
    */
   --btn-primary-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
   --btn-primary-shadow-hover: 0 10px 25px rgba(37, 99, 235, 0.35);
-  --btn-secondary-shadow: 0 4px 12px rgba(34, 197, 94, 0.30);                  /* green-500 @ 30% */
-  --btn-secondary-shadow-hover: 0 12px 28px rgba(34, 197, 94, 0.40);           /* matches React shadow-green-500/40 */
+  --btn-brand-shadow: 0 4px 12px rgba(34, 197, 94, 0.30);                      /* green-500 @ 30% */
+  --btn-brand-shadow-hover: 0 12px 28px rgba(34, 197, 94, 0.40);               /* matches React shadow-green-500/40 */
   --btn-danger-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
   --btn-danger-shadow-hover: 0 10px 25px rgba(239, 68, 68, 0.35);
+
+  /* THE NEUTRAL BUTTON'S OWN SHADOW AND SHEEN. Used only by .btn-secondary — primary, danger,
+     brand and quote keep their own hardcoded values untouched.
+
+     Shadow geometry is copied from primary/danger (0 10px 25px hover, 0 2px 4px press) so a grey
+     Edit lifts like the blue Create beside it; only the tint is neutral. Slate-900 in day mode,
+     where the button sits on white and wants a real drop shadow, and a slate-400 glow at night,
+     because a black shadow on a dark surface is invisible and secondary would be the one button
+     with no lift at all.
+
+     The sheen is the same sweep the other buttons use, recoloured: white light is invisible
+     across a near-white face, so day mode sweeps a faint slate and dark mode goes back to white. */
+  --btn-secondary-shadow-hover: 0 10px 25px rgba(15, 23, 42, 0.18);
+  --btn-secondary-shadow-active: 0 2px 4px rgba(15, 23, 42, 0.18);
+  --btn-sheen-neutral: rgba(15, 23, 42, 0.07);
 
   /* Quote button (separate conversion path, indigo) */
   --btn-quote: #4f46e5;              /* indigo-600, was #4a5599 */
@@ -285,6 +307,14 @@
 
   --surface-subtle: rgba(255, 255, 255, 0.05);
   --surface-subtle-ring: rgba(255, 255, 255, 0.08);
+
+  /* .btn-secondary's shadow and sheen are the only button values that have to flip with the theme:
+     blue and red read as a glow against a dark page, a slate-900 shadow does not. Slate-400 at low
+     alpha gives the neutral button the same lift the coloured ones get, and the sheen goes back to
+     white because the neutral face is dark here. Geometry unchanged. */
+  --btn-secondary-shadow-hover: 0 10px 25px rgba(148, 163, 184, 0.22);
+  --btn-secondary-shadow-active: 0 2px 4px rgba(148, 163, 184, 0.22);
+  --btn-sheen-neutral: rgba(255, 255, 255, 0.10);
 
   --warning-orange-text: #fdba74;     /* orange-300 — readable on dark */
   --warning-orange-bg: rgba(249, 115, 22, 0.15);
@@ -693,9 +723,25 @@ asl-google-signin-button iframe {
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
 }
-
-.btn-secondary {
-    background: var(--btn-secondary);
+/*
+ * .btn-brand — THE GREEN BRAND BUTTON. "Contact Us", "Get a Quote", "Read Our Reviews",
+ * "Export Excel", "Save pair". Gradient, white sheen sweep, lift and green glow on hover.
+ *
+ * This was `.btn-secondary` until 2026-09, and the rules below are byte-for-byte what that class
+ * carried — only the name and the token prefix changed, so nothing renders differently.
+ *
+ * WHY IT WAS RENAMED. "Secondary" meant two incompatible things at once: the marketing site's
+ * green call to action, and the admin panel's quiet grey button. The class resolved to green, so
+ * every neutral button in the app had to override it — and an override that set `background` and
+ * nothing else still inherited the green hover glow, which is how grey Cancel buttons came to
+ * flash green. Splitting the name fixes the cause rather than each symptom: a new component that
+ * writes class="btn-secondary" now gets a neutral button, which is what the word means.
+ *
+ * Not to be confused with .btn-cta-primary / .btn-cta-secondary, which are the home page's own
+ * hero button pair.
+ */
+.btn-brand {
+    background: var(--btn-brand);
     color: white;
     border: none;
     padding: 12px 24px;
@@ -710,7 +756,7 @@ asl-google-signin-button iframe {
     overflow: hidden;
 }
 
-.btn-secondary::before {
+.btn-brand::before {
     content: '';
     position: absolute;
     top: 0;
@@ -721,19 +767,98 @@ asl-google-signin-button iframe {
     transition: left 0.5s;
 }
 
-.btn-secondary:hover {
-    background: var(--btn-secondary-hover);
+.btn-brand:hover {
+    background: var(--btn-brand-hover);
+    transform: translateY(-2px);
+    box-shadow: var(--btn-brand-shadow-hover);
+}
+
+.btn-brand:hover::before {
+    left: 100%;
+}
+
+.btn-brand:active {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+}
+
+/*
+ * .btn-secondary — THE NEUTRAL SECONDARY ACTION. Edit, Cancel, Back, Close, No, Keep Order, and
+ * every quiet admin action that sits beside a real primary button.
+ *
+ * Grey in both themes, from theme-aware tokens, so it needs no per-page override to behave. It
+ * carries NO green, no blue and no red: cancelling and going back are not achievements, and a
+ * coloured button next to a primary action reads as the recommended choice. A button meant to be
+ * green is the wrong class — use .btn-brand.
+ *
+ * IT IS QUIETER IN COLOUR, NOT IN BEHAVIOUR. It used to have no lift, no shadow and no sheen, so
+ * an Edit button sat visually dead beside a Create and a Delete that both animated. The rules
+ * below give it the same *kind* of polish — 2px lift, sheen sweep, drop shadow, 1px press — in
+ * neutral grey.
+ *
+ * These rules are DELIBERATELY STANDALONE rather than shared with .btn-primary / .btn-danger.
+ * Grouping the three raised the hover selector to `.btn-x:hover:not(:disabled)` (0,3,0), which
+ * outranks a component's own `.btn-danger[_ngcontent]` (0,2,0) palette — and that is how the
+ * Commercial Clients Delete button ended up flipping to a bright red face on hover while keeping
+ * its red label. Primary and danger keep their original plain `:hover` at (0,2,0) so a page can
+ * still override them the way it always could. Do not merge these blocks.
+ */
+.btn-secondary {
+    background: var(--surface);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    /* Both needed by the sheen: an absolutely positioned overlay that starts off the left edge
+       and is clipped to the button. Same mechanics as the other buttons' sweep. */
+    position: relative;
+    overflow: hidden;
+}
+
+/* The same sweep the other buttons use, in a different colour: white light is invisible across a
+   near-white face, so the neutral button sweeps a faint slate in day mode and white at night. */
+.btn-secondary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, var(--btn-sheen-neutral), transparent);
+    transition: left 0.5s;
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--surface-subtle);
+    color: var(--text-primary);
+    border-color: var(--text-muted);
     transform: translateY(-2px);
     box-shadow: var(--btn-secondary-shadow-hover);
 }
 
-.btn-secondary:hover::before {
+.btn-secondary:hover:not(:disabled)::before {
     left: 100%;
 }
 
-.btn-secondary:active {
+.btn-secondary:active:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(40, 167, 69, 0.3);
+    box-shadow: var(--btn-secondary-shadow-active);
+}
+
+.btn-secondary:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.btn-secondary:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
 }
 
 .btn-quote {

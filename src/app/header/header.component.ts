@@ -11,6 +11,7 @@ import { NewOrderNotificationService } from '../services/new-order-notification.
 import { TaskService } from '../services/task.service';
 import { BlogService } from '../services/blog.service';
 import { ContractService } from '../services/contract.service';
+import { InvoiceService } from '../services/invoice.service';
 import { BlogStatusService } from '../services/blog-status.service';
 import { SignalRService } from '../services/signalr.service';
 import { PhoneNumberService } from '../services/phone-number.service';
@@ -48,6 +49,14 @@ export class HeaderComponent implements OnInit, OnDestroy {
   blogPublicVisible = false; // Admin-driven master switch; false = "Soon" span (safe default)
   /** Business customer with at least one contract — drives the My Contracts menu entry. */
   hasContracts = false;
+  /**
+   * Business customer with at least one ISSUED invoice — drives the My Invoices menu entry.
+   *
+   * Tracked separately from hasContracts because the two are genuinely independent: commercial
+   * work is routinely invoiced without a signed agreement, and a signed agreement may have
+   * nothing billed against it yet.
+   */
+  hasInvoices = false;
   stickyCtaVisible = false; // When true, hide header mobile call icon (sticky CTA bar is shown)
   nyTime: string = ''; // Live New York time for admins/superadmins
   private nyTimeInterval: any;
@@ -66,6 +75,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private taskService: TaskService,
     private blogService: BlogService,
     private contractService: ContractService,
+    private invoiceService: InvoiceService,
     private blogStatusService: BlogStatusService,
     private signalRService: SignalRService,
     public phoneNumber: PhoneNumberService,
@@ -133,8 +143,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
         if (this.isInternalUser) {
           this.checkPendingBlogDrafts();
         }
-        // Business customers with at least one contract get a My Contracts entry.
+        // Business customers get My Contracts / My Invoices entries on their own evidence.
         this.checkMyContracts();
+        this.checkMyInvoices();
       } else if (isInitialized) {
         // Only clear user data if auth service is initialized and user is null
         this.currentUser = null;
@@ -379,6 +390,34 @@ export class HeaderComponent implements OnInit, OnDestroy {
         // Safe default: a failed check hides the link rather than offering one that 403s.
         error: () => {
           this.hasContracts = false;
+        }
+      });
+  }
+
+  /**
+   * Decides whether to draw the My Invoices entry.
+   *
+   * A SEPARATE CHECK from My Contracts, not a reuse of it: a commercial client can be invoiced
+   * without a signed agreement — a trial clean, ad-hoc work, a verbal arrangement — and can
+   * equally have a contract with nothing billed against it yet. Each entry appears on its own
+   * evidence, and both are cheap booleans applying the business-flag rule server-side.
+   */
+  private checkMyInvoices(): void {
+    if (!this.isBrowser) return;
+    if (this.isCleanerAccount) {
+      this.hasInvoices = false;
+      return;
+    }
+
+    this.invoiceService.hasMyInvoices()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (res: { hasInvoices: boolean }) => {
+          this.hasInvoices = res?.hasInvoices ?? false;
+          this.cdr.detectChanges();
+        },
+        error: () => {
+          this.hasInvoices = false;
         }
       });
   }

@@ -16,19 +16,19 @@
     }
   
     .new-order-btn {
-      background: var(--btn-secondary);
+      background: var(--btn-brand);
       color: white;
       padding: 0.75rem 1.5rem;
       border-radius: 6px;
       text-decoration: none;
       font-weight: 600;
       transition: all 0.3s ease;
-      box-shadow: var(--btn-secondary-shadow);
+      box-shadow: var(--btn-brand-shadow);
 
       &:hover {
-        background: var(--btn-secondary-hover);
+        background: var(--btn-brand-hover);
         transform: translateY(-2px);
-        box-shadow: var(--btn-secondary-shadow-hover);
+        box-shadow: var(--btn-brand-shadow-hover);
       }
     }
   }
@@ -237,14 +237,14 @@
     }
 
     .reorder-btn {
-      background: var(--btn-secondary);
+      background: var(--btn-brand);
       color: white;
-      box-shadow: var(--btn-secondary-shadow);
+      box-shadow: var(--btn-brand-shadow);
 
       &:hover:not(:disabled) {
-        background: var(--btn-secondary-hover);
+        background: var(--btn-brand-hover);
         transform: translateY(-2px);
-        box-shadow: var(--btn-secondary-shadow-hover);
+        box-shadow: var(--btn-brand-shadow-hover);
       }
 
       &:disabled {
@@ -255,14 +255,14 @@
     }
 
     .pay-btn {
-      background: var(--btn-secondary);
+      background: var(--btn-brand);
       color: white;
-      box-shadow: var(--btn-secondary-shadow);
+      box-shadow: var(--btn-brand-shadow);
 
       &:hover:not(:disabled) {
-        background: var(--btn-secondary-hover);
+        background: var(--btn-brand-hover);
         transform: translateY(-2px);
-        box-shadow: var(--btn-secondary-shadow-hover);
+        box-shadow: var(--btn-brand-shadow-hover);
       }
     }
 

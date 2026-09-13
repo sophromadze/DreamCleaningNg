@@ -10,6 +10,7 @@ import {
   PromotableUser
 } from '../../../services/admin.service';
 import { extractApiErrorMessage } from '../../../utils/http-error.utils';
+import { CleanersDashboardComponent } from '../../../cleaners-dashboard/cleaners-dashboard.component';
 import { getAdminAvatarColor, getAdminAvatarInitials } from '../../../shared/admin/admin-avatar.utils';
 
 /**
@@ -36,7 +37,7 @@ import { getAdminAvatarColor, getAdminAvatarInitials } from '../../../shared/adm
 @Component({
   selector: 'app-cleaner-accounts',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CleanersDashboardComponent],
   templateUrl: './cleaner-accounts.component.html',
   styleUrls: [
     '../user-management/user-management.component.scss',
@@ -88,6 +89,18 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
 
   // ── Demote back to Customer ──
   demotingUserId: number | null = null;
+
+  // ── The cleaner RECORD behind the account (2026-09) ──
+  //
+  // This tab is about accounts; the person - documents, ranking, availability, wages, notes - is a
+  // Cleaner row, and the Cleaners Dashboard already owns the panel that shows one and the form
+  // that edits it. Clicking a row here opens THAT component, embedded in a drawer, rather than a
+  // second rendering of the same record that would drift from it on the first change either side.
+  //
+  // Null when the drawer is closed. Only a LINKED account can open it: an unlinked one has no
+  // record to show, which is the very thing the "Not linked" chip on its row is reporting.
+  recordCleanerId: number | null = null;
+  recordCleanerName = '';
 
   private readonly promoteSearch$ = new Subject<string>();
   private readonly cleanerSearch$ = new Subject<string>();
@@ -282,6 +295,37 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
           this.errorMessage = extractApiErrorMessage(err, 'Could not unlink that account.');
         }
       });
+  }
+
+  // ── The linked cleaner record ──────────────────────────────────────────────────────
+
+  /**
+   * Opens the Cleaners Dashboard's own detail panel over this table - the whole ROW is the way in,
+   * the same as a Customers row opening its detail panel. There is deliberately no Edit button on
+   * the row: Edit belongs in the panel, next to the record it edits, and the panel already has one.
+   *
+   * A no-op for an unlinked account. Called from the row itself, so the guard lives here rather
+   * than in six `*ngIf`s in the template.
+   */
+  openCleanerRecord(account: CleanerAccount): void {
+    if (!account.cleanerId) return;
+
+    this.recordCleanerName = account.cleanerName || `${account.firstName} ${account.lastName}`;
+    this.recordCleanerId = account.cleanerId;
+  }
+
+  closeCleanerRecord(): void {
+    this.recordCleanerId = null;
+    this.recordCleanerName = '';
+  }
+
+  /**
+   * A save or a delete inside the panel. The row's linked-cleaner name, and whether it is linked
+   * at all, both come from the cleaner record - so the table underneath is stale the moment either
+   * happens.
+   */
+  onCleanerRecordChanged(): void {
+    this.load();
   }
 
   private applyUpdated(updated: CleanerAccount): void {

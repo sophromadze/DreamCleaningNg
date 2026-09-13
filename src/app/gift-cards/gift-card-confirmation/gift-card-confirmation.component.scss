@@ -192,7 +192,7 @@ h1 {
   }
   
   .pay-btn {
-    background: var(--btn-secondary);
+    background: var(--btn-brand);
     color: white;
     min-width: 120px;
     
@@ -201,9 +201,9 @@ h1 {
     }
     
     &:hover:not(:disabled) {
-      background: var(--btn-secondary-hover);
+      background: var(--btn-brand-hover);
       transform: translateY(-2px);
-      box-shadow: var(--btn-secondary-shadow-hover);
+      box-shadow: var(--btn-brand-shadow-hover);
     }
   }
 }

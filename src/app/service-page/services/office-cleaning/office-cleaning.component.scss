@@ -1,3 +1,7 @@
+:host-context([data-theme="dark"]) .office-cleaning .hero-section .hero-offer {
+  color: var(--text-primary);
+}
+
 .office-cleaning {
   .container {
     max-width: 1400px;
@@ -30,6 +34,26 @@
       margin-bottom: 15px;
       text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
       color: #e3f2fd;
+    }
+
+    .hero-offer {
+      width: fit-content;
+      margin: 20px auto 0;
+      padding: 12px 20px;
+      border-radius: 12px;
+      background: var(--soft-blue);
+      color: var(--primary-color);
+    }
+
+    .hero-offer-headline {
+      margin: 0;
+      font-size: clamp(1.1rem, 3vw, 1.4rem);
+      font-weight: 700;
+    }
+
+    .hero-offer-details {
+      margin: 4px 0 0;
+      font-size: 0.9rem;
     }
 
     .book-now-btn {
@@ -807,4 +831,4 @@
       }
     }
   }
-} 
+}

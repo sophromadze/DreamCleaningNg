@@ -1,270 +1,82 @@
-/* Commercial clients roster. Tokens only — no hex. */
+// Business Clients — LOCAL styles only.
+//
+// The section shell, filters, table, chips, slide-in detail panel and every dark-mode override
+// come from user-management.component.scss, which is listed FIRST in this component's styleUrls
+// (the same arrangement Cleaners uses). What is left here is the few things the Users tab has no
+// equivalent of: the inactive toggle in the filter row, column widths, detail lists, and the
+// delete confirmation dialog.
+//
+// Colours are tokens from styles.scss so both flip with the day/night toggle.
 
-.clients-page {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-width: 960px;
+// ── Column widths ──
+//
+// Row/cell padding comes entirely from user-management.component.scss (`td { padding: 0 0.75rem }`)
+// — the same rule Customers and Cleaners use. Do not restate vertical padding here; that was what
+// made this tab look over-padded next to the others.
+.data-table {
+  .user-table.cc-table { min-width: 900px; }
+
+  // Match the other Users tables without changing their shared row styles.
+  .user-table.cc-table tbody .user-row td { height: 26px; }
+
+  .col-company { min-width: 220px; white-space: nowrap; }
+  .col-origin { width: 130px; }
+  .col-counts { min-width: 160px; }
 }
 
-.page-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-
-  h2 {
-    margin: 0;
-    font-size: 1.3rem;
-    color: var(--text-primary);
-  }
-
-  /* Search and the create button share one row: they are both "act on this list", and the
-     button keeps its intrinsic width while the search takes the slack. */
-  .head-actions {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex: 1 1 340px;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-
-    .btn-primary { flex: 0 0 auto; white-space: nowrap; }
-  }
-
-  .search-input {
-    flex: 1 1 300px;
-    max-width: 420px;
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    background: var(--surface);
-    color: var(--text-primary);
-    font-size: 0.87rem;
-
-    &:focus { outline: none; border-color: var(--primary-color); }
-  }
-}
-
-.page-intro {
-  margin: 0;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-  max-width: 640px;
-}
-
-.alert-error {
-  padding: 11px 14px;
-  border-radius: var(--radius-sm);
-  background: var(--soft-red);
-  color: var(--bright-red);
-  font-size: 0.86rem;
-}
-
-.alert-notice {
-  padding: 11px 14px;
-  border-radius: var(--radius-sm);
-  background: var(--soft-blue);
-  color: var(--primary-color);
-  font-size: 0.86rem;
-}
-
+// Lives in the filter row next to the search box — the Users tab has selects here, not a checkbox.
 .inactive-toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.84rem;
+  gap: 0.45rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
   cursor: pointer;
+  white-space: nowrap;
 
   input { cursor: pointer; }
 }
 
-.loading-note,
-.empty {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  padding: 18px 0;
+.cc-span-2 {
+  grid-column: 1 / -1;
 }
 
-.empty-small {
+.cc-warn {
+  color: var(--warning-orange-text) !important;
+}
+
+.cc-list {
+  list-style: none;
   margin: 0;
-  font-size: 0.83rem;
-  color: var(--text-muted);
-}
-
-.client-list {
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 9px;
-}
+  gap: 0.45rem;
 
-.client-card {
-  background: var(--surface);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  overflow: hidden;
-
-  &.expanded { border-color: var(--primary-color); }
-
-  /* Removed clients are legible but visibly out of circulation - they only appear at all when
-     "show removed" is on, and confusing one for a live client would be the failure here. */
-  &.inactive {
-    opacity: 0.72;
-    border-style: dashed;
-  }
-}
-
-.removed-tag {
-  margin-left: 7px;
-  padding: 1px 7px;
-  border-radius: var(--radius-pill);
-  background: var(--soft-red);
-  color: var(--bright-red);
-  font-size: 0.68rem;
-  font-weight: var(--fw-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.client-head {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 17px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  font-family: inherit;
-
-  &:hover { background: var(--surface-subtle); }
-}
-
-.client-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-
-  .client-name {
-    font-size: 0.97rem;
-    font-weight: var(--fw-semibold);
+  li {
+    font-size: 0.82rem;
     color: var(--text-primary);
-  }
-
-  .client-meta {
-    font-size: 0.81rem;
-    color: var(--text-muted);
+    line-height: 1.4;
   }
 }
 
-.client-counts {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+.cc-mono {
+  font-variant-numeric: tabular-nums;
+  color: var(--primary-color);
+  text-decoration: none;
 
-  .chevron {
-    color: var(--text-muted);
-    font-size: 0.8rem;
-  }
+  &:hover { text-decoration: underline; }
 }
 
-.count-pill {
-  padding: 3px 9px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-subtle);
-  color: var(--text-secondary);
-  font-size: 0.73rem;
-  white-space: nowrap;
-
-  /* An origin marker, not a status: a linked and a standalone client behave identically. */
-  &.linked {
-    background: var(--soft-blue);
-    color: var(--primary-color);
-  }
+// Detail empty-copy only — do not restyle the shared `.muted` used in table cells (Cleaners
+// uses the same class for "—", and a different font-size here would be a visible drift).
+.detail-body .muted,
+.info-card > .muted {
+  margin: 0;
+  font-size: 0.82rem;
 }
 
-.client-body {
-  padding: 4px 17px 17px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  border-top: 1px solid var(--border-color);
-}
-
-.body-section {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.label {
-  font-size: 0.71rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  margin-bottom: 3px;
-}
-
-.body-line {
-  font-size: 0.86rem;
-  color: var(--text-primary);
-
-  a { color: var(--primary-color); text-decoration: none; &:hover { text-decoration: underline; } }
-
-  .muted { color: var(--text-muted); }
-  .mono { font-variant-numeric: tabular-nums; }
-
-  &.warn { color: var(--warning-orange-text); }
-}
-
-.body-actions {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  flex-wrap: wrap;
-
-  .muted {
-    font-size: 0.83rem;
-    color: var(--text-muted);
-  }
-}
-
-.btn-secondary,
-.btn-danger {
-  border-radius: var(--radius-sm);
-  padding: 8px 16px;
-  font-size: 0.85rem;
-  font-weight: var(--fw-semibold);
-  font-family: inherit;
-  cursor: pointer;
-  border: 1px solid transparent;
-
-  &:disabled { opacity: 0.55; cursor: not-allowed; }
-}
-
-.btn-secondary {
-  background: var(--surface);
-  border-color: var(--border-color);
-  color: var(--text-secondary);
-
-  &:hover:not(:disabled) { background: var(--surface-subtle); }
-}
-
-/* Delete is destructive-looking but is a deactivation: nothing it does is unrecoverable. */
-.btn-danger {
-  background: var(--soft-red);
-  border-color: var(--soft-red);
-  color: var(--bright-red);
-
-  &:hover:not(:disabled) { border-color: var(--bright-red); }
-}
-
+// ── Delete confirmation ──────────────────────────────────────────────────────
 .cc-confirm-overlay {
   position: fixed;
   inset: 0;
@@ -296,33 +108,29 @@
 
   p {
     margin: 0;
-    font-size: 0.87rem;
+    font-size: 0.86rem;
     color: var(--text-secondary);
-    line-height: 1.5;
+    line-height: 1.45;
   }
+}
 
-  .cc-confirm-back { color: var(--text-muted); font-size: 0.83rem; }
+.cc-confirm-back {
+  font-size: 0.8rem !important;
+  color: var(--text-muted) !important;
 }
 
 .cc-confirm-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 9px;
-  margin-top: 5px;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
 }
 
-.btn-primary {
-  background: var(--primary-color);
-  color: #fff;
-  border: none;
-  border-radius: var(--radius-sm);
-  padding: 8px 16px;
-  font-size: 0.85rem;
-  font-weight: var(--fw-semibold);
-  /* Used on both an <a> and a <button> now; a button does not inherit the page font on its own. */
-  font-family: inherit;
-  text-decoration: none;
-  cursor: pointer;
-
-  &:hover { background: var(--primary-color-hover); }
+/* The bridge between the two halves of a business client: the commercial record on this screen
+   and the customer account it is linked to. Aligned left under the account grid so it reads as
+   "…and there is more of this over there", not as a panel action. */
+.cc-account-link {
+  margin-top: 0.6rem;
+  padding-left: 0;
+  color: var(--primary-color) !important;
 }

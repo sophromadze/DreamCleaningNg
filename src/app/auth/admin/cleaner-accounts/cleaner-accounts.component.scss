@@ -161,3 +161,77 @@
 @media (max-width: 480px) {
   .ca-result { flex-wrap: wrap; }
 }
+
+// ── The cleaner record, over the table ──────────────────────────────────────────────
+//
+// Same geometry as the Users tab's slide-in detail panel (which this component already
+// borrows its table from): fixed to the right, below the app header, full height.
+//
+// TWO deliberate differences from that panel, both load-bearing:
+//
+//  1. NO `transform`. The embedded dashboard's edit form is a `position: fixed` overlay,
+//     and any ancestor with a transform becomes the containing block for fixed children -
+//     which would fold a 760px modal into this drawer. The slide-in animates `right`.
+//  2. z-index BELOW that overlay's 1000, so the form opens over the drawer rather than
+//     behind it, and its own backdrop covers both.
+$ca-record-width: 760px;
+$ca-header-desktop: 80px;
+$ca-header-mobile: 60px;
+
+.ca-record-backdrop {
+  position: fixed;
+  inset: #{$ca-header-desktop} 0 0 0;
+  background: rgba(15, 23, 42, 0.4);
+  z-index: 998;
+  animation: ca-record-fade 0.18s ease;
+
+  @media (max-width: 768px), (hover: none) { top: $ca-header-mobile; }
+}
+
+.ca-record-panel {
+  position: fixed;
+  top: $ca-header-desktop;
+  right: 0;
+  width: min(#{$ca-record-width}, 100vw);
+  height: calc(100dvh - #{$ca-header-desktop});
+  background: var(--surface);
+  border-left: 1px solid var(--border-color);
+  box-shadow: -8px 0 24px rgba(15, 23, 42, 0.18);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: ca-record-slide 0.22s ease-out;
+
+  @media (max-width: 768px), (hover: none) {
+    top: $ca-header-mobile;
+    height: calc(100dvh - #{$ca-header-mobile});
+  }
+}
+
+.ca-record-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem;
+
+  @media (max-width: 480px) { padding: 0.75rem; }
+}
+
+@keyframes ca-record-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+// `right` rather than `translateX` - see the note above about the fixed edit form.
+@keyframes ca-record-slide {
+  from { right: calc(-1 * min(#{$ca-record-width}, 100vw)); }
+  to { right: 0; }
+}
+
+// The Users tab's `.user-row` is `cursor: pointer` because every one of its rows opens a panel.
+// Here an UNLINKED account has no cleaner record behind it, so its row opens nothing and must not
+// offer the hand cursor - the "Not linked" chip is the whole message of that row.
+.data-table .user-table.ca-table tbody .user-row:not(.ca-row-clickable) {
+  cursor: default;
+}

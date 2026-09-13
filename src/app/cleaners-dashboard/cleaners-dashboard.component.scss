@@ -1353,6 +1353,10 @@
   background: #334155;
   color: #e5e7eb;
   border: 1px solid #475569;
+  // Secondary only: the shared rule above narrows `transition` to background+filter, which made
+  // the global .btn-secondary hover lift snap instead of easing. The other three classes in that
+  // rule keep their own timing untouched.
+  transition: all 0.3s ease;
 
   &:hover {
     background: #3f4d61;
@@ -2201,5 +2205,77 @@
       color: var(--cd-success);
       background: var(--cd-success-soft);
     }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  EMBEDDED MODE — Admin → Users → Cleaners mounts this component detail-only.
+//
+//  Grouped at the END on purpose, the same way the shared child components keep
+//  their dark-mode blocks last: these rules override the page-level ones above
+//  and must win the tie by order rather than by inventing extra specificity.
+//
+//  The host (the accounts table's drawer) supplies the frame, so here the panel
+//  gives up everything that made it a PAGE: the full-height background, the
+//  centred max-width, the sticky second column, and its own card chrome.
+// ─────────────────────────────────────────────────────────────────────────────
+:host(.embedded) {
+  min-height: 0;
+  background: transparent;
+}
+
+.cleaners-dashboard.embedded {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+// The edit form, rendered in place instead of in a modal. Same markup either way (one
+// <ng-template>), so what is left here is undoing the three things that only made sense
+// inside a floating box: its own scroll container, its own surface, and the side padding
+// that was keeping it off the modal's edge.
+.inline-form-wrap {
+  .modal-header {
+    padding: 0 0 10px;
+    // The modal's × closes the whole form; inline, Cancel in the footer is the way out and a
+    // second dismiss beside the panel's own Close is one × too many.
+    .btn-close { display: none; }
+    h2 { font-size: 16px; }
+  }
+
+  .modal-body {
+    padding: 14px 0 0;
+    overflow: visible;   // the drawer scrolls, not the form
+    background: transparent;
+  }
+
+  // Flat-ended so the form reads as part of the panel rather than a card dropped into it.
+  .modal-footer {
+    position: sticky;
+    bottom: 0;
+    margin-top: 18px;
+    padding: 12px 0 2px;
+    // The DRAWER's surface, not the modal's - this form is sitting on the host panel now.
+    background: var(--surface);
+    border-top: 1px solid var(--cd-border);
+  }
+}
+
+.dashboard-body.embedded {
+  // The card column is gone, so the two-column grid would leave the detail panel
+  // sitting in the right half of the drawer with a hole beside it.
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+
+  .detail-column {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    backdrop-filter: none;
   }
 }

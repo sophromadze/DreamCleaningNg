@@ -72,7 +72,7 @@
     </div>
 
     <div class="ba-admin__actions">
-      <button type="button" class="btn-secondary" (click)="submitCreate()" [disabled]="isSubmitting">
+      <button type="button" class="btn-brand" (click)="submitCreate()" [disabled]="isSubmitting">
         {{ isSubmitting ? 'Uploading…' : 'Save pair' }}
       </button>
       <button type="button" class="ba-admin__cancel" (click)="cancelCreate()" [disabled]="isSubmitting">
@@ -158,7 +158,7 @@
           </label>
         </div>
         <div class="ba-admin__card-actions">
-          <button type="button" class="btn-secondary" (click)="saveEdit()">Save</button>
+          <button type="button" class="btn-brand" (click)="saveEdit()">Save</button>
           <button type="button" class="ba-admin__cancel" (click)="cancelEdit()">Cancel</button>
         </div>
       </div>

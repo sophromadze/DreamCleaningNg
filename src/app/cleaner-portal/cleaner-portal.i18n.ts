@@ -107,10 +107,21 @@ export interface PortalStrings {
   supplies: string;
   suppliesBring: string;
   suppliesProvided: string;
-  /** The "Cleaning Essentials" extra: paper towels, garbage bags, toilet brush. */
+  /** The "Cleaning Essentials" extra: paper towels, garbage bags, toilet brush and a broom. */
   essentials: string;
   essentialsBring: string;
   essentialsProvided: string;
+  /**
+   * THE ITEMS THEMSELVES, keyed by the translation keys the SERVER sends on every job
+   * (suppliesItemKeys / essentialsItemKeys). Which items are named, in which order, and whether
+   * the fourth essentials line is a broom or "broom or vacuum" is decided once on the backend so
+   * the portal, the assignment email and the assignment SMS cannot name different things; all
+   * this map does is say them in the cleaner's own language.
+   *
+   * Every key the backend can emit needs an entry in all four languages, or a cleaner reads a
+   * bare key where an item should be.
+   */
+  supplyItems: Record<string, string>;
   customerInstructions: string;
   cleanerInstructions: string;
 
@@ -172,8 +183,21 @@ const EN: PortalStrings = {
   suppliesBring: 'Bring cleaning supplies',
   suppliesProvided: 'Supplies not needed - the customer provides them',
   essentials: 'Essentials',
-  essentialsBring: 'Bring the essentials: paper towels, garbage bags, toilet brush, broom',
+  essentialsBring: 'Bring the essentials',
   essentialsProvided: 'Essentials not needed - the customer provides them',
+  supplyItems: {
+    zep: 'Zep liquids: Green, Floor',
+    zepOven: 'Zep liquids: Green, Floor, Oven',
+    windex: 'Windex liquid',
+    cloths: 'Cleaning cloths',
+    sponge: 'Sponge',
+    mop: 'Mop',
+    paperTowels: 'Paper towels',
+    garbageBags: 'Garbage bags',
+    toiletBrush: 'Toilet brush',
+    broom: 'Broom',
+    broomOrVacuum: 'Broom or vacuum cleaner'
+  },
   customerInstructions: 'Instructions from the customer',
   cleanerInstructions: 'Instructions from the office',
 
@@ -238,8 +262,21 @@ const KA: PortalStrings = {
   suppliesBring: 'წაიღეთ საწმენდი საშუალებები',
   suppliesProvided: 'ხსნარები არ არის საჭირო - მომხმარებელი უზრუნველყოფს',
   essentials: 'საწმენდი ნივთები',
-  essentialsBring: 'წაიღეთ საწმენდი ნივთები: ხელსახოცები, ნაგვის პარკები, უნიტაზის ჯაგრისი, ცოცხი',
+  essentialsBring: 'წაიღეთ საწმენდი ნივთები',
   essentialsProvided: 'საწმენდი ნივთები არ არის საჭირო - მომხმარებელი უზრუნველყოფს',
+  supplyItems: {
+    zep: 'Zep ხსნარები: მწვანე, იატაკის',
+    zepOven: 'Zep ხსნარები: მწვანე, იატაკის, ღუმელის საწმენდი',
+    windex: 'Windex ხსნარი',
+    cloths: 'საწმენდი ტილოები',
+    sponge: 'ღრუბელი',
+    mop: 'მოპი',
+    paperTowels: 'ქაღალდის ხელსახოცები',
+    garbageBags: 'ნაგვის პარკები',
+    toiletBrush: 'უნიტაზის ჯაგრისი',
+    broom: 'ცოცხი',
+    broomOrVacuum: 'ცოცხი ან მტვერსასრუტი'
+  },
   customerInstructions: 'ინსტრუქცია მომხმარებლისგან',
   cleanerInstructions: 'ინსტრუქცია ოფისისგან',
 
@@ -299,8 +336,21 @@ const RU: PortalStrings = {
   suppliesBring: 'Возьмите с собой чистящие средства',
   suppliesProvided: 'Средства не нужны - их предоставляет клиент',
   essentials: 'Расходные материалы',
-  essentialsBring: 'Возьмите расходные материалы: бумажные полотенца, мусорные пакеты, ёршик для унитаза, веник',
+  essentialsBring: 'Возьмите расходные материалы',
   essentialsProvided: 'Расходные материалы не нужны - их предоставляет клиент',
+  supplyItems: {
+    zep: 'Жидкости Zep: зелёная, для пола',
+    zepOven: 'Жидкости Zep: зелёная, для пола, для духовки',
+    windex: 'Жидкость Windex',
+    cloths: 'Тряпки для уборки',
+    sponge: 'Губка',
+    mop: 'Швабра',
+    paperTowels: 'Бумажные полотенца',
+    garbageBags: 'Мусорные пакеты',
+    toiletBrush: 'Ёршик для унитаза',
+    broom: 'Веник',
+    broomOrVacuum: 'Веник или пылесос'
+  },
   customerInstructions: 'Инструкции от клиента',
   cleanerInstructions: 'Инструкции от офиса',
 
@@ -360,8 +410,21 @@ const ES: PortalStrings = {
   suppliesBring: 'Lleve los productos de limpieza',
   suppliesProvided: 'No hacen falta productos - los proporciona el cliente',
   essentials: 'Artículos básicos',
-  essentialsBring: 'Lleve los artículos básicos: toallas de papel, bolsas de basura, escobilla de inodoro, escoba',
+  essentialsBring: 'Lleve los artículos básicos',
   essentialsProvided: 'No hacen falta artículos básicos - los proporciona el cliente',
+  supplyItems: {
+    zep: 'Líquidos Zep: verde, para suelos',
+    zepOven: 'Líquidos Zep: verde, para suelos, para horno',
+    windex: 'Líquido Windex',
+    cloths: 'Paños de limpieza',
+    sponge: 'Esponja',
+    mop: 'Fregona',
+    paperTowels: 'Toallas de papel',
+    garbageBags: 'Bolsas de basura',
+    toiletBrush: 'Escobilla de inodoro',
+    broom: 'Escoba',
+    broomOrVacuum: 'Escoba o aspiradora'
+  },
   customerInstructions: 'Instrucciones del cliente',
   cleanerInstructions: 'Instrucciones de la oficina',
 

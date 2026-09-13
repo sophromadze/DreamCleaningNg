@@ -33,6 +33,97 @@
   font-size: 0.72rem;
 }
 
+// A mismatch the admin should see but is allowed to overrule — a warning, never a block.
+.warn {
+  display: block;
+  margin-top: 0.4rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--warning-orange-bg);
+  color: var(--warning-orange-text);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+// ── Regular service days ──
+// A chip per weekday rather than a multi-select list: the whole week fits on one row, the picked
+// days are readable at a glance, and adding a third day is one click rather than a ctrl-click.
+.day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.day-chip {
+  min-width: 3.1rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  &:hover { border-color: var(--primary-color); }
+
+  &.selected {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #ffffff;
+  }
+}
+
+// ── A protected value with an Edit control ──
+// Used for the sales tax rate: the same figure on every commercial document, so confirming it is
+// the common case and typing it is the exception.
+.locked-field {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+}
+
+.locked-value {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.link-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--primary-color);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover { text-decoration: underline; }
+}
+
+// The account a client belongs to. Stated, not offered — the link is set by the business flag.
+.linked-account {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--soft-blue);
+  font-size: 0.85rem;
+}
+
+.linked-account-label {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .form-error {
   background: var(--soft-red);
   color: var(--bright-red);
@@ -176,10 +267,18 @@
 .scope-head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 0.5rem;
   margin-bottom: 0.55rem;
 
-  h4 { margin: 0; font-size: 0.88rem; }
+  h4 { margin: 0; flex: 1; font-size: 0.88rem; }
+}
+
+// A whole extra category for this contract. Set apart from the per-category "add an item" rows
+// above it so the two are not mistaken for each other.
+.scope-add-group {
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border-color);
 }
 
 .scope-count {

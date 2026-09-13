@@ -5,7 +5,7 @@ import { AdminService, UserPermissions } from '../../services/admin.service';
 import { MaintenanceModeService, MaintenanceModeStatus, ToggleMaintenanceModeRequest } from '../../services/maintenance-mode.service';
 import { LiveChatService } from '../../services/live-chat.service';
 import { OrdersComponent } from './orders/orders.component';
-import { UserManagementComponent } from './user-management/user-management.component';
+import { AdminUsersComponent, AdminUsersTab } from './users/admin-users.component';
 import { BookingServicesComponent } from './booking-services/booking-services.component';
 import { AuditHistoryComponent } from './audit-history/audit-history.component';
 import { CommunicationsComponent } from './communications/communications.component';
@@ -14,7 +14,6 @@ import { SchedulingComponent } from './scheduling/scheduling.component';
 import { BeforeAfterPhotosComponent } from './before-after-photos/before-after-photos.component';
 import { ChatAgentSettingsComponent } from './chat-agent-settings/chat-agent-settings.component';
 import { ChatSessionsComponent } from './chat-sessions/chat-sessions.component';
-import { CleanerAccountsComponent } from './cleaner-accounts/cleaner-accounts.component';
 import { AdminRewardsComponent } from './rewards/admin-rewards.component';
 
 @Component({
@@ -23,7 +22,7 @@ import { AdminRewardsComponent } from './rewards/admin-rewards.component';
   imports: [
     CommonModule,
     OrdersComponent,
-    UserManagementComponent,
+    AdminUsersComponent,
     BookingServicesComponent,
     AuditHistoryComponent,
     CommunicationsComponent,
@@ -32,7 +31,6 @@ import { AdminRewardsComponent } from './rewards/admin-rewards.component';
     BeforeAfterPhotosComponent,
     ChatAgentSettingsComponent,
     ChatSessionsComponent,
-    CleanerAccountsComponent,
     AdminRewardsComponent
   ],
   templateUrl: './admin.component.html',
@@ -62,15 +60,39 @@ export class AdminComponent implements OnInit {
 
   /** Every tab the panel can show, in strip order. Only used to validate an incoming ?tab=. */
   private static readonly KNOWN_TABS = [
-    'orders', 'users', 'cleaner-accounts', 'booking-services', 'discounts',
+    'orders', 'users', 'booking-services', 'discounts',
     'scheduling', 'audit-history', 'mails-sms', 'before-after', 'chats', 'rewards'
   ];
+
+  /**
+   * Tabs that no longer exist at the top level, and where they went (2026-09).
+   *
+   * `cleaner-accounts` became Users → Cleaners. The old key still has to RESOLVE rather than be
+   * rejected: it is in bookmarks, in links, and — the case that would actually have bitten every
+   * admin at once — in `sessionStorage.adminActiveTab`, so on the first load after this ships
+   * every admin who was last on Cleaners would otherwise have been dumped on Orders.
+   */
+  private static readonly LEGACY_TAB_REDIRECTS: Record<string, { tab: string; usersTab: AdminUsersTab }> = {
+    'cleaner-accounts': { tab: 'users', usersTab: 'cleaners' }
+  };
+
+  /** Validates `?usersTab=`. Same keys AdminUsersComponent persists, deliberately. */
+  private static readonly USERS_TABS: AdminUsersTab[] =
+    ['customers', 'cleaners', 'business-clients', 'staff'];
 
   // UI State
   activeTab: string = 'orders';
   selectedDiscountSubTab: 'promo-codes' | 'special-offers' | 'subscriptions' | 'gift-cards' = 'promo-codes';
   pendingOrderId: number | null = null;
   pendingUserId: number | null = null;
+  /**
+   * Which Users sub-tab to open. Set by a legacy deep link asking for the old top-level Cleaners
+   * tab, and by `?usersTab=` — which is how the Orders panel sends an admin to the BUSINESS
+   * CLIENTS tab for a commercial order instead of dumping them on Customers.
+   */
+  initialUsersTab: AdminUsersTab | null = null;
+  /** `?clientId=` — the commercial client whose detail panel should open on arrival. */
+  pendingClientId: number | null = null;
   errorMessage = '';
   successMessage = '';
 
@@ -99,6 +121,30 @@ export class AdminComponent implements OnInit {
     // Validated against the tab list, so a stale or hand-typed name cannot leave the panel
     // rendering nothing; canOpenTab still has the final say once the role has loaded.
     const tabParam = this.route.snapshot.queryParamMap.get('tab');
+
+    // Which Users sub-tab, and which commercial client to expand. Read BEFORE the branches below
+    // because they apply on top of any of them: `?userId=` still opens Users, `?usersTab=` only
+    // says which of its four lists to land on.
+    const usersTabParam = this.route.snapshot.queryParamMap.get('usersTab');
+    if (usersTabParam && AdminComponent.USERS_TABS.includes(usersTabParam as AdminUsersTab)) {
+      this.initialUsersTab = usersTabParam as AdminUsersTab;
+    }
+    const clientIdParam = this.route.snapshot.queryParamMap.get('clientId');
+    if (clientIdParam) {
+      const id = parseInt(clientIdParam, 10);
+      if (!isNaN(id)) {
+        this.pendingClientId = id;
+        // A client id with no sub-tab named can only mean Business Clients — the only list that
+        // renders one. Spelling it out here keeps the link short at the call sites.
+        this.initialUsersTab ??= 'business-clients';
+      }
+    }
+
+    // Either param on its own means Users, so a link does not have to say `tab=users` as well.
+    // Checked before the chain below, whose final branch would otherwise restore the last
+    // sessionStorage tab straight over the top of it.
+    const impliesUsersTab = this.initialUsersTab !== null || this.pendingClientId !== null;
+
     if (orderIdParam) {
       const id = parseInt(orderIdParam, 10);
       if (!isNaN(id)) {
@@ -111,14 +157,24 @@ export class AdminComponent implements OnInit {
         this.activeTab = 'users';
         this.pendingUserId = id;
       }
-    } else if (tabParam && AdminComponent.KNOWN_TABS.includes(tabParam)) {
-      this.activeTab = tabParam;
-      sessionStorage.setItem('adminActiveTab', tabParam);
+    } else if (tabParam && this.resolveTab(tabParam)) {
+      this.activeTab = this.resolveTab(tabParam)!;
+      sessionStorage.setItem('adminActiveTab', this.activeTab);
+    } else if (impliesUsersTab) {
+      this.activeTab = 'users';
+      sessionStorage.setItem('adminActiveTab', this.activeTab);
     } else {
       // Restore last active tab from sessionStorage if available
       let savedTab = sessionStorage.getItem('adminActiveTab');
       if (savedTab === 'mails' || savedTab === 'sms') {
         savedTab = 'mails-sms';
+      }
+      // A tab that MOVED rather than vanished — resolve it to where it went, so an admin who was
+      // last on Cleaners lands on Users → Cleaners instead of on Orders.
+      if (savedTab && AdminComponent.LEGACY_TAB_REDIRECTS[savedTab]) {
+        const target = AdminComponent.LEGACY_TAB_REDIRECTS[savedTab];
+        this.initialUsersTab = target.usersTab;
+        savedTab = target.tab;
       }
       if (
         savedTab === 'promo-codes' ||
@@ -273,6 +329,24 @@ export class AdminComponent implements OnInit {
 
   canOpenTab(tab: string): boolean {
     return !AdminComponent.SUPER_ADMIN_ONLY_TABS.includes(tab) || this.userRole === 'SuperAdmin';
+  }
+
+  /**
+   * A tab name from a link or from storage, resolved to the tab that actually exists today —
+   * or null when it names nothing at all.
+   *
+   * A name that MOVED is followed rather than rejected: the alternative sends somebody who
+   * bookmarked Cleaners to Orders with no explanation. As a side effect it may set
+   * `initialUsersTab`, which is why this is not a pure predicate.
+   */
+  private resolveTab(tab: string): string | null {
+    if (AdminComponent.KNOWN_TABS.includes(tab)) return tab;
+
+    const moved = AdminComponent.LEGACY_TAB_REDIRECTS[tab];
+    if (!moved) return null;
+
+    this.initialUsersTab = moved.usersTab;
+    return moved.tab;
   }
 
   setActiveTab(tab: string) {

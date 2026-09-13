@@ -56,6 +56,10 @@ import {
   QuoteInput
 } from '../../../shared/pricing/order-pricing.calculator';
 import { normalizeTipAmount } from '../../../shared/booking/tip-amount.utils';
+import {
+  buildServiceTimeSlots,
+  getAllServiceTimeSlots
+} from '../../../shared/booking/service-time-slots';
 
 interface SelectedService {
   service: Service;
@@ -109,6 +113,12 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   blockedFullDays: Set<string> = new Set();
   blockedHoursMap: Map<string, Set<string>> = new Map();
   isUserAdmin = false;
+  /**
+   * Admin or SuperAdmin, NOT Moderator — deliberately narrower than `isUserAdmin`, which also
+   * covers Moderators for the blocked-date bypass. This one opens the evening booking window
+   * (to 8:00 PM) and lifts the weekend 9:30 floor, matching the booking page's rule exactly.
+   */
+  hasExtendedBookingHours = false;
 
   // Entry methods
   entryMethods = [
@@ -267,6 +277,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     // Check admin status
     const user = this.authService.currentUserValue;
     this.isUserAdmin = user?.role === 'Admin' || user?.role === 'SuperAdmin' || user?.role === 'Moderator';
+    this.hasExtendedBookingHours = user?.role === 'Admin' || user?.role === 'SuperAdmin';
 
     // Load blocked time slots for non-admin users
     if (!this.isUserAdmin) {
@@ -321,6 +332,8 @@ export class OrderEditComponent implements OnInit, OnDestroy {
           }
         }
       }
+
+      this.ensureServiceTimeIsWithinTheWindow();
     });
 
     // Setup click outside listener for tip dropdown only in browser
@@ -354,6 +367,11 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.orderService.getOrderById(orderId).subscribe({
       next: (order) => {
+        if (order.recurringSeriesId) {
+          this.isLoading = false;
+          this.router.navigate(['/order', orderId]);
+          return;
+        }
         this.order = order;
         this.originalTotal = order.total;
         this.originalDiscountAmount = order.discountAmount;
@@ -1653,16 +1671,70 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     return Array.from(this.blockedHoursMap.keys());
   }
 
+  /**
+   * Customers: 8:00 AM - 6:00 PM, no earlier than 9:30 AM on Sat/Sun. Admin/SuperAdmin:
+   * 8:00 AM - 8:00 PM every day — the same window the booking page gives them, so a job an
+   * admin could book at 7:30 PM can also be moved to 7:30 PM here.
+   *
+   * The time the order ALREADY holds is always offered, whatever the window says: an order
+   * starting at an hour the current rules would not allow (an admin-entered evening job opened
+   * by the customer, a Saturday 8:00 AM booked before the weekend floor applied here) must not
+   * silently lose its own start time from the picker.
+   */
   getAvailableTimeSlots(): string[] {
     const selectedDate = this.orderForm.get('serviceDate')?.value;
     if (!selectedDate) return [];
 
-    // Time slots from 8:00 AM to 6:00 PM (30-minute intervals) for all days
-    return [
-      '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-      '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-      '16:00', '16:30', '17:00', '17:30', '18:00'
-    ];
+    const slots = buildServiceTimeSlots(
+      this.parseServiceDate(selectedDate),
+      this.hasExtendedBookingHours
+    );
+    const currentTime = this.order?.serviceTime?.substring(0, 5);
+    if (currentTime && !slots.includes(currentTime)) {
+      return [...slots, currentTime].sort();
+    }
+    return slots;
+  }
+
+  /**
+   * Move the selected time onto the window the NEW date allows, if it fell outside it.
+   *
+   * Switching a weekday cleaning to a Saturday narrows a customer's earliest start from 8:00 AM
+   * to 9:30 AM; without this the picker stopped OFFERING 8:00 while the form still HELD it, and
+   * the edit went through at an hour the customer may not book. The closest remaining slot is
+   * chosen so an afternoon booking stays an afternoon booking. The order's own start time is
+   * always inside the window (getAvailableTimeSlots keeps it there), so simply loading an order
+   * never moves anything.
+   */
+  private ensureServiceTimeIsWithinTheWindow(): void {
+    const control = this.orderForm.get('serviceTime');
+    const current = control?.value;
+    if (!control || !current) return;
+
+    const slots = this.getAvailableTimeSlots();
+    if (slots.length === 0 || slots.includes(current)) return;
+
+    const toMinutes = (time: string) => {
+      const [hour, minute] = time.split(':').map(Number);
+      return hour * 60 + minute;
+    };
+    const target = toMinutes(current);
+    const closest = slots.reduce((best, slot) =>
+      Math.abs(toMinutes(slot) - target) < Math.abs(toMinutes(best) - target) ? slot : best
+    );
+    control.setValue(closest);
+  }
+
+  /** "YYYY-MM-DD" (or ISO) to a local Date, with no timezone shifting. */
+  private parseServiceDate(dateInput: string | Date | null): Date | null {
+    if (!dateInput) return null;
+    if (dateInput instanceof Date) {
+      return new Date(dateInput.getFullYear(), dateInput.getMonth(), dateInput.getDate());
+    }
+    const dateString = dateInput.includes('T') ? dateInput.split('T')[0] : dateInput;
+    const [year, month, day] = dateString.split('-').map(Number);
+    if (!year || !month || !day) return null;
+    return new Date(year, month - 1, day);
   }
 
   getBlockedHoursForSelectedDate(): string[] {
@@ -1671,11 +1743,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     if (!dateStr) return [];
     const cleanDate = typeof dateStr === 'string' ? dateStr.split('T')[0] : dateStr;
     if (this.blockedFullDays.has(cleanDate)) {
-      return [
-        '08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-        '12:00', '12:30', '13:00', '13:30', '14:00', '14:30', '15:00', '15:30',
-        '16:00', '16:30', '17:00', '17:30', '18:00'
-      ];
+      return getAllServiceTimeSlots(this.hasExtendedBookingHours);
     }
     const blockedHours = this.blockedHoursMap.get(cleanDate);
     return blockedHours ? Array.from(blockedHours) : [];

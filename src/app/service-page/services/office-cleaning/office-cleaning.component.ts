@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy, Inject, inject } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { PhoneNumberService } from '../../../services/phone-number.service';
+import { COMMERCIAL_FIRST_MONTH_DISCOUNT_PERCENT } from '../../../shared/commercial-offer.data';
 
 @Component({
   selector: 'app-office-cleaning',
@@ -11,6 +12,7 @@ import { PhoneNumberService } from '../../../services/phone-number.service';
   styleUrl: './office-cleaning.component.scss'
 })
 export class OfficeCleaningComponent implements OnInit, OnDestroy {
+  readonly firstMonthDiscountPercent = COMMERCIAL_FIRST_MONTH_DISCOUNT_PERCENT;
   protected readonly phoneNumber = inject(PhoneNumberService);
   private schemaElement: HTMLScriptElement | null = null;
 

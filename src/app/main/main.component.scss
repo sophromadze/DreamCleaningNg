@@ -164,13 +164,13 @@
   padding: 1rem 2rem;
   border: none;
   border-radius: var(--radius-pill);
-  background: var(--btn-secondary);
+  background: var(--btn-brand);
   color: #fff;
   font-size: 1rem;
   font-weight: var(--fw-black);
   text-decoration: none;
   cursor: pointer;
-  box-shadow: var(--btn-secondary-shadow);
+  box-shadow: var(--btn-brand-shadow);
   transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 
   svg {
@@ -185,9 +185,9 @@
   }
 
   &:hover {
-    background: var(--btn-secondary-hover);
+    background: var(--btn-brand-hover);
     transform: translateY(-2px);
-    box-shadow: var(--btn-secondary-shadow-hover);
+    box-shadow: var(--btn-brand-shadow-hover);
   }
 
   &:hover .btn-arrow {

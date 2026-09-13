@@ -4,7 +4,7 @@
  * element carries the .reorder-section class so they keep applying. */
 
 .reorder-btn {
-  background: var(--btn-secondary);
+  background: var(--btn-brand);
   color: white;
   padding: 0.45rem 0.9rem;
   border-radius: 58px;
@@ -17,7 +17,7 @@
   justify-content: center;
   gap: 0.5rem;
   transition: all 0.3s ease;
-  box-shadow: var(--btn-secondary-shadow);
+  box-shadow: var(--btn-brand-shadow);
   font-family: 'Poppins', sans-serif;
   min-height: 36px;
 
@@ -26,13 +26,13 @@
   }
 
   &:hover {
-    background: var(--btn-secondary-hover);
+    background: var(--btn-brand-hover);
     transform: translateY(-2px);
-    box-shadow: var(--btn-secondary-shadow-hover);
+    box-shadow: var(--btn-brand-shadow-hover);
   }
 
   &.active {
-    background: var(--btn-secondary-hover);
+    background: var(--btn-brand-hover);
   }
 
   @media (max-width: 768px) {

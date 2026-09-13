@@ -1,6 +1,7 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { getAllServiceTimeSlots } from '../../shared/booking/service-time-slots';
 @Component({
   selector: 'app-time-selector',
   standalone: true,
@@ -9,6 +10,9 @@ import { FormsModule } from '@angular/forms';
   styleUrls: ['./time-selector.component.scss'],
 })
 export class TimeSelectorComponent implements OnInit, OnChanges {
+  /** Only used when the host passes no slots at all — the plain customer weekday window. */
+  private static readonly DEFAULT_TIME_SLOTS = getAllServiceTimeSlots(false);
+
   @Input() value: string = '08:00';
   @Input() availableTimeSlots: string[] = [];
   @Input() blockedHours: string[] = [];  // Hours to show as "Busy" (disabled but visible)
@@ -19,6 +23,17 @@ export class TimeSelectorComponent implements OnInit, OnChanges {
   
   hours: number[] = [];
   minutes: number[] = [0, 30]; // 00 and 30 minutes
+
+  /**
+   * Which half-hours each offered hour actually has, derived from `availableTimeSlots`.
+   *
+   * Every "which minutes may I pick?" question is answered from here rather than from a literal
+   * hour, because the window is no longer one fixed range: a customer stops at 6:00 PM (so 6 PM
+   * offers :00 only), a weekend customer starts at 9:30 AM (so 9 AM offers :30 only), and an
+   * admin runs to 8:00 PM (so 6 PM offers BOTH and 8 PM offers :00 only). Hard-coding hour 18
+   * got two of those three wrong the moment admin hours existed.
+   */
+  private minutesByHour = new Map<number, number[]>();
 
   isHoursDropdownOpen = false;
   isMinutesDropdownOpen = false;
@@ -36,17 +51,25 @@ export class TimeSelectorComponent implements OnInit, OnChanges {
   }
 
   updateAvailableHours() {
-    if (this.availableTimeSlots.length > 0) {
-      // Extract unique hours from available time slots
-      const uniqueHours = [...new Set(this.availableTimeSlots.map(slot => parseInt(slot.split(':')[0])))];
-      this.hours = uniqueHours.sort((a, b) => a - b);
-      
-      // Don't automatically change the selected time to avoid Angular change detection errors
-      // Let the user manually select from available slots
-    } else {
-      // Fallback to default hours if no slots provided
-      this.hours = Array.from({length: 10}, (_, i) => i + 8); // 8 to 17
+    const slots = this.availableTimeSlots.length > 0
+      ? this.availableTimeSlots
+      : TimeSelectorComponent.DEFAULT_TIME_SLOTS;
+
+    const byHour = new Map<number, number[]>();
+    for (const slot of slots) {
+      const [hour, minute] = slot.split(':').map(Number);
+      if (!Number.isFinite(hour) || !Number.isFinite(minute)) continue;
+      const minutes = byHour.get(hour) ?? [];
+      if (!minutes.includes(minute)) minutes.push(minute);
+      byHour.set(hour, minutes);
     }
+    for (const minutes of byHour.values()) minutes.sort((a, b) => a - b);
+
+    this.minutesByHour = byHour;
+    this.hours = [...byHour.keys()].sort((a, b) => a - b);
+
+    // Don't automatically change the selected time to avoid Angular change detection errors —
+    // the hosting page owns that, and picks a valid slot itself.
   }
 
   @HostListener('document:click', ['$event'])
@@ -81,12 +104,14 @@ export class TimeSelectorComponent implements OnInit, OnChanges {
   selectHour(hour: number, event: Event) {
     event.stopPropagation();
     this.selectedHour = hour;
-    
-    // If 6 PM is selected and current minute is 30, reset to 00
-    if (hour === 18 && this.selectedMinute === 30) {
-      this.selectedMinute = 0;
+
+    // Snap the minute onto one this hour actually offers (the last hour of the window has :00
+    // only, the first hour of a weekend has :30 only).
+    const available = this.getAvailableMinutes();
+    if (available.length > 0 && !available.includes(this.selectedMinute)) {
+      this.selectedMinute = available[0];
     }
-    
+
     this.isHoursDropdownOpen = false;
     this.updateValue();
   }
@@ -115,41 +140,17 @@ export class TimeSelectorComponent implements OnInit, OnChanges {
   }
 
   getAvailableMinutes(): number[] {
-    // If 6 PM (18:00) is selected, only allow 00 minutes
-    if (this.selectedHour === 18) {
-      return [0];
-    }
-    
-    // Check if this is the earliest available hour and earliest time has 30 minutes
-    if (this.availableTimeSlots.length > 0) {
-      const earliestTime = this.availableTimeSlots[0];
-      const [earliestHour, earliestMinute] = earliestTime.split(':').map(Number);
-      
-      // If selected hour is the earliest hour and earliest minute is 30, only allow 30
-      if (this.selectedHour === earliestHour && earliestMinute === 30) {
-        return [30];
-      }
-      
-      // If selected hour is the earliest hour and earliest minute is 0, allow both
-      if (this.selectedHour === earliestHour && earliestMinute === 0) {
-        return [0, 30];
-      }
-    }
-    
-    // For all other hours, allow both 00 and 30 minutes
-    return [0, 30];
+    return this.minutesByHour.get(this.selectedHour) ?? this.minutes;
   }
 
   isHourBlocked(hour: number): boolean {
-    // Check if both :00 and :30 for this hour are blocked
+    // An hour is busy only when EVERY half-hour it offers is busy. Which ones it offers varies
+    // by hour (the last hour of the window has :00 only), so ask the map, never assume both.
     const h = hour.toString().padStart(2, '0');
-    const slot00 = `${h}:00`;
-    const slot30 = `${h}:30`;
-    // For hour 18, only :00 exists
-    if (hour === 18) {
-      return this.blockedHours.includes(slot00);
-    }
-    return this.blockedHours.includes(slot00) && this.blockedHours.includes(slot30);
+    const minutes = this.minutesByHour.get(hour) ?? this.minutes;
+    return minutes.every(minute =>
+      this.blockedHours.includes(`${h}:${minute.toString().padStart(2, '0')}`)
+    );
   }
 
   isMinuteBlocked(minute: number): boolean {

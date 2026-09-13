@@ -23,6 +23,28 @@
       Its number stays permanently reserved and is never reused.
     </div>
 
+    <!-- POSSIBLE DUPLICATE PAYMENT. A Stripe settlement AND a manual payment, with more received
+         than was billed — almost always an invoice marked paid by hand while an ACH debit was
+         still settling. Nothing is auto-corrected: both are real money that arrived, and only a
+         person can decide which half to refund. Flagged loudly because the customer notices a
+         duplicate debit long before a month-end reconciliation does. -->
+    <div class="alert alert-danger" *ngIf="inv.potentialDuplicatePayment">
+      <strong>Possible duplicate payment.</strong>
+      This invoice has both a Stripe payment and a manually recorded one, and is overpaid by
+      {{ inv.overpayment | currency:'USD' }}. Review the payment history below and refund whichever
+      is the duplicate — reverse a payment rather than editing or deleting it, so the trail shows
+      both the mistake and the correction.
+    </div>
+
+    <section class="card" *ngIf="inv.cleaningsCovered?.length">
+      <h3>Cleanings Covered</h3>
+      <div *ngFor="let cleaning of inv.cleaningsCovered">
+        <strong>{{ cleaning.serviceDate | date:'MMM d, y' }} · Order #{{ cleaning.orderId }}</strong>
+        <p>{{ cleaning.serviceAddress }}</p>
+        <p>Allocated amount: {{ cleaning.allocatedAmount | currency:'USD' }} · {{ cleaning.orderStatus }}</p>
+      </div>
+    </section>
+
     <!-- Actions. Every button is gated on a server capability flag, not a local status test. -->
     <div class="action-bar">
       <button type="button" class="btn-ghost" *ngIf="inv.canEdit" (click)="edit()">Edit</button>
@@ -92,7 +114,7 @@
             <div><span class="label">Invoice date</span><span>{{ inv.invoiceDate | date:'MMM d, y' }}</span></div>
             <div><span class="label">Due date</span><span>{{ inv.dueDate | date:'MMM d, y' }}</span></div>
             <div *ngIf="servicePeriod">
-              <span class="label">Service period</span><span>{{ servicePeriod }}</span>
+              <span class="label">{{ serviceDateLabel }}</span><span>{{ servicePeriod }}</span>
             </div>
             <div>
               <span class="label">Contract</span>
@@ -143,12 +165,17 @@
             <div class="totals-row" *ngIf="inv.discountAmount > 0">
               <span>Discount</span><span>−{{ inv.discountAmount | currency:'USD' }}</span>
             </div>
+            <!-- THE REAL TAX AMOUNT, ALWAYS. This used to print the bare word "Included" on a
+                 tax-inclusive invoice, which stated the tax nowhere at all — unreconcilable
+                 against a sales-tax return, and it made the subtotal above look wrong too. The
+                 "(included)" note keeps the one thing that wording got right: the figure is
+                 already inside the total, not added to it. -->
             <div class="totals-row">
-              <span>Tax</span>
+              <span>Sales tax<span *ngIf="inv.taxRate"> ({{ inv.taxRate }}%)</span></span>
               <span *ngIf="inv.taxType === InvoiceTaxType.Exempt">Exempt</span>
-              <!-- Stated in words, not as a number: an amount printed beside a total it is already
-                   inside reads as an extra charge. -->
-              <span *ngIf="inv.taxType === InvoiceTaxType.Included">Included</span>
+              <span *ngIf="inv.taxType === InvoiceTaxType.Included">
+                {{ inv.taxAmount | currency:'USD' }} <small class="muted">(included)</small>
+              </span>
               <span *ngIf="inv.taxType === InvoiceTaxType.Added">{{ inv.taxAmount | currency:'USD' }}</span>
             </div>
             <div class="totals-row total"><span>Total</span><span>{{ inv.total | currency:'USD' }}</span></div>
@@ -213,7 +240,7 @@
             <table class="line-table">
               <thead>
                 <tr>
-                  <th>Date</th><th>Method</th><th>Reference</th>
+                  <th>Date</th><th>Method</th><th>Recorded by</th><th>Reference</th>
                   <th class="align-right">Amount</th><th></th>
                 </tr>
               </thead>
@@ -221,8 +248,22 @@
                 <tr *ngFor="let p of inv.payments" [class.reversal]="p.isReversal">
                   <td>{{ p.paymentDate | date:'MMM d, y' }}</td>
                   <td>{{ p.paymentMethodLabel }}</td>
+                  <!-- MANUAL OR STRIPE, SAID PLAINLY. A bank transfer an admin read off a statement
+                       must never look like it came through the processor: only one of the two can
+                       be looked up in Stripe, and reconciliation depends on knowing which. -->
+                  <td class="muted">
+                    {{ p.providerLabel }}<span *ngIf="p.recordedByName"> · {{ p.recordedByName }}</span>
+                  </td>
                   <td class="muted">{{ p.transactionReference || '—' }}</td>
-                  <td class="align-right">{{ p.amount | currency:'USD' }}</td>
+                  <td class="align-right">
+                    {{ p.amount | currency:'USD' }}
+                    <!-- The ACH fee sits BESIDE the amount, never inside it: the invoice was met by
+                         the amount, and the fee is what the payment method cost the customer. -->
+                    <small class="muted block" *ngIf="p.processingFee > 0">
+                      + {{ p.processingFee | currency:'USD' }} ACH fee
+                      ({{ p.totalCharged | currency:'USD' }} debited)
+                    </small>
+                  </td>
                   <td class="align-right">
                     <!-- No edit and no delete: a correction is its own auditable entry. -->
                     <button type="button" class="link-button"
@@ -303,11 +344,30 @@
 
       <!-- Record payment -->
       <ng-container *ngIf="modal === 'payment'">
-        <h3>Record Payment</h3>
+        <h3>{{ markingAsPaid ? 'Mark as Paid' : 'Record Payment' }}</h3>
         <p class="modal-hint">
-          ACH transfers arrive directly in the company bank account. Record it here once you have
-          confirmed it on the statement.
+          Records money that arrived OUTSIDE Stripe — a bank transfer, a cheque, cash. Record it
+          here once you have confirmed it on the statement; the invoice becomes paid because the
+          payment says so, not because a status was set.
         </p>
+
+        <!-- ACH IS ASYNCHRONOUS, and this is the window a double-count happens in. The customer
+             authorized a debit days ago and nothing has settled, so the invoice legitimately still
+             reads unpaid — and an admin tidying it up here is how the same money gets counted
+             twice. Refused until they say they know. -->
+        <div class="alert alert-warning" *ngIf="processingPaymentWarning">
+          <strong>A bank payment is already being processed.</strong>
+          <span *ngIf="processingAttempt">
+            {{ processingAttempt.amount | currency:'USD' }} was authorized on
+            {{ processingAttempt.createdAt | date:'MMM d, y' }} and is still settling.
+          </span>
+          ACH takes several business days, so the money may already be on its way. If it succeeds
+          after you record this, the invoice will be flagged as a possible duplicate payment.
+          <label class="checkbox">
+            <input type="checkbox" [(ngModel)]="payAcknowledgeProcessing">
+            <span>I understand — record a separate payment anyway</span>
+          </label>
+        </div>
 
         <div class="field">
           <label for="payAmount">Amount received *</label>
@@ -351,8 +411,8 @@
         <div class="modal-actions">
           <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
           <button type="button" class="btn-primary" (click)="recordPayment()"
-                  [disabled]="busy || !payAmount || payAmount <= 0 || overpaymentBlocked">
-            {{ busy ? 'Saving…' : 'Record payment' }}
+                  [disabled]="busy || !payAmount || payAmount <= 0 || paymentBlocked">
+            {{ busy ? 'Saving…' : (markingAsPaid ? 'Mark as paid' : 'Record payment') }}
           </button>
         </div>
       </ng-container>

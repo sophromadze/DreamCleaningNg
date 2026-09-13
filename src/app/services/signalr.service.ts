@@ -282,7 +282,9 @@ export class SignalRService {
       SignalRService.globalNewOrderCreated.next({ orderId: data.orderId });
     });
 
-    // Handle new order viewed by another admin
+    // Handle "this admin viewed the order" arriving from one of their OWN other sessions
+    // (second tab, phone). The green is per-admin now, so the server sends this to the
+    // viewer's group alone — it is never another admin telling us to clear ours.
     SignalRService.hubConnection.on('NewOrderViewed', (data: any) => {
       SignalRService.globalNewOrderViewed.next({ orderId: data.orderId });
     });

@@ -1,4 +1,4 @@
-<div class="cc-modal-overlay" *ngIf="open" (click)="close()">
+<div class="cc-modal-overlay" *ngIf="open" [class.as-panel]="panel" (click)="close()">
   <div class="cc-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true"
        aria-labelledby="cc-modal-title">
 
@@ -23,6 +23,14 @@
 
       <div class="cc-error" *ngIf="errorMessage">{{ errorMessage }}</div>
 
+      <!-- A client seeded from a business-flagged account starts with no legal entity name and no
+           entity type on purpose (a company is not its owner), so this is the NORMAL state of a
+           freshly linked client rather than an error. Save stays available either way — it is
+           validation that names the field, never a dead button. -->
+      <p class="cc-hint cc-warn" *ngIf="isEdit && hasBlankRequiredFields">
+        Some required company details are still blank. Fill in the starred fields below to save.
+      </p>
+
       <!-- Said plainly because the opposite is what people assume. -->
       <p class="cc-hint" *ngIf="isEdit && contractCount">
         This client has {{ contractCount }} contract{{ contractCount === 1 ? '' : 's' }}. Those
@@ -35,17 +43,17 @@
         <h4>Company</h4>
 
         <div class="cc-grid">
-          <div class="cc-field wide">
+          <div class="cc-field wide" [class.cc-invalid]="invalidField === 'legalEntityName'">
             <label for="cc-name">Legal entity name <span class="req">*</span></label>
             <input id="cc-name" type="text" [(ngModel)]="form.legalEntityName"
-                   (input)="onFieldInput()" [disabled]="saving"
+                   (ngModelChange)="onLegalEntityNameChange($event)" [disabled]="saving"
                    placeholder="Chick Tastic LLC" autocomplete="off">
           </div>
 
-          <div class="cc-field">
+          <div class="cc-field" [class.cc-invalid]="invalidField === 'entityType'">
             <label for="cc-entity">Entity type <span class="req">*</span></label>
             <input id="cc-entity" type="text" [(ngModel)]="form.entityType"
-                   (input)="onFieldInput()" [disabled]="saving"
+                   (ngModelChange)="onEntityTypeChange()" [disabled]="saving"
                    placeholder="a limited liability company" list="cc-entity-types">
             <datalist id="cc-entity-types">
               <option value="a limited liability company"></option>
@@ -61,26 +69,26 @@
                    (input)="onFieldInput()" [disabled]="saving" placeholder="New York">
           </div>
 
-          <div class="cc-field wide">
+          <div class="cc-field wide" [class.cc-invalid]="invalidField === 'principalAddress'">
             <label for="cc-address">Principal business address <span class="req">*</span></label>
             <input id="cc-address" type="text" [(ngModel)]="form.principalAddress"
                    (input)="onFieldInput()" [disabled]="saving"
                    placeholder="1569 Flatbush Ave." autocomplete="off">
           </div>
 
-          <div class="cc-field">
+          <div class="cc-field" [class.cc-invalid]="invalidField === 'city'">
             <label for="cc-city">City <span class="req">*</span></label>
             <input id="cc-city" type="text" [(ngModel)]="form.city"
                    (input)="onFieldInput()" [disabled]="saving">
           </div>
 
-          <div class="cc-field narrow">
+          <div class="cc-field narrow" [class.cc-invalid]="invalidField === 'state'">
             <label for="cc-state">State <span class="req">*</span></label>
             <input id="cc-state" type="text" [(ngModel)]="form.state"
                    (input)="onFieldInput()" [disabled]="saving">
           </div>
 
-          <div class="cc-field narrow">
+          <div class="cc-field narrow" [class.cc-invalid]="invalidField === 'zip'">
             <label for="cc-zip">ZIP <span class="req">*</span></label>
             <input id="cc-zip" type="text" [(ngModel)]="form.zip"
                    (input)="onFieldInput()" [disabled]="saving">
@@ -93,7 +101,7 @@
         <h4>Billing</h4>
 
         <div class="cc-grid">
-          <div class="cc-field wide">
+          <div class="cc-field wide" [class.cc-invalid]="invalidField === 'noticeEmail'">
             <label for="cc-email">Billing / notice email</label>
             <input id="cc-email" type="email" [(ngModel)]="form.noticeEmail"
                    (input)="onFieldInput()" [disabled]="saving"
@@ -119,13 +127,13 @@
         <h4>Primary billing contact <span class="cc-optional">optional</span></h4>
 
         <div class="cc-grid">
-          <div class="cc-field">
+          <div class="cc-field" [class.cc-invalid]="invalidField === 'contactFirstName'">
             <label for="cc-cfirst">First name</label>
             <input id="cc-cfirst" type="text" [(ngModel)]="form.contactFirstName"
                    (input)="onFieldInput()" [disabled]="saving">
           </div>
 
-          <div class="cc-field">
+          <div class="cc-field" [class.cc-invalid]="invalidField === 'contactLastName'">
             <label for="cc-clast">Last name</label>
             <input id="cc-clast" type="text" [(ngModel)]="form.contactLastName"
                    (input)="onFieldInput()" [disabled]="saving">
@@ -137,7 +145,7 @@
                    (input)="onFieldInput()" [disabled]="saving" placeholder="Owner">
           </div>
 
-          <div class="cc-field">
+          <div class="cc-field" [class.cc-invalid]="invalidField === 'contactEmail'">
             <label for="cc-cemail">Contact email</label>
             <input id="cc-cemail" type="email" [(ngModel)]="form.contactEmail"
                    (input)="onFieldInput()" [disabled]="saving" autocomplete="off">
@@ -185,25 +193,25 @@
             </div>
 
             <ng-container *ngIf="!form.sameAsCompany">
-              <div class="cc-field wide">
+              <div class="cc-field wide" [class.cc-invalid]="invalidField === 'locationAddress'">
                 <label for="cc-locaddr">Address <span class="req">*</span></label>
                 <input id="cc-locaddr" type="text" [(ngModel)]="form.locationAddress"
                        (input)="onFieldInput()" [disabled]="saving" autocomplete="off">
               </div>
 
-              <div class="cc-field">
+              <div class="cc-field" [class.cc-invalid]="invalidField === 'locationCity'">
                 <label for="cc-loccity">City <span class="req">*</span></label>
                 <input id="cc-loccity" type="text" [(ngModel)]="form.locationCity"
                        (input)="onFieldInput()" [disabled]="saving">
               </div>
 
-              <div class="cc-field narrow">
+              <div class="cc-field narrow" [class.cc-invalid]="invalidField === 'locationState'">
                 <label for="cc-locstate">State <span class="req">*</span></label>
                 <input id="cc-locstate" type="text" [(ngModel)]="form.locationState"
                        (input)="onFieldInput()" [disabled]="saving">
               </div>
 
-              <div class="cc-field narrow">
+              <div class="cc-field narrow" [class.cc-invalid]="invalidField === 'locationZip'">
                 <label for="cc-loczip">ZIP <span class="req">*</span></label>
                 <input id="cc-loczip" type="text" [(ngModel)]="form.locationZip"
                        (input)="onFieldInput()" [disabled]="saving">

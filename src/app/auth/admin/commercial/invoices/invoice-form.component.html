@@ -27,6 +27,29 @@
 
   <div class="alert alert-info" *ngIf="prefillWarning">{{ prefillWarning }}</div>
 
+  <!--
+    WARNINGS FROM "CREATE NEXT INVOICE", shown HERE rather than on the page the admin pressed the
+    button on.
+
+    They used to be returned in the create response and rendered as a banner on that page — which
+    worked from the contract detail screen and silently did not from the Contracts LIST, because
+    that navigates straight here. A drift between the contract's current price and the invoice
+    being cloned then reached the client unread. They now live on the draft itself, so they appear
+    whichever route the admin took, and are cleared when the draft is saved or sent.
+
+    NON-BLOCKING, always. Nothing here stops the invoice existing — the admin is reading it, which
+    is the entire point of generating a draft rather than an invoice.
+  -->
+  <div class="alert alert-warning draft-warning"
+       *ngFor="let warning of existing?.draftWarnings">
+    <strong>Review before sending.</strong> {{ warning }}
+    <div *ngIf="driftKind(warning) as kind">
+      <button type="button" class="btn-ghost" (click)="chooseDrift(warning, false)">{{ kind === 'Price' ? 'Keep cloned values' : 'Keep cloned tax' }}</button>
+      <button type="button" class="btn-ghost" (click)="chooseDrift(warning, true)">{{ kind === 'Price' ? 'Use current contract values' : 'Use current contract tax' }}</button>
+      <small>Your choice is recorded when you save this draft.</small>
+    </div>
+  </div>
+
   <div class="loading-note" *ngIf="loading">Loading…</div>
 
   <form *ngIf="!loading" (ngSubmit)="saveDraft()" #form="ngForm">
@@ -159,15 +182,54 @@
         <div class="field">
           <label for="serviceStart">Service period — from</label>
           <input id="serviceStart" type="date" [(ngModel)]="serviceStartDate" name="serviceStartDate"
-                 [disabled]="monetaryLocked">
+                 [disabled]="monetaryLocked || selectedOrderIds.length > 0">
         </div>
         <div class="field">
           <label for="serviceEnd">Service period — to</label>
           <input id="serviceEnd" type="date" [(ngModel)]="serviceEndDate" name="serviceEndDate"
-                 [disabled]="monetaryLocked">
+                 [disabled]="monetaryLocked || selectedOrderIds.length > 0">
         </div>
       </div>
-      <p class="hint">Leave both blank for a one-off job with no stated period.</p>
+      <p class="hint" *ngIf="!selectedOrderIds.length">Leave both blank for a one-off job with no stated period.</p>
+      <p class="hint" *ngIf="selectedOrderIds.length">Service dates and period come from the selected cleanings.</p>
+
+      <!-- ── The individual visits ──────────────────────────────────────────────────────
+           A generated draft arrives with these filled in from the contract's schedule, and this is
+           where the admin reviews them before sending. Listing the dates says strictly more than a
+           range: the client can check "October 7, 14, 21, 28" against their own diary, and cannot
+           check "October 1-31" against anything.
+
+           An empty list is legitimate and falls back to the period above. What is never
+           legitimate is a range no schedule supports, which is why nothing here is auto-filled. -->
+      <div class="service-dates" *ngIf="!selectedOrderIds.length">
+        <label class="service-dates-label">Service dates covered</label>
+
+        <ul class="date-chips" *ngIf="serviceDates.length">
+          <li class="date-chip" *ngFor="let date of serviceDates">
+            {{ date | date:'MMM d, yyyy' }}
+            <button type="button" class="chip-remove" *ngIf="!monetaryLocked"
+                    (click)="removeServiceDate(date)"
+                    [attr.aria-label]="'Remove ' + date">×</button>
+          </li>
+        </ul>
+
+        <div class="date-add" *ngIf="!monetaryLocked">
+          <input type="date" [(ngModel)]="newServiceDate" name="newServiceDate"
+                 aria-label="Add a service date">
+          <button type="button" class="btn-ghost small"
+                  [disabled]="!newServiceDate" (click)="addServiceDate()">Add date</button>
+        </div>
+
+        <p class="hint">
+          Optional. When listed, the invoice names each cleaning instead of stating a range — and
+          the period above follows the first and last of them.
+        </p>
+
+        <p class="warn" *ngIf="needsServiceDates">
+          This invoice is billed against a contract but does not say which cleanings it covers.
+          Add a service date or period before sending it.
+        </p>
+      </div>
 
       <div class="field-row">
         <div class="field">
@@ -182,11 +244,117 @@
       </div>
     </section>
 
+    <!-- ── Which cleanings this invoice covers ──────────────────────────────────────── -->
+    <section class="card" *ngIf="clientId">
+      <h3>Cleanings covered</h3>
+
+      <p class="field-hint">
+        Pick the visits this invoice bills for. Each one becomes its own line, so the client can
+        check the invoice against the cleanings they actually had.
+      </p>
+
+      <p class="loading-note" *ngIf="loadingEligible">Loading this client's cleanings…</p>
+      <div class="alert alert-error" *ngIf="eligibleError">{{ eligibleError }}</div>
+
+      <p class="field-hint" *ngIf="!loadingEligible && eligibleOrders.length === 0">
+        This client has no cleanings to bill. You can still invoice them by adding items by hand
+        below.
+      </p>
+
+      <div class="covered-orders" *ngIf="eligibleOrders.length > 0">
+        <div class="covered-actions" *ngIf="!monetaryLocked">
+          <button type="button" class="btn-ghost" (click)="selectAllEligible()">Select all</button>
+          <button type="button" class="btn-ghost" (click)="clearOrderSelection()"
+                  *ngIf="selectedOrderIds.length">Clear</button>
+        </div>
+
+        <label class="covered-row"
+               *ngFor="let o of eligibleOrders"
+               [class.covered-row--blocked]="!o.canSelect">
+          <input type="checkbox"
+                 [checked]="isOrderSelected(o)"
+                 [disabled]="!o.canSelect || monetaryLocked"
+                 (change)="toggleOrder(o)">
+
+          <span class="covered-date">{{ o.serviceDate | date:'EEE d MMM y' }}</span>
+          <span class="covered-type">{{ o.serviceTypeName }}</span>
+          <span class="covered-total">{{ o.total | currency:'USD' }}</span>
+
+          <!-- An order missing from the picker is the thing an admin cannot debug, so a blocked
+               one is LISTED with the reason instead — "Already included in DCI-2026-…". -->
+          <span class="covered-blocked" *ngIf="o.blockedReason">{{ o.blockedReason }}</span>
+        </label>
+      </div>
+
+      <!-- ── The agreed group total ────────────────────────────────────────────────── -->
+      <div class="negotiated" *ngIf="selectedOrderIds.length > 0">
+        <p class="negotiated-default">
+          {{ selectedOrderIds.length }} cleaning(s) —
+          <strong>{{ selectedOrdersDefaultTotal | currency:'USD' }}</strong> at their current prices.
+        </p>
+
+        <button type="button" class="btn-ghost" *ngIf="!negotiatingTotal && !monetaryLocked"
+                (click)="startNegotiatingTotal()">
+          Set an agreed total for these cleanings
+        </button>
+
+        <div class="negotiated-edit" *ngIf="negotiatingTotal">
+          <label class="field">
+            <span>Agreed total</span>
+            <input type="number" min="0" step="0.01"
+                   [(ngModel)]="negotiatedGroupTotal" name="negotiatedGroupTotal"
+                   [disabled]="monetaryLocked"
+                   (change)="previewAllocation()">
+            <small>
+              What the client pays for the whole group. It is split EQUALLY across the selected
+              cleanings, to the cent — the odd penny goes to the earliest dates.
+            </small>
+          </label>
+
+          <button type="button" class="btn-ghost" (click)="cancelNegotiatedTotal()"
+                  [disabled]="monetaryLocked">
+            Use their normal prices instead
+          </button>
+        </div>
+
+        <!-- What each cleaning will end up costing. A PROPOSAL until the invoice is sent: an
+             abandoned draft re-prices nothing. -->
+        <div class="allocation" *ngIf="allocations.length">
+          <p class="allocation-head">
+            {{ hasCommittedAllocation ? 'Applied to these cleanings' : 'Will be applied when you send this invoice' }}
+          </p>
+          <div class="allocation-row" *ngFor="let a of allocations">
+            <span>{{ a.description }}</span>
+            <span class="allocation-was" *ngIf="a.originalOrderTotal !== a.allocatedAmount">
+              was {{ a.originalOrderTotal | currency:'USD' }}
+            </span>
+            <strong>{{ a.allocatedAmount | currency:'USD' }}</strong>
+          </div>
+        </div>
+
+        <div class="alert alert-info" *ngFor="let w of allocationWarnings">{{ w }}</div>
+
+        <p class="field-hint" *ngIf="!invoiceId">
+          Save the draft to see the exact split — nothing is written to the cleanings until you
+          send the invoice.
+        </p>
+      </div>
+    </section>
+
     <!-- ── Line items ───────────────────────────────────────────────────────────────── -->
     <section class="card">
       <h3>Items</h3>
 
-      <div class="items-table">
+      <!-- Selected cleanings OWN the line items: the server rebuilds one line per visit from the
+           selection, so an edit here would be discarded on the next save. The rows are shown
+           read-only rather than hidden, because "what will the client actually see?" is a fair
+           question at this point. -->
+      <p class="field-hint" *ngIf="selectedOrderIds.length > 0">
+        These lines come from the cleanings selected above. To change them, change the selection
+        or the agreed total.
+      </p>
+
+      <div class="items-table" *ngIf="selectedOrderIds.length === 0">
         <div class="items-head">
           <span>Description</span>
           <span class="align-right">Qty</span>
@@ -208,9 +376,23 @@
         </div>
       </div>
 
-      <button type="button" class="btn-ghost" (click)="addLine()" [disabled]="monetaryLocked">
+      <button type="button" class="btn-ghost" (click)="addLine()"
+              [disabled]="monetaryLocked"
+              *ngIf="selectedOrderIds.length === 0">
         + Add item
       </button>
+
+      <!-- Read-only mirror of what the selection produced. -->
+      <div class="items-table items-table--readonly" *ngIf="selectedOrderIds.length > 0">
+        <div class="items-head">
+          <span>Description</span>
+          <span class="align-right">Amount</span>
+        </div>
+        <div class="items-row items-row--readonly" *ngFor="let line of lines">
+          <span>{{ line.description }}</span>
+          <span class="line-amount">{{ lineAmount(line) | currency:'USD' }}</span>
+        </div>
+      </div>
     </section>
 
     <!-- ── Discount, tax and totals ─────────────────────────────────────────────────── -->
@@ -221,7 +403,8 @@
         <div class="field">
           <label for="discountType">Discount</label>
           <select id="discountType" [(ngModel)]="discountType" name="discountType"
-                  [disabled]="monetaryLocked">
+                  (ngModelChange)="selectedOrderIds.length && previewAllocation()"
+                  [disabled]="monetaryLocked || selectedOrderIds.length > 0">
             <option [ngValue]="InvoiceDiscountType.None">No discount</option>
             <option [ngValue]="InvoiceDiscountType.FixedAmount">Fixed amount ($)</option>
             <option [ngValue]="InvoiceDiscountType.Percentage">Percentage (%)</option>
@@ -233,6 +416,7 @@
             {{ discountType === InvoiceDiscountType.Percentage ? 'Percent off' : 'Amount off' }}
           </label>
           <input id="discountValue" type="number" [(ngModel)]="discountValue" name="discountValue"
+                 (ngModelChange)="selectedOrderIds.length && previewAllocation()"
                  [disabled]="monetaryLocked" min="0" step="0.01">
         </div>
       </div>
@@ -242,37 +426,68 @@
           <label for="taxType">Sales tax</label>
           <!-- Three explicit choices, no default assumed: existing commercial agreements were
                quoted both tax-inclusive and tax-added, and guessing would misstate what is owed. -->
-          <select id="taxType" [(ngModel)]="taxType" name="taxType" [disabled]="monetaryLocked">
+          <select id="taxType" [(ngModel)]="taxType" name="taxType" [disabled]="monetaryLocked" (ngModelChange)="selectedOrderIds.length && previewAllocation()">
             <option [ngValue]="InvoiceTaxType.Exempt">Tax exempt</option>
             <option [ngValue]="InvoiceTaxType.Included">Tax included in the amounts above</option>
             <option [ngValue]="InvoiceTaxType.Added">Tax added on top</option>
           </select>
         </div>
 
+        <!-- PROTECTED, with an Edit control — the same treatment as the contract form. It is the
+             same rate on every commercial document, so confirming it is the common case, and an
+             always-live number invites a stray keystroke on the field that decides what a client
+             is charged. -->
         <div class="field" *ngIf="taxType !== InvoiceTaxType.Exempt">
           <label for="taxRate">Tax rate (%)</label>
-          <input id="taxRate" type="number" [(ngModel)]="taxRate" name="taxRate"
+
+          <div class="locked-field" *ngIf="!taxRateUnlocked">
+            <span class="locked-value">{{ taxRate ?? 0 }}%</span>
+            <button type="button" class="link-btn" *ngIf="!monetaryLocked"
+                    (click)="unlockTaxRate()">Edit</button>
+          </div>
+
+          <input *ngIf="taxRateUnlocked"
+                 id="taxRate" type="number" [(ngModel)]="taxRate" name="taxRate"
+                 (ngModelChange)="selectedOrderIds.length && previewAllocation()"
                  [disabled]="monetaryLocked" min="0" step="0.001" placeholder="8.875">
         </div>
       </div>
 
+      <div class="field" *ngIf="taxRateUnlocked && taxType !== InvoiceTaxType.Exempt">
+        <label class="check">
+          <input type="checkbox" [(ngModel)]="saveTaxRateAsDefault" name="saveTaxRateAsDefault">
+          <span>Save this rate as the default for future invoices and contracts</span>
+        </label>
+        <p class="hint">
+          Changes what new documents are prefilled with. Invoices already finalized and contracts
+          already signed keep the rate they were issued under.
+        </p>
+      </div>
+
       <p class="hint" *ngIf="taxType === InvoiceTaxType.Included">
-        The total stays exactly what the line items add up to; the tax is split back out of it for
-        your records and shown on the invoice as “Included”.
+        The total stays exactly what the line items add up to; the tax is split back out of it by
+        subtraction, so subtotal plus tax equals the total to the cent. The invoice shows the real
+        tax amount, marked as already included.
       </p>
 
       <!-- Totals preview. Recalculated by the server on save — this is what it will arrive at. -->
       <div class="totals">
         <div class="totals-row">
-          <span>Subtotal</span><span>{{ totals.subTotal | currency:'USD' }}</span>
+          <span>Subtotal</span><span>{{ (linkedDraftEditable && selectedOrderIds.length && taxType === InvoiceTaxType.Included ? totals.preTaxTotal : totals.subTotal) | currency:'USD' }}</span>
         </div>
         <div class="totals-row" *ngIf="totals.discountAmount > 0">
           <span>Discount</span><span>−{{ totals.discountAmount | currency:'USD' }}</span>
         </div>
+        <!-- THE TAX IS A DOLLAR AMOUNT, ALWAYS — inclusive as much as added. It used to print the
+             bare word "Included", which stated the tax nowhere at all and made the subtotal beside
+             it look wrong. The "(included)" note keeps the one thing that wording got right:
+             saying plainly that the figure is already inside the total, not added to it. -->
         <div class="totals-row">
-          <span>Tax</span>
+          <span>Sales tax<span *ngIf="taxRate && taxType !== InvoiceTaxType.Exempt"> ({{ taxRate }}%)</span></span>
           <span *ngIf="taxType === InvoiceTaxType.Exempt">Exempt</span>
-          <span *ngIf="taxType === InvoiceTaxType.Included">Included</span>
+          <span *ngIf="taxType === InvoiceTaxType.Included">
+            {{ totals.taxAmount | currency:'USD' }} <small class="muted-inline">(included)</small>
+          </span>
           <span *ngIf="taxType === InvoiceTaxType.Added">{{ totals.taxAmount | currency:'USD' }}</span>
         </div>
         <div class="totals-row total">

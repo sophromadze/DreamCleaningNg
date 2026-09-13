@@ -12,7 +12,9 @@ import {
   ServiceType
 } from '../../../services/booking.service';
 import { extractApiErrorMessage } from '../../../utils/http-error.utils';
-import { PAYMENT_METHOD_OPTIONS, PaymentMethodValue } from '../../payment-method';
+import {
+  PAYMENT_METHOD_OPTIONS, PaymentMethodValue, isOutsideStripe, isSettledOnRecord
+} from '../../payment-method';
 import { DurationUtils } from '../../../utils/duration.utils';
 import {
   LEVEL_OPTIONS,
@@ -150,9 +152,14 @@ export class RecreateOrderModalComponent implements OnChanges {
   zipCode = '';
   tips = 0;
 
+  /** Seeded from the SOURCE order in resetForm — never a hardcoded default. */
   paymentMethod: PaymentMethodValue = 'Cash';
   paymentReference = '';
   paymentNotes = '';
+
+  /** Carried through for an Invoice-method recreation: who the new order is billed to. */
+  contractClientId: number | null = null;
+  contractClientName: string | null = null;
   orderStatus: 'Pending' | 'Active' | 'Done' = 'Done';
   /** True once the admin has touched the status picker — stops the date/method default from
    *  overwriting a deliberate choice on every later keystroke. */
@@ -298,9 +305,23 @@ export class RecreateOrderModalComponent implements OnChanges {
     this.zipCode = p.zipCode || '';
     this.tips = Number(p.tips) || 0;
 
-    this.paymentMethod = 'Cash';
+    // THE SOURCE ORDER'S METHOD, not a hardcoded default.
+    //
+    // This used to be 'Cash' whatever the original order used, so recreating a Stripe booking
+    // silently produced a cash job: marked Active, never charged, counted as settled revenue and
+    // invisible to every unpaid-order sweep. Only the METHOD is copied — the prefill is a
+    // CreateBookingDto and has nowhere for a PaymentIntent, a reference, a paid flag or an
+    // invoice link to travel, so the recreated order is a new financial transaction by
+    // construction.
+    // Read off the PREVIEW, not the prefill `p`: the prefill is a booking request and has no
+    // payment fields at all — which is exactly the property that makes old transaction state
+    // unrepresentable, and is why the method has to travel separately.
+    this.paymentMethod = (this.preview?.sourcePaymentMethod as PaymentMethodValue) || 'Cash';
+    this.contractClientId = this.preview?.sourceContractClientId ?? null;
+    this.contractClientName = this.preview?.sourceContractClientName ?? null;
     this.paymentReference = '';
     this.paymentNotes = '';
+    // Suggestion only, and immediately re-derived by onScheduleChange once a date is picked.
     this.orderStatus = 'Done';
     this.statusTouched = false;
 
@@ -783,15 +804,22 @@ export class RecreateOrderModalComponent implements OnChanges {
    */
   onScheduleChange(): void {
     if (this.statusTouched) return;
-    if (this.paymentMethod === 'Normal') {
-      this.orderStatus = 'Pending';
-    } else {
-      this.orderStatus = this.isBackDated ? 'Done' : 'Active';
-    }
+    // Only a method whose money has ALREADY arrived can start the order Active. Stripe starts
+    // Pending because nothing is paid yet, and so does Invoice — an invoice-billed order is
+    // activated by its invoice being settled in full, never by the method being chosen.
+    this.orderStatus = isSettledOnRecord(this.paymentMethod)
+      ? (this.isBackDated ? 'Done' : 'Active')
+      : 'Pending';
   }
 
   onStatusChange(): void {
     this.statusTouched = true;
+  }
+
+  /** True when the chosen method means the money has already changed hands — see
+   *  shared/payment-method.ts. Drives the reference/notes fields. */
+  get isSettledMethod(): boolean {
+    return isSettledOnRecord(this.paymentMethod);
   }
 
   onTipsChange(): void {
@@ -820,6 +848,9 @@ export class RecreateOrderModalComponent implements OnChanges {
     if (!this.contactPhone.trim()) return 'Contact phone is required.';
     if (!this.serviceAddress.trim()) return 'Service address is required.';
     if (!this.city.trim() || !this.state.trim() || !this.zipCode.trim()) return 'City, state and ZIP are required.';
+    if (this.paymentMethod === 'Invoice' && !this.contractClientId)
+      return 'This order has no commercial client, so it cannot be billed by invoice. '
+           + 'Choose a different payment method.';
     if (this.showPropertyTypeSelector() && !this.propertyType) return 'Choose the property type.';
     if (this.showLevelsSelector() && this.levelsQuantity == null) return 'Choose how many levels need cleaning.';
     if (this.serviceType?.isCustom && !(this.customAmount > 0)) return 'Enter the total amount for this pre-arranged job.';
@@ -839,14 +870,14 @@ export class RecreateOrderModalComponent implements OnChanges {
     this.submitting = true;
 
     const bookingData = this.buildBookingData();
-    const manual = this.paymentMethod !== 'Normal';
+    const outsideStripe = isOutsideStripe(this.paymentMethod);
 
     this.bookingService.createBookingForUser(
       this.preview.customerUserId,
       bookingData,
       this.paymentMethod,
-      manual ? (this.paymentReference || null) : null,
-      manual ? (this.paymentNotes || null) : null,
+      outsideStripe ? (this.paymentReference || null) : null,
+      outsideStripe ? (this.paymentNotes || null) : null,
       {
         // Always EXPLICIT, never omitted: an omitted flag means "send", which is precisely the
         // behaviour this flow exists to opt out of.
@@ -854,7 +885,9 @@ export class RecreateOrderModalComponent implements OnChanges {
         sendCustomerSms: this.notifyBySms && this.canNotifyBySms,
         applyCurrentDiscounts: this.applyCurrentDiscounts,
         initialStatus: this.orderStatus,
-        recreatedFromOrderId: this.preview.sourceOrderId
+        recreatedFromOrderId: this.preview.sourceOrderId,
+        // Only read by the server for the Invoice method; harmless (and null) otherwise.
+        contractClientId: this.contractClientId
       }
     )
       .pipe(finalize(() => { this.submitting = false; }))

@@ -953,13 +953,13 @@
 
       // Green export button, matches the Users tab's Export
       &.export-orders {
-        background: var(--btn-secondary);
+        background: var(--btn-brand);
         color: #fff;
         border: none;
         padding: 0.45rem 0.9rem;
         font-size: 0.8rem;
 
-        &:hover:not(:disabled) { background: var(--btn-secondary-hover); }
+        &:hover:not(:disabled) { background: var(--btn-brand-hover); }
       }
 
       &.view {
@@ -1888,18 +1888,17 @@
     }
   }
   
+  // SECONDARY ONLY — the .btn-primary above is untouched. Two suppressions removed so this Cancel
+  // gets the same polished hover as every other .btn-secondary: the `!important` shadows, which
+  // were a flatter geometry that existed purely to force themselves past the global rule, and the
+  // shared `transition: background-color` up there, which stopped the hover lift easing.
   .btn-secondary {
     background: #6c757d;
     color: white;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+    transition: all 0.3s ease;
 
     &:hover:not(:disabled) {
       background: #545b62;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25) !important;
-    }
-
-    &:active:not(:disabled) {
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
     }
   }
 }
@@ -2416,6 +2415,18 @@
   font-size: 11px;
   font-weight: 600;
   color: #856404;
+}
+
+/* "Auto-assigned from recurring series — not notified". Deliberately louder than the plain
+   "Pending email" beside it: a hand assignment whose mail has not gone out yet is usually about
+   to, whereas nothing at all will contact this cleaner until an admin presses the button. */
+.cleaner-auto-assigned {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--warning-orange-text);
+  background: var(--warning-orange-bg);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
 }
 
 .remove-cleaner-btn {
@@ -3134,8 +3145,10 @@ tr.has-reminder {
 
 .new-order-indicator {
   display: inline-block;
-  width: 10px;
-  height: 10px;
+  // Half the original 10px (owner's call, 2026-09) — the row tint already carries the signal,
+  // so the dot only has to mark WHICH row rather than shout.
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: #2ecc71;
   margin-right: 6px;
@@ -3424,16 +3437,69 @@ $order-header-mobile: 60px;
       gap: 1rem;
       margin-bottom: 1rem;
       flex-wrap: wrap;
-      h4 { margin: 0; }
     }
 
     // Groups the booked-by + assigned-admin pills on the right of the header row.
+    // margin-left:auto rather than space-between: the origin chip beside them is hidden
+    // for an order with no attribution, and without it the pills would slide left.
     .order-header-pills {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
       flex-wrap: wrap;
       flex-shrink: 0;
+      margin-left: auto;
+    }
+
+    // Marketing origin chip. Shaped like the sibling booked-by / assigned-admin pills so the
+    // header row reads as one strip of provenance facts rather than a stray line of text; the
+    // full source / medium / campaign detail stays in the element's title tooltip.
+    .order-origin {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      min-width: 0;
+      padding: 0.35rem 0.7rem;
+      border: 1px solid var(--border-color, #e2e8f0);
+      border-radius: var(--radius-pill, 9999px);
+      background: var(--surface-subtle, #f1f5f9);
+      font-size: 0.78rem;
+      line-height: 1.2;
+      cursor: help;
+
+      .origin-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--primary-color, #2563eb);
+        flex-shrink: 0;
+      }
+
+      .origin-label {
+        font-size: 0.62rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-muted, #64748b);
+      }
+
+      .origin-first {
+        font-weight: 600;
+        color: var(--text-primary, #1e293b);
+      }
+
+      .origin-arrow {
+        color: var(--text-muted, #64748b);
+      }
+
+      // Converting channel differs from first touch (repeat visitor) - operational-orange accent.
+      .origin-converted {
+        padding: 0.05rem 0.4rem;
+        border-radius: var(--radius-pill, 9999px);
+        background: var(--warning-orange-bg);
+        color: var(--warning-orange-text);
+        font-weight: 600;
+      }
     }
 
     .details-grid,
@@ -3931,6 +3997,26 @@ $order-header-mobile: 60px;
           border-color: var(--border-color, #e2e8f0);
           &:hover:not(:disabled) { background: var(--surface-subtle, #f1f5f9); }
         }
+        // A commercially billed cleaning is invoiced, not payment-linked. Same weight as Send
+
+        // Payment Link because it occupies the same slot and answers the same question — "how does
+
+        // this customer get asked for the money?" — just for the other kind of customer.
+
+        &.send-invoice {
+          background: var(--btn-quote);
+          color: #fff;
+          border-color: var(--btn-quote);
+          &:hover:not(:disabled) {
+            background: var(--btn-quote-hover);
+            border-color: var(--btn-quote-hover);
+            box-shadow: var(--btn-quote-shadow-hover);
+          }
+          &:disabled { background: var(--text-muted); border-color: var(--text-muted); }
+
+        }
+
+
         &.send-payment-link {
           background: var(--btn-quote);
           color: #fff;
@@ -3958,11 +4044,11 @@ $order-header-mobile: 60px;
 
         // Explicit saved-card charge — green (money-in secondary CTA family).
         &.charge-saved-card {
-          background: var(--btn-secondary);
+          background: var(--btn-brand);
           color: #fff;
           border-color: transparent;
           &:hover:not(:disabled) {
-            background: var(--btn-secondary-hover);
+            background: var(--btn-brand-hover);
           }
           &:disabled { background: var(--text-muted); }
         }
@@ -5495,4 +5581,87 @@ tr.row-hidden-order {
 
   &::placeholder { color: var(--text-muted); }
   &:focus { outline: none; border-color: var(--primary-color); }
+}
+
+/* ── Send Invoice modal ───────────────────────────────────────────────────────────────────────
+   Reuses .send-payment-link-modal's note/warning treatment (the two modals answer the same
+   question for the two kinds of customer, so they must not look like different features) and
+   adds the per-invoice rows this one lists. */
+.send-invoice-modal {
+  .send-payment-link-note {
+    margin: 0 0 1rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+  }
+
+  .send-payment-link-note.warn {
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--warning-orange-border);
+    border-radius: var(--radius-md);
+    background: var(--warning-orange-bg);
+    color: var(--warning-orange-text);
+  }
+
+  .order-invoice-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .order-invoice-row {
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+  }
+
+  .order-invoice-main {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .order-invoice-number {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.9rem;
+    font-weight: var(--weight-semibold, 600);
+    color: var(--primary-color);
+    text-decoration: none;
+
+    &:hover { text-decoration: underline; }
+  }
+
+  .order-invoice-meta {
+    margin-top: 0.3rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  /* The draft-allocation note. Muted on purpose: it explains what sending will do, and an admin
+     who has not read it is not about to be harmed by it — nothing has changed yet. */
+  .order-invoice-hint {
+    margin: 0.45rem 0 0;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+  }
+
+  .order-invoice-actions {
+    margin-top: 0.6rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+
+  .order-invoice-sent {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
 }

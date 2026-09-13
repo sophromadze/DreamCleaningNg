@@ -1,0 +1,60 @@
+// ─── Admin section tab navigation ──────────────────────────────────────────────────────────
+//
+// THE ONE DEFINITION of the text-tab strip the admin areas use: text labels, a bottom divider
+// across the whole row, a blue underline on the active tab, and a muted → primary hover.
+//
+// It was extracted from the Commercial shell (2026-09), which is the visual reference the owner
+// picked, so that the main Admin panel could adopt the same look without a second copy of the
+// CSS. Both callers `@use` this file with a RELATIVE path — the way `_bubbles-background.scss`
+// is already used — because `stylePreprocessorOptions.includePaths` is configured on the build
+// target only, and a bare `@use 'admin-tab-nav'` would then fail under `ng test`.
+//
+// WHAT IT DELIBERATELY DOES NOT DO: touch cards, tables, buttons or anything else. Making the two
+// navigations consistent was the whole request; this mixin has no reach beyond the tab strip.
+//
+// Usage:
+//   @use '../../styles/admin-tab-nav' as *;
+//   .admin-tabs { @include admin-tab-nav; }
+//
+// The `$item` argument names the child selector holding each tab, because the two callers differ:
+// Commercial uses `<a routerLink>` (real navigation, real URLs) and the Admin panel uses
+// `<button>` (an in-page switch that persists to sessionStorage). Both are correct for what they
+// do, so the mixin adapts rather than forcing one of them to change element.
+
+@mixin admin-tab-nav($item: '.tab-btn') {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 18px;
+
+  #{$item} {
+    border: none;
+    background: transparent;
+    padding: 10px 16px;
+    cursor: pointer;
+    font-size: 0.92rem;
+    font-weight: var(--fw-medium);
+    color: var(--text-secondary);
+    text-decoration: none;
+    white-space: nowrap;
+
+    // The underline is the ACTIVE marker, so every tab reserves the same 2px and the row does
+    // not jump by two pixels when the selection moves. The negative margin pulls it over the
+    // container's own divider so the two read as one line rather than a double rule.
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+
+    &:hover { color: var(--text-primary); }
+
+    &.active {
+      color: var(--active-nav-link);
+      border-bottom-color: var(--primary-color);
+    }
+  }
+
+  // Both tokens above are theme-aware, so day/night follows the toggle with no override here —
+  // which is the main thing the Admin panel's previous bordered-box tabs got wrong: they carried
+  // hardcoded #e0e0e0 / #666 / #007bff and needed a whole second block under
+  // [data-theme="dark"] to look right.
+}

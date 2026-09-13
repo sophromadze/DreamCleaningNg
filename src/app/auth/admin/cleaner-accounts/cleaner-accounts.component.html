@@ -102,10 +102,22 @@
           </thead>
           <tbody>
             <ng-container *ngFor="let account of pagedAccounts; trackBy: trackByUserId">
+              <!--
+                Clicking the ROW opens the cleaner record, the same way a Customers row opens its
+                detail panel. The action buttons stop the click (see .col-actions below), so
+                linking, unlinking and demoting stay one click each rather than also opening a
+                panel nobody asked for.
+
+                An UNLINKED account has no record to open. The click is a no-op and the row drops
+                the pointer cursor, so it does not offer something it cannot do - which is exactly
+                what its "Not linked" chip is reporting.
+              -->
               <tr class="user-row"
-                  [class.row-selected]="linkingUserId === account.userId"
+                  [class.ca-row-clickable]="!!account.cleanerId"
+                  [class.row-selected]="linkingUserId === account.userId || (!!account.cleanerId && recordCleanerId === account.cleanerId)"
                   [class.row-blocked]="!account.isActive"
-                  [class.row-flagged-yellow]="account.isActive && !account.cleanerId">
+                  [class.row-flagged-yellow]="account.isActive && !account.cleanerId"
+                  (click)="openCleanerRecord(account)">
 
                 <!-- Account (avatar + name + chips) -->
                 <td class="col-name">
@@ -175,7 +187,12 @@
                   <span *ngIf="!account.assignedOrdersCount" class="muted">—</span>
                 </td>
 
-                <td class="col-actions" *ngIf="canUpdate">
+                <!--
+                  These are ACCOUNT actions - link, unlink, demote. Editing the PERSON is the Edit
+                  button inside the detail panel, where the record being edited is on screen.
+                  stopPropagation keeps them from also opening that panel.
+                -->
+                <td class="col-actions" *ngIf="canUpdate" (click)="$event.stopPropagation()">
                   <div class="row-actions">
                     <button class="icon-btn note"
                             (click)="startLinking(account)"
@@ -292,3 +309,38 @@
     </div>
   </div>
 </div>
+
+<!--
+  THE CLEANER RECORD, over the table.
+
+  `<app-cleaners-dashboard [embedded]="true">` is the Cleaners Dashboard itself with its header,
+  tabs, filters and card list dropped - so the detail panel and the edit form an admin sees here
+  are not "the same as" the dashboard's, they ARE the dashboard's. Anything added to that page
+  shows up here with no second edit.
+
+  Rebuilt on every open (*ngIf on the id) so the panel can never show the cleaner before last, and
+  destroyed on close so its half-filled form does not survive into the next one.
+
+  No transform on the panel: the dashboard's edit form is a position:fixed overlay, and a
+  transformed ancestor becomes its containing block - which would trap a 760px modal inside a
+  720px drawer. The slide-in animates `right` instead.
+-->
+<div class="ca-record-backdrop" *ngIf="recordCleanerId" (click)="closeCleanerRecord()"></div>
+
+<!--
+  No header of our own: the panel brings the dashboard's, which carries the cleaner's name, photo,
+  ranking, phone, document AND its Edit / Delete / close buttons. A second title bar above it would
+  print the name twice and offer a second close.
+-->
+<aside class="ca-record-panel"
+       *ngIf="recordCleanerId"
+       role="dialog"
+       aria-modal="true"
+       [attr.aria-label]="recordCleanerName + ' — cleaner record'">
+  <div class="ca-record-body">
+    <app-cleaners-dashboard [embedded]="true"
+                            [focusCleanerId]="recordCleanerId"
+                            (closed)="closeCleanerRecord()"
+                            (changed)="onCleanerRecordChanged()"></app-cleaners-dashboard>
+  </div>
+</aside>

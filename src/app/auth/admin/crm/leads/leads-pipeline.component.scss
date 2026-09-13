@@ -463,12 +463,12 @@
   padding: 8px 16px;
   border: none;
   border-radius: var(--radius-sm);
-  background: var(--btn-secondary);
+  background: var(--btn-brand);
   color: #fff;
   font-weight: var(--fw-semibold);
   cursor: pointer;
-  box-shadow: var(--btn-secondary-shadow);
-  &:hover { background: var(--btn-secondary-hover); }
+  box-shadow: var(--btn-brand-shadow);
+  &:hover { background: var(--btn-brand-hover); }
   &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 

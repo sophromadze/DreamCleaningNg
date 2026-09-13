@@ -205,16 +205,16 @@
   }
 }
 
-.btn-secondary {
+.btn-brand {
   padding: 9px 16px;
   border: none;
   border-radius: var(--radius-sm);
-  background: var(--btn-secondary);
+  background: var(--btn-brand);
   color: #fff;
   font-weight: var(--fw-semibold);
   cursor: pointer;
 
-  &:hover:not(:disabled) { background: var(--btn-secondary-hover); }
+  &:hover:not(:disabled) { background: var(--btn-brand-hover); }
   &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 

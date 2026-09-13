@@ -133,8 +133,8 @@ describe('audit field display', () => {
       expect(formatAuditValue('Deep Clean 2', 'CustomServiceDisplayName')).toBe('Deep Clean 2');
     });
 
-    it('renders an empty string as (empty) rather than as nothing at all', () => {
-      expect(formatAuditValue('', 'CancellationReason')).toBe('(empty)');
+    it('renders an empty string like an unset value', () => {
+      expect(formatAuditValue('', 'CancellationReason')).toBe('None');
     });
   });
 
@@ -162,10 +162,10 @@ describe('audit field display', () => {
       expect(getAuditEntityLabel('SomeFutureThing')).toBe('Some Future Thing');
     });
 
-    it('leaves the classic action labels alone', () => {
-      expect(getAuditActionLabel('Create')).toBe('Create');
-      expect(getAuditActionLabel('Update')).toBe('Update');
-      expect(getAuditActionLabel('Delete')).toBe('Delete');
+    it('uses readable past-tense labels without changing action identifiers', () => {
+      expect(getAuditActionLabel('Create')).toBe('Created');
+      expect(getAuditActionLabel('Update')).toBe('Updated');
+      expect(getAuditActionLabel('Delete')).toBe('Deleted');
     });
 
     it('humanizes a coined action verb', () => {

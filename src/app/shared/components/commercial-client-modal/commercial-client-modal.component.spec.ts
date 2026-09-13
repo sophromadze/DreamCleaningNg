@@ -71,6 +71,36 @@ describe('CommercialClientModalComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  /**
+   * TWO FRAMES, ONE FORM (2026-09). Commercial → Clients and Admin → Users → Business Clients edit
+   * a row out of a table, so the form opens as a right-side panel like every other detail/edit
+   * panel in the admin area. The Create Invoice form keeps the centred modal: there a client is
+   * created mid-invoice, over a form the admin is halfway through, which is what a modal is for.
+   *
+   * What must stay true is that only the FRAME changes - the same markup, ids, validation and
+   * submit path serve both, or the two surfaces start to drift.
+   */
+  describe('panel vs modal', () => {
+    const overlay = () => fixture.nativeElement.querySelector('.cc-modal-overlay') as HTMLElement;
+
+    it('is a centred modal by default', () => {
+      expect(component.panel).toBeFalse();
+      expect(overlay().classList).not.toContain('as-panel');
+    });
+
+    it('becomes a right-side panel when the host asks, with the same form inside', () => {
+      fixture.componentRef.setInput('panel', true);
+      fixture.detectChanges();
+
+      expect(overlay().classList).toContain('as-panel');
+
+      // Same boxes, same ids - the frame moved, the form did not.
+      const el: HTMLElement = fixture.nativeElement;
+      expect(el.querySelector('#cc-name')).not.toBeNull();
+      expect(el.querySelector('.cc-modal-foot .cc-btn.primary')).not.toBeNull();
+    });
+  });
+
   describe('a client is created without a contract', () => {
     it('posts to the client directory and never to the contract endpoint', () => {
       fillCompany();
@@ -198,15 +228,43 @@ describe('CommercialClientModalComponent', () => {
   });
 
   describe('validation', () => {
-    it('refuses to submit without a legal entity name', () => {
+    it('refuses to submit without a legal entity name, and SAYS SO', () => {
       component.form.principalAddress = '1569 Flatbush Ave.';
       component.form.city = 'Brooklyn';
       component.form.zip = '11210';
 
-      expect(component.canSubmit).toBeFalse();
+      // The button stays live: a blank required field is reported, never silently enforced by a
+      // dead button. A client seeded from a business account arrives with several of these.
+      expect(component.canSubmit).toBeTrue();
       component.submit();
 
       expect(component.errorMessage).toContain('legal entity name');
+      expect(component.invalidField).toBe('legalEntityName');
+      httpMock.expectNone(CREATE_URL);
+    });
+
+    it('names the FIRST missing field, in the order the form reads', () => {
+      component.form.legalEntityName = 'Chick Tastic LLC';
+      component.form.entityType = 'a limited liability company';
+      component.form.principalAddress = '1569 Flatbush Ave.';
+      component.form.city = '';
+      component.form.zip = '';
+
+      component.submit();
+
+      expect(component.invalidField).toBe('city');
+      expect(component.errorMessage).toContain('city');
+      httpMock.expectNone(CREATE_URL);
+    });
+
+    it('clears the marker as soon as the admin types', () => {
+      component.submit();
+      expect(component.invalidField).toBe('legalEntityName');
+
+      component.onFieldInput();
+
+      expect(component.invalidField).toBeNull();
+      expect(component.errorMessage).toBe('');
       httpMock.expectNone(CREATE_URL);
     });
 
@@ -217,6 +275,7 @@ describe('CommercialClientModalComponent', () => {
       component.submit();
 
       expect(component.errorMessage).toContain('@');
+      expect(component.invalidField).toBe('noticeEmail');
       httpMock.expectNone(CREATE_URL);
     });
 
@@ -348,6 +407,39 @@ describe('CommercialClientModalComponent', () => {
 
       expect(saved).toEqual([91]);
       expect(createdIds).toEqual([]);
+    });
+
+    /**
+     * THE BUG: a client auto-created from a business-flagged account is seeded with an empty legal
+     * entity name and entity type on purpose (a company is not its owner), so the old completeness
+     * gate left "Save changes" permanently greyed out on exactly those clients, with nothing on
+     * screen saying which field was at fault.
+     */
+    it('stays saveable when the linked client arrives with blank company details', () => {
+      fixture.componentRef.setInput('open', false);
+      fixture.detectChanges();
+      fixture.componentRef.setInput('client', {
+        ...EXISTING, legalEntityName: '', entityType: '', principalAddress: '', city: '', zip: ''
+      } as any);
+      fixture.componentRef.setInput('open', true);
+      fixture.detectChanges();
+
+      expect(component.canSubmit).toBeTrue();
+      expect(component.hasBlankRequiredFields).toBeTrue();
+
+      component.submit();
+      expect(component.invalidField).toBe('legalEntityName');
+      httpMock.expectNone(CREATE_URL + '/91');
+
+      component.form.legalEntityName = 'Chick Tastic LLC';
+      component.form.entityType = 'a limited liability company';
+      component.form.principalAddress = '1569 Flatbush Ave.';
+      component.form.city = 'Brooklyn';
+      component.form.zip = '11210';
+      component.submit();
+
+      httpMock.expectOne(CREATE_URL + '/91').flush(created(91));
+      expect(component.hasBlankRequiredFields).toBeFalse();
     });
 
     it('starts clean again when reopened for a new client', () => {

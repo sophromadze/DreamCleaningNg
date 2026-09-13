@@ -1,0 +1,146 @@
+// The list page reuses the client-facing contract chrome (cards, headings, status pills) from
+// contract-review.component.scss, which this component lists FIRST in its styleUrls — the same
+// pattern My Contracts uses. Only the list itself is defined here.
+
+.awaiting-banner {
+  margin-top: 0.85rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--soft-yellow);
+  color: var(--soft-yellow-text);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.invoice-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.invoice-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:hover, &:focus-visible {
+    background: var(--soft-blue);
+    border-color: var(--primary-color);
+    outline: none;
+  }
+
+  @media (max-width: 720px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.55rem;
+  }
+}
+
+.row-main {
+  flex: 1.4;
+  min-width: 0;
+}
+
+.row-number {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.row-location,
+.row-contract {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row-dates {
+  flex: 1.2;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.row-date {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+
+  // The due date is the one a customer scans for on an unpaid invoice.
+  &.due-soon {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+}
+
+.row-amounts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+
+  @media (max-width: 720px) { align-items: flex-start; }
+}
+
+.row-total {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.row-balance {
+  font-size: 0.8rem;
+  color: var(--bright-red);
+  font-weight: 600;
+
+  &.settled {
+    color: var(--fresh-green);
+  }
+}
+
+.row-action {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+// Status pill. "Processing" outranks the stored status — an ACH debit takes days to settle, and
+// the customer has paid as far as they are concerned.
+.row-status {
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: var(--soft-blue);
+  color: var(--primary-color);
+
+  &.paid       { background: var(--mint-fresh); color: var(--fresh-green); }
+  &.overdue    { background: var(--soft-red); color: var(--bright-red); }
+  &.partial    { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+  &.processing { background: var(--warning-orange-bg); color: var(--warning-orange-text); }
+  &.void       { background: var(--surface-subtle); color: var(--text-muted); }
+}
+
+.chevron {
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.list-footnote {
+  margin-top: 1rem;
+  font-size: 0.8rem;
+}

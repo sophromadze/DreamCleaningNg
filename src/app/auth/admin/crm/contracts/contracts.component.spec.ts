@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 
 import { ContractsComponent } from './contracts.component';
 import { ContractFormComponent } from './contract-form.component';
@@ -106,6 +106,84 @@ describe('ContractsComponent', () => {
     expect(component.preloadedDetail?.id).toBe(7);
   });
 
+  // ── Create next invoice, from the list ───────────────────────────────────
+  //
+  // It used to live only in one contract's detail action bar, among up to ten buttons. Billing a
+  // contract is the routine thing an admin does with this list, so it is a per-row action.
+
+  // ELIGIBILITY IS THE SERVER'S ANSWER (2026-09). It used to be re-derived here as "not hidden
+  // and past Draft", which let an awaiting-signature, partially-signed, needs-revision, voided or
+  // expired contract through — and invoicing any of those bills a client for terms they have not
+  // accepted. The rule now lives in ContractInvoiceEligibility, the endpoint enforces it, and the
+  // row carries the verdict; these tests assert the component READS it rather than second-guessing.
+
+  it('offers Create next invoice when the server says the contract is billable', () => {
+    // The FIRST invoice on a signed agreement is exactly the case this is wanted for. Having no
+    // previous invoice must never hide the action — the generator falls back to the contract's own
+    // pricing when there is nothing to model on, and the server flag is a pure function of status,
+    // so it cannot see invoice history in the first place.
+    expect(component.canCreateNextInvoice(
+      { id: 1, status: ContractStatus.Completed, isHidden: false,
+        canCreateNextInvoice: true } as any)).toBeTrue();
+  });
+
+  it('withholds it whenever the server says so, whatever the status looks like', () => {
+    expect(component.canCreateNextInvoice(
+      { id: 2, status: ContractStatus.Draft, isHidden: false,
+        canCreateNextInvoice: false } as any)).toBeFalse();
+
+    // Deleted, even though it is Completed.
+    expect(component.canCreateNextInvoice(
+      { id: 3, status: ContractStatus.Completed, isHidden: true,
+        canCreateNextInvoice: false } as any)).toBeFalse();
+
+    // The case the old local rule got WRONG: partially signed is not an executed agreement.
+    expect(component.canCreateNextInvoice(
+      { id: 4, status: ContractStatus.PartiallySigned, isHidden: false,
+        canCreateNextInvoice: false } as any)).toBeFalse();
+  });
+
+  it('renders the button in the row, not only inside the detail view', () => {
+    fixture.detectChanges();
+    flushPermissions();
+    flushList([{
+      id: 9, contractNumber: 'DCC-2026-48392175', clientLegalName: 'Chick Tastic LLC',
+      serviceLocationLabel: '1569 Flatbush Ave', status: ContractStatus.Completed,
+      statusLabel: 'Completed', currentVersionNumber: 1, createdAt: '2026-09-01T00:00:00Z',
+      updatedAt: '2026-09-01T00:00:00Z', totalPrice: 925.43,
+      signedCount: 2, signerCount: 2, isHidden: false,
+      // The server's verdict — the row renders the button from this, not from its status.
+      canCreateNextInvoice: true
+    }]);
+    fixture.detectChanges();
+
+    const button: HTMLButtonElement | null =
+      fixture.nativeElement.querySelector('.btn-row-action');
+    expect(button).withContext('the list row carries its own billing action').not.toBeNull();
+    expect(button!.textContent).toContain('Create next invoice');
+  });
+
+  it('creates a DRAFT and lands on its edit form, emailing nobody', () => {
+    fixture.detectChanges();
+    flushPermissions();
+    flushList();
+
+    const router = TestBed.inject(Router);
+    const navigate = spyOn(router, 'navigate');
+
+    component.createNextInvoice(
+      { id: 9, status: ContractStatus.Completed, isHidden: false } as any);
+
+    const request = http.expectOne(r => r.url.endsWith('/from-contract/9'));
+    expect(request.request.body).toEqual({ allowDuplicatePeriod: false });
+    request.flush({ invoice: { id: 55, invoiceNumber: 'DCI-2026-10713354' }, warnings: [] });
+
+    // The EDIT form, not the read-only detail: reviewing the generated dates and figures before
+    // anything is sent is the entire reason the draft exists.
+    expect(navigate).toHaveBeenCalledWith(['/admin/commercial/invoices', 55, 'edit']);
+    expect(component.billingContractId).toBeNull();
+  });
+
   it('clears the preloaded detail when returning to the list', () => {
     fixture.detectChanges();
     flushPermissions();
@@ -165,6 +243,14 @@ describe('ContractFormComponent', () => {
       email: 'natalie@example.com', phone: '7325471819',
       address: '1569 Flatbush Ave.', city: 'Brooklyn', state: 'NY', zip: '11210'
     }]);
+
+    // The ONE saved source of commercial billing defaults, shared with the invoice form. Flushed
+    // with exactly what the form already defaults to, so it does not trigger a second pricing
+    // preview — see applyBillingDefaults, which only re-asks when something actually moved.
+    http.expectOne(r => r.url.endsWith('/billing-settings/defaults')).flush({
+      defaultTaxType: 1, defaultTaxRate: 8.875, defaultContractPriceMode: 0, defaultDueTerms: 2,
+      achCustomerFeeEnabled: true, achCustomerFeeRatePercent: 0.8, achCustomerFeeCapAmount: 5
+    });
   }
 
   /** The form asks the server to echo the derived figures as soon as it has its defaults. */
@@ -187,6 +273,36 @@ describe('ContractFormComponent', () => {
     expect(component.model.scope.groups.length).toBe(1);
   });
 
+  /**
+   * THE DEFAULT-FLAGGED TEMPLATE WINS, NOT THE FIRST ROW.
+   *
+   * The master agreement is versioned by ADDING a row rather than editing one, so the list can
+   * legitimately contain v1.0 and v1.1 at once and "first" is the OLDEST. Taking templates[0] meant
+   * every new contract silently kept rendering superseded language — caught in the deployment smoke
+   * test, where a freshly generated contract came out with the v1.0 body despite v1.1 being seeded
+   * and flagged default.
+   */
+  it('preselects the DEFAULT contract template, not whichever arrives first', () => {
+    fixture.detectChanges();
+
+    http.expectOne(r => r.url.endsWith('/contract-templates')).flush([
+      { id: 1, name: 'MSA', version: '1.0', isActive: true, isDefault: false },
+      { id: 2, name: 'MSA', version: '1.1', isActive: true, isDefault: true }
+    ]);
+    http.expectOne(r => r.url.endsWith('/scope-templates')).flush([]);
+    http.expectOne(r => r.url.endsWith('/contractor-profiles')).flush([]);
+    http.expectOne(r => r.url.endsWith('/clients')).flush([]);
+    http.expectOne(r => r.url.includes('/contacts')).flush([]);
+    http.expectOne(r => r.url.includes('/business-customers')).flush([]);
+    http.expectOne(r => r.url.endsWith('/billing-settings/defaults')).flush({
+      defaultTaxType: 1, defaultTaxRate: 8.875, defaultContractPriceMode: 0, defaultDueTerms: 2,
+      achCustomerFeeEnabled: true, achCustomerFeeRatePercent: 0.8, achCustomerFeeCapAmount: 5
+    });
+    flushPricingPreview();
+
+    expect(component.model.contractTemplateId).toBe(2);
+  });
+
   it('copies the scope template rather than sharing it, so toggling never edits the template', () => {
     fixture.detectChanges();
     flushReferenceData();
@@ -205,7 +321,10 @@ describe('ContractFormComponent', () => {
     const request = http.expectOne(r => r.url.endsWith('/pricing-preview'));
     expect(request.request.method).toBe('POST');
     // Only the admin's own inputs are sent; nothing derived is posted back.
-    expect(request.request.body.priceMode).toBe(ContractPriceMode.PreTax);
+    // Tax-inclusive by default since 2026-09: the amount a commercial client agrees to is the
+    // amount they pay, and quoting pre-tax then adding 8.875% at invoice time is not what was
+    // discussed.
+    expect(request.request.body.priceMode).toBe(ContractPriceMode.TaxInclusive);
     expect(request.request.body.salesTaxRatePercent).toBe(8.875);
 
     request.flush({
@@ -227,8 +346,19 @@ describe('ContractFormComponent', () => {
     expect(component.model.advanced.confidentialityYears).toBe(2);
     expect(component.model.advanced.nonSolicitMonths).toBe(12);
     expect(component.model.advanced.liabilityCapLookbackMonths).toBe(3);
-    expect(component.model.term.initialTermMonths).toBe(12);
     expect(component.model.pricing.cancellationPercent).toBe(50);
+
+    // TERM DEFAULTS (2026-09): committed for six months, then month-to-month on sixty days
+    // notice. New drafts only — every generated version freezes its own copy, so changing these
+    // can never move a contract that already exists.
+    expect(component.model.term.initialTermMonths).toBe(6);
+    expect(component.model.term.minimumCommitmentMonths).toBe(6);
+    expect(component.model.term.terminationNoticeDays).toBe(60);
+    expect(component.model.term.renewalType).toBe('month-to-month');
+
+    // The $35 failed-payment fee is RETIRED and has no field on the form. At zero the clause is
+    // dropped from the generated agreement rather than printed as "$0.00".
+    expect(component.model.pricing.returnedPaymentFee).toBe(0);
   });
 
   it('pre-fills the client and signer from a linked customer account', () => {

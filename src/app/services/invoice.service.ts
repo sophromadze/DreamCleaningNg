@@ -68,7 +68,134 @@ export interface SaveInvoiceItem {
   sortOrder: number;
 }
 
+// ── The cleanings an invoice covers (mirrors DTOs/Commercial/InvoiceOrderDtos.cs) ───────────
+
+/** One cleaning offered on the "which visits does this invoice cover?" picker. */
+export interface InvoiceEligibleOrder {
+  orderId: number;
+  serviceDate: string;
+  serviceTime: string;
+  serviceTypeName: string;
+  serviceAddress: string;
+  status: string;
+  total: number;
+  contactName: string;
+  isOnThisInvoice: boolean;
+  allocatedAmount?: number | null;
+  /** "Already included in DCI-2026-…" — a live invoice already claiming this cleaning. */
+  billedOnInvoiceNumber?: string | null;
+  billedOnInvoiceId?: number | null;
+  canSelect: boolean;
+  /** Why it cannot be picked. Rendered beside the row rather than hiding it. */
+  blockedReason?: string | null;
+}
+
+export interface InvoiceEligibleOrders {
+  contractClientId: number;
+  orders: InvoiceEligibleOrder[];
+}
+
+/**
+ * An invoice as a surface OUTSIDE the Commercial section sees it — the admin Orders panel's
+ * "Send Invoice" and the Invoices tab on a customer's detail panel.
+ *
+ * `canSend` comes from the server's own InvoiceStatusPolicy and is never re-derived here: a
+ * second copy of that state machine in the browser is how a Send button appears on a voided
+ * invoice.
+ */
+export interface LinkedInvoiceSummary {
+  id: number;
+  invoiceNumber: string;
+  contractClientId: number;
+  clientName: string;
+  invoiceDate: string;
+  dueDate: string;
+  total: number;
+  amountPaid: number;
+  balanceDue: number;
+  status: number;
+  statusLabel: string;
+  hasBeenSent: boolean;
+  lastSentAt?: string | null;
+  paidAt?: string | null;
+  canSend: boolean;
+  canSendReminder: boolean;
+  /** Where it would be emailed. Null = it cannot be sent at all until a billing email exists. */
+  billingEmail?: string | null;
+  coveredOrderCount: number;
+  /** Only on the per-order lookup: what this invoice allocates to the order that was asked about. */
+  allocatedAmount?: number | null;
+  allocationIsProposal?: boolean | null;
+}
+
+/** "Can I bill this cleaning, and on what?" — both halves of the answer in one response. */
+export interface OrderInvoices {
+  orderId: number;
+  contractClientId?: number | null;
+  clientName?: string | null;
+  /** The client the CUSTOMER ACCOUNT is linked to, when the order carries none of its own. */
+  suggestedContractClientId?: number | null;
+  suggestedClientName?: string | null;
+  canBeInvoiced: boolean;
+  blockedReason?: string | null;
+  invoices: LinkedInvoiceSummary[];
+}
+
+/**
+ * NOTE WHAT IS ABSENT: no per-order amount. Allocation is a SERVER rule — equal shares, remainder
+ * to the earliest service dates — so a caller cannot express "give this visit $2,000 and that one
+ * $500", which is exactly the shape a mis-typed or hand-rolled request would take.
+ */
+export interface SaveInvoiceOrders {
+  orderIds: number[];
+  /** The agreed TOTAL for the whole selected group. Null = bill what the cleanings cost. */
+  negotiatedGroupTotal?: number | null;
+}
+
+export interface InvoiceOrderAllocation {
+  serviceAddress?: string;
+  orderId: number;
+  serviceDate: string;
+  description: string;
+  originalOrderTotal: number;
+  allocatedAmount: number;
+  /** True while this is a proposal — the cleaning's own price is untouched until the invoice is sent. */
+  isProposal: boolean;
+  committedAt?: string | null;
+  activatedOrderAt?: string | null;
+  orderStatus: string;
+}
+
+export interface InvoiceOrdersResult {
+  serviceDates: string[];
+  items: SaveInvoiceItem[];
+  invoiceId: number;
+  invoiceNumber: string;
+  negotiatedGroupTotal?: number | null;
+  /** What the selected cleanings cost today, before any negotiation. */
+  defaultTotal: number;
+  invoiceTotal: number;
+  allocations: InvoiceOrderAllocation[];
+  warnings: string[];
+}
+
+/** Returned as a 409 when an unsent draft already covers this period — see the contracts page. */
+export interface ExistingDraftInvoice {
+  isUndated?: boolean;
+  invoiceId: number;
+  invoiceNumber: string;
+  serviceStartDate?: string | null;
+  serviceEndDate?: string | null;
+  servicePeriodText?: string | null;
+  total: number;
+  createdAt: string;
+  message: string;
+}
+
 export interface SaveInvoice {
+  orderIds?: number[];
+  negotiatedGroupTotal?: number | null;
+  draftDriftChoices?: string[];
   contractClientId: number;
   contractId?: number | null;
   contractServiceLocationId?: number | null;
@@ -77,6 +204,13 @@ export interface SaveInvoice {
   customDueDate?: string | null;
   serviceStartDate?: string | null;
   serviceEndDate?: string | null;
+
+  /**
+   * The individual visits this invoice covers, as ISO dates. Editable while the invoice is a
+   * draft; an empty list simply falls back to the period bounds above.
+   */
+  serviceDates?: string[];
+
   serviceAddress?: string | null;
   poNumber?: string | null;
   clientReference?: string | null;
@@ -84,6 +218,14 @@ export interface SaveInvoice {
   discountValue?: number | null;
   taxType: InvoiceTaxType;
   taxRate?: number | null;
+
+  /**
+   * Persist the tax rate typed here as the default for FUTURE invoices and contracts.
+   * Writes to the billing settings only — it can never reach a finalized invoice or a signed
+   * contract, both of which carry their own rate snapshot.
+   */
+  saveTaxRateAsDefault?: boolean;
+
   paymentMethod: InvoicePaymentMethod;
   customerNote?: string | null;
   internalNote?: string | null;
@@ -139,9 +281,16 @@ export interface InvoiceItem {
 export interface InvoicePayment {
   id: number;
   amount: number;
+  /** The ACH fee paid on top when this came through Stripe. Zero for a manual payment. */
+  processingFee: number;
+  /** amount + fee — what the customer's bank statement actually shows. */
+  totalCharged: number;
   paymentDate: string;
   paymentMethod: InvoicePaymentRecordMethod;
   paymentMethodLabel: string;
+  /** Manual or Stripe. Shown plainly — a bank transfer an admin typed in is never dressed up. */
+  provider: InvoicePaymentProvider;
+  providerLabel: string;
   transactionReference?: string;
   internalNote?: string;
   isReversal: boolean;
@@ -193,8 +342,32 @@ export interface InvoiceDetail {
   serviceStartDate?: string;
   serviceEndDate?: string;
 
+  /** The individual visits this invoice covers, when known. */
+  serviceDates: string[];
+  /** "Service date" / "Service dates" / "Service period" — resolved server-side. */
+  serviceDateLabel?: string;
+  serviceDateText?: string;
+
   poNumber?: string;
   clientReference?: string;
+
+  /**
+   * Non-blocking warnings raised when this draft was GENERATED — contract price drift, tax drift,
+   * a schedule that could not be worked out.
+   *
+   * They come back on the INVOICE rather than only in the create response, and that is the whole
+   * point: "Create Next Invoice" launched from the Contracts LIST navigates away instantly, so a
+   * banner on the previous page was a banner nobody read. Cleared once the invoice leaves Draft
+   * or an admin saves an edit — at that point the figures have been seen.
+   */
+  draftWarnings: string[];
+  currentContractUnitPrice?: number | null;
+  currentContractTaxType?: InvoiceTaxType | null;
+  currentContractTaxRate?: number | null;
+  cleaningsCovered?: InvoiceOrderAllocation[];
+
+  /** The agreed group total an admin negotiated for the CLEANINGS this invoice covers. */
+  negotiatedOrderGroupTotal?: number;
 
   subTotal: number;
   discountType: InvoiceDiscountType;
@@ -248,6 +421,17 @@ export interface InvoiceDetail {
   canVoid: boolean;
   canDelete: boolean;
   canSendReminder: boolean;
+
+  /**
+   * A Stripe payment AND a manual one, with more received than billed. Flagged, never
+   * auto-corrected: both are real money that arrived, and only a person can decide what to refund.
+   */
+  potentialDuplicatePayment: boolean;
+
+  /** A Stripe ACH debit is authorized and settling — "Mark as Paid" must warn before recording. */
+  hasProcessingStripePayment: boolean;
+
+  contractPricingWarning?: string;
 }
 
 export interface PublicPaymentInstructions {
@@ -262,9 +446,18 @@ export interface PublicPaymentInstructions {
   paymentReference: string;
 }
 
+/**
+ * The company block. THE TRADING NAME LEADS: `primaryName` ("DBA Dream Cleaning NYC") is what
+ * renders large and in brand blue, `secondaryName` (the registered entity) small underneath.
+ *
+ * The hierarchy is resolved on the SERVER so this page, the PDF and the email cannot each decide
+ * it differently — do not re-derive it from legalName/dbaName here.
+ */
 export interface PublicCompany {
   legalName: string;
   dbaName?: string;
+  primaryName: string;
+  secondaryName?: string;
   address?: string;
   cityStateZip?: string;
   phone?: string;
@@ -295,14 +488,44 @@ export interface PublicPaymentOptions {
   stripeCardAvailable: boolean;
   manualAchAvailable: boolean;
 
-  /** True while a Stripe payment is authorized or settling — pay buttons must stay disabled. */
+  /**
+   * True only while an ACH debit is genuinely SETTLING — never merely because a Checkout Session
+   * was opened. Opening Stripe and closing the tab submits nothing, and treating that as "in
+   * flight" locked an unpaid invoice out of being paid for 24 hours.
+   */
   paymentInProgress: boolean;
+
+  /**
+   * What the bank will debit, in three parts, so the customer can reconcile the ONE line on their
+   * statement against an invoice for a smaller amount. All three come from the attempt as it was
+   * authorized, not from today's settings.
+   */
   processingAmount?: number;
+  processingFeeAmount?: number;
+  processingTotalCharged?: number;
   processingStartedAt?: string;
 
   lastAttemptFailed: boolean;
   /** Fixed, customer-safe wording. Never Stripe's own error text. */
   lastFailureMessage?: string;
+
+  /**
+   * The ACH processing fee for paying THIS balance by Stripe bank debit, computed server-side.
+   *
+   * DISPLAY ONLY. The page must show it before the customer authorizes anything, and must never
+   * send it anywhere — the checkout endpoint recalculates from the invoice's own balance, so a
+   * tampered page can change what is on screen and nothing else.
+   */
+  achProcessingFee: number;
+
+  /** balance + fee — what the customer's bank will actually be debited. */
+  achTotalWithFee: number;
+
+  /** "ACH Processing Fee". Never render a bare "Fee" — a vague label reads as a hidden markup. */
+  achProcessingFeeLabel: string;
+
+  /** "No processing fee from Dream Cleaning NYC" — deliberately not "No fee". */
+  manualAchFeeNote: string;
 }
 
 export interface InvoicePaymentAttempt {
@@ -327,7 +550,12 @@ export interface InvoicePaymentAttempt {
 export interface StartInvoiceCheckoutResponse {
   checkoutUrl: string;
   attemptId: number;
+  /** The invoice balance being settled. */
   amount: number;
+  /** The ACH fee the server computed and added. */
+  processingFee: number;
+  /** balance + fee — the authoritative figure, whatever the page had displayed. */
+  totalCharged: number;
 }
 
 export interface PublicInvoice {
@@ -338,6 +566,18 @@ export interface PublicInvoice {
   dueDate: string;
   serviceStartDate?: string;
   serviceEndDate?: string;
+
+  /** The individual visits, when the schedule is known. */
+  serviceDates: string[];
+
+  /**
+   * "Service date" / "Service dates" / "Service period" and the formatted text, resolved on the
+   * server so the page, the PDF and the email describe the same invoice identically. BOTH are
+   * absent when the invoice records no period — render nothing rather than inventing one.
+   */
+  serviceDateLabel?: string;
+  serviceDateText?: string;
+
   clientName: string;
   billingContactName?: string;
   billingAddress?: string;
@@ -461,13 +701,74 @@ export interface BillingSettings {
   /** Field NAMES only — never values. */
   missingManualAchFields: string[];
 
+  /** The customer-facing Stripe ACH fee. Never editable by the customer, never sent by a browser. */
+  achCustomerFeeEnabled: boolean;
+  achCustomerFeeRatePercent: number;
+  achCustomerFeeCapAmount: number;
+
   defaultTaxType: InvoiceTaxType;
   defaultTaxRate?: number;
+  /** 0 = tax-inclusive, 1 = pre-tax. Mirrors ContractPriceMode. */
+  defaultContractPriceMode: number;
   defaultDueTerms: InvoiceDueTerms;
   defaultCustomerNote?: string;
   invoiceFooterText?: string;
   updatedAt: string;
   canEdit: boolean;
+}
+
+/**
+ * The commercial billing defaults a NEW contract or invoice starts from.
+ *
+ * ONE SOURCE, TWO CONSUMERS: contract creation reads the price mode and rate, invoice creation
+ * reads the tax type and rate, and editing either with "save as default" writes back. That is
+ * what stops a contract quoting tax-inclusive while its invoices add 8.875% on top.
+ *
+ * Deliberately narrower than `BillingSettings` — neither form displays bank details, so neither
+ * is handed them.
+ */
+export interface CommercialBillingDefaults {
+  defaultTaxType: InvoiceTaxType;
+  defaultTaxRate?: number;
+  defaultContractPriceMode: number;
+  defaultDueTerms: InvoiceDueTerms;
+  achCustomerFeeEnabled: boolean;
+  achCustomerFeeRatePercent: number;
+  achCustomerFeeCapAmount: number;
+}
+
+/** One row of the business customer's own My Invoices list. */
+export interface MyInvoiceListItem {
+  invoiceNumber: string;
+  /** How the customer opens it: /invoice/{token}, the same address the emailed link uses. */
+  publicToken: string;
+  contractNumber?: string;
+  serviceAddress?: string;
+  invoiceDate: string;
+  dueDate: string;
+  serviceStartDate?: string;
+  serviceEndDate?: string;
+  serviceDateLabel?: string;
+  serviceDateText?: string;
+  total: number;
+  amountPaid: number;
+  balanceDue: number;
+  currency: string;
+  status: InvoiceStatus;
+  statusLabel: string;
+  /** A bank debit is authorized and settling — shown as "Processing" rather than as unpaid. */
+  paymentInProgress: boolean;
+  paidAt?: string;
+}
+
+/** The result of "Create Next Invoice" on a contract: a DRAFT, plus what to look at first. */
+export interface CreateNextInvoiceResult {
+  invoice: InvoiceDetail;
+  clonedFromInvoiceNumber?: string;
+  /** Non-blocking. Nothing here stops the draft existing — the admin is about to review it. */
+  warnings: string[];
+  /** True when the schedule could not supply service dates and they must be chosen by hand. */
+  needsServiceDates: boolean;
 }
 
 export interface InvoiceListFilters {
@@ -525,6 +826,50 @@ export class InvoiceService {
     return this.http.delete<{ message: string }>(`${this.adminUrl}/${id}`);
   }
 
+  // ── The cleanings an invoice covers ──────────────────────────────────────────────────────
+
+  /**
+   * Which of this client's cleanings an invoice could cover.
+   *
+   * Returns unsellable rows too, each carrying the reason — "Already included in
+   * DCI-2026-74521863", "already paid", "cancelled". A cleaning silently missing from the picker
+   * is the thing an admin cannot debug.
+   */
+  eligibleOrders(
+    contractClientId: number,
+    opts: { invoiceId?: number; from?: string; to?: string } = {}
+  ): Observable<InvoiceEligibleOrders> {
+    let params = new HttpParams();
+    if (opts.invoiceId) params = params.set('invoiceId', opts.invoiceId);
+    if (opts.from) params = params.set('from', opts.from);
+    if (opts.to) params = params.set('to', opts.to);
+
+    return this.http.get<InvoiceEligibleOrders>(
+      `${this.adminUrl}/eligible-orders/${contractClientId}`, { params });
+  }
+
+  /**
+   * Sets which cleanings a DRAFT covers, and optionally the agreed group total.
+   *
+   * NOTHING IS WRITTEN TO THE ORDERS by this call. The allocation is a proposal until the invoice
+   * is SENT — an admin who types an agreed figure, reconsiders and abandons the draft has
+   * re-priced no bookings. Note the payload carries no per-order amount: the equal-shares split
+   * is a server rule.
+   */
+  saveOrders(id: number, dto: SaveInvoiceOrders): Observable<InvoiceOrdersResult> {
+    return this.http.put<InvoiceOrdersResult>(`${this.adminUrl}/${id}/orders`, dto);
+  }
+
+  previewOrders(dto: SaveInvoice, invoiceId?: number): Observable<InvoiceOrdersResult> {
+    return this.http.post<InvoiceOrdersResult>(`${this.adminUrl}/orders/preview`, dto,
+      invoiceId ? { params: { invoiceId } } : {});
+  }
+
+  /** The allocation as it currently stands — proposal or committed. */
+  orders(id: number): Observable<InvoiceOrderAllocation[]> {
+    return this.http.get<InvoiceOrderAllocation[]>(`${this.adminUrl}/${id}/orders`);
+  }
+
   send(id: number, body: { recipientEmail?: string; attachPdf: boolean; message?: string }):
     Observable<InvoiceDetail> {
     return this.http.post<InvoiceDetail>(`${this.adminUrl}/${id}/send`, body);
@@ -538,6 +883,13 @@ export class InvoiceService {
     return this.http.post<InvoiceDetail>(`${this.adminUrl}/${id}/receipt`, {});
   }
 
+  /**
+   * Records money received — the same call behind "Mark as Paid", which is the balance prefilled
+   * rather than a status assignment. There is deliberately no endpoint that writes Status = Paid.
+   *
+   * Two acknowledgements the server refuses without: `allowOverpayment` when the amount exceeds
+   * the balance, and `acknowledgeProcessingPayment` when a Stripe ACH debit is still settling.
+   */
   recordPayment(id: number, body: {
     amount: number;
     paymentDate?: string;
@@ -545,8 +897,23 @@ export class InvoiceService {
     transactionReference?: string;
     internalNote?: string;
     allowOverpayment: boolean;
+    acknowledgeProcessingPayment?: boolean;
   }): Observable<InvoiceDetail> {
     return this.http.post<InvoiceDetail>(`${this.adminUrl}/${id}/payments`, body);
+  }
+
+  /**
+   * "Create Next Invoice" on a recurring contract.
+   *
+   * Produces a DRAFT and emails nobody — the admin reviews it and presses Send. A 400 means an
+   * issued invoice already covers the period it worked out; resend with `allowDuplicatePeriod`
+   * when there is a real reason to bill the same period twice.
+   */
+  createNextFromContract(contractId: number, allowDuplicatePeriod = false, acknowledgeUndatedDraft = false):
+    Observable<CreateNextInvoiceResult> {
+    return this.http.post<CreateNextInvoiceResult>(
+      `${this.adminUrl}/from-contract/${contractId}`, { allowDuplicatePeriod,
+        ...(acknowledgeUndatedDraft ? { acknowledgeUndatedDraft: true } : {}) });
   }
 
   reversePayment(id: number, paymentId: number, reason: string): Observable<InvoiceDetail> {
@@ -579,6 +946,30 @@ export class InvoiceService {
     return this.http.get<InvoiceClientOption[]>(`${this.adminUrl}/clients`, { params });
   }
 
+  // ── Looking from an order or a customer back at their invoices ─────────────────────────────
+
+  /** Drives the Orders panel's "Send Invoice". A read — nothing is created or emailed. */
+  invoicesForOrder(orderId: number): Observable<OrderInvoices> {
+    return this.http.get<OrderInvoices>(`${this.adminUrl}/for-order/${orderId}`);
+  }
+
+  /**
+   * Every invoice belonging to a customer, from both directions — their linked commercial
+   * client's invoices and any invoice covering one of their own cleanings. An empty array is the
+   * signal to hide the Invoices tab entirely.
+   */
+  invoicesForUser(userId: number): Observable<LinkedInvoiceSummary[]> {
+    return this.http.get<LinkedInvoiceSummary[]>(`${this.adminUrl}/for-user/${userId}`);
+  }
+
+  /**
+   * The commercial client a customer account is linked to. Resolves to null when there is none —
+   * the endpoint answers 204, which HttpClient surfaces as a null body rather than an error.
+   */
+  clientForUser(userId: number): Observable<InvoiceClientOption | null> {
+    return this.http.get<InvoiceClientOption | null>(`${this.adminUrl}/client-for-user/${userId}`);
+  }
+
   runOverdueSweep(): Observable<{ message: string; changed: number }> {
     return this.http.post<{ message: string; changed: number }>(
       `${this.adminUrl}/run-overdue-sweep`, {});
@@ -592,6 +983,31 @@ export class InvoiceService {
 
   saveBillingSettings(dto: Partial<BillingSettings>): Observable<BillingSettings> {
     return this.http.put<BillingSettings>(this.settingsUrl, dto);
+  }
+
+  /**
+   * The tax/price-mode/fee defaults a NEW contract or invoice starts from.
+   *
+   * A narrower read than the full settings, and open to any admin who can open either creation
+   * form — it carries no bank details, which neither form displays.
+   */
+  getBillingDefaults(): Observable<CommercialBillingDefaults> {
+    return this.http.get<CommercialBillingDefaults>(`${this.settingsUrl}/defaults`);
+  }
+
+  // ── The business customer's own invoices ──
+
+  /**
+   * Cheap boolean behind the header menu entry. Runs for every logged-in user on every page, so
+   * it must stay a boolean and never fetch the list.
+   */
+  hasMyInvoices(): Observable<{ hasInvoices: boolean }> {
+    return this.http.get<{ hasInvoices: boolean }>(`${environment.apiUrl}/my-invoices/has-invoices`);
+  }
+
+  /** Every ISSUED invoice belonging to the signed-in business account. Drafts are never returned. */
+  myInvoices(): Observable<MyInvoiceListItem[]> {
+    return this.http.get<MyInvoiceListItem[]>(`${environment.apiUrl}/my-invoices`);
   }
 
   // ── Public (token-addressed, no auth) ──
@@ -638,7 +1054,7 @@ export function previewTotals(
   discountValue: number | null | undefined,
   taxType: InvoiceTaxType,
   taxRate: number | null | undefined
-): { lineAmounts: number[]; subTotal: number; discountAmount: number; taxAmount: number; total: number } {
+): { lineAmounts: number[]; subTotal: number; discountAmount: number; taxAmount: number; total: number; preTaxTotal: number } {
   const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
 
   const lineAmounts = items.map(i => round2((i.quantity || 0) * (i.unitPrice || 0)));
@@ -669,7 +1085,7 @@ export function previewTotals(
     taxAmount = round2(discounted - round2(discounted / (1 + rate / 100)));
   }
 
-  return { lineAmounts, subTotal, discountAmount, taxAmount, total: Math.max(0, total) };
+  return { lineAmounts, subTotal, discountAmount, taxAmount, total: Math.max(0, total), preTaxTotal: round2(Math.max(0, total) - taxAmount) };
 }
 
 /** CSS modifier for a status badge. Keeps the palette decision in one place. */

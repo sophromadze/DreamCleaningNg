@@ -1,0 +1,76 @@
+<div class="contract-page">
+  <div class="contract-shell">
+
+    <header class="contract-card contract-header">
+      <h1>My Invoices</h1>
+      <p class="contract-parties">
+        Your invoices from Dream Cleaning NYC.
+      </p>
+
+      <!-- What is actually owed, with anything already authorized excluded — see totalOutstanding. -->
+      <div class="awaiting-banner" *ngIf="totalOutstanding > 0">
+        {{ totalOutstanding | currency:'USD' }} outstanding<span *ngIf="overdueCount > 0">,
+          including {{ overdueCount }} past due</span>.
+      </div>
+    </header>
+
+    <div class="contract-card contract-status-card" *ngIf="loading">Loading your invoices…</div>
+
+    <div class="contract-card contract-status-card error" *ngIf="!loading && errorMessage">
+      <h1>We could not load your invoices</h1>
+      <p>{{ errorMessage }}</p>
+    </div>
+
+    <div class="contract-card" *ngIf="!loading && !errorMessage">
+      <p class="muted" *ngIf="!rows.length">
+        You do not have any invoices yet. When we issue one, it will appear here.
+      </p>
+
+      <ul class="invoice-list" *ngIf="rows.length">
+        <li *ngFor="let row of rows" class="invoice-row" (click)="open(row)" tabindex="0"
+            (keyup.enter)="open(row)">
+
+          <div class="row-main">
+            <div class="row-number">{{ row.invoiceNumber }}</div>
+            <div class="row-location" *ngIf="row.serviceAddress">{{ row.serviceAddress }}</div>
+            <div class="row-contract" *ngIf="row.contractNumber">
+              Contract {{ row.contractNumber }}
+            </div>
+          </div>
+
+          <div class="row-dates">
+            <span class="row-date">Invoiced {{ row.invoiceDate | date:'mediumDate' }}</span>
+            <!-- The label follows the shape the invoice actually records: one date, several
+                 dates, or a period. Absent entirely when it records none. -->
+            <span class="row-date" *ngIf="row.serviceDateText">
+              {{ row.serviceDateLabel }}: {{ row.serviceDateText }}
+            </span>
+            <span class="row-date"
+                  [class.due-soon]="row.balanceDue > 0 && !row.paymentInProgress">
+              Due {{ row.dueDate | date:'mediumDate' }}
+            </span>
+          </div>
+
+          <div class="row-amounts">
+            <span class="row-total">{{ row.total | currency:'USD' }}</span>
+            <span class="row-balance" *ngIf="row.balanceDue > 0">
+              {{ row.balanceDue | currency:'USD' }} due
+            </span>
+            <span class="row-balance settled" *ngIf="row.balanceDue <= 0 && row.paidAt">
+              Paid {{ row.paidAt | date:'mediumDate' }}
+            </span>
+          </div>
+
+          <div class="row-action">
+            <span class="row-status" [ngClass]="statusClass(row)">{{ statusLabel(row) }}</span>
+            <span class="chevron" aria-hidden="true">›</span>
+          </div>
+        </li>
+      </ul>
+
+      <p class="muted list-footnote" *ngIf="rows.length">
+        Open an invoice to see the full breakdown, pay it online or download the PDF.
+      </p>
+    </div>
+  </div>
+</div>

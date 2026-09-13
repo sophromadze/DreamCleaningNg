@@ -280,7 +280,7 @@
       <!-- Action Buttons -->
       <div class="action-buttons">
         <!-- Pay and Cancel buttons for unpaid orders (not cancelled) -->
-        <div class="unpaid-actions" *ngIf="!isEffectivelyPaid() && order.status !== 'Cancelled'">
+        <div class="unpaid-actions" *ngIf="!order.recurringSeriesId && !isEffectivelyPaid() && order.status !== 'Cancelled'">
           <a [routerLink]="['/order', order.id, 'pay']"
              class="pay-btn">
             Pay Now
@@ -303,7 +303,8 @@
         </div>
 
         <!-- Only show edit button if not custom service type -->
-        <a *ngIf="!isCustomServiceType()"
+        <p *ngIf="order.recurringSeriesId">To cancel or reschedule a recurring cleaning, please contact Dream Cleaning.</p>
+        <a *ngIf="!isCustomServiceType() && !order.recurringSeriesId"
            [routerLink]="canEditOrder() ? ['/order', order.id, 'edit'] : null" 
            class="edit-btn" 
            [class.disabled]="!canEditOrder()"
@@ -311,7 +312,7 @@
           Edit Order
         </a>
         
-        <button class="cancel-btn"
+        <button class="cancel-btn" *ngIf="!order.recurringSeriesId"
                 (click)="canCancelOrder() ? openCancelModal() : null"
                 [class.disabled]="!canCancelOrder()"
                 [attr.data-tooltip]="!canCancelOrder() ? (order.status === 'Done' ? 'Order is completed' : order.status === 'Cancelled' ? 'Order is already cancelled' : null) : null">

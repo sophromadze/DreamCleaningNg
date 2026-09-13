@@ -1,0 +1,40 @@
+<div class="admin-users">
+  <nav class="admin-users-tabs">
+    <button *ngFor="let tab of tabs"
+            type="button"
+            class="tab-btn"
+            [class.active]="activeTab === tab.key"
+            (click)="setActiveTab(tab.key)">
+      {{ tab.label }}
+    </button>
+  </nav>
+
+  <div class="admin-users-content">
+    <!--
+      Each tab mounts the component that already owned that job. Customers and Staff are the SAME
+      component with a different scope — see AdminUsersComponent for why that is one component and
+      not two.
+
+      *ngIf rather than [hidden]: several of these fire their own API calls on init, and mounting
+      all four at once would put four list requests on the wire every time an admin opens Users.
+    -->
+    <!-- Bound literal rather than a static `scope="customers"` attribute: the input is a string
+         UNION, and a bound literal is unambiguously that literal type under strictTemplates. -->
+    <app-user-management *ngIf="activeTab === 'customers'"
+                         [scope]="'customers'"
+                         [openUserId]="openUserId"></app-user-management>
+
+    <!-- The existing cleaner-accounts component, unchanged. Cleaner functionality is untouched;
+         it simply lives under Users now instead of at the top level. -->
+    <app-cleaner-accounts *ngIf="activeTab === 'cleaners'"></app-cleaner-accounts>
+
+    <!-- ContractClient is the source of truth here, NOT website Users — so standalone commercial
+         clients created by hand appear alongside the ones linked to a business account. This is
+         the same component Commercial → Clients renders; there is deliberately only one. -->
+    <app-commercial-clients *ngIf="activeTab === 'business-clients'"
+                            [openClientId]="openClientId"></app-commercial-clients>
+
+    <app-user-management *ngIf="activeTab === 'staff'"
+                         [scope]="'staff'"></app-user-management>
+  </div>
+</div>

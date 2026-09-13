@@ -24,6 +24,12 @@ import { formatNyDateTime } from '../ny-time.util';
  */
 export const AUDIT_FIELD_LABELS: { [field: string]: string } = {
   // ── Identity / bookkeeping ──────────────────────────────────────────────────
+  UserId: 'Customer', LeadId: 'Lead', AdminId: 'Admin', ApartmentId: 'Apartment',
+  RecurringSeriesId: 'Recurring Series', ContractClientId: 'Business Client',
+  RecurringLoyaltyDiscountPercent: 'Recurring Loyalty Discount %',
+  // The same agreement written as a flat amount. Ends in "Amount", so it already formats as
+  // money; only the label needed saying.
+  RecurringLoyaltyDiscountAmount: 'Recurring Loyalty Discount (fixed)',
   PasswordHash: 'Password',
   PasswordSalt: 'Password Salt',
   RefreshToken: 'Session Token',
@@ -279,11 +285,20 @@ const HIDDEN_FIELDS = new Set([
   'Apartments', 'Orders', 'Subscription', 'CreatedAt', 'UpdatedAt', 'Id',
   // Order lines have their own dedicated renderer; showing them here as opaque values duplicates
   // the OrderServicesUpdate table and disagrees with it.
-  'Services', 'ExtraServices',
+  'Services', 'ExtraServices', 'OrderServices', 'OrderExtraServices', 'OrderCleaners',
+  'UnassignedPayouts', 'UpdateHistory', 'Refunds', 'AdminAssignmentHistory',
+  'CompanyDevelopmentTips', 'InitialCompanyDevelopmentTips', 'CreatedByAdminName', 'AdminName',
 ]);
 
+export function isSensitiveAuditField(field: string): boolean {
+  const key = field.replace(/[^a-z0-9]/gi, '').toLowerCase();
+  const secret = /token|password|secret|apikey|authorization|credential|privatekey|refreshsession|loginotp|twofactorpin|2fapin/.test(key)
+    || ['otp', 'otpcode', 'pinhash', 'privatekey', 'emailcodehash'].includes(key);
+  return secret;
+}
+
 export function shouldShowAuditField(field: string): boolean {
-  return !HIDDEN_FIELDS.has(field);
+  return !isSensitiveAuditField(field) && !HIDDEN_FIELDS.has(field);
 }
 
 /**
@@ -382,7 +397,7 @@ const ENUM_LABELS: { [field: string]: { [value: number]: string } } = {
   // Models/UserRole.cs
   Role: { 0: 'Customer', 1: 'SuperAdmin', 2: 'Admin', 3: 'Moderator' },
   // Models/PaymentMethod.cs — Normal means the Stripe card flow.
-  PaymentMethod: { 0: 'Card (Stripe)', 1: 'Cash', 2: 'Zelle', 3: 'Check', 4: 'Other' },
+  PaymentMethod: { 0: 'Card (Stripe)', 1: 'Cash', 2: 'Zelle', 3: 'Check', 4: 'Other', 5: 'Invoice' },
   // Models/CleanerPaymentMethod.cs — 1-based.
   PaidVia: { 1: 'Zelle', 2: 'Cash', 3: 'Check', 4: 'Other' },
   // Models/CleanerRanking.cs
@@ -404,7 +419,8 @@ export function formatAuditValue(
   field?: string,
   resolveName?: (id: number) => string | null
 ): string {
-  if (value === null || value === undefined) return 'None';
+  if (field && isSensitiveAuditField(field)) return 'Hidden';
+  if (value === null || value === undefined || value === '') return 'None';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
 
   // Ids that name a person. Checked before the numeric branches so they never render as money.
@@ -420,6 +436,7 @@ export function formatAuditValue(
   // Some payloads already carry the enum as its name (LogActionAsync call sites pass
   // `.ToString()`), which needs no translation.
   if (field && ENUM_LABELS[field] && typeof value === 'string') {
+    if (field === 'PaymentMethod' && value === 'Normal') return 'Card (Stripe)';
     return humanizeFieldName(value);
   }
 
@@ -455,7 +472,7 @@ export function formatAuditValue(
   if (typeof value === 'object') {
     // Nothing flat left to say — but a raw JSON blob is exactly what this module exists to avoid,
     // so it is described rather than dumped.
-    return Array.isArray(value) ? `${value.length} item(s)` : '(details)';
+    return Array.isArray(value) ? value.map(v => typeof v === 'object' ? (v.Name || v.ServiceName || v.ExtraServiceName || v.CleanerName || v.Email || (v.Id ? '#' + v.Id : '')) : v).filter(Boolean).join(', ') || 'None' : '(details)';
   }
 
   const text = String(value);
@@ -613,7 +630,15 @@ export function getAuditActionLabel(action: string): string {
     case 'LoyaltyManualCleared': return 'Cleared';
     case 'LoyaltyUsed': return 'Used on order';
     case 'LoyaltyReversed': return 'Restored';
-    case 'Create': case 'Update': case 'Delete':
+    case 'Create': return 'Created';
+    case 'Update': return 'Updated';
+    case 'Delete': return 'Deleted';
+    case 'RecurringSeriesCreated': return 'Recurring schedule created';
+    case 'RecurringSeriesUpdated': return 'Recurring schedule updated';
+    case 'RecurringSeriespause': case 'RecurringSeriesPaused': return 'Recurring schedule paused';
+    case 'RecurringSeriesresume': case 'RecurringSeriesResumed': return 'Recurring schedule resumed';
+    case 'RecurringSeriesstop': case 'RecurringSeriesStopped': return 'Recurring schedule stopped';
+    case 'RecurringOccurrenceSkipped': return 'Cleaning skipped';
     case 'Assigned': case 'Removed':
       return action;
     case 'PointsAdded': return 'Points added';

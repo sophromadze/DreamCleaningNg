@@ -58,7 +58,7 @@
     stroke: #f44336;
   }
 
-  .btn-primary, .btn-secondary {
+  .btn-primary, .btn-brand {
     display: inline-block;
     padding: 0.75rem 2rem;
     border-radius: 4px;
@@ -76,19 +76,19 @@
     background-color: #1976D2;
   }
 
-  .btn-secondary {
-    background: var(--btn-secondary);
+  .btn-brand {
+    background: var(--btn-brand);
     color: white;
     border: 1px solid #28a745;
   }
 
-  .btn-secondary:hover {
-    background: var(--btn-secondary-hover);
+  .btn-brand:hover {
+    background: var(--btn-brand-hover);
     color: white;
   }
 
-  .btn-secondary:focus,
-  .btn-secondary:focus-visible {
+  .btn-brand:focus,
+  .btn-brand:focus-visible {
     outline: 2px solid #28a745;
     outline-offset: 2px;
   }

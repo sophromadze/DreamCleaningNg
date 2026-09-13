@@ -141,6 +141,13 @@
             <tr *ngIf="viewingLogId === log.id" class="details-row">
               <td colspan="7">
                 <div class="log-details">
+                  <ng-container *ngIf="collectionChanges(log) as changes">
+                    <div *ngIf="changes.added.length || changes.removed.length" class="field-changes">
+                      <h4>Cleaners</h4>
+                      <div *ngFor="let name of changes.added" class="new-value">+ {{ name }}</div>
+                      <div *ngFor="let name of changes.removed" class="old-value">- {{ name }}</div>
+                    </div>
+                  </ng-container>
                   
                   <!-- Special view for BubblePointsAdjustment logs -->
                   <div *ngIf="log.entityType === 'BubblePointsAdjustment'" class="cleaner-assignment-details">
@@ -239,7 +246,7 @@
                     <div *ngIf="showChangedFields(log) && hasMeaningfulChangedFields(log)" class="changed-fields">
                       <h4>Changed Fields</h4>
                       <div class="field-changes">
-                        <ng-container *ngFor="let field of log.changedFields">
+                        <ng-container *ngFor="let field of meaningfulChangedFields(log)">
                           <div *ngIf="shouldShowField(field)" class="field-change">
                             <!-- Special handling for combined ServiceDate&Time field -->
                             <div *ngIf="field === 'ServiceDate&Time'" class="field-item">
@@ -266,9 +273,9 @@
 
                     <!-- Show created values for creates -->
                     <div *ngIf="log.action === 'Create' && log.newValues" class="created-values">
-                      <h4>Created With Values</h4>
+                      <h4>Created With</h4>
                       <div class="field-values-list">
-                        <div *ngFor="let key of getObjectKeys(log.newValues)" class="value-item">
+                        <div *ngFor="let key of summaryFields(log, log.newValues)" class="value-item">
                           <div *ngIf="shouldShowField(key)">
                             <strong>{{ getFieldDisplayName(key) }}:</strong>
                             {{ getFieldDisplayValue(log.newValues[key], key) }}
@@ -279,9 +286,9 @@
 
                     <!-- Show deleted values for deletes -->
                     <div *ngIf="log.action === 'Delete' && log.oldValues" class="deleted-values">
-                      <h4>Deleted Values</h4>
+                      <h4>Deleted Record</h4>
                       <div class="field-values-list">
-                        <div *ngFor="let key of getObjectKeys(log.oldValues)" class="value-item">
+                        <div *ngFor="let key of summaryFields(log, log.oldValues)" class="value-item">
                           <div *ngIf="shouldShowField(key)">
                             <strong>{{ getFieldDisplayName(key) }}:</strong>
                             {{ getFieldDisplayValue(log.oldValues[key], key) }}
@@ -315,7 +322,7 @@
                       <div *ngIf="showChangedFields(log) && hasMeaningfulChangedFields(log)" class="changed-fields">
                         <h4>Changed Fields</h4>
                         <div class="field-changes">
-                                                  <ng-container *ngFor="let field of log.changedFields">
+                                                  <ng-container *ngFor="let field of meaningfulChangedFields(log)">
                           <div *ngIf="shouldShowField(field)" class="field-change">
                             <!-- Special handling for combined ServiceDate&Time field -->
                             <div *ngIf="field === 'ServiceDate&Time'">

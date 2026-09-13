@@ -10,6 +10,10 @@
     <a class="commercial-tab" routerLink="invoices" routerLinkActive="active">Invoices</a>
     <a class="commercial-tab" routerLink="contracts" routerLinkActive="active">Contracts</a>
     <a class="commercial-tab" routerLink="clients" routerLinkActive="active">Clients</a>
+    <!-- The scope-of-work templates every contract starts from. Ordinary Admin work: editing one
+         changes what NEW contracts are built with and cannot reach a signed agreement, which
+         carries its own frozen copy. -->
+    <a class="commercial-tab" routerLink="business-types" routerLinkActive="active">Business Types</a>
     <a class="commercial-tab" *ngIf="canManageBilling"
        routerLink="billing-settings" routerLinkActive="active">Billing Settings</a>
   </div>

@@ -40,6 +40,8 @@ describe('CleanerPortalComponent', () => {
     address: '12 Fake St, Brooklyn, NY, 11201',
     bringCleaningSupplies: true,
     bringCleaningEssentials: false,
+    suppliesItemKeys: ['zepOven', 'windex', 'cloths', 'sponge', 'mop'],
+    essentialsItemKeys: ['paperTowels', 'garbageBags', 'toiletBrush', 'broomOrVacuum'],
     serviceDurationMinutes: 390,
     propertyType: 'House',
     levelsQuantity: 2,
@@ -285,6 +287,105 @@ describe('CleanerPortalComponent', () => {
     });
   });
 
+  /**
+   * WHAT TO PUT IN THE CAR, AND WHAT TO EXPECT IN THE HOUSE.
+   *
+   * "Supplies not needed" on its own is not something a cleaner can act on. Both banners name
+   * their items whichever way the flag falls (owner's call, 2026-09) - the same list either way,
+   * because the question is which products the job runs on, not who is carrying them.
+   *
+   * The keys arrive from the server, resolved by the same helper the assignment email and SMS
+   * read; the page only translates them. That is the whole point, so the test that matters most
+   * here is the one asserting the page does NOT rebuild the list.
+   */
+  describe('the supplies and essentials items', () => {
+    /** The briefing only exists once a day is open, so every case here opens one. */
+    const briefingText = (): string => {
+      fixture.detectChanges();
+      component.selectDay('2026-09-10');
+      fixture.detectChanges();
+      return fixture.nativeElement.textContent as string;
+    };
+
+    it('names the items whether or not the cleaner is the one bringing them', () => {
+      portal.getMyJobs.and.returnValue(of({
+        current: [job({ bringCleaningSupplies: false, bringCleaningEssentials: false })],
+        past: []
+      }));
+
+      const text = briefingText();
+      // The banner says the customer provides them...
+      expect(text).toContain('Supplies not needed');
+      // ...and still says exactly which products that is about.
+      expect(text).toContain('Windex liquid');
+      expect(text).toContain('Mop');
+      expect(text).toContain('Toilet brush');
+    });
+
+    it('names the same items when the cleaner IS bringing them', () => {
+      const text = briefingText();
+
+      expect(text).toContain('Bring cleaning supplies');
+      expect(text).toContain('Zep liquids: Green, Floor, Oven');
+      expect(text).toContain('Cleaning cloths');
+    });
+
+    /**
+     * The list is the SERVER'S answer. If the page filtered or rebuilt it, a cleaner could read
+     * one set of items in their assignment mail and a different set on this screen - which is
+     * exactly the drift the key-based payload exists to prevent.
+     */
+    it('renders the keys the server sent rather than deriving its own list', () => {
+      portal.getMyJobs.and.returnValue(of({
+        current: [job({ suppliesItemKeys: ['sponge'], essentialsItemKeys: ['broom'] })],
+        past: []
+      }));
+
+      const text = briefingText();
+      expect(text).toContain('Sponge');
+      expect(text).toContain('Broom');
+      expect(text).not.toContain('Windex liquid');
+    });
+
+    it("translates the items into the cleaner's own language", () => {
+      portal.getContext.and.returnValue(of({
+        isCleanerView: true, isSystemWideView: false, cleanerId: 7, cleanerName: 'Nino',
+        language: 'ka', preferredLanguage: null
+      }));
+
+      const text = briefingText();
+      expect(text).toContain('Zep ხსნარები: მწვანე, იატაკის, ღუმელის საწმენდი');
+      expect(text).toContain('უნიტაზის ჯაგრისი');
+    });
+
+    /**
+     * A key with no translation reaches a cleaner as a bare "toiletBrush". Every key the backend
+     * can emit must have a word in all four languages - the backend half of this guard lives in
+     * CustomerSupplyChecklistTests, against the assignment-mail labels.
+     */
+    it('has a word for every supply item in all four languages', () => {
+      const keys = [
+        'zep', 'zepOven', 'windex', 'cloths', 'sponge', 'mop',
+        'paperTowels', 'garbageBags', 'toiletBrush', 'broom', 'broomOrVacuum'
+      ];
+      for (const language of PORTAL_LANGUAGES) {
+        const strings = portalStrings(language);
+        for (const key of keys) {
+          expect(strings.supplyItems[key])
+            .withContext(`${language} is missing supply item '${key}'`)
+            .toBeTruthy();
+        }
+      }
+    });
+
+    it('shows an unknown key as itself rather than dropping it silently', () => {
+      fixture.detectChanges();
+
+      expect(component.supplyItemNames(['mop', 'somethingNew']))
+        .toEqual(['Mop', 'somethingNew']);
+    });
+  });
+
   describe('the language a cleaner reads in', () => {
     it('takes the language from the SERVER, not from the browser', () => {
       portal.getContext.and.returnValue(of({
@@ -436,6 +537,80 @@ describe('CleanerPortalComponent', () => {
       portal.getContext.and.returnValue(of({ isCleanerView: false, isSystemWideView: true, cleanerId: null }));
       fixture.detectChanges();
     };
+
+    /**
+     * THE ADMIN'S LANGUAGE PICKER IS A PREVIEW, and the difference from the cleaner's is the whole
+     * point: theirs is a preference on their record that follows them into their mail, while an
+     * admin is only asking to read the page in the words the crew actually gets - the briefing,
+     * the supplies list and the essentials list included.
+     *
+     * SetLanguage writes to the CALLER'S OWN cleaner row and 400s for an account that has none, so
+     * an admin picking Georgian must not reach the server at all.
+     */
+    describe('the language an admin previews in', () => {
+      beforeEach(() => {
+        try { sessionStorage.removeItem('cleanerPortalAdminLanguage'); } catch { /* blocked storage */ }
+      });
+
+      it('re-renders the page without saving anything to anybody', () => {
+        asSuperAdmin();
+
+        component.onLanguageChange('ka');
+
+        expect(portal.setLanguage).not.toHaveBeenCalled();
+        expect(component.language).toBe('ka');
+        // Bound to what is rendered, not to a preference: an admin has no nationality on file and
+        // so is never in the "Automatic" state the cleaner's picker reports.
+        expect(component.languageChoice).toBe('ka');
+      });
+
+      it('shows the cleaner-facing text in the previewed language', () => {
+        portal.getAllJobs.and.returnValue(of([
+          { ...job(), status: 'Active', assignedCleaners: ['A'], maidsCount: 1, isPaid: true }
+        ]));
+        asSuperAdmin();
+
+        component.onLanguageChange('ka');
+        component.selectDay('2026-09-10');
+        fixture.detectChanges();
+
+        const text = fixture.nativeElement.textContent as string;
+        expect(text).toContain('Zep ხსნარები: მწვანე, იატაკის, ღუმელის საწმენდი');
+      });
+
+      /**
+       * The Portal tab is created and destroyed with *ngIf, so a preview that did not survive a
+       * glance at the Dashboard tab would be a control nobody could use.
+       */
+      it('remembers the preview across a remount', () => {
+        asSuperAdmin();
+        component.onLanguageChange('ru');
+
+        const second = TestBed.createComponent(CleanerPortalComponent);
+        second.detectChanges();
+
+        expect(second.componentInstance.language).toBe('ru');
+      });
+
+      /**
+       * A CLEANER's language is the server's answer about their own record - what their mail is
+       * sent in - and an admin's preview on the same browser must never overwrite it.
+       */
+      it('never applies the remembered preview to a cleaner', () => {
+        asSuperAdmin();
+        component.onLanguageChange('ru');
+
+        portal.getContext.and.returnValue(of({
+          isCleanerView: true, isSystemWideView: false, cleanerId: 7, cleanerName: 'Nino',
+          language: 'ka', preferredLanguage: 'ka'
+        }));
+        const cleanerView = TestBed.createComponent(CleanerPortalComponent);
+        cleanerView.detectChanges();
+
+        expect(cleanerView.componentInstance.language).toBe('ka');
+        expect(cleanerView.componentInstance.isLanguagePreview).toBeFalse();
+      });
+    });
 
     it('loads ONE MONTH at a time, not every cleaning ever booked', () => {
       asSuperAdmin();

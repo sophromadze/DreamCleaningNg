@@ -27,6 +27,7 @@ describe('PublicInvoiceComponent — payment', () => {
     statusLabel: 'Sent',
     invoiceDate: '2026-09-07',
     dueDate: '2026-09-22',
+    serviceDates: [],
     clientName: 'Test Commercial Client LLC',
     items: [],
     subTotal: 925.43,
@@ -43,10 +44,34 @@ describe('PublicInvoiceComponent — payment', () => {
       stripeCardAvailable: false,
       manualAchAvailable: true,
       paymentInProgress: false,
-      lastAttemptFailed: false
+      lastAttemptFailed: false,
+      // NO FEE by default, so the base fixture exercises the plain payment path. A configured fee
+      // interposes a confirmation step before Stripe, which is its own behaviour and is set up
+      // explicitly by `withAchFee()` in the fee block at the bottom of this file.
+      achProcessingFee: 0,
+      achTotalWithFee: 925.43,
+      achProcessingFeeLabel: 'ACH Processing Fee',
+      manualAchFeeNote: 'No processing fee from Dream Cleaning NYC'
     },
-    company: { legalName: 'Test Company Inc.' }
+    company: {
+      legalName: 'Test Company Inc.',
+      dbaName: 'Test Cleaning',
+      primaryName: 'DBA Test Cleaning',
+      secondaryName: 'Test Company Inc.'
+    }
   });
+
+  /**
+   * The base invoice with the ACH fee switched on. 0.8% of 925.43 is 7.40, capped at 5.00, so the
+   * bank is debited 930.43 — and those are the SERVER's figures: the page displays them and never
+   * derives one.
+   */
+  const withAchFee = (): PublicInvoice => {
+    const invoice = baseInvoice();
+    invoice.paymentOptions.achProcessingFee = 5.00;
+    invoice.paymentOptions.achTotalWithFee = 930.43;
+    return invoice;
+  };
 
   function setUp(invoice: PublicInvoice, queryParams: Record<string, string> = {}) {
     service = jasmine.createSpyObj<InvoiceService>('InvoiceService',
@@ -142,7 +167,11 @@ describe('PublicInvoiceComponent — payment', () => {
       manualAchAvailable: true,
       paymentInProgress: true,
       processingAmount: 925.43,
-      lastAttemptFailed: false
+      lastAttemptFailed: false,
+      achProcessingFee: 0,
+      achTotalWithFee: 0,
+      achProcessingFeeLabel: 'ACH Processing Fee',
+      manualAchFeeNote: 'No processing fee from Dream Cleaning NYC'
     };
     setUp(invoice);
 
@@ -191,7 +220,8 @@ describe('PublicInvoiceComponent — payment', () => {
   it('sends no amount when starting checkout — the server decides it', () => {
     setUp(baseInvoice());
     service.startCheckout.and.returnValue(of({
-      checkoutUrl: 'https://checkout.stripe.com/c/pay/test', attemptId: 1, amount: 925.43
+      checkoutUrl: 'https://checkout.stripe.com/c/pay/test', attemptId: 1,
+      amount: 925.43, processingFee: 5, totalCharged: 930.43
     }));
     // Intercepted: the real one navigates away and would disconnect the test runner.
     const redirect = spyOn<any>(component, 'redirectToCheckout');
@@ -233,7 +263,8 @@ describe('PublicInvoiceComponent — payment', () => {
   it('does not start a second checkout while one is starting', () => {
     setUp(baseInvoice());
     service.startCheckout.and.returnValue(of({
-      checkoutUrl: 'https://checkout.stripe.com/c/pay/test', attemptId: 1, amount: 925.43
+      checkoutUrl: 'https://checkout.stripe.com/c/pay/test', attemptId: 1,
+      amount: 925.43, processingFee: 5, totalCharged: 930.43
     }));
     spyOn<any>(component, 'redirectToCheckout');
 
@@ -274,7 +305,11 @@ describe('PublicInvoiceComponent — payment', () => {
       stripeCardAvailable: false,
       manualAchAvailable: false,
       paymentInProgress: false,
-      lastAttemptFailed: false
+      lastAttemptFailed: false,
+      achProcessingFee: 0,
+      achTotalWithFee: 0,
+      achProcessingFeeLabel: 'ACH Processing Fee',
+      manualAchFeeNote: 'No processing fee from Dream Cleaning NYC'
     };
     setUp(invoice);
 
@@ -294,7 +329,11 @@ describe('PublicInvoiceComponent — payment', () => {
       stripeCardAvailable: false,
       manualAchAvailable: false,
       paymentInProgress: false,
-      lastAttemptFailed: false
+      lastAttemptFailed: false,
+      achProcessingFee: 0,
+      achTotalWithFee: 0,
+      achProcessingFeeLabel: 'ACH Processing Fee',
+      manualAchFeeNote: 'No processing fee from Dream Cleaning NYC'
     };
     setUp(invoice);
 
@@ -367,7 +406,11 @@ describe('PublicInvoiceComponent — payment', () => {
       stripeCardAvailable: false,
       manualAchAvailable: false,
       paymentInProgress: false,
-      lastAttemptFailed: false
+      lastAttemptFailed: false,
+      achProcessingFee: 0,
+      achTotalWithFee: 0,
+      achProcessingFeeLabel: 'ACH Processing Fee',
+      manualAchFeeNote: 'No processing fee from Dream Cleaning NYC'
     };
     return invoice;
   };
@@ -414,5 +457,323 @@ describe('PublicInvoiceComponent — payment', () => {
     setUp(invoice);
 
     expect((totalsRow('Discount')?.textContent ?? '')).toContain('−$74.57');
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  //  The ACH processing fee (2026-09)
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  //
+  // The customer is about to authorize a debit LARGER than the invoice in front of them. Every
+  // rule below exists so that is never a surprise, and so the browser is never the thing that
+  // decides it.
+
+  it('quotes the exact fee and the exact total debit beside the Pay from Bank button', () => {
+    setUp(withAchFee());
+
+    const text = fixture.nativeElement.textContent as string;
+
+    expect(text).toContain('ACH Processing Fee');
+    expect(text).toContain('$5.00');
+    expect(text).toContain('$930.43');
+
+    // Never a bare "Fee" — a vague label on a payment page reads as a hidden markup.
+    expect(component.options!.achProcessingFeeLabel).toBe('ACH Processing Fee');
+  });
+
+  /**
+   * The fee is read STRAIGHT off the server's answer. The browser must not be a second place that
+   * decides a fee — the checkout endpoint recalculates from the invoice's own balance, so a
+   * tampered page can change what is on screen and nothing else.
+   */
+  it('displays the server-computed fee and never derives one', () => {
+    // A deliberately "uncomputable" pair: 0.8% of 925.43 is $7.40, but the server capped it at
+    // $5.00. The page must print what it was told, not what it could work out for itself.
+    setUp(withAchFee());
+
+    expect(component.achFee).toBe(5.00);
+    expect(fixture.nativeElement.textContent).not.toContain('$7.40');
+  });
+
+  /** Fee switched off: no fee row anywhere, and Pay from Bank goes straight through. */
+  it('shows no fee at all when the fee is disabled', () => {
+    const invoice = baseInvoice();
+    invoice.paymentOptions.achProcessingFee = 0;
+    invoice.paymentOptions.achTotalWithFee = 925.43;
+    setUp(invoice);
+
+    expect(component.achFee).toBe(0);
+    expect(fixture.nativeElement.textContent).not.toContain('ACH Processing Fee');
+
+    // With nothing extra to confirm, the button does not interpose a confirmation step.
+    spyOn<any>(component, 'redirectToCheckout');
+    service.startCheckout.and.returnValue(of({
+      checkoutUrl: 'https://checkout.stripe.com/c/pay/test',
+      attemptId: 1, amount: 925.43, processingFee: 0, totalCharged: 925.43
+    }));
+
+    component.payFromBank();
+
+    expect(component.confirmingBankPayment).toBeFalse();
+    expect(service.startCheckout).toHaveBeenCalled();
+  });
+
+  /**
+   * WITH a fee, "Pay from Bank" opens a confirmation FIRST and starts nothing.
+   *
+   * The customer sees the three lines — balance, fee, total debit — and has to press again. The
+   * one thing they must not do is discover the difference on a bank statement.
+   */
+  it('confirms the total bank debit before opening Stripe', () => {
+    setUp(withAchFee());
+    service.startCheckout.and.returnValue(of({
+      checkoutUrl: 'https://checkout.stripe.com/c/pay/test',
+      attemptId: 1, amount: 925.43, processingFee: 5, totalCharged: 930.43
+    }));
+
+    component.payFromBank();
+    fixture.detectChanges();
+
+    expect(component.confirmingBankPayment).toBeTrue();
+    expect(service.startCheckout).not.toHaveBeenCalled();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Confirm bank payment');
+    expect(text).toContain('Total bank debit');
+    expect(text).toContain('$930.43');
+
+    // Confirming is what actually starts it.
+    spyOn<any>(component, 'redirectToCheckout');
+    component.confirmBankPayment();
+
+    expect(service.startCheckout)
+      .toHaveBeenCalledWith(jasmine.any(String), InvoicePaymentRecordMethod.AchBankTransfer);
+  });
+
+  it('lets the customer back out of the confirmation without charging anything', () => {
+    setUp(withAchFee());
+
+    component.payFromBank();
+    component.cancelBankPayment();
+    fixture.detectChanges();
+
+    expect(component.confirmingBankPayment).toBeFalse();
+    expect(service.startCheckout).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Cancel is a NEUTRAL secondary, never the success/green treatment, and never an unstyled native
+   * button. Backing out of a payment is not an achievement, and it must not compete with Continue
+   * to Stripe for the eye.
+   */
+  it('styles Cancel as a neutral secondary rather than a positive action', () => {
+    setUp(withAchFee());
+    component.payFromBank();
+    fixture.detectChanges();
+
+    const buttons: HTMLButtonElement[] =
+      Array.from(fixture.nativeElement.querySelectorAll('.pay-confirm-actions button'));
+    const cancel = buttons.find(b => b.textContent?.trim() === 'Cancel');
+
+    expect(cancel).withContext('the confirmation offers a way out').toBeDefined();
+    expect(cancel!.className).toContain('btn-pay-cancel');
+    // .btn-pay is the primary treatment; Cancel must not borrow it.
+    expect(cancel!.classList.contains('btn-pay')).toBeFalse();
+  });
+
+  /**
+   * ONE PRESS, ONE SCROLL. Opening the panel brings it into view and moves focus into it, so on a
+   * short viewport something visibly happens. Pressing Pay from Bank again while it is already
+   * open must NOT re-scroll — the customer is reading it.
+   */
+  it('reveals the confirmation once and does not yank the page on a second press', () => {
+    setUp(withAchFee());
+    const reveal = spyOn<any>(component, 'revealConfirmation').and.stub();
+
+    component.payFromBank();
+    fixture.detectChanges();
+    expect(reveal).toHaveBeenCalledTimes(1);
+
+    component.payFromBank();
+    fixture.detectChanges();
+    expect(component.confirmingBankPayment).toBeTrue();
+    expect(reveal).toHaveBeenCalledTimes(1);
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  //  The abandoned checkout, and what Processing must say when it IS real
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+
+  /**
+   * OPENING STRIPE IS NOT PAYING.
+   *
+   * A customer who pressed Pay from Bank, looked at the Stripe page and closed the tab has
+   * submitted nothing. The server answers `paymentInProgress: false` for that attempt, and this
+   * page must render a payable invoice — not a Processing banner and a dead button.
+   */
+  it('stays payable after the customer abandons the Stripe page', () => {
+    setUp(baseInvoice(), { payment: 'cancelled' });
+
+    expect(component.isProcessing).toBeFalse();
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Pay from Bank');
+    expect(text).not.toContain('Payment processing');
+  });
+
+  /**
+   * When a payment IS settling, the banner explains the customer's BANK STATEMENT — which shows a
+   * single debit LARGER than the invoice. All three figures, from the server.
+   */
+  it('breaks the processing debit into invoice, fee and total', () => {
+    const invoice = baseInvoice();
+    invoice.paymentOptions = {
+      stripeAchAvailable: false,
+      stripeCardAvailable: false,
+      manualAchAvailable: true,
+      paymentInProgress: true,
+      processingAmount: 925.43,
+      processingFeeAmount: 5.00,
+      processingTotalCharged: 930.43,
+      lastAttemptFailed: false,
+      achProcessingFee: 0,
+      achTotalWithFee: 0,
+      achProcessingFeeLabel: 'ACH Processing Fee',
+      manualAchFeeNote: 'No processing fee from Dream Cleaning NYC'
+    };
+    setUp(invoice);
+
+    const breakdown: HTMLElement | null =
+      fixture.nativeElement.querySelector('.processing-breakdown');
+    expect(breakdown).withContext('the banner shows what the bank will debit').not.toBeNull();
+
+    const text = breakdown!.textContent as string;
+    expect(text).toContain('Invoice payment');
+    expect(text).toContain('$925.43');
+    expect(text).toContain('ACH Processing Fee');
+    expect(text).toContain('$5.00');
+    expect(text).toContain('Total bank debit');
+    expect(text).toContain('$930.43');
+  });
+
+  /** No fee was charged, so no fee line — a "$0.00 fee" row invites a question about nothing. */
+  it('omits the fee line from the processing banner when there was no fee', () => {
+    const invoice = baseInvoice();
+    invoice.paymentOptions = {
+      ...invoice.paymentOptions,
+      stripeAchAvailable: false,
+      paymentInProgress: true,
+      processingAmount: 925.43,
+      processingFeeAmount: 0,
+      processingTotalCharged: 925.43
+    };
+    setUp(invoice);
+
+    const text = fixture.nativeElement.querySelector('.processing-breakdown')!.textContent as string;
+    expect(text).toContain('Invoice payment');
+    expect(text).not.toContain('ACH Processing Fee');
+  });
+
+  /**
+   * Manual ACH is a SECOND WAY TO PAY, presented like one: an icon, a title and a one-line
+   * explanation, with the no-fee wording as a small badge rather than a loose green sentence
+   * hanging under the accordion.
+   */
+  it('presents manual ACH as a payment method, with the no-fee wording as a badge', () => {
+    setUp(baseInvoice());
+
+    const toggle: HTMLElement | null = fixture.nativeElement.querySelector('.manual-toggle');
+    expect(toggle).not.toBeNull();
+    expect(toggle!.querySelector('.manual-icon')).withContext('bank icon').not.toBeNull();
+    expect(toggle!.querySelector('.manual-title')!.textContent)
+      .toContain('Pay by Manual ACH Transfer');
+    expect(toggle!.querySelector('.manual-sub')!.textContent!.trim().length).toBeGreaterThan(0);
+
+    const badge: HTMLElement | null = toggle!.querySelector('.manual-badge');
+    expect(badge).withContext('a chip, not a loose sentence').not.toBeNull();
+    expect(badge!.textContent).toContain('No processing fee from Dream Cleaning NYC');
+
+    // The old loose-sentence element is gone for good.
+    expect(fixture.nativeElement.querySelector('.manual-fee-note')).toBeNull();
+  });
+
+  /**
+   * MANUAL ACH IS THE INVOICE BALANCE AND NOTHING MORE, and it says so in words that do not
+   * promise anything about the customer's OWN bank — which may still charge them for sending a
+   * transfer. A flat "No fee" would be a statement about somebody else's pricing.
+   */
+  it('says manual transfer carries no Dream Cleaning fee, without promising "no fee"', () => {
+    setUp(baseInvoice());
+
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('No processing fee from Dream Cleaning NYC');
+    expect(text).not.toContain('No fee');
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+  //  Tax, service dates and the company header
+  // ══════════════════════════════════════════════════════════════════════════════════════════
+
+  /**
+   * A TAX-INCLUSIVE INVOICE STATES THE TAX IN DOLLARS.
+   *
+   * This row used to print the bare word "Included", which stated the tax nowhere at all: the
+   * client could not reconcile it against a sales-tax return, and the subtotal beside it looked
+   * wrong too. The "(included)" note handles the original misreading directly instead.
+   */
+  it('shows the real tax amount on a tax-inclusive invoice, marked as included', () => {
+    const invoice = baseInvoice();
+    invoice.taxType = InvoiceTaxType.Included;
+    invoice.taxRate = 8.875;
+    invoice.taxAmount = 75.44;
+    setUp(invoice);
+
+    const text = totalsRow('Sales tax')?.textContent ?? '';
+
+    expect(text).toContain('$75.44');
+    expect(text).toContain('8.875');
+    expect(text).toContain('(included)');
+  });
+
+  it('still says Exempt when there is no tax', () => {
+    setUp(baseInvoice());
+    expect(totalsRow('Sales tax')?.textContent ?? '').toContain('Exempt');
+  });
+
+  /**
+   * THE TRADING NAME LEADS. The customer booked Dream Cleaning NYC and will look for it on a bank
+   * statement; the registered entity is the legal footnote underneath.
+   */
+  it('leads the company header with the trading name', () => {
+    setUp(baseInvoice());
+
+    const name = fixture.nativeElement.querySelector('.company-name') as HTMLElement;
+    const dba = fixture.nativeElement.querySelector('.company-dba') as HTMLElement;
+
+    expect(name.textContent).toContain('DBA Test Cleaning');
+    expect(dba.textContent).toContain('Test Company Inc.');
+  });
+
+  /**
+   * The service line uses the LABEL that matches what the invoice records, and is absent entirely
+   * when it records nothing — an invented period looks authoritative, and that is the failure this
+   * whole area exists to prevent.
+   */
+  it('names the service dates with the label the server resolved', () => {
+    const invoice = baseInvoice();
+    invoice.serviceDates = ['2026-10-07', '2026-10-14', '2026-10-21', '2026-10-28'];
+    invoice.serviceDateLabel = 'Service dates';
+    invoice.serviceDateText = 'October 7, 14, 21, 28, 2026';
+    setUp(invoice);
+
+    expect(fixture.nativeElement.textContent)
+      .toContain('Service dates: October 7, 14, 21, 28, 2026');
+  });
+
+  it('prints no service line at all when the invoice records no period', () => {
+    setUp(baseInvoice());
+
+    expect(component.servicePeriod).toBeNull();
+    expect(fixture.nativeElement.textContent).not.toContain('Service period:');
+    expect(fixture.nativeElement.textContent).not.toContain('Service date:');
   });
 });

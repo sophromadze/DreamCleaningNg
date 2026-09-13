@@ -45,6 +45,26 @@ export interface OrderList {
   paymentMethod?: string;
   paymentReference?: string | null;
   paymentNotes?: string | null;
+
+  /**
+   * Set when a fully-paid commercial invoice settled this order. Only ever present on an
+   * Invoice-method order, and it is what makes "has this been paid for?" answerable for one —
+   * `isPaid` is Stripe-only and stays false. Mirrors Helpers/OrderPaymentFilter.
+   */
+  invoicePaidAt?: string | null;
+
+  /** The commercial client an Invoice-method order is billed to. Null otherwise. */
+  contractClientId?: number | null;
+
+  // ── Recurring series ──────────────────────────────────────────────────────────────────
+  // All three are null/false on every ordinary one-off booking, which is every order that
+  // existed before the feature — nothing was backfilled.
+
+  recurringSeriesId?: number | null;
+  /** True when the generator created this order rather than a person. */
+  isGeneratedByRecurringSeries?: boolean;
+  /** "Every 2 weeks". Null when the order is not part of a series. */
+  recurrenceLabel?: string | null;
   /** Admin currently assigned to this order. Drives the "By: F. LastName" pill and
    *  admin-bonus payroll. Null = unassigned. */
   assignedAdminId?: number | null;
@@ -54,8 +74,18 @@ export interface OrderList {
 }
 
 export interface Order {
+  recurringSeriesId?: number | null;
   id: number;
   userId: number;
+
+  /** The commercial client an Invoice-method order is billed to. Null for every other method. */
+  contractClientId?: number | null;
+
+  /**
+   * Set when a fully-paid commercial invoice settled this order. Only ever present on an
+   * Invoice-method order — `isPaid` is Stripe-only and stays false for one.
+   */
+  invoicePaidAt?: string | null;
   /** Owner's admin-only problem flag: 'None' | 'Yellow' | 'Red'. */
   flag?: string;
   /** Optional admin note on why the customer is flagged. */

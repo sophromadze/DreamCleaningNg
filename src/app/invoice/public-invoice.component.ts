@@ -1,5 +1,5 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, ElementRef, OnInit, PLATFORM_ID, ViewChild, inject } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 
@@ -36,6 +36,9 @@ import { extractApiErrorMessage } from '../utils/http-error.utils';
 export class PublicInvoiceComponent implements OnInit {
   private invoiceService = inject(InvoiceService);
   private route = inject(ActivatedRoute);
+
+  /** This route is RenderMode.Client, but scrolling and focus are still guarded on principle. */
+  private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   readonly InvoiceStatus = InvoiceStatus;
   readonly InvoiceTaxType = InvoiceTaxType;
@@ -111,8 +114,83 @@ export class PublicInvoiceComponent implements OnInit {
     return !!this.options?.paymentInProgress;
   }
 
+  /**
+   * The ACH processing fee for this balance, as the SERVER computed it.
+   *
+   * Read straight off the payment options and never derived here: the browser must not be a second
+   * place that decides a fee, and the checkout endpoint recalculates it from the invoice anyway.
+   * Zero whenever the fee is switched off, which collapses every fee row on the page.
+   */
+  get achFee(): number {
+    return this.options?.achProcessingFee ?? 0;
+  }
+
+  /**
+   * "Pay from Bank" opens a CONFIRMATION rather than going straight to Stripe.
+   *
+   * The customer is about to authorize a debit slightly larger than the invoice they are looking
+   * at, so the extra amount is stated once beside the button and again here — the one thing they
+   * must not do is discover it on a bank statement. With no fee configured there is nothing extra
+   * to confirm, so it goes straight through.
+   */
+  confirmingBankPayment = false;
+
+  /**
+   * The confirmation panel, queried only while it is rendered.
+   *
+   * `ViewChild` with a setter rather than `AfterViewInit` because the panel is behind an *ngIf:
+   * the setter fires exactly when Angular puts it in the DOM, which is the moment to scroll — no
+   * timeout, no polling, and nothing to clean up.
+   */
+  @ViewChild('payConfirm')
+  set payConfirmPanel(panel: ElementRef<HTMLElement> | undefined) {
+    if (!panel) return;
+    this.revealConfirmation(panel.nativeElement);
+  }
+
   payFromBank(): void {
+    if (this.achFee > 0) {
+      // Already open: leave the viewport alone. Re-scrolling on a second click would yank the
+      // page under someone who is reading the figures.
+      if (this.confirmingBankPayment) return;
+      this.confirmingBankPayment = true;
+      return;
+    }
     this.startCheckout(InvoicePaymentRecordMethod.AchBankTransfer);
+  }
+
+  /**
+   * Brings the confirmation into view and puts focus inside it.
+   *
+   * Without this the panel expanded below the fold on a short viewport and the button looked
+   * inert — the single most common way a customer decides a payment page is broken.
+   *
+   * `block: 'center'` rather than 'start' so the whole panel sits comfortably inside the viewport
+   * on a phone; smooth scrolling is skipped when the visitor has asked for reduced motion. Focus
+   * moves to the panel (tabindex="-1") with `preventScroll`, so the browser's own focus scroll
+   * cannot fight the smooth one.
+   */
+  private revealConfirmation(panel: HTMLElement): void {
+    if (!this.isBrowser) return;
+
+    const reduceMotion = typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    panel.scrollIntoView({
+      behavior: reduceMotion ? 'auto' : 'smooth',
+      block: 'center',
+      inline: 'nearest'
+    });
+
+    panel.focus({ preventScroll: true });
+  }
+
+  confirmBankPayment(): void {
+    this.startCheckout(InvoicePaymentRecordMethod.AchBankTransfer);
+  }
+
+  cancelBankPayment(): void {
+    this.confirmingBankPayment = false;
   }
 
   payByCard(): void {
@@ -135,6 +213,7 @@ export class PublicInvoiceComponent implements OnInit {
       next: res => this.redirectToCheckout(res.checkoutUrl),
       error: err => {
         this.startingPayment = false;
+        this.confirmingBankPayment = false;
 
         // The server sends customer-safe wording for a 503 (payment route unavailable) and for a
         // 400 (already processing). Anything else falls back to a neutral sentence rather than
@@ -180,6 +259,10 @@ export class PublicInvoiceComponent implements OnInit {
 
   /** "September 1–30, 2026", matching how the PDF prints it. */
   get servicePeriod(): string | null {
+    // Resolved on the SERVER so this page, the PDF and the email describe the same invoice
+    // identically. The local formatting below is only a fallback for an older cached response.
+    if (this.invoice?.serviceDateText) return this.invoice.serviceDateText;
+
     if (!this.invoice?.serviceStartDate && !this.invoice?.serviceEndDate) return null;
 
     const start = new Date(this.invoice.serviceStartDate ?? this.invoice.serviceEndDate!);

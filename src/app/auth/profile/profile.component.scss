@@ -182,12 +182,12 @@
       }
 
       .change-email-btn {
-        background: var(--btn-secondary);
-        box-shadow: var(--btn-secondary-shadow);
+        background: var(--btn-brand);
+        box-shadow: var(--btn-brand-shadow);
 
         &:hover {
-          background: var(--btn-secondary-hover);
-          box-shadow: var(--btn-secondary-shadow-hover);
+          background: var(--btn-brand-hover);
+          box-shadow: var(--btn-brand-shadow-hover);
         }
       }
 
@@ -235,7 +235,7 @@
       }
 
       .add-btn {
-        background: var(--btn-secondary);
+        background: var(--btn-brand);
         color: white;
         border: none;
         padding: 0.4rem 0.8rem;
@@ -243,12 +243,12 @@
         cursor: pointer;
         transition: all 0.3s ease;
         font-size: 0.9rem;
-        box-shadow: var(--btn-secondary-shadow);
+        box-shadow: var(--btn-brand-shadow);
   
         &:hover {
-          background: var(--btn-secondary-hover);
+          background: var(--btn-brand-hover);
           transform: translateY(-1px);
-          box-shadow: var(--btn-secondary-shadow-hover);
+          box-shadow: var(--btn-brand-shadow-hover);
         }
 
         &:disabled {
@@ -616,7 +616,7 @@
       margin-top: 1rem;
   
       .save-btn {
-        background: var(--btn-secondary);
+        background: var(--btn-brand);
         color: white;
         border: none;
         padding: 0.4rem 1rem;
@@ -624,12 +624,12 @@
         cursor: pointer;
         transition: all 0.3s ease;
         font-size: 0.9rem;
-        box-shadow: var(--btn-secondary-shadow);
+        box-shadow: var(--btn-brand-shadow);
   
         &:hover {
-          background: var(--btn-secondary-hover);
+          background: var(--btn-brand-hover);
           transform: translateY(-1px);
-          box-shadow: var(--btn-secondary-shadow-hover);
+          box-shadow: var(--btn-brand-shadow-hover);
         }
       }
   
@@ -786,19 +786,19 @@
         margin-top: 1.5rem;
 
         .save-btn {
-          background: var(--btn-secondary);
+          background: var(--btn-brand);
           color: white;
           border: none;
           padding: 0.5rem 1.5rem;
           border-radius: 4px;
           cursor: pointer;
           transition: all 0.3s ease;
-          box-shadow: var(--btn-secondary-shadow);
+          box-shadow: var(--btn-brand-shadow);
 
           &:hover {
-            background: var(--btn-secondary-hover);
+            background: var(--btn-brand-hover);
             transform: translateY(-1px);
-            box-shadow: var(--btn-secondary-shadow-hover);
+            box-shadow: var(--btn-brand-shadow-hover);
           }
         }
 
@@ -934,20 +934,20 @@
       }
 
       .pay-btn {
-        background: var(--btn-secondary);
+        background: var(--btn-brand);
         color: white;
         border: none;
         padding: 0.5rem 1rem;
         border-radius: 4px;
         cursor: pointer;
         transition: all 0.3s ease;
-        box-shadow: var(--btn-secondary-shadow);
+        box-shadow: var(--btn-brand-shadow);
         font-size: 0.9rem;
 
         &:hover {
-          background: var(--btn-secondary-hover);
+          background: var(--btn-brand-hover);
           transform: translateY(-1px);
-          box-shadow: var(--btn-secondary-shadow-hover);
+          box-shadow: var(--btn-brand-shadow-hover);
         }
       }
 
@@ -1007,19 +1007,19 @@
       border-top: 1px solid #eee;
 
       .view-all-btn {
-        background: var(--btn-secondary);
+        background: var(--btn-brand);
         color: white;
         border: none;
         padding: 0.5rem 1.5rem;
         border-radius: 4px;
         cursor: pointer;
         transition: all 0.3s ease;
-        box-shadow: var(--btn-secondary-shadow);
+        box-shadow: var(--btn-brand-shadow);
 
         &:hover {
-          background: var(--btn-secondary-hover);
+          background: var(--btn-brand-hover);
           transform: translateY(-1px);
-          box-shadow: var(--btn-secondary-shadow-hover);
+          box-shadow: var(--btn-brand-shadow-hover);
         }
       }
     }

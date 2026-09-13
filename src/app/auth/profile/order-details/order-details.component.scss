@@ -479,15 +479,15 @@
     }
 
     .pay-btn {
-      background: var(--btn-secondary);
+      background: var(--btn-brand);
       color: white;
       text-decoration: none;
       text-align: center;
-      box-shadow: var(--btn-secondary-shadow);
+      box-shadow: var(--btn-brand-shadow);
 
       &:hover {
-        background: var(--btn-secondary-hover);
-        box-shadow: var(--btn-secondary-shadow-hover);
+        background: var(--btn-brand-hover);
+        box-shadow: var(--btn-brand-shadow-hover);
         transform: translateY(-2px);
       }
     }

@@ -357,4 +357,60 @@ describe('CleanerAccountsComponent', () => {
       expect(component.resolvePhone(account({ phone: '  ', cleanerPhone: '  ' })).value).toBeNull();
     });
   });
+
+  /**
+   * THE CLEANER RECORD BEHIND THE ACCOUNT (2026-09).
+   *
+   * This tab lists login ACCOUNTS; the PERSON is a Cleaner row, and the Cleaners Dashboard already
+   * owns the panel that shows one and the form that edits it. Clicking a row opens THAT component
+   * embedded, so the detail and the edit form are not "the same as" the dashboard's, they are the
+   * dashboard's. The rules worth pinning are the ones a future edit could quietly break.
+   */
+  describe('opening the cleaner record', () => {
+    beforeEach(() => {
+      // A LINKED account, because an unlinked one is the case with no record to open.
+      admin.getCleanerAccounts.and.returnValue(
+        of([account({ userId: 12, cleanerId: 80, cleanerName: 'Maria K' })]));
+      fixture.detectChanges();
+    });
+
+    it('opens the linked cleaner, not the account', () => {
+      component.openCleanerRecord(account({ userId: 12, cleanerId: 80, cleanerName: 'Maria K' }));
+
+      // 80, never 12 - the drawer is pointed at the CLEANER record, and the two ids come from
+      // different tables entirely.
+      expect(component.recordCleanerId).toBe(80);
+    });
+
+    it('refuses to open an account with no cleaner record', () => {
+      component.openCleanerRecord(account({ cleanerId: null }));
+
+      // "Not linked" on the row is the whole point of this tab. There is nothing to show, so the
+      // click is a no-op (and the row drops its pointer cursor) rather than an empty drawer.
+      expect(component.recordCleanerId).toBeNull();
+    });
+
+    it('opens from a click on the ROW, with the action buttons excluded', () => {
+      const row = fixture.nativeElement.querySelector('tbody tr.user-row') as HTMLElement;
+      const actions = row.querySelector('.col-actions') as HTMLElement;
+
+      // The actions cell stops the click: linking, unlinking and demoting stay one click each
+      // rather than also throwing open a panel nobody asked for.
+      actions.click();
+      expect(component.recordCleanerId).toBeNull();
+
+      row.click();
+      expect(component.recordCleanerId).toBe(80);
+    });
+
+    it('reloads the accounts after a save or delete inside the panel', () => {
+      admin.getCleanerAccounts.calls.reset();
+
+      // The row's linked-cleaner NAME, and whether it is linked at all, both live on the cleaner
+      // record - so the table underneath is stale the moment the panel writes to it.
+      component.onCleanerRecordChanged();
+
+      expect(admin.getCleanerAccounts).toHaveBeenCalled();
+    });
+  });
 });

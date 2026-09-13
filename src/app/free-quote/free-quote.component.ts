@@ -138,7 +138,7 @@ export class FreeQuoteComponent implements OnInit {
         'firstName': 'First name',
         'phone': 'Phone number',
         'email': 'Email',
-        'homeAddress': 'Home address',
+        'homeAddress': 'Address',
         'cleaningType': 'Cleaning type',
         'message': 'Message'
       };

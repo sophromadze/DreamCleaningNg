@@ -1371,7 +1371,7 @@ header{
             .menu-phone-icon {
               width: 18px;
               height: 18px;
-              color: var(--btn-secondary);
+              color: var(--btn-brand);
             }
           }
         }
@@ -1610,14 +1610,14 @@ header{
         height: 32px;
         min-width: 32px;
         min-height: 32px;
-        background: var(--btn-secondary);
+        background: var(--btn-brand);
         color: white;
         text-decoration: none;
         border-radius: 50%;
         transition: background 0.3s ease, color 0.3s ease;
 
         &:hover {
-          background: var(--btn-secondary-hover);
+          background: var(--btn-brand-hover);
           color: white;
         }
 

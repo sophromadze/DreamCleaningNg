@@ -173,6 +173,11 @@ describe('AdminComponent', () => {
     // /admin/rewards redirects here as ?tab=rewards, so the old bookmark has to land on the tab
     // rather than on whatever tab was last used.
     const openWithTab = async (tab: string) => {
+      // Specs run in a random order and several of them leave a tab behind, so the saved-tab
+      // branch has to be taken out of the picture here: the whole point of these two is what
+      // ?tab= does on its own, and a leftover 'users' made the unknown-tab fallback read as
+      // one that had resolved to something.
+      sessionStorage.removeItem('adminActiveTab');
       TestBed.resetTestingModule();
       await TestBed.configureTestingModule({
         providers: [
@@ -196,6 +201,69 @@ describe('AdminComponent', () => {
 
     it('ignores a ?tab= naming something that is not a tab', async () => {
       expect((await openWithTab('not-a-tab')).activeTab).toBe('orders');
+    });
+  });
+
+  /**
+   * DEEP LINKS INTO USERS (2026-09).
+   *
+   * The Orders panel's "View User" used to send every order to Users → Customers, so opening an
+   * invoice-billed cleaning showed a plain customer record with none of the billing entity,
+   * contracts or invoices the admin had come to see. It now names the sub-tab, and for a
+   * commercial order it names the client.
+   */
+  describe('?usersTab= and ?clientId=', () => {
+    const openWith = async (params: Record<string, string>) => {
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        providers: [
+          ...testProviders,
+          {
+            provide: ActivatedRoute,
+            useValue: { snapshot: { queryParamMap: convertToParamMap(params) } },
+          },
+        ],
+        imports: [AdminComponent],
+      }).compileComponents();
+
+      const fresh = TestBed.createComponent(AdminComponent);
+      fresh.componentInstance.ngOnInit();
+      return fresh.componentInstance;
+    };
+
+    it('opens Users → Business Clients on the client a link names', async () => {
+      const c = await openWith({ clientId: '7' });
+
+      // A client id can only mean Business Clients, so the link does not have to say so twice.
+      expect(c.activeTab).toBe('users');
+      expect(c.initialUsersTab).toBe('business-clients');
+      expect(c.pendingClientId).toBe(7);
+    });
+
+    it('opens Users → Customers with the account a link names', async () => {
+      const c = await openWith({ userId: '42', usersTab: 'customers' });
+
+      expect(c.activeTab).toBe('users');
+      expect(c.pendingUserId).toBe(42);
+      expect(c.initialUsersTab).toBe('customers');
+    });
+
+    it('lands on Users even when only the sub-tab is named', async () => {
+      // Without this the final branch would restore the last sessionStorage tab straight over
+      // the top of the link.
+      sessionStorage.setItem('adminActiveTab', 'discounts');
+      const c = await openWith({ usersTab: 'cleaners' });
+
+      expect(c.activeTab).toBe('users');
+      expect(c.initialUsersTab).toBe('cleaners');
+      sessionStorage.removeItem('adminActiveTab');
+    });
+
+    it('ignores a sub-tab that is not one', async () => {
+      const c = await openWith({ userId: '42', usersTab: 'nonsense' });
+
+      expect(c.activeTab).toBe('users');
+      expect(c.initialUsersTab).toBeNull();
     });
   });
 });

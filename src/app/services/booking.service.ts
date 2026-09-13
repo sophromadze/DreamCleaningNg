@@ -162,6 +162,12 @@ export interface CreateForUserOptions {
   recreatedFromOrderId?: number;
   /** false suppresses the customer's CURRENT loyalty + recurring-plan discounts. Omitted = apply. */
   applyCurrentDiscounts?: boolean;
+  /**
+   * Required when paymentMethod is 'Invoice' — the ContractClient the order is billed to.
+   * The server rejects an Invoice order without one, because a cleaning nobody can attach to an
+   * invoice would sit Pending forever with nothing able to settle it.
+   */
+  contractClientId?: number | null;
 }
 
 export interface BlockedTimeSlot {

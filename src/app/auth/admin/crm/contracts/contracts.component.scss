@@ -85,6 +85,34 @@
     cursor: pointer;
     &:hover td { background: var(--soft-blue); }
   }
+
+  // "Create next invoice", per row. `cursor: default` because this cell does NOT open the contract
+  // the way the rest of the row does.
+  .actions-col {
+    width: 1%;
+    white-space: nowrap;
+    text-align: right;
+    cursor: default;
+  }
+}
+
+// Outlined blue, sized to sit inside a table row without making the row taller. Deliberately not
+// .btn-brand: creating a draft invoice is an ordinary action, not a success.
+.btn-row-action {
+  padding: 5px 11px;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--primary-color);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--soft-blue); }
+  &:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
 }
 
 .status-pill {

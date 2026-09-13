@@ -13,9 +13,9 @@ export class TokenRefreshService {
   private inactivityCheckSubscription?: Subscription;
   private isBrowser: boolean;
   private isInitialized = false; // Add flag to prevent multiple initializations
-  private readonly TOKEN_REFRESH_INTERVAL = 6 * 24 * 60 * 60 * 1000; // 6 days (refresh before 7 day expiry)
+  private readonly TOKEN_REFRESH_INTERVAL = 29 * 24 * 60 * 60 * 1000; // 29 days (refresh before the 30 day expiry)
   private readonly INACTIVITY_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // Check every day
-  private readonly MAX_INACTIVITY_TIME = 7 * 24 * 60 * 60 * 1000; // 7 days
+  private readonly MAX_INACTIVITY_TIME = 30 * 24 * 60 * 60 * 1000; // 30 days
 
   constructor(
     private authService: AuthService,

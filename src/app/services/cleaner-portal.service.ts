@@ -67,8 +67,24 @@ export interface CleanerPortalJob {
    * email's "Supplies: required / not required" line reads.
    */
   bringCleaningSupplies: boolean;
-  /** Paper towels, garbage bags, toilet brush — the "Cleaning Essentials" extra. Never a broom or vacuum. */
+  /**
+   * Whether WE bring the essentials - paper towels, garbage bags, toilet brush and a broom under
+   * the "Cleaning Essentials" extra. A vacuum is still the separate Vacuum Cleaner extra.
+   */
   bringCleaningEssentials: boolean;
+
+  /**
+   * WHICH items each of those two lines is about, as translation keys in the order they are
+   * listed - resolved by the server (CleanerJobView) and translated here through
+   * PortalStrings.supplyItems. Sent whichever way the flags fall: the flag says who is carrying
+   * them, these say what they are, and a cleaner needs both.
+   *
+   * Never rebuild these lists on the page. The assignment email and SMS name the same items off
+   * the same resolver, and a second copy of that rule here is exactly how a cleaner ends up
+   * reading one list in their mail and a different one on the screen.
+   */
+  suppliesItemKeys: string[];
+  essentialsItemKeys: string[];
 
   /** THIS cleaner's payroll hours - what they were told and are paid for, in minutes. */
   serviceDurationMinutes: number;
