@@ -13,9 +13,35 @@ export class TokenRefreshService {
   private inactivityCheckSubscription?: Subscription;
   private isBrowser: boolean;
   private isInitialized = false; // Add flag to prevent multiple initializations
-  private readonly TOKEN_REFRESH_INTERVAL = 29 * 24 * 60 * 60 * 1000; // 29 days (refresh before the 30 day expiry)
+  /**
+   * THE HARD CEILING ON ANY BROWSER TIMER DELAY (2026-09).
+   *
+   * `setTimeout`/`setInterval` convert their delay to a SIGNED 32-BIT integer. Anything above
+   * 2,147,483,647 ms (~24.8 days) overflows to a negative number, which the spec then clamps to
+   * 0 — so an "every 29 days" timer does not fire in 29 days, it fires **every few milliseconds,
+   * forever**.
+   *
+   * That is exactly what happened in production: `interval(29 days)` became a tight loop firing
+   * `performTokenRefresh()` continuously, which machine-gunned `POST /api/auth/refresh-token`
+   * and filled the console with an unstoppable stream of failures. Every delay this service
+   * hands to a timer goes through `clampTimerDelay` for that reason.
+   */
+  private static readonly MAX_TIMER_DELAY = 2147483647;
+
+  // Must stay <= MAX_TIMER_DELAY. 24 days still renews well before the 30-day expiry, and in
+  // practice no tab lives long enough for either figure to matter — what matters is that the
+  // value cannot overflow.
+  private readonly TOKEN_REFRESH_INTERVAL = 24 * 24 * 60 * 60 * 1000; // 24 days (before the 30 day expiry)
   private readonly INACTIVITY_CHECK_INTERVAL = 24 * 60 * 60 * 1000; // Check every day
-  private readonly MAX_INACTIVITY_TIME = 30 * 24 * 60 * 60 * 1000; // 30 days
+  private readonly MAX_INACTIVITY_TIME = 30 * 24 * 60 * 60 * 1000; // 30 days (a comparison, never a timer delay)
+
+  /**
+   * Last line of defence for the overflow above: a delay that would wrap is pinned to the
+   * ceiling, so the worst case is a timer that fires EARLY rather than one that fires in a loop.
+   */
+  private clampTimerDelay(delayMs: number): number {
+    return Math.min(Math.max(delayMs, 0), TokenRefreshService.MAX_TIMER_DELAY);
+  }
 
   constructor(
     private authService: AuthService,
@@ -44,12 +70,12 @@ export class TokenRefreshService {
     setTimeout(() => {
       
       // Set up periodic token refresh
-      this.refreshSubscription = interval(this.TOKEN_REFRESH_INTERVAL).subscribe(() => {
+      this.refreshSubscription = interval(this.clampTimerDelay(this.TOKEN_REFRESH_INTERVAL)).subscribe(() => {
         this.performTokenRefresh();
       });
 
       // Set up periodic inactivity check (every hour)
-      this.inactivityCheckSubscription = interval(this.INACTIVITY_CHECK_INTERVAL).subscribe(() => {
+      this.inactivityCheckSubscription = interval(this.clampTimerDelay(this.INACTIVITY_CHECK_INTERVAL)).subscribe(() => {
         if (this.checkInactivity()) {
           this.authService.logout();
         }
