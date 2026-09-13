@@ -275,22 +275,21 @@ describe('CommercialClientsComponent', () => {
     /**
      * TWO HALVES, TWO TABS, ONE PANEL.
      *
-     * "Open the full customer record" used to navigate to /admin?userId=…&usersTab=customers,
-     * which was wrong twice over: the router reuses the admin panel when it is already the open
-     * route, so from Users → Business Clients the link changed the URL and nothing else; and the
-     * Customers tab hides exactly these accounts, so even when it worked it landed on a list the
-     * record is not in.
+     * The customer half used to be a link to /admin?userId=…&usersTab=customers, which was wrong
+     * twice over: the router reuses the admin panel when it is already the open route, so from
+     * Users → Business Clients it changed the URL and nothing else; and the Customers tab hides
+     * exactly these accounts, so even when it worked it landed on a list the record is not in.
+     * The tab strip is now the only way across, and it goes nowhere.
      */
     describe('the panel opens the customer record in place', () => {
-      it('switches to the customer tab instead of navigating away', () => {
+      it('shows the customer half without navigating away', () => {
         const router = TestBed.inject(Router);
         const navigate = spyOn(router, 'navigate');
         start();
         component.openClientDetails(LINKED);
 
-        component.openLinkedAccount(LINKED);
+        component.setPanelTab('customer');
 
-        expect(component.panelTab).toBe('customer');
         expect(component.showsCustomerPanel).toBeTrue();
         expect(navigate).not.toHaveBeenCalled();
       });

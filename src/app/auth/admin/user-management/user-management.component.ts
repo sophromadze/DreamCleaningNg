@@ -35,7 +35,6 @@ import {
   RegisteredCustomer
 } from '../../../shared/components/register-customer-modal/register-customer-modal.component';
 import { RecreateOrderModalComponent } from '../../../shared/components/recreate-order-modal/recreate-order-modal.component';
-import { Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
 import {
   InvoiceService, InvoiceClientOption, LinkedInvoiceSummary
@@ -245,8 +244,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     private bubbleRewardsService: BubbleRewardsService,
     private adminBonusService: AdminBonusService,
     private contractService: ContractService,
-    private invoiceService: InvoiceService,
-    private router: Router
+    private invoiceService: InvoiceService
   ) {}
 
   ngOnInit() {
@@ -667,12 +665,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   /** The Invoices tab exists only when there is something in it. */
   get hasInvoices(): boolean {
     return this.userInvoices.length > 0;
-  }
-
-  /** Opens the commercial record for this account on the Business Clients tab. */
-  openBusinessClient(): void {
-    if (!this.businessClient) return;
-    this.router.navigate(['/admin'], { queryParams: { clientId: this.businessClient.id } });
   }
 
   // Only fetched for users with the Admin role — the bonus system doesn't apply to others.

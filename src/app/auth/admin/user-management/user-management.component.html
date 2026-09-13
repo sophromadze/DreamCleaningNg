@@ -551,11 +551,6 @@
               This client is removed from the Business Clients list. Its contracts and invoices are
               unaffected; turning the Business flag back on lists it again.
             </p>
-
-            <button type="button" class="action-btn small ghost inline um-business-link"
-                    (click)="openBusinessClient()">
-              Open the commercial record →
-            </button>
           </div>
           <div class="info-card" *ngIf="loadingBusinessClient && !businessClient">
             <h6>Business client</h6>

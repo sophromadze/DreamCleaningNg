@@ -125,12 +125,3 @@
   gap: 0.5rem;
   margin-top: 0.35rem;
 }
-
-/* The bridge between the two halves of a business client: the commercial record on this screen
-   and the customer account it is linked to. Aligned left under the account grid so it reads as
-   "…and there is more of this over there", not as a panel action. */
-.cc-account-link {
-  margin-top: 0.6rem;
-  padding-left: 0;
-  color: var(--primary-color) !important;
-}

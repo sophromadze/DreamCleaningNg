@@ -148,6 +148,12 @@
        *ngIf="!showsCustomerPanel"
        [class.open]="selectedClientId !== null">
   <ng-container *ngIf="selectedClient as c">
+    <!-- ABOVE the header, in both panels. The strip switches between two whole records, so it
+         belongs over the identity it is switching — and the customer panel projects it into the
+         same place (see the ng-content in user-management's panel). Put it under the header here
+         and the tabs jump position as you switch tabs. -->
+    <ng-container *ngTemplateOutlet="clientPanelTabs"></ng-container>
+
     <div class="detail-header">
       <div class="detail-header__main">
         <div class="detail-avatar" [style.background]="getAvatarColor(c.id)">
@@ -197,8 +203,6 @@
         </button>
       </div>
     </div>
-
-    <ng-container *ngTemplateOutlet="clientPanelTabs"></ng-container>
 
     <!-- The customer half with no customer behind it. The tab is still offered rather than hidden
          (owner's call): a standalone client is a company we invoice that has never booked through
@@ -303,13 +307,6 @@
           </div>
 
           <p class="muted" *ngIf="loadingLinkedAccount">Loading the customer account…</p>
-
-          <!-- Opens the OTHER TAB of this panel, not another page. The record stays where the
-               admin is looking. -->
-          <button type="button" class="action-btn small ghost inline cc-account-link"
-                  (click)="openLinkedAccount(c)">
-            Open the full customer record →
-          </button>
         </div>
 
         <div class="info-card">

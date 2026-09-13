@@ -290,19 +290,6 @@ export class CommercialClientsComponent implements OnInit {
       });
   }
 
-  /**
-   * Opens this client's customer record — in place, as the panel's other tab.
-   *
-   * It used to navigate to `/admin?userId=…&usersTab=customers`, which was wrong twice over: the
-   * router reuses the admin panel when it is already the open route, so from Users → Business
-   * Clients the link changed the URL and nothing else; and the Customers tab hides exactly these
-   * accounts, so even when it worked it landed on a list the record was not in.
-   */
-  openLinkedAccount(client: InvoiceClientOption): void {
-    if (client.sourceUserId == null) return;
-    this.setPanelTab('customer');
-  }
-
   isLinked(client: InvoiceClientOption): boolean {
     return client.sourceUserId != null;
   }
