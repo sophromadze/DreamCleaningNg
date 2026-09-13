@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import { BehaviorSubject, of } from 'rxjs';
 
 import { AdminComponent } from './admin.component';
 
@@ -184,7 +185,10 @@ describe('AdminComponent', () => {
           ...testProviders,
           {
             provide: ActivatedRoute,
-            useValue: { snapshot: { queryParamMap: convertToParamMap({ tab }) } },
+            useValue: {
+              snapshot: { queryParamMap: convertToParamMap({ tab }) },
+              queryParamMap: of(convertToParamMap({ tab })),
+            },
           },
         ],
         imports: [AdminComponent],
@@ -220,7 +224,10 @@ describe('AdminComponent', () => {
           ...testProviders,
           {
             provide: ActivatedRoute,
-            useValue: { snapshot: { queryParamMap: convertToParamMap(params) } },
+            useValue: {
+              snapshot: { queryParamMap: convertToParamMap(params) },
+              queryParamMap: of(convertToParamMap(params)),
+            },
           },
         ],
         imports: [AdminComponent],
@@ -259,11 +266,79 @@ describe('AdminComponent', () => {
       sessionStorage.removeItem('adminActiveTab');
     });
 
-    it('ignores a sub-tab that is not one', async () => {
+    it('ignores a sub-tab that is not one, and falls back to Customers', async () => {
+      // A customer id can only mean the Customers list. Left null, the shell would fall through
+      // to its remembered sub-tab and open the account's panel behind Business Clients.
       const c = await openWith({ userId: '42', usersTab: 'nonsense' });
 
       expect(c.activeTab).toBe('users');
-      expect(c.initialUsersTab).toBeNull();
+      expect(c.initialUsersTab).toBe('customers');
+    });
+  });
+
+  /**
+   * A DEEP LINK THAT ARRIVES WHILE THE PANEL IS ALREADY OPEN (2026-09).
+   *
+   * Users → Business Clients → "Open the full customer record" navigates to /admin from inside
+   * /admin, so the router reuses this component and ngOnInit never runs again. Reading the
+   * snapshot alone left that button changing the URL and nothing else — a dead button.
+   */
+  describe('a link followed from inside the panel', () => {
+    let params: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
+
+    const mountWith = async (initial: Record<string, string>) => {
+      sessionStorage.removeItem('adminActiveTab');
+      params = new BehaviorSubject(convertToParamMap(initial));
+
+      TestBed.resetTestingModule();
+      await TestBed.configureTestingModule({
+        providers: [
+          ...testProviders,
+          {
+            provide: ActivatedRoute,
+            useValue: {
+              snapshot: { queryParamMap: convertToParamMap(initial) },
+              queryParamMap: params.asObservable(),
+            },
+          },
+        ],
+        imports: [AdminComponent],
+      }).compileComponents();
+
+      const fresh = TestBed.createComponent(AdminComponent);
+      fresh.componentInstance.ngOnInit();
+      return fresh.componentInstance;
+    };
+
+    afterEach(() => sessionStorage.removeItem('adminActiveTab'));
+
+    it('opens Users → Customers on the account a later link names', async () => {
+      const c = await mountWith({ usersTab: 'business-clients' });
+      expect(c.activeTab).toBe('users');
+
+      params.next(convertToParamMap({ userId: '2', usersTab: 'customers' }));
+
+      expect(c.pendingUserId).toBe(2);
+      expect(c.initialUsersTab).toBe('customers');
+      expect(c.activeTab).toBe('users');
+    });
+
+    it('does not re-apply the link the subscription replays on arrival', async () => {
+      // queryParamMap replays the current value the moment it is subscribed to, and the snapshot
+      // has already dealt with it. Applying it twice is harmless here but would fight any tab the
+      // admin had moved to in between.
+      const c = await mountWith({ tab: 'discounts' });
+
+      expect(c.activeTab).toBe('discounts');
+    });
+
+    it('leaves the admin where they are when a navigation names none of them', async () => {
+      const c = await mountWith({ userId: '42' });
+      c.setActiveTab('scheduling');
+
+      params.next(convertToParamMap({}));
+
+      expect(c.activeTab).toBe('scheduling');
     });
   });
 });

@@ -251,7 +251,7 @@
                 </strong>
               </div>
               <div><span>Role</span><strong>{{ u.role || 'Customer' }}</strong></div>
-              <div><span>Cleanings</span><strong>{{ u.totalOrders ?? (u.orders?.length || 0) }}</strong></div>
+              <div><span>Cleanings</span><strong>{{ u.totalOrders || 0 }}</strong></div>
               <div>
                 <span>Total spent</span>
                 <strong>{{ (u.totalSpent || 0) | currency:'USD' }}</strong>

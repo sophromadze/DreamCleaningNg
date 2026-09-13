@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, ParamMap } from '@angular/router';
+import { skip } from 'rxjs/operators';
 import { AdminService, UserPermissions } from '../../services/admin.service';
 import { MaintenanceModeService, MaintenanceModeStatus, ToggleMaintenanceModeRequest } from '../../services/maintenance-mode.service';
 import { LiveChatService } from '../../services/live-chat.service';
@@ -156,6 +157,9 @@ export class AdminComponent implements OnInit {
       if (!isNaN(id)) {
         this.activeTab = 'users';
         this.pendingUserId = id;
+        // A customer id can only mean the Customers list. Said out loud so the shell does not
+        // fall through to its remembered sub-tab and open the panel behind Business Clients.
+        this.initialUsersTab ??= 'customers';
       }
     } else if (tabParam && this.resolveTab(tabParam)) {
       this.activeTab = this.resolveTab(tabParam)!;
@@ -190,8 +194,81 @@ export class AdminComponent implements OnInit {
       }
     }
 
+    // A deep link that arrives while the panel is ALREADY open.
+    //
+    // Everything above reads the SNAPSHOT, which is taken once. Navigating to /admin from inside
+    // /admin — Users → Business Clients → "Open the full customer record", which asks for
+    // ?userId=&usersTab=customers — reuses this component, so ngOnInit never runs again: the URL
+    // changed and the panel sat there, which read as a dead button. Re-applying on every later
+    // emission is what makes an in-panel link behave like one typed into the address bar.
+    //
+    // skip(1) drops the emission the subscription itself replays (the snapshot just handled it),
+    // and a navigation carrying none of these params — clearing them, say — is left alone rather
+    // than bouncing the admin off whatever tab they had moved on to.
+    this.route.queryParamMap
+      .pipe(skip(1))
+      .subscribe(params => this.applyDeepLink(params));
+
     // Refresh token before loading permissions to ensure we have a valid token
     this.refreshTokenAndLoadPermissions();
+  }
+
+  /**
+   * Applies a deep link that arrived after the panel was already mounted.
+   *
+   * Deliberately NOT the whole of ngOnInit: there is no sessionStorage-restore branch here,
+   * because the admin is already somewhere and a navigation that names nothing must not move
+   * them. `initialUsersTab` / `pendingUserId` are plain inputs, so writing them is what tells
+   * the Users shell to switch sub-tab and the customer list to open its panel.
+   */
+  private applyDeepLink(params: ParamMap): void {
+    const orderIdParam = params.get('orderId');
+    const userIdParam = params.get('userId');
+    const usersTabParam = params.get('usersTab');
+    const clientIdParam = params.get('clientId');
+    const tabParam = params.get('tab');
+
+    if (!orderIdParam && !userIdParam && !usersTabParam && !clientIdParam && !tabParam) return;
+
+    if (usersTabParam && AdminComponent.USERS_TABS.includes(usersTabParam as AdminUsersTab)) {
+      this.initialUsersTab = usersTabParam as AdminUsersTab;
+    }
+
+    if (clientIdParam) {
+      const id = parseInt(clientIdParam, 10);
+      if (!isNaN(id)) {
+        this.pendingClientId = id;
+        this.initialUsersTab ??= 'business-clients';
+      }
+    }
+
+    if (orderIdParam) {
+      const id = parseInt(orderIdParam, 10);
+      if (!isNaN(id)) {
+        this.pendingOrderId = id;
+        this.setActiveTab('orders');
+      }
+      return;
+    }
+
+    if (userIdParam) {
+      const id = parseInt(userIdParam, 10);
+      if (!isNaN(id)) {
+        this.pendingUserId = id;
+        this.initialUsersTab ??= 'customers';
+        this.setActiveTab('users');
+      }
+      return;
+    }
+
+    if (tabParam) {
+      const resolved = this.resolveTab(tabParam);
+      if (resolved) this.setActiveTab(resolved);
+      return;
+    }
+
+    // Only a sub-tab (or a client) was named — either way that means Users.
+    this.setActiveTab('users');
   }
 
   refreshTokenAndLoadPermissions() {

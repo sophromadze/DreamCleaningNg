@@ -6,7 +6,7 @@ import { finalize } from 'rxjs/operators';
 
 import { InvoiceService, InvoiceClientOption } from '../../../../services/invoice.service';
 import { ContractService } from '../../../../services/contract.service';
-import { AdminService, DetailedUser } from '../../../../services/admin.service';
+import { AdminService, UserProfile } from '../../../../services/admin.service';
 import { CommercialClientModalComponent } from '../../../../shared/components/commercial-client-modal/commercial-client-modal.component';
 import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
 import { getAdminAvatarColor, getAdminAvatarInitials } from '../../../../shared/admin/admin-avatar.utils';
@@ -105,8 +105,13 @@ export class CommercialClientsComponent implements OnInit {
    * The two records describe different things — a legal entity vs. a person with a login — so
    * they are shown side by side rather than merged, exactly as BusinessClientMapper documents.
    * What changed is that an admin no longer has to visit a second tab to see the other half.
+   *
+   * Read through `users/{id}/profile` — the admin panel's ONE per-account read, which already
+   * returns the phone / status / role / cleanings / spend this half shows. It originally called
+   * `users/{id}/details`, an `AdminService` helper pointing at an endpoint that was never
+   * implemented, so opening any LINKED client 404'd and this half silently stayed blank.
    */
-  linkedAccount: DetailedUser | null = null;
+  linkedAccount: UserProfile | null = null;
   loadingLinkedAccount = false;
   private linkedAccountUserId: number | null = null;
 
@@ -229,7 +234,7 @@ export class CommercialClientsComponent implements OnInit {
     this.linkedAccount = null;
     this.loadingLinkedAccount = true;
 
-    this.adminService.getUserDetails(userId)
+    this.adminService.getUserProfile(userId)
       .pipe(finalize(() => this.loadingLinkedAccount = false))
       .subscribe({
         next: user => {

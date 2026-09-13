@@ -104,6 +104,35 @@ describe('AdminUsersComponent', () => {
     expect(component.activeTab).toBe('cleaners');
   });
 
+  /**
+   * A link followed from INSIDE the shell — Business Clients → "Open the full customer record" —
+   * navigates to /admin while this component is already mounted, so the sub-tab arrives as an
+   * input change rather than on init. Read once, it changed the URL and nothing else.
+   */
+  it('follows a sub-tab that arrives after it is already up', () => {
+    fixture.detectChanges();
+    component.setActiveTab('business-clients');
+    fixture.detectChanges();
+
+    fixture.componentRef.setInput('openUserId', 2);
+    fixture.componentRef.setInput('initialTab', 'customers');
+    fixture.detectChanges();
+
+    expect(component.activeTab).toBe('customers');
+    expect(fixture.nativeElement.querySelector('app-user-management')).not.toBeNull();
+  });
+
+  it('stays put when the sub-tab is cleared — that names nothing in particular', () => {
+    fixture.detectChanges();
+    component.setActiveTab('cleaners');
+    fixture.detectChanges();
+
+    fixture.componentRef.setInput('initialTab', null);
+    fixture.detectChanges();
+
+    expect(component.activeTab).toBe('cleaners');
+  });
+
   it('mounts ONE child at a time', () => {
     fixture.detectChanges();
 

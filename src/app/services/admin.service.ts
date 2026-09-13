@@ -1829,12 +1829,11 @@ export class AdminService {
     return this.http.get<any[]>(`${this.apiUrl}/user-care/users/${userId}/tasks`);
   }
 
-  // Get detailed user information (optional - combines profile, orders, and apartments)
-  getUserDetails(userId: number): Observable<DetailedUser> {
-    return this.http.get<DetailedUser>(`${this.apiUrl}/users/${userId}/details`);
-  }
-
-  // Alternative: Get user profile information
+  // One account's own record — phone, status, role, cleanings and spend.
+  //
+  // There is no `users/{id}/details`: a helper for one was here for years without the endpoint
+  // ever existing on the server, and the first screen to actually call it (the business client
+  // panel) got a 404 per open. This is the read; `getUsers()` is the list.
   getUserProfile(userId: number): Observable<UserProfile> {
     return this.http.get<UserProfile>(`${this.apiUrl}/users/${userId}/profile`);
   }

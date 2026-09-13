@@ -87,7 +87,7 @@ describe('CommercialClientsComponent', () => {
    * its own block below.
    */
   const drainLinkedAccount = () =>
-    httpMock.match(r => r.url.includes('/users/55/details'))
+    httpMock.match(r => r.url.includes('/users/55/profile'))
       .forEach(r => r.flush({ id: 55, firstName: 'Casey', lastName: 'Client', isActive: true }));
 
   afterEach(() => {
@@ -237,7 +237,7 @@ describe('CommercialClientsComponent', () => {
    * the rest of the same customer.
    */
   describe('the customer account behind a linked client', () => {
-    const ACCOUNT_URL = `${environment.apiUrl}/admin/users/55/details`;
+    const ACCOUNT_URL = `${environment.apiUrl}/admin/users/55/profile`;
 
     it('loads the account when a linked client is opened', () => {
       start();
@@ -252,12 +252,23 @@ describe('CommercialClientsComponent', () => {
       expect(component.linkedAccount?.totalOrders).toBe(12);
     });
 
+    // The panel used to ask for `users/{id}/details`, an AdminService helper whose endpoint was
+    // never implemented — so every linked client answered 404 and this half stayed blank.
+    it('reads the account through the endpoint that exists, not users/{id}/details', () => {
+      start();
+
+      component.openClientDetails(LINKED);
+
+      httpMock.expectNone(r => r.url.includes('/details'));
+      httpMock.expectOne(ACCOUNT_URL).flush({ id: 55, firstName: 'Casey', lastName: 'Client' });
+    });
+
     it('asks for nothing on a standalone client — there is no account to ask about', () => {
       start();
 
       component.openClientDetails(STANDALONE);
 
-      httpMock.expectNone(r => r.url.includes('/details'));
+      httpMock.expectNone(r => r.url.includes('/profile'));
       expect(component.linkedAccount).toBeNull();
     });
 

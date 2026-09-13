@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 
 import { UserManagementComponent } from '../user-management/user-management.component';
@@ -46,7 +46,7 @@ export type AdminUsersTab = 'customers' | 'cleaners' | 'business-clients' | 'sta
  * The tab strip uses the shared admin-tab-nav mixin, so it reads as a smaller version of the
  * panel's own navigation rather than a third style.
  */
-export class AdminUsersComponent implements OnInit {
+export class AdminUsersComponent implements OnInit, OnChanges {
   /** Forwarded to the Customers tab — the ?userId= deep link from the orders panel. */
   @Input() openUserId: number | null = null;
 
@@ -58,8 +58,13 @@ export class AdminUsersComponent implements OnInit {
   @Input() openClientId: number | null = null;
 
   /**
-   * Which sub-tab to open on mount. Set by the panel when a legacy deep link asked for the old
-   * top-level Cleaners tab, so `/admin?tab=cleaner-accounts` keeps landing on the cleaners.
+   * Which sub-tab to open. Set by the panel when a legacy deep link asked for the old top-level
+   * Cleaners tab, so `/admin?tab=cleaner-accounts` keeps landing on the cleaners — and by
+   * `?usersTab=`.
+   *
+   * Honoured on every change, not only on mount: a deep link can arrive while this shell is
+   * already up (Business Clients → "Open the full customer record" navigates to /admin from
+   * inside /admin), and reading it once left that link changing the URL and nothing else.
    */
   @Input() initialTab: AdminUsersTab | null = null;
 
@@ -75,7 +80,12 @@ export class AdminUsersComponent implements OnInit {
 
   private static readonly STORAGE_KEY = 'adminUsersTab';
 
+  /** Set once ngOnInit has had its say, so ngOnChanges knows a change is a LATER one. */
+  private initialized = false;
+
   ngOnInit(): void {
+    this.initialized = true;
+
     if (this.initialTab) {
       this.activeTab = this.initialTab;
       return;
@@ -90,6 +100,24 @@ export class AdminUsersComponent implements OnInit {
     } catch {
       // Private browsing, or storage disabled. The default is perfectly usable.
     }
+  }
+
+  /**
+   * A later `initialTab` moves the shell.
+   *
+   * Gated on `initialized` rather than on `isFirstChange()`: Angular runs ngOnChanges BEFORE
+   * ngOnInit, and the binding's initial value is ngOnInit's to read — it is what keeps the
+   * sessionStorage fallback intact. Cleared back to null the input means nothing in particular,
+   * so the admin stays where they are rather than being thrown back to Customers.
+   */
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!this.initialized) return;
+
+    const change = changes['initialTab'];
+    if (!change) return;
+
+    const tab = change.currentValue as AdminUsersTab | null;
+    if (tab && this.tabs.some(t => t.key === tab)) this.setActiveTab(tab);
   }
 
   setActiveTab(tab: AdminUsersTab): void {
