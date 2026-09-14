@@ -53,6 +53,19 @@
         <div class="chat-msg__bubble">
           Hi! 👋 I can help with our cleaning services, price estimates, what's included, and discounts. What can I do for you?
         </div>
+        <!-- Opening fork. "Hire us" vs "hire me" is what the assistant most often gets wrong,
+             and it gets it wrong from free text — one tap here settles it before the first
+             sentence. Typing instead is untouched; these are a shortcut, not a gate. -->
+        <div class="chat-quick-replies chat-quick-replies--openers">
+          <button
+            type="button"
+            class="chat-quick-reply"
+            *ngFor="let opener of openers"
+            [disabled]="sending"
+            (click)="sendOpener(opener)">
+            <i class="fas" [ngClass]="opener.icon" aria-hidden="true"></i> {{ opener.label }}
+          </button>
+        </div>
       </div>
 
       <div
@@ -150,9 +163,9 @@
       </ng-container>
     </div>
 
-    <!-- Optional guest contact email. Has its own submit button and stays on screen until a
-         valid address has actually been submitted — it used to disappear the instant the
-         first message was sent, which was before anyone had a chance to fill it in. -->
+    <!-- Optional guest contact email. It used to disappear the instant the first message was
+         sent — before anyone had a chance to fill it in — so it now stays put until the
+         visitor either submits an address (✓) or dismisses the row (✕). -->
     <div class="chat-panel__email" *ngIf="showEmailField">
       <div class="chat-panel__email-row">
         <input
@@ -175,11 +188,20 @@
           aria-label="Save email">
           <i class="fas" [ngClass]="savingGuestEmail ? 'fa-spinner fa-spin' : 'fa-check'" aria-hidden="true"></i>
         </button>
+        <!-- Dismiss. The field is optional and no longer hides itself on the first message,
+             so without this a visitor who doesn't want to leave an address has no way to
+             take the row off their screen. -->
+        <button
+          type="button"
+          class="chat-panel__email-dismiss"
+          [disabled]="savingGuestEmail"
+          (click)="dismissGuestEmail()"
+          title="No thanks"
+          aria-label="Dismiss the email field">
+          <i class="fas fa-xmark" aria-hidden="true"></i>
+        </button>
       </div>
       <small class="chat-panel__email-error" *ngIf="guestEmailError" role="alert">{{ guestEmailError }}</small>
-      <small class="chat-panel__email-hint" *ngIf="!guestEmailError">
-        So we can reach you if needed — totally optional.
-      </small>
     </div>
 
     <!-- Short confirmation in place of the field, so it doesn't just silently vanish. -->

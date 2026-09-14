@@ -75,6 +75,7 @@
   --logo-blue: #0065f3;              /* exact fill of logo.svg — used by the brand wordmark so it matches the mark precisely (theme-stable) */
   --fresh-green: #22c55e;            /* green-500 sRGB fallback (oklch override below) */
   --bright-red: #ef4444;             /* red-500, was #ff6b6b */
+  --bright-red-hover: #dc2626;       /* red-600 — hover for a FILLED --bright-red control (white text on it) */
   --soft-blue: #dbeafe;              /* blue-100, was #e3f2fd */
   --mint-fresh: #dcfce7;             /* green-100 sRGB fallback */
   --mint-fresh-text: #166534;        /* green-800 — accessible text/icon on --mint-fresh (WCAG AA), sRGB fallback */
@@ -288,6 +289,7 @@
   --primary-text: #60a5fa;            /* blue-400, was #66b3ff */
   --active-nav-link: #60a5fa;
   --bright-red: #f87171;              /* red-400 — better contrast on dark */
+  --bright-red-hover: #ef4444;        /* red-500 — night hover goes DARKER-but-still-lighter than day's, so white text stays legible */
   --fresh-green: #4ade80;             /* green-400 sRGB fallback (oklch override below) */
   --mint-fresh-text: #4ade80;         /* green-400 — readable on the dark mint wash, sRGB fallback */
   --mint-fresh-border: rgba(34, 197, 94, 0.25); /* translucent green-500 fallback */

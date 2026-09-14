@@ -16,7 +16,8 @@ import { testProviders } from '../../testing/test-providers';
  *  1. THE EMAIL FIELD WAS UNREACHABLE IN PRACTICE. It hid itself as soon as `messages.length`
  *     went above zero — i.e. the instant the visitor typed their first message — so the only
  *     window to fill it in was before anyone had said anything, and nobody did. It now has its
- *     own submit button, and a successfully submitted address is the ONLY thing that hides it.
+ *     own submit button, and the only two things that hide it are the visitor's own: a
+ *     submitted address, or dismissing the row.
  *
  *  2. THERE WAS NO WAY TO ASK FOR A PERSON. Reaching a human meant convincing the assistant to
  *     escalate — the same assistant that was misreading the visitor. The handoff bar goes
@@ -93,6 +94,82 @@ describe('ChatWidgetComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  // ===== The opening fork =====
+
+  describe('the opening chips', () => {
+    it('offers booking and working for us before anything is typed', () => {
+      openAsGuest();
+
+      const chips = Array.from(
+        fixture.nativeElement.querySelectorAll('.chat-quick-replies--openers .chat-quick-reply')
+      ).map((b) => (b as HTMLElement).textContent?.trim());
+
+      expect(chips.length).toBe(2);
+      // Neither label may be the ambiguous phrase itself — "cleaning job" is exactly the
+      // wording that got read as a booking in the transcript this came from.
+      expect(chips.join(' ').toLowerCase()).not.toContain('cleaning job');
+    });
+
+    it('sends a sentence that cannot be read the other way, not the short chip label', () => {
+      openAsGuest();
+
+      const jobChip = component.openers[1];
+      expect(jobChip.label.length).toBeLessThan(jobChip.message.length);
+
+      component.sendOpener(jobChip);
+      const request = http.expectOne(endsWith('/chat/message'));
+
+      // The assistant sees the full sentence; the short label only ever existed to fit the
+      // chip. "job" alone would land it right back in the ambiguity.
+      expect(request.request.body.message).toBe(jobChip.message);
+      expect(request.request.body.message).toContain('job as a cleaner');
+      request.flush({ sessionId: 'session-1', reply: 'Got it.', escalated: false });
+    });
+
+    it('takes the handoff bar away from someone who came about a job', () => {
+      openAsGuest();
+      expect(handoffButton()).not.toBeNull();
+
+      component.sendOpener(component.openers[1]);
+      http.expectOne(endsWith('/chat/message')).flush({
+        sessionId: 'session-1',
+        reply: "I'm the customer service assistant — for job inquiries please call (929) 930-1525.",
+        escalated: false,
+      });
+      fixture.detectChanges();
+
+      // The handoff reaches the CUSTOMER support desk, which doesn't handle hiring — putting
+      // an applicant through would only get them redirected a second time (owner's call).
+      expect(component.showHumanHandoff).toBeFalse();
+      expect(handoffButton()).toBeNull();
+      // Remembered, or a reload would hand it straight back.
+      expect(JSON.parse(localStorage.getItem('chatWidgetSession')!).jobSeekerDeclared).toBeTrue();
+    });
+
+    it('leaves the handoff bar alone for someone booking a cleaning', () => {
+      openAsGuest();
+
+      component.sendOpener(component.openers[0]);
+      http.expectOne(endsWith('/chat/message')).flush({
+        sessionId: 'session-1',
+        reply: 'Happy to help — how many bedrooms?',
+        escalated: false,
+      });
+      fixture.detectChanges();
+
+      expect(handoffButton()).not.toBeNull();
+    });
+
+    it('drops the chips once the conversation has started', () => {
+      openAsGuest();
+      sendFirstMessage();
+
+      expect(
+        fixture.nativeElement.querySelector('.chat-quick-replies--openers')
+      ).toBeNull();
+    });
+  });
+
   // ===== The email field =====
 
   describe('the guest email field', () => {
@@ -164,6 +241,23 @@ describe('ChatWidgetComponent', () => {
 
       expect(component.guestEmailSaved).toBeTrue();
       expect(emailField()).toBeNull();
+    });
+
+    it('can be dismissed, and stays dismissed for the rest of the conversation', () => {
+      openAsGuest();
+
+      // The row no longer hides itself once a message is sent, so a visitor who doesn't want
+      // to leave an address needs a way to take it off their screen.
+      component.dismissGuestEmail();
+      fixture.detectChanges();
+      expect(emailField()).toBeNull();
+
+      sendFirstMessage();
+      expect(component.showEmailField).toBeFalse();
+      expect(emailField()).toBeNull();
+
+      // Remembered with the session so a reload doesn't ask again.
+      expect(JSON.parse(localStorage.getItem('chatWidgetSession')!).guestEmailDismissed).toBeTrue();
     });
 
     it('keeps the field up when the server rejects the address', () => {

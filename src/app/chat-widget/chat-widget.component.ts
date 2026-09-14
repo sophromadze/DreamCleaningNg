@@ -80,14 +80,17 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   // ===== Guest contact email =====
   // The field used to vanish the instant the first message was sent, which in practice meant
   // it vanished before anybody had typed in it — a visitor greets the bot, the row disappears,
-  // and we never get an address. It now has its OWN submit button and stays put until a valid
-  // address has actually been submitted through it. Sending messages is never blocked by it.
+  // and we never get an address. It now has its OWN submit button and stays put until the
+  // visitor either submits an address or dismisses the row. Sending is never blocked by it.
   /** What's currently typed in the email field. */
   guestEmailInput = '';
   /** The submitted address, held locally until a session exists to attach it to. */
   private capturedGuestEmail: string | null = null;
-  /** Set once an address has been accepted — the only thing that hides the field. */
+  /** Set once an address has been accepted — one of the two things that hide the field. */
   guestEmailSaved = false;
+  /** The other: the visitor dismissed the row. It no longer hides itself on the first
+   *  message, so declining has to be something they can actually do. */
+  guestEmailDismissed = false;
   /** Format complaint from describeEmailProblem, or a server rejection. */
   guestEmailError: string | null = null;
   savingGuestEmail = false;
@@ -98,6 +101,10 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   /** The "Talk to a real person" bar is a two-step action — one stray tap shouldn't page the team. */
   confirmingHumanRequest = false;
   requestingHuman = false;
+  /** Set by the "Work with us" opener. The handoff reaches the customer support desk, which
+   *  doesn't handle hiring, so an applicant is pointed at the phone/email instead of being
+   *  put through to somebody who would only redirect them again. */
+  jobSeekerDeclared = false;
   /** Polling suspended after IDLE_TIMEOUT_MS of no user activity. When the panel is open
    *  this drives the "Paused due to inactivity" banner; when closed it's silent. */
   paused = false;
@@ -267,9 +274,13 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     this.guestEmailInput = '';
     this.capturedGuestEmail = null;
     this.guestEmailSaved = false;
+    this.guestEmailDismissed = false;
     this.guestEmailError = null;
     this.guestEmailNoteVisible = false;
     this.confirmingHumanRequest = false;
+    // A fresh chat is where a mis-tapped "Work with us" is undone — the opener chips come
+    // back with it, so this is the one route from the applicant path to the customer one.
+    this.jobSeekerDeclared = false;
     this.registerActivity();
     this.clearPendingImage();
     this.clearStoredSession();
@@ -416,19 +427,23 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * The email field shows for any guest who hasn't submitted an address yet — NOT only on a
+   * The email field shows for any guest who hasn't dealt with it yet — NOT only on a
    * brand-new conversation. It used to hide as soon as `messages.length` went above zero,
    * i.e. the moment the visitor typed their first message, so in practice it was on screen
-   * only while there was nothing to say yet and almost nobody ever filled it in. The single
-   * thing that hides it now is a successfully submitted address.
+   * only while there was nothing to say yet and almost nobody ever filled it in. Two things
+   * hide it now, and both are the visitor's own decision: submitting an address, or
+   * dismissing the row.
    */
   get showEmailField(): boolean {
-    return !this.isLoggedIn && !this.guestEmailSaved && !this.conversationEnded;
+    return !this.isLoggedIn && !this.guestEmailSaved && !this.guestEmailDismissed && !this.conversationEnded;
   }
 
-  /** The handoff bar is pointless once the team is already on the conversation. */
+  /**
+   * The handoff bar is pointless once the team is already on the conversation — and it is
+   * the wrong door for somebody who came here about a job (see `jobSeekerDeclared`).
+   */
   get showHumanHandoff(): boolean {
-    return !this.escalated && !this.conversationEnded;
+    return !this.escalated && !this.conversationEnded && !this.jobSeekerDeclared;
   }
 
   /**
@@ -470,6 +485,18 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
         this.guestEmailError = extractApiErrorMessage(err, "Couldn't save that email — please try again.");
       }
     });
+  }
+
+  /**
+   * "No thanks" — take the row away without leaving an address. Remembered with the session
+   * so it stays away across a reload, and deliberately silent: there is nothing to confirm.
+   */
+  dismissGuestEmail(): void {
+    if (this.savingGuestEmail) return;
+    this.registerActivity();
+    this.guestEmailDismissed = true;
+    this.guestEmailError = null;
+    this.saveStoredSession();
   }
 
   /** Hide the field and leave a short confirmation behind, so it doesn't just vanish. */
@@ -561,6 +588,53 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     this.send(); // send() also retires all outstanding chips
   }
 
+  /**
+   * Opening chips under the greeting, before anybody has typed.
+   *
+   * "Hire us" vs "hire me" is the one thing the assistant has to get right first, and free
+   * text is where it goes wrong — a real visitor opened with "I need cleaning job and my
+   * husband" and was run through the booking funnel. Offering the fork up front settles it
+   * in one tap, for the visitors most likely to phrase it ambiguously.
+   *
+   * `label` and `message` differ on purpose: the chip has to be short enough to sit two to a
+   * row in a 372px panel, while what actually reaches the assistant has to be a full sentence
+   * that cannot be read the other way. The bubble shows the message, so the transcript still
+   * reads like something a person said.
+   */
+  readonly openers: ReadonlyArray<{
+    icon: string;
+    label: string;
+    message: string;
+    intent: 'booking' | 'employment';
+  }> = [
+    {
+      icon: 'fa-broom',
+      label: 'Book a cleaning',
+      message: "I'd like to book a cleaning for my home",
+      intent: 'booking'
+    },
+    {
+      icon: 'fa-briefcase',
+      label: 'Work with us',
+      message: "I'm looking for a job as a cleaner with your team",
+      intent: 'employment'
+    }
+  ];
+
+  sendOpener(opener: { message: string; intent: 'booking' | 'employment' }): void {
+    if (this.sending) return;
+    // Declaring themselves a job-seeker takes the handoff bar away (owner's call): the team
+    // on the other end of it is the CUSTOMER support desk, and hiring is answered by phone
+    // or email — so offering to put an applicant through would only route them somewhere
+    // that has to redirect them again.
+    if (opener.intent === 'employment') {
+      this.jobSeekerDeclared = true;
+      this.confirmingHumanRequest = false;
+    }
+    this.draft = opener.message;
+    this.send();
+  }
+
   // ===== Visibility =====
 
   private checkVisibility(): void {
@@ -593,15 +667,24 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
       localStorage.setItem(ChatWidgetComponent.STORAGE_KEY, JSON.stringify({
         sessionId: this.sessionId,
         lastSeenMessageAt: this.lastSeenByUserAt,
-        // So a resumed conversation doesn't ask for an address the visitor already gave —
-        // the history endpoint doesn't report it, and re-asking looks like we lost it.
-        guestEmailSaved: this.guestEmailSaved
+        // So a resumed conversation doesn't ask again for an address the visitor already
+        // gave (the history endpoint doesn't report it, and re-asking looks like we lost
+        // it) — or one they already declined to give.
+        guestEmailSaved: this.guestEmailSaved,
+        guestEmailDismissed: this.guestEmailDismissed,
+        // Or a reload would hand an applicant the handoff bar their opener took away.
+        jobSeekerDeclared: this.jobSeekerDeclared
       }));
     } catch { /* private browsing / quota — session just won't resume */ }
   }
 
-  private loadStoredSession():
-    { sessionId: string; lastSeenMessageAt: string | null; guestEmailSaved: boolean } | null {
+  private loadStoredSession(): {
+    sessionId: string;
+    lastSeenMessageAt: string | null;
+    guestEmailSaved: boolean;
+    guestEmailDismissed: boolean;
+    jobSeekerDeclared: boolean;
+  } | null {
     if (!this.isBrowser) return null;
     try {
       const raw = localStorage.getItem(ChatWidgetComponent.STORAGE_KEY);
@@ -611,7 +694,9 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
         ? {
             sessionId: parsed.sessionId,
             lastSeenMessageAt: parsed.lastSeenMessageAt ?? null,
-            guestEmailSaved: parsed.guestEmailSaved === true
+            guestEmailSaved: parsed.guestEmailSaved === true,
+            guestEmailDismissed: parsed.guestEmailDismissed === true,
+            jobSeekerDeclared: parsed.jobSeekerDeclared === true
           }
         : null;
     } catch {
@@ -652,6 +737,8 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
 
         this.sessionId = stored.sessionId;
         this.guestEmailSaved = stored.guestEmailSaved;
+        this.guestEmailDismissed = stored.guestEmailDismissed;
+        this.jobSeekerDeclared = stored.jobSeekerDeclared;
         this.escalated = history.status === 'escalatedToHuman';
         this.messages = history.messages.map(m => this.toWidgetMessage(m));
         this.seenIds = new Set(history.messages.map(m => m.id));

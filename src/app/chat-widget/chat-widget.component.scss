@@ -378,6 +378,16 @@
   margin-top: 7px;
 }
 
+// The greeting's chips sit under a bubble that is the first thing on screen, so they get a
+// little more room than a mid-conversation chip set — and the icon needs the gap.
+.chat-quick-replies--openers {
+  margin-top: 9px;
+
+  .chat-quick-reply i {
+    margin-right: 6px;
+  }
+}
+
 .chat-quick-reply {
   border: 1px solid var(--primary-color);
   background: var(--surface);
@@ -508,12 +518,14 @@
 
 // "Talk to a real person" — a visitor the assistant is misreading should never have to
 // argue their way to a human, so this stays one tap away for the whole AI conversation.
+// Bottom padding is deliberately light: the email row sits directly underneath with no
+// divider between them, so they read as one composer block rather than two stacked strips.
 .chat-panel__handoff {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 9px 12px;
+  padding: 9px 12px 5px;
 }
 
 .chat-panel__handoff-btn {
@@ -591,13 +603,13 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 10px 12px 0;
+  padding: 5px 12px 0;
 }
 
 .chat-panel__email-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .chat-panel__email-field {
@@ -632,11 +644,13 @@
 }
 
 // Submit button — the field no longer rides along with the first message, so without
-// this there is no way to hand the address over at all.
+// this there is no way to hand the address over at all. Sized to match the dismiss ✕
+// beside it, and like it, hover only repaints: a lift on a 34px control sitting in a
+// tight row of three reads as the row jittering rather than as a button responding.
 .chat-panel__email-submit {
   flex-shrink: 0;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border: none;
   border-radius: var(--radius-pill);
   background: var(--btn-primary); // full gradient token
@@ -645,12 +659,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
-  transition: opacity 0.15s ease, transform 0.15s ease;
+  font-size: 0.8rem;
+  transition: background 0.15s ease, opacity 0.15s ease;
 
   &:hover:not(:disabled) {
     background: var(--btn-primary-hover);
-    transform: translateY(-1px);
   }
 
   &:disabled {
@@ -659,10 +672,31 @@
   }
 }
 
-.chat-panel__email-hint {
-  padding: 0 6px;
-  font-size: 0.72rem;
-  color: var(--text-muted);
+// "No thanks" — a filled red circle beside the ✓, same box so the pair sits level. Like
+// the ✓ it only repaints on hover, never lifts.
+.chat-panel__email-dismiss {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--bright-red);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  transition: background 0.15s ease, opacity 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: var(--bright-red-hover);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
 }
 
 .chat-panel__email-error {
