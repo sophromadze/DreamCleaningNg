@@ -62,7 +62,8 @@
     <div class="panel-body" *ngIf="isOpen('contractor')">
       <div class="field">
         <label for="contractorProfile">Contractor profile</label>
-        <select id="contractorProfile" name="contractorProfile" [(ngModel)]="model.contractorProfileId">
+        <select id="contractorProfile" name="contractorProfile"
+                [(ngModel)]="model.contractorProfileId" (ngModelChange)="onContractorProfileChange()">
           <option *ngFor="let p of contractorProfiles" [ngValue]="p.id">
             {{ p.legalEntityName }}<span *ngIf="p.dba"> d/b/a {{ p.dba }}</span>
           </option>
@@ -378,10 +379,46 @@
           <small class="warn" *ngIf="serviceDayCountWarning">{{ serviceDayCountWarning }}</small>
         </div>
 
+        <!--
+          AN ARRIVAL WINDOW, not a start time. Section 14 only permits a failed-access charge when
+          the crew arrived INSIDE the agreed window, so the two ends of it are the fact the clause
+          turns on. The legacy single `serviceTime` is kept in step with the opening behind the
+          scenes — see onArrivalWindowChange().
+        -->
         <div class="field">
-          <label for="serviceTime">Approximate start time</label>
-          <input id="serviceTime" name="serviceTime" type="text"
-                 [(ngModel)]="model.schedule.serviceTime" placeholder="9:00 AM" />
+          <label for="arrivalWindowStart">Arrival window opens</label>
+          <input id="arrivalWindowStart" name="arrivalWindowStart" type="text"
+                 [(ngModel)]="model.schedule.arrivalWindowStart"
+                 (ngModelChange)="onArrivalWindowChange()" placeholder="8:30 AM" />
+        </div>
+        <div class="field">
+          <label for="arrivalWindowEnd">Arrival window closes</label>
+          <input id="arrivalWindowEnd" name="arrivalWindowEnd" type="text"
+                 [(ngModel)]="model.schedule.arrivalWindowEnd" placeholder="9:30 AM" />
+          <small class="hint">Leave blank to state a single arrival time instead of a window.</small>
+        </div>
+        <div class="field">
+          <label for="timeZoneLabel">Time zone wording</label>
+          <input id="timeZoneLabel" name="timeZoneLabel" type="text"
+                 [(ngModel)]="model.schedule.timeZoneLabel" placeholder="local New York time" />
+          <small class="hint">
+            Every time in the agreement refers to this clock, including the 24-hour cancellation
+            deadline.
+          </small>
+        </div>
+        <div class="field">
+          <label for="completionTime">Required completion time</label>
+          <input id="completionTime" name="completionTime" type="text"
+                 [(ngModel)]="model.schedule.completionTime" placeholder="e.g. by 11:00 AM" />
+          <small class="hint">Leave blank if none was agreed — Exhibit A will say “None”.</small>
+        </div>
+        <div class="field">
+          <label for="weekDefinition">A service period runs</label>
+          <input id="weekDefinition" name="weekDefinition" type="text"
+                 [(ngModel)]="model.schedule.weekDefinition" placeholder="Monday through Sunday" />
+          <small class="hint">
+            Decides which period a makeup visit settles.
+          </small>
         </div>
         <div class="field wide">
           <label for="accessType">Access type</label>
@@ -450,6 +487,18 @@
     </button>
     <div class="panel-body" *ngIf="isOpen('term')">
       <div class="grid">
+        <!--
+          THE TERM RUNS FROM THIS DATE, not from signature. An agreement signed in March for a May
+          start commits its full length of cleaning, not two months less — and the Minimum
+          Commitment End Date and Initial Term End Date in Exhibit B are both derived from it, so
+          leaving it blank leaves all three rows blank rather than quietly guessing.
+        -->
+        <div class="field wide">
+          <label for="serviceCommencementDate">First recurring service date</label>
+          <input id="serviceCommencementDate" name="serviceCommencementDate" type="date"
+                 [(ngModel)]="model.term.serviceCommencementDate" />
+          <small class="hint">{{ termDatesHint }}</small>
+        </div>
         <div class="field">
           <label for="initialTermMonths">Initial term (months)</label>
           <input id="initialTermMonths" name="initialTermMonths" type="number" min="1"
@@ -541,6 +590,19 @@
           <label for="cancellationPercent">Short-notice cancellation (%)</label>
           <input id="cancellationPercent" name="cancellationPercent" type="number" step="1" min="0" max="100"
                  [(ngModel)]="model.pricing.cancellationPercent" (ngModelChange)="onPricingChanged()" />
+          <small class="hint">
+            A percentage of the PRE-TAX fee, and a ceiling on documented loss — not an automatic
+            charge.
+          </small>
+        </div>
+        <div class="field">
+          <label for="liabilityCapMultiple">Liability cap (× pre-tax visit fee)</label>
+          <input id="liabilityCapMultiple" name="liabilityCapMultiple" type="number" step="1" min="0"
+                 [(ngModel)]="model.pricing.liabilityCapMultiple" (ngModelChange)="onPricingChanged()" />
+          <small class="hint">
+            Section 29(b). A multiple of the stated per-visit fee rather than a lookback in months,
+            so the ceiling cannot drift when the visit frequency changes.
+          </small>
         </div>
       </div>
 
@@ -552,10 +614,19 @@
           <div><span>Pre-tax fee</span><strong>{{ pricingPreview.preTaxPrice | currency }}</strong></div>
           <div><span>Sales tax</span><strong>{{ pricingPreview.salesTaxAmount | currency }}</strong></div>
           <div><span>Total per visit</span><strong>{{ pricingPreview.totalPrice | currency }}</strong></div>
-          <div><span>Cancellation charge</span><strong>{{ pricingPreview.cancellationAmount | currency }}</strong></div>
+          <div><span>Cancellation cap</span><strong>{{ pricingPreview.cancellationAmount | currency }}</strong></div>
           <div><span>Remaining balance</span><strong>{{ pricingPreview.remainingBalance | currency }}</strong></div>
-          <div><span>Lockout fee</span><strong>{{ pricingPreview.lockoutFee | currency }}</strong></div>
+          <div><span>Failed-access cap</span><strong>{{ pricingPreview.lockoutFee | currency }}</strong></div>
+          <div><span>Liability cap</span><strong>{{ pricingPreview.liabilityCapAmount | currency }}</strong></div>
         </div>
+        <!-- Says out loud which basis these are on, because the same percentage of the
+             tax-inclusive total is a visibly different number and an admin comparing the two
+             should not have to work out which one the document quotes. -->
+        <small class="hint">
+          The cancellation, failed-access and liability figures are all built on the pre-tax fee.
+          Tax attaches to a completed visit, so a charge for one that did not happen carries only
+          whatever tax the law puts on that charge.
+        </small>
       </div>
 
       <div class="grid">
@@ -577,7 +648,12 @@
         <div class="field">
           <label for="lateChargePercent">Late charge (% per month)</label>
           <input id="lateChargePercent" name="lateChargePercent" type="number" step="0.1" min="0"
-                 [(ngModel)]="model.pricing.lateChargePercent" />
+                 [(ngModel)]="model.pricing.lateChargePercent" (ngModelChange)="onPricingChanged()" />
+          <!-- The agreement quotes the same charge annually as well. Derived from this one figure
+               so the pair can never contradict each other — a usury argument turns on it. -->
+          <small class="hint" *ngIf="pricingPreview">
+            Stated in the agreement as {{ pricingPreview.lateChargeAnnualPercent }}% per year.
+          </small>
         </div>
         <!-- The $35 failed-payment fee is RETIRED and has no field here any more. It defaults to
              zero, and at zero the clause is dropped from the generated agreement rather than
@@ -608,14 +684,36 @@
           <button type="button" class="row-remove" (click)="removeScopeGroup(gi)"
                   [title]="'Remove ' + group.title + ' from this contract'">×</button>
         </div>
-        <div class="scope-items">
-          <label class="check" *ngFor="let item of group.items; let ii = index">
-            <input type="checkbox" [(ngModel)]="item.selected" [name]="'scope-' + gi + '-' + ii" />
-            <span>{{ item.label }}</span>
-            <button type="button" class="row-remove" *ngIf="item.isCustom"
-                    (click)="removeScopeRow(gi, ii)" title="Remove">×</button>
-          </label>
+        <!--
+          A TABLE group renders as editable Area / Tasks pairs, not as a tick list of labels.
+          This is Exhibit A's "Area | Tasks and limits" grid, where the tasks paragraph IS the
+          agreed scope for that area — showing only the area name would hide the half that
+          matters, and there would be nowhere to correct it for this particular site.
+        -->
+        <div class="scope-rows" *ngIf="isTableGroup(group); else plainItems">
+          <div class="scope-row" *ngFor="let item of group.items; let ii = index">
+            <label class="check">
+              <input type="checkbox" [(ngModel)]="item.selected" [name]="'scope-' + gi + '-' + ii" />
+              <span>{{ item.label }}</span>
+              <button type="button" class="row-remove" *ngIf="item.isCustom"
+                      (click)="removeScopeRow(gi, ii)" title="Remove">×</button>
+            </label>
+            <textarea rows="3" [(ngModel)]="item.detail" [name]="'scopeDetail-' + gi + '-' + ii"
+                      [disabled]="!item.selected"
+                      placeholder="Tasks and limits at each visit for this area…"></textarea>
+          </div>
         </div>
+
+        <ng-template #plainItems>
+          <div class="scope-items">
+            <label class="check" *ngFor="let item of group.items; let ii = index">
+              <input type="checkbox" [(ngModel)]="item.selected" [name]="'scope-' + gi + '-' + ii" />
+              <span>{{ item.label }}</span>
+              <button type="button" class="row-remove" *ngIf="item.isCustom"
+                      (click)="removeScopeRow(gi, ii)" title="Remove">×</button>
+            </label>
+          </div>
+        </ng-template>
         <!-- Adding an item is always available on a DRAFT, whatever the business type allows on
              its master checklist: the template's flag governs the shared list, and a one-off
              addition here belongs to this contract alone. -->
@@ -638,6 +736,264 @@
     </div>
   </section>
 
+  <!-- 5.10b Exhibit A site details -->
+  <!--
+    THE "[COUNTS]" AND "[LOCATIONS]" BLANKS OF THE AGREEMENT. Every one of these is something
+    somebody walks the building and writes down, which is why none of them is seeded with a
+    plausible default: a guessed restroom count printed in an executed agreement reads as though
+    it had been verified.
+
+    Leaving one blank is allowed and visible — it renders as a ruled blank in Exhibit A and is
+    listed in the preview's unresolved warning, rather than as "None", which would assert the
+    premises does not have the thing nobody counted.
+  -->
+  <section class="panel">
+    <button type="button" class="panel-head" (click)="togglePanel('siteDetails')">
+      <span>Site details (Exhibit A)</span>
+      <span class="chevron" [class.open]="isOpen('siteDetails')">▾</span>
+    </button>
+    <div class="panel-body" *ngIf="isOpen('siteDetails')">
+      <p class="muted">
+        Recorded with the client before the first visit. Anything left blank prints as a blank line
+        in Exhibit A, so you can generate a preview now and fill these in after the walkthrough.
+      </p>
+      <div class="grid">
+        <div class="field">
+          <label for="squareFootage">Approximate serviced square footage</label>
+          <input id="squareFootage" name="squareFootage" type="text"
+                 [(ngModel)]="model.siteDetails.approximateSquareFootage"
+                 placeholder="e.g. 5,000 square feet" />
+        </div>
+        <div class="field">
+          <label for="customerRestroomCounts">Customer restroom and fixture counts</label>
+          <input id="customerRestroomCounts" name="customerRestroomCounts" type="text"
+                 [(ngModel)]="model.siteDetails.customerRestroomCounts"
+                 placeholder="e.g. 2 restrooms, 2 toilets, 2 sinks" />
+        </div>
+        <div class="field">
+          <label for="employeeRestroomCounts">Employee restroom and fixture counts</label>
+          <input id="employeeRestroomCounts" name="employeeRestroomCounts" type="text"
+                 [(ngModel)]="model.siteDetails.employeeRestroomCounts" />
+        </div>
+        <div class="field wide">
+          <label for="floorMaterials">Floor and surface materials</label>
+          <input id="floorMaterials" name="floorMaterials" type="text"
+                 [(ngModel)]="model.siteDetails.floorMaterials"
+                 placeholder="e.g. quarry tile in the kitchen, sealed concrete in the dining area" />
+          <small class="hint">Decides which products are compatible under A4.</small>
+        </div>
+        <div class="field wide">
+          <label for="kitchenEquipmentSurfaces">Included kitchen equipment and exterior surfaces</label>
+          <textarea id="kitchenEquipmentSurfaces" name="kitchenEquipmentSurfaces" rows="2"
+                    [(ngModel)]="model.siteDetails.kitchenEquipmentAndSurfaces"></textarea>
+        </div>
+        <div class="field wide">
+          <label for="touchpointLocations">Touchpoints and cleared surfaces</label>
+          <textarea id="touchpointLocations" name="touchpointLocations" rows="2"
+                    [(ngModel)]="model.siteDetails.touchpointLocations"></textarea>
+        </div>
+        <div class="field wide">
+          <label for="interiorGlassLocations">Interior glass and window locations</label>
+          <textarea id="interiorGlassLocations" name="interiorGlassLocations" rows="2"
+                    [(ngModel)]="model.siteDetails.interiorGlassLocations"></textarea>
+        </div>
+        <!-- BLANK MEANS NONE HERE, and that is a term rather than a gap: Section 25(e) and A3(d)
+             exclude food-contact sanitizing unless a task is named in Exhibit A, so an empty box
+             is the agreement saying the client keeps that responsibility. -->
+        <div class="field wide">
+          <label for="foodContactSanitizing">Included food-contact sanitizing task</label>
+          <textarea id="foodContactSanitizing" name="foodContactSanitizing" rows="2"
+                    [(ngModel)]="model.siteDetails.foodContactSanitizing"
+                    placeholder="Surface, frequency, and the required wash / rinse / sanitize procedure"></textarea>
+          <small class="hint">
+            Leave blank unless we have specifically agreed to sanitize a food-contact surface —
+            blank prints “None”, and everything not named here stays the client’s responsibility.
+          </small>
+        </div>
+        <div class="field wide">
+          <label for="accessMethodReference">Access method and closeout procedure reference</label>
+          <input id="accessMethodReference" name="accessMethodReference" type="text"
+                 [(ngModel)]="model.siteDetails.accessMethodReference" />
+          <small class="hint">
+            A reference only. Never put actual keys, codes or passwords in the agreement — it is
+            circulated by email and stored as a PDF.
+          </small>
+        </div>
+        <div class="field wide">
+          <label for="equipmentRestrictions">Equipment that must remain operating, and manufacturer restrictions</label>
+          <textarea id="equipmentRestrictions" name="equipmentRestrictions" rows="2"
+                    [(ngModel)]="model.siteDetails.equipmentRestrictions"
+                    placeholder="e.g. walk-in cooler and ice machine stay on; do not alter thermostat settings"></textarea>
+        </div>
+        <div class="field wide">
+          <label for="wasteReceptacleLocations">Waste, recycling and organics receptacle locations</label>
+          <textarea id="wasteReceptacleLocations" name="wasteReceptacleLocations" rows="2"
+                    [(ngModel)]="model.siteDetails.wasteReceptacleLocations"></textarea>
+        </div>
+        <div class="field">
+          <label for="foodPermitHolder">Food-service permit holder (legal name)</label>
+          <input id="foodPermitHolder" name="foodPermitHolder" type="text"
+                 [(ngModel)]="model.siteDetails.foodServicePermitHolder" />
+          <small class="hint">Not necessarily the client — ask rather than assume.</small>
+        </div>
+        <div class="field">
+          <label for="siteRequirements">Site, landlord or brand requirements</label>
+          <input id="siteRequirements" name="siteRequirements" type="text"
+                 [(ngModel)]="model.siteDetails.siteRequirements" />
+          <small class="hint">Blank prints “None”.</small>
+        </div>
+        <div class="field">
+          <label for="baselineWalkthrough">Baseline walkthrough date and record</label>
+          <input id="baselineWalkthrough" name="baselineWalkthrough" type="text"
+                 [(ngModel)]="model.siteDetails.baselineWalkthroughRecord" />
+        </div>
+        <div class="field">
+          <label for="initialWorkChangeOrder">Initial-work Change Order</label>
+          <input id="initialWorkChangeOrder" name="initialWorkChangeOrder" type="text"
+                 [(ngModel)]="model.siteDetails.initialWorkChangeOrder" />
+          <small class="hint">Reference for any agreed initial deep clean. Blank prints “None”.</small>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5.10c Exhibit B4 contacts -->
+  <!--
+    SEPARATE FROM THE SIGNERS ABOVE. A signer executes the agreement; an on-call contact is
+    whoever the crew rings when the door is locked at 8:30 on a Sunday, and on most commercial
+    accounts those are different people. Section 14 only permits a failed-access charge when we
+    tried to reach one, so the agreement has to name somebody.
+  -->
+  <section class="panel">
+    <button type="button" class="panel-head" (click)="togglePanel('contacts')">
+      <span>Operational contacts (Exhibit B4)</span>
+      <span class="chevron" [class.open]="isOpen('contacts')">▾</span>
+    </button>
+    <div class="panel-body" *ngIf="isOpen('contacts')">
+      <p class="muted">
+        The authorized representatives are the signers named above. These are the people who handle
+        scheduling, access and urgent notices — which is a different job from approving a Change
+        Order.
+      </p>
+
+      <h4 class="subhead">Contractor</h4>
+      <div class="grid">
+        <div class="field">
+          <label for="contractorApprovalEmail">Approval email (optional)</label>
+          <input id="contractorApprovalEmail" name="contractorApprovalEmail" type="email"
+                 [(ngModel)]="model.contacts.contractorApprovalEmail" />
+          <small class="hint">Blank prints “None” — approvals then come from the notice address.</small>
+        </div>
+        <div class="field">
+          <label for="contractorOperationalEmail">Operational email</label>
+          <input id="contractorOperationalEmail" name="contractorOperationalEmail" type="email"
+                 [(ngModel)]="model.contacts.contractorOperationalEmail" />
+          <small class="hint">Monitored on weekends — a cancellation is effective when sent here.</small>
+        </div>
+        <div class="field">
+          <label for="contractorSupervisorName">Supervisor / primary on-call</label>
+          <input id="contractorSupervisorName" name="contractorSupervisorName" type="text"
+                 [(ngModel)]="model.contacts.contractorSupervisorName" />
+        </div>
+        <div class="field">
+          <label for="contractorSupervisorPhone">Supervisor phone</label>
+          <input id="contractorSupervisorPhone" name="contractorSupervisorPhone" type="tel"
+                 [(ngModel)]="model.contacts.contractorSupervisorPhone" />
+        </div>
+        <div class="field wide">
+          <label for="contractorBackupContact">Backup on-call contact</label>
+          <input id="contractorBackupContact" name="contractorBackupContact" type="text"
+                 [(ngModel)]="model.contacts.contractorBackupContact"
+                 placeholder="Name and telephone" />
+        </div>
+      </div>
+
+      <h4 class="subhead">Client</h4>
+      <div class="grid">
+        <div class="field">
+          <label for="clientApprovalEmail">Approval email (optional)</label>
+          <input id="clientApprovalEmail" name="clientApprovalEmail" type="email"
+                 [(ngModel)]="model.contacts.clientApprovalEmail" />
+        </div>
+        <!-- KEPT APART FROM THE PRINCIPAL ADDRESS ON PURPOSE. Section 32 serves breach and
+             termination notices here, and a business registered at an accountant's office, served
+             at a restaurant and reading its mail at a third address is the ordinary case. -->
+        <div class="field wide">
+          <label for="clientNoticeMailingAddress">Formal notice mailing address</label>
+          <input id="clientNoticeMailingAddress" name="clientNoticeMailingAddress" type="text"
+                 [(ngModel)]="model.contacts.clientNoticeMailingAddress" />
+          <small class="hint">
+            Leave blank to use the client’s principal address. This is where a termination notice
+            would be served, so it is worth asking rather than assuming.
+          </small>
+        </div>
+        <div class="field">
+          <label for="clientOperationalEmail">Operational email</label>
+          <input id="clientOperationalEmail" name="clientOperationalEmail" type="email"
+                 [(ngModel)]="model.contacts.clientOperationalEmail" />
+        </div>
+        <div class="field">
+          <label for="clientOnCallName">Primary on-call contact</label>
+          <input id="clientOnCallName" name="clientOnCallName" type="text"
+                 [(ngModel)]="model.contacts.clientOnCallName" />
+        </div>
+        <div class="field">
+          <label for="clientOnCallPhone">Primary on-call phone</label>
+          <input id="clientOnCallPhone" name="clientOnCallPhone" type="tel"
+                 [(ngModel)]="model.contacts.clientOnCallPhone" />
+        </div>
+        <div class="field wide">
+          <label for="clientBackupContact">Backup on-call contact</label>
+          <input id="clientBackupContact" name="clientBackupContact" type="text"
+                 [(ngModel)]="model.contacts.clientBackupContact"
+                 placeholder="Name and telephone" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5.10d Exhibit B3 insurance endorsements -->
+  <section class="panel">
+    <button type="button" class="panel-head" (click)="togglePanel('insurance')">
+      <span>Insurance endorsements (Exhibit B3)</span>
+      <span class="chevron" [class.open]="isOpen('insurance')">▾</span>
+    </button>
+    <div class="panel-body" *ngIf="isOpen('insurance')">
+      <p class="muted">
+        Only for coverage agreed <em>beyond</em> the baseline limits in the Advanced panel. Leave
+        all three blank on an ordinary contract.
+      </p>
+      <div class="grid">
+        <div class="field wide">
+          <label for="agreedEndorsements">Additional endorsements agreed</label>
+          <input id="agreedEndorsements" name="agreedEndorsements" type="text"
+                 [(ngModel)]="model.insurance.agreedEndorsements"
+                 placeholder="e.g. additional insured, waiver of subrogation" />
+          <small class="hint">Blank prints “None”.</small>
+        </div>
+        <!-- THREE FIELDS, NOT ONE NOTE. Section 20(c) says a certificate alone does not amend a
+             policy, so naming the endorsement, identifying the insurer and form that issues it,
+             and agreeing who pays are three separate commitments. A client promised the first
+             without the second has been promised nothing. -->
+        <div class="field wide">
+          <label for="endorsementDetails">Insurer, policy, form and edition, protected entity, applicable work</label>
+          <textarea id="endorsementDetails" name="endorsementDetails" rows="3"
+                    [(ngModel)]="model.insurance.endorsementDetails"></textarea>
+          <small class="hint">Blank prints “Not applicable”.</small>
+        </div>
+        <div class="field wide">
+          <label for="additionalPremium">Agreed additional premium or price adjustment</label>
+          <input id="additionalPremium" name="additionalPremium" type="text"
+                 [(ngModel)]="model.insurance.additionalPremium" />
+          <small class="hint">
+            Blank prints “None”. Listing an endorsement here does not obtain it — it still has to
+            be issued before the work it covers.
+          </small>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- 5.11 Advanced terms — collapsed by default -->
   <section class="panel">
     <button type="button" class="panel-head" (click)="togglePanel('advanced')">
@@ -649,55 +1005,132 @@
         standard wording — change one only when this contract genuinely differs.</p>
       <div class="grid">
         <div class="field">
-          <label for="timelyRescheduleHours">Timely reschedule notice (hours)</label>
+          <label for="timelyRescheduleHours">Timely reschedule notice (hours) — §15(a)</label>
           <input id="timelyRescheduleHours" name="timelyRescheduleHours" type="number" min="0"
                  [(ngModel)]="model.advanced.timelyRescheduleHours" />
         </div>
+        <div class="field">
+          <label for="makeupWindowDays">Makeup window (calendar days) — §14(c), §15</label>
+          <input id="makeupWindowDays" name="makeupWindowDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.makeupWindowDays" />
+          <small class="hint">Used by every clause that mentions a makeup, so they cannot offer
+            two different deadlines.</small>
+        </div>
+        <div class="field">
+          <label for="lockoutWaitMinutes">Lockout wait (minutes) — §14(a)</label>
+          <input id="lockoutWaitMinutes" name="lockoutWaitMinutes" type="number" min="0"
+                 [(ngModel)]="model.advanced.lockoutWaitMinutes" />
+        </div>
+        <!-- The clause then refers back to "the second such visit" and "a third such visit". Both
+             ordinals are derived from this threshold server-side, so raising it cannot leave the
+             paragraph contradicting its own first sentence. -->
+        <div class="field">
+          <label for="missedVisitThreshold">Missed visits before breach — §15(f)</label>
+          <input id="missedVisitThreshold" name="missedVisitThreshold" type="number" min="1"
+                 [(ngModel)]="model.advanced.missedVisitThreshold" />
+        </div>
+        <div class="field">
+          <label for="missedVisitWindowWeeks">…within a rolling window (weeks)</label>
+          <input id="missedVisitWindowWeeks" name="missedVisitWindowWeeks" type="number" min="1"
+                 [(ngModel)]="model.advanced.missedVisitWindowWeeks" />
+        </div>
+        <div class="field">
+          <label for="servicePlanDays">Service-plan response (days) — §15(f)</label>
+          <input id="servicePlanDays" name="servicePlanDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.servicePlanDays" />
+        </div>
+
         <div class="field">
           <label for="curePeriodDays">Cure period (days) — §4(b)</label>
           <input id="curePeriodDays" name="curePeriodDays" type="number" min="0"
                  [(ngModel)]="model.advanced.curePeriodDays" />
         </div>
         <div class="field">
-          <label for="pastDueDays">Past-due threshold (days) — §4(c)</label>
+          <label for="pastDueDays">Nonpayment after demand (days) — §4(c)</label>
           <input id="pastDueDays" name="pastDueDays" type="number" min="0"
                  [(ngModel)]="model.advanced.pastDueDays" />
         </div>
         <div class="field">
-          <label for="billingDisputeDays">Billing dispute window (days) — §12</label>
+          <label for="creditReturnDays">Unearned credit return (days) — §4(d), §15</label>
+          <input id="creditReturnDays" name="creditReturnDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.creditReturnDays" />
+        </div>
+        <div class="field">
+          <label for="forceMajeureDays">Force-majeure termination (days) — §30(b)</label>
+          <input id="forceMajeureDays" name="forceMajeureDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.forceMajeureDays" />
+        </div>
+
+        <div class="field">
+          <label for="invoiceLeadDays">Invoice lead time (days) — §11(a)</label>
+          <input id="invoiceLeadDays" name="invoiceLeadDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.invoiceLeadDays" />
+        </div>
+        <!-- The pair below is what stops a late invoice manufacturing a cancellation charge:
+             invoice inside the window and the client gets the grace days instead. -->
+        <div class="field">
+          <label for="lateInvoiceThresholdDays">Late-invoice threshold (days) — §11(a)</label>
+          <input id="lateInvoiceThresholdDays" name="lateInvoiceThresholdDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.lateInvoiceThresholdDays" />
+        </div>
+        <div class="field">
+          <label for="lateInvoiceGraceBusinessDays">…grace after receipt (business days)</label>
+          <input id="lateInvoiceGraceBusinessDays" name="lateInvoiceGraceBusinessDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.lateInvoiceGraceBusinessDays" />
+        </div>
+        <div class="field">
+          <label for="interestGraceDays">Interest-free grace (days) — §11(f)</label>
+          <input id="interestGraceDays" name="interestGraceDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.interestGraceDays" />
+        </div>
+
+        <div class="field">
+          <label for="billingDisputeDays">Billing dispute window (business days) — §12</label>
           <input id="billingDisputeDays" name="billingDisputeDays" type="number" min="0"
                  [(ngModel)]="model.advanced.billingDisputeDays" />
         </div>
         <div class="field">
-          <label for="qualityComplaintHours">Quality complaint window (hours) — §22</label>
+          <label for="disputeResponseBusinessDays">Dispute resolution attempt (business days) — §12</label>
+          <input id="disputeResponseBusinessDays" name="disputeResponseBusinessDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.disputeResponseBusinessDays" />
+        </div>
+        <div class="field">
+          <label for="resolutionPaymentBusinessDays">Payment after resolution (business days) — §12</label>
+          <input id="resolutionPaymentBusinessDays" name="resolutionPaymentBusinessDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.resolutionPaymentBusinessDays" />
+        </div>
+        <div class="field">
+          <label for="damageNoticeBusinessDays">Damage notice after discovery (business days) — §21</label>
+          <input id="damageNoticeBusinessDays" name="damageNoticeBusinessDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.damageNoticeBusinessDays" />
+        </div>
+        <div class="field">
+          <label for="qualityComplaintHours">Quality complaint window (hours) — §22(a)</label>
           <input id="qualityComplaintHours" name="qualityComplaintHours" type="number" min="0"
                  [(ngModel)]="model.advanced.qualityComplaintHours" />
         </div>
         <div class="field">
-          <label for="visibleDamageHours">Visible damage window (hours) — §21(a)</label>
-          <input id="visibleDamageHours" name="visibleDamageHours" type="number" min="0"
-                 [(ngModel)]="model.advanced.visibleDamageHours" />
+          <label for="qualityCorrectionBusinessDays">Re-performance window (business days) — §22(b)</label>
+          <input id="qualityCorrectionBusinessDays" name="qualityCorrectionBusinessDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.qualityCorrectionBusinessDays" />
         </div>
         <div class="field">
-          <label for="latentDamageDays">Latent damage window (days) — §21(b)</label>
-          <input id="latentDamageDays" name="latentDamageDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.latentDamageDays" />
+          <label for="refundBusinessDays">Refund after request (business days) — §15(e)</label>
+          <input id="refundBusinessDays" name="refundBusinessDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.refundBusinessDays" />
+        </div>
+
+        <div class="field">
+          <label for="keyReturnBusinessDays">Key / credential return (business days) — §13(b)</label>
+          <input id="keyReturnBusinessDays" name="keyReturnBusinessDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.keyReturnBusinessDays" />
         </div>
         <div class="field">
           <label for="confidentialityYears">Confidentiality (years) — §27</label>
           <input id="confidentialityYears" name="confidentialityYears" type="number" min="0"
                  [(ngModel)]="model.advanced.confidentialityYears" />
         </div>
-        <div class="field">
-          <label for="nonSolicitMonths">Non-solicit (months) — §18</label>
-          <input id="nonSolicitMonths" name="nonSolicitMonths" type="number" min="0"
-                 [(ngModel)]="model.advanced.nonSolicitMonths" />
-        </div>
-        <div class="field">
-          <label for="nonHireDamages">Non-hire liquidated damages</label>
-          <input id="nonHireDamages" name="nonHireDamages" type="number" step="0.01" min="0"
-                 [(ngModel)]="model.advanced.nonHireDamages" />
-        </div>
+
         <div class="field">
           <label for="insurancePerOccurrence">CGL each occurrence — §20(a)</label>
           <input id="insurancePerOccurrence" name="insurancePerOccurrence" type="number" step="1000" min="0"
@@ -713,25 +1146,61 @@
           <input id="insuranceJurisdiction" name="insuranceJurisdiction" type="text"
                  [(ngModel)]="model.advanced.insuranceJurisdiction" />
         </div>
+
         <div class="field">
-          <label for="liabilityCapLookbackMonths">Liability cap lookback (months) — §29(b)</label>
-          <input id="liabilityCapLookbackMonths" name="liabilityCapLookbackMonths" type="number" min="0"
-                 [(ngModel)]="model.advanced.liabilityCapLookbackMonths" />
+          <label for="priceReviewNoticeDays">Price-review notice (days) — §8(c)</label>
+          <input id="priceReviewNoticeDays" name="priceReviewNoticeDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.priceReviewNoticeDays" />
         </div>
+
+        <!-- A phrase rather than a derived value: no rule turns a governing-law state into the
+             right city. A Brooklyn premises is under New York City law, a Yonkers one is not, and
+             the service location's city field says "Brooklyn" either way. -->
+        <div class="field wide">
+          <label for="complianceJurisdictions">Applicable law named in §26(a)</label>
+          <input id="complianceJurisdictions" name="complianceJurisdictions" type="text"
+                 [(ngModel)]="model.advanced.complianceJurisdictions" />
+        </div>
+
         <div class="field">
-          <label for="disputeDiscussionDays">Dispute discussion period (days) — §34(a)</label>
+          <label for="disputeDiscussionDays">Senior-representative conference (days) — §34(a)</label>
           <input id="disputeDiscussionDays" name="disputeDiscussionDays" type="number" min="0"
                  [(ngModel)]="model.advanced.disputeDiscussionDays" />
         </div>
         <div class="field">
-          <label for="creditReturnDays">Unapplied credit return (days) — §15</label>
-          <input id="creditReturnDays" name="creditReturnDays" type="number" min="0"
-                 [(ngModel)]="model.advanced.creditReturnDays" />
+          <label for="mediationRequestDays">Mediation may be requested after (days) — §34(a)</label>
+          <input id="mediationRequestDays" name="mediationRequestDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.mediationRequestDays" />
+        </div>
+        <div class="field">
+          <label for="mediatorSelectionDays">Mediator selection (days) — §34(a)</label>
+          <input id="mediatorSelectionDays" name="mediatorSelectionDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.mediatorSelectionDays" />
+        </div>
+        <div class="field">
+          <label for="suitAfterDays">Suit may be filed after (days) — §34(a)</label>
+          <input id="suitAfterDays" name="suitAfterDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.suitAfterDays" />
+        </div>
+        <div class="field">
+          <label for="collectionDemandBusinessDays">Collection demand (business days) — §34(c)</label>
+          <input id="collectionDemandBusinessDays" name="collectionDemandBusinessDays" type="number" min="0"
+                 [(ngModel)]="model.advanced.collectionDemandBusinessDays" />
         </div>
         <div class="field wide">
           <label for="mediationVenue">Mediation venue — §34(a)</label>
           <input id="mediationVenue" name="mediationVenue" type="text"
                  [(ngModel)]="model.advanced.mediationVenue" />
+        </div>
+        <div class="field wide">
+          <label for="federalVenue">Federal venue — §33</label>
+          <input id="federalVenue" name="federalVenue" type="text"
+                 [(ngModel)]="model.advanced.federalVenue" />
+          <small class="hint">
+            Named only where federal subject-matter jurisdiction independently exists. Keep it in
+            step with the venue county above, or §33 names a court with no jurisdiction over
+            either party.
+          </small>
         </div>
       </div>
     </div>

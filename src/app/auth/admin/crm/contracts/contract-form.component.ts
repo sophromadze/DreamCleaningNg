@@ -7,7 +7,9 @@ import {
   ContractClient, ContractContact, ContractContactRole, ContractDetail,
   ContractPricingInput, ContractPricingPreview, ContractPriceMode, ContractService,
   ContractServiceLocation, ContractSnapshot, ContractTemplate, ContractorProfile,
-  SaveContract, ScheduleSnapshot, ScopeStructure, ScopeTemplate, TermSnapshot
+  InsuranceEndorsementsSnapshot, OperationalContactsSnapshot,
+  SaveContract, ScheduleSnapshot, ScopeGroup, ScopeStructure, ScopeTemplate,
+  SiteDetailsSnapshot, TermSnapshot
 } from '../../../../services/contract.service';
 import { InvoiceService, InvoiceTaxType } from '../../../../services/invoice.service';
 import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
@@ -36,7 +38,8 @@ export function resolveServiceDays(schedule: ScheduleSnapshot | undefined): stri
  */
 type PanelKey =
   | 'template' | 'contractor' | 'contractorSigner' | 'client'
-  | 'location' | 'schedule' | 'billing' | 'term' | 'pricing' | 'scope' | 'advanced';
+  | 'location' | 'schedule' | 'billing' | 'term' | 'pricing' | 'scope'
+  | 'siteDetails' | 'contacts' | 'insurance' | 'advanced';
 
 /**
  * The Create / Edit Contract form: one page of collapsible sections in the order the spec lays
@@ -189,7 +192,105 @@ export class ContractFormComponent implements OnInit {
     this.model.contractorSignerContactId = this.contractorSigners[0]?.id ?? null;
 
     this.applyBillingDefaults();
+    this.applyContractorContactDefaults();
     this.refreshPricingPreview();
+  }
+
+  /**
+   * Seeds Exhibit B4's CONTRACTOR contacts from the selected contractor profile.
+   *
+   * Read from the profile rather than written as constants in this file, so the operational email
+   * and supervisor number in an executed agreement are the ones actually on file. A hardcoded pair
+   * would be wrong the day the business changes its number, and would be wrong silently — inside
+   * a clause that tells a client where to send a cancellation that stops a charge.
+   *
+   * Only ever fills a BLANK field: reselecting a profile must not wipe a supervisor an admin
+   * typed for this particular contract.
+   */
+  private applyContractorContactDefaults(): void {
+    const profile = this.contractorProfiles.find(p => p.id === this.model.contractorProfileId);
+    if (!profile) return;
+
+    const contacts = this.model.contacts;
+    if (!contacts.contractorOperationalEmail?.trim()) {
+      contacts.contractorOperationalEmail = profile.noticeEmail ?? '';
+    }
+    if (!contacts.contractorSupervisorPhone?.trim()) {
+      contacts.contractorSupervisorPhone = profile.phone ?? '';
+    }
+    if (!contacts.contractorSupervisorName?.trim()) {
+      const signer = this.contractorSigners.find(s => s.id === this.model.contractorSignerContactId)
+        ?? this.contractorSigners[0];
+      contacts.contractorSupervisorName = signer?.fullName ?? '';
+    }
+  }
+
+  /** Reselecting the contractor profile re-seeds only the contact fields still left blank. */
+  onContractorProfileChange(): void {
+    this.applyContractorContactDefaults();
+  }
+
+  /**
+   * The two derived term dates, echoed under the commencement-date field.
+   *
+   * Shown because they are the dates the CLIENT will read in Exhibit B and the ones that decide
+   * when they may first cancel — an admin picking a start date should see the commitment it
+   * creates without generating a preview. Computed here purely for display; the document's own
+   * copies are derived server-side from the same two numbers.
+   */
+  get termDatesHint(): string {
+    const start = this.model.term.serviceCommencementDate;
+    if (!start) return 'The initial term and minimum commitment both run from this date.';
+
+    const commitmentEnd = this.addMonths(start, this.model.term.minimumCommitmentMonths);
+    const termEnd = this.addDays(this.addMonths(start, this.model.term.initialTermMonths), -1);
+    if (!commitmentEnd || !termEnd) {
+      return 'The initial term and minimum commitment both run from this date.';
+    }
+
+    return `Earliest convenience termination: ${commitmentEnd}. Initial term ends: ${termEnd}.`;
+  }
+
+  /**
+   * Month arithmetic that CLAMPS to the end of a short month, matching .NET's AddMonths.
+   *
+   * A plain `setMonth` rolls a 31 January start into 3 March, so the form would advertise a
+   * commitment end date the server would never produce — and the client would be reading one of
+   * the two in the executed document.
+   */
+  private addMonths(iso: string, months: number): string | null {
+    const date = new Date(iso + 'T00:00:00');
+    if (isNaN(date.getTime())) return null;
+
+    const day = date.getDate();
+    const shifted = new Date(date.getFullYear(), date.getMonth() + Math.max(0, months), 1);
+    const lastDay = new Date(shifted.getFullYear(), shifted.getMonth() + 1, 0).getDate();
+    shifted.setDate(Math.min(day, lastDay));
+    return this.formatLongDate(shifted);
+  }
+
+  private addDays(formatted: string | null, days: number): string | null {
+    if (!formatted) return null;
+    const date = new Date(formatted);
+    if (isNaN(date.getTime())) return null;
+    date.setDate(date.getDate() + days);
+    return this.formatLongDate(date);
+  }
+
+  private formatLongDate(date: Date): string {
+    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+
+  /**
+   * Keeps the legacy single `serviceTime` in step with the window's opening.
+   *
+   * The agreement renders the WINDOW, but the legacy field is still written so an export, an
+   * older reader or a partially-deployed instance never shows a start time this contract does not
+   * have — the same reason `serviceDay` is kept in step with `serviceDays`.
+   */
+  onArrivalWindowChange(): void {
+    const start = this.model.schedule.arrivalWindowStart?.trim();
+    if (start) this.model.schedule.serviceTime = start;
   }
 
   /**
@@ -250,10 +351,25 @@ export class ContractFormComponent implements OnInit {
     });
   }
 
+  /**
+   * The template a reopened draft should sit on: the one it was saved with, unless that version
+   * has since been RETIRED.
+   *
+   * The picker only lists active templates, so a retired id matches no option and the select
+   * renders blank — while `model.contractTemplateId` quietly keeps the superseded version and
+   * sends it back on save. The admin sees an ordinary draft and gets the old wording. Falling
+   * back to the default shows on screen what the server will use, because `SaveDraftAsync`
+   * performs the same substitution and is the half that actually enforces it.
+   */
+  private resolveEditableTemplateId(savedId: number): number {
+    if (this.templates.some(t => t.id === savedId)) return savedId;
+    return (this.templates.find(t => t.isDefault) ?? this.templates[0])?.id ?? savedId;
+  }
+
   /** Re-opens a saved draft into the form. Reads from the snapshot, never from the live rows. */
   private hydrateFrom(snapshot: ContractSnapshot): void {
     this.model = {
-      contractTemplateId: snapshot.contractTemplateId,
+      contractTemplateId: this.resolveEditableTemplateId(snapshot.contractTemplateId),
       scopeTemplateId: snapshot.scopeTemplateId ?? undefined,
       contractorProfileId: snapshot.contractor.id,
       effectiveDate: snapshot.effectiveDate ?? null,
@@ -307,12 +423,19 @@ export class ContractFormComponent implements OnInit {
         paymentDeadlineHours: snapshot.pricing.paymentDeadlineHours,
         paymentMethod: snapshot.pricing.paymentMethod,
         lateChargePercent: snapshot.pricing.lateChargePercent,
+        liabilityCapMultiple: snapshot.pricing.liabilityCapMultiple ?? this.defaultPricing().liabilityCapMultiple,
         // Round-tripped, never re-defaulted. A contract drafted before the fee was retired still
         // carries $35, and reopening it must not silently drop a term it already states.
         returnedPaymentFee: snapshot.pricing.returnedPaymentFee,
         saveAsDefault: false
       },
-      advanced: { ...snapshot.advanced },
+      // Spread over the defaults rather than taken raw: a draft saved before a term existed has
+      // no value for it, and `{ ...snapshot.advanced }` alone would leave it undefined and post
+      // a null into a clause that quotes a number.
+      advanced: { ...this.defaultAdvanced(), ...snapshot.advanced },
+      siteDetails: { ...this.defaultSiteDetails(), ...(snapshot.siteDetails ?? {}) },
+      contacts: { ...this.defaultContacts(), ...(snapshot.contacts ?? {}) },
+      insurance: { ...this.defaultInsurance(), ...(snapshot.insurance ?? {}) },
       scope: JSON.parse(JSON.stringify(snapshot.scope ?? { groups: [] }))
     };
 
@@ -411,6 +534,15 @@ export class ContractFormComponent implements OnInit {
     // overwrite an address staff deliberately set. The checkbox re-ticks only if they already match.
     this.useSignerContactForNotices =
       !client.noticeEmail && !client.phone;
+
+    // Exhibit B4's client half, from the same gesture. Blank fields only — an admin who typed a
+    // different notice address for this site must not lose it by reselecting the client.
+    if (!this.model.contacts.clientOperationalEmail?.trim()) {
+      this.model.contacts.clientOperationalEmail = client.noticeEmail ?? '';
+    }
+    if (!this.model.contacts.clientOnCallPhone?.trim()) {
+      this.model.contacts.clientOnCallPhone = client.phone ?? '';
+    }
 
     this.loadClientChildren(client.id);
   }
@@ -710,10 +842,29 @@ export class ContractFormComponent implements OnInit {
     return !!template?.allowsCustomRows;
   }
 
+  /**
+   * True for the Exhibit A "Area | Tasks and limits" grid — a group whose items carry a tasks
+   * paragraph rather than being a plain tick list.
+   *
+   * Detected from the ITEMS rather than from the group key, so a category an admin adds by hand
+   * and gives detail to renders the same way, and so the check keeps working if a business type
+   * ever names its grid something else. An emptied table group falls back to the plain list,
+   * which is the right shape for adding the first row to it.
+   */
+  isTableGroup(group: ScopeGroup): boolean {
+    return group.items.some(i => i.detail !== undefined && i.detail !== null);
+  }
+
   addScopeRow(groupIndex: number, label: string, input: HTMLInputElement): void {
     const trimmed = (label ?? '').trim();
     if (!trimmed) return;
-    this.model.scope.groups[groupIndex].items.push({ label: trimmed, selected: true, isCustom: true });
+
+    const group = this.model.scope.groups[groupIndex];
+    // A row added to the area/task grid needs somewhere to put its tasks, or it would render as
+    // an area with an empty right-hand cell and no way to fill it in.
+    const detail = this.isTableGroup(group) ? '' : undefined;
+
+    group.items.push({ label: trimmed, selected: true, isCustom: true, detail });
     input.value = '';
   }
 
@@ -864,8 +1015,50 @@ export class ContractFormComponent implements OnInit {
       term: this.defaultTerm(),
       pricing: this.defaultPricing(),
       advanced: this.defaultAdvanced(),
+      siteDetails: this.defaultSiteDetails(),
+      contacts: this.defaultContacts(),
+      insurance: this.defaultInsurance(),
       scope: { groups: [] }
     };
+  }
+
+  /**
+   * Exhibit A's site facts all start EMPTY.
+   *
+   * Nothing here can be guessed from another record — a restroom count, a floor material and a
+   * floor material are things somebody walks the building and writes down. A seeded
+   * plausible value would be printed in an executed agreement as though it had been verified.
+   */
+  private defaultSiteDetails(): SiteDetailsSnapshot {
+    return {
+      approximateSquareFootage: '', customerRestroomCounts: '', employeeRestroomCounts: '',
+      floorMaterials: '', kitchenEquipmentAndSurfaces: '', touchpointLocations: '',
+      interiorGlassLocations: '',
+      foodContactSanitizing: '', accessMethodReference: '', equipmentRestrictions: '',
+      wasteReceptacleLocations: '', foodServicePermitHolder: '', siteRequirements: '',
+      baselineWalkthroughRecord: '', initialWorkChangeOrder: ''
+    };
+  }
+
+  /**
+   * Exhibit B4 contacts start empty too, INCLUDING the contractor's own.
+   *
+   * They are hydrated from the selected contractor profile and client instead
+   * (`applyContactDefaultsFromParties`), so the values on screen are the ones actually on file
+   * rather than a constant that would be wrong the day the business changes its number.
+   */
+  private defaultContacts(): OperationalContactsSnapshot {
+    return {
+      contractorApprovalEmail: '', contractorOperationalEmail: '',
+      contractorSupervisorName: '', contractorSupervisorPhone: '', contractorBackupContact: '',
+      clientApprovalEmail: '', clientNoticeMailingAddress: '', clientOperationalEmail: '',
+      clientOnCallName: '', clientOnCallPhone: '', clientBackupContact: ''
+    };
+  }
+
+  /** No endorsements agreed unless somebody agrees one; all three render "None"/"Not applicable". */
+  private defaultInsurance(): InsuranceEndorsementsSnapshot {
+    return { agreedEndorsements: '', endorsementDetails: '', additionalPremium: '' };
   }
 
   private emptyClient() {
@@ -894,7 +1087,14 @@ export class ContractFormComponent implements OnInit {
   private defaultSchedule(): ScheduleSnapshot {
     return {
       frequencyUnit: 'calendar week', visitsPerPeriod: 1,
-      serviceDay: 'Sunday', serviceDays: ['Sunday'], serviceTime: '9:00 AM',
+      serviceDay: 'Sunday', serviceDays: ['Sunday'],
+      // The legacy single time is kept in step with the window's opening, so an older reader or
+      // an export never shows a start time the contract does not have.
+      serviceTime: '8:30 AM',
+      arrivalWindowStart: '8:30 AM', arrivalWindowEnd: '9:30 AM',
+      timeZoneLabel: 'local New York time',
+      completionTime: '',
+      weekDefinition: 'Monday through Sunday',
       flexibleScheduling: true, performedWhileClosed: true,
       accessType: 'key or other access credentials provided by Client'
     };
@@ -918,6 +1118,9 @@ export class ContractFormComponent implements OnInit {
   private defaultTerm(): TermSnapshot {
     return {
       initialTermMonths: 6, minimumCommitmentMonths: 6, terminationNoticeDays: 60,
+      // Left null deliberately. The Minimum Commitment End Date and Initial Term End Date are
+      // derived from it, so seeding "today" would print three confident dates nobody chose.
+      serviceCommencementDate: null,
       renewalType: 'month-to-month', governingLawState: 'New York', venueCounty: 'Kings County'
     };
   }
@@ -934,22 +1137,41 @@ export class ContractFormComponent implements OnInit {
     return {
       priceMode: ContractPriceMode.TaxInclusive, priceInput: 0, salesTaxRatePercent: 8.875,
       cancellationPercent: 50,
-      invoiceTiming: 'In advance of each scheduled service visit, generally several days before service.',
-      paymentDeadlineHours: 48, paymentMethod: 'ACH or bank-to-bank transfer',
-      lateChargePercent: 1.5, returnedPaymentFee: 0, saveAsDefault: false
+      invoiceTiming: 'Ordinarily at least seven calendar days before each scheduled visit.',
+      paymentDeadlineHours: 48, paymentMethod: 'ACH or bank transfer using verified instructions',
+      lateChargePercent: 1, liabilityCapMultiple: 13,
+      returnedPaymentFee: 0, saveAsDefault: false
     };
   }
 
+  /** Every interval the agreement quotes, defaulted to the drafted wording. */
   private defaultAdvanced(): AdvancedTermsSnapshot {
     return {
-      timelyRescheduleHours: 24, curePeriodDays: 15, pastDueDays: 30,
-      billingDisputeDays: 10, qualityComplaintHours: 24,
-      visibleDamageHours: 48, latentDamageDays: 30,
-      confidentialityYears: 2, nonSolicitMonths: 12, nonHireDamages: 5000,
+      timelyRescheduleHours: 24, makeupWindowDays: 14, lockoutWaitMinutes: 20,
+      missedVisitThreshold: 3, missedVisitWindowWeeks: 8, servicePlanDays: 7,
+
+      curePeriodDays: 15, pastDueDays: 15, creditReturnDays: 30, forceMajeureDays: 30,
+
+      invoiceLeadDays: 7, lateInvoiceThresholdDays: 5, lateInvoiceGraceBusinessDays: 3,
+      interestGraceDays: 5,
+
+      billingDisputeDays: 10, disputeResponseBusinessDays: 10,
+      resolutionPaymentBusinessDays: 5, damageNoticeBusinessDays: 5,
+      qualityComplaintHours: 48, qualityCorrectionBusinessDays: 2, refundBusinessDays: 10,
+
+      keyReturnBusinessDays: 2,
+      confidentialityYears: 2,
+
       insurancePerOccurrence: 1000000, insuranceAggregate: 2000000,
       insuranceJurisdiction: 'New York',
-      liabilityCapLookbackMonths: 3, disputeDiscussionDays: 30,
-      creditReturnDays: 30, mediationVenue: 'Kings County, New York'
+      complianceJurisdictions: 'federal, New York State, and New York City',
+
+      priceReviewNoticeDays: 45,
+
+      disputeDiscussionDays: 10, mediationRequestDays: 15, mediatorSelectionDays: 10,
+      suitAfterDays: 30, collectionDemandBusinessDays: 5,
+      mediationVenue: 'Kings County, New York',
+      federalVenue: 'the United States District Court for the Eastern District of New York sitting in Brooklyn'
     };
   }
 }

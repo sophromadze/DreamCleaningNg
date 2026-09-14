@@ -632,7 +632,7 @@
                             </select>
                           </div>
                         </div>
-                        <div class="edit-row"><label>Maids</label><input type="number" [(ngModel)]="editOrderForm.maidsCount" (ngModelChange)="onEditMaidsChange()" title="Set manually — customers only see the total duration"> <span class="duration-hint" [class.staffing-review-hint]="editFormNeedsStaffingReview()" *ngIf="getSuggestedMaidsCount() as suggested">suggested: {{ suggested }} (1 per 6h)</span></div>
+                        <div class="edit-row"><label>Cleaners Count</label><input type="number" [(ngModel)]="editOrderForm.maidsCount" (ngModelChange)="onEditMaidsChange()" title="Set manually — customers only see the total duration"> <span class="duration-hint" [class.staffing-review-hint]="editFormNeedsStaffingReview()" *ngIf="getSuggestedMaidsCount() as suggested">suggested: {{ suggested }} (1 per 6h)</span></div>
                         <div class="edit-row"><label>Duration (min)</label><input type="number" [(ngModel)]="editOrderForm.totalDuration" (ngModelChange)="onEditDurationChange()" min="60" placeholder="min"> <span class="duration-hint">{{ getEditDurationHintText() }}</span></div>
                         <div class="edit-row"><label>Entry</label><input [(ngModel)]="editOrderForm.entryMethod"></div>
                         <div class="edit-row edit-row--full">

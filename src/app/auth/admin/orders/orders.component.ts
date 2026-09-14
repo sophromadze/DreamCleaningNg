@@ -6294,7 +6294,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
     pushTime('Service Time', cur.serviceTime, prop.serviceTime);
     push('Duration (min)', cur.totalDuration, prop.totalDuration);
-    push('Maids', cur.maidsCount, prop.maidsCount);
+    push('Cleaners Count', cur.maidsCount, prop.maidsCount);
     // Without these two rows a SuperAdmin would approve a property-type or level change they
     // could not see in the diff - and a level change moves the price.
     //

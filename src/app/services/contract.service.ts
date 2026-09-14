@@ -44,6 +44,17 @@ export interface ScopeItem {
    * business type; on a CONTRACT it is their own choice for that draft.
    */
   selected: boolean;
+
+  /**
+   * The right-hand cell when this item is an Exhibit A TABLE row (`{{SCOPE_TABLE:key}}`): the
+   * tasks and limits that apply to the area in `label`.
+   *
+   * Null on every ordinary checklist item — an inline `{{SCOPE:key}}` joins labels into a
+   * sentence fragment and has nowhere to put a paragraph, which is why the table is its own
+   * token rather than a flag on the group.
+   */
+  detail?: string | null;
+
   isCustom?: boolean;
   /** Retired on the master template. Hidden from new contracts; never removed from signed ones. */
   archived?: boolean;
@@ -104,8 +115,109 @@ export interface ScheduleSnapshot {
    */
   serviceDays?: string[];
 
+  /**
+   * LEGACY single start time. The agreement quotes an arrival WINDOW instead — read
+   * `arrivalWindowStart`/`arrivalWindowEnd` and fall back to this, never the other way round.
+   */
   serviceTime: string;
+
+  /** Opening of the agreed arrival window — Section 5(c) and Exhibit A/B. */
+  arrivalWindowStart?: string;
+
+  /** Close of the window. Blank collapses it to a bare start time, not a dangling "8:30 AM to". */
+  arrivalWindowEnd?: string;
+
+  /** The clock every time in the document refers to — Section 32 turns the cancellation notice on it. */
+  timeZoneLabel?: string;
+
+  /**
+   * An agreed completion deadline, or blank. Blank renders "None": no deadline is a term the
+   * Parties agreed, not an unanswered question.
+   */
+  completionTime?: string | null;
+
+  /** What a "calendar week" means for the recurring commitment — Section 5(a). */
+  weekDefinition?: string;
+
   flexibleScheduling: boolean; performedWhileClosed: boolean; accessType: string;
+}
+
+/**
+ * Exhibit A's recorded site facts — the "[COUNTS]" / "[LOCATIONS]" blanks of the agreement.
+ *
+ * Free text on purpose: they describe a building, and every attempt to enumerate what a commercial
+ * kitchen contains produces a form that cannot express the next one. Every field is optional; an
+ * unfilled one prints a visible ruled blank rather than asserting the premises lacks that thing.
+ */
+export interface SiteDetailsSnapshot {
+  approximateSquareFootage?: string | null;
+  customerRestroomCounts?: string | null;
+  employeeRestroomCounts?: string | null;
+  floorMaterials?: string | null;
+  kitchenEquipmentAndSurfaces?: string | null;
+  touchpointLocations?: string | null;
+  interiorGlassLocations?: string | null;
+
+  // NO SOAP FIELDS. Hand soap and its dispensers are outside the Services entirely — Contractor
+  // never supplies, replenishes, repairs or replaces them — so there is nothing to record.
+
+  /**
+   * Blank means NONE, and that is load-bearing: Section 25(e) and A3(d) exclude food-contact
+   * sanitizing unless a task is expressly identified here, so an empty box is the agreement
+   * saying the Client keeps that responsibility.
+   */
+  foodContactSanitizing?: string | null;
+
+  accessMethodReference?: string | null;
+  equipmentRestrictions?: string | null;
+  wasteReceptacleLocations?: string | null;
+  foodServicePermitHolder?: string | null;
+  siteRequirements?: string | null;
+  baselineWalkthroughRecord?: string | null;
+  initialWorkChangeOrder?: string | null;
+}
+
+/**
+ * Exhibit B4 — who may approve a Change Order, and who answers the phone on a Sunday morning.
+ *
+ * Separate from the signers: a signer executes the agreement, an on-call contact is whoever the
+ * crew calls when the door is locked, and on most commercial accounts those are different people.
+ * Section 14 hangs a failed-access charge on Contractor having tried to reach one.
+ */
+export interface OperationalContactsSnapshot {
+  contractorApprovalEmail?: string | null;
+  contractorOperationalEmail?: string | null;
+  contractorSupervisorName?: string | null;
+  contractorSupervisorPhone?: string | null;
+  contractorBackupContact?: string | null;
+
+  clientApprovalEmail?: string | null;
+
+  /**
+   * Where FORMAL notice is served on the Client — Section 32. Kept apart from the principal
+   * address and the service location, because a business registered at an accountant's office,
+   * served at a restaurant and reading its mail at a third address is the ordinary case. Blank
+   * falls back to the principal address.
+   */
+  clientNoticeMailingAddress?: string | null;
+
+  clientOperationalEmail?: string | null;
+  clientOnCallName?: string | null;
+  clientOnCallPhone?: string | null;
+  clientBackupContact?: string | null;
+}
+
+/**
+ * Exhibit B3 — endorsements agreed beyond the Section 20 baseline.
+ *
+ * Three fields rather than one note, because Section 20(c) says a certificate alone does not amend
+ * a policy: naming the endorsement, identifying the insurer/form/edition that issues it, and
+ * agreeing who pays are three different commitments.
+ */
+export interface InsuranceEndorsementsSnapshot {
+  agreedEndorsements?: string | null;
+  endorsementDetails?: string | null;
+  additionalPremium?: string | null;
 }
 
 /** Mirrors ContractBillingFrequency. "Every N weeks" is Weekly with an interval count. */
@@ -131,6 +243,15 @@ export interface BillingCadenceSnapshot {
 
 export interface TermSnapshot {
   initialTermMonths: number; minimumCommitmentMonths: number; terminationNoticeDays: number;
+
+  /**
+   * The first RECURRING service date — distinct from the Effective Date, and what Section 3 hangs
+   * the whole term on. An agreement signed in March for a May start commits six months of
+   * cleaning, not four. Null leaves Exhibit B's date rows blank rather than guessing, because
+   * guessing would silently shorten the commitment being agreed to.
+   */
+  serviceCommencementDate?: string | null;
+
   renewalType: string; governingLawState: string; venueCounty: string;
 }
 
@@ -138,20 +259,82 @@ export interface TermSnapshot {
 export interface PricingSnapshot {
   priceMode: ContractPriceMode; priceInput: number; salesTaxRatePercent: number;
   preTaxPrice: number; salesTaxAmount: number; totalPrice: number;
+
+  /**
+   * The cancellation cap is a percentage of the PRE-TAX fee, and the lockout fee IS the pre-tax
+   * fee. Tax attaches to a supply, and a visit that did not happen is not one — so building
+   * either on the tax-inclusive total would bill a tax that was never owed.
+   */
   cancellationPercent: number; cancellationAmount: number;
   remainingBalance: number; lockoutFee: number;
+
+  /** Section 29(b): aggregate liability cap = multiple × pre-tax per-visit fee. */
+  liabilityCapMultiple: number; liabilityCapAmount: number;
+
   invoiceTiming: string; paymentDeadlineHours: number; paymentMethod: string;
-  lateChargePercent: number; returnedPaymentFee: number;
+
+  /** Monthly, plus the same rate stated annually. The annual figure is derived, never typed. */
+  lateChargePercent: number; lateChargeAnnualPercent: number;
+
+  returnedPaymentFee: number;
 }
 
 export interface AdvancedTermsSnapshot {
-  timelyRescheduleHours: number; curePeriodDays: number; pastDueDays: number;
-  billingDisputeDays: number; qualityComplaintHours: number;
-  visibleDamageHours: number; latentDamageDays: number;
-  confidentialityYears: number; nonSolicitMonths: number; nonHireDamages: number;
+  // Scheduling, cancellation and makeup
+  timelyRescheduleHours: number;
+  makeupWindowDays: number;
+  lockoutWaitMinutes: number;
+  /** Section 15(f). The two ordinals in that clause are derived from the threshold server-side. */
+  missedVisitThreshold: number;
+  missedVisitWindowWeeks: number;
+  servicePlanDays: number;
+
+  // Termination and cure
+  curePeriodDays: number;
+  pastDueDays: number;
+  creditReturnDays: number;
+  forceMajeureDays: number;
+
+  // Invoicing and money
+  invoiceLeadDays: number;
+  /** An invoice delivered inside this window buys the client the grace days below. */
+  lateInvoiceThresholdDays: number;
+  lateInvoiceGraceBusinessDays: number;
+  interestGraceDays: number;
+
+  // Disputes, damage and quality
+  billingDisputeDays: number;
+  disputeResponseBusinessDays: number;
+  resolutionPaymentBusinessDays: number;
+  damageNoticeBusinessDays: number;
+  qualityComplaintHours: number;
+  qualityCorrectionBusinessDays: number;
+  refundBusinessDays: number;
+
+  // Access
+  keyReturnBusinessDays: number;
+
+  // Confidentiality
+  confidentialityYears: number;
+
+  // Insurance
   insurancePerOccurrence: number; insuranceAggregate: number; insuranceJurisdiction: string;
-  liabilityCapLookbackMonths: number; disputeDiscussionDays: number;
-  creditReturnDays: number; mediationVenue: string;
+
+  // Compliance
+  /** The layers of law Section 26(a) names. A phrase, because no rule derives the city. */
+  complianceJurisdictions: string;
+
+  // Pricing review
+  priceReviewNoticeDays: number;
+
+  // Dispute resolution
+  disputeDiscussionDays: number;
+  mediationRequestDays: number;
+  mediatorSelectionDays: number;
+  suitAfterDays: number;
+  collectionDemandBusinessDays: number;
+  mediationVenue: string;
+  federalVenue: string;
 }
 
 export interface ContractSnapshot {
@@ -164,6 +347,9 @@ export interface ContractSnapshot {
   contractorSigner: SignerSnapshot; clientSigner: SignerSnapshot;
   schedule: ScheduleSnapshot; billing: BillingCadenceSnapshot; term: TermSnapshot;
   pricing: PricingSnapshot; advanced: AdvancedTermsSnapshot;
+  siteDetails: SiteDetailsSnapshot;
+  contacts: OperationalContactsSnapshot;
+  insurance: InsuranceEndorsementsSnapshot;
   scope: ScopeStructure; premisesType: string;
 }
 
@@ -277,6 +463,9 @@ export interface ContractPricingInput {
   invoiceTiming: string; paymentDeadlineHours: number; paymentMethod: string;
   lateChargePercent: number;
 
+  /** Section 29(b). The resulting dollar amount is derived server-side, like every other figure. */
+  liabilityCapMultiple: number;
+
   /**
    * RETIRED for new contracts and no longer offered on the form, so it is sent as 0 and the
    * clause drops out of the document. The field stays because historical contracts agreed to
@@ -302,12 +491,16 @@ export interface SaveContract {
   premisesType?: string;
   schedule: ScheduleSnapshot; billing: BillingCadenceSnapshot; term: TermSnapshot;
   pricing: ContractPricingInput; advanced: AdvancedTermsSnapshot;
+  siteDetails: SiteDetailsSnapshot;
+  contacts: OperationalContactsSnapshot;
+  insurance: InsuranceEndorsementsSnapshot;
   scope: ScopeStructure;
 }
 
 export interface ContractPricingPreview {
   preTaxPrice: number; salesTaxAmount: number; totalPrice: number;
   cancellationAmount: number; remainingBalance: number; lockoutFee: number;
+  liabilityCapAmount: number; lateChargeAnnualPercent: number;
 }
 
 // ── Read models ──

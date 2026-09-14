@@ -195,7 +195,9 @@
     color: var(--text-secondary);
   }
 
-  input, select {
+  // Textarea shares the input treatment: several Exhibit A details are a sentence or two, and a
+  // single-line box that scrolls sideways hides what the admin typed into a legal document.
+  input, select, textarea {
     padding: 0.55rem 0.65rem;
     border: 1px solid var(--border-color);
     border-radius: var(--radius-sm);
@@ -210,6 +212,18 @@
       box-shadow: 0 0 0 3px var(--soft-blue);
     }
   }
+
+  textarea { resize: vertical; min-height: 2.4rem; }
+}
+
+// Section label inside a panel that carries two parties' worth of fields (Exhibit B4).
+.subhead {
+  margin: 1.1rem 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+
+  &:first-of-type { margin-top: 0.2rem; }
 }
 
 .check {
@@ -292,6 +306,55 @@
   gap: 0.4rem 1rem;
 
   .check { position: relative; padding-right: 1.4rem; }
+}
+
+// Exhibit A's "Area | Tasks and limits" grid. One column rather than the auto-fit above: the
+// tasks paragraph IS the agreed scope for that area, so it needs the full width to be read and
+// corrected, not a 230px cell shared with the next area.
+.scope-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.scope-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  .check {
+    position: relative;
+    padding-right: 1.4rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  textarea {
+    width: 100%;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.84rem;
+    font-family: inherit;
+    line-height: 1.5;
+    resize: vertical;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px var(--soft-blue);
+    }
+
+    // An unticked area is not written into Exhibit A at all, so its tasks are not editable —
+    // and the dimming is what says the row is off rather than merely empty.
+    &:disabled {
+      background: var(--page-bg);
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+  }
 }
 
 .row-remove {

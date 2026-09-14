@@ -232,8 +232,13 @@ describe('ContractFormComponent', () => {
           }]
         }
       }]);
+    // Carries a notice email and phone, because Exhibit B4's contractor contacts are seeded from
+    // the PROFILE rather than from constants in the form.
     http.expectOne(r => r.url.endsWith('/contractor-profiles'))
-      .flush([{ id: 2, legalEntityName: 'Nodar Alania Inc.', isDefault: true }]);
+      .flush([{
+        id: 2, legalEntityName: 'Nodar Alania Inc.', isDefault: true,
+        noticeEmail: 'hello@dreamcleaningnyc.com', phone: '9299301525'
+      }]);
     http.expectOne(r => r.url.endsWith('/clients')).flush([]);
     http.expectOne(r => r.url.includes('/contacts')).flush([]);
     // Business-flagged accounts, for the "linked customer account" picker.
@@ -257,7 +262,8 @@ describe('ContractFormComponent', () => {
   function flushPricingPreview(): void {
     http.expectOne(r => r.url.endsWith('/pricing-preview')).flush({
       preTaxPrice: 0, salesTaxAmount: 0, totalPrice: 0,
-      cancellationAmount: 0, remainingBalance: 0, lockoutFee: 0
+      cancellationAmount: 0, remainingBalance: 0, lockoutFee: 0,
+      liabilityCapAmount: 0, lateChargeAnnualPercent: 0
     });
   }
 
@@ -327,15 +333,23 @@ describe('ContractFormComponent', () => {
     expect(request.request.body.priceMode).toBe(ContractPriceMode.TaxInclusive);
     expect(request.request.body.salesTaxRatePercent).toBe(8.875);
 
+    // The liability cap is one of the admin's own inputs — a multiple. The AMOUNT it produces is
+    // derived server-side like every other figure the agreement quotes.
+    expect(request.request.body.liabilityCapMultiple).toBe(13);
+
+    // The caps come back built on the PRE-TAX fee: 50% of $849.99 is $425.00, not half of the
+    // tax-inclusive $925.43. Tax attaches to a completed visit, and a cancelled one is not.
     request.flush({
       preTaxPrice: 849.99, salesTaxAmount: 75.44, totalPrice: 925.43,
-      cancellationAmount: 462.72, remainingBalance: 462.71, lockoutFee: 925.43
+      cancellationAmount: 425.00, remainingBalance: 424.99, lockoutFee: 849.99,
+      liabilityCapAmount: 11049.87, lateChargeAnnualPercent: 12
     });
 
     expect(component.pricingPreview?.totalPrice).toBe(925.43);
+    expect(component.pricingPreview?.cancellationAmount).toBe(425.00);
   });
 
-  it('defaults every advanced term to the reference agreement', () => {
+  it('defaults every advanced term to the drafted agreement', () => {
     fixture.detectChanges();
     flushReferenceData();
 
@@ -344,9 +358,15 @@ describe('ContractFormComponent', () => {
     // An admin who never opens the Advanced panel must produce the standard wording.
     expect(component.model.advanced.curePeriodDays).toBe(15);
     expect(component.model.advanced.confidentialityYears).toBe(2);
-    expect(component.model.advanced.nonSolicitMonths).toBe(12);
-    expect(component.model.advanced.liabilityCapLookbackMonths).toBe(3);
+    expect(component.model.advanced.makeupWindowDays).toBe(14);
+    expect(component.model.advanced.lockoutWaitMinutes).toBe(20);
+    expect(component.model.advanced.qualityComplaintHours).toBe(48);
     expect(component.model.pricing.cancellationPercent).toBe(50);
+
+    // A MULTIPLE of the per-visit fee, not a lookback in months. A months-based cap moves every
+    // time the visit frequency or billing cadence changes, so the ceiling a client agreed to
+    // would silently drift.
+    expect(component.model.pricing.liabilityCapMultiple).toBe(13);
 
     // TERM DEFAULTS (2026-09): committed for six months, then month-to-month on sixty days
     // notice. New drafts only — every generated version freezes its own copy, so changing these
@@ -356,9 +376,101 @@ describe('ContractFormComponent', () => {
     expect(component.model.term.terminationNoticeDays).toBe(60);
     expect(component.model.term.renewalType).toBe('month-to-month');
 
+    // NOT seeded with today. The minimum-commitment and initial-term end dates are both derived
+    // from it, so a default would print three confident dates nobody chose — and would shorten
+    // the commitment on any contract signed ahead of its start.
+    expect(component.model.term.serviceCommencementDate).toBeNull();
+
     // The $35 failed-payment fee is RETIRED and has no field on the form. At zero the clause is
     // dropped from the generated agreement rather than printed as "$0.00".
     expect(component.model.pricing.returnedPaymentFee).toBe(0);
+  });
+
+  // ── the drafted agreement's new inputs ────────────────────────────────────
+
+  /**
+   * THE SCHEDULE IS AN ARRIVAL WINDOW, and the legacy single start time follows its opening.
+   *
+   * Section 14 only permits a failed-access charge when the crew arrived INSIDE the agreed
+   * window, so both ends of it are contract data. The legacy field is kept in step so an export
+   * or an older reader never shows a start time the contract does not have — the same rule
+   * `serviceDay` follows behind `serviceDays`.
+   */
+  it('keeps the legacy start time in step with the arrival window', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    flushPricingPreview();
+
+    expect(component.model.schedule.arrivalWindowStart).toBe('8:30 AM');
+    expect(component.model.schedule.arrivalWindowEnd).toBe('9:30 AM');
+    expect(component.model.schedule.serviceTime).toBe('8:30 AM');
+
+    component.model.schedule.arrivalWindowStart = '6:00 AM';
+    component.onArrivalWindowChange();
+
+    expect(component.model.schedule.serviceTime).toBe('6:00 AM');
+  });
+
+  /**
+   * Exhibit A's site facts start EMPTY. Nothing here can be guessed from another record, and a
+   * plausible-looking default would be printed in an executed agreement as though somebody had
+   * walked the building and verified it.
+   */
+  it('leaves every Exhibit A site detail blank rather than guessing one', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    flushPricingPreview();
+
+    expect(component.model.siteDetails.approximateSquareFootage).toBe('');
+    expect(component.model.siteDetails.customerRestroomCounts).toBe('');
+    expect(component.model.siteDetails.foodServicePermitHolder).toBe('');
+    expect(component.model.siteDetails.foodContactSanitizing).toBe('');
+  });
+
+  /**
+   * The contractor's operational contacts come from the PROFILE, not from constants in the form.
+   * A hardcoded number would be wrong the day the business changes it, and wrong silently —
+   * inside the clause that tells a client where to send a cancellation that stops a charge.
+   */
+  it('seeds the contractor contacts from the selected profile', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    flushPricingPreview();
+
+    expect(component.model.contacts.contractorOperationalEmail).toBe('hello@dreamcleaningnyc.com');
+    expect(component.model.contacts.contractorSupervisorPhone).toBeTruthy();
+  });
+
+  /** Reselecting a profile must not wipe a supervisor an admin typed for this contract. */
+  it('never overwrites a contact the admin has already typed', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    flushPricingPreview();
+
+    component.model.contacts.contractorSupervisorName = 'Weekend crew lead';
+    component.onContractorProfileChange();
+
+    expect(component.model.contacts.contractorSupervisorName).toBe('Weekend crew lead');
+  });
+
+  /**
+   * The two derived term dates are echoed under the commencement field, using month arithmetic
+   * that CLAMPS like the server's. A plain setMonth rolls 31 January into 3 March, so the form
+   * would advertise a commitment end date the document would never print.
+   */
+  it('echoes the derived term dates, clamping a short month like the server does', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    flushPricingPreview();
+
+    expect(component.termDatesHint).toContain('run from this date');
+
+    component.model.term.serviceCommencementDate = '2026-01-31';
+    component.model.term.minimumCommitmentMonths = 1;
+    component.model.term.initialTermMonths = 6;
+
+    expect(component.termDatesHint).toContain('February 28, 2026');
+    expect(component.termDatesHint).toContain('July 30, 2026');
   });
 
   it('pre-fills the client and signer from a linked customer account', () => {
@@ -487,6 +599,42 @@ describe('ContractFormComponent', () => {
       .flush({ id: 11, status: ContractStatus.PreviewGenerated });
 
     expect(emitted?.id).toBe(11);
+  });
+
+  // ── reopening a draft saved on a superseded agreement version ──────────────
+  //
+  // The master agreement is versioned by ADDING a row and retiring the old one, and the picker
+  // lists ACTIVE templates only. So a draft saved on a version that has since been withdrawn
+  // holds an id that matches no option: the select renders blank while the model quietly keeps
+  // the retired version and sends it straight back on save. That is how a draft went on printing
+  // the withdrawn wording — hand soap and a signature block above the exhibits — with nothing on
+  // the form to say so. The server performs the same substitution in SaveDraftAsync; this is the
+  // half that makes the screen agree with it.
+
+  it('reopens a draft on the default template when its saved version has been retired', () => {
+    component.templates = [
+      { id: 9, name: 'MSA', version: '2.1', isActive: true, isDefault: true } as any
+    ];
+
+    expect((component as any).resolveEditableTemplateId(4)).toBe(9);
+  });
+
+  it('keeps the saved template when it is still offered', () => {
+    component.templates = [
+      { id: 4, name: 'MSA', version: '2.0', isActive: true, isDefault: false } as any,
+      { id: 9, name: 'MSA', version: '2.1', isActive: true, isDefault: true } as any
+    ];
+
+    // A template that is still on offer is the admin's choice, not something to override.
+    expect((component as any).resolveEditableTemplateId(4)).toBe(4);
+  });
+
+  it('leaves the saved id alone when nothing has loaded to replace it', () => {
+    // No templates yet is not a reason to blank the draft's own template — that would send 0 and
+    // fail validation on a form the admin never touched.
+    component.templates = [];
+
+    expect((component as any).resolveEditableTemplateId(4)).toBe(4);
   });
 });
 
