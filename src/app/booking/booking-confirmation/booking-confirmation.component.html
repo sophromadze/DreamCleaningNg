@@ -66,7 +66,16 @@
       <div class="error-message" *ngIf="errorMessage">
         {{ errorMessage }}
       </div>
-      
+
+      <!-- Re-entering this page while a charge started earlier is still settling. Says so
+           plainly instead of offering a Pay button that would take a second payment. -->
+      <div class="support-notice" *ngIf="resumedInFlight">
+        <p>
+          Your payment is still being processed. Please don't close this page or pay again —
+          we'll take you to your confirmation as soon as it's finished.
+        </p>
+      </div>
+
       <!-- Action Buttons -->
       <div class="payment-actions">
         <button

@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { Subject, takeUntil } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { BookingService } from '../../services/booking.service';
 import { BookingDataService } from '../../services/booking-data.service';
@@ -41,6 +42,13 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   // Remove the preparePayment flag - we don't need it anymore
   isPreparing = false;
 
+  // Set when this page is re-entered while a charge started by an earlier instance of it is
+  // still finishing. The earlier instance's confirm-payment is deliberately NOT cancelled (the
+  // card is already charged by then), so it will complete and navigate on its own.
+  resumedInFlight = false;
+
+  private destroy$ = new Subject<void>();
+
   // Card on file: shown as a payment option to the authenticated owner. Selecting it never
   // charges anything by itself — the charge happens only on the explicit Pay click.
   savedCard: SavedCard | null = null;
@@ -74,13 +82,31 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
+    // Re-entry after the booking already went through (back button off the success page).
+    // Checked BEFORE the booking-data guard below, because a completed booking has already had
+    // its data cleared — without this it would look like a stale visit and bounce to /booking.
+    if (this.bookingDataService.paymentPhase === 'completed') {
+      this.paymentCompleted = true;
+      this.orderId = this.bookingDataService.completedOrderId ?? 0;
+      return;
+    }
+
     // Get booking data from service
     this.bookingData = this.bookingDataService.getBookingData();
-    
+
     if (!this.bookingData) {
       // No booking data, redirect back to booking
       this.router.navigate(['/booking']);
       return;
+    }
+
+    // Re-entry while an earlier instance of this page is still finishing a charge. Hold the Pay
+    // button down rather than redirecting: the customer's card may already have been taken, and
+    // that earlier request will navigate to the success page when it lands. This is the state
+    // that used to be lost with the component, which is how one booking became two.
+    if (this.bookingDataService.paymentPhase === 'in-flight') {
+      this.resumedInFlight = true;
+      this.isProcessing = true;
     }
 
     // Get current user for billing details
@@ -110,6 +136,11 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    // Cancels the prepare-payment request only (see processPayment). Anything past the charge
+    // is deliberately left to finish.
+    this.destroy$.next();
+    this.destroy$.complete();
+
     // Clean up Stripe elements
     this.stripeService.destroyCardElement();
     this.stripeService.destroyPaymentRequestButton();
@@ -124,9 +155,17 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
     setTimeout(() => this.stripeService.createPaymentRequestButton(pr, 'payment-request-button'), 0);
 
     pr.on('paymentmethod', (ev: any) => {
-      if (this.isProcessing) { ev.complete('fail'); return; }
+      // Also refuses to start while a charge from an earlier visit to this page is still
+      // settling — isProcessing alone is component-local and resets when the page re-mounts.
+      if (this.isProcessing || this.bookingDataService.paymentPhase !== 'idle') {
+        ev.complete('fail');
+        return;
+      }
       this.isProcessing = true;
       this.errorMessage = '';
+      // No takeUntil on this one: cancelling it would leave the wallet sheet waiting on an
+      // ev.complete() that never comes. The backend's prepare-session reuse covers the
+      // duplicate case here.
       this.bookingService.preparePayment(this.bookingData).subscribe({
         next: async (response: any) => {
           try {
@@ -134,6 +173,8 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
               this.authService.applyGuestAuth(response.guestToken, response.guestRefreshToken, response.guestUser);
               this.currentUser = response.guestUser;
             }
+            // Guard up before the charge, same as the card path.
+            this.bookingDataService.markPaymentInFlight();
             const paymentIntent = await this.stripeService.confirmPaymentRequest(
               response.paymentClientSecret, ev.paymentMethod.id
             );
@@ -141,18 +182,21 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
             this.bookingService.confirmPayment(0, paymentIntent.id, response.sessionId).subscribe({
               next: (c: any) => { this.orderId = c.orderId; this.handlePaymentSuccess(); },
               error: (err: any) => {
+                this.bookingDataService.markPaymentIdle();
                 this.errorMessage = err.error?.message || 'Payment confirmation failed';
                 this.isProcessing = false;
               }
             });
           } catch (payErr: any) {
             ev.complete('fail');
+            this.bookingDataService.markPaymentIdle();
             this.errorMessage = payErr.message || 'Payment failed. Please try again.';
             this.isProcessing = false;
           }
         },
         error: (err: any) => {
           ev.complete('fail');
+          this.bookingDataService.markPaymentIdle();
           this.errorMessage = err.error?.message || 'Failed to prepare payment';
           this.isProcessing = false;
         }
@@ -224,8 +268,15 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
     this.stickyNotice = null;
 
     try {
-      // Prepare payment - this creates payment intent but NOT the order
-      this.bookingService.preparePayment(this.bookingData).subscribe({
+      // Prepare payment - this creates payment intent but NOT the order.
+      //
+      // takeUntil is applied HERE and nowhere else in this method. Nothing has been charged
+      // yet, so abandoning the page mid-prepare costs nothing: the server keeps the prepare
+      // session for 20 minutes and hands the same PaymentIntent back if the customer returns.
+      // The confirm-payment calls below are deliberately left unguarded — by the time they run
+      // the card HAS been charged, and aborting the request that records it would leave the
+      // customer paid-up with no order.
+      this.bookingService.preparePayment(this.bookingData).pipe(takeUntil(this.destroy$)).subscribe({
         next: async (response) => {
           this.paymentClientSecret = response.paymentClientSecret;
           this.orderTotal = response.total;
@@ -241,6 +292,8 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
           // Confirm the booking directly without a card charge.
           if (response.requiresPayment === false || !response.paymentClientSecret) {
             this.fullyCovered = true;
+            // No charge, but an order is about to exist — same guard applies.
+            this.bookingDataService.markPaymentInFlight();
             this.bookingService.confirmPayment(0, '', sessionId).subscribe({
               next: (confirmResponse) => {
                 this.orderId = confirmResponse.orderId;
@@ -262,6 +315,10 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
           }
 
           try {
+            // Past this point the card can be charged, so the guard goes up BEFORE the call —
+            // it must already be set if the customer navigates away mid-charge and returns.
+            this.bookingDataService.markPaymentInFlight();
+
             // Confirm the payment — with the saved card when selected (explicit Pay click;
             // confirmPaymentRequest accepts any payment-method id and handles 3DS in-browser),
             // otherwise with the freshly entered card element.
@@ -285,7 +342,9 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
               error: (error) => this.handleConfirmError(error)
             });
           } catch (paymentError: any) {
-            // Payment failed - no order was created, so nothing to clean up
+            // Payment failed - no order was created, so nothing to clean up.
+            // Release the guard: a declined card must leave the customer able to try again.
+            this.bookingDataService.markPaymentIdle();
             this.errorMessage = paymentError.message || 'Payment failed. Please try again.';
             this.isProcessing = false;
           }
@@ -304,6 +363,11 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
   private handlePaymentSuccess() {
     this.paymentCompleted = true;
     this.isProcessing = false;
+    this.resumedInFlight = false;
+
+    // The order exists. Recorded on the service so a back-navigation onto this page shows the
+    // booking as done instead of offering to pay for it again.
+    this.bookingDataService.markPaymentSettled(this.orderId);
 
     // Celebratory cue — payment confirmed and order created.
     this.orderSound.playBookingConfirmed();
@@ -374,7 +438,23 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
     } else {
       this.errorMessage = msg;
     }
+
+    // `booking_refund_failed` is the one outcome that must NOT release the guard. The charge
+    // went through, the automatic refund did not, and the message the customer is reading
+    // says in as many words not to retry — so the Pay button stays down. Re-enabling it here
+    // would invite a second charge on top of one that is still unresolved, which is the exact
+    // failure this whole change exists to prevent. The only ways out are deliberate: reload
+    // the page, or contact support (as the notice instructs).
+    if (code === 'booking_refund_failed') {
+      this.resumedInFlight = false;
+      return;
+    }
+
     this.isProcessing = false;
+    this.resumedInFlight = false;
+    // Every other outcome is a terminal failure the customer can act on: release the guard so
+    // they can try again. A declined card must never strand somebody who simply wants to pay.
+    this.bookingDataService.markPaymentIdle();
     // Order was not created (or already handled server-side), so no cleanup needed
   }
 
