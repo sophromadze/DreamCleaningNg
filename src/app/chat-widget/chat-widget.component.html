@@ -118,18 +118,73 @@
       <button type="button" class="chat-panel__continue" (click)="continueChat()">Continue chat</button>
     </div>
 
-    <!-- Optional guest contact email — shown only for a guest's brand-new chat,
-         above the input row. Disappears for good once the first message is sent. -->
+    <!-- Talk to a real person. Always one tap away while the AI still has the conversation,
+         so a visitor it is misreading never has to argue their way to a human. Two-step so a
+         stray tap doesn't page the team. -->
+    <div class="chat-panel__handoff" *ngIf="showHumanHandoff">
+      <button
+        type="button"
+        class="chat-panel__handoff-btn"
+        *ngIf="!confirmingHumanRequest"
+        [disabled]="requestingHuman"
+        (click)="askForHuman()">
+        <i class="fas fa-headset" aria-hidden="true"></i> Talk to a real person
+      </button>
+
+      <ng-container *ngIf="confirmingHumanRequest">
+        <span class="chat-panel__handoff-ask">Connect you with our team?</span>
+        <button
+          type="button"
+          class="chat-panel__handoff-yes"
+          [disabled]="requestingHuman"
+          (click)="confirmHumanRequest()">
+          {{ requestingHuman ? 'Connecting…' : 'Yes, connect me' }}
+        </button>
+        <button
+          type="button"
+          class="chat-panel__handoff-no"
+          [disabled]="requestingHuman"
+          (click)="cancelHumanRequest()">
+          Not now
+        </button>
+      </ng-container>
+    </div>
+
+    <!-- Optional guest contact email. Has its own submit button and stays on screen until a
+         valid address has actually been submitted — it used to disappear the instant the
+         first message was sent, which was before anyone had a chance to fill it in. -->
     <div class="chat-panel__email" *ngIf="showEmailField">
-      <input
-        type="email"
-        class="chat-panel__email-field"
-        [(ngModel)]="guestEmailInput"
-        placeholder="Email (optional)"
-        maxlength="255"
-        autocomplete="email"
-        aria-label="Email (optional)" />
-      <small class="chat-panel__email-hint">So we can reach you if needed — totally optional.</small>
+      <div class="chat-panel__email-row">
+        <input
+          type="email"
+          class="chat-panel__email-field"
+          [class.chat-panel__email-field--invalid]="guestEmailError"
+          [(ngModel)]="guestEmailInput"
+          (input)="guestEmailError = null"
+          (keyup.enter)="submitGuestEmail()"
+          placeholder="Email (optional)"
+          maxlength="255"
+          autocomplete="email"
+          [disabled]="savingGuestEmail"
+          aria-label="Email (optional)" />
+        <button
+          type="button"
+          class="chat-panel__email-submit"
+          [disabled]="savingGuestEmail"
+          (click)="submitGuestEmail()"
+          aria-label="Save email">
+          <i class="fas" [ngClass]="savingGuestEmail ? 'fa-spinner fa-spin' : 'fa-check'" aria-hidden="true"></i>
+        </button>
+      </div>
+      <small class="chat-panel__email-error" *ngIf="guestEmailError" role="alert">{{ guestEmailError }}</small>
+      <small class="chat-panel__email-hint" *ngIf="!guestEmailError">
+        So we can reach you if needed — totally optional.
+      </small>
+    </div>
+
+    <!-- Short confirmation in place of the field, so it doesn't just silently vanish. -->
+    <div class="chat-panel__email-note" *ngIf="guestEmailNoteVisible" role="status">
+      <i class="fas fa-circle-check" aria-hidden="true"></i> Thanks — we'll use that if we need to reach you.
     </div>
 
     <footer class="chat-panel__input" *ngIf="!conversationEnded">

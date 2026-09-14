@@ -10,6 +10,8 @@ import {
 import { AuthService } from '../services/auth.service';
 import { StickyCtaService } from '../services/sticky-cta.service';
 import { ChatMarkdownPipe } from '../shared/pipes/chat-markdown.pipe';
+import { describeEmailProblem } from '../utils/email.utils';
+import { extractApiErrorMessage } from '../utils/http-error.utils';
 
 interface WidgetMessage {
   id: string | null; // null = optimistic local copy not yet seen from the server
@@ -74,8 +76,28 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   pendingImage: { path: string; previewUrl: string } | null = null;
   /** Whether a signed-in user owns this widget (their account email is used server-side). */
   isLoggedIn = false;
-  /** Optional guest contact email, from the start-of-chat field (first message only). */
+
+  // ===== Guest contact email =====
+  // The field used to vanish the instant the first message was sent, which in practice meant
+  // it vanished before anybody had typed in it — a visitor greets the bot, the row disappears,
+  // and we never get an address. It now has its OWN submit button and stays put until a valid
+  // address has actually been submitted through it. Sending messages is never blocked by it.
+  /** What's currently typed in the email field. */
   guestEmailInput = '';
+  /** The submitted address, held locally until a session exists to attach it to. */
+  private capturedGuestEmail: string | null = null;
+  /** Set once an address has been accepted — the only thing that hides the field. */
+  guestEmailSaved = false;
+  /** Format complaint from describeEmailProblem, or a server rejection. */
+  guestEmailError: string | null = null;
+  savingGuestEmail = false;
+  /** Brief "thanks" line shown in place of the field so it doesn't just silently vanish. */
+  guestEmailNoteVisible = false;
+
+  // ===== Human handoff =====
+  /** The "Talk to a real person" bar is a two-step action — one stray tap shouldn't page the team. */
+  confirmingHumanRequest = false;
+  requestingHuman = false;
   /** Polling suspended after IDLE_TIMEOUT_MS of no user activity. When the panel is open
    *  this drives the "Paused due to inactivity" banner; when closed it's silent. */
   paused = false;
@@ -111,6 +133,8 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   private detachViewportSync?: () => void;
   /** Page scroll position saved while the background is locked; null = not locked. */
   private scrollLockOffset: number | null = null;
+  /** Auto-dismiss for the "thanks for your email" line. */
+  private emailNoteTimer?: ReturnType<typeof setTimeout>;
 
   @ViewChild('messageList') private messageList?: ElementRef<HTMLDivElement>;
   @ViewChild('messageInput') private messageInput?: ElementRef<HTMLInputElement>;
@@ -169,6 +193,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     this.authSub?.unsubscribe();
     this.routerSub?.unsubscribe();
     this.stickyCtaSub?.unsubscribe();
+    if (this.emailNoteTimer) clearTimeout(this.emailNoteTimer);
     this.exitFullscreenMode(); // never leave the page scroll-locked behind us
     if (this.isBrowser) {
       document.removeEventListener('visibilitychange', this.onVisibilityChange);
@@ -237,7 +262,14 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     this.unreadCount = 0;
     this.error = null;
     this.paused = false;
-    this.guestEmailInput = ''; // never carry a previous visitor's email into a fresh chat
+    // Never carry a previous visitor's email into a fresh chat — this is a shared device
+    // as far as we know. The field comes back with it, asking again.
+    this.guestEmailInput = '';
+    this.capturedGuestEmail = null;
+    this.guestEmailSaved = false;
+    this.guestEmailError = null;
+    this.guestEmailNoteVisible = false;
+    this.confirmingHumanRequest = false;
     this.registerActivity();
     this.clearPendingImage();
     this.clearStoredSession();
@@ -265,12 +297,11 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     this.registerActivity();
     this.paused = false;
 
-    // First message of a new guest session may carry the optional email from the
-    // start-of-chat field. Basic '@' sanity only — a malformed value is dropped, never
-    // blocking the send. Captured before the optimistic push hides the field.
-    const guestEmail = !this.sessionId && !this.isLoggedIn && this.guestEmailInput.includes('@')
-      ? this.guestEmailInput.trim()
-      : null;
+    // The first message of a new guest session carries an email the visitor had already
+    // submitted through the field's own button (there was no session to POST it to yet).
+    // Anything merely TYPED and not submitted is not sent — the field is still on screen
+    // waiting for them to confirm it, which is the whole point of the button.
+    const guestEmail = !this.sessionId && !this.isLoggedIn ? this.capturedGuestEmail : null;
 
     this.error = null;
     this.sending = true;
@@ -384,12 +415,138 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     return !this.sending && (!!this.draft.trim() || !!this.pendingImage);
   }
 
-  /** The optional email field shows only for a guest's brand-new conversation (no
-   * messages yet). The moment the first message is sent, the optimistic bubble makes
-   * messages non-empty, so it hides permanently for the rest of the session — and a
-   * resumed session always has ≥1 message, so it never reappears on reopen. */
+  /**
+   * The email field shows for any guest who hasn't submitted an address yet — NOT only on a
+   * brand-new conversation. It used to hide as soon as `messages.length` went above zero,
+   * i.e. the moment the visitor typed their first message, so in practice it was on screen
+   * only while there was nothing to say yet and almost nobody ever filled it in. The single
+   * thing that hides it now is a successfully submitted address.
+   */
   get showEmailField(): boolean {
-    return !this.isLoggedIn && this.messages.length === 0 && !this.conversationEnded;
+    return !this.isLoggedIn && !this.guestEmailSaved && !this.conversationEnded;
+  }
+
+  /** The handoff bar is pointless once the team is already on the conversation. */
+  get showHumanHandoff(): boolean {
+    return !this.escalated && !this.conversationEnded;
+  }
+
+  /**
+   * Submit the email field. Validated in the browser first with the same
+   * `describeEmailProblem` the admin panel uses, so the visitor is told what is actually
+   * wrong ("missing the @ symbol") instead of a generic rejection. With no session yet the
+   * address is held locally and rides along with the first message; once a session exists it
+   * is POSTed on its own, because the conversation may already be with a human by then.
+   */
+  submitGuestEmail(): void {
+    if (this.savingGuestEmail || this.guestEmailSaved) return;
+    this.registerActivity();
+
+    const email = this.guestEmailInput.trim();
+    const problem = describeEmailProblem(email);
+    if (problem) {
+      this.guestEmailError = problem;
+      return;
+    }
+    this.guestEmailError = null;
+
+    if (!this.sessionId) {
+      this.capturedGuestEmail = email;
+      this.acceptGuestEmail();
+      return;
+    }
+
+    this.savingGuestEmail = true;
+    this.chatService.setGuestEmail(this.sessionId, email).subscribe({
+      next: () => {
+        this.savingGuestEmail = false;
+        this.capturedGuestEmail = email;
+        this.acceptGuestEmail();
+      },
+      error: err => {
+        this.savingGuestEmail = false;
+        // The server's own wording when it has one (it names the same mistakes this
+        // component's check does); a transport failure gets something actionable.
+        this.guestEmailError = extractApiErrorMessage(err, "Couldn't save that email — please try again.");
+      }
+    });
+  }
+
+  /** Hide the field and leave a short confirmation behind, so it doesn't just vanish. */
+  private acceptGuestEmail(): void {
+    this.guestEmailSaved = true;
+    this.guestEmailNoteVisible = true;
+    if (this.emailNoteTimer) clearTimeout(this.emailNoteTimer);
+    this.emailNoteTimer = setTimeout(() => {
+      this.guestEmailNoteVisible = false;
+      this.emailNoteTimer = undefined;
+    }, 5000);
+  }
+
+  /** First tap on "Talk to a real person" — asks before paging the team. */
+  askForHuman(): void {
+    if (this.requestingHuman) return;
+    this.registerActivity();
+    this.confirmingHumanRequest = true;
+  }
+
+  cancelHumanRequest(): void {
+    this.confirmingHumanRequest = false;
+  }
+
+  /**
+   * Confirmed handoff. Goes straight to the team without asking the AI first — this is the
+   * escape hatch for a visitor the assistant is misunderstanding, so it must not depend on
+   * the assistant agreeing (or on Anthropic being reachable at all).
+   */
+  confirmHumanRequest(): void {
+    if (this.requestingHuman || this.escalated || this.conversationEnded) return;
+    this.registerActivity();
+    this.paused = false;
+    this.requestingHuman = true;
+    this.error = null;
+
+    const guestEmail = !this.sessionId && !this.isLoggedIn ? this.capturedGuestEmail : null;
+
+    this.chatService.requestHuman(this.sessionId, guestEmail).subscribe({
+      next: response => {
+        this.requestingHuman = false;
+        this.confirmingHumanRequest = false;
+        if (this.sessionId !== response.sessionId) {
+          this.sessionId = response.sessionId;
+          this.seenIds.clear();
+          this.lastSeenTimestamp = null;
+          this.lastSeenByUserAt = null;
+        }
+        this.saveStoredSession();
+
+        // Outstanding chips belong to a question the AI is no longer answering.
+        for (const m of this.messages) {
+          if (m.quickReplies) m.quickRepliesUsed = true;
+        }
+
+        if (response.reply) {
+          this.messages.push({
+            id: null,
+            role: 'assistant',
+            content: response.reply,
+            imagePath: null,
+            createdAt: null
+          });
+          this.scrollToBottom();
+        }
+
+        this.escalated = true;
+        this.syncHistory();  // adopt server ids so polling never duplicates
+        this.startPolling();
+      },
+      error: err => {
+        this.requestingHuman = false;
+        this.error = err?.status === 429
+          ? "You're going a little fast — give it a few seconds and try again."
+          : 'Could not reach our team just now. Please call (929) 930-1525 and we\'ll help right away.';
+      }
+    });
   }
 
   /** Chips render only under the newest message so stale choice sets can't linger. */
@@ -435,19 +592,27 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     try {
       localStorage.setItem(ChatWidgetComponent.STORAGE_KEY, JSON.stringify({
         sessionId: this.sessionId,
-        lastSeenMessageAt: this.lastSeenByUserAt
+        lastSeenMessageAt: this.lastSeenByUserAt,
+        // So a resumed conversation doesn't ask for an address the visitor already gave —
+        // the history endpoint doesn't report it, and re-asking looks like we lost it.
+        guestEmailSaved: this.guestEmailSaved
       }));
     } catch { /* private browsing / quota — session just won't resume */ }
   }
 
-  private loadStoredSession(): { sessionId: string; lastSeenMessageAt: string | null } | null {
+  private loadStoredSession():
+    { sessionId: string; lastSeenMessageAt: string | null; guestEmailSaved: boolean } | null {
     if (!this.isBrowser) return null;
     try {
       const raw = localStorage.getItem(ChatWidgetComponent.STORAGE_KEY);
       if (!raw) return null;
       const parsed = JSON.parse(raw);
       return typeof parsed?.sessionId === 'string'
-        ? { sessionId: parsed.sessionId, lastSeenMessageAt: parsed.lastSeenMessageAt ?? null }
+        ? {
+            sessionId: parsed.sessionId,
+            lastSeenMessageAt: parsed.lastSeenMessageAt ?? null,
+            guestEmailSaved: parsed.guestEmailSaved === true
+          }
         : null;
     } catch {
       return null;
@@ -486,6 +651,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
         }
 
         this.sessionId = stored.sessionId;
+        this.guestEmailSaved = stored.guestEmailSaved;
         this.escalated = history.status === 'escalatedToHuman';
         this.messages = history.messages.map(m => this.toWidgetMessage(m));
         this.seenIds = new Set(history.messages.map(m => m.id));

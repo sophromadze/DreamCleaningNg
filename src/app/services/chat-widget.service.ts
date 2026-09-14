@@ -67,6 +67,29 @@ export class ChatWidgetService {
     });
   }
 
+  /**
+   * "Talk to a real person" — escalates straight to the team without going through the AI.
+   * `sessionId` is null when the visitor asks for a human before typing anything; the server
+   * creates the session so the team still has somewhere to reply. Repeat calls on an already
+   * escalated session are a no-op server-side (reply comes back null).
+   */
+  requestHuman(sessionId: string | null, guestEmail: string | null = null): Observable<ChatMessageResponse> {
+    return this.http.post<ChatMessageResponse>(`${this.apiUrl}/request-human`, {
+      sessionId,
+      guestEmail
+    });
+  }
+
+  /**
+   * Stores a guest's contact email against an existing session. Used when the email field is
+   * submitted AFTER the conversation has started — before that there is no session yet, and
+   * the address rides along on the first `sendMessage` instead.
+   */
+  setGuestEmail(sessionId: string, email: string): Observable<{ status: string }> {
+    return this.http.post<{ status: string }>(
+      `${this.apiUrl}/session/${sessionId}/guest-email`, { email });
+  }
+
   uploadImage(file: File): Observable<ChatImageUploadResponse> {
     const form = new FormData();
     form.append('file', file);
