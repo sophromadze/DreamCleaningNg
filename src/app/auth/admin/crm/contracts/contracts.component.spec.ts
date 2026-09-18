@@ -51,6 +51,7 @@ describe('ContractsComponent', () => {
       backToEdit: true, createRevision: true, createAmendment: true,
       deleteContract: true, restoreContract: true, signAsContractor: true,
       toggleBusinessFlag: true, assignOrgTitle: true,
+    authority: 'cto',
       ...overrides
     });
   }
@@ -368,11 +369,16 @@ describe('ContractFormComponent', () => {
     // would silently drift.
     expect(component.model.pricing.liabilityCapMultiple).toBe(13);
 
-    // TERM DEFAULTS (2026-09): committed for six months, then month-to-month on sixty days
+    // TERM DEFAULTS (2026-09-15): committed for TEN months, then month-to-month on sixty days
     // notice. New drafts only — every generated version freezes its own copy, so changing these
     // can never move a contract that already exists.
-    expect(component.model.term.initialTermMonths).toBe(6);
-    expect(component.model.term.minimumCommitmentMonths).toBe(6);
+    //
+    // These three MIRROR `TermSnapshot`'s server-side defaults, asserted in
+    // `CommercialBillingUpgradeTests.NewContract_TermDefaults_AreTenSixtyAndMonthToMonth`. The
+    // server fills in a draft that arrives without them, so a number changed on one side only
+    // produces a contract whose preview disagrees with the form that submitted it.
+    expect(component.model.term.initialTermMonths).toBe(10);
+    expect(component.model.term.minimumCommitmentMonths).toBe(10);
     expect(component.model.term.terminationNoticeDays).toBe(60);
     expect(component.model.term.renewalType).toBe('month-to-month');
 
@@ -425,6 +431,133 @@ describe('ContractFormComponent', () => {
     expect(component.model.siteDetails.customerRestroomCounts).toBe('');
     expect(component.model.siteDetails.foodServicePermitHolder).toBe('');
     expect(component.model.siteDetails.foodContactSanitizing).toBe('');
+  });
+
+  /**
+   * THE CLIENT IS NEVER ASKED FOR A MAILING ADDRESS (2026-09-15).
+   *
+   * Template v2.2 identifies the Client by legal entity in the preamble, dropped the Exhibit B4
+   * row, and serves formal notice on the notice email under Section 32. A box that reaches no
+   * part of the document is worse than no box — an admin would chase a client for an address
+   * nobody is going to print, and a value typed into it would silently go nowhere.
+   *
+   * The model FIELD survives so a draft written before this round-trips unchanged; only the
+   * input is gone.
+   */
+  it('no longer asks the client for a formal notice mailing address', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    flushPricingPreview();
+
+    component.openPanels.add('contacts');
+    fixture.detectChanges();
+
+    const dom = fixture.nativeElement as HTMLElement;
+    expect(dom.querySelector('#clientNoticeMailingAddress')).toBeNull();
+    // The email the notice actually goes to is still collected.
+    expect(dom.querySelector('#clientOperationalEmail')).not.toBeNull();
+
+    // Still on the model, still posted, so an older draft is not silently stripped on re-save.
+    component.model.contacts.clientNoticeMailingAddress = '12 Water Street, Jersey City, NJ';
+    expect(component.model.contacts.clientNoticeMailingAddress)
+      .toBe('12 Water Street, Jersey City, NJ');
+  });
+
+  /**
+   * Floor materials and the food-service permit holder are OPTIONAL, and the form has to say so.
+   *
+   * Both used to print a ruled blank and land in the preview's unresolved-token banner when left
+   * empty, which is how an optional field comes to look mandatory to the person filling it in.
+   * Nothing in the agreement depends on either: A4 obliges surface-appropriate products whether
+   * or not the materials were recorded, and Section 26(b) leaves the client responsible for its
+   * own permits whether or not a holder was named.
+   */
+  it('labels the two fully optional Exhibit A details as optional', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    flushPricingPreview();
+
+    component.openPanels.add('siteDetails');
+    fixture.detectChanges();
+
+    const dom = fixture.nativeElement as HTMLElement;
+    const floorLabel = dom.querySelector('label[for="floorMaterials"]')?.textContent ?? '';
+    const permitLabel = dom.querySelector('label[for="foodPermitHolder"]')?.textContent ?? '';
+
+    expect(floorLabel).toContain('optional');
+    expect(permitLabel).toContain('optional');
+  });
+
+  /**
+   * THE BACKUP ON-CALL CONTACTS ARE OPTIONAL, AND THE FORM HAS TO SAY SO (2026-09-16).
+   *
+   * Section 16(c) asks the client for a PRIMARY contact and says a backup is one it may designate
+   * if available, so an unfilled box is not an unanswered question. It used to print a ruled blank
+   * in Exhibit B4 and land in the preview's unresolved-token banner, which is how an optional
+   * field comes to look mandatory to the person filling the form in.
+   *
+   * Both sides, because the contractor's half is seeded from the profile and an account with one
+   * supervisor and nobody behind them is the ordinary case there too.
+   */
+  it('labels both backup on-call contacts as optional', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    flushPricingPreview();
+
+    component.openPanels.add('contacts');
+    fixture.detectChanges();
+
+    const dom = fixture.nativeElement as HTMLElement;
+    const contractorLabel =
+      dom.querySelector('label[for="contractorBackupContact"]')?.textContent ?? '';
+    const clientLabel =
+      dom.querySelector('label[for="clientBackupContact"]')?.textContent ?? '';
+
+    expect(contractorLabel).toContain('optional');
+    expect(clientLabel).toContain('optional');
+
+    // The PRIMARIES are not relabelled — Section 14 hangs a failed-access charge on Contractor
+    // having tried to reach one, so those stay questions the preview is entitled to chase.
+    const clientPrimary = dom.querySelector('label[for="clientOnCallName"]')?.textContent ?? '';
+    expect(clientPrimary).not.toContain('optional');
+  });
+
+  /**
+   * And optional has to mean optional at the point it counts: a draft with neither backup filled
+   * in saves and generates, with nothing on the client half of the form objecting.
+   */
+  it('saves and generates a draft with both backup contacts left blank', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    http.expectOne(r => r.url.endsWith('/pricing-preview')).flush({});
+
+    component.model.newClient!.legalEntityName = 'Chick Tastic LLC';
+    component.model.newClient!.principalAddress = '1569 Flatbush Ave.';
+    component.model.newServiceLocation!.address = '1569 Flatbush Ave.';
+    component.model.newClientSigner!.firstName = 'Natalie';
+    component.model.newClientSigner!.lastName = 'Finkels';
+    component.model.newClientSigner!.email = 'n@example.com';
+    component.model.pricing.priceInput = 849.99;
+    component.model.contacts.contractorBackupContact = '';
+    component.model.contacts.clientBackupContact = '';
+
+    let emitted: any = null;
+    component.generated.subscribe(d => emitted = d);
+    component.generatePreview();
+
+    expect(component.errorMessage).toBeFalsy();
+
+    const saved = http.expectOne(r => r.method === 'POST' && r.url.endsWith('/crm/contracts'));
+    // Still POSTED, as empty strings rather than dropped keys — the fields stay on the model so a
+    // draft that DOES carry a backup round-trips it unchanged.
+    expect(saved.request.body.contacts.contractorBackupContact).toBe('');
+    expect(saved.request.body.contacts.clientBackupContact).toBe('');
+    saved.flush({ id: 11 });
+
+    http.expectOne(r => r.url.endsWith('/11/generate-preview'))
+      .flush({ id: 11, status: ContractStatus.PreviewGenerated });
+
+    expect(emitted?.id).toBe(11);
   });
 
   /**
@@ -644,13 +777,16 @@ describe('ContractDetailComponent', () => {
   let http: HttpTestingController;
 
   /** Everything permitted, so a spec only has to name what it is withholding. */
-  const allPermissions = (overrides: Record<string, boolean> = {}): any => ({
+  // `unknown` rather than `boolean`: the server also reports the AUTHORITY level, which is a
+  // string, and specs override it to reproduce an untitled account.
+  const allPermissions = (overrides: Record<string, unknown> = {}): any => ({
     viewContracts: true, createContract: true, generatePreview: true,
     sendForReview: true, sendForSignature: true, duplicate: true,
     regenerateExecutedPdf: true, resendExecutedCopy: true,
     backToEdit: true, createRevision: true, createAmendment: true,
     deleteContract: true, restoreContract: true, signAsContractor: true,
     toggleBusinessFlag: true, assignOrgTitle: true,
+    authority: 'cto',
     ...overrides
   });
 
@@ -889,5 +1025,223 @@ describe('ContractDetailComponent', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
     expect(text).toContain('Unfilled placeholders');
     expect(text).toContain('CLIENT_PHONE');
+  });
+
+  // ── the production-vs-local button mismatch (2026-09-16) ───────────────────
+
+  /**
+   * THE REPORTED SYMPTOM, pinned.
+   *
+   * Localhost showed six actions; production showed three. The cause is DATA — the production
+   * account holds no officer title, so the server's matrix resolves it to Manager and withholds
+   * exactly Back to edit, Create amendment and Delete. Nothing seeds a title, so on a freshly
+   * migrated database every admin is a Manager.
+   *
+   * The fix is NOT to show the buttons. It is to stop the absence being silent, because a gap
+   * where a button used to be is indistinguishable from a stale deployment — which is exactly how
+   * it was read.
+   */
+  it('explains which actions need an officer title instead of leaving a silent gap', () => {
+    component.contractId = 3;
+    component.permissions = allPermissions({
+      authority: 'manager',
+      backToEdit: false, createRevision: false, createAmendment: false,
+      deleteContract: false, restoreContract: false, signAsContractor: false
+    });
+    component.preloaded = detail({ status: ContractStatus.PreviewGenerated }) as any;
+    component.ngOnInit();
+    fixture.detectChanges();
+
+    expect(component.authorityLimitsActions).toBe(true);
+    expect(component.actionsNeedingOfficerTitle).toContain('Back to edit');
+    expect(component.actionsNeedingOfficerTitle).toContain('Create amendment');
+    expect(component.actionsNeedingOfficerTitle).toContain('Delete');
+
+    // The note is on screen, names the remedy, and says this is not a deployment problem.
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('officer title');
+    expect(text).toContain('Officer title');
+    expect(text).toContain('not a missing deployment');
+
+    // And the buttons are still correctly absent — the note explains, it does not unlock.
+    expect(component.showEdit).toBe(false);
+    expect(component.canAmend).toBe(false);
+    expect(component.showDelete).toBe(false);
+  });
+
+  /** An officer sees no note at all, because nothing is being withheld from them. */
+  it('shows no officer-title note to a CEO or CTO', () => {
+    for (const authority of ['ceo', 'cto']) {
+      component.contractId = 3;
+      component.permissions = allPermissions({ authority });
+      component.preloaded = detail() as any;
+      component.ngOnInit();
+      fixture.detectChanges();
+
+      expect(component.authorityLimitsActions).toBe(false);
+      expect(component.actionsNeedingOfficerTitle).toEqual([]);
+    }
+  });
+
+  /**
+   * An older backend does not send `authority`. The note must stay away rather than appearing for
+   * everybody — a missing field is not evidence of a missing title.
+   */
+  it('stays quiet when the server does not report an authority level', () => {
+    component.contractId = 3;
+    component.permissions = allPermissions({ backToEdit: false });
+    delete (component.permissions as any).authority;
+    component.preloaded = detail() as any;
+    component.ngOnInit();
+
+    expect(component.authorityLimitsActions).toBe(false);
+  });
+
+  /** The note only lists what the contract's own state would otherwise have offered. */
+  it('does not list Delete when the contract is already archived', () => {
+    component.contractId = 3;
+    component.permissions = allPermissions({ authority: 'manager', deleteContract: false });
+    component.preloaded = detail({ isHidden: true, canDelete: false, canRestore: true }) as any;
+    component.ngOnInit();
+
+    expect(component.actionsNeedingOfficerTitle).not.toContain('Delete');
+  });
+
+  // ── delete or archive ──────────────────────────────────────────────────────
+
+  /**
+   * DELETE OPENS A CHOICE, IT DOES NOT DELETE.
+   *
+   * Two genuinely different outcomes used to share one word: the old "Delete" archived the
+   * contract, which is not what the word promises, and there was no way at all to clear a test
+   * contract out.
+   */
+  it('opens the delete-or-archive dialog rather than acting immediately', () => {
+    component.contractId = 3;
+    component.permissions = allPermissions();
+    component.preloaded = detail({ canHardDelete: true }) as any;
+    component.ngOnInit();
+    fixture.detectChanges();
+
+    const deleteButton = (fixture.nativeElement as HTMLElement)
+      .querySelector('.action-bar .btn-danger') as HTMLButtonElement;
+    deleteButton.click();
+    fixture.detectChanges();
+
+    expect(component.deleteDialogOpen).toBe(true);
+    // Nothing was sent — opening a dialog is not an action.
+    http.expectNone(r => r.url.includes('/delete'));
+    http.expectNone(r => r.url.includes('/permanent'));
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Delete or archive contract?');
+  });
+
+  /** Archive is the long-standing soft delete, under the name it always deserved. */
+  it('archives through the existing soft-delete endpoint', () => {
+    component.contractId = 3;
+    component.permissions = allPermissions();
+    component.preloaded = detail() as any;
+    component.ngOnInit();
+
+    component.openDeleteDialog();
+    component.archiveContract();
+
+    const req = http.expectOne(r => r.url.endsWith('/crm/contracts/3/delete'));
+    expect(req.request.method).toBe('POST');
+    req.flush(detail({ isHidden: true, canDelete: false, canRestore: true }));
+
+    expect(component.deleteDialogOpen).toBe(false);
+    expect(component.successMessage).toContain('archived');
+  });
+
+  /**
+   * THE TYPED CONFIRMATION IS REQUIRED, and nothing is sent without it. The server checks the
+   * same phrase, so this only decides whether to bother asking.
+   */
+  it('refuses to permanently delete until the contract number is typed', () => {
+    component.contractId = 3;
+    component.permissions = allPermissions();
+    component.preloaded = detail({ canHardDelete: true }) as any;
+    component.ngOnInit();
+    component.openDeleteDialog();
+
+    expect(component.hardDeleteConfirmationPhrase).toBe('DELETE DC-2026-0003');
+
+    component.hardDeleteConfirmation = 'DELETE';
+    expect(component.hardDeleteConfirmed).toBe(false);
+    component.permanentlyDeleteContract();
+    http.expectNone(r => r.url.includes('/permanent'));
+
+    // Wrong contract's number — the point of typing it is that it names the one you mean.
+    component.hardDeleteConfirmation = 'DELETE DC-2026-0004';
+    expect(component.hardDeleteConfirmed).toBe(false);
+
+    // Case and surrounding space are not the test.
+    component.hardDeleteConfirmation = '  delete dc-2026-0003  ';
+    expect(component.hardDeleteConfirmed).toBe(true);
+  });
+
+  /** With the phrase typed, it deletes and hands the list a message to show. */
+  it('permanently deletes and returns to the list with a message', () => {
+    component.contractId = 3;
+    component.permissions = allPermissions();
+    component.preloaded = detail({ canHardDelete: true }) as any;
+    component.ngOnInit();
+    component.openDeleteDialog();
+    component.hardDeleteConfirmation = 'DELETE DC-2026-0003';
+
+    let emitted = '';
+    component.deleted.subscribe(m => emitted = m);
+    component.permanentlyDeleteContract();
+
+    const req = http.expectOne(r => r.url.endsWith('/crm/contracts/3/permanent'));
+    expect(req.request.method).toBe('DELETE');
+    expect(req.request.params.get('confirmation')).toBe('DELETE DC-2026-0003');
+    req.flush({ message: 'Contract DC-2026-0003 was permanently deleted.' });
+
+    expect(emitted).toContain('permanently deleted');
+  });
+
+  /**
+   * WHEN THE SERVER SAYS NO, THE ADMIN READS WHY.
+   *
+   * A disabled button with no explanation sends somebody hunting for a permission problem that
+   * does not exist — the reason names which record is protecting the contract.
+   */
+  it('shows the server reason instead of the confirmation field when full delete is blocked', () => {
+    component.contractId = 3;
+    component.permissions = allPermissions();
+    component.preloaded = detail({
+      status: ContractStatus.FullySigned,
+      canHardDelete: false,
+      cannotHardDeleteReason:
+        'This contract carries a signature and cannot be permanently deleted. Archive it instead.'
+    }) as any;
+    component.ngOnInit();
+    component.openDeleteDialog();
+    fixture.detectChanges();
+
+    expect(component.canHardDelete).toBe(false);
+    expect(component.hardDeleteBlockedReason).toContain('carries a signature');
+
+    const dom = fixture.nativeElement as HTMLElement;
+    expect(dom.querySelector('#hardDeleteConfirm')).toBeNull();
+    expect(dom.querySelector('.blocked-reason')?.textContent).toContain('Archive it instead');
+
+    // And it cannot be fired past the UI either.
+    component.hardDeleteConfirmation = 'DELETE DC-2026-0003';
+    component.permanentlyDeleteContract();
+    http.expectNone(r => r.url.includes('/permanent'));
+  });
+
+  /** An older backend omits the flag, so the option is simply not offered. */
+  it('does not offer full delete when the server did not say it was allowed', () => {
+    component.contractId = 3;
+    component.permissions = allPermissions();
+    component.preloaded = detail() as any;   // no canHardDelete field at all
+    component.ngOnInit();
+
+    expect(component.canHardDelete).toBe(false);
   });
 });

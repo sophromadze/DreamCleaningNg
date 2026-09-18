@@ -306,6 +306,13 @@
       justify-content: space-between;
       padding: 0.5rem 0;
       
+      // The balance left on a part-paid order. Weighted like the total because it is the
+      // figure that actually matters to the customer now — what they still owe.
+      &.balance-due-row {
+        font-weight: var(--fw-semibold);
+        color: var(--warning-orange-text);
+      }
+
       &.total {
         margin-top: 0.5rem;
         padding-top: 1rem;

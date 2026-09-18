@@ -3,6 +3,13 @@ import { isPlatformBrowser } from '@angular/common';
 import { interval, Subscription, Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { AuthService } from './auth.service';
+// Every renewal in the app goes through ONE queue (2026-09). Calling
+// `AuthService.refreshToken()` from here put this service in a race with the interceptor for the
+// same rotating refresh token — whichever call arrived second was answered "Invalid refresh
+// token", and that answer used to log the person out. `refreshOnce` also short-circuits when a
+// renewal has just happened, so the belt-and-braces double refresh in `performTokenRefresh`
+// below no longer rotates twice.
+import { refreshOnce } from '../interceptors/auth.interceptor';
 import { environment } from '../../environments/environment';
 
 @Injectable({
@@ -163,7 +170,7 @@ export class TokenRefreshService {
 
       // If token expires in less than 1 day, refresh immediately
       if (timeUntilExpiry < 24 * 60 * 60 * 1000) {
-        this.authService.refreshToken().subscribe({
+        refreshOnce(this.authService).subscribe({
           next: (response) => {
             // Token refreshed successfully
           },
@@ -206,7 +213,7 @@ export class TokenRefreshService {
     }
 
     // Try to validate the refresh token by attempting a token refresh
-    return this.authService.refreshToken().pipe(
+    return refreshOnce(this.authService).pipe(
       map(() => {
         return true;
       }),
@@ -233,7 +240,7 @@ export class TokenRefreshService {
     this.validateRefreshToken().subscribe(isValid => {
       if (isValid) {
         // Refresh token is valid, proceed with normal refresh
-        this.authService.refreshToken().subscribe({
+        refreshOnce(this.authService).subscribe({
           next: (response) => {
             // Update last activity on successful refresh
             if (!environment.useCookieAuth) {
@@ -332,7 +339,7 @@ export class TokenRefreshService {
 
     // Check refresh token validity
     if (refreshToken) {
-      return this.authService.refreshToken().pipe(
+      return refreshOnce(this.authService).pipe(
         map(() => {
           health.refreshTokenValid = true;
           return health;

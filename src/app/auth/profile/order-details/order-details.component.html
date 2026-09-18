@@ -269,6 +269,19 @@
             <span>${{ order.total.toFixed(2) }}</span>
           </div>
 
+          <!-- Part-payments: what has arrived and what is left. Shown only while the order is
+               genuinely part-paid, so an ordinary order's totals are unchanged. -->
+          <ng-container *ngIf="order.isPartiallyPaid">
+            <div class="price-row">
+              <span>Paid so far:</span>
+              <span>${{ (order.amountPaid || 0).toFixed(2) }}</span>
+            </div>
+            <div class="price-row balance-due-row">
+              <span>Balance due:</span>
+              <span>${{ (order.amountDue || 0).toFixed(2) }}</span>
+            </div>
+          </ng-container>
+
           <!-- Points earned on this order -->
           <div class="price-row pts-earned-row" *ngIf="(order.pointsEarned || 0) > 0">
             <span>🫧 Points earned:</span>
@@ -283,7 +296,11 @@
         <div class="unpaid-actions" *ngIf="!order.recurringSeriesId && !isEffectivelyPaid() && order.status !== 'Cancelled'">
           <a [routerLink]="['/order', order.id, 'pay']"
              class="pay-btn">
-            Pay Now
+            <!-- Named amount once a deposit exists: "Pay Now" on an order already carrying
+                 $1,000 reads as being asked for the whole total again. -->
+            {{ order.isPartiallyPaid
+                ? 'Pay balance $' + (order.amountDue || 0).toFixed(2)
+                : 'Pay Now' }}
           </a>
           <button 
             (click)="cancelUnpaidOrder()" 

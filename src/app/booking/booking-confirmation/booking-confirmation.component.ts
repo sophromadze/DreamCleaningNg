@@ -173,6 +173,14 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
               this.authService.applyGuestAuth(response.guestToken, response.guestRefreshToken, response.guestUser);
               this.currentUser = response.guestUser;
             }
+            // Already paid on an earlier attempt — close the wallet sheet and settle what
+            // exists instead of charging the card a second time. Same rule as the card path.
+            if (response.orderId > 0 || response.alreadyPaidPaymentIntentId) {
+              ev.complete('success');
+              this.settleAlreadyPaidAttempt(response, response.sessionId);
+              return;
+            }
+
             // Guard up before the charge, same as the card path.
             this.bookingDataService.markPaymentInFlight();
             const paymentIntent = await this.stripeService.confirmPaymentRequest(
@@ -288,6 +296,13 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
             this.currentUser = response.guestUser;
           }
 
+          // This attempt has ALREADY been paid for. The server found the PaymentIntent it
+          // prepared earlier and saw that the money had moved (see the backend's
+          // ResolveAlreadyChargedPrepareAsync). Both shapes are checked BEFORE the
+          // gift-card branch below, which confirms with an EMPTY intent id — taking that
+          // branch here would ask the server to build an order against no payment at all.
+          if (this.settleAlreadyPaidAttempt(response, sessionId)) return;
+
           // Gift card (or credits) fully covered the order — the server skipped Stripe.
           // Confirm the booking directly without a card charge.
           if (response.requiresPayment === false || !response.paymentClientSecret) {
@@ -358,6 +373,45 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
       this.errorMessage = 'An unexpected error occurred';
       this.isProcessing = false;
     }
+  }
+
+  /**
+   * Handles a prepare-payment response that says this booking has already been paid for,
+   * and reports whether it took over. Returns false for an ordinary response, so a caller
+   * can guard with `if (settleAlreadyPaidAttempt(...)) return;`.
+   *
+   * Two outcomes, and only one of them still has work to do:
+   *   - `orderId` set: the charge produced an order. Show it. Nothing to confirm.
+   *   - `alreadyPaidPaymentIntentId` set: the charge went through but the order was never
+   *     created (a confirm-payment that failed after the money moved). Confirm against THAT
+   *     intent, never a fresh one.
+   *
+   * Neither branch may fall through to the card step. On 2026-09-16 the second case did:
+   * the customer was shown an error, clicked Pay again, and paid $386.16 twice for one
+   * cleaning.
+   */
+  private settleAlreadyPaidAttempt(response: any, sessionId: string): boolean {
+    if (response?.orderId > 0) {
+      this.orderId = response.orderId;
+      this.handlePaymentSuccess();
+      return true;
+    }
+
+    if (response?.alreadyPaidPaymentIntentId) {
+      // An order is about to exist and the card is already charged — same guard the card
+      // path raises before a charge.
+      this.bookingDataService.markPaymentInFlight();
+      this.bookingService.confirmPayment(0, response.alreadyPaidPaymentIntentId, sessionId).subscribe({
+        next: (confirmResponse: any) => {
+          this.orderId = confirmResponse.orderId;
+          this.handlePaymentSuccess();
+        },
+        error: (error: any) => this.handleConfirmError(error)
+      });
+      return true;
+    }
+
+    return false;
   }
 
   private handlePaymentSuccess() {

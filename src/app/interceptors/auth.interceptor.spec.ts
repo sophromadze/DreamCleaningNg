@@ -5,8 +5,9 @@ import { provideRouter } from '@angular/router';
 import { SocialAuthServiceConfig } from '@abacritt/angularx-social-login';
 import { of, throwError, Subject } from 'rxjs';
 
-import { authInterceptor, SESSION_REVOKED_HEADER } from './auth.interceptor';
+import { authInterceptor, resetRefreshState, SESSION_REVOKED_HEADER } from './auth.interceptor';
 import { AuthService } from '../services/auth.service';
+import { environment } from '../../environments/environment';
 
 /**
  * A ROLE CHANGE LOGS THE ACCOUNT OUT EVEN IF NOBODY IS AT THE SCREEN (2026-09).
@@ -27,6 +28,9 @@ describe('authInterceptor — revoked sessions', () => {
   let logout: jasmine.Spy;
 
   beforeEach(() => {
+    // The settle stamp is module state plus a localStorage key — it outlives TestBed.
+    resetRefreshState();
+
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([authInterceptor])),
@@ -115,6 +119,9 @@ describe('authInterceptor — renewing an expired token', () => {
   let refresh: jasmine.Spy;
 
   beforeEach(() => {
+    // The settle stamp is module state plus a localStorage key — it outlives TestBed.
+    resetRefreshState();
+
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(withInterceptors([authInterceptor])),
@@ -180,13 +187,17 @@ describe('authInterceptor — renewing an expired token', () => {
     expect(logout).not.toHaveBeenCalled();
   });
 
-  it('logs out when the refresh itself fails', () => {
+  it('logs out when the refresh failed AND the session really is gone', () => {
     refresh.and.returnValue(throwError(() => new HttpErrorResponse({ status: 401 })));
 
     let received: unknown;
     http.get('/api/admin/orders').subscribe({ next: () => {}, error: (err) => (received = err) });
 
     backend.expectOne('/api/admin/orders').flush(
+      { message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
+
+    // The failure is checked against the server before anything is torn down.
+    backend.expectOne(`${environment.apiUrl}/auth/current-user`).flush(
       { message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
 
     expect(logout).toHaveBeenCalled();
@@ -215,6 +226,120 @@ describe('authInterceptor — renewing an expired token', () => {
     );
 
     expect(refresh).not.toHaveBeenCalled();
+    expect(logout).toHaveBeenCalled();
+  });
+});
+
+/**
+ * THE INTERMITTENT AUTO-LOGOUT (2026-09).
+ *
+ * Reported as "I get 401'd and thrown to /login at random, usually right after opening something
+ * that loads several panels at once". Single-flight was already in place and was not enough,
+ * because it only dedupes the 401s that arrive WHILE the refresh is on the wire:
+ *
+ *   - six requests leave together carrying the same stale token;
+ *   - the first 401 comes back and renews in ~80ms;
+ *   - the other five 401s land just after that, outside the window, and ask for a SECOND
+ *     rotation — and the refresh token is single-use, so one of those is refused;
+ *   - the old code answered a refused refresh with `logout()`, which under cookie auth POSTs
+ *     /auth/logout and DELETES the cookies — killing the session that had just been renewed
+ *     successfully, in this tab and every other one.
+ *
+ * Two rules come out of that and both are asserted here: a 401 arriving just after a renewal does
+ * not start another one, and a refresh that fails is CHECKED against the server before anything
+ * is torn down.
+ */
+describe('authInterceptor — the intermittent auto-logout', () => {
+  let http: HttpClient;
+  let backend: HttpTestingController;
+  let auth: AuthService;
+  let logout: jasmine.Spy;
+  let refresh: jasmine.Spy;
+
+  beforeEach(() => {
+    resetRefreshState();
+
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: 'SocialAuthServiceConfig',
+          useValue: { autoLogin: false, providers: [], onError: () => {} } as SocialAuthServiceConfig,
+        },
+      ],
+    });
+
+    http = TestBed.inject(HttpClient);
+    backend = TestBed.inject(HttpTestingController);
+    auth = TestBed.inject(AuthService);
+
+    logout = spyOn(auth, 'logout').and.stub();
+    spyOn(auth, 'isLoggedIn').and.returnValue(true);
+    refresh = spyOn(auth, 'refreshToken').and.returnValue(of({ token: 'fresh-token' } as any));
+  });
+
+  afterEach(() => {
+    backend.verify();
+    resetRefreshState();
+  });
+
+  it('does not renew again for a 401 that lands just after a renewal', () => {
+    // Request A 401s and renews. Request B was already on the wire with the OLD token, so its
+    // 401 arrives after the renewal has finished — the exact gap single-flight leaves open.
+    http.get('/api/admin/users/7/orders').subscribe({ next: () => {}, error: () => {} });
+    backend.expectOne('/api/admin/users/7/orders').flush(
+      { message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
+    backend.expectOne('/api/admin/users/7/orders').flush({});
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+
+    http.get('/api/admin/users/7/apartments').subscribe({ next: () => {}, error: () => {} });
+    backend.expectOne('/api/admin/users/7/apartments').flush(
+      { message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
+
+    // Retried with the credentials the first renewal produced, and NOT rotated a second time.
+    backend.expectOne('/api/admin/users/7/apartments').flush({});
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(logout).not.toHaveBeenCalled();
+  });
+
+  it('keeps the session when a refresh loses a race but the session is alive', () => {
+    // "Invalid refresh token" is the EXPECTED answer for the loser of a rotation race — another
+    // tab, or another request in this one, already renewed. Ending the session here is what
+    // produced the random logouts.
+    refresh.and.returnValue(throwError(() => new HttpErrorResponse(
+      { status: 401, error: { message: 'Invalid refresh token' } })));
+
+    let body: unknown;
+    http.get('/api/admin/rewards/users/7/summary').subscribe({ next: (b) => (body = b), error: () => {} });
+
+    backend.expectOne('/api/admin/rewards/users/7/summary').flush(
+      { message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
+
+    // The probe that decides it: the server still knows who we are.
+    backend.expectOne(`${environment.apiUrl}/auth/current-user`).flush({ id: 7 });
+
+    backend.expectOne('/api/admin/rewards/users/7/summary').flush({ credit: 0 });
+
+    expect(logout).not.toHaveBeenCalled();
+    expect(body).toEqual({ credit: 0 } as any);
+  });
+
+  it('does not probe a revoked session — that one is genuinely over', () => {
+    // The revoke dropped the refresh token server-side, so the probe would be refused too and the
+    // admin who made the change expects the person out now.
+    refresh.and.returnValue(throwError(() => new HttpErrorResponse({
+      status: 401,
+      headers: new HttpHeaders({ [SESSION_REVOKED_HEADER]: '1' }),
+    })));
+
+    http.get('/api/admin/orders').subscribe({ next: () => {}, error: () => {} });
+    backend.expectOne('/api/admin/orders').flush(
+      { message: 'Unauthorized' }, { status: 401, statusText: 'Unauthorized' });
+
     expect(logout).toHaveBeenCalled();
   });
 });

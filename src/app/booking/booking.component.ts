@@ -193,6 +193,21 @@ export class BookingComponent implements OnInit, OnDestroy {
   get hasExtendedBookingHours(): boolean {
     return this.isAdminOrSuperAdmin;
   }
+
+  /**
+   * Extra-service prices are shown on the cards to Admin/SuperAdmin ONLY — never a customer
+   * (the summary card is what they are quoted) and never a Moderator, same audience as
+   * `isAdminOrSuperAdmin` everywhere else in this file. It follows the signed-in ROLE, not
+   * Admin Mode: an admin pricing a job over the phone needs the number whether or not they
+   * have picked a target customer yet.
+   *
+   * Off in Custom ("Pre-Arranged") mode: extras there are informational and persisted at $0
+   * (see the custom-pricing rules in CLAUDE.md), so a catalogue price on those cards would
+   * name money nobody is charging.
+   */
+  get showExtraServicePrices(): boolean {
+    return this.isAdminOrSuperAdmin && !this.showCustomPricing;
+  }
   subscriptions: Subscription[] = [];
   currentUser: any = null;
   userApartments: any[] = [];

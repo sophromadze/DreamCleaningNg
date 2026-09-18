@@ -154,3 +154,71 @@ describe('UserManagementComponent — panel-only mode', () => {
     expect(fixture.nativeElement.querySelector('.user-management-section')).not.toBeNull();
   });
 });
+
+/**
+ * THE CTO'S SUPERADMIN ROLE IS LOCKED FOR EVERYONE.
+ *
+ * Mirrors CtoRoleLockPolicy on the server, which refuses the change on both role-change endpoints
+ * whatever this component decides. What is pinned here is that the lock is checked BEFORE the role
+ * hierarchy — a SuperAdmin passes every hierarchy test, so a lock evaluated after them would never
+ * fire for the very caller it exists to stop.
+ */
+describe('UserManagementComponent — the CTO role lock', () => {
+  let fixture: ComponentFixture<UserManagementComponent>;
+  let component: UserManagementComponent;
+  let httpMock: HttpTestingController;
+
+  const CTO = { id: 3, firstName: 'Nia', lastName: 'Officer', role: 'SuperAdmin', orgTitle: 'CTO' };
+  const CEO = { id: 4, firstName: 'Sam', lastName: 'Chief', role: 'SuperAdmin', orgTitle: 'CEO' };
+  const PLAIN_SUPERADMIN = { id: 5, firstName: 'Lee', lastName: 'Plain', role: 'SuperAdmin', orgTitle: 'None' };
+
+  beforeEach(async () => {
+    sessionStorage.clear();
+
+    await TestBed.configureTestingModule({
+      imports: [UserManagementComponent],
+      providers: [...testProviders]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(UserManagementComponent);
+    component = fixture.componentInstance;
+    httpMock = TestBed.inject(HttpTestingController);
+
+    // These are pure predicates on the component; detectChanges would put the panel's whole
+    // request fan-out on the wire for nothing.
+    component.currentUserRole = 'SuperAdmin';
+    component.canUpdate = true;
+  });
+
+  afterEach(() => {
+    httpMock.verify();
+    sessionStorage.clear();
+  });
+
+  it('refuses a SuperAdmin — the caller the lock exists for', () => {
+    expect(component.canModifyUserRole(CTO)).toBeFalse();
+    expect(component.canChangeUserRole(CTO as any, 'Admin')).toBeFalse();
+  });
+
+  it('says why, instead of leaving the panel with no Role control at all', () => {
+    expect(component.getRoleButtonTooltip(CTO)).toBe(component.ctoRoleLockReason);
+  });
+
+  it('locks on the TITLE, not on being a SuperAdmin', () => {
+    // A CEO and an untitled SuperAdmin stay exactly as demotable as they were. Only CTO carries
+    // the lock, because only CTO governs who may hold a title at all.
+    expect(component.canModifyUserRole(CEO)).toBeTrue();
+    expect(component.canModifyUserRole(PLAIN_SUPERADMIN)).toBeTrue();
+  });
+
+  it('leaves a CTO on the Admin role alone', () => {
+    // There is no SuperAdmin to protect there, and locking an ordinary Admin's role would be a
+    // surprise nobody asked for.
+    expect(component.isCtoRoleLocked({ role: 'Admin', orgTitle: 'CTO' } as any)).toBeFalse();
+  });
+
+  it('drops the lock the moment the title is cleared', () => {
+    // The only way out, and it is the officer title rather than an override on the role itself.
+    expect(component.isCtoRoleLocked({ ...CTO, orgTitle: 'None' } as any)).toBeFalse();
+  });
+});

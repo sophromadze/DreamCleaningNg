@@ -2,6 +2,7 @@ import {
   Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, inject
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ContractDocumentComponent } from '../../../../shared/components/contract-document/contract-document.component';
 import {
   CapturedSignature, SignatureCaptureComponent
@@ -24,7 +25,7 @@ import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
 @Component({
   selector: 'app-contract-detail',
   standalone: true,
-  imports: [CommonModule, ContractDocumentComponent, SignatureCaptureComponent],
+  imports: [CommonModule, FormsModule, ContractDocumentComponent, SignatureCaptureComponent],
   templateUrl: './contract-detail.component.html',
   styleUrls: ['./contract-detail.component.scss']
 })
@@ -41,6 +42,12 @@ export class ContractDetailComponent implements OnInit, OnChanges {
 
   @Output() back = new EventEmitter<void>();
   @Output() edit = new EventEmitter<number>();
+
+  /**
+   * This contract was PERMANENTLY deleted. Carries the success message, because the panel has
+   * nothing left to render and the shell has to both go back to the list and say what happened.
+   */
+  @Output() deleted = new EventEmitter<string>();
 
   /** A draft invoice was generated from this contract — the shell opens it for review. */
   @Output() invoiceCreated = new EventEmitter<number>();
@@ -257,16 +264,86 @@ export class ContractDetailComponent implements OnInit, OnChanges {
       .subscribe(this.handle('Reopened for revision. Outstanding signing links have been voided.')));
   }
 
-  deleteContract(): void {
-    // Says what actually happens, including the part that is not obvious: the links stop working
-    // immediately, and the record is not gone forever.
-    if (!confirm(
-      'Delete this contract?\n\n' +
-      'It will be hidden from the list and any outstanding signing links will stop working. ' +
-      'You can restore it for the next 6 months, after which it is permanently deleted.'
-    )) return;
+  // ── Delete or archive ──────────────────────────────────────────────────────
+
+  /**
+   * The Delete button opens a CHOICE rather than deleting.
+   *
+   * Two genuinely different outcomes used to sit behind one word. "Delete" archived the contract
+   * — hidden, restorable, everything preserved — which is not what the word promises, and left no
+   * way at all to clear a test contract out. The dialog names both and makes the destructive one
+   * cost something to reach.
+   */
+  deleteDialogOpen = false;
+
+  /** What the admin has to type to unlock Full delete: `DELETE DCC-2026-48392175`. */
+  get hardDeleteConfirmationPhrase(): string {
+    return `DELETE ${this.detail?.contractNumber ?? ''}`;
+  }
+
+  hardDeleteConfirmation = '';
+
+  /**
+   * Whether the typed confirmation matches. Trimmed and case-insensitive, matching the server —
+   * the point is that the admin read the number off the contract, not that they matched our
+   * capitalisation.
+   */
+  get hardDeleteConfirmed(): boolean {
+    return this.hardDeleteConfirmation.trim().toLowerCase()
+      === this.hardDeleteConfirmationPhrase.toLowerCase();
+  }
+
+  /** Server-decided. Absent on an older backend, which then simply does not offer the option. */
+  get canHardDelete(): boolean {
+    return this.detail?.canHardDelete === true;
+  }
+
+  get hardDeleteBlockedReason(): string | null {
+    return this.detail?.cannotHardDeleteReason ?? null;
+  }
+
+  openDeleteDialog(): void {
+    this.hardDeleteConfirmation = '';
+    this.deleteDialogOpen = true;
+  }
+
+  closeDeleteDialog(): void {
+    this.deleteDialogOpen = false;
+    this.hardDeleteConfirmation = '';
+  }
+
+  /** Option A — archive. The long-standing soft delete, under the name it always deserved. */
+  archiveContract(): void {
+    this.closeDeleteDialog();
     this.run(() => this.contracts.deleteContract(this.contractId)
-      .subscribe(this.handle('Contract deleted. You can restore it from “Show hidden contracts”.')));
+      .subscribe(this.handle('Contract archived. Find it again with “Show archived contracts”.')));
+  }
+
+  /**
+   * Option B — permanent delete. Guarded three ways and none of them is this method: the server
+   * re-applies `ContractHardDeletePolicy`, re-checks the typed confirmation, and refuses the
+   * whole request if either fails. The checks here only decide whether to bother asking.
+   */
+  permanentlyDeleteContract(): void {
+    if (!this.canHardDelete || !this.hardDeleteConfirmed) return;
+
+    const confirmation = this.hardDeleteConfirmation.trim();
+    this.closeDeleteDialog();
+    this.busy = true;
+    this.errorMessage = '';
+
+    this.contracts.permanentlyDeleteContract(this.contractId, confirmation).subscribe({
+      next: result => {
+        this.busy = false;
+        // Nothing left to reload — the contract this panel is showing no longer exists, so the
+        // list is the only correct destination.
+        this.deleted.emit(result.message);
+      },
+      error: err => {
+        this.busy = false;
+        this.errorMessage = extractApiErrorMessage(err, 'The contract could not be deleted.');
+      }
+    });
   }
 
   restoreContract(): void {
@@ -464,7 +541,44 @@ export class ContractDetailComponent implements OnInit, OnChanges {
     return !!this.detail && this.allowed('createAmendment');
   }
 
-  /** Soft delete — CTO-only, as Void was. Hidden contracts offer Restore instead. */
+  // ── Why an action is missing ───────────────────────────────────────────────
+
+  /**
+   * THE FIX FOR "THE BUTTONS ARE THERE LOCALLY AND GONE IN PRODUCTION".
+   *
+   * Back to edit, Create amendment and Delete are withheld from an account with no officer title
+   * — `ContractPermissionMatrix` gives those three to a CEO/CTO only, and an untitled SuperAdmin
+   * resolves to Manager, which is the module's deliberate departure from the app's role
+   * hierarchy. Nothing is seeded with a title, so on a freshly migrated database EVERY admin is a
+   * Manager and those three buttons are absent for everybody.
+   *
+   * That is correct behaviour and is not changed here. What was wrong is that it was SILENT: the
+   * buttons simply were not drawn, which is indistinguishable from a stale deployment, and that
+   * is exactly how it was read. So the panel now says which actions need a title and who can
+   * grant one — the same choice the Users tab already makes, where an officer-title control the
+   * caller may not use renders read-only with its lock reason rather than disappearing.
+   *
+   * Driven by the SERVER-reported authority, never re-derived from a role here.
+   */
+  get authorityLimitsActions(): boolean {
+    return this.permissions?.authority === 'manager';
+  }
+
+  /** Named so the note lists what is actually missing rather than a generic apology. */
+  get actionsNeedingOfficerTitle(): string[] {
+    if (!this.authorityLimitsActions) return [];
+
+    const missing: string[] = [];
+    // Each is listed only when the contract's own state would otherwise have offered it, so the
+    // note never mentions an action that was never available anyway.
+    if (this.detail?.canEdit) missing.push('Back to edit');
+    missing.push('Create revision', 'Create amendment');
+    if (this.detail?.canDelete) missing.push('Delete');
+    return missing;
+  }
+
+
+  /** Opens the delete-or-archive dialog. CTO-only. Archived contracts offer Unarchive instead. */
   get showDelete(): boolean {
     return !!this.detail?.canDelete && this.allowed('deleteContract');
   }

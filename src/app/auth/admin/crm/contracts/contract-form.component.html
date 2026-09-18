@@ -538,7 +538,9 @@
         <strong>{{ model.term.initialTermMonths }} month{{ model.term.initialTermMonths === 1 ? '' : 's' }}</strong>.
         After it expires the agreement continues <strong>{{ model.term.renewalType }}</strong> until
         terminated with <strong>{{ model.term.terminationNoticeDays }} days</strong> written notice.
-        Termination for convenience is not available during the minimum commitment period.
+        A termination-for-convenience notice may be given during the minimum commitment period, but
+        the termination cannot take effect before the minimum commitment end date. Termination for
+        cause, safety and force majeure are unaffected.
       </p>
     </div>
   </section>
@@ -776,11 +778,15 @@
                  [(ngModel)]="model.siteDetails.employeeRestroomCounts" />
         </div>
         <div class="field wide">
-          <label for="floorMaterials">Floor and surface materials</label>
+          <label for="floorMaterials">Floor and surface materials (optional)</label>
           <input id="floorMaterials" name="floorMaterials" type="text"
                  [(ngModel)]="model.siteDetails.floorMaterials"
                  placeholder="e.g. quarry tile in the kitchen, sealed concrete in the dining area" />
-          <small class="hint">Decides which products are compatible under A4.</small>
+          <small class="hint">
+            Useful site information, not a precondition. A4 has us use commercially reasonable,
+            surface-appropriate products either way — left blank, the line is simply left out of
+            Exhibit A.
+          </small>
         </div>
         <div class="field wide">
           <label for="kitchenEquipmentSurfaces">Included kitchen equipment and exterior surfaces</label>
@@ -831,10 +837,14 @@
                     [(ngModel)]="model.siteDetails.wasteReceptacleLocations"></textarea>
         </div>
         <div class="field">
-          <label for="foodPermitHolder">Food-service permit holder (legal name)</label>
+          <label for="foodPermitHolder">Food-service permit holder (optional)</label>
           <input id="foodPermitHolder" name="foodPermitHolder" type="text"
                  [(ngModel)]="model.siteDetails.foodServicePermitHolder" />
-          <small class="hint">Not necessarily the client — ask rather than assume.</small>
+          <small class="hint">
+            Legal name, and not necessarily the client. Optional: the client stays responsible for
+            its own permits and sanitation under Section 26(b) whether or not it is recorded, and
+            a blank leaves the line out of Exhibit A.
+          </small>
         </div>
         <div class="field">
           <label for="siteRequirements">Site, landlord or brand requirements</label>
@@ -901,10 +911,14 @@
                  [(ngModel)]="model.contacts.contractorSupervisorPhone" />
         </div>
         <div class="field wide">
-          <label for="contractorBackupContact">Backup on-call contact</label>
+          <label for="contractorBackupContact">Backup on-call contact (optional)</label>
           <input id="contractorBackupContact" name="contractorBackupContact" type="text"
                  [(ngModel)]="model.contacts.contractorBackupContact"
                  placeholder="Name and telephone" />
+          <small class="hint">
+            A second person to try, not a requirement. Left blank, the row is simply left out of
+            Exhibit B4 — it will not be chased in the preview's warning banner.
+          </small>
         </div>
       </div>
 
@@ -915,18 +929,12 @@
           <input id="clientApprovalEmail" name="clientApprovalEmail" type="email"
                  [(ngModel)]="model.contacts.clientApprovalEmail" />
         </div>
-        <!-- KEPT APART FROM THE PRINCIPAL ADDRESS ON PURPOSE. Section 32 serves breach and
-             termination notices here, and a business registered at an accountant's office, served
-             at a restaurant and reading its mail at a third address is the ordinary case. -->
-        <div class="field wide">
-          <label for="clientNoticeMailingAddress">Formal notice mailing address</label>
-          <input id="clientNoticeMailingAddress" name="clientNoticeMailingAddress" type="text"
-                 [(ngModel)]="model.contacts.clientNoticeMailingAddress" />
-          <small class="hint">
-            Leave blank to use the client’s principal address. This is where a termination notice
-            would be served, so it is worth asking rather than assuming.
-          </small>
-        </div>
+        <!-- NO "FORMAL NOTICE MAILING ADDRESS" FIELD (2026-09-15). The agreement no longer asks
+             the client for one: the preamble identifies them by legal entity, Exhibit B4 has no
+             row for it, and Section 32 serves formal notice on the notice email below. A box that
+             reaches no part of the document is worse than no box — an admin would chase the
+             client for an address nobody is going to print. `contacts.clientNoticeMailingAddress`
+             survives on the model so a draft written before this round-trips unchanged. -->
         <div class="field">
           <label for="clientOperationalEmail">Operational email</label>
           <input id="clientOperationalEmail" name="clientOperationalEmail" type="email"
@@ -943,10 +951,14 @@
                  [(ngModel)]="model.contacts.clientOnCallPhone" />
         </div>
         <div class="field wide">
-          <label for="clientBackupContact">Backup on-call contact</label>
+          <label for="clientBackupContact">Backup on-call contact (optional)</label>
           <input id="clientBackupContact" name="clientBackupContact" type="text"
                  [(ngModel)]="model.contacts.clientBackupContact"
                  placeholder="Name and telephone" />
+          <small class="hint">
+            Section 16(c) asks the client for a primary contact and says a backup is one it may
+            designate if available. Left blank, the row is left out of Exhibit B4.
+          </small>
         </div>
       </div>
     </div>

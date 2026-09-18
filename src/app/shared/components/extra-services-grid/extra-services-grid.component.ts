@@ -46,6 +46,15 @@ export class ExtraServicesGridComponent {
   @Input() loading = false;
   /** Booking-only: responsive max-width computed by the page. */
   @Input() containerMaxWidth: number | null = null;
+  /**
+   * Renders each card's catalogue price. Opt-in and OFF by default: the booking page turns
+   * it on for Admin/SuperAdmin only (never a customer, never a Moderator), so an admin
+   * taking a booking by phone can quote an extra without leaving the page. It is the
+   * catalogue UNIT price, not what the order is charged — the deep-cleaning multiplier,
+   * quantity and hours are applied by the calculator, so the summary card stays the figure
+   * that matters.
+   */
+  @Input() showPrices = false;
 
   @Output() cardClick = new EventEmitter<ExtraService>();
   @Output() quantityChange = new EventEmitter<{ extra: ExtraService; quantity: number }>();
@@ -86,6 +95,18 @@ export class ExtraServicesGridComponent {
 
   imageFor(extra: ExtraService): string {
     return getExtraServiceImage(extra, this.isSelected(extra));
+  }
+
+  /**
+   * Catalogue unit price for the admin-only price line. An `hasHours` extra is priced per
+   * hour and a `hasQuantity` one per unit, so the suffix says which — a bare "$30" on an
+   * hourly extra reads as the whole cost of adding it.
+   */
+  priceLabelFor(extra: ExtraService): string {
+    const price = `$${(extra.price ?? 0).toFixed(2)}`;
+    if (extra.hasHours) return `${price}/hr`;
+    if (extra.hasQuantity) return `${price} each`;
+    return price;
   }
 
   tooltipFor(extra: ExtraService): string {

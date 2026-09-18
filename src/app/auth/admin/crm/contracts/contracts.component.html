@@ -10,16 +10,18 @@
           <option *ngFor="let option of statusOptions" [ngValue]="option.value">{{ option.label }}</option>
         </select>
       </div>
-        <!-- Mirrors the orders table's own show-hidden control. -->
+        <!-- Mirrors the orders table's own show-hidden control. Archived contracts are hidden by
+             default; this is how an admin gets back to one they filed away. -->
         <label class="hidden-toggle" *ngIf="canDeleteContracts">
           <input type="checkbox" [(ngModel)]="includeHidden" (ngModelChange)="load()" />
-          <span>Show hidden contracts</span>
+          <span>Show archived contracts</span>
         </label>
       <button type="button" class="btn-primary" *ngIf="canCreateContract"
               (click)="startNew()">New contract</button>
     </div>
 
     <div class="alert error" *ngIf="errorMessage">{{ errorMessage }}</div>
+    <div class="alert success" *ngIf="successMessage">{{ successMessage }}</div>
 
     <div class="table-wrap" *ngIf="!loading">
       <table class="contracts-table">
@@ -97,5 +99,6 @@
                        [permissions]="permissions"
                        (back)="backToList()"
                        (edit)="editContract($event)"
-                       (invoiceCreated)="openInvoice($event)"></app-contract-detail>
+                       (invoiceCreated)="openInvoice($event)"
+                       (deleted)="onContractDeleted($event)"></app-contract-detail>
 </div>

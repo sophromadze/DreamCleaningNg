@@ -391,6 +391,46 @@ h1 {
   }
 }
 
+/* Part-payments: the payer is being asked for LESS than the order costs, so the page has to
+   say why. Shaped like the consent block above it — same card, same weight — because it sits
+   in the same "read this before you pay" position. */
+.partial-payment-notice {
+  background: var(--soft-blue);
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+
+  h2 {
+    margin: 0 0 0.6rem;
+    font-size: 1.15rem;
+    color: var(--primary-color);
+  }
+
+  p {
+    margin: 0 0 0.75rem;
+    color: var(--text-primary);
+    line-height: 1.55;
+  }
+
+  p:last-child { margin-bottom: 0; }
+}
+
+/* Reuses .pay-option from the saved-card selector below — one radio-row look on this page. */
+.partial-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 1rem;
+}
+
+/* The balance left after this payment. Muted: it is context for the amount due above it,
+   not a second figure being asked for. */
+.breakdown-line.remaining-after {
+  color: var(--text-secondary);
+  font-size: 0.92rem;
+}
+
 /* Saved card vs. new card selector (matches booking-confirmation) */
 .saved-card-choice {
   display: flex;

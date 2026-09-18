@@ -1480,4 +1480,56 @@ describe('BookingComponent', () => {
       expect(selected.canReceiveCommunications).toBeFalse();
     });
   });
+
+  /**
+   * Extra-service prices are an ADMIN convenience on the booking page: a customer is quoted
+   * by the summary card, and a Moderator is a customer here as everywhere else in this file.
+   */
+  describe('extra service prices are admin-only', () => {
+    function asRole(role: string | null) {
+      const auth: any = (component as any).authService;
+      spyOnProperty(auth, 'currentUserValue', 'get').and.returnValue(role ? { role } : null);
+    }
+
+    it('shows them to an Admin', () => {
+      asRole('Admin');
+
+      expect(component.showExtraServicePrices).toBeTrue();
+    });
+
+    it('shows them to a SuperAdmin', () => {
+      asRole('SuperAdmin');
+
+      expect(component.showExtraServicePrices).toBeTrue();
+    });
+
+    it('hides them from a Moderator', () => {
+      asRole('Moderator');
+
+      expect(component.showExtraServicePrices).toBeFalse();
+    });
+
+    it('hides them from a signed-in customer', () => {
+      asRole('Customer');
+
+      expect(component.showExtraServicePrices).toBeFalse();
+    });
+
+    it('hides them from a signed-out visitor', () => {
+      asRole(null);
+
+      expect(component.showExtraServicePrices).toBeFalse();
+    });
+
+    /**
+     * Custom ("Pre-Arranged") extras are persisted at $0 and 0 minutes, so a catalogue
+     * price on those cards would name money nobody is charging.
+     */
+    it('hides them in custom pricing mode even for an admin', () => {
+      asRole('Admin');
+      component.showCustomPricing = true;
+
+      expect(component.showExtraServicePrices).toBeFalse();
+    });
+  });
 });

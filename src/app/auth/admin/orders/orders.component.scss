@@ -4944,6 +4944,327 @@ $order-header-mobile: 60px;
   background: var(--soft-yellow);
 }
 
+// The Payments card — what the CUSTOMER still owes, above Wages, which is what the job COSTS.
+// Reuses .assigned-cleaners-section for the same reason the Wages card does: that block is
+// already a card with its own light/dark treatment, and a second card shape would be a second
+// set of rules to keep in step.
+.order-payments-card {
+  // The card's own buttons. The panel's .action-btn variants are all nested inside other
+  // blocks, so a bare .action-btn here would render unstyled — declared locally rather than
+  // widening somebody else's selector and changing buttons this card never sees.
+  .action-btn.small {
+    padding: 0.32rem 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    font-weight: var(--fw-medium);
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+
+    &:hover:not(:disabled) { border-color: var(--primary-color); }
+    &:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    &.primary {
+      background: var(--btn-primary);
+      border-color: transparent;
+      color: #fff;
+
+      &:hover:not(:disabled) { background: var(--btn-primary-hover); }
+    }
+
+    &.danger {
+      color: var(--bright-red);
+
+      &:hover:not(:disabled) { background: var(--soft-red); border-color: var(--bright-red); }
+    }
+  }
+  // Total / Paid / Still owed are one fact about the order, so they share a wrapping row —
+  // the same arrangement .wages-summary uses for the rate and the salary.
+  .payments-balance {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .balance-figure {
+    white-space: nowrap;
+
+    &.paid { color: var(--fresh-green); }
+    &.due { color: var(--warning-orange-text); }
+  }
+
+  .payments-warning {
+    background: var(--soft-red);
+    color: var(--bright-red);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.7rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  // The one live request. Bordered rather than merely spaced: it is the thing an admin is
+  // waiting on, and it has to be findable without reading the card top to bottom.
+  .pending-request {
+    border: 1px solid var(--warning-orange-text);
+    background: var(--warning-orange-bg);
+    border-radius: var(--radius-sm);
+    padding: 0.65rem 0.8rem;
+    margin-bottom: 0.9rem;
+
+    .pending-request-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.4rem 0.75rem;
+      color: var(--warning-orange-text);
+    }
+
+    .pending-request-sent {
+      font-size: 0.8rem;
+      opacity: 0.85;
+
+      &.unsent { font-style: italic; }
+    }
+
+    .pending-request-note {
+      margin: 0.35rem 0 0;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .pending-request-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.55rem;
+    }
+
+    // Recording a slice as paid outside Stripe — the alternative to sending the card link.
+    // Locally scoped like the card's other buttons above; the update-history manual-pay form
+    // lives under a different parent and its rules don't reach in here.
+    .manual-pay-form {
+      margin-top: 0.55rem;
+      padding: 0.55rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+
+      .manual-pay-row {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+
+        label {
+          flex: 0 0 4.25rem;
+          font-size: 0.7rem;
+          font-weight: var(--fw-semibold);
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.02em;
+        }
+
+        select, input {
+          flex: 1 1 auto;
+          min-width: 0;
+          padding: 0.28rem 0.45rem;
+          font-size: 0.76rem;
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-sm);
+          background: var(--surface-subtle);
+          color: var(--text-primary);
+        }
+      }
+
+      .manual-pay-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+    }
+  }
+
+  .request-payment-form {
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.75rem;
+  }
+
+  .request-payment-label {
+    display: block;
+    font-weight: var(--fw-semibold);
+    margin-bottom: 0.4rem;
+    color: var(--text-primary);
+  }
+
+  .request-payment-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  // The $ sits inside the field rather than beside it, so the amount reads as money at a glance
+  // — this is the box where a four-figure deposit gets typed.
+  .amount-input {
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    padding: 0 0.5rem;
+
+    .currency {
+      color: var(--text-secondary);
+      font-weight: var(--fw-semibold);
+    }
+
+    input {
+      border: none;
+      background: transparent;
+      color: var(--text-primary);
+      padding: 0.45rem 0.35rem;
+      width: 7.5rem;
+      font-size: 0.95rem;
+
+      &:focus { outline: none; }
+    }
+  }
+
+  .request-payment-note {
+    display: block;
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+  }
+
+  .request-payment-channels {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 1rem;
+    margin-top: 0.55rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+
+    label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      cursor: pointer;
+    }
+  }
+
+  .request-payment-hint {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    flex-basis: 100%;
+
+    &.warn {
+      color: var(--warning-orange-text);
+      margin-top: 0.4rem;
+    }
+  }
+
+  .payments-refusal {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-style: italic;
+  }
+
+  .payments-message {
+    margin-top: 0.6rem;
+    color: var(--fresh-green);
+    font-size: 0.85rem;
+  }
+
+  .payments-error {
+    margin-top: 0.6rem;
+    color: var(--bright-red);
+    font-size: 0.85rem;
+  }
+
+  // The log. A cancelled request stays in it — an amount asked for and dropped is part of the
+  // conversation with the customer.
+  .payments-history {
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+
+    h6 {
+      margin: 0 0 0.5rem;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--text-secondary);
+    }
+  }
+
+  .payments-history-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.3rem 0.7rem;
+    padding: 0.3rem 0;
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--border-color);
+
+    &:last-child { border-bottom: none; }
+  }
+
+  .history-amount {
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+
+    &.cancelled { text-decoration: line-through; opacity: 0.6; }
+  }
+
+  .history-status {
+    font-size: 0.75rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: var(--radius-sm);
+
+    &.status-paid { background: var(--mint-fresh); color: var(--fresh-green); }
+    &.status-pending { background: var(--warning-orange-bg); color: var(--warning-orange-text); }
+    &.status-cancelled { background: var(--soft-red); color: var(--bright-red); }
+  }
+
+  .history-when,
+  .history-who,
+  .history-method,
+  .history-overpay {
+    color: var(--text-secondary);
+  }
+
+  .history-overpay { font-style: italic; }
+}
+
+// "Part paid" next to the status badge in the list, and spelled out in the panel's balance row.
+// A pill rather than a status value, because the order's status genuinely is still Pending —
+// the status vocabulary is read by filters and reporting and must not gain a display-only word.
+.partially-paid-pill {
+  display: inline-block;
+  padding: 0.12rem 0.45rem;
+  margin-left: 0.35rem;
+  border-radius: var(--radius-sm);
+  background: var(--warning-orange-bg);
+  color: var(--warning-orange-text);
+  font-size: 0.72rem;
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+
 // The Cleaners & Wages card. It reuses .assigned-cleaners-section wholesale — that block was
 // already a card with its own light/dark treatment, and the restructure moved the wage figures
 // and the staffing warnings INTO it rather than inventing a second card shape beside it.

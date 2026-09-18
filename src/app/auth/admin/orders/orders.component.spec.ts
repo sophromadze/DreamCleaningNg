@@ -149,6 +149,59 @@ describe('OrdersComponent', () => {
 
       expect(rowQuantity(1)).toBe(1000);
     });
+
+    /**
+     * Reported bug: a manually-set Sq.ft above the floor (1200 on a 3bd order, floor 1000)
+     * survives a bedroom raise by being bumped to the NEW floor (1500 on 4bd) because the new
+     * floor overtakes it. That bump makes the value numerically indistinguishable from "was
+     * tracking the floor", so reducing bedrooms back to 3 used to read it as floor-tracked and
+     * drop it to the 3bd floor (1000) instead of restoring the original 1200.
+     */
+    it('restores a raise-clobbered custom sq.ft when bedrooms return to their original count', () => {
+      seedEditForm([{ def: bedroomsDef, quantity: 3 }, { def: sqftDef, quantity: 1200 }]);
+
+      component.editOrderForm.services![0].quantity = 4;
+      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      expect(rowQuantity(1)).toBe(1500); // clobbered by the higher 4bd floor
+
+      component.editOrderForm.services![0].quantity = 3;
+      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      expect(rowQuantity(1)).toBe(1200); // restored, not dropped to the 3bd floor of 1000
+    });
+
+    it('restores the original custom sq.ft across a multi-step bedroom chain', () => {
+      seedEditForm([{ def: bedroomsDef, quantity: 2 }, { def: sqftDef, quantity: 1200 }]);
+
+      component.editOrderForm.services![0].quantity = 4;
+      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      expect(rowQuantity(1)).toBe(1500); // clobbered by the 4bd floor
+
+      component.editOrderForm.services![0].quantity = 3;
+      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      expect(rowQuantity(1)).toBe(1000); // intermediate hop still floor-tracks normally
+
+      component.editOrderForm.services![0].quantity = 2;
+      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      expect(rowQuantity(1)).toBe(1200); // back to the original bedroom count restores 1200
+    });
+
+    it('lets a direct sq.ft edit made while raised replace the remembered original', () => {
+      seedEditForm([{ def: bedroomsDef, quantity: 3 }, { def: sqftDef, quantity: 1200 }]);
+
+      component.editOrderForm.services![0].quantity = 4;
+      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      expect(rowQuantity(1)).toBe(1500);
+
+      // Admin types a new Sq.ft value directly while still at 4bd — this is a fresh deliberate
+      // choice and must not be discarded in favor of the pre-raise 1200 later.
+      component.editOrderForm.services![1].quantity = 1800;
+      component.onEditServiceQuantityChange(component.editOrderForm.services![1], 1);
+      expect(rowQuantity(1)).toBe(1800);
+
+      component.editOrderForm.services![0].quantity = 3;
+      component.onEditServiceQuantityChange(component.editOrderForm.services![0], 0);
+      expect(rowQuantity(1)).toBe(1800); // preserved, not reverted to the stale 1200
+    });
   });
 
   /**
@@ -1863,5 +1916,230 @@ describe('OrdersComponent', () => {
 
       expect(component.successMessage).toContain('notified via email');
     });
+  });
+});
+
+/**
+ * PART-PAYMENTS IN THE ORDERS PANEL.
+ *
+ * An admin agrees a deposit on the phone, asks for it here, and the customer gets a link for
+ * that amount. What these guard:
+ *
+ *  - the panel and the LIST ROW must agree about the balance. They are different objects, so a
+ *    request that updates only the panel leaves the table saying "Unpaid — $2,743.65" beside a
+ *    panel that says $1,743.65 is left. Same class of bug refreshOrderAfterSave exists for.
+ *  - the card must stay out of the way on an order that has nothing to say about part-payments.
+ *  - a failed request must surface the server's reason, not a transport string.
+ */
+describe('OrdersComponent — part-payments', () => {
+  let component: OrdersComponent;
+  let fixture: ComponentFixture<OrdersComponent>;
+  let adminService: AdminService;
+
+  const BALANCE = {
+    total: 2743.65,
+    amountPaid: 0,
+    amountDue: 2743.65,
+    isPartiallyPaid: false,
+    overpaidAmount: 0,
+    canRequestPartialPayment: true,
+    cannotRequestReason: null,
+    pendingRequest: null,
+    history: []
+  } as any;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      providers: [...testProviders],
+      imports: [OrdersComponent]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(OrdersComponent);
+    component = fixture.componentInstance;
+    adminService = TestBed.inject(AdminService);
+    fixture.detectChanges();
+  });
+
+  it('hides the Payments card on an order with no balance and no history', () => {
+    component.selectedOrder = { id: 7, total: 2743.65 } as any;
+    component.partialBalance = { ...BALANCE, canRequestPartialPayment: false, amountPaid: 0 };
+
+    expect(component.showPartialPaymentsCard).toBeFalse();
+  });
+
+  it('shows the Payments card once money has arrived in slices', () => {
+    component.selectedOrder = { id: 7, total: 2743.65 } as any;
+    component.partialBalance = {
+      ...BALANCE, canRequestPartialPayment: false, amountPaid: 1000, amountDue: 1743.65,
+      isPartiallyPaid: true
+    };
+
+    expect(component.showPartialPaymentsCard).toBeTrue();
+  });
+
+  it('refuses an empty amount without troubling the server', () => {
+    component.selectedOrder = { id: 7 } as any;
+    component.partialBalance = BALANCE;
+    const spy = spyOn(adminService, 'requestPartialPayment');
+
+    component.partialAmountInput = null;
+    component.requestPartialPayment();
+
+    expect(spy).not.toHaveBeenCalled();
+    expect(component.partialPaymentError).toContain('amount');
+  });
+
+  it('carries the new balance back to the list row, not just the panel', () => {
+    component.viewingOrderId = 7;
+    component.selectedOrder = { id: 7, total: 2743.65 } as any;
+    component.partialBalance = BALANCE;
+    component.orders = [{ id: 7, total: 2743.65, amountPaid: 0, isPartiallyPaid: false } as any];
+
+    const updated = { ...BALANCE, amountPaid: 1000, amountDue: 1743.65, isPartiallyPaid: true };
+    spyOn(adminService, 'requestPartialPayment').and.returnValue(of({
+      message: 'Payment request for $1,000.00: email sent.',
+      partialPayment: { id: 3, orderId: 7, requestedAmount: 1000, status: 'Pending', createdAt: '' },
+      balance: updated,
+      emailSent: true,
+      smsSent: false
+    }) as any);
+    spyOn(adminService, 'getOrderDetails').and.returnValue(of({
+      id: 7, total: 2743.65, amountPaid: 1000, amountDue: 1743.65, isPartiallyPaid: true
+    }) as any);
+
+    component.partialAmountInput = 1000;
+    component.requestPartialPayment();
+
+    expect(component.partialBalance!.amountDue).toBe(1743.65);
+    expect(component.orders[0].amountPaid).toBe(1000);
+    expect(component.orders[0].isPartiallyPaid).toBeTrue();
+    // The form is cleared so the same amount can't be sent twice by a second click.
+    expect(component.partialAmountInput).toBeNull();
+  });
+
+  it('surfaces the server\'s reason when a request is refused', () => {
+    component.selectedOrder = { id: 7 } as any;
+    component.partialBalance = BALANCE;
+    spyOn(adminService, 'requestPartialPayment').and.returnValue(
+      throwError(() => ({ error: { message: 'That is more than the $1743.65 still owed on this order.' } }))
+    );
+
+    component.partialAmountInput = 5000;
+    component.requestPartialPayment();
+
+    expect(component.partialPaymentError).toContain('1743.65');
+  });
+
+  it('labels a part-paid row with both figures', () => {
+    expect(component.partiallyPaidLabel({ amountPaid: 1000, total: 2743.65 }))
+      .toBe('Partially paid — $1000.00 of $2743.65');
+  });
+});
+
+/**
+ * THE OUTSTANDING ADDITIONAL AMOUNT MUST NOT DOUBLE WHEN AN ORDER IS EDITED DOWN AND BACK UP.
+ *
+ * Order #359: created at $2,743.65, edited DOWN to $500.00, paid at $500.00, then edited back UP
+ * to $2,743.65. The down-edit wrote a history row with a NEGATIVE additionalAmount which — being
+ * below the $0.01 threshold — was marked paid, so it counted as money the customer had handed
+ * over. Subtracting a negative added to the bill: $2,243.65 − (−$2,243.65) = $4,487.30, twice the
+ * real increase, on the payment page and in the email.
+ *
+ * This panel recomputes the figure client-side, so it needs the same positive-only rule the
+ * server's OrderAdditionalCharge applies. The Update History row itself is driven by the row's
+ * own before/after totals, because additionalAmount is now floored at zero on the way in and a
+ * decrease would otherwise render as "+$0.00".
+ */
+describe('OrdersComponent — additional amount owed after a down-then-up edit', () => {
+  let component: OrdersComponent;
+  let fixture: ComponentFixture<OrdersComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      providers: [...testProviders],
+      imports: [OrdersComponent]
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(OrdersComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  /** The order as it stands now: initialTotal is what was actually PAID ($500.00). */
+  function seedOrder359(history: any[]): void {
+    component.selectedOrder = {
+      id: 359,
+      total: 2743.65,
+      tips: 0,
+      companyDevelopmentTips: 0,
+      initialTotal: 500,
+      initialTips: 0,
+      initialCompanyDevelopmentTips: 0,
+      isPaid: true,
+      status: 'Pending',
+      paymentMethod: 'Normal'
+    } as any;
+    component.orderUpdateHistory = history as any;
+  }
+
+  const DOWN_ROW_LEGACY = {
+    id: 1, originalTotal: 2743.65, newTotal: 500, additionalAmount: -2243.65, isPaid: true
+  };
+  const DOWN_ROW_CLAMPED = {
+    id: 1, originalTotal: 2743.65, newTotal: 500, additionalAmount: 0, isPaid: true
+  };
+  const UP_ROW = {
+    id: 2, originalTotal: 500, newTotal: 2743.65, additionalAmount: 2243.65, isPaid: false
+  };
+
+  it('owes the increase once, not twice, with the legacy negative row in place', () => {
+    seedOrder359([DOWN_ROW_LEGACY, UP_ROW]);
+
+    expect(component.getTotalAdditionalAmount()).toBe(2243.65);
+    expect(component.getUnpaidAdditionalAmount()).toBe(2243.65);
+    expect(component.shouldShowPaymentReminderRow()).toBeTrue();
+  });
+
+  it('gives the same answer once the decrease is stored clamped at zero', () => {
+    seedOrder359([DOWN_ROW_CLAMPED, UP_ROW]);
+
+    expect(component.getUnpaidAdditionalAmount()).toBe(2243.65);
+  });
+
+  it('still deducts an additional the customer genuinely paid', () => {
+    component.selectedOrder = {
+      id: 360, total: 650, tips: 0, companyDevelopmentTips: 0,
+      initialTotal: 300, initialTips: 0, initialCompanyDevelopmentTips: 0,
+      isPaid: true, status: 'Pending', paymentMethod: 'Normal'
+    } as any;
+    component.orderUpdateHistory = [
+      { id: 1, originalTotal: 300, newTotal: 500, additionalAmount: 200, isPaid: true },
+      { id: 2, originalTotal: 500, newTotal: 650, additionalAmount: 150, isPaid: false }
+    ] as any;
+
+    expect(component.getUnpaidAdditionalAmount()).toBe(150);
+  });
+
+  it('never reports a negative amount owed on an order that only got cheaper', () => {
+    component.selectedOrder = {
+      id: 361, total: 500, tips: 0, companyDevelopmentTips: 0,
+      initialTotal: 2743.65, initialTips: 0, initialCompanyDevelopmentTips: 0,
+      isPaid: true, status: 'Active', paymentMethod: 'Normal'
+    } as any;
+    component.orderUpdateHistory = [DOWN_ROW_LEGACY] as any;
+
+    expect(component.getUnpaidAdditionalAmount()).toBe(0);
+    expect(component.shouldShowPaymentReminderRow()).toBeFalse();
+  });
+
+  /**
+   * A price decrease keeps a full, legible audit row. additionalAmount is floored at zero now, so
+   * the panel reads the delta off the row's own totals instead — otherwise the edit that took
+   * $2,243.65 off the order would display as "+$0.00".
+   */
+  it('shows a price decrease as a decrease in the Update History row', () => {
+    expect(component.getUpdateRowDelta(DOWN_ROW_CLAMPED)).toBe(-2243.65);
+    expect(component.getUpdateRowDelta(UP_ROW)).toBe(2243.65);
+    expect(component.getUpdateRowDelta({ originalTotal: 500, newTotal: 500 })).toBe(0);
   });
 });

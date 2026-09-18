@@ -68,6 +68,14 @@ export interface CreateExpense {
   notes?: string | null;
 }
 
+// Splits a recurring row at effectiveDate: the existing entry is capped the day before, and a
+// new entry starts at newAmount from effectiveDate onward — see AdjustExpenseAmountDto server-side.
+export interface AdjustExpenseAmount {
+  newAmount: number;
+  effectiveDate: string;
+  notes?: string | null;
+}
+
 export interface ExpenseOccurrence {
   expenseId: number;
   name: string;
@@ -154,6 +162,10 @@ export class ExpenseService {
 
   delete(id: number): Observable<void> {
     return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
+
+  adjustAmount(id: number, dto: AdjustExpenseAmount): Observable<Expense> {
+    return this.http.post<Expense>(`${this.apiUrl}/${id}/adjust-amount`, dto);
   }
 
   getBreakdown(from?: string, to?: string): Observable<ExpenseBreakdown> {

@@ -328,3 +328,16 @@
 @media (max-width: 900px) {
   .hide-sm { display: none; }
 }
+
+/* The Archived view toggle. Sits with the filter controls, not in the status dropdown: archived
+   is a separate axis from status and an archived Paid invoice is still Paid. */
+.archived-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+
+  input { margin: 0; }
+}

@@ -5,7 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { catchError, throwError } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
 import { BookingService } from '../../../services/booking.service';
-import { OrderService, Order } from '../../../services/order.service';
+import { OrderService, Order, OrderPartialPayment } from '../../../services/order.service';
 import { StripeService } from '../../../services/stripe.service';
 import { CardOnFileService, SavedCard } from '../../../services/card-on-file.service';
 import {
@@ -38,7 +38,31 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   /** Payment intent ID from backend (create-payment-intent) - use this for confirm-payment, same as booking flow */
   paymentIntentId: string | null = null;
   orderTotal: number = 0;
-  paymentType: 'order' | 'update' = 'order';
+  paymentType: 'order' | 'update' | 'partial' = 'order';
+
+  // ── Part-payments (2026-09) ───────────────────────────────────────────────────────────
+  // An admin can agree a deposit with the customer and ask for it on its own ("$1,000 now,
+  // the rest before the cleaning"). The order stays unpaid, carrying a balance, until the
+  // last slice lands — so this page charges the REQUESTED amount, not the order's total.
+  //
+  // `amountDue`, not `order.total`, is what the 'order' mode charges too: a customer who has
+  // already paid a deposit and comes back through a plain payment link must not be asked for
+  // the whole total a second time.
+  /** The live request an admin made, when there is one. Absent = charge the whole balance. */
+  partialRequest: OrderPartialPayment | null = null;
+  /** Everything still owed on the order right now. */
+  amountDue = 0;
+  /** Already received against this order's total. Zero on an ordinary order. */
+  amountAlreadyPaid = 0;
+  /** What will still be owed after this payment. Zero when this one settles the order. */
+  remainingAfterPayment = 0;
+  /** True when this payment clears the balance — the page says so instead of naming a next one. */
+  isFinalPartialPayment = false;
+  /** The payer chose to settle everything now rather than just the requested slice. */
+  payFullBalance = false;
+  /** Set on success when money arrived but the order is still not settled — the success screen
+   *  then reports the remaining balance rather than confirming the booking. */
+  partialPaymentRemaining: number | null = null;
   hasCleaningSupplies = false;
   isCustomServiceType = false;
   /**
@@ -179,8 +203,23 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
           return;
         }
         if (!order.isPaid) {
-          this.paymentType = 'order';
-          this.orderTotal = order.total;
+          // The balance, never the headline total — they differ once a deposit has been taken.
+          this.amountDue = order.amountDue ?? order.total;
+          this.amountAlreadyPaid = order.amountPaid ?? 0;
+
+          const pendingPartial = order.pendingPartialPayment;
+          if (pendingPartial && pendingPartial.status === 'Pending') {
+            // An admin has asked for a specific slice. Clamped to what is actually owed, so an
+            // order edited downward after the request can't charge the old, larger figure.
+            this.paymentType = 'partial';
+            this.partialRequest = pendingPartial;
+            this.orderTotal = Math.min(pendingPartial.requestedAmount, this.amountDue);
+          } else {
+            this.paymentType = 'order';
+            this.orderTotal = this.amountDue;
+          }
+          this.remainingAfterPayment = Math.round((this.amountDue - this.orderTotal) * 100) / 100;
+          this.isFinalPartialPayment = this.remainingAfterPayment < 0.5;
         } else if (pendingUpdateAmount > 0.01) {
           this.paymentType = 'update';
           // Backend sends the correct additional amount (difference without tips). Use as-is; do not add tips.
@@ -208,7 +247,9 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
 
         // Consent gate — see the field block above. Only the INITIAL payment of an
         // admin-created order asks; a pending additional amount never does.
-        this.consentRequired = this.paymentType === 'order' && !!order.bookedByAdmin;
+        // A deposit is still a FIRST payment, so 'partial' is gated exactly like 'order'. Only a
+        // top-up on an already-settled order ('update') skips it — those consents already exist.
+        this.consentRequired = this.paymentType !== 'update' && !!order.bookedByAdmin;
         this.consentAccepted = !!order.paymentConsentAcceptedAt;
         this.consentAcceptedAt = order.paymentConsentAcceptedAt ?? null;
 
@@ -256,14 +297,45 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
     return hasCustomServiceMarker || hasNoRegularServices;
   }
 
+  /**
+   * Switches between paying the requested slice and settling the whole balance. The amount is
+   * decided server-side either way, so this re-asks for an intent rather than editing a figure —
+   * and the old Stripe elements are torn down first, because the client secret they were mounted
+   * against is cancelled by the server before the replacement is issued.
+   */
+  selectPayFullBalance(payFull: boolean): void {
+    if (this.payFullBalance === payFull || this.isProcessing) return;
+    this.payFullBalance = payFull;
+    this.errorMessage = '';
+    this.cardError = null;
+    this.paymentClientSecret = null;
+    this.showApplePay = false;
+    this.stripeService.destroyCardElement();
+    this.stripeService.destroyPaymentRequestButton();
+    this.isLoading = true;
+    this.cdr.detectChanges();
+    this.createPaymentIntent();
+  }
+
   createPaymentIntent() {
     const guestToken = this.isGuestMode ? this.guestToken! : undefined;
-    const request$ = this.paymentType === 'order'
-      ? this.bookingService.createPaymentIntentForOrder(this.orderId, guestToken)
-      : this.orderService.createPendingUpdatePaymentIntent(this.orderId, this.orderTotal, guestToken);
+    const request$ = this.paymentType === 'partial'
+      ? this.bookingService.createPartialPaymentIntent(this.orderId, guestToken, this.payFullBalance)
+      : this.paymentType === 'order'
+        ? this.bookingService.createPaymentIntentForOrder(this.orderId, guestToken)
+        : this.orderService.createPendingUpdatePaymentIntent(this.orderId, this.orderTotal, guestToken);
 
     request$.subscribe({
       next: (response: any) => {
+        // The server decides the amount; adopt whatever it says it will charge so the Pay button
+        // and the breakdown can never name a figure the card is not actually charged.
+        if (this.paymentType === 'partial') {
+          this.orderTotal = response.amount ?? this.orderTotal;
+          this.amountDue = response.amountDue ?? this.amountDue;
+          this.remainingAfterPayment = response.remainingAfterPayment ?? 0;
+          this.isFinalPartialPayment = !!response.isFinalPayment;
+        }
+
         // Gift card covers the full amount — server skipped Stripe. Confirm directly, no card form.
         if (response.requiresPayment === false) {
           this.fullyCovered = true;
@@ -294,6 +366,18 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
           this.consentAccepted = false;
           this.isLoading = false;
           this.cdr.detectChanges();
+          return;
+        }
+        // The admin cancelled the request between this page loading and the payer acting. Fall
+        // back to the whole outstanding balance rather than dead-ending them on an error.
+        if (error.status === 400 && error.error?.noPartialRequest && this.paymentType === 'partial') {
+          this.paymentType = 'order';
+          this.partialRequest = null;
+          this.payFullBalance = false;
+          this.orderTotal = this.amountDue;
+          this.remainingAfterPayment = 0;
+          this.isFinalPartialPayment = true;
+          this.createPaymentIntent();
           return;
         }
         this.errorMessage = error.error?.message || 'Failed to create payment intent';
@@ -377,11 +461,13 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         ev.complete('success');
         const idForConfirm = paymentIntent?.id ?? this.paymentIntentId;
         const guestToken = this.isGuestMode ? this.guestToken! : undefined;
-        const confirm$ = this.paymentType === 'order'
-          ? this.bookingService.confirmPayment(this.orderId, idForConfirm, undefined, guestToken)
-          : this.orderService.confirmPendingUpdatePayment(this.orderId, idForConfirm, guestToken);
+        const confirm$ = this.paymentType === 'partial'
+          ? this.bookingService.confirmPartialPayment(this.orderId, idForConfirm, guestToken)
+          : this.paymentType === 'order'
+            ? this.bookingService.confirmPayment(this.orderId, idForConfirm, undefined, guestToken)
+            : this.orderService.confirmPendingUpdatePayment(this.orderId, idForConfirm, guestToken);
         confirm$.subscribe({
-          next: () => this.handlePaymentSuccess(),
+          next: (res: any) => this.handlePaymentSuccess(res),
           error: (err: any) => {
             this.errorMessage = err.error?.message || err.message || 'Payment confirmation failed';
             this.isProcessing = false;
@@ -494,13 +580,15 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
       }
 
       const guestToken = this.isGuestMode ? this.guestToken! : undefined;
-      const confirm$ = this.paymentType === 'order'
-        ? this.bookingService.confirmPayment(this.orderId, idForConfirm, undefined, guestToken)
-        : this.orderService.confirmPendingUpdatePayment(this.orderId, idForConfirm, guestToken);
+      const confirm$ = this.paymentType === 'partial'
+        ? this.bookingService.confirmPartialPayment(this.orderId, idForConfirm, guestToken)
+        : this.paymentType === 'order'
+          ? this.bookingService.confirmPayment(this.orderId, idForConfirm, undefined, guestToken)
+          : this.orderService.confirmPendingUpdatePayment(this.orderId, idForConfirm, guestToken);
 
       confirm$.subscribe({
-        next: () => {
-          this.handlePaymentSuccess();
+        next: (res: any) => {
+          this.handlePaymentSuccess(res);
         },
         error: (error) => {
           const msg = error.error?.message || error.message || 'Payment confirmation failed';
@@ -519,9 +607,20 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
     }
   }
 
-  private handlePaymentSuccess() {
+  /**
+   * @param response the confirmation body. A part-payment that did NOT settle the order comes
+   * back with `orderFullyPaid: false` and the amount still owed — the page then reports the
+   * remaining balance instead of confirming a booking that is not yet paid for, and never
+   * redirects to booking-success, whose Google Ads conversion must fire once per order.
+   */
+  private handlePaymentSuccess(response?: any) {
     this.paymentCompleted = true;
     this.isProcessing = false;
+
+    const settledThisOrder = response?.orderFullyPaid !== false;
+    this.partialPaymentRemaining = settledThisOrder
+      ? null
+      : (response?.amountDue ?? this.remainingAfterPayment);
 
     if (this.isGuestMode) {
       // No session to refresh and nowhere to redirect (order pages need login) —
@@ -540,6 +639,13 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
     if (this.paymentType === 'update') {
       // Additional payment only: stay on this page.
       // The user will click "View Order Now" when they're ready.
+      return;
+    }
+
+    if (this.partialPaymentRemaining !== null) {
+      // A deposit landed but the order is not paid for yet. Stay here: booking-success
+      // announces a confirmed booking and fires the ads conversion, neither of which is
+      // true of an order still carrying a balance.
       return;
     }
 

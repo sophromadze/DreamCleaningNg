@@ -41,10 +41,17 @@ export class ContractsComponent implements OnInit, OnChanges {
   loading = true;
   errorMessage = '';
 
+  /** Survives the navigation back to the list after a permanent delete. */
+  successMessage = '';
+
   search = '';
   statusFilter: ContractStatus | null = null;
 
-  /** "Show hidden contracts" — soft-deleted rows, restorable by the CTO for 6 months. */
+  /**
+   * "Show archived contracts" — archived rows, which are hidden from the default list and
+   * restorable by the CTO. The query parameter keeps its original `includeHidden` spelling; only
+   * the label changed, and renaming a deployed API parameter to match a label is not worth it.
+   */
   includeHidden = false;
 
   selectedContractId: number | null = null;
@@ -84,6 +91,7 @@ export class ContractsComponent implements OnInit, OnChanges {
 
   load(): void {
     this.loading = true;
+    this.errorMessage = '';
     this.contracts.getContracts(
       this.search || undefined, this.statusFilter ?? undefined, this.includeHidden
     ).subscribe({
@@ -112,7 +120,7 @@ export class ContractsComponent implements OnInit, OnChanges {
     return this.permissions?.createContract === true;
   }
 
-  /** Only whoever can delete has any reason to look at the hidden ones. */
+  /** Only whoever can archive has any reason to look at the archived ones. */
   get canDeleteContracts(): boolean {
     return this.permissions?.deleteContract === true;
   }
@@ -120,12 +128,14 @@ export class ContractsComponent implements OnInit, OnChanges {
   // ── navigation ─────────────────────────────────────────────────────────────
 
   startNew(): void {
+    this.successMessage = '';
     this.selectedContractId = null;
     this.preloadedDetail = null;
     this.view = 'form';
   }
 
   openDetail(id: number): void {
+    this.successMessage = '';
     this.selectedContractId = id;
     this.preloadedDetail = null;
     this.view = 'detail';
@@ -154,6 +164,16 @@ export class ContractsComponent implements OnInit, OnChanges {
     this.preloadedDetail = detail;
     this.view = 'detail';
     this.load();
+  }
+
+  /**
+   * A contract was PERMANENTLY deleted. The panel has nothing left to show, so the list is the
+   * only correct destination — and the message has to survive the navigation, which is why the
+   * detail component hands it up rather than rendering it itself.
+   */
+  onContractDeleted(message: string): void {
+    this.backToList();
+    this.successMessage = message;
   }
 
   backToList(): void {

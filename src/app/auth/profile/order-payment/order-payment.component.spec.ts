@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { EMPTY, of } from 'rxjs';
 
 import { OrderPaymentComponent } from './order-payment.component';
@@ -177,5 +177,223 @@ describe('OrderPaymentComponent — consent gate', () => {
     expect(component.consentError).toBe('nope');
     expect(component.consentAccepted).toBeFalse();
     expect(bookingService.createPaymentIntentForOrder).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * PART-PAYMENTS ON THE PAYMENT PAGE.
+ *
+ * An admin can agree a deposit with the customer and ask for it on its own — "$1,000 now, the
+ * rest before the cleaning". The order stays unpaid and carries a balance until the last slice
+ * lands, so this page has to charge the REQUESTED amount rather than the order's total, and say
+ * plainly why the figure is smaller than the one the customer was quoted.
+ *
+ * The regressions these exist to catch:
+ *   - charging order.total on an order that has already taken a deposit (double-charging it),
+ *   - treating a deposit as a completed booking on the success screen,
+ *   - skipping the consent gate because the payment "isn't the full amount",
+ *   - dead-ending the payer when the admin cancels the request out from under them.
+ */
+describe('OrderPaymentComponent — part-payments', () => {
+  let fixture: ComponentFixture<OrderPaymentComponent>;
+  let component: OrderPaymentComponent;
+  let bookingService: jasmine.SpyObj<BookingService>;
+  let orderService: jasmine.SpyObj<OrderService>;
+  let stripeService: jasmine.SpyObj<StripeService>;
+
+  const USER_ID = 42;
+
+  function makeOrder(overrides: Partial<Order> = {}): Order {
+    return {
+      id: 7,
+      userId: USER_ID,
+      serviceTypeId: 1,
+      serviceTypeName: 'Residential Cleaning',
+      orderDate: new Date(),
+      serviceDate: new Date(),
+      serviceTime: '10:00:00',
+      status: 'Pending',
+      subTotal: 2519.93,
+      tax: 223.72,
+      tips: 0,
+      total: 2743.65,
+      isPaid: false,
+      paymentMethod: 'Normal',
+      services: [],
+      extraServices: [],
+      ...overrides
+    } as unknown as Order;
+  }
+
+  /** An order carrying a live $1,000 request against a $2,743.65 total. */
+  function orderWithRequest(overrides: Partial<Order> = {}): Order {
+    return makeOrder({
+      amountPaid: 0,
+      amountDue: 2743.65,
+      isPartiallyPaid: false,
+      pendingPartialPayment: {
+        id: 3,
+        orderId: 7,
+        requestedAmount: 1000,
+        status: 'Pending',
+        createdAt: '2026-09-15T12:00:00Z'
+      },
+      ...overrides
+    });
+  }
+
+  function setup(order: Order): void {
+    orderService.getOrderById.and.returnValue(of(order));
+    fixture = TestBed.createComponent(OrderPaymentComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  }
+
+  beforeEach(async () => {
+    // Stubbed so the Stripe mount that follows a successful intent is a no-op: these specs are
+    // about which amount is charged, not about Elements.
+    stripeService = jasmine.createSpyObj<StripeService>("StripeService", [
+      "initializeElements", "createCardElement", "destroyCardElement",
+      "destroyPaymentRequestButton", "createPaymentRequest", "createPaymentRequestButton",
+      "confirmCardPayment", "confirmPaymentRequest"
+    ]);
+    stripeService.initializeElements.and.returnValue(Promise.resolve() as any);
+    stripeService.createCardElement.and.returnValue({ on: () => {} } as any);
+    stripeService.createPaymentRequest.and.returnValue(Promise.resolve(null) as any);
+
+    bookingService = jasmine.createSpyObj<BookingService>('BookingService', [
+      'acceptPaymentConsent', 'createPaymentIntentForOrder', 'confirmPayment',
+      'createPartialPaymentIntent', 'confirmPartialPayment'
+    ]);
+    bookingService.createPaymentIntentForOrder.and.returnValue(EMPTY);
+    bookingService.createPartialPaymentIntent.and.returnValue(EMPTY);
+    bookingService.confirmPartialPayment.and.returnValue(EMPTY);
+    bookingService.acceptPaymentConsent.and.returnValue(
+      of({ orderId: 7, acceptedAt: '2026-09-15T15:00:00Z' })
+    );
+
+    orderService = jasmine.createSpyObj<OrderService>('OrderService', [
+      'getOrderById', 'getOrderByIdGuest', 'createPendingUpdatePaymentIntent'
+    ]);
+    orderService.createPendingUpdatePaymentIntent.and.returnValue(EMPTY);
+
+    await TestBed.configureTestingModule({
+      imports: [OrderPaymentComponent],
+      providers: [
+        ...testProviders,
+        { provide: BookingService, useValue: bookingService },
+        { provide: OrderService, useValue: orderService },
+        {
+          provide: AuthService,
+          useValue: { currentUser: of({ id: USER_ID }), refreshUserProfile: () => of(null) }
+        },
+        { provide: StripeService, useValue: stripeService },
+        { provide: CardOnFileService, useValue: { getSavedCard: () => of({ card: null }) } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            params: of({ id: '7' }),
+            snapshot: { queryParamMap: { get: () => null } }
+          }
+        }
+      ]
+    }).compileComponents();
+  });
+
+  it('charges the amount the admin asked for, not the order total', () => {
+    setup(orderWithRequest());
+
+    expect(component.paymentType).toBe('partial');
+    expect(component.orderTotal).toBe(1000);
+    expect(component.remainingAfterPayment).toBe(1743.65);
+    expect(component.isFinalPartialPayment).toBeFalse();
+    expect(bookingService.createPartialPaymentIntent).toHaveBeenCalledWith(7, undefined, false);
+    expect(bookingService.createPaymentIntentForOrder).not.toHaveBeenCalled();
+  });
+
+  it('asks only for the outstanding balance when a deposit has already been paid', () => {
+    // No new request open — the customer came back through a plain payment link. Charging
+    // order.total here would take the $1,000 deposit a second time.
+    setup(makeOrder({ amountPaid: 1000, amountDue: 1743.65, isPartiallyPaid: true }));
+
+    expect(component.paymentType).toBe('order');
+    expect(component.orderTotal).toBe(1743.65);
+    expect(component.amountAlreadyPaid).toBe(1000);
+    expect(bookingService.createPaymentIntentForOrder).toHaveBeenCalled();
+  });
+
+  it('clamps the request to what is still owed', () => {
+    // An admin lowered the price after asking for the deposit. The old, larger figure must not
+    // survive into the charge.
+    setup(orderWithRequest({ total: 600, amountDue: 600 }));
+
+    expect(component.orderTotal).toBe(600);
+    expect(component.isFinalPartialPayment).toBeTrue();
+  });
+
+  it('lets the payer settle the whole balance instead', () => {
+    setup(orderWithRequest());
+    bookingService.createPartialPaymentIntent.calls.reset();
+
+    component.selectPayFullBalance(true);
+
+    expect(component.payFullBalance).toBeTrue();
+    // Re-asked rather than re-computed locally: the server decides the amount and cancels the
+    // previous client secret before issuing a replacement.
+    expect(bookingService.createPartialPaymentIntent).toHaveBeenCalledWith(7, undefined, true);
+  });
+
+  it('adopts the amount the server says it will charge', () => {
+    bookingService.createPartialPaymentIntent.and.returnValue(of({
+      orderId: 7, partialPaymentId: 3, amount: 1000, requestedAmount: 1000,
+      amountDue: 2743.65, remainingAfterPayment: 1743.65, isFinalPayment: false,
+      paymentIntentId: 'pi_1', paymentClientSecret: 'secret', requiresPayment: true
+    }) as any);
+
+    setup(orderWithRequest());
+
+    expect(component.orderTotal).toBe(1000);
+    expect(component.remainingAfterPayment).toBe(1743.65);
+  });
+
+  it('still gates an admin-created order on consent — a deposit is a first payment', () => {
+    setup(orderWithRequest({ bookedByAdmin: true }));
+
+    expect(component.consentRequired).toBeTrue();
+    expect(bookingService.createPartialPaymentIntent).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the full balance when the request was cancelled underneath the payer', () => {
+    bookingService.createPartialPaymentIntent.and.returnValue(
+      { subscribe: ({ error }: any) => error({ status: 400, error: { noPartialRequest: true } }) } as any
+    );
+
+    setup(orderWithRequest());
+
+    expect(component.paymentType).toBe('order');
+    expect(component.orderTotal).toBe(2743.65);
+    expect(bookingService.createPaymentIntentForOrder).toHaveBeenCalled();
+    expect(component.errorMessage).toBe('');
+  });
+
+  it('reports the remaining balance instead of confirming a booking that is not paid for', () => {
+    setup(orderWithRequest());
+
+    component['handlePaymentSuccess']({ orderFullyPaid: false, amountDue: 1743.65 });
+
+    expect(component.paymentCompleted).toBeTrue();
+    expect(component.partialPaymentRemaining).toBe(1743.65);
+  });
+
+  it('confirms the booking once the final slice clears the balance', () => {
+    setup(orderWithRequest());
+    // A settled order redirects to booking-success; the spy keeps that out of the assertion.
+    spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
+
+    // The server hands the last slice to the ordinary confirmation path, whose response has no
+    // orderFullyPaid flag at all — absent must read as "settled", not as "still owing".
+    component['handlePaymentSuccess']({ success: true, orderId: 7, status: 'Active' });
+
+    expect(component.partialPaymentRemaining).toBeNull();
   });
 });

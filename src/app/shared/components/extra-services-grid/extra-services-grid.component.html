@@ -35,7 +35,8 @@
               <img [src]="imageFor(extra)" [alt]="extra.name">
             </div>
             <h4>{{ extra.name }}</h4>
-            <div class="extra-details">
+            <div class="extra-details" *ngIf="showPrices">
+              <span class="extra-price">{{ priceLabelFor(extra) }}</span>
             </div>
           </div>
         </div>

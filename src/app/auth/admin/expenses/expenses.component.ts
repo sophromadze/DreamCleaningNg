@@ -9,6 +9,7 @@ import {
   ExpenseStaffMember,
   ExpenseCurrencyCode,
   CreateExpense,
+  AdjustExpenseAmount,
   GroupedExpenses
 } from '../../../services/expense.service';
 import { AuthService } from '../../../services/auth.service';
@@ -67,6 +68,14 @@ export class ExpensesComponent implements OnInit {
   // Inline confirm-delete for an expense entry.
   pendingDeleteId: number | null = null;
   deleting = false;
+
+  // Inline "adjust amount from a date" for a recurring entry — raises or reduces it without
+  // hand-authoring an EndDate + a duplicate new row.
+  adjustingId: number | null = null;
+  adjustAmountValue: number | null = null;
+  adjustEffectiveDate = '';
+  adjustNotes: string | null = null;
+  adjusting = false;
 
   // Category manager state.
   showCategoryManager = false;
@@ -303,7 +312,7 @@ export class ExpensesComponent implements OnInit {
     }
     // A picked staff member names the row, so only a typed name has to be there.
     if (!staff && !this.form.name?.trim()) { this.flashError('Name is required'); return; }
-    if (this.form.amount == null || this.form.amount < 0) { this.flashError('Amount must be 0 or positive'); return; }
+    if (this.form.amount == null) { this.flashError('Amount is required'); return; }
     if (!this.form.startDate) { this.flashError('Start date is required'); return; }
     if (this.form.isRecurring && (!this.form.frequencyMonths || this.form.frequencyMonths <= 0)) {
       this.flashError('Recurring expenses need a frequency in months > 0'); return;
@@ -346,8 +355,62 @@ export class ExpensesComponent implements OnInit {
     });
   }
 
-  askDelete(id: number): void { this.pendingDeleteId = id; }
+  askDelete(id: number): void { this.pendingDeleteId = id; this.adjustingId = null; }
   cancelDelete(): void { this.pendingDeleteId = null; }
+
+  // ─── adjust amount from a date (raise/reduce a recurring entry) ────────────
+
+  /** Only a currently-open recurring entry can be adjusted — a row already ended is history. */
+  canAdjustAmount(row: Expense): boolean {
+    if (!row.isRecurring) return false;
+    if (!row.endDate) return true;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    return new Date(row.endDate) >= today;
+  }
+
+  openAdjustAmount(row: Expense): void {
+    this.adjustingId = row.id;
+    this.adjustAmountValue = null;
+    this.adjustEffectiveDate = this.toYmd(this.defaultEffectiveDate());
+    this.adjustNotes = null;
+    this.pendingDeleteId = null;
+  }
+
+  cancelAdjustAmount(): void {
+    this.adjustingId = null;
+  }
+
+  confirmAdjustAmount(): void {
+    if (this.adjustingId == null || this.adjusting) return;
+    if (this.adjustAmountValue == null) { this.flashError('New amount is required'); return; }
+    if (!this.adjustEffectiveDate) { this.flashError('Effective date is required'); return; }
+
+    const dto: AdjustExpenseAmount = {
+      newAmount: Number(this.adjustAmountValue),
+      effectiveDate: this.adjustEffectiveDate,
+      notes: this.adjustNotes?.trim() || null
+    };
+
+    this.adjusting = true;
+    this.expenseService.adjustAmount(this.adjustingId, dto).subscribe({
+      next: () => {
+        this.adjusting = false;
+        this.adjustingId = null;
+        this.flashSuccess('Amount adjusted — a new entry starts on the effective date');
+        this.load();
+      },
+      error: (err) => {
+        this.adjusting = false;
+        this.flashError(err.error?.message || 'Failed to adjust amount');
+      }
+    });
+  }
+
+  /** First of next month — the common case (salary/subscription cadences almost always land there). */
+  private defaultEffectiveDate(): Date {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  }
 
   confirmDelete(): void {
     if (this.pendingDeleteId == null || this.deleting) return;

@@ -78,11 +78,17 @@
 
       <button type="button" class="btn-ghost" (click)="duplicate()" [disabled]="busy">Duplicate</button>
 
-      <button type="button" class="btn-danger" *ngIf="inv.canVoid" (click)="openVoid()">Void</button>
+      <!-- ONE entry point for the three end-of-life choices. Void, Archive and Full delete mean
+           genuinely different things, and offering only Void is what made admins void test
+           invoices — permanently reserving a number for something that never existed. The old
+           "Delete draft" button is gone with it: a draft is simply the case where Full delete has
+           nothing to refuse. -->
+      <button type="button" class="btn-danger"
+              *ngIf="inv.canVoid || inv.canDelete || canHardDelete"
+              (click)="openDispose()" [disabled]="busy">Void, archive or delete</button>
 
-      <button type="button" class="btn-danger" *ngIf="inv.canDelete" (click)="deleteDraft()">
-        Delete draft
-      </button>
+      <button type="button" class="btn-ghost" *ngIf="inv.isArchived"
+              (click)="unarchiveInvoice()" [disabled]="busy">Unarchive</button>
     </div>
 
     <div class="detail-grid">
@@ -491,6 +497,75 @@
         </div>
       </ng-container>
 
+      <!-- CHOOSE WHAT TO DO WITH THIS INVOICE. Three outcomes, visually distinct, with the
+           destructive one last and hardest to reach. -->
+      <ng-container *ngIf="modal === 'dispose'">
+        <h3>Choose what to do with this invoice</h3>
+        <p class="modal-sub">{{ invoice?.invoiceNumber }} — {{ invoice?.clientName }}</p>
+
+        <!-- A: Void. Unchanged in meaning and behaviour; still the right answer for a real
+             invoice that should not be collected. -->
+        <div class="choice" *ngIf="invoice?.canVoid">
+          <div class="choice-head"><strong>Void</strong><span class="choice-tag">Financial record</span></div>
+          <p>
+            Cancels the invoice and keeps it. Its number stays permanently reserved, the payment
+            and email history is preserved, and any cleanings it claimed are released.
+          </p>
+          <button type="button" class="btn-ghost" (click)="chooseVoid()" [disabled]="busy">
+            Void invoice…
+          </button>
+        </div>
+
+        <!-- B: Archive. The safe filing action; states nothing about the money. -->
+        <div class="choice" *ngIf="!invoice?.isArchived">
+          <div class="choice-head">
+            <strong>Archive</strong><span class="choice-tag safe">Recommended</span>
+          </div>
+          <p>
+            Hides it from the default list. The status, every figure, payment, email and activity
+            entry is preserved, the client's copy keeps working, and you can unarchive it from the
+            Archived filter at any time.
+          </p>
+          <button type="button" class="btn-primary" (click)="archiveInvoice()" [disabled]="busy">
+            Archive invoice
+          </button>
+        </div>
+
+        <!-- C: Full delete. Offered only when the server says there is no financial activity;
+             otherwise the reason replaces it, because a disabled button with no explanation sends
+             an admin hunting for a permission problem that does not exist. -->
+        <div class="choice danger">
+          <div class="choice-head">
+            <strong>Full delete</strong><span class="choice-tag destructive">Permanent</span>
+          </div>
+
+          <ng-container *ngIf="canHardDelete; else invoiceHardDeleteBlocked">
+            <p>
+              Permanently destroys this invoice and its line items, activity, emails and reminders.
+              For a test or mistaken invoice only. <strong>This cannot be undone.</strong>
+            </p>
+            <label class="confirm-label" for="invoiceHardDeleteConfirm">
+              Type <code>{{ hardDeleteConfirmationPhrase }}</code> to confirm
+            </label>
+            <input id="invoiceHardDeleteConfirm" type="text" class="confirm-input"
+                   [(ngModel)]="hardDeleteConfirmation"
+                   [attr.placeholder]="hardDeleteConfirmationPhrase"
+                   autocomplete="off" spellcheck="false" />
+            <button type="button" class="btn-danger" (click)="permanentlyDeleteInvoice()"
+                    [disabled]="busy || !hardDeleteConfirmed">
+              Permanently delete
+            </button>
+          </ng-container>
+
+          <ng-template #invoiceHardDeleteBlocked>
+            <p class="blocked-reason">{{ hardDeleteBlockedReason }}</p>
+          </ng-template>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
+        </div>
+      </ng-container>
       <!-- Void -->
       <ng-container *ngIf="modal === 'void'">
         <h3>Void Invoice</h3>

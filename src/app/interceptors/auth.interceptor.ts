@@ -1,7 +1,7 @@
 import { Injectable, Inject, PLATFORM_ID, Injector, inject } from '@angular/core';
-import { HttpRequest, HttpHandler, HttpEvent, HttpInterceptor, HttpErrorResponse, HttpHandlerFn } from '@angular/common/http';
-import { Observable, throwError, BehaviorSubject } from 'rxjs';
-import { catchError, filter, take, switchMap, map, tap, shareReplay } from 'rxjs/operators';
+import { HttpRequest, HttpHandler, HttpEvent, HttpEventType, HttpInterceptor, HttpErrorResponse, HttpHandlerFn } from '@angular/common/http';
+import { Observable, throwError, of, BehaviorSubject } from 'rxjs';
+import { catchError, defaultIfEmpty, filter, take, switchMap, map, tap, shareReplay } from 'rxjs/operators';
 import { isPlatformBrowser } from '@angular/common';
 import { AuthService } from '../services/auth.service';
 import { Router } from '@angular/router';
@@ -38,12 +38,71 @@ export const SESSION_REVOKED_HEADER = 'X-Session-Revoked';
  * refresh would send the same refresh token a dozen times: the first rotates it and the other
  * eleven are answered "Invalid refresh token", which ends the session that was just successfully
  * renewed. Concurrent 401s therefore queue on ONE refresh and retry with its result.
+ *
+ * Three things widen that guarantee past "one call at a time" — see each one for the failure it
+ * closes: `REFRESH_SETTLE_WINDOW_MS` (the 401s already on the wire when the refresh landed, and
+ * the second browser tab), `recoverOrEndSession` (a lost race must not destroy the session that
+ * won it), and `AuthService.RefreshTokenReplayGrace` on the server (a duplicate presentation of
+ * the token just replaced returns the current session instead of being refused).
  */
 let refreshInFlight$: Observable<string | null> | null = null;
 
-/** Cleared on logout so a fresh sign-in never retries against a dead refresh. */
-function resetRefreshState(): void {
+/**
+ * ══ WHY ONE IN-FLIGHT CALL IS NOT ENOUGH (2026-09, the intermittent auto-logout) ══
+ *
+ * Single-flight only dedupes the 401s that arrive WHILE the refresh is on the wire. The ones it
+ * misses are the ordinary case: six requests leave together carrying the same stale token, the
+ * first 401 comes back and renews in ~80ms, and the other five 401s land just after that — each
+ * one outside the window, each one starting a refresh of its own. Worse, the window is module
+ * state, so it is per TAB: an admin with the panel open twice has two independent queues racing
+ * the one rotating refresh token the browser shares between them.
+ *
+ * So a refresh that has JUST succeeded keeps answering for a short while afterwards. A 401 inside
+ * that window needs no renewal — the credentials it was sent with are simply older than the ones
+ * on the machine now — so it retries straight away with whatever is current. The stamp is written
+ * to localStorage as well as held here, which is what lets a second tab see the first tab's
+ * renewal instead of racing it.
+ */
+const REFRESH_SETTLE_WINDOW_MS = 4000;
+
+/** Shared with other tabs. A timestamp only — never a token. */
+const LAST_REFRESH_STAMP_KEY = 'auth_last_refresh_at';
+
+let lastRefreshAt = 0;
+
+function markRefreshed(): void {
+  lastRefreshAt = Date.now();
+  try {
+    localStorage.setItem(LAST_REFRESH_STAMP_KEY, String(lastRefreshAt));
+  } catch { /* storage unavailable — the in-tab stamp above still applies */ }
+}
+
+/** True when this tab, or any other, renewed the session within the settle window. */
+function refreshedRecently(): boolean {
+  let stamp = lastRefreshAt;
+  try {
+    const shared = Number(localStorage.getItem(LAST_REFRESH_STAMP_KEY));
+    if (Number.isFinite(shared) && shared > stamp) stamp = shared;
+  } catch { /* see above */ }
+  // A clock that jumped backwards would make `now - stamp` negative, which must not read as
+  // "refreshed 0ms ago" forever — bound it at both ends.
+  const age = Date.now() - stamp;
+  return stamp > 0 && age >= 0 && age < REFRESH_SETTLE_WINDOW_MS;
+}
+
+/**
+ * Cleared on logout so a fresh sign-in never retries against a dead refresh.
+ *
+ * Exported for specs: the settle stamp outlives a `TestBed` (it is module state plus a
+ * localStorage key), so a suite that did not clear it would find the second test short-circuiting
+ * on the first test's renewal.
+ */
+export function resetRefreshState(): void {
   refreshInFlight$ = null;
+  lastRefreshAt = 0;
+  try {
+    localStorage.removeItem(LAST_REFRESH_STAMP_KEY);
+  } catch { /* nothing to clear */ }
 }
 
 /** Endpoints that must never trigger a refresh: refreshing them is what they ARE. */
@@ -176,48 +235,118 @@ export function authInterceptor(
 
       return refreshOnce(auth).pipe(
         switchMap(token => next(applyToken(req, token, useCookieAuth))),
-        catchError(refreshError => {
-          // The refresh itself failed — the token is unrecoverable, so end the session here
-          // rather than leaving the app rendering empty screens until the next reload.
-          try {
-            resetRefreshState();
-            auth.logout();
-          } catch { /* see above */ }
-          return throwError(() => refreshError);
-        })
+        catchError(refreshError => recoverOrEndSession(req, next, auth, useCookieAuth, refreshError))
       );
     })
   );
 }
 
 /**
- * Runs at most one refresh at a time and hands every waiting request the same result.
+ * Runs at most one refresh at a time, hands every waiting request the same result, and — for
+ * `REFRESH_SETTLE_WINDOW_MS` after one succeeds — answers without calling the API at all.
  *
  * `shareReplay(1)` is what makes the eleven queued requests await the one call instead of each
  * starting their own; the subscription is dropped on both completion and failure so the NEXT
- * expiry starts a fresh attempt rather than replaying a stale answer.
+ * expiry starts a fresh attempt rather than replaying a stale answer. The settle window on top of
+ * it is what covers the 401s that were already on the wire when that refresh landed — without it
+ * they queue up a SECOND rotation, and on a browser that is really two tabs a third and a fourth.
+ *
+ * Exported so `TokenRefreshService` renews through the same queue: a periodic refresh that called
+ * `AuthService.refreshToken()` directly would be one more racer for the same rotating token.
  */
-function refreshOnce(auth: AuthService): Observable<string | null> {
-  if (!refreshInFlight$) {
-    let source: Observable<any>;
-    try {
-      source = auth.refreshToken();
-    } catch (err) {
-      // refreshToken() throws SYNCHRONOUSLY when there is nothing to refresh with.
-      return throwError(() => err);
-    }
+export function refreshOnce(auth: AuthService): Observable<string | null> {
+  if (refreshInFlight$) return refreshInFlight$;
 
-    refreshInFlight$ = source.pipe(
-      map((response: any) => (response?.token as string | undefined) ?? null),
-      tap({
-        next: () => { refreshInFlight$ = null; },
-        error: () => { refreshInFlight$ = null; }
-      }),
-      shareReplay({ bufferSize: 1, refCount: false })
-    );
+  // Somebody already renewed, just now. The request that 401'd was simply sent with credentials
+  // older than the ones this browser holds; asking for another rotation is what breaks it.
+  if (refreshedRecently()) return of(null);
+
+  let source: Observable<any>;
+  try {
+    source = auth.refreshToken();
+  } catch (err) {
+    // refreshToken() throws SYNCHRONOUSLY when there is nothing to refresh with.
+    return throwError(() => err);
   }
 
+  refreshInFlight$ = source.pipe(
+    map((response: any) => (response?.token as string | undefined) ?? null),
+    tap({
+      next: () => { markRefreshed(); refreshInFlight$ = null; },
+      error: () => { refreshInFlight$ = null; }
+    }),
+    shareReplay({ bufferSize: 1, refCount: false })
+  );
+
   return refreshInFlight$;
+}
+
+/**
+ * A FAILED REFRESH IS NOT PROOF THE SESSION IS GONE (2026-09).
+ *
+ * This used to call `logout()` the moment a refresh failed. Under cookie auth `logout()` posts
+ * `/auth/logout`, which DELETES both cookies server-side — so one request losing a race did not
+ * just fail, it destroyed the session every other tab was happily using, and the admin was
+ * bounced to /login mid-task for no reason they could see.
+ *
+ * The refresh token is single-use and rotating, so "Invalid refresh token" is the EXPECTED answer
+ * for the loser of a race. Before ending anything, ask the server directly whether the session is
+ * alive. If it is, the renewal already happened somewhere else and the original request just needs
+ * sending again. Only a probe that is itself refused ends the session.
+ *
+ * The probe goes through `next`, not `HttpClient`, so it cannot re-enter this interceptor and
+ * cannot start a refresh of its own.
+ */
+function recoverOrEndSession(
+  req: HttpRequest<unknown>,
+  next: HttpHandlerFn,
+  auth: AuthService,
+  useCookieAuth: boolean,
+  refreshError: unknown
+): Observable<HttpEvent<unknown>> {
+  const endSession = () => {
+    try {
+      resetRefreshState();
+      auth.logout();
+    } catch {
+      // Mid-teardown, or AuthService itself failed: report the original error rather than
+      // burying it under a logout failure.
+    }
+    return throwError(() => refreshError);
+  };
+
+  // An explicitly revoked session is not worth probing — the probe would be refused too, and the
+  // admin who revoked it expects the person out now.
+  if (refreshError instanceof HttpErrorResponse && refreshError.headers?.get(SESSION_REVOKED_HEADER)) {
+    return endSession();
+  }
+
+  return probeSession(next, useCookieAuth).pipe(
+    switchMap(alive => {
+      if (!alive) return endSession();
+
+      // Something else renewed us. Treat that as this tab's renewal too, so the rest of the burst
+      // skips the refresh entirely instead of arriving here one at a time.
+      markRefreshed();
+      return next(applyToken(req, null, useCookieAuth));
+    })
+  );
+}
+
+/** GET /auth/current-user with whatever credentials this browser holds right now. */
+function probeSession(next: HttpHandlerFn, useCookieAuth: boolean): Observable<boolean> {
+  let probe = new HttpRequest<unknown>('GET', `${environment.apiUrl}/auth/current-user`);
+  probe = applyToken(probe, null, useCookieAuth);
+
+  return next(probe).pipe(
+    filter(event => event.type === HttpEventType.Response),
+    take(1),
+    map(() => true),
+    // A stream that ends without a response at all must read as "could not tell", never as an
+    // answer — `switchMap` would otherwise never fire and the caller's request would hang.
+    defaultIfEmpty(false),
+    catchError(() => of(false))
+  );
 }
 
 /**

@@ -577,6 +577,62 @@
   &:disabled { opacity: 0.4; cursor: not-allowed; }
 }
 
+/* ── Adjust amount (raise/reduce a recurring entry from a date) ─────────────── */
+.adjust-row td { background: var(--soft-blue); }
+
+.adjust-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.6rem;
+
+  .form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 160px;
+    flex: 1;
+    font-size: 0.9rem;
+
+    &.span-2 { flex-basis: 100%; }
+
+    > span {
+      color: var(--text-secondary);
+      font-weight: var(--fw-medium);
+
+      small { color: var(--text-muted); font-weight: normal; }
+    }
+
+    input {
+      padding: 0.5rem 0.65rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-primary);
+      font-size: 0.88rem;
+      font-family: inherit;
+
+      &:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      }
+    }
+  }
+}
+
+.adjust-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0 0 0.75rem 0;
+  color: var(--primary-color);
+  font-size: 0.82rem;
+  line-height: 1.4;
+
+  i { margin-top: 0.15rem; }
+}
+
 .confirm-row td { background: var(--soft-yellow-background); }
 .confirm-bar {
   display: flex;

@@ -1,0 +1,95 @@
+<div class="commercial-policies-container">
+
+  <header class="policy-header">
+    <p class="eyebrow">For business clients</p>
+    <h1>{{ policy.title }}</h1>
+    <p class="subtitle">{{ policy.subtitle }}</p>
+    <p class="meta">
+      <span>{{ policy.legalIdentity }}</span>
+      <span aria-hidden="true">&middot;</span>
+      <span>Version {{ policy.version }}</span>
+      <span aria-hidden="true">&middot;</span>
+      <span>Effective {{ effectiveDate }}</span>
+    </p>
+  </header>
+
+  <section class="policy-intro" aria-label="Introduction">
+    <ng-container *ngFor="let item of introItems">
+      <p *ngIf="item.kind === 'paragraph'">{{ item.text }}</p>
+      <p *ngIf="item.kind === 'note'" class="policy-note">{{ item.text }}</p>
+    </ng-container>
+  </section>
+
+  <!-- Downloads sit above the contents rather than at the foot of eighteen sections: somebody who
+       came here to send the policy to their own lawyer should not have to read it first to find
+       the button. -->
+  <section class="policy-downloads" aria-labelledby="downloads-heading">
+    <h2 id="downloads-heading">Download</h2>
+    <div class="download-grid">
+      <a class="download-card download-card--primary"
+         [href]="completePdfUrl"
+         [attr.download]="policy.pdfFileName">
+        <span class="download-kind">Complete policies</span>
+        <span class="download-title">Download Complete Commercial Cleaning Policies (PDF)</span>
+        <span class="download-detail">
+          All {{ policy.sections.length }} sections &middot; Version {{ policy.version }}
+        </span>
+      </a>
+
+      <a class="download-card download-card--secondary"
+         [href]="cancellationPdfUrl"
+         [attr.download]="cancellationPolicy.pdfFileName">
+        <span class="download-kind">Cancellation only</span>
+        <span class="download-title">Download Cancellation &amp; Termination Policy (PDF)</span>
+        <span class="download-detail">
+          A standalone extract of sections 4, 5 and 7 &middot; Version {{ cancellationPolicy.version }}
+        </span>
+      </a>
+    </div>
+  </section>
+
+  <nav class="policy-contents" aria-labelledby="contents-heading">
+    <h2 id="contents-heading">Contents</h2>
+    <ol>
+      <li *ngFor="let section of policy.sections; trackBy: trackBySection">
+        <a [href]="'#' + section.anchor">
+          <span class="contents-number">{{ section.number }}.</span>
+          <span class="contents-title">{{ section.title }}</span>
+        </a>
+      </li>
+    </ol>
+  </nav>
+
+  <section *ngFor="let section of policy.sections; trackBy: trackBySection"
+           class="policy-section"
+           [id]="section.anchor"
+           [attr.aria-labelledby]="section.anchor + '-heading'">
+    <h2 [id]="section.anchor + '-heading'">
+      <span class="section-number">{{ section.number }}.</span> {{ section.title }}
+    </h2>
+
+    <ng-container *ngFor="let item of itemsFor(section)">
+      <p *ngIf="item.kind === 'paragraph'">{{ item.text }}</p>
+      <p *ngIf="item.kind === 'note'" class="policy-note">{{ item.text }}</p>
+      <ul *ngIf="item.kind === 'list'" class="policy-bullets">
+        <li *ngFor="let bullet of item.items">{{ bullet }}</li>
+      </ul>
+    </ng-container>
+  </section>
+
+  <footer class="policy-footer">
+    <p>
+      {{ policy.legalIdentity }} &middot;
+      <a [href]="'mailto:' + contactEmail">{{ contactEmail }}</a> &middot;
+      <a href="tel:+19299301525">{{ contactPhone }}</a>
+    </p>
+    <p class="policy-footer-meta">
+      {{ policy.title }} &middot; Version {{ policy.version }} &middot; Effective {{ effectiveDate }}
+    </p>
+    <p class="policy-footer-meta">
+      Booking a residential cleaning instead? Those bookings are governed by our
+      <a routerLink="/terms-and-conditions">Terms &amp; Conditions</a>.
+    </p>
+  </footer>
+
+</div>

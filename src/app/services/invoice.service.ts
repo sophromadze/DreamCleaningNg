@@ -250,6 +250,9 @@ export interface InvoiceListItem {
   paidAt?: string;
   lastSentAt?: string;
   hasBeenSent: boolean;
+
+  /** Archived: off the default list, everything preserved. A separate axis from status. */
+  isArchived: boolean;
 }
 
 export interface InvoiceSummary {
@@ -421,6 +424,20 @@ export interface InvoiceDetail {
   canVoid: boolean;
   canDelete: boolean;
   canSendReminder: boolean;
+
+  /** Archived: off the admin default list, everything preserved. Not a status. */
+  isArchived: boolean;
+  archivedAt?: string;
+
+  /**
+   * Whether the PERMANENT delete option is offered. `InvoiceHardDeletePolicy` decides on the
+   * server and the endpoint applies the same policy. Optional so an older backend degrades to
+   * simply not offering it.
+   */
+  canHardDelete?: boolean;
+
+  /** Why permanent deletion is refused — a payment, Stripe activity, claimed cleanings. */
+  cannotHardDeleteReason?: string | null;
 
   /**
    * A Stripe payment AND a manual one, with more received than billed. Flagged, never
@@ -778,6 +795,13 @@ export interface InvoiceListFilters {
   paymentMethod?: InvoicePaymentMethod | null;
   fromDate?: string | null;
   toDate?: string | null;
+
+  /**
+   * TRUE shows ONLY archived invoices, false (the default) only active ones. A separate axis
+   * from status, so the Archived tab is a place to find something filed away rather than extra
+   * rows mixed into the live billing list.
+   */
+  archived?: boolean;
   page?: number;
   pageSize?: number;
 }
@@ -804,6 +828,9 @@ export class InvoiceService {
     }
     if (filters.fromDate) params = params.set('fromDate', filters.fromDate);
     if (filters.toDate) params = params.set('toDate', filters.toDate);
+    // Always sent: the server defaults to false, but being explicit keeps the Archived tab's
+    // request self-describing in the network log.
+    params = params.set('archived', filters.archived === true);
     params = params.set('page', filters.page ?? 1);
     params = params.set('pageSize', filters.pageSize ?? 25);
 
@@ -923,6 +950,30 @@ export class InvoiceService {
 
   void(id: number, reason: string): Observable<InvoiceDetail> {
     return this.http.post<InvoiceDetail>(`${this.adminUrl}/${id}/void`, { reason });
+  }
+
+  /**
+   * ARCHIVE. Takes the invoice off the default list and changes nothing else — not the status,
+   * not a figure, not a payment row, and not the public token the client reads it through.
+   */
+  archive(id: number): Observable<InvoiceDetail> {
+    return this.http.post<InvoiceDetail>(`${this.adminUrl}/${id}/archive`, {});
+  }
+
+  unarchive(id: number): Observable<InvoiceDetail> {
+    return this.http.post<InvoiceDetail>(`${this.adminUrl}/${id}/unarchive`, {});
+  }
+
+  /**
+   * PERMANENT delete, for a test or mistaken invoice that never touched money. No undo.
+   *
+   * `confirmation` must read `DELETE <invoice number>` and is verified by the SERVER as well as
+   * the dialog, alongside `InvoiceHardDeletePolicy` — a hand-rolled request cannot get past
+   * either.
+   */
+  permanentlyDelete(id: number, confirmation: string): Observable<{ message: string }> {
+    const params = new HttpParams().set('confirmation', confirmation);
+    return this.http.delete<{ message: string }>(`${this.adminUrl}/${id}/permanent`, { params });
   }
 
   duplicate(id: number): Observable<InvoiceDetail> {

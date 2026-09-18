@@ -56,6 +56,13 @@ export class CommercialInvoicesComponent implements OnInit {
   customFrom = '';
   customTo = '';
 
+  /**
+   * The Archived view. A separate axis from status, so this is a toggle rather than another
+   * status option — an archived Paid invoice is still Paid, and putting "Archived" in the status
+   * dropdown would have made the two look mutually exclusive.
+   */
+  showArchived = false;
+
   page = 1;
   pageSize = 25;
   totalCount = 0;
@@ -111,6 +118,12 @@ export class CommercialInvoicesComponent implements OnInit {
     this.load();
   }
 
+  /** Switching between the active and archived views always restarts at page 1. */
+  toggleArchived(): void {
+    this.page = 1;
+    this.load();
+  }
+
   load(): void {
     this.loading = true;
     this.error = '';
@@ -124,6 +137,7 @@ export class CommercialInvoicesComponent implements OnInit {
       paymentMethod: this.paymentMethodFilter,
       fromDate: from,
       toDate: to,
+      archived: this.showArchived,
       page: this.page,
       pageSize: this.pageSize
     })

@@ -192,6 +192,11 @@
                       [title]="getStatusTitle(order)">
                   {{ getStatusDisplayLabel(order) }}
                 </span>
+                <!-- A SEPARATE pill, never folded into the status label above: the order's
+                     status genuinely is still Pending until the balance clears, and the
+                     status vocabulary (DoneM, RefundH) is read by filters and reporting. -->
+                <span class="partially-paid-pill" *ngIf="order.isPartiallyPaid"
+                      [title]="partiallyPaidLabel(order)">Part paid</span>
               </td>
               <!-- Assigned Cleaners Column -->
               <td class="assigned-cleaners">
@@ -1021,6 +1026,189 @@
                   </div>
 
                   <!--
+                    PAYMENTS — what the CUSTOMER still owes, directly above Wages, which is what
+                    the job COSTS. Two different questions about the same order, so two cards, in
+                    the order an admin asks them.
+
+                    Reuses .assigned-cleaners-section, the card shape this panel already has —
+                    a second one would be a second set of light/dark rules to keep in step.
+
+                    The card appears only when there is something to say: money has arrived in
+                    slices, or slices can still be asked for. A plain settled order shows nothing
+                    here that the payment rows above don't already say.
+                  -->
+                  <div *ngIf="!editingOrder && showPartialPaymentsCard"
+                       class="assigned-cleaners-section order-payments-card">
+                    <h5>Payments</h5>
+
+                    <div class="payments-balance">
+                      <span class="balance-figure"><strong>Order total:</strong> ${{ partialBalance!.total.toFixed(2) }}</span>
+                      <span class="balance-figure paid"><strong>Paid:</strong> ${{ partialBalance!.amountPaid.toFixed(2) }}</span>
+                      <span class="balance-figure due" *ngIf="partialBalance!.amountDue > 0">
+                        <strong>Still owed:</strong> ${{ partialBalance!.amountDue.toFixed(2) }}
+                      </span>
+                      <span class="partially-paid-pill" *ngIf="partialBalance!.isPartiallyPaid">Partially paid</span>
+                    </div>
+
+                    <!-- Only reachable when the price was lowered after a deposit. Reported for a
+                         person to refund; nothing refunds it automatically. -->
+                    <div class="payments-warning" *ngIf="partialBalance!.overpaidAmount > 0">
+                      ⚠ This order has taken ${{ partialBalance!.overpaidAmount.toFixed(2) }} more than
+                      it now costs. Refund the difference from the Refund action above.
+                    </div>
+
+                    <!-- The live request. At most one exists at a time — a second would let the
+                         same money be charged twice from two open tabs. -->
+                    <div class="pending-request" *ngIf="partialBalance!.pendingRequest as pending">
+                      <div class="pending-request-head">
+                        <strong>Waiting on ${{ pending.requestedAmount.toFixed(2) }}</strong>
+                        <span class="pending-request-sent" *ngIf="pending.notificationSentAt">
+                          link sent {{ pending.notificationSentAt | date:'MMM d, h:mm a' }}
+                        </span>
+                        <span class="pending-request-sent unsent" *ngIf="!pending.notificationSentAt">
+                          not sent to the customer yet
+                        </span>
+                      </div>
+                      <p class="pending-request-note" *ngIf="pending.note">{{ pending.note }}</p>
+                      <div class="pending-request-actions">
+                        <button type="button" class="action-btn small"
+                                (click)="resendPartialPaymentLink(pending)"
+                                [disabled]="loadingStates.partialPayment">
+                          {{ pending.notificationSentAt ? 'Send again' : 'Send link' }}
+                        </button>
+                        <button type="button" class="action-btn small danger"
+                                (click)="cancelPartialPaymentRequest(pending)"
+                                [disabled]="loadingStates.partialPayment">
+                          Cancel request
+                        </button>
+                        <button type="button" class="action-btn small"
+                                *ngIf="canRecordPartialManualPayment() && recordingManualPartialPaymentForId !== pending.id"
+                                (click)="openPartialManualPaymentForm(pending)"
+                                [disabled]="loadingStates.partialPayment"
+                                title="Mark this slice as paid by Zelle / Cash / Check / Invoice — the alternative to sending the card link">
+                          Record manual payment
+                        </button>
+                      </div>
+
+                      <!-- The customer paid this slice outside Stripe — cash, Zelle, a check, or
+                           it's going on a commercial invoice. This is what makes a split "part
+                           card, part something else" possible: request a slice, then record it
+                           here instead of sending the Stripe link. -->
+                      <div class="manual-pay-form" *ngIf="recordingManualPartialPaymentForId === pending.id">
+                        <div class="manual-pay-row">
+                          <label>Method</label>
+                          <select [(ngModel)]="partialManualPaymentMethod">
+                            <option *ngFor="let m of partialManualPaymentMethods" [value]="m">{{m}}</option>
+                          </select>
+                        </div>
+                        <div class="manual-pay-row">
+                          <label>Reference</label>
+                          <input type="text" [(ngModel)]="partialManualPaymentReference"
+                                 placeholder="Zelle confirmation #, check #, invoice #, …" />
+                        </div>
+                        <div class="manual-pay-row">
+                          <label>Notes</label>
+                          <input type="text" [(ngModel)]="partialManualPaymentNotes" placeholder="Optional" />
+                        </div>
+                        <div class="manual-pay-actions">
+                          <button type="button" class="action-btn primary"
+                                  (click)="confirmPartialManualPayment(pending)"
+                                  [disabled]="savingPartialManualPayment">
+                            {{ savingPartialManualPayment ? 'Saving...' : 'Confirm ' + partialManualPaymentMethod + ' payment of $' + pending.requestedAmount.toFixed(2) }}
+                          </button>
+                          <button type="button" class="action-btn"
+                                  (click)="cancelPartialManualPayment()"
+                                  [disabled]="savingPartialManualPayment">Cancel</button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Ask for the next amount. Hidden while a request is live, and while the
+                         order can't take one at all — the server says which, and why. -->
+                    <div class="request-payment-form" *ngIf="partialBalance!.canRequestPartialPayment">
+                      <label class="request-payment-label" for="partial-amount">
+                        Ask the customer for
+                      </label>
+                      <div class="request-payment-row">
+                        <div class="amount-input">
+                          <span class="currency">$</span>
+                          <input id="partial-amount" type="number" min="0.50" step="0.01"
+                                 [max]="partialBalance!.amountDue"
+                                 [(ngModel)]="partialAmountInput"
+                                 [disabled]="loadingStates.partialPayment"
+                                 placeholder="0.00">
+                        </div>
+                        <button type="button" class="action-btn small primary"
+                                (click)="requestPartialPayment()"
+                                [disabled]="loadingStates.partialPayment">
+                          {{ loadingStates.partialPayment ? 'Sending…' : 'Request & send link' }}
+                        </button>
+                      </div>
+
+                      <input type="text" class="request-payment-note"
+                             [(ngModel)]="partialNoteInput"
+                             [disabled]="loadingStates.partialPayment"
+                             maxlength="500"
+                             placeholder="Internal note (optional) — e.g. deposit agreed on the phone">
+
+                      <div class="request-payment-channels">
+                        <label>
+                          <input type="checkbox" [(ngModel)]="partialChannels.email"
+                                 [disabled]="loadingStates.partialPayment"> Email
+                        </label>
+                        <label>
+                          <input type="checkbox" [(ngModel)]="partialChannels.sms"
+                                 [disabled]="loadingStates.partialPayment"> Text message
+                        </label>
+                        <span class="request-payment-hint">
+                          Leave both unticked to create the request without telling the customer,
+                          then send them the payment link yourself.
+                        </span>
+                      </div>
+
+                      <!-- The account-email warning the other send actions carry: this one sends to
+                           the ORDER's contact address, falling back to the account, so it can still
+                           go out when the account has none. -->
+                      <div class="request-payment-hint warn" *ngIf="customerHasNoAccountEmail && partialChannels.email">
+                        This customer's account has no email address. The request will go to the
+                        order's contact address if it has one, otherwise only the text is sent.
+                      </div>
+                    </div>
+
+                    <p class="payments-refusal"
+                       *ngIf="!partialBalance!.canRequestPartialPayment && partialBalance!.cannotRequestReason">
+                      {{ partialBalance!.cannotRequestReason }}
+                    </p>
+
+                    <div class="payments-message" *ngIf="partialPaymentMessage">{{ partialPaymentMessage }}</div>
+                    <div class="payments-error" *ngIf="partialPaymentError">{{ partialPaymentError }}</div>
+
+                    <!-- The log. A cancelled request stays here: an amount that was asked for and
+                         dropped is part of the conversation with the customer. -->
+                    <div class="payments-history" *ngIf="partialPaymentHistory.length > 0">
+                      <h6>History</h6>
+                      <div class="payments-history-row" *ngFor="let p of partialPaymentHistory">
+                        <span class="history-amount" [class.cancelled]="p.status === 'Cancelled'">
+                          ${{ (p.paidAmount ?? p.requestedAmount).toFixed(2) }}
+                        </span>
+                        <span class="history-status" [ngClass]="'status-' + p.status.toLowerCase()">{{ p.status }}</span>
+                        <span class="history-when">
+                          {{ (p.paidAt || p.createdAt) | date:'MMM d, y, h:mm a' }}
+                        </span>
+                        <span class="history-who" *ngIf="p.requestedByName">by {{ p.requestedByName }}</span>
+                        <span class="history-method" *ngIf="p.status === 'Paid' && p.paymentMethod && p.paymentMethod !== 'Normal'">
+                          via {{ p.paymentMethod }}<ng-container *ngIf="p.paymentReference"> · {{ p.paymentReference }}</ng-container>
+                          <ng-container *ngIf="p.manualPaymentRecordedByName"> (recorded by {{ p.manualPaymentRecordedByName }})</ng-container>
+                        </span>
+                        <span class="history-overpay"
+                              *ngIf="p.paidAmount && p.paidAmount > p.requestedAmount">
+                          paid the full balance (${{ p.requestedAmount.toFixed(2) }} requested)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!--
                     CLEANERS & WAGES — one card, directly under Customer Information / Service
                     Details / Service Address.
 
@@ -1400,8 +1588,11 @@
                           <div class="update-item" *ngFor="let update of orderUpdateHistory">
                             <div class="update-header">
                               <span class="update-date">{{formatUpdateDate(update.updatedAt)}}</span>
-                              <span class="update-amount" [class.positive]="update.additionalAmount > 0">
-                                {{update.additionalAmount >= 0 ? '+' : ''}}${{formatCurrency(Math.abs(update.additionalAmount))}}
+                              <!-- The row's own before/after totals, not additionalAmount: that
+                                   field is floored at zero, so a price DECREASE would read
+                                   "+$0.00" here instead of showing what actually happened. -->
+                              <span class="update-amount" [class.positive]="getUpdateRowDelta(update) > 0">
+                                {{getUpdateRowDelta(update) >= 0 ? '+' : '−'}}${{formatCurrency(Math.abs(getUpdateRowDelta(update)))}}
                               </span>
                             </div>
 

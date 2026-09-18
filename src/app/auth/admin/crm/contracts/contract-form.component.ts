@@ -1110,14 +1110,18 @@ export class ContractFormComponent implements OnInit {
   }
 
   /**
-   * Committed for six months, then month-to-month with sixty days notice (2026-09).
+   * Committed for TEN months, then month-to-month with sixty days notice (raised from six on
+   * 2026-09-15).
    *
-   * These are the terms actually being offered. They apply to NEW drafts only — every generated
-   * version carries its own frozen copy, so nothing already signed moves when this changes.
+   * These are the terms actually being offered, and they MIRROR `TermSnapshot`'s server-side
+   * defaults — the server fills a draft it receives without these fields, so a number changed on
+   * one side only shows up as a contract whose preview disagrees with what was saved. They apply
+   * to NEW drafts only: every generated version carries its own frozen copy, so nothing already
+   * signed moves when this changes.
    */
   private defaultTerm(): TermSnapshot {
     return {
-      initialTermMonths: 6, minimumCommitmentMonths: 6, terminationNoticeDays: 60,
+      initialTermMonths: 10, minimumCommitmentMonths: 10, terminationNoticeDays: 60,
       // Left null deliberately. The Minimum Commitment End Date and Initial Term End Date are
       // derived from it, so seeding "today" would print three confident dates nobody chose.
       serviceCommencementDate: null,

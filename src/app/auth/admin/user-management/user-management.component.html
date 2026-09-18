@@ -643,6 +643,20 @@
                 <span class="pref-hint">Cleaner moves this account to the Cleaners tab.</span>
               </span>
 
+              <!-- The CTO's SuperAdmin role is locked for everyone, so the dropdown above is gone.
+                   Shown read-only with the reason rather than simply vanishing: an admin who finds
+                   no Role control at all reads it as a broken panel. Same refusal the API gives. -->
+              <ng-container *ngIf="isCtoRoleLocked(selectedUser)">
+                <span class="pref-row">
+                  <span class="pref-label">Role</span>
+                  <strong>🔒 {{ displayRole(selectedUser.role) }}</strong>
+                </span>
+                <span class="pref-row">
+                  <span class="pref-label"></span>
+                  <span class="pref-hint">{{ ctoRoleLockReason }}</span>
+                </span>
+              </ng-container>
+
               <!-- Position: Manager or Administrator. NOT a permission — it decides which side of
                    the per-order bonus this person earns, and who reports to whom. Only orders
                    assigned AFTER a change are affected; money already earned never moves. -->

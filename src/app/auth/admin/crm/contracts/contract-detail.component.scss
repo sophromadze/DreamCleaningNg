@@ -61,6 +61,7 @@
   &.error { background: var(--soft-red); color: var(--bright-red); }
   &.success { background: var(--mint-fresh); color: var(--mint-fresh-text); }
   &.warn { background: var(--warning-orange-bg); color: var(--warning-orange-text); }
+  &.info { background: var(--soft-blue); color: var(--primary-color); }
 }
 
 .action-bar {
@@ -292,4 +293,123 @@
   margin: 0 0 1rem;
   font-size: 0.83rem;
   color: var(--text-secondary);
+}
+
+/* ── The officer-title note ──────────────────────────────────────────────────
+   Deliberately an .info alert rather than a warning: nothing is wrong, the account simply has no
+   title. A red or orange banner here would read as a fault to chase. */
+.officer-note {
+  margin-top: 0.75rem;
+  line-height: 1.5;
+}
+
+/* ── Delete-or-archive dialog ────────────────────────────────────────────────
+   The two options have to look different at a glance, because the whole point of the dialog is
+   that one is recoverable and one is not. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1200;
+}
+
+.modal.delete-choice {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.22);
+  padding: 1.35rem;
+  width: min(34rem, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+
+  h3 { margin: 0 0 0.2rem; font-size: 1.05rem; }
+
+  .modal-sub {
+    margin: 0 0 1rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  .choice {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.9rem;
+    margin-bottom: 0.85rem;
+
+    p {
+      margin: 0.4rem 0 0.75rem;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: var(--text-secondary);
+    }
+
+    /* The destructive option is marked by its border and its tag, not by a red panel — a red
+       block behind body text is hard to read and makes the safe option look like an afterthought. */
+    &.danger { border-color: var(--bright-red); }
+  }
+
+  .choice-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  .choice-tag {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.12rem 0.45rem;
+    border-radius: var(--radius-sm);
+    background: var(--soft-blue);
+    color: var(--primary-color);
+
+    &.safe { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+    &.destructive { background: var(--soft-red); color: var(--bright-red); }
+  }
+
+  .confirm-label {
+    display: block;
+    font-size: 0.8rem;
+    margin-bottom: 0.3rem;
+    color: var(--text-secondary);
+
+    code {
+      font-size: 0.8rem;
+      background: var(--page-bg);
+      padding: 0.1rem 0.3rem;
+      border-radius: var(--radius-sm);
+    }
+  }
+
+  .confirm-input {
+    width: 100%;
+    padding: 0.5rem 0.6rem;
+    margin-bottom: 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.88rem;
+  }
+
+  /* Shown INSTEAD of the confirmation field when the server refuses: an admin reading "this has
+     financial activity" knows what to do next, where a greyed-out button sends them hunting for a
+     permission problem that does not exist. */
+  .blocked-reason {
+    margin: 0.4rem 0 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--bright-red);
+  }
+
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.4rem;
+  }
 }

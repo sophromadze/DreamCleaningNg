@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderAdminNote, OrderTransferInfo, UserAdmin, OrderRefundSummary, OrderRefundInfo, OrderCleanerPayroll, OrderCleanerPayrollLine, OrderStaffingWarningsMap } from '../../../services/admin.service';
 import { environment } from '../../../../environments/environment';
-import { OrderService, Order, OrderList } from '../../../services/order.service';
+import { OrderService, Order, OrderList, OrderPartialPayment, OrderPaymentBalance } from '../../../services/order.service';
 import { CleanerService, AvailableCleaner } from '../../../services/cleaner.service';
 import { BookingService, ServiceType, ExtraService, Service } from '../../../services/booking.service';
 import { DurationUtils } from '../../../utils/duration.utils';
@@ -364,7 +364,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     sendAssignmentMails: false,
     sendPaymentLink: false,
     chargingSavedCard: false,
-    resendingConfirmation: false
+    resendingConfirmation: false,
+    partialPayment: false
   };
 
   // Card on file for the open order's owner (Charge button). Loaded when the details
@@ -451,6 +452,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   editOrderFormPrevServiceQuantities: number[] = [];
   editOrderFormPrevExtraQuantities: number[] = [];
   editOrderFormPrevExtraHours: number[] = [];
+  /**
+   * Remembers the Sq.ft value a bedroom raise is ABOUT to overwrite, so reducing bedrooms back
+   * to that exact count restores it instead of landing on the (lower) floor. Once a raise snaps
+   * Sq.ft onto the new floor, the value is numerically indistinguishable from "was tracking the
+   * floor" — resolveSquareFeetForBedroomChange alone can't tell those apart on the way back down,
+   * so this survives across the whole up/down chain until either bedrooms return to this exact
+   * count (restored, baseline kept) or the admin types a Sq.ft value directly (baseline cleared —
+   * that keystroke is a new deliberate choice, not the one being remembered).
+   */
+  private editOrderFormSqftBaseline: { bedrooms: number; sqft: number } | null = null;
 
   // Floor type edit state for admin edit form
   editFloorTypes: string[] = [];
@@ -2074,6 +2085,251 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  // ── Part-payments: splitting one order's total across several links (2026-09) ──────────
+  //
+  // "Can you clarify the amount of the pre-payment needed?" — an admin agrees a deposit on the
+  // phone, asks for it here, and the customer gets a link for that amount. The order stays
+  // Pending and unpaid, carrying a visible balance, until the last slice lands.
+  //
+  // Nothing here decides what may be asked for: the amount is validated server-side against the
+  // live balance, and this panel only reports what came back. A figure computed here would be
+  // the one that drifts from the figure the payment page actually charges.
+
+  /** The open order's balance, live request and history. Null while loading or unavailable. */
+  partialBalance: OrderPaymentBalance | null = null;
+  loadingPartialBalance = false;
+
+  /** The "ask for an amount" form. Reset every time the panel opens another order. */
+  partialAmountInput: number | null = null;
+  partialNoteInput = '';
+  partialChannels = { email: true, sms: true };
+  partialPaymentMessage = '';
+  partialPaymentError = '';
+
+  private resetPartialPaymentState(): void {
+    this.partialBalance = null;
+    this.loadingPartialBalance = false;
+    this.partialAmountInput = null;
+    this.partialNoteInput = '';
+    this.partialChannels = { email: true, sms: true };
+    this.partialPaymentMessage = '';
+    this.partialPaymentError = '';
+    this.recordingManualPartialPaymentForId = null;
+  }
+
+  private loadPartialPayments(orderId: number): void {
+    this.resetPartialPaymentState();
+    this.loadingPartialBalance = true;
+
+    this.adminService.getOrderPartialPayments(orderId)
+      .pipe(finalize(() => this.loadingPartialBalance = false))
+      .subscribe({
+        next: balance => {
+          // The panel may have moved on to another order while this was in flight.
+          if (this.viewingOrderId !== orderId) return;
+          this.partialBalance = balance;
+        },
+        // Non-fatal: without it the panel simply doesn't offer part-payments, which is how
+        // every order behaved before this existed.
+        error: () => {
+          if (this.viewingOrderId !== orderId) return;
+          this.partialBalance = null;
+        }
+      });
+  }
+
+  /** Whether the Payments card has anything to say about this order. */
+  get showPartialPaymentsCard(): boolean {
+    if (!this.selectedOrder || !this.partialBalance) return false;
+    // Money has been taken in slices, or slices can still be asked for. A settled order with no
+    // part-payment history has nothing here that the existing payment rows don't already say.
+    return this.partialBalance.history.length > 0
+      || this.partialBalance.canRequestPartialPayment
+      || this.partialBalance.amountPaid > 0;
+  }
+
+  /**
+   * The settled and withdrawn requests, newest first — the panel reads as a log. The LIVE
+   * request is deliberately excluded: it has its own block above with its own actions, and
+   * listing it twice makes one waiting request look like two.
+   */
+  get partialPaymentHistory(): OrderPartialPayment[] {
+    return [...(this.partialBalance?.history ?? [])]
+      .filter(p => p.status !== 'Pending')
+      .reverse();
+  }
+
+  requestPartialPayment(): void {
+    if (!this.selectedOrder || this.loadingStates.partialPayment) return;
+
+    const amount = Number(this.partialAmountInput);
+    this.partialPaymentError = '';
+    this.partialPaymentMessage = '';
+
+    // A local sanity check only, so the admin isn't round-tripped for an empty box. Everything
+    // that actually protects the money — the balance, the minimum, the uncollectable-remainder
+    // rule — is decided server-side.
+    if (!Number.isFinite(amount) || amount <= 0) {
+      this.partialPaymentError = 'Enter the amount to ask the customer for.';
+      return;
+    }
+
+    const orderId = this.selectedOrder.id;
+    this.loadingStates.partialPayment = true;
+
+    this.adminService.requestPartialPayment(orderId, amount, {
+      note: this.partialNoteInput?.trim() || undefined,
+      sendEmail: this.partialChannels.email,
+      sendSms: this.partialChannels.sms
+    })
+      .pipe(finalize(() => this.loadingStates.partialPayment = false))
+      .subscribe({
+        next: res => {
+          if (this.viewingOrderId !== orderId) return;
+          this.partialBalance = res.balance;
+          this.partialAmountInput = null;
+          this.partialNoteInput = '';
+          this.partialPaymentMessage = res.message;
+          // The order row and panel show a balance now, so re-read the order rather than
+          // patching amountPaid here — the server is what decides it.
+          this.refreshOrderAfterPartialPayment(orderId);
+        },
+        error: err => {
+          this.partialPaymentError = extractApiErrorMessage(err, 'Could not create the payment request.');
+        }
+      });
+  }
+
+  resendPartialPaymentLink(request: OrderPartialPayment): void {
+    if (!this.selectedOrder || this.loadingStates.partialPayment) return;
+
+    const orderId = this.selectedOrder.id;
+    this.partialPaymentError = '';
+    this.partialPaymentMessage = '';
+    this.loadingStates.partialPayment = true;
+
+    this.adminService.resendPartialPaymentLink(
+      orderId, request.id, this.partialChannels.email, this.partialChannels.sms)
+      .pipe(finalize(() => this.loadingStates.partialPayment = false))
+      .subscribe({
+        next: res => {
+          if (this.viewingOrderId !== orderId) return;
+          this.partialPaymentMessage = res.message;
+          this.loadPartialPayments(orderId);
+        },
+        error: err => {
+          this.partialPaymentError = extractApiErrorMessage(err, 'Could not send the payment link.');
+        }
+      });
+  }
+
+  cancelPartialPaymentRequest(request: OrderPartialPayment): void {
+    if (!this.selectedOrder || this.loadingStates.partialPayment) return;
+    if (!confirm(`Cancel the $${request.requestedAmount.toFixed(2)} payment request? The customer's link stops working.`)) return;
+
+    const orderId = this.selectedOrder.id;
+    this.partialPaymentError = '';
+    this.partialPaymentMessage = '';
+    this.loadingStates.partialPayment = true;
+
+    this.adminService.cancelPartialPaymentRequest(orderId, request.id)
+      .pipe(finalize(() => this.loadingStates.partialPayment = false))
+      .subscribe({
+        next: res => {
+          if (this.viewingOrderId !== orderId) return;
+          this.partialBalance = res.balance;
+          this.partialPaymentMessage = res.message;
+        },
+        error: err => {
+          this.partialPaymentError = extractApiErrorMessage(err, 'Could not cancel the payment request.');
+        }
+      });
+  }
+
+  // ── Record a live part-payment request as paid outside Stripe (Cash/Zelle/Check/Other/Invoice) ──
+  // How a deposit split gets its "part card, part something else" half: create the request for a
+  // slice (above), then instead of sending the Stripe link, record it here. Mirrors the
+  // order-edit top-up's manual-payment form (recordingManualPaymentForId etc.) — same shape,
+  // different target row.
+  recordingManualPartialPaymentForId: number | null = null;
+  partialManualPaymentMethod = 'Zelle';
+  partialManualPaymentReference = '';
+  partialManualPaymentNotes = '';
+  savingPartialManualPayment = false;
+  readonly partialManualPaymentMethods = ['Zelle', 'Cash', 'Check', 'Invoice', 'Other'];
+
+  /** Admins with update rights (and SuperAdmin) — same gate as the order-edit manual payment. */
+  canRecordPartialManualPayment(): boolean {
+    return this.isSuperAdmin || !!this.userPermissions?.permissions?.canUpdate;
+  }
+
+  openPartialManualPaymentForm(request: OrderPartialPayment): void {
+    this.recordingManualPartialPaymentForId = request.id;
+    this.partialManualPaymentMethod = 'Zelle';
+    this.partialManualPaymentReference = '';
+    this.partialManualPaymentNotes = '';
+  }
+
+  cancelPartialManualPayment(): void {
+    this.recordingManualPartialPaymentForId = null;
+  }
+
+  confirmPartialManualPayment(request: OrderPartialPayment): void {
+    if (!this.selectedOrder || this.savingPartialManualPayment) return;
+    const orderId = this.selectedOrder.id;
+    this.savingPartialManualPayment = true;
+    this.partialPaymentError = '';
+    this.partialPaymentMessage = '';
+
+    this.adminService.recordPartialPaymentManually(
+      orderId,
+      request.id,
+      this.partialManualPaymentMethod,
+      this.partialManualPaymentReference?.trim() || null,
+      this.partialManualPaymentNotes?.trim() || null
+    )
+      .pipe(finalize(() => this.savingPartialManualPayment = false))
+      .subscribe({
+        next: res => {
+          if (this.viewingOrderId !== orderId) return;
+          this.partialBalance = res.balance;
+          this.partialPaymentMessage = res.message;
+          this.recordingManualPartialPaymentForId = null;
+          // Settling the last slice flips the order Pending -> Active and marks it paid;
+          // re-read the order so the panel and its list row show that without a reload.
+          this.refreshOrderAfterPartialPayment(orderId);
+        },
+        error: err => {
+          this.partialPaymentError = extractApiErrorMessage(err, 'Could not record the manual payment.');
+        }
+      });
+  }
+
+  /**
+   * Re-reads the order into the panel AND its row in the list. Without the row copy the list keeps
+   * showing "Unpaid — $2,743.65" next to a panel that says $1,743.65 is left, which is the same
+   * class of disagreement refreshOrderAfterSave exists to prevent for cleaner counts.
+   */
+  private refreshOrderAfterPartialPayment(orderId: number): void {
+    this.adminService.getOrderDetails(orderId).subscribe({
+      next: order => {
+        if (this.viewingOrderId === orderId) this.selectedOrder = order;
+        const row = this.orders.find(o => o.id === orderId);
+        if (row) {
+          row.amountPaid = order.amountPaid;
+          row.amountDue = order.amountDue;
+          row.isPartiallyPaid = order.isPartiallyPaid;
+        }
+      },
+      error: () => { /* non-fatal: the panel already shows the balance it just got back */ }
+    });
+  }
+
+  /** "Partially paid — $1,000.00 of $2,743.65" for the list row and the panel header. */
+  partiallyPaidLabel(order: { amountPaid?: number; total: number }): string {
+    return `Partially paid — $${(order.amountPaid ?? 0).toFixed(2)} of $${order.total.toFixed(2)}`;
+  }
+
   viewOrderDetails(orderId: number) {
     if (this.viewingOrderId === orderId) {
       this.closeOrderDetails();
@@ -2093,6 +2349,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.resetRefundState();
     this.resetPayrollEditState();
     this.loadOrderInvoices(orderId);
+    this.loadPartialPayments(orderId);
     // The breakdown under "Cleaners Total Salary". Admin and SuperAdmin since 2026-09 — the
     // people who staff the job are the ones told it ran long. Moderators are View-only and the
     // server answers them 403, so the call is gated on the same test as the block that shows it.
@@ -2177,6 +2434,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.resetOrderPhotoState();
     this.resetOrderNoteState();
     this.resetRefundState();
+    this.resetPartialPaymentState();
     this.orderInvoices = null;
     this.invoiceClientForOrder = null;
     this.showSendInvoiceModal = false;
@@ -2595,14 +2853,34 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.max(0, Math.round((current - original) * 100) / 100);
   }
 
-  /** Unpaid portion = total additional − sum of paid update amounts. */
+  /**
+   * Unpaid portion = total additional − what has already been COLLECTED.
+   *
+   * Positive rows only, mirroring `OrderAdditionalCharge.WasCollected` on the server. A negative
+   * row is a price DECREASE, never money the customer handed over, and subtracting one adds to
+   * the bill: order #359 (booked 2743.65 → edited down to 500.00 → edited back up) reported
+   * 2243.65 − (−2243.65) = $4,487.30 owed instead of $2,243.65.
+   */
   getUnpaidAdditionalAmount(): number {
     const total = this.getTotalAdditionalAmount();
     if (total <= 0 || !this.orderUpdateHistory?.length) return 0;
     const paid = this.orderUpdateHistory
-      .filter(u => u.isPaid)
+      .filter(u => u.isPaid && (Number(u.additionalAmount) || 0) > 0)
       .reduce((sum, u) => sum + (Number(u.additionalAmount) || 0), 0);
     return Math.max(0, Math.round((total - paid) * 100) / 100);
+  }
+
+  /**
+   * What an Update History row did to the price, for display only.
+   *
+   * Read from the row's own totals rather than `additionalAmount`, which is floored at zero on
+   * the way in (see OrderAdditionalCharge) and so reads +$0.00 for every price decrease. The
+   * decrease is still a real edit the admin needs to see; it is simply not money owed.
+   */
+  getUpdateRowDelta(update: { originalTotal?: number; newTotal?: number }): number {
+    const original = Number(update?.originalTotal) || 0;
+    const updated = Number(update?.newTotal) || 0;
+    return Math.round((updated - original) * 100) / 100;
   }
 
   // Gate for the "Send payment reminder" / "Send updated payment" row in the order details
@@ -4984,6 +5262,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.editOrderFormOriginalLoyaltyPercentage = this.selectedOrder.loyaltyDiscountPercentage ?? 0;
     this.initEditGiftCard();
     this.editOrderFormPrevServiceQuantities = (this.editOrderForm.services ?? []).map(s => s.quantity);
+    this.editOrderFormSqftBaseline = null;
     this.editOrderFormPrevExtraQuantities = (this.editOrderForm.extraServices ?? []).map(e => e.quantity);
     this.editOrderFormPrevExtraHours = (this.editOrderForm.extraServices ?? []).map(e => e.hours);
     // Apply custom-mode multiplier immediately if cache is already loaded; otherwise the loadServiceTypesForEdit
@@ -5801,6 +6080,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           s.quantity = minSquareFeet;
         }
       }
+      // A direct edit is a fresh deliberate choice — it supersedes whatever pre-raise value
+      // the bedrooms linkage was remembering, or a later bedroom decrease would overwrite
+      // this keystroke with stale history.
+      this.editOrderFormSqftBaseline = null;
     }
     const prevQ = this.editOrderFormPrevServiceQuantities[index] ?? 1;
     const prevCost = Number(s.cost) || 0;
@@ -5873,11 +6156,25 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     // The cost is deliberately NOT computed here: recalcSubtotalFromServicesAndExtras reprices
     // every line through the shared calculator, so the tiered rate applies. The previous
     // unitPrice x quantity here was linear and ignored both the allowance and the tiers.
-    row.quantity = resolveSquareFeetForBedroomChange(
-      Number(row.quantity) || 0,
-      this.getEditSquareFeetForBedrooms(prevBedroomsQty),
-      this.getEditSquareFeetForBedrooms(bedroomsQty)
-    );
+    const current = Number(row.quantity) || 0;
+    const oldMinSquareFeet = this.getEditSquareFeetForBedrooms(prevBedroomsQty);
+    const newMinSquareFeet = this.getEditSquareFeetForBedrooms(bedroomsQty);
+    const baseline = this.editOrderFormSqftBaseline;
+
+    if (baseline && bedroomsQty === baseline.bedrooms) {
+      // Landing back on the exact bedroom count the raise chain started from: restore the
+      // value it overwrote rather than the floor resolveSquareFeetForBedroomChange would give
+      // (which reads a floor-raised current as "was tracking the floor" and drops it further).
+      row.quantity = Math.max(baseline.sqft, newMinSquareFeet);
+    } else {
+      const resolved = resolveSquareFeetForBedroomChange(current, oldMinSquareFeet, newMinSquareFeet);
+      // A deliberate value (current not sitting on the outgoing floor) is about to be clobbered
+      // by a higher new floor — remember it before it's overwritten below.
+      if (resolved > current && current !== oldMinSquareFeet) {
+        this.editOrderFormSqftBaseline = { bedrooms: prevBedroomsQty, sqft: current };
+      }
+      row.quantity = resolved;
+    }
     this.editOrderFormPrevServiceQuantities[sqftIdx] = row.quantity;
   }
 

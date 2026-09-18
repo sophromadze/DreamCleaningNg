@@ -63,10 +63,50 @@
           </div>
           <div class="breakdown-line"><span>Tax</span><span>${{ order.tax | number:'1.2-2' }}</span></div>
           <div class="breakdown-line" *ngIf="(order.tips || 0) > 0"><span>Tips</span><span>${{ order.tips | number:'1.2-2' }}</span></div>
+          <!-- Part-payments: what has already arrived against this order's total. Shown before
+               the amount-due line so the smaller figure below reads as a balance, not a price. -->
+          <div class="breakdown-line" *ngIf="amountAlreadyPaid > 0">
+            <span>Already paid</span>
+            <span class="discount">-${{ amountAlreadyPaid | number:'1.2-2' }}</span>
+          </div>
           <div class="breakdown-line amount-due">
             <span><strong>{{ paymentType === 'update' ? 'Additional Amount Due' : 'Amount Due' }}</strong></span>
             <span><strong>${{ orderTotal | number:'1.2-2' }}</strong></span>
           </div>
+          <div class="breakdown-line remaining-after" *ngIf="paymentType === 'partial' && remainingAfterPayment > 0">
+            <span>Remaining after this payment</span>
+            <span>${{ remainingAfterPayment | number:'1.2-2' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Part-payment notice. The payer is being asked for LESS than the order costs, which
+           looks like a mistake unless the page says so plainly — and they can settle the whole
+           balance here instead, which is the same server-side flow with a different amount. -->
+      <div class="partial-payment-notice" *ngIf="paymentType === 'partial'">
+        <h2>{{ isFinalPartialPayment ? 'Final payment' : 'Payment request' }}</h2>
+        <p *ngIf="!isFinalPartialPayment">
+          You're paying <strong>${{ orderTotal | number:'1.2-2' }}</strong> of your
+          ${{ order.total | number:'1.2-2' }} order now.
+          <strong>${{ remainingAfterPayment | number:'1.2-2' }}</strong> will remain, and we'll send
+          you a link for it. Your cleaning is confirmed once the full amount has been received.
+        </p>
+        <p *ngIf="isFinalPartialPayment">
+          This completes your ${{ order.total | number:'1.2-2' }} order. Your cleaning is confirmed
+          as soon as it goes through.
+        </p>
+
+        <div class="partial-choice" *ngIf="!isFinalPartialPayment || payFullBalance">
+          <label class="pay-option" [class.selected]="!payFullBalance">
+            <input type="radio" name="partialAmountChoice" [checked]="!payFullBalance"
+                   (change)="selectPayFullBalance(false)" [disabled]="isProcessing || isLoading">
+            <span>Pay ${{ partialRequest?.requestedAmount | number:'1.2-2' }} now, as arranged</span>
+          </label>
+          <label class="pay-option" [class.selected]="payFullBalance">
+            <input type="radio" name="partialAmountChoice" [checked]="payFullBalance"
+                   (change)="selectPayFullBalance(true)" [disabled]="isProcessing || isLoading">
+            <span>Pay the full remaining ${{ amountDue | number:'1.2-2' }} instead</span>
+          </label>
         </div>
       </div>
 
@@ -212,24 +252,46 @@
   <div class="success-content" *ngIf="paymentCompleted">
     <i class="fas fa-check-circle success-icon"></i>
     <h1>Payment Successful!</h1>
-    <p>Your booking has been confirmed.</p>
-    <p class="order-info">Order #{{ orderId }}</p>
+
+    <!-- A part-payment that did not settle the order must NOT claim the booking is confirmed —
+         it isn't yet, and the customer still owes the balance. -->
+    <ng-container *ngIf="partialPaymentRemaining !== null">
+      <p>
+        Thank you — we've received your payment of ${{ orderTotal | number:'1.2-2' }}.
+      </p>
+      <p class="order-info">
+        <strong>${{ partialPaymentRemaining | number:'1.2-2' }}</strong> remains on order
+        #{{ orderId }}. We'll send you a link for it, and your cleaning is confirmed once the
+        full amount has been received.
+      </p>
+    </ng-container>
+
+    <ng-container *ngIf="partialPaymentRemaining === null">
+      <p>Your booking has been confirmed.</p>
+      <p class="order-info">Order #{{ orderId }}</p>
+    </ng-container>
 
     <!-- One list, built by the shared checklist so this page can never name different products
          from the confirmation email and SMS. It comes back empty when the customer bought
-         Cleaning Supplies + Cleaning Essentials + Vacuum Cleaner. -->
-    <p class="redirect-info" *ngIf="supplyChecklistItems.length === 0">
-      Nothing to prepare &mdash; we bring all the supplies for this cleaning.
-    </p>
-    <ng-container *ngIf="supplyChecklistItems.length > 0">
-      <p class="redirect-info">
-        {{ hasCleaningSupplies || isCustomServiceType
-            ? 'Please provide the following items:'
-            : 'Please have all the following items ready for our team:' }}
+         Cleaning Supplies + Cleaning Essentials + Vacuum Cleaner.
+
+         Withheld after a part-payment that left a balance: telling someone to buy sponges for a
+         cleaning that is not confirmed yet is premature, and they get the same list with the
+         confirmation once the order is fully paid. -->
+    <ng-container *ngIf="partialPaymentRemaining === null">
+      <p class="redirect-info" *ngIf="supplyChecklistItems.length === 0">
+        Nothing to prepare &mdash; we bring all the supplies for this cleaning.
       </p>
-      <ul class="supplies-list">
-        <li *ngFor="let item of supplyChecklistItems">{{ item }}</li>
-      </ul>
+      <ng-container *ngIf="supplyChecklistItems.length > 0">
+        <p class="redirect-info">
+          {{ hasCleaningSupplies || isCustomServiceType
+              ? 'Please provide the following items:'
+              : 'Please have all the following items ready for our team:' }}
+        </p>
+        <ul class="supplies-list">
+          <li *ngFor="let item of supplyChecklistItems">{{ item }}</li>
+        </ul>
+      </ng-container>
     </ng-container>
     
     <!-- Order pages need login, so guests paying via a link just get the confirmation above. -->

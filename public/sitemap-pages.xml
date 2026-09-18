@@ -249,4 +249,12 @@
     <priority>0.3</priority>
   </url>
 
+  <!-- Commercial Cleaning Policies -->
+  <url>
+    <loc>https://dreamcleaningnyc.com/commercial-cleaning-policies</loc>
+    <lastmod>2026-09-16T10:00:00+00:00</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+
 </urlset>

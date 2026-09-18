@@ -15,11 +15,12 @@
 
   <div class="alert error" *ngIf="errorMessage">{{ errorMessage }}</div>
   <div class="alert success" *ngIf="successMessage">{{ successMessage }}</div>
-
+  <!-- Archived contracts stay fully readable; the banner explains what state it is in. -->
   <!-- Deleted contracts stay fully readable; the banner explains what state it is in. -->
   <div class="alert warn" *ngIf="detail.isHidden">
-    This contract is deleted. It is hidden from the list and its signing links have been revoked.
-    It will be permanently removed 6 months after {{ detail.hiddenAt | date: 'mediumDate' }}.
+    This contract is archived. It is hidden from the default list and its signing links have been
+    revoked. Everything else — every version, signature, PDF and audit entry — is preserved, and
+    you can restore it at any time.
   </div>
 
   <div class="alert warn" *ngIf="detail.voidReason">Voided: {{ detail.voidReason }}</div>
@@ -65,10 +66,24 @@
             (click)="duplicate(false)" [disabled]="busy">Duplicate as new contract</button>
 
     <button type="button" class="btn-ghost" *ngIf="showRestore"
-            (click)="restoreContract()" [disabled]="busy">Restore</button>
+            (click)="restoreContract()" [disabled]="busy">Unarchive</button>
 
     <button type="button" class="btn-danger" *ngIf="showDelete"
-            (click)="deleteContract()" [disabled]="busy">Delete</button>
+            (click)="openDeleteDialog()" [disabled]="busy">Delete</button>
+  </div>
+
+  <!-- WHY AN ACTION IS MISSING (2026-09-16). Back to edit, Create revision, Create amendment and
+       Delete belong to a CEO or CTO; an untitled account — SuperAdmin included — is a Manager
+       here and does not get them. Nothing seeds a title, so on a fresh database every admin sees
+       this. It used to be silent, which is indistinguishable from a broken deployment. -->
+  <div class="alert info officer-note" *ngIf="authorityLimitsActions">
+    <strong>Some actions need an officer title.</strong>
+    {{ actionsNeedingOfficerTitle.join(', ') }}
+    {{ actionsNeedingOfficerTitle.length === 1 ? 'is' : 'are' }}
+    restricted to the CEO or CTO. Your account has no officer title, so the Contracts module
+    treats it as a Manager — this is not a missing deployment. A title is granted in
+    <strong>Admin → Users → the account → Details → Officer title</strong>; while nobody holds CTO,
+    any SuperAdmin can grant it.
   </div>
 
   <!-- In-app contractor signing: the same capture UI the emailed link uses, inside the panel.
@@ -192,6 +207,70 @@
         <p class="muted" *ngIf="!detail.auditLog.length">Nothing recorded yet.</p>
       </section>
     </aside>
+  </div>
+
+  <!-- DELETE OR ARCHIVE. Two genuinely different outcomes used to share one word: "Delete"
+       archived the contract, which is not what the word promises, and there was no way at all to
+       clear a test contract out. Full delete is deliberately the harder of the two to reach. -->
+  <div class="modal-backdrop" *ngIf="deleteDialogOpen" (click)="closeDeleteDialog()">
+    <div class="modal delete-choice" (click)="$event.stopPropagation()">
+      <h3>Delete or archive contract?</h3>
+      <p class="modal-sub">
+        {{ detail.contractNumber }} — {{ (detail.currentSnapshot ?? detail.draft).client.legalEntityName }}
+      </p>
+
+      <!-- Option A: archive. The safe one, and the one that should look ordinary. -->
+      <div class="choice">
+        <div class="choice-head">
+          <strong>Archive</strong>
+          <span class="choice-tag safe">Recommended</span>
+        </div>
+        <p>
+          Hides it from the default list and revokes any outstanding signing links. Every version,
+          signature, PDF and audit entry is preserved, and you can unarchive it at any time.
+        </p>
+        <button type="button" class="btn-primary" (click)="archiveContract()" [disabled]="busy">
+          Archive contract
+        </button>
+      </div>
+
+      <!-- Option B: permanent. Offered only when the server says the contract carries nothing
+           worth protecting; otherwise the reason is shown in its place, because a disabled button
+           with no explanation sends an admin hunting for a permission problem. -->
+      <div class="choice danger">
+        <div class="choice-head">
+          <strong>Full delete</strong>
+          <span class="choice-tag destructive">Permanent</span>
+        </div>
+
+        <ng-container *ngIf="canHardDelete; else hardDeleteBlocked">
+          <p>
+            Permanently destroys this contract, every version, signature, file and audit entry
+            under it, and its PDFs on disk. <strong>This cannot be undone.</strong>
+          </p>
+          <label class="confirm-label" for="hardDeleteConfirm">
+            Type <code>{{ hardDeleteConfirmationPhrase }}</code> to confirm
+          </label>
+          <input id="hardDeleteConfirm" type="text" class="confirm-input"
+                 [(ngModel)]="hardDeleteConfirmation"
+                 [attr.placeholder]="hardDeleteConfirmationPhrase"
+                 autocomplete="off" spellcheck="false" />
+          <button type="button" class="btn-danger"
+                  (click)="permanentlyDeleteContract()"
+                  [disabled]="busy || !hardDeleteConfirmed">
+            Permanently delete
+          </button>
+        </ng-container>
+
+        <ng-template #hardDeleteBlocked>
+          <p class="blocked-reason">{{ hardDeleteBlockedReason }}</p>
+        </ng-template>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-ghost" (click)="closeDeleteDialog()">Cancel</button>
+      </div>
+    </div>
   </div>
 </div>
 

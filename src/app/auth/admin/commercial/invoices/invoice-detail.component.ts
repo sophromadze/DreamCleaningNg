@@ -11,7 +11,8 @@ import {
 } from '../../../../services/invoice.service';
 import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
 
-type ModalKind = 'none' | 'payment' | 'void' | 'send' | 'reminder' | 'reverse';
+// 'dispose' is the Void / Archive / Full delete CHOICE; 'void' is the reason form it leads to.
+type ModalKind = 'none' | 'payment' | 'void' | 'send' | 'reminder' | 'reverse' | 'dispose';
 
 /**
  * One commercial invoice: everything about it, and every action on it.
@@ -163,9 +164,104 @@ export class InvoiceDetailComponent implements OnInit {
       || (this.processingPaymentWarning && !this.payAcknowledgeProcessing);
   }
 
-  openVoid(): void {
+  /**
+   * THE VOID / ARCHIVE / FULL DELETE CHOICE.
+   *
+   * Void and Archive mean genuinely different things and neither is a delete: Void is a permanent
+   * financial statement that a number was issued and cancelled, Archive is a filing decision that
+   * states nothing. Full delete is the third, and is for a test invoice that never touched money.
+   * Offering all three behind one button is what stops an admin voiding a test invoice because it
+   * was the only option, and permanently reserving a number for something that never existed.
+   */
+  openDispose(): void {
+    this.hardDeleteConfirmation = '';
+    this.modal = 'dispose';
+  }
+
+  /** From the choice dialog into the existing Void reason form, whose behaviour is unchanged. */
+  chooseVoid(): void {
     this.voidReason = '';
     this.modal = 'void';
+  }
+
+  /** What the admin has to type to unlock Full delete: `DELETE DCI-2026-48392175`. */
+  get hardDeleteConfirmationPhrase(): string {
+    return `DELETE ${this.invoice?.invoiceNumber ?? ''}`;
+  }
+
+  hardDeleteConfirmation = '';
+
+  /** Trimmed and case-insensitive, matching the server's own check. */
+  get hardDeleteConfirmed(): boolean {
+    return this.hardDeleteConfirmation.trim().toLowerCase()
+      === this.hardDeleteConfirmationPhrase.toLowerCase();
+  }
+
+  /** Server-decided. Absent on an older backend, which then simply does not offer the option. */
+  get canHardDelete(): boolean {
+    return this.invoice?.canHardDelete === true;
+  }
+
+  get hardDeleteBlockedReason(): string | null {
+    return this.invoice?.cannotHardDeleteReason ?? null;
+  }
+
+  /** Option B — archive. Preserves everything; reversible from the Archived tab. */
+  archiveInvoice(): void {
+    if (!this.invoice) return;
+
+    this.busy = true;
+    this.error = '';
+    this.closeModal();
+
+    this.invoiceService.archive(this.invoice.id)
+      .pipe(finalize(() => this.busy = false))
+      .subscribe({
+        next: updated => {
+          this.refresh(updated);
+          this.flash('Invoice archived. Find it again under the Archived filter.');
+        },
+        error: err => this.error = extractApiErrorMessage(err, 'Could not archive the invoice.')
+      });
+  }
+
+  unarchiveInvoice(): void {
+    if (!this.invoice) return;
+
+    this.busy = true;
+    this.error = '';
+
+    this.invoiceService.unarchive(this.invoice.id)
+      .pipe(finalize(() => this.busy = false))
+      .subscribe({
+        next: updated => {
+          this.refresh(updated);
+          this.flash('Invoice unarchived.');
+        },
+        error: err => this.error = extractApiErrorMessage(err, 'Could not unarchive the invoice.')
+      });
+  }
+
+  /**
+   * Option C — permanent delete. The checks here only decide whether to bother asking: the server
+   * re-applies `InvoiceHardDeletePolicy` and re-checks the typed confirmation, and refuses the
+   * whole request if either fails.
+   */
+  permanentlyDeleteInvoice(): void {
+    if (!this.invoice || !this.canHardDelete || !this.hardDeleteConfirmed) return;
+
+    const confirmation = this.hardDeleteConfirmation.trim();
+    this.busy = true;
+    this.error = '';
+    this.closeModal();
+
+    this.invoiceService.permanentlyDelete(this.invoice.id, confirmation)
+      .pipe(finalize(() => this.busy = false))
+      .subscribe({
+        // Nothing left to refresh — the invoice this panel is showing no longer exists.
+        next: () => this.router.navigate(['/admin/commercial/invoices']),
+        error: err => this.error = extractApiErrorMessage(err, 'Could not delete the invoice.')
+      });
   }
 
   openSend(): void {

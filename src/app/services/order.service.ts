@@ -24,6 +24,14 @@ export interface OrderList {
   orderDate: Date;
   isPaid?: boolean;
   paidAt?: Date;
+  // ── Part-payments (2026-09). Zero/false on an ordinary order. ───────────────────────
+  /** Money received against the order's own total through admin-requested part-payments. */
+  amountPaid?: number;
+  /** What is still owed on the order's own total; zero once it is paid. */
+  amountDue?: number;
+  /** Money has arrived but has not settled the order — drives the "Partially paid" pill. */
+  isPartiallyPaid?: boolean;
+
   /** Sum of unpaid additional payments created by order updates (e.g. admin increased total). */
   pendingUpdateAmount?: number;
   /** Latest unpaid update-history id (if any). */
@@ -73,6 +81,51 @@ export interface OrderList {
   assignedAdminDisplayName?: string | null;
 }
 
+/**
+ * One part-payment request on an order — a slice of its own total that an admin asked the
+ * customer for ("$1,000 now, the rest later"). Deliberately NOT the order-edit top-up, which is
+ * money owed on TOP of a settled order and has its own `pendingUpdateAmount` flow.
+ */
+export interface OrderPartialPayment {
+  id: number;
+  orderId: number;
+  /** What the admin asked for. */
+  requestedAmount: number;
+  /** What actually arrived — can exceed requestedAmount when the payer settled the whole
+   *  balance instead. Null until paid. */
+  paidAmount?: number | null;
+  status: 'Pending' | 'Paid' | 'Cancelled';
+  paidAt?: string | null;
+  createdAt: string;
+  /** When the payment link last went out. Null = created but never sent. */
+  notificationSentAt?: string | null;
+  /** Admin-facing note, never shown to the customer. */
+  note?: string | null;
+  requestedByName?: string | null;
+  /** "Normal" (paid via the card link) or Cash/Zelle/Check/Other/Invoice when an admin recorded
+   *  this slice as collected outside Stripe. */
+  paymentMethod?: string | null;
+  paymentReference?: string | null;
+  paymentNotes?: string | null;
+  /** Who recorded the manual payment. Null for a slice paid through the card link. */
+  manualPaymentRecordedByName?: string | null;
+}
+
+/** An order's balance, its live request and its part-payment history. */
+export interface OrderPaymentBalance {
+  total: number;
+  amountPaid: number;
+  amountDue: number;
+  isPartiallyPaid: boolean;
+  /** Money taken beyond the total — only reachable when an admin lowered the price after a
+   *  deposit. Reported so a person can refund it; never refunded automatically. */
+  overpaidAmount: number;
+  canRequestPartialPayment: boolean;
+  cannotRequestReason?: string | null;
+  pendingRequest?: OrderPartialPayment | null;
+  history: OrderPartialPayment[];
+}
+
 export interface Order {
   recurringSeriesId?: number | null;
   id: number;
@@ -107,6 +160,19 @@ export interface Order {
    *  where it is still part of `total`. Never displayed, never editable, never sent. */
   companyDevelopmentTips: number;
   total: number;
+
+  // ── Part-payments (2026-09). All zero/false/absent on an ordinary order. ──────────────
+  /** Money received against this order's own total through admin-requested part-payments. */
+  amountPaid?: number;
+  /** What is still owed on the order's own total. Zero once it is paid, whatever amountPaid
+   *  holds — this is the figure to charge and to display, never `total` minus something. */
+  amountDue?: number;
+  /** Money has arrived but has not settled the order — what the "Partially paid" pill reads. */
+  isPartiallyPaid?: boolean;
+  /** The live part-payment request, when the order has one. Absent means the payment page
+   *  charges the whole outstanding balance. */
+  pendingPartialPayment?: OrderPartialPayment | null;
+
   discountAmount: number;
   subscriptionDiscountAmount?: number;
   /** Loyalty Discount snapshot from the order (Phase 6). Always present on a Phase 6+ order;

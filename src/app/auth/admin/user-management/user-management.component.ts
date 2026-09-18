@@ -1147,8 +1147,22 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     }
   }
 
+  /**
+   * The CTO's SuperAdmin role is not removable by anyone — mirrors CtoRoleLockPolicy on the
+   * server, which refuses it on both role-change endpoints whatever this returns. Checked BEFORE
+   * the role hierarchy everywhere below, because a SuperAdmin passes every hierarchy test.
+   * The way out is the officer title, not the role: clear CTO first.
+   */
+  isCtoRoleLocked(user: { role?: string; orgTitle?: string } | null): boolean {
+    return !!user && user.orgTitle === 'CTO' && user.role === 'SuperAdmin';
+  }
+
+  readonly ctoRoleLockReason =
+    'This account holds the CTO title, so its SuperAdmin role cannot be changed. Clear the officer title first.';
+
   canChangeUserRole(user: UserAdmin, newRole: string): boolean {
     const currentUserId = this.getCurrentUserId();
+    if (this.isCtoRoleLocked(user)) return false;
     if (user.id === currentUserId) return false;
     if (this.currentUserRole === 'SuperAdmin') return true;
     if (this.currentUserRole === 'Admin' && user.role !== 'SuperAdmin') return true;
@@ -1157,6 +1171,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   canModifyUserRole(user: any): boolean {
     const currentUserId = this.getCurrentUserId();
+    if (this.isCtoRoleLocked(user)) return false;
     if (user.id === currentUserId) return false;
     if (this.currentUserRole === 'Admin' && user.role === 'SuperAdmin') return false;
     return this.canUpdate;
@@ -1164,6 +1179,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   getRoleButtonTooltip(user: any): string {
     const currentUserId = this.getCurrentUserId();
+    if (this.isCtoRoleLocked(user)) return this.ctoRoleLockReason;
     if (user.id === currentUserId) return 'You cannot change your own role';
     if (this.currentUserRole === 'Admin' && user.role === 'SuperAdmin') return 'Admins cannot modify SuperAdmin roles';
     return '';

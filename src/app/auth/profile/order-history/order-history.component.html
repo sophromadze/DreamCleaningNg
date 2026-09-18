@@ -30,8 +30,13 @@
             <span class="status-badge" [ngClass]="getStatusClass(order.status)">
               {{ order.status }}
             </span>
-            <span class="payment-badge unpaid" *ngIf="!isEffectivelyPaid(order)">
+            <!-- "Unpaid" on an order already carrying a $1,000 deposit is wrong twice over:
+                 it hides money the customer has handed over, and it does not say what is left. -->
+            <span class="payment-badge unpaid" *ngIf="!isEffectivelyPaid(order) && !order.isPartiallyPaid">
               Unpaid
+            </span>
+            <span class="payment-badge partial" *ngIf="!isEffectivelyPaid(order) && order.isPartiallyPaid">
+              ${{ (order.amountDue || 0).toFixed(2) }} due
             </span>
             <span class="payment-badge unpaid" *ngIf="order.isPaid && (order.pendingUpdateAmount || 0) > 0.01 && order.status !== 'Cancelled'">
               Payment Due

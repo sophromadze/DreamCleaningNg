@@ -101,8 +101,8 @@
       </div>
 
       <label class="form-field">
-        <span>Amount ({{ symbolFor(formCurrency) }})</span>
-        <input type="number" min="0" step="0.01" [(ngModel)]="form.amount">
+        <span>Amount ({{ symbolFor(formCurrency) }}) <small>negative = credit/refund</small></span>
+        <input type="number" step="0.01" [(ngModel)]="form.amount">
       </label>
 
       <!-- Salaries only: the admins are paid in lari, everything else is billed in dollars. -->
@@ -336,6 +336,10 @@
                         <button class="icon-btn" type="button" (click)="openEditForm(row)" title="Edit">
                           <i class="fas fa-pen"></i>
                         </button>
+                        <button class="icon-btn" type="button" *ngIf="canAdjustAmount(row)"
+                                (click)="openAdjustAmount(row)" title="Raise or reduce amount from a date">
+                          <i class="fas fa-arrow-trend-up"></i>
+                        </button>
                         <button class="icon-btn danger" type="button" (click)="askDelete(row.id)" title="Delete">
                           <i class="fas fa-trash"></i>
                         </button>
@@ -343,6 +347,37 @@
                     </tr>
                     <tr class="notes-row" *ngIf="row.notes">
                       <td colspan="5"><i class="fas fa-sticky-note"></i> {{ row.notes }}</td>
+                    </tr>
+                    <tr *ngIf="adjustingId === row.id" class="adjust-row">
+                      <td colspan="5">
+                        <div class="adjust-bar">
+                          <label class="form-field">
+                            <span>New amount ({{ symbolFor(row.currency) }})</span>
+                            <input type="number" step="0.01" [(ngModel)]="adjustAmountValue" placeholder="e.g. 2200">
+                          </label>
+                          <label class="form-field">
+                            <span>Effective from</span>
+                            <input type="date" [(ngModel)]="adjustEffectiveDate">
+                          </label>
+                          <label class="form-field span-2">
+                            <span>Note <small>(optional)</small></span>
+                            <input type="text" [(ngModel)]="adjustNotes" placeholder="e.g. Annual raise">
+                          </label>
+                        </div>
+                        <p class="adjust-hint">
+                          <i class="fas fa-info-circle"></i>
+                          This keeps every occurrence up to {{ symbolFor(row.currency) }} {{ row.amount | number:'1.2-2' }}
+                          unchanged and starts a new entry at the new amount from the effective date onward — nothing
+                          before that date moves.
+                        </p>
+                        <div class="confirm-actions">
+                          <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelAdjustAmount()" [disabled]="adjusting">Cancel</button>
+                          <button class="btn btn-primary btn-sm" type="button" (click)="confirmAdjustAmount()" [disabled]="adjusting">
+                            <i class="fas" [class.fa-spinner]="adjusting" [class.fa-spin]="adjusting" [class.fa-check]="!adjusting"></i>
+                            {{ adjusting ? 'Saving…' : 'Save' }}
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                     <tr *ngIf="pendingDeleteId === row.id" class="confirm-row">
                       <td colspan="5">

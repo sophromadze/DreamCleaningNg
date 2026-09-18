@@ -3,7 +3,7 @@ import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/comm
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ServiceType, Service, ExtraService, Subscription, ServiceThreshold, ServiceRateTier } from './booking.service';
-import { Order, OrderList } from './order.service';
+import { Order, OrderList, OrderPartialPayment, OrderPaymentBalance } from './order.service';
 import { Apartment, CreateApartment } from './profile.service';
 import { UserSpecialOffer } from './special-offer.service';
 import { PaymentMethodValue } from '../shared/payment-method';
@@ -426,6 +426,8 @@ export interface PromoCode {
   validTo?: Date;
   minimumOrderAmount?: number;
   isActive: boolean;
+  timesUsed: number;
+  uniqueUsersUsed: number;
 }
 
 export interface CreatePromoCode {
@@ -2098,6 +2100,66 @@ export class AdminService {
     return this.http.post<{ message: string; sentToEmail?: string; sentToPhone?: string }>(
       `${this.apiUrl}/orders/${orderId}/send-payment-link`,
       { sendEmail, sendSms }
+    );
+  }
+
+  // ── Part-payments: splitting one order's total across several links (2026-09) ────────
+  // The order stays Pending and unpaid, carrying a visible balance, until the last slice
+  // lands. Every rule about what may be asked for is enforced server-side.
+
+  /** The order's balance, its live request and its part-payment history. */
+  getOrderPartialPayments(orderId: number): Observable<OrderPaymentBalance> {
+    return this.http.get<OrderPaymentBalance>(`${this.apiUrl}/orders/${orderId}/partial-payments`);
+  }
+
+  /** Asks the customer for part of what they still owe and sends them the link for it. */
+  requestPartialPayment(
+    orderId: number,
+    amount: number,
+    options: { note?: string; sendEmail: boolean; sendSms: boolean }
+  ): Observable<{ message: string; partialPayment: OrderPartialPayment; balance: OrderPaymentBalance; emailSent: boolean; smsSent: boolean }> {
+    return this.http.post<{ message: string; partialPayment: OrderPartialPayment; balance: OrderPaymentBalance; emailSent: boolean; smsSent: boolean }>(
+      `${this.apiUrl}/orders/${orderId}/partial-payments`,
+      { amount, note: options.note ?? null, sendEmail: options.sendEmail, sendSms: options.sendSms }
+    );
+  }
+
+  /** Re-sends the link for a request the customer has not paid yet. Changes no amount. */
+  resendPartialPaymentLink(
+    orderId: number,
+    requestId: number,
+    sendEmail: boolean,
+    sendSms: boolean
+  ): Observable<{ message: string; partialPayment: OrderPartialPayment; emailSent: boolean; smsSent: boolean }> {
+    return this.http.post<{ message: string; partialPayment: OrderPartialPayment; emailSent: boolean; smsSent: boolean }>(
+      `${this.apiUrl}/orders/${orderId}/partial-payments/${requestId}/resend`,
+      { sendEmail, sendSms }
+    );
+  }
+
+  /** Withdraws an unpaid request. The row stays in the history as Cancelled. */
+  cancelPartialPaymentRequest(orderId: number, requestId: number): Observable<{ message: string; balance: OrderPaymentBalance }> {
+    return this.http.delete<{ message: string; balance: OrderPaymentBalance }>(
+      `${this.apiUrl}/orders/${orderId}/partial-payments/${requestId}`
+    );
+  }
+
+  /**
+   * Records a live part-payment request as paid outside Stripe (Cash/Zelle/Check/Other/Invoice) —
+   * how a deposit split gets its "part card, part cash" half. When this clears the order's whole
+   * balance, the backend completes the order (paid/active, confirmation sent) the same as a card
+   * payment would.
+   */
+  recordPartialPaymentManually(
+    orderId: number,
+    requestId: number,
+    paymentMethod: string,
+    paymentReference: string | null,
+    paymentNotes: string | null
+  ): Observable<{ message: string; balance: OrderPaymentBalance; status: string; orderFullyPaid: boolean }> {
+    return this.http.post<{ message: string; balance: OrderPaymentBalance; status: string; orderFullyPaid: boolean }>(
+      `${this.apiUrl}/orders/${orderId}/partial-payments/${requestId}/record-manual-payment`,
+      { paymentMethod, paymentReference, paymentNotes }
     );
   }
 

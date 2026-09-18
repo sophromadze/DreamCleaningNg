@@ -340,6 +340,37 @@ export class BookingService {
     );
   }
 
+  /**
+   * Creates the Stripe intent for the slice an admin asked this order's customer for.
+   * `payFullBalance` settles everything still owed instead — the amount is derived server-side
+   * either way, so neither figure is ever sent from here.
+   */
+  createPartialPaymentIntent(
+    orderId: number,
+    guestToken?: string,
+    payFullBalance = false
+  ): Observable<any> {
+    const params: string[] = [];
+    if (guestToken) params.push(`guestToken=${encodeURIComponent(guestToken)}`);
+    if (payFullBalance) params.push('payFullBalance=true');
+    const query = params.length ? `?${params.join('&')}` : '';
+    return this.http.post<any>(
+      `${this.apiUrl}/booking/create-partial-payment-intent/${orderId}${query}`,
+      {},
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  /** Records a slice Stripe has taken. When it clears the balance the server runs the ordinary
+   *  order-completion path, so the response looks like a normal confirmed payment. */
+  confirmPartialPayment(orderId: number, paymentIntentId: string, guestToken?: string): Observable<any> {
+    return this.http.post<any>(
+      `${this.apiUrl}/booking/confirm-partial-payment/${orderId}`,
+      { paymentIntentId, guestToken },
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
   getAvailableTimeSlots(date: Date, serviceTypeId: number): Observable<string[]> {
     const dateStr = date.toISOString().split('T')[0];
     return this.http.get<string[]>(`${this.apiUrl}/booking/available-times?date=${dateStr}&serviceTypeId=${serviceTypeId}`);

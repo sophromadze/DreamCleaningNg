@@ -259,6 +259,10 @@
       text-align: left;
     }
 
+    .extra-info .extra-details .extra-price {
+      color: #999;
+    }
+
     .checkbox input[type="checkbox"] {
       opacity: 0.5;
     }
@@ -437,25 +441,33 @@
       .extra-details {
         display: flex;
         align-items: center;
-        justify-content: center;
+        justify-content: flex-start;
+        // Matches the card title above it, which is align-self: flex-start.
+        align-self: flex-start;
+        max-width: 100%;
+        // The card is a fixed 150px (120px on mobile) and `.extra-info` clips its
+        // overflow at the TOP, so a price line that grew would eat the name above it.
+        // The explicit line-height below keeps both inside the box.
+        flex-shrink: 0;
         gap: 5px;
         flex-wrap: wrap;
 
         .extra-price {
           color: var(--fresh-green);
-          padding: 5px;
+          padding: 5px 0 0;
           font-size: 14px;
+          line-height: 1.2;
           font-family: 'Poppins', sans-serif;
           font-weight: 400;
 
           @media (max-width: 768px) {
             font-size: 12px;
-            padding: 3px;
+            padding: 3px 0 0;
           }
 
           @media (max-width: 534px) {
             font-size: 11px;
-            padding: 2px;
+            padding: 2px 0 0;
           }
         }
 

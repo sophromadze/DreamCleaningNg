@@ -543,3 +543,86 @@
 @media (max-width: 1000px) {
   .detail-grid { grid-template-columns: 1fr; }
 }
+
+/* ── Void / Archive / Full delete choice ─────────────────────────────────────
+   Three outcomes that mean genuinely different things, so they have to read as three options
+   rather than one paragraph with buttons. Same shape as the contract delete dialog, so an admin
+   who has met one recognises the other. */
+.modal {
+  .modal-sub {
+    margin: 0 0 1rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  .choice {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.9rem;
+    margin-bottom: 0.85rem;
+
+    p {
+      margin: 0.4rem 0 0.75rem;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: var(--text-secondary);
+    }
+
+    /* Marked by its border and its tag, not by a red panel: red behind body text is hard to read
+       and makes the safe option look like the afterthought. */
+    &.danger { border-color: var(--bright-red); }
+  }
+
+  .choice-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.95rem;
+  }
+
+  .choice-tag {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.12rem 0.45rem;
+    border-radius: var(--radius-sm);
+    background: var(--soft-blue);
+    color: var(--primary-color);
+
+    &.safe { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+    &.destructive { background: var(--soft-red); color: var(--bright-red); }
+  }
+
+  .confirm-label {
+    display: block;
+    font-size: 0.8rem;
+    margin-bottom: 0.3rem;
+    color: var(--text-secondary);
+
+    code {
+      font-size: 0.8rem;
+      background: var(--page-bg);
+      padding: 0.1rem 0.3rem;
+      border-radius: var(--radius-sm);
+    }
+  }
+
+  .confirm-input {
+    width: 100%;
+    padding: 0.5rem 0.6rem;
+    margin-bottom: 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.88rem;
+  }
+
+  /* Shown INSTEAD of the confirmation field when the server refuses. */
+  .blocked-reason {
+    margin: 0.4rem 0 0;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--bright-red);
+  }
+}

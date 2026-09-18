@@ -318,6 +318,13 @@
       background: rgba(220, 53, 69, 0.12);
       color: var(--bright-red);
     }
+
+    // Part-paid: amber rather than red. Money HAS arrived — this is a balance to finish,
+    // not an unpaid order, and colouring it the same as one would read as a warning.
+    &.partial {
+      background: var(--warning-orange-bg);
+      color: var(--warning-orange-text);
+    }
   }
 
   // Dark mode: Pending and Unpaid badges – solid dark backgrounds and white text for contrast

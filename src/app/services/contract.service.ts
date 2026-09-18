@@ -146,13 +146,22 @@ export interface ScheduleSnapshot {
  * Exhibit A's recorded site facts — the "[COUNTS]" / "[LOCATIONS]" blanks of the agreement.
  *
  * Free text on purpose: they describe a building, and every attempt to enumerate what a commercial
- * kitchen contains produces a form that cannot express the next one. Every field is optional; an
- * unfilled one prints a visible ruled blank rather than asserting the premises lacks that thing.
+ * kitchen contains produces a form that cannot express the next one. Every field is optional, but
+ * they empty in three different ways and the field's own comment says which: most print a visible
+ * ruled blank (an unanswered question, flagged in the preview banner), a few print "None" (where
+ * an empty answer is itself a term), and `floorMaterials` / `foodServicePermitHolder` drop their
+ * whole line (nothing in the agreement depends on them).
  */
 export interface SiteDetailsSnapshot {
   approximateSquareFootage?: string | null;
   customerRestroomCounts?: string | null;
   employeeRestroomCounts?: string | null;
+
+  /**
+   * FULLY OPTIONAL, and unlike the counts above it does not print a ruled blank: A4 no longer
+   * hangs the floor-cleaning obligation on it, so an empty one is not an open question and its
+   * whole Exhibit A line is omitted.
+   */
   floorMaterials?: string | null;
   kitchenEquipmentAndSurfaces?: string | null;
   touchpointLocations?: string | null;
@@ -171,6 +180,12 @@ export interface SiteDetailsSnapshot {
   accessMethodReference?: string | null;
   equipmentRestrictions?: string | null;
   wasteReceptacleLocations?: string | null;
+
+  /**
+   * FULLY OPTIONAL, same rule as `floorMaterials`: Section 16(c) no longer requires the Client to
+   * identify the permit holder before work begins, and Section 26(b) leaves it responsible for
+   * its own permits regardless. Blank omits the Exhibit A line rather than ruling a blank.
+   */
   foodServicePermitHolder?: string | null;
   siteRequirements?: string | null;
   baselineWalkthroughRecord?: string | null;
@@ -194,10 +209,13 @@ export interface OperationalContactsSnapshot {
   clientApprovalEmail?: string | null;
 
   /**
-   * Where FORMAL notice is served on the Client — Section 32. Kept apart from the principal
-   * address and the service location, because a business registered at an accountant's office,
-   * served at a restaurant and reading its mail at a third address is the ordinary case. Blank
-   * falls back to the principal address.
+   * RETIRED FROM THE DOCUMENT (2026-09-15) and kept only so an existing draft round-trips.
+   *
+   * Template v2.2 asks the Client for no mailing address at all: the preamble identifies them by
+   * legal entity, Exhibit B4 dropped the row, and Section 32 serves formal notice on the notice
+   * email. There is no form field for it any more. It stays on the type — and on the server's
+   * snapshot — because a contract version frozen against v2.0/v2.1 still renders the token, and
+   * an executed agreement has to keep reading the way it was signed.
    */
   clientNoticeMailingAddress?: string | null;
 
@@ -575,9 +593,19 @@ export interface ContractDetail {
   versions: ContractVersionRef[]; signers: ContractSigner[]; auditLog: ContractAuditEntry[];
   canEdit: boolean; canGeneratePreview: boolean; canSendForReview: boolean;
   canSendForSignature: boolean; isLocked: boolean;
-  /** Soft-deleted: hidden from the default list, restorable, purged after 6 months. */
+  /** ARCHIVED: hidden from the default list and restorable. The soft-delete flag. */
   isHidden: boolean; hiddenAt?: string;
   canDelete: boolean; canRestore: boolean;
+
+  /**
+   * Whether the PERMANENT delete option is offered in the delete dialog. `ContractHardDeletePolicy`
+   * decides on the server and the endpoint applies the same policy, so this only governs whether
+   * the option is presented.
+   */
+  canHardDelete?: boolean;
+
+  /** Why permanent deletion is refused — a signature, a linked invoice, an amendment. */
+  cannotHardDeleteReason?: string | null;
   /**
    * Whether "Create Next Invoice" is available. Same server-resolved rule as the list's flag
    * (`ContractInvoiceEligibility`) — the detail page and the list must not be able to disagree
@@ -639,6 +667,16 @@ export interface SignContractResult {
 // ── Permissions, officer titles, business flag ──
 
 /**
+ * The three authority levels the Contracts module recognises, reported by the server alongside
+ * the capability booleans.
+ *
+ * `'manager'` is any staff account with NO officer title — including a SuperAdmin, which is the
+ * module's deliberate departure from the app's role hierarchy. `'none'` is an account with no
+ * business in the module at all.
+ */
+export type ContractAuthority = 'none' | 'manager' | 'ceo' | 'cto';
+
+/**
  * What the signed-in account may do in the Contracts module, straight from the server's matrix.
  * The UI renders from THIS rather than re-deriving the rules from a role string — the browser
  * having its own copy of the matrix is exactly how the two drift apart.
@@ -660,6 +698,14 @@ export interface ContractPermissions {
   deleteContract: boolean;
   restoreContract: boolean;
   signAsContractor: boolean;
+
+  /**
+   * The account's authority level, server-reported. Present so the panel can EXPLAIN a
+   * withheld action instead of rendering a gap where a button used to be — an untitled account
+   * silently loses Back to edit, Create amendment and Delete, which reads exactly like a broken
+   * deployment. Optional so an older backend that does not send it degrades to the old behaviour.
+   */
+  authority?: ContractAuthority;
 }
 
 export interface OrgTitleHolder {
@@ -833,13 +879,32 @@ export class ContractService {
     return this.http.post<ContractDetail>(`${this.adminUrl}/${id}/revise`, {});
   }
 
-  /** Soft delete: hides the contract and revokes its outstanding signing links. CTO-only. */
+  /**
+   * ARCHIVE. Hides the contract from the default list and revokes its outstanding signing links
+   * and review token — a contract somebody has decided to file away must not stay signable from
+   * a link in a counterparty's inbox. Everything else is preserved and it is restorable. CTO-only.
+   *
+   * The route keeps its original `/delete` spelling: it is what the deployed clients call, and
+   * renaming an endpoint to match a label is not worth breaking one over.
+   */
   deleteContract(id: number): Observable<ContractDetail> {
     return this.http.post<ContractDetail>(`${this.adminUrl}/${id}/delete`, {});
   }
 
   restoreContract(id: number): Observable<ContractDetail> {
     return this.http.post<ContractDetail>(`${this.adminUrl}/${id}/restore`, {});
+  }
+
+  /**
+   * PERMANENT delete. Destroys the contract, every version, signature, file and audit row under
+   * it, and the PDFs on disk. No undo.
+   *
+   * `confirmation` must read `DELETE <contract number>` and is verified by the SERVER as well as
+   * the dialog — a hand-rolled request has to name the contract it means.
+   */
+  permanentlyDeleteContract(id: number, confirmation: string): Observable<{ message: string }> {
+    const params = new HttpParams().set('confirmation', confirmation);
+    return this.http.delete<{ message: string }>(`${this.adminUrl}/${id}/permanent`, { params });
   }
 
   duplicate(id: number, asAmendment: boolean): Observable<ContractDetail> {

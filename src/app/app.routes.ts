@@ -288,6 +288,19 @@ export const routes: Routes = [
     }
   },
   {
+    // The COMMERCIAL policies, deliberately separate from the residential Terms & Conditions
+    // above: one governs a business's signed Master Service Agreement, the other governs an
+    // online booking, and merging them would leave both audiences reading terms that are not
+    // theirs. Prerendered like every other public page (the `**` rule in app.routes.server.ts) —
+    // the content is bundled, so there is no API call during the render pass.
+    path: 'commercial-cleaning-policies',
+    loadComponent: () => import('./commercial-cleaning-policies/commercial-cleaning-policies.component').then(m => m.CommercialCleaningPoliciesComponent),
+    data: {
+      title: 'Commercial Cleaning Policies | Dream Cleaning NYC',
+      description: "Dream Cleaning NYC's commercial cleaning policies — scheduling and access, cancellation and termination, invoicing, insurance, liability and our satisfaction guarantee. Free PDF downloads."
+    }
+  },
+  {
     path: 'faq',
     loadComponent: () => import('./faq/faq.component').then(m => m.FaqComponent),
     canActivate: [maintenanceGuard],

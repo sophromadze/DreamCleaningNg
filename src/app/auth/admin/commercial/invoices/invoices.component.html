@@ -54,6 +54,13 @@
       <option *ngFor="let o of statusOptions" [ngValue]="o.value">{{ o.label }}</option>
     </select>
 
+    <!-- ARCHIVED IS ITS OWN AXIS, not a status. An archived Paid invoice is still Paid, so this
+         is a toggle beside the status dropdown rather than another option inside it. -->
+    <label class="archived-toggle">
+      <input type="checkbox" [(ngModel)]="showArchived" (ngModelChange)="toggleArchived()" />
+      <span>Archived</span>
+    </label>
+
     <select [(ngModel)]="clientFilter" (change)="onFilterChange()" aria-label="Filter by client">
       <option [ngValue]="null">All clients</option>
       <option *ngFor="let c of clients" [ngValue]="c.id">{{ c.legalEntityName }}</option>
