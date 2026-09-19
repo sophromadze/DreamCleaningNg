@@ -21,6 +21,11 @@ export class TrustedDevicesComponent implements OnInit {
   pendingRevokeId: number | null = null;
   revoking = false;
 
+  // "Sign out all other devices" — also reaches devices that were never trusted, which is why
+  // it exists beside the per-device Remove.
+  confirmingSignOutOthers = false;
+  signingOutOthers = false;
+
   // Only render the section for staff roles — customers don't have 2FA so the list is
   // always empty for them anyway, but we hide it to avoid confusion.
   showSection = false;
@@ -60,8 +65,8 @@ export class TrustedDevicesComponent implements OnInit {
     const id = this.pendingRevokeId;
     const wasCurrent = !!this.devices.find(d => d.id === id)?.isCurrentDevice;
     this.revoking = true;
-    this.twoFactor.revokeTrustedDevice(id).subscribe({
-      next: () => {
+    this.auth.trackSessionReissue(this.twoFactor.revokeTrustedDevice(id)).subscribe({
+      next: (res) => {
         this.revoking = false;
         this.pendingRevokeId = null;
         if (wasCurrent) {
@@ -69,6 +74,8 @@ export class TrustedDevicesComponent implements OnInit {
           // The server-side revocation is authoritative; the now-inert local token is left
           // in place because the storage is shared with other staff users of this browser.
           this.flashNotice('Device revoked. You\'ll need 2FA the next time you sign in here.');
+        } else if (res?.sessionsEnded) {
+          this.flashNotice('Device removed and signed out. Your other devices will need to sign in again.');
         } else {
           this.flashNotice('Device revoked.');
         }
@@ -77,6 +84,32 @@ export class TrustedDevicesComponent implements OnInit {
       error: (err) => {
         this.revoking = false;
         this.error = err.error?.message || 'Failed to revoke device';
+      }
+    });
+  }
+
+  askSignOutOthers(): void {
+    this.confirmingSignOutOthers = true;
+  }
+
+  cancelSignOutOthers(): void {
+    this.confirmingSignOutOthers = false;
+  }
+
+  confirmSignOutOthers(): void {
+    if (this.signingOutOthers) return;
+    this.signingOutOthers = true;
+    this.error = '';
+    this.auth.trackSessionReissue(this.twoFactor.signOutOtherSessions()).subscribe({
+      next: () => {
+        this.signingOutOthers = false;
+        this.confirmingSignOutOthers = false;
+        this.flashNotice('Signed out of every other device.');
+        this.load();
+      },
+      error: (err) => {
+        this.signingOutOthers = false;
+        this.error = err.error?.message || 'Failed to sign out other devices';
       }
     });
   }

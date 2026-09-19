@@ -128,25 +128,45 @@
 
     .dot { opacity: 0.5; }
   }
+}
 
-  .td-revoke-btn {
-    background: transparent;
-    border: 1px solid var(--border-color);
-    color: var(--text-muted);
-    padding: 0.4rem 0.7rem;
-    border-radius: var(--radius-sm);
-    font-size: 0.82rem;
-    cursor: pointer;
-    transition: all 120ms ease;
+// Shared by the per-device Remove and the "Sign out all other devices" footer button.
+.td-revoke-btn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 0.4rem 0.7rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: all 120ms ease;
 
-    &:hover:not(:disabled) {
-      border-color: var(--bright-red);
-      color: var(--bright-red);
-      background: var(--soft-red);
-    }
-
-    &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &:hover:not(:disabled) {
+    border-color: var(--bright-red);
+    color: var(--bright-red);
+    background: var(--soft-red);
   }
+
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+.td-footer {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+
+  .td-footer-hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    text-align: center;
+  }
+
+  .td-confirm { width: 100%; }
 }
 
 .td-confirm {

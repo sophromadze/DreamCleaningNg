@@ -253,6 +253,20 @@ export class SignalRService {
       }
     });
 
+    // Some of this account's sessions were just ended (a trusted device removed, "sign out
+    // other devices", a password change). NOT a logout order — the browser that asked is in the
+    // same group and was re-issued a session. Each browser re-checks its own session instead:
+    // an ended one gets a 401 carrying X-Session-Revoked, which authInterceptor answers by
+    // logging out; a live one gets its user back and nothing happens. The browser that asked
+    // (and its other tabs) skips the check while its request is in flight, so it can never be
+    // judged on the token it is in the middle of replacing.
+    SignalRService.hubConnection.on('SessionsEnded', () => {
+      setTimeout(() => {
+        if (this.authService.isSessionReissuePending()) return;
+        this.authService.checkCurrentUserSession().subscribe();
+      }, 1000);
+    });
+
     // Handle force logout
     SignalRService.hubConnection.on('ForceLogout', (data: any) => {
       

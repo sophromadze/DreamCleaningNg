@@ -1,7 +1,7 @@
 import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { BehaviorSubject, Observable, of, throwError, timeout, from } from 'rxjs';
-import { map, tap, catchError, switchMap, filter, take, first } from 'rxjs/operators'; 
+import { BehaviorSubject, Observable, of, throwError, timeout, from, defer } from 'rxjs';
+import { map, tap, catchError, switchMap, filter, take, first, finalize } from 'rxjs/operators';
 import { Router } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
 import { environment } from '../../environments/environment';
@@ -52,6 +52,17 @@ export interface TwoFactorChallengeResponse {
   challengeId: string;
   hasPin: boolean;
   maskedEmail: string;
+}
+
+/**
+ * Answer from an endpoint that ended the account's other sessions (remove a trusted device,
+ * sign out other devices, change password). `token`/`refreshToken` come only under bearer auth.
+ */
+export interface ReissuedSessionResponse {
+  sessionsEnded?: boolean;
+  user?: UserDto;
+  token?: string;
+  refreshToken?: string;
 }
 
 /** When verify-email-code finds an existing account (merge flow). */
@@ -922,10 +933,75 @@ export class AuthService {
   
   changePassword(currentPassword: string, newPassword: string): Observable<any> {
     const options = this.useCookieAuth ? { withCredentials: true } : {};
-    return this.http.post(`${this.apiUrl}/auth/change-password`, {
+    // A password change ends every OTHER session and re-issues this one, so the new tokens
+    // must be stored or this browser would be refused on its next request as well.
+    return this.trackSessionReissue(this.http.post<ReissuedSessionResponse>(`${this.apiUrl}/auth/change-password`, {
       currentPassword,
       newPassword
-    }, options);
+    }, options));
+  }
+
+  // ───── Ending the account's other sessions ─────────────────────────────────
+  // The server has one session version per account, so ending "the other devices" ends every
+  // session and re-issues one for this browser. Two things follow on this side:
+  //  - under bearer auth the re-issued tokens arrive in the body and must replace the stored
+  //    ones (cookie auth gets them through Set-Cookie);
+  //  - the account's "SessionsEnded" SignalR notice reaches THIS tab too, possibly before the
+  //    response does. `isSessionReissuePending` lets the SignalR handler skip its session probe
+  //    while the request is in flight, so the tab that asked is never logged out by its own ask.
+
+  //
+  //  Other tabs of THIS browser share its cookies / localStorage token, so they receive the
+  //  re-issued session too — but they also receive the notice, possibly before the response
+  //  lands. A timestamp in localStorage (a time, never a token) tells them to stand down as well.
+  //  The browser being signed out is a different browser and never sees the stamp.
+
+  private static readonly SESSION_REISSUE_STAMP_KEY = 'auth_session_reissue_at';
+  private static readonly SESSION_REISSUE_WINDOW_MS = 15000;
+  private pendingSessionReissues = 0;
+
+  isSessionReissuePending(): boolean {
+    if (this.pendingSessionReissues > 0) return true;
+    if (!this.isBrowser) return false;
+    try {
+      const at = Number(localStorage.getItem(AuthService.SESSION_REISSUE_STAMP_KEY));
+      return at > 0 && Date.now() - at < AuthService.SESSION_REISSUE_WINDOW_MS;
+    } catch {
+      return false;
+    }
+  }
+
+  private stampSessionReissue(): void {
+    if (!this.isBrowser) return;
+    try {
+      localStorage.setItem(AuthService.SESSION_REISSUE_STAMP_KEY, Date.now().toString());
+    } catch {
+      // Storage unavailable: this tab is still covered by the in-memory counter.
+    }
+  }
+
+  trackSessionReissue<T extends ReissuedSessionResponse | null | undefined>(request: Observable<T>): Observable<T> {
+    return defer(() => {
+      this.pendingSessionReissues++;
+      this.stampSessionReissue();
+      return request.pipe(
+        // Re-stamp on completion so the window covers a slow request's whole flight.
+        tap(() => this.stampSessionReissue()),
+        tap(res => this.applyReissuedSession(res)),
+        finalize(() => { this.pendingSessionReissues = Math.max(0, this.pendingSessionReissues - 1); })
+      );
+    });
+  }
+
+  applyReissuedSession(res: ReissuedSessionResponse | null | undefined): void {
+    if (!this.isBrowser || !res?.sessionsEnded) return;
+    if (!this.useCookieAuth && res.token && res.refreshToken) {
+      localStorage.setItem('token', res.token);
+      localStorage.setItem('refreshToken', res.refreshToken);
+      localStorage.setItem('lastActivity', Date.now().toString());
+      if (res.user) localStorage.setItem('currentUser', JSON.stringify(res.user));
+    }
+    if (res.user) this.currentUserSubject.next(res.user);
   }
 
   setPassword(newPassword: string): Observable<any> {

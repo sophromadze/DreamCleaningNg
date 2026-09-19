@@ -5,7 +5,7 @@
       Trusted Devices
     </h2>
     <p class="td-subtitle">
-      Devices you've previously signed in on. Removing one forces 2FA the next time you sign in from it.
+      Devices you've previously signed in on. Removing one signs it out straight away and asks for 2FA the next time it signs in.
     </p>
   </div>
 
@@ -61,7 +61,8 @@
             This is the device you're using now. Remove it anyway? You'll need to clear 2FA on next sign-in.
           </span>
           <span *ngIf="!d.isCurrentDevice">
-            Remove <strong>{{ d.deviceName }}</strong>?
+            Remove <strong>{{ d.deviceName }}</strong>? It will be signed out immediately, and so
+            will your other devices (they only need your password to sign back in).
           </span>
         </div>
         <div class="td-confirm-actions">
@@ -74,4 +75,33 @@
       </li>
     </ng-container>
   </ul>
+
+  <!-- Shown even with an empty list: a device that signed in without "Trust this device"
+       never appears above, and this is the only way to sign it out. -->
+  <div class="td-footer" *ngIf="!loading">
+    <p class="td-footer-hint">
+      Someone else signed in to your account? Sign out everywhere except this device —
+      this also reaches devices that aren't listed above.
+    </p>
+    <button type="button"
+            class="td-revoke-btn"
+            *ngIf="!confirmingSignOutOthers"
+            (click)="askSignOutOthers()"
+            [disabled]="pendingRevokeId !== null">
+      <i class="fas fa-right-from-bracket"></i> Sign out all other devices
+    </button>
+    <div class="td-confirm" *ngIf="confirmingSignOutOthers">
+      <div>
+        <i class="fas fa-exclamation-triangle"></i>
+        Sign out every other device and remove them from this list? You stay signed in here.
+      </div>
+      <div class="td-confirm-actions">
+        <button type="button" class="btn btn-secondary btn-cancel btn-sm" (click)="cancelSignOutOthers()" [disabled]="signingOutOthers">Cancel</button>
+        <button type="button" class="btn btn-danger btn-sm" (click)="confirmSignOutOthers()" [disabled]="signingOutOthers">
+          <i class="fas" [class.fa-spinner]="signingOutOthers" [class.fa-spin]="signingOutOthers" [class.fa-right-from-bracket]="!signingOutOthers"></i>
+          {{ signingOutOthers ? 'Signing out…' : 'Sign out others' }}
+        </button>
+      </div>
+    </div>
+  </div>
 </section>

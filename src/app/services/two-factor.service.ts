@@ -83,6 +83,10 @@ export interface TrustedDevice {
   isCurrentDevice: boolean;
 }
 
+// Type-only, so it is erased at build time and adds no runtime cycle with auth.service
+// (which imports this file's device-token helpers).
+export type RevokeSessionsResult = import('./auth.service').ReissuedSessionResponse;
+
 @Injectable({ providedIn: 'root' })
 export class TwoFactorService {
   private apiUrl = environment.apiUrl;
@@ -174,7 +178,15 @@ export class TwoFactorService {
     return this.http.get<TrustedDevice[]>(`${this.apiUrl}/auth/2fa/trusted-devices`);
   }
 
-  revokeTrustedDevice(id: number): Observable<void> {
-    return this.http.delete<void>(`${this.apiUrl}/auth/2fa/trusted-devices/${id}`);
+  // Removing ANOTHER device also signs out every other session and re-issues this one — the
+  // caller must hand the answer to AuthService.trackSessionReissue so the new tokens are kept.
+  revokeTrustedDevice(id: number): Observable<RevokeSessionsResult> {
+    return this.http.delete<RevokeSessionsResult>(`${this.apiUrl}/auth/2fa/trusted-devices/${id}`);
+  }
+
+  // Signs out every other session, including devices that were never trusted (and so never
+  // appear in the list), and untrusts every other device. Same re-issue rule as above.
+  signOutOtherSessions(): Observable<RevokeSessionsResult> {
+    return this.http.post<RevokeSessionsResult>(`${this.apiUrl}/auth/sign-out-other-sessions`, {});
   }
 }
