@@ -335,3 +335,27 @@ h1 {
     }
   }
 }
+
+// The card was charged; only the confirmation is late. Styled as a calm, informative state —
+// deliberately NOT the error red, because nothing has failed.
+.finalizing-notice {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background-color: var(--soft-blue);
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-md);
+  margin: 1rem 0;
+  text-align: left;
+  line-height: 1.5;
+
+  i { margin-top: 3px; }
+  p { margin: 0.25rem 0 0; }
+}
+
+.pay-option-badge {
+  font-size: 0.85em;
+  opacity: 0.8;
+}

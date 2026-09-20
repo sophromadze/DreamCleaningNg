@@ -1,144 +1,149 @@
-<div class="change-email-container">
-    <!-- Email Change Form -->
-    <div *ngIf="currentStep === 'form'" class="change-email-content">
-      <h1>Change Email Address</h1>
-      
-      <div class="current-email-info">
-        <label>Current Email:</label>
-        <span>{{ currentUser?.email }}</span>
+<div class="account-form-page">
+
+  <!-- ═══ Step 1: ask for the new address ═══ -->
+  <ng-container *ngIf="currentStep === 'form'">
+    <button type="button" class="account-form-back" (click)="goBack()">
+      <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to My Account
+    </button>
+
+    <div class="account-form-card">
+      <h1>Change email address</h1>
+      <p class="account-form-lede">
+        We'll send a link to your new address. Your current one keeps working until you click it.
+      </p>
+
+      <div class="account-form-current">
+        <label id="current-email-label">Current email</label>
+        <span aria-labelledby="current-email-label">{{ currentUser?.email }}</span>
       </div>
 
-      <!-- Hidden honeypot fields to confuse autofill -->
-      <div style="position: absolute; left: -9999px; opacity: 0; pointer-events: none;">
-        <input type="email" name="fake_email" tabindex="-1" autocomplete="nope">
-        <input type="password" name="fake_password" tabindex="-1" autocomplete="nope">
+      <div class="account-form-alert account-form-alert--success" *ngIf="successMessage" role="status">
+        <i class="fas fa-paper-plane" aria-hidden="true"></i>
+        <span>{{ successMessage }}</span>
       </div>
 
-      <form (ngSubmit)="onSubmit()" #emailForm="ngForm" autocomplete="off">
+      <div class="account-form-alert account-form-alert--error" *ngIf="errorMessage" role="alert">
+        <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+        <span>{{ errorMessage }}</span>
+      </div>
+
+      <!-- autocomplete="off" is the whole autofill defence now. The old version made both fields
+           `readonly` until clicked, which locked keyboard users out of the form entirely. -->
+      <form (ngSubmit)="onSubmit()" autocomplete="off" novalidate>
         <div class="form-group">
-          <label for="newEmailField">New Email Address</label>
+          <label for="newEmailField">New email address</label>
           <input
             #newEmailInput="ngModel"
-            #newEmailElement
             type="email"
             id="newEmailField"
             name="newEmailField"
             [(ngModel)]="newEmail"
             required
-            email
-            autocomplete="nope"
+            autocomplete="off"
             spellcheck="false"
-            (focus)="onFieldFocus('email')"
-            readonly
-            (click)="makeEditable($event)"
+            inputmode="email"
+            placeholder="name@example.com"
           />
-          <div class="error" *ngIf="newEmailInput.invalid && newEmailInput.touched && !successMessage">
-            <div *ngIf="newEmailInput.errors?.['required']">New email is required</div>
-            <div *ngIf="newEmailInput.errors?.['email']">Please enter a valid email address</div>
-          </div>
+          <!-- Names the actual mistake ("missing the @ symbol"), the same sentence the server
+               would answer with. See utils/email.utils.ts. -->
+          <div class="error" *ngIf="newEmailInput.touched && emailProblem">{{ emailProblem }}</div>
         </div>
 
         <div class="form-group">
-          <label for="currentPasswordField">Current Password</label>
+          <label for="currentPasswordField">Current password</label>
           <div class="password-input-wrap">
             <input
               #currentPasswordInput="ngModel"
-              #currentPasswordElement
               [type]="showPassword ? 'text' : 'password'"
               id="currentPasswordField"
               name="currentPasswordField"
               [(ngModel)]="currentPassword"
               required
-              autocomplete="nope"
+              autocomplete="off"
               spellcheck="false"
-              (focus)="onFieldFocus('password')"
-              readonly
-              (click)="makeEditable($event)"
             />
-            <button type="button" class="password-toggle" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" title="{{ showPassword ? 'Hide' : 'Show' }}">
-              <svg *ngIf="!showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              <svg *ngIf="showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            <button type="button" class="password-toggle" (click)="showPassword = !showPassword"
+                    [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'">
+              <svg *ngIf="!showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg *ngIf="showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
             </button>
           </div>
           <div class="error" *ngIf="currentPasswordInput.invalid && currentPasswordInput.touched && !successMessage">
-            Current password is required to verify your identity
+            Enter your current password to confirm it's you
           </div>
         </div>
 
-        <div class="success" *ngIf="successMessage">
-          {{ successMessage }}
-        </div>
-
-        <div class="error" *ngIf="errorMessage">
-          {{ errorMessage }}
-        </div>
-
-        <div class="form-actions">
-          <button type="submit" [disabled]="!emailForm.form.valid || isSubmitting" class="btn-primary">
-            {{ isSubmitting ? 'Processing...' : 'Change Email' }}
+        <div class="account-form-actions">
+          <button type="submit" class="account-btn account-btn--primary" [disabled]="!canSubmit">
+            {{ isSubmitting ? 'Sending…' : 'Send verification link' }}
           </button>
-          <button type="button" (click)="goBack()" class="btn-secondary">Cancel</button>
+          <button type="button" class="account-btn account-btn--secondary" (click)="goBack()" [disabled]="isSubmitting">
+            Cancel
+          </button>
         </div>
       </form>
 
-      <div class="security-notice">
-        <h3>Security Notice:</h3>
+      <div class="account-form-notes">
+        <h2>How this works</h2>
         <ul>
-          <li>You will need to verify the new email address</li>
-          <li>A verification link will be sent to your new email</li>
-          <li>The verification link expires in 1 hour</li>
-          <li>Your current email will remain active until verification is complete</li>
+          <li>We send a verification link to the new address — nothing changes until you open it.</li>
+          <li>The link expires in 1 hour.</li>
+          <li>Your current address keeps working the whole time.</li>
+          <li>Once it's confirmed you'll sign in again with the new address.</li>
         </ul>
       </div>
     </div>
+  </ng-container>
 
-    <!-- Verification Status -->
-    <div *ngIf="currentStep === 'verification'" class="verification-content">
-      <div class="status-icon" [ngClass]="{'success': isSuccess, 'error': isError, 'loading': isVerifying}">
-        <svg *ngIf="isVerifying" class="spinner" viewBox="0 0 24 24">
-          <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-dasharray="31.416" stroke-dashoffset="31.416">
-            <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
-            <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
-          </circle>
-        </svg>
-        
-        <svg *ngIf="isSuccess" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="20,6 9,17 4,12"></polyline>
-        </svg>
-        
-        <svg *ngIf="isError" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <line x1="15" y1="9" x2="9" y2="15"></line>
-          <line x1="9" y1="9" x2="15" y2="15"></line>
-        </svg>
-      </div>
+  <!-- ═══ Step 2: the mailed link landed here ═══ -->
+  <div class="account-form-card account-form-status" *ngIf="currentStep === 'verification'">
+    <div class="status-icon" [ngClass]="{'success': isSuccess, 'error': isError, 'loading': isVerifying}">
+      <svg *ngIf="isVerifying" class="spinner" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-dasharray="47 16"/>
+      </svg>
 
-      <h1 *ngIf="isVerifying">Verifying Email Change...</h1>
-      <h1 *ngIf="isSuccess">Email Changed Successfully!</h1>
-      <h1 *ngIf="isError">Verification Failed</h1>
+      <svg *ngIf="isSuccess" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <polyline points="20,6 9,17 4,12"></polyline>
+      </svg>
 
-      <p *ngIf="isVerifying">Please wait while we verify your email change request...</p>
-      
-      <div *ngIf="isSuccess" class="success-content">
-        <p>Your email address has been successfully changed!</p>
-        <p>You can now use your new email address to log in to your account.</p>
-        <p><strong>Note:</strong> For security reasons, you will need to log in again.</p>
-      </div>
+      <svg *ngIf="isError" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="15" y1="9" x2="9" y2="15"></line>
+        <line x1="9" y1="9" x2="15" y2="15"></line>
+      </svg>
+    </div>
 
-      <div *ngIf="isError" class="error-content">
-        <p>{{ verificationErrorMessage }}</p>
-        <p>This could happen if:</p>
-        <ul>
-          <li>The verification link has expired (links expire after 1 hour)</li>
-          <li>The link has already been used</li>
-          <li>The email address is no longer available</li>
-        </ul>
-      </div>
+    <h1 *ngIf="isVerifying">Verifying your new address…</h1>
+    <h1 *ngIf="isSuccess">Email changed</h1>
+    <h1 *ngIf="isError">We couldn't verify that link</h1>
 
-      <div class="actions" *ngIf="!isVerifying">
-        <button (click)="goToLogin()" class="btn-primary" *ngIf="isSuccess">Login with New Email</button>
-        <button (click)="goBack()" class="btn-secondary" *ngIf="isError">Back to Profile</button>
-        <button (click)="resetForm()" class="btn-primary" *ngIf="isError">Try Again</button>
-      </div>
+    <p class="account-form-lede" *ngIf="isVerifying">This only takes a moment.</p>
+
+    <p class="account-form-lede" *ngIf="isSuccess">
+      Your new address is now on the account. For security you've been signed out — sign back in
+      with the new address.
+    </p>
+
+    <ng-container *ngIf="isError">
+      <p class="account-form-lede">{{ verificationErrorMessage }}</p>
+      <ul>
+        <li>The link may have expired — they last 1 hour.</li>
+        <li>It may already have been used.</li>
+        <li>The address may have been taken by another account in the meantime.</li>
+      </ul>
+    </ng-container>
+
+    <div class="account-form-actions" *ngIf="!isVerifying">
+      <button type="button" class="account-btn account-btn--primary" (click)="goToLogin()" *ngIf="isSuccess">
+        Sign in with the new address
+      </button>
+      <button type="button" class="account-btn account-btn--primary" (click)="resetForm()" *ngIf="isError">
+        Try again
+      </button>
+      <button type="button" class="account-btn account-btn--secondary" (click)="goBack()" *ngIf="isError">
+        Back to My Account
+      </button>
     </div>
   </div>
+</div>

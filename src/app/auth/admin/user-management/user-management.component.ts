@@ -36,16 +36,17 @@ import {
 } from '../../../shared/components/register-customer-modal/register-customer-modal.component';
 import { RecreateOrderModalComponent } from '../../../shared/components/recreate-order-modal/recreate-order-modal.component';
 import { finalize } from 'rxjs/operators';
+import { AdminUserBillingComponent } from './user-billing/admin-user-billing.component';
 import {
   InvoiceService, InvoiceClientOption, LinkedInvoiceSummary
 } from '../../../services/invoice.service';
 
-type DetailTab = 'details' | 'history' | 'photos' | 'notes' | 'tasks' | 'invoices';
+type DetailTab = 'details' | 'history' | 'photos' | 'notes' | 'tasks' | 'invoices' | 'billing';
 
 @Component({
   selector: 'app-user-management',
   standalone: true,
-  imports: [CommonModule, FormsModule, RegisterCustomerModalComponent, RecreateOrderModalComponent],
+  imports: [CommonModule, FormsModule, RegisterCustomerModalComponent, RecreateOrderModalComponent, AdminUserBillingComponent],
   templateUrl: './user-management.component.html',
   styleUrls: ['./user-management.component.scss']
 })

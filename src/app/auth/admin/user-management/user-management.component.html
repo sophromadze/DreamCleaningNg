@@ -477,6 +477,10 @@
               [class.active]="detailTab === 'invoices'" (click)="setDetailTab('invoices')">Invoices
         <span class="badge">{{ userInvoices.length }}</span>
       </button>
+      <!-- Saved cards, AutoPay, balances and payment attempts — read-only. Admin + SuperAdmin
+           only (the endpoint refuses Moderators too). -->
+      <button class="tab" *ngIf="currentUserRole === 'Admin' || currentUserRole === 'SuperAdmin'"
+              [class.active]="detailTab === 'billing'" (click)="setDetailTab('billing')">Billing</button>
     </nav>
 
     <!-- Tab body scrolls -->
@@ -490,6 +494,11 @@
 
            Read-only. Sending, editing and recording payment all live in Commercial → Invoices,
            so there is exactly one place each of those can happen. -->
+      <!-- Billing: mounted only while open, so its request fires only when an admin asks. -->
+      <section *ngIf="detailTab === 'billing' && selectedUser" class="tab-pane">
+        <app-admin-user-billing [userId]="selectedUser.id"></app-admin-user-billing>
+      </section>
+
       <section *ngIf="detailTab === 'invoices'" class="tab-pane">
         <div class="um-invoice-list">
           <a class="um-invoice-row" *ngFor="let inv of userInvoices"

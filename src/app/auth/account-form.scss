@@ -1,0 +1,308 @@
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// The account-area form card — Change Password and Change Email.
+//
+// Both pages are opened from the profile's Security tab, so they have to look like they belong
+// to it: the same page background, the same surface, the same border radius and the same button
+// vocabulary. They previously did not — Change Password painted its card in `--mint-fresh`
+// (the pale green reserved for "success"/positive semantic backgrounds), which made a security
+// form read as a confirmation screen, and Change Email had no card at all.
+//
+// Tokens only. Everything here flips with the day/night toggle on its own, so neither page
+// carries a `[data-theme="dark"]` override.
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+
+:host {
+  display: block;
+  min-height: 100vh;
+  background: var(--page-bg);
+}
+
+.account-form-page {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+}
+
+.account-form-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: var(--fw-medium);
+  text-decoration: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+
+  &:hover { color: var(--primary-color); }
+  &:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+}
+
+.account-form-card {
+  padding: 24px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 1px 3px var(--shadow-color);
+
+  h1 {
+    margin: 0 0 6px;
+    font-size: 1.35rem;
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+  }
+
+  .account-form-lede {
+    margin: 0 0 20px;
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+}
+
+// A read-only "here's what it is now" row above the fields.
+.account-form-current {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  margin-bottom: 20px;
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+
+  label {
+    margin: 0;
+    font-size: 0.72rem;
+    font-weight: var(--fw-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-muted);
+  }
+
+  span { color: var(--text-primary); overflow-wrap: anywhere; }
+}
+
+.form-group {
+  margin-bottom: 18px;
+
+  > label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 0.88rem;
+    font-weight: var(--fw-medium);
+    color: var(--text-primary);
+  }
+}
+
+input[type='text'],
+input[type='email'],
+input[type='password'] {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 1rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &::placeholder { color: var(--text-muted); }
+
+  &:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--soft-blue);
+  }
+
+  &.ng-invalid.ng-touched { border-color: var(--bright-red); }
+}
+
+.password-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  input {
+    flex: 1;
+    // Room for the eye button, which is absolutely positioned over the right edge.
+    padding-right: 3rem;
+  }
+}
+
+.password-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+
+  &:hover { color: var(--text-primary); background: var(--surface-subtle); }
+  &:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 0; }
+}
+
+.icon-eye { width: 1.2rem; height: 1.2rem; }
+
+.error {
+  margin-top: 6px;
+  color: var(--bright-red);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.account-form-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 11px 13px;
+  margin-bottom: 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  line-height: 1.5;
+
+  &--error { background: var(--soft-red); color: var(--bright-red); }
+  &--success { background: var(--mint-fresh); color: var(--fresh-green); }
+}
+
+// Requirements / what-happens-next. Deliberately plain, not a coloured warning panel: it is
+// information, and painting it amber makes every visit look like something is wrong.
+.account-form-notes {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-color);
+
+  h2 {
+    margin: 0 0 10px;
+    font-size: 0.88rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+
+    &::before {
+      content: '';
+      flex: 0 0 5px;
+      width: 5px;
+      height: 5px;
+      margin-top: 7px;
+      border-radius: 50%;
+      background: var(--text-muted);
+    }
+  }
+}
+
+// ── Actions ──
+.account-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+
+  .account-btn { flex: 1 1 160px; }
+}
+
+.account-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 12px 20px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: var(--fw-semibold);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+  &:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+
+  &--primary {
+    background: var(--btn-primary);
+    color: #fff;
+    &:hover:not(:disabled) { background: var(--btn-primary-hover); color: #fff; }
+  }
+
+  &--secondary {
+    background: var(--surface);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+    &:hover:not(:disabled) { border-color: var(--primary-color); color: var(--primary-color); }
+  }
+}
+
+// ── The token-verification screen (Change Email arriving from the mailed link) ──
+.account-form-status {
+  text-align: center;
+
+  .status-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    margin-bottom: 14px;
+    border-radius: 50%;
+    background: var(--surface-subtle);
+    color: var(--text-muted);
+
+    svg { width: 30px; height: 30px; }
+
+    &.success { background: var(--mint-fresh); color: var(--fresh-green); }
+    &.error { background: var(--soft-red); color: var(--bright-red); }
+    &.loading { color: var(--primary-color); }
+  }
+
+  h1 { margin-bottom: 10px; }
+
+  ul {
+    margin: 12px 0 0;
+    padding-left: 20px;
+    text-align: left;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+
+  .account-form-actions { justify-content: center; }
+}
+
+@media (max-width: 480px) {
+  .account-form-page { padding: 1.25rem 1rem 2.5rem; }
+  .account-form-card { padding: 18px 16px; }
+  // One action per row rather than two cramped halves.
+  .account-form-actions .account-btn { flex: 1 1 100%; }
+}

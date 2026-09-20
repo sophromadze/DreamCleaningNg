@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, Inject, PLATFORM_ID, afterNextRender, Injector, runInInjectionContext, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, Inject, PLATFORM_ID, afterNextRender, Injector, runInInjectionContext, ViewChild, ElementRef, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
@@ -8,7 +8,7 @@ import {
   PAYMENT_METHOD_OPTIONS, PaymentMethodValue, isSettledOnRecord
 } from '../shared/payment-method';
 import { InvoiceService, InvoiceClientOption } from '../services/invoice.service';
-import { CARD_ON_FILE_ENABLED } from '../shared/card-on-file.flag';
+import { BillingService } from '../services/billing.service';
 import { AuthService } from '../services/auth.service';
 import { AuthModalService } from '../services/auth-modal.service';
 import { ProfileService } from '../services/profile.service';
@@ -256,10 +256,10 @@ export class BookingComponent implements OnInit, OnDestroy {
   readonly propertyTypeApartment = PROPERTY_TYPE_APARTMENT;
   readonly propertyTypeHouse = PROPERTY_TYPE_HOUSE;
   selectedSubscription: Subscription | null = null;
-  // Card-on-file opt-in: saves the card used to pay this booking for faster checkout later.
-  // Saving only — future charges always require an explicit customer/admin action.
-  saveCardForFutureUse = false;
-  cardOnFileEnabled = CARD_ON_FILE_ENABLED;
+  // Saving a card is no longer asked on this form (2026-09): the question is put once, between
+  // the Pay click and the charge, by the pre-payment "Save your card?" modal on the confirmation
+  // page — where the card being saved is the card being typed.
+  private billingService = inject(BillingService);
 
   // Special offers
   userSpecialOffers: UserSpecialOffer[] = [];
@@ -394,6 +394,16 @@ export class BookingComponent implements OnInit, OnDestroy {
   
   // Subscription-related properties
   userSubscription: any = null;
+
+  /**
+   * The plan the customer chose on their profile's Plan tab. A PREFERENCE, not an entitlement:
+   * it only decides which frequency chip starts selected, exactly as if they had tapped it here.
+   * It never affects a price — the subscription discount is granted server-side by
+   * BookingCreationService.ResolveDiscountsAsync purely from the plan the customer ALREADY
+   * holds, which is why the first cleaning on a plan is full price whatever this says.
+   * See DreamCleaningBackend/Helpers/PlanSelectionPolicy.
+   */
+  preferredSubscriptionId: number | null = null;
   hasActiveSubscription = false;
   nextOrderDiscount = 0;
   nextOrderTotal = 0;
@@ -633,6 +643,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit() {
+
     // Restore step from URL BEFORE the browser guard so SSR renders the correct step
     // (prevents hydration mismatch that shows the wrong navigation buttons on refresh)
     // Deep-cleaning preselect from CTAs like the homepage "most requested service" button
@@ -1212,6 +1223,9 @@ export class BookingComponent implements OnInit, OnDestroy {
           const oneTimeSubscription = this.subscriptions.find(s => s.name === 'One Time') || this.subscriptions[0];
           this.selectedSubscription = oneTimeSubscription;
         }
+        // Last, so a draft in progress always wins over a standing preference. The two loads
+        // race, so this is attempted from both of them and is a no-op once one has landed.
+        this.applyPreferredSubscription();
       },
       error: (error) => {
         console.error('Failed to load subscriptions:', error);
@@ -3846,7 +3860,9 @@ export class BookingComponent implements OnInit, OnDestroy {
         ? (localStorage.getItem('dreamcleaning_referral') ?? undefined)
         : undefined,
       // Card-on-file opt-in — never for admin-created (unpaid/manual) bookings.
-      saveCardForFutureUse: this.cardOnFileEnabled && this.saveCardForFutureUse && !this.isAdminMode,
+      // The save decision is no longer taken on this form: it is asked once, between the Pay
+      // click and the charge, by the pre-payment "Save your card?" modal (2026-09).
+      saveCardForFutureUse: false,
     };
 
     // If admin mode, create booking for target user (unpaid). Phase 1 manual payment fields
@@ -5326,10 +5342,14 @@ export class BookingComponent implements OnInit, OnDestroy {
         const expiryMs = rawExpiry ? new Date(rawExpiry).getTime() : NaN;
         const isExpired = rawExpiry && !Number.isNaN(expiryMs) && expiryMs <= Date.now();
 
+        // Carried on both branches of the response: a customer with no live plan is exactly the
+        // one whose profile choice should decide which chip starts selected.
+        this.preferredSubscriptionId = data?.preferredSubscriptionId ?? null;
+
         if (data?.hasSubscription && !isExpired) {
           this.hasActiveSubscription = true;
           this.userSubscription = data;
-          
+
           // If subscription is already loaded, update the selection
           if (this.subscriptions && this.subscriptions.length > 0) {
             this.updateSelectedSubscription();
@@ -5337,6 +5357,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         } else {
           this.hasActiveSubscription = false;
           this.userSubscription = null;
+          this.applyPreferredSubscription();
         }
       },
       error: (error) => {
@@ -5348,6 +5369,30 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.userSubscription = null;
       }
     });
+  }
+
+  /**
+   * Starts the frequency picker on the plan the customer chose in their profile.
+   *
+   * Every condition here is a "don't touch what somebody already decided":
+   *   - a LIVE plan wins, because that tier is the one that actually discounts this booking;
+   *   - a draft in progress wins, because the customer picked that on this page;
+   *   - admin mode is excluded entirely — the admin's own preference must never ride along into
+   *     a booking being taken for somebody else.
+   * It changes no price: it selects a chip the customer could have tapped themselves.
+   */
+  private applyPreferredSubscription(): void {
+    if (this.isAdminMode) return;
+    if (this.hasActiveSubscription) return;
+    if (!this.preferredSubscriptionId) return;
+    if (!this.subscriptions || this.subscriptions.length === 0) return;
+    if (this.formPersistenceService.getFormData()?.selectedSubscriptionId) return;
+
+    const preferred = this.subscriptions.find(s => s.id === this.preferredSubscriptionId);
+    if (!preferred || preferred.id === this.selectedSubscription?.id) return;
+
+    this.selectedSubscription = preferred;
+    this.calculateTotal();
   }
 
   // Stacking gate (spec section 2.4) — kept in sync with backend

@@ -21,44 +21,8 @@
 
   <ng-container *ngIf="!summaryLoading && summary && summary.pointsSystemEnabled">
 
-    <!-- ── Refer a Friend (top) ──────────────────────────── -->
-    <div class="referral-hero">
-      <div class="referral-hero__left">
-        <div class="referral-hero__title">Refer a Friend</div>
-        <div class="referral-hero__hint">
-          Both of you get a reward — your friend gets bonus points when they sign up, and you earn a reward balance when they complete their first cleaning.
-        </div>
-        <div class="referral-share-rows">
-          <div class="referral-row referral-row--link">
-            <span class="referral-row__label">Link:</span>
-            <span class="referral-row__value referral-row__value--url" [title]="getReferralShareUrl()">{{ getReferralShareUrl() }}</span>
-            <div class="referral-row__btns">
-              <button type="button" class="referral-code__copy" (click)="copyReferralLink()">
-                {{ copyFeedback === 'link' ? '✓ Copied!' : 'Copy' }}
-              </button>
-              <button type="button" class="referral-code__share" (click)="shareReferralLink()">Share</button>
-            </div>
-          </div>
-          <div class="referral-row referral-row--code">
-            <span class="referral-row__label">Code:</span>
-            <span class="referral-row__value referral-row__value--mono">{{ summary.referralCode }}</span>
-            <div class="referral-row__btns">
-              <button type="button" class="referral-code__copy referral-code__copy--secondary" (click)="copyReferralCode()">
-                {{ copyFeedback === 'code' ? '✓ Copied!' : 'Copy' }}
-              </button>
-              <button type="button" class="referral-code__share" (click)="shareReferralCode()">Share</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <!-- Decorative bubbles -->
-      <div class="referral-hero__bubbles" aria-hidden="true">
-        <span class="rb rb--a"></span>
-        <span class="rb rb--b"></span>
-        <span class="rb rb--c"></span>
-        <span class="rb rb--d"></span>
-      </div>
-    </div>
+    <!-- ── Refer a Friend (top) — the shared card, also on the profile Overview tab ── -->
+    <app-refer-a-friend class="referral-hero-slot" [code]="summary.referralCode" [shareUrl]="summary.shareUrl"></app-refer-a-friend>
 
     <!-- Referral list -->
     <div *ngIf="referrals.length > 0" class="referral-list referral-list--scroll">

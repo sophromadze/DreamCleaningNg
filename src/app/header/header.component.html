@@ -308,7 +308,7 @@
                   My Jobs
                 </a>
                 <a routerLink="/profile" (click)="closeAllMenus(); $event.stopPropagation()" *ngIf="!isCleanerAccount">Profile</a>
-                <a routerLink="/profile/orders" (click)="closeAllMenus(); $event.stopPropagation()" class="orders-menu-item" *ngIf="!isCleanerAccount">
+                <a routerLink="/profile" (click)="closeAllMenus(); $event.stopPropagation()" class="orders-menu-item" *ngIf="!isCleanerAccount">
                   My Orders
                   <span class="unpaid-orders-menu-indicator" *ngIf="hasUnpaidOrders"></span>
                 </a>

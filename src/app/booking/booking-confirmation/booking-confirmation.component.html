@@ -25,16 +25,16 @@
         <p>Your gift card covers the full amount. No payment is required — just confirm your booking.</p>
       </div>
 
-      <!-- Saved card vs. new card (owner only; selecting never charges — the Pay button does) -->
-      <div class="saved-card-choice" *ngIf="savedCard && !fullyCovered">
-        <label class="pay-option" [class.selected]="payWithSavedCard">
-          <input type="radio" name="paymentMethodChoice" [checked]="payWithSavedCard"
-                 (change)="selectPaymentMethod(true)" [disabled]="isProcessing">
-          <span>Pay with {{ savedCardLabel }}</span>
+      <!-- Saved cards vs. a new card (signed-in customer only; selecting never charges — Pay does) -->
+      <div class="saved-card-choice" *ngIf="savedCards.length > 0 && !fullyCovered" role="radiogroup" aria-label="Payment method">
+        <label class="pay-option" *ngFor="let card of savedCards" [class.selected]="selectedCardId === card.id">
+          <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId === card.id"
+                 (change)="selectPaymentMethod(card.id)" [disabled]="isProcessing">
+          <span>Pay with {{ cardLabel(card) }}<span class="pay-option-badge" *ngIf="card.isPrimary"> · Primary</span></span>
         </label>
-        <label class="pay-option" [class.selected]="!payWithSavedCard">
-          <input type="radio" name="paymentMethodChoice" [checked]="!payWithSavedCard"
-                 (change)="selectPaymentMethod(false)" [disabled]="isProcessing">
+        <label class="pay-option" [class.selected]="selectedCardId === null">
+          <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId === null"
+                 (change)="selectPaymentMethod(null)" [disabled]="isProcessing">
           <span>Enter a new card</span>
         </label>
       </div>
@@ -54,6 +54,16 @@
         {{ cardError }}
       </div>
       
+      <!-- The card WAS charged; only our confirmation is late. Never phrased as a failure. -->
+      <div class="finalizing-notice" *ngIf="finalizingPayment" role="status" aria-live="polite">
+        <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+        <div>
+          <strong>Your payment went through — we're finalising your booking.</strong>
+          <p>Please don't pay again. This usually takes a few seconds; if this message stays,
+            refresh the page in a minute or check your email for the confirmation.</p>
+        </div>
+      </div>
+
       <!-- Money-sensitive notice (auto-refund / contact us) — stays until the customer dismisses it -->
       <div class="support-notice"
            [class.support-notice--critical]="stickyNotice.severity === 'critical'"
@@ -80,7 +90,7 @@
       <div class="payment-actions">
         <button
           class="pay-btn"
-          (click)="processPayment()"
+          (click)="onPayClicked()"
           [disabled]="isProcessing || (!fullyCovered && !usingSavedCard && !!cardError)">
           <span *ngIf="!isProcessing && fullyCovered">Complete Booking</span>
           <span *ngIf="!isProcessing && !fullyCovered">Pay ${{ orderTotal | number:'1.2-2' }}</span>
@@ -107,3 +117,12 @@
     <a [routerLink]="['/order', orderId]" class="view-order-btn">View Order Now</a>
   </div>
 </div>
+
+<!-- Asked between the Pay click and the charge; it starts nothing by itself. -->
+<app-save-card-modal
+  [open]="showSaveCardModal"
+  [busy]="isProcessing"
+  [amountLabel]="'$' + (orderTotal | number:'1.2-2')"
+  (choose)="onSaveCardChoice($event)"
+  (dismissed)="onSaveCardDismissed()">
+</app-save-card-modal>

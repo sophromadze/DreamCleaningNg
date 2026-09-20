@@ -1,0 +1,549 @@
+// Billing tab — every color is a theme token (styles.scss), so day/night follows automatically.
+
+:host { display: block; }
+
+.billing-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+// ── Cards ─────────────────────────────────────────────────────────────────────────────────
+.billing-card {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 20px 22px;
+  box-shadow: 0 1px 3px var(--shadow-color);
+
+  &--alert { border-color: var(--bright-red); }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
+  &__title {
+    margin: 0 0 12px;
+    font-size: 1.15rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+
+    i { color: var(--bright-red); margin-right: 6px; }
+  }
+
+  &__header &__title { margin: 0; }
+}
+
+.billing-muted { color: var(--text-muted); font-size: 0.9rem; margin: 8px 0; }
+.billing-error { color: var(--bright-red); margin: 8px 0; }
+.billing-label { font-weight: var(--fw-semibold); color: var(--text-secondary); margin-right: 6px; }
+.billing-skeleton { color: var(--text-muted); padding: 12px 0; }
+
+.billing-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  padding: 14px;
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+  margin: 4px 0 0;
+
+  i { font-size: 1.3rem; }
+}
+
+.billing-flash {
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+
+  &--ok { background: var(--mint-fresh); color: var(--fresh-green); }
+  &--error { background: var(--soft-red); color: var(--bright-red); }
+}
+
+// ── Buttons (scoped to this tab) ──────────────────────────────────────────────────────────
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-weight: var(--fw-semibold);
+  font-size: 0.92rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+
+  &:disabled { opacity: 0.55; cursor: not-allowed; }
+  &:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+
+  &--primary { background: var(--btn-primary); color: #fff; }
+  &--primary:hover:not(:disabled) { background: var(--btn-primary-hover); }
+  &--secondary { background: var(--surface-subtle); color: var(--text-primary); border-color: var(--border-color); }
+  &--ghost { background: transparent; color: var(--primary-color); border-color: var(--border-color); }
+  &--ghost:hover:not(:disabled) { background: var(--soft-blue); }
+  &--danger { background: var(--btn-danger); color: #fff; }
+  &--danger:hover:not(:disabled) { background: var(--btn-danger-hover); }
+  &--danger-ghost { background: transparent; color: var(--bright-red); border-color: var(--border-color); }
+  &--danger-ghost:hover:not(:disabled) { background: var(--soft-red); }
+  &--small { min-height: 36px; padding: 6px 12px; font-size: 0.85rem; }
+}
+
+.link-btn {
+  background: none;
+  border: 0;
+  padding: 0;
+  color: var(--primary-color);
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
+.button-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+// ── Pills ─────────────────────────────────────────────────────────────────────────────────
+.pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+
+  &--primary, &.status-paid { background: var(--mint-fresh); color: var(--fresh-green); }
+  &--backup { background: var(--soft-blue); color: var(--primary-color); }
+  &--danger, &.status-failed { background: var(--soft-red); color: var(--bright-red); }
+  &--pending, &.status-pending, &.status-requires-action { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+  &.status-refunded { background: var(--soft-lavender); color: var(--text-secondary); }
+  &--muted { background: var(--surface-subtle); color: var(--text-muted); }
+}
+
+// ── Notices & balances ────────────────────────────────────────────────────────────────────
+.notice-list, .obligation-list, .saved-cards, .arrangement-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notice {
+  display: flex;
+  gap: 12px;
+  // Centred, not flex-start: the action ("Update cards", "Pay now") used to pin itself to the
+  // top-right corner of a four-line message, which is what made it read as a button belonging
+  // to nothing. It now sits beside the middle of the text it acts on, and drops UNDER the text
+  // as a full-width row as soon as the two no longer fit side by side.
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  background: var(--soft-yellow);
+  color: var(--soft-yellow-text);
+
+  &--critical { background: var(--soft-red); color: var(--bright-red); }
+  &--unread strong::before { content: '● '; }
+  &:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+
+  p { margin: 4px 0; }
+  small { opacity: 0.8; }
+
+  &__body { flex: 1 1 260px; min-width: 0; }
+
+  > .btn { flex: 0 0 auto; }
+
+  &--compact {
+    flex-direction: column;
+    gap: 2px;
+    background: var(--surface-subtle);
+    color: var(--text-secondary);
+  }
+}
+
+.obligation {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  &__info { display: flex; flex-direction: column; gap: 2px; color: var(--text-secondary); strong { color: var(--text-primary); } }
+  &__flag { color: var(--bright-red); font-size: 0.85rem; font-weight: var(--fw-semibold); }
+  &__amount { font-weight: var(--fw-bold); color: var(--text-primary); }
+  &__action { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+}
+
+// ── Saved cards ───────────────────────────────────────────────────────────────────────────
+.saved-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  &--unusable { opacity: 0.75; }
+
+  &__brand {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+    background: var(--soft-blue);
+    color: var(--primary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+  }
+
+  &__name { font-weight: var(--fw-semibold); color: var(--text-primary); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  &__meta { color: var(--text-muted); font-size: 0.85rem; margin-top: 2px; }
+  &__warning { color: var(--bright-red); font-size: 0.85rem; margin-top: 4px; }
+  &__actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+}
+
+.billing-roles-help { margin-top: 12px; }
+
+.card-form {
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+  background: var(--surface-subtle);
+}
+
+.card-element-box {
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  min-height: 44px;
+}
+
+// ── AutoPay ───────────────────────────────────────────────────────────────────────────────
+.autopay-switch {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  &__state { font-weight: var(--fw-bold); color: var(--text-muted); &.on { color: var(--fresh-green); } }
+}
+
+.switch {
+  position: relative;
+  width: 52px;
+  height: 30px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-color);
+  background: var(--surface-subtle);
+  cursor: pointer;
+  padding: 0;
+
+  &__knob {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--surface);
+    box-shadow: 0 1px 3px var(--shadow-color);
+    transition: transform 0.15s ease;
+  }
+
+  &[aria-checked='true'] { background: var(--fresh-green); border-color: var(--fresh-green); }
+  &[aria-checked='true'] .switch__knob { transform: translateX(22px); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
+}
+
+.autopay-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.arrangement {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  &__title { font-weight: var(--fw-semibold); color: var(--text-primary); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  p { margin: 4px 0; color: var(--text-secondary); font-size: 0.9rem; }
+  &__timing { color: var(--text-muted) !important; }
+  &__paused { color: var(--soft-yellow-text) !important; font-weight: var(--fw-medium); }
+  // A wrapping row pinned to the top of the cell, not a full-height stretched column: three
+  // stacked, stretched buttons beside a two-line description is the "oversized controls"
+  // complaint in its purest form.
+  &__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-start;
+    align-content: flex-start;
+    justify-content: flex-end;
+  }
+}
+
+// ── History ───────────────────────────────────────────────────────────────────────────────
+.history {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+
+  &__row {
+    display: grid;
+    grid-template-columns: 105px 110px 1fr 130px 100px 120px 90px;
+    gap: 10px;
+    padding: 10px 14px;
+    align-items: center;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+
+    &:first-child { border-top: 0; }
+    &--head { background: var(--surface-subtle); font-weight: var(--fw-semibold); color: var(--text-primary); }
+
+    .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+    .negative { color: var(--fresh-green); }
+  }
+
+  &__link { color: var(--primary-color); font-weight: var(--fw-medium); }
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+  color: var(--text-secondary);
+}
+
+.recent-notices {
+  margin-top: 18px;
+
+  h3 { font-size: 1rem; margin: 0 0 8px; color: var(--text-primary); }
+}
+
+// ── Dialogs ───────────────────────────────────────────────────────────────────────────────
+.billing-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-dark);
+  z-index: 1000;
+}
+
+.billing-modal {
+  position: fixed;
+  z-index: 1001;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(480px, calc(100vw - 32px));
+  // dvh first: on a phone with the keyboard open, `vh` is still the FULL viewport, so a dialog
+  // sized by it pushes its own buttons under the keyboard. vh is kept as the fallback for
+  // browsers without dvh.
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  border-radius: var(--radius-lg);
+  padding: 22px;
+  box-shadow: 0 20px 50px var(--shadow-color);
+
+  &--wide { width: min(640px, calc(100vw - 32px)); }
+
+  h3 { margin: 0 0 12px; }
+}
+
+.terms-text {
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 12px;
+  margin: 12px 0;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+
+  pre {
+    white-space: pre-wrap;
+    font-family: inherit;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    margin: 0;
+    color: var(--text-secondary);
+  }
+}
+
+.check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 10px 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  cursor: pointer;
+
+  input { margin-top: 3px; flex-shrink: 0; width: 18px; height: 18px; }
+  &--strong { color: var(--text-primary); font-weight: var(--fw-semibold); }
+}
+
+.radio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+
+  label {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+  }
+}
+
+// ── Phones ────────────────────────────────────────────────────────────────────────────────
+@media (max-width: 720px) {
+  .billing-card { padding: 16px; }
+
+  .saved-card {
+    grid-template-columns: auto 1fr;
+    &__actions { grid-column: 1 / -1; justify-content: flex-start; }
+  }
+
+  .obligation {
+    grid-template-columns: 1fr auto;
+    &__action { grid-column: 1 / -1; justify-content: flex-start; }
+  }
+
+  .arrangement {
+    grid-template-columns: 1fr;
+    &__actions { flex-direction: row; flex-wrap: wrap; }
+  }
+
+  // The history table becomes labelled cards rather than a sideways-scrolling grid.
+  .history {
+    border: 0;
+    gap: 10px;
+
+    &__row {
+      grid-template-columns: 1fr 1fr;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+
+      &--head { display: none; }
+
+      > span[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-muted);
+      }
+
+      .num { text-align: left; }
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// Mobile refinements (2026-09 polish pass)
+//
+// The rules above already reflow the cards at 720px; what was still wrong below that was the
+// SIZE and GROUPING of the controls, not the layout: per-card action buttons ran ragged at
+// whatever width their label happened to be, every dialog's actions were two cramped halves,
+// and a dialog sized in `vh` lost its buttons behind the keyboard.
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+
+@media (max-width: 720px) {
+  // A notice's action stops being a chip floating beside the text and becomes the row's
+  // own decision line.
+  .notice > .btn { flex: 1 1 100%; }
+
+  // Card actions two-up, so "Set as Primary" / "Set as Backup" / "Remove Backup role" /
+  // "Remove" form a tidy grid instead of a ragged run whose last button lands alone.
+  .saved-card__actions {
+    display: flex;
+    width: 100%;
+
+    .btn { flex: 1 1 calc(50% - 4px); }
+  }
+
+  .arrangement__actions {
+    justify-content: flex-start;
+    width: 100%;
+
+    .btn { flex: 1 1 calc(50% - 4px); }
+  }
+
+  // "Pay now" / "Open invoice" on a balance line, same treatment.
+  .obligation__action .btn { flex: 1 1 calc(50% - 4px); }
+
+  // Touch targets: 36px is fine on a desktop card, tight on a phone.
+  .btn--small { min-height: 42px; }
+
+  // The action cell carries no data-label, so on the two-column mobile history card it rendered
+  // as an unexplained empty box under the amount.
+  .history__row > span:not([data-label]):empty { display: none; }
+  .history__row > span:not([data-label]) { grid-column: 1 / -1; }
+}
+
+@media (max-width: 720px) {
+  .billing-modal {
+    width: calc(100vw - 20px);
+    padding: 18px 16px;
+
+    // One decision per row. Two 50% buttons put "Removing…" and "Keep it" on two lines each at
+    // 320px, which is how a destructive dialog ends up ambiguous.
+    .button-row .btn { flex: 1 1 100%; }
+  }
+
+  .billing-modal--wide { width: calc(100vw - 20px); }
+
+  // The authorization terms are the tallest thing in any of these dialogs; capping them by the
+  // viewport rather than a fixed 260px is what keeps the Accept checkbox and the buttons
+  // reachable on a short screen.
+  .terms-text { max-height: min(260px, 34dvh); }
+}
+
+// Very narrow phones (320px): let long labels use the whole row rather than hyphenating.
+@media (max-width: 380px) {
+  .saved-card__actions .btn,
+  .arrangement__actions .btn,
+  .obligation__action .btn { flex: 1 1 100%; }
+}

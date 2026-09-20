@@ -1,23 +1,44 @@
-// Fixed version with proper autofill prevention
-// src/app/auth/change-email/change-email.component.ts
-
-import { Component, OnInit, AfterViewInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterModule } from '@angular/router';
+import { finalize } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
+import { describeEmailProblem } from '../../utils/email.utils';
+import { extractApiErrorMessage } from '../../utils/http-error.utils';
 
+/**
+ * Change email, reached from the profile's Security tab, and also the landing page for the
+ * verification link (`/change-email?token=...`).
+ *
+ * ══ THE FLOW, AND WHERE THE GATE IS ══
+ *
+ * Submitting the form does NOT change the address. It stores a pending address plus a one-hour
+ * token on the account and mails a link to the NEW address; `confirm-email-change` is what moves
+ * `User.Email`, and it only accepts that token. So being signed in is not enough to change the
+ * address — the person has to be able to read mail at the new one.
+ *
+ * ══ WHAT WAS REMOVED, AND WHY ══
+ *
+ * This page used to fight browser autofill with `readonly` attributes removed on click, plus a
+ * `(focus)` handler that blanked the model. Both did more harm than autofill ever did:
+ *
+ *  - `readonly` until CLICK meant a keyboard or screen-reader user could tab into the fields and
+ *    type nothing at all, on the one form that exists to secure an account.
+ *  - blanking the model on every focus meant clicking BACK into the email field to fix a typo
+ *    silently erased what had been typed.
+ *
+ * `autocomplete="off"` on the form plus a one-time-code hint on the password box is the whole
+ * defence now, and the fields behave like fields.
+ */
 @Component({
   selector: 'app-change-email',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './change-email.component.html',
-  styleUrls: ['./change-email.component.scss']
+  styleUrls: ['../account-form.scss', './change-email.component.scss']
 })
-export class ChangeEmailComponent implements OnInit, AfterViewInit {
-  @ViewChild('newEmailElement') newEmailField!: ElementRef;
-  @ViewChild('currentPasswordElement') currentPasswordField!: ElementRef;
-
+export class ChangeEmailComponent implements OnInit {
   // Form step
   newEmail: string = '';
   currentPassword: string = '';
@@ -26,7 +47,7 @@ export class ChangeEmailComponent implements OnInit, AfterViewInit {
   isSubmitting: boolean = false;
   currentUser: any = null;
   showPassword = false;
-  
+
   // Verification step
   currentStep: 'form' | 'verification' = 'form';
   isVerifying = false;
@@ -43,81 +64,55 @@ export class ChangeEmailComponent implements OnInit, AfterViewInit {
   }
 
   ngOnInit() {
-    // Check if this is a verification request
+    // Arriving from the mailed link.
     const token = this.route.snapshot.queryParams['token'];
-    
+
     if (token) {
       this.currentStep = 'verification';
       this.confirmEmailChange(token);
     }
   }
 
-  ngAfterViewInit() {
-    // Clear autofill after view init
-    setTimeout(() => {
-      this.preventAutofill();
-    }, 100);
+  /**
+   * The same check the server runs (`Helpers/EmailAddressValidator`), so a typo is named here
+   * before a request is made rather than coming back as a round trip. Null when it looks usable.
+   */
+  get emailProblem(): string | null {
+    if (!this.newEmail) return null;      // "required" is handled by the disabled submit button
+    return describeEmailProblem(this.newEmail);
   }
 
-  preventAutofill() {
-    if (this.newEmailField?.nativeElement) {
-      this.newEmailField.nativeElement.value = '';
-    }
-    if (this.currentPasswordField?.nativeElement) {
-      this.currentPasswordField.nativeElement.value = '';
-    }
-    
-    // Clear model values
-    this.newEmail = '';
-    this.currentPassword = '';
-  }
-
-  makeEditable(event: any) {
-    event.target.removeAttribute('readonly');
-    event.target.focus();
-  }
-
-  onFieldFocus(fieldType: string) {
-    if (fieldType === 'email') {
-      this.newEmail = '';
-    } else if (fieldType === 'password') {
-      this.currentPassword = '';
-    }
+  get canSubmit(): boolean {
+    return !this.isSubmitting
+      && !!this.newEmail.trim()
+      && !!this.currentPassword
+      && this.emailProblem === null;
   }
 
   onSubmit() {
+    if (!this.canSubmit) return;
+
     this.isSubmitting = true;
     this.errorMessage = '';
     this.successMessage = '';
 
-    this.authService.initiateEmailChange(this.newEmail, this.currentPassword).subscribe({
-      next: (response) => {
-        this.isSubmitting = false;
-        this.successMessage = response.message;
-        // Reset the entire form to clear validation states
-        this.resetFormAfterSuccess();
-      },
-      error: (error) => {
-        this.isSubmitting = false;
-        this.errorMessage = error.error?.message || 'Failed to initiate email change. Please try again.';
-      }
-    });
-  }
-
-  resetFormAfterSuccess() {
-    // Clear the form data
-    this.newEmail = '';
-    this.currentPassword = '';
-    
-    // Reset form validation state
-    setTimeout(() => {
-      if (this.newEmailField?.nativeElement) {
-        this.newEmailField.nativeElement.value = '';
-      }
-      if (this.currentPasswordField?.nativeElement) {
-        this.currentPasswordField.nativeElement.value = '';
-      }
-    }, 0);
+    this.authService.initiateEmailChange(this.newEmail.trim(), this.currentPassword)
+      // `finalize`, not `complete`: RxJS never calls `complete` on an HTTP error, so a failed
+      // attempt would leave the button stuck on "Sending…".
+      .pipe(finalize(() => this.isSubmitting = false))
+      .subscribe({
+        next: (response) => {
+          this.successMessage = response?.message
+            ?? 'Check your new inbox for the verification link.';
+          // Clear the password but KEEP the address on screen: the next thing the customer does
+          // is go and look for mail at it, and they may well want to check they typed it right.
+          this.currentPassword = '';
+        },
+        error: (error) => {
+          this.errorMessage = extractApiErrorMessage(
+            error, 'Failed to start the email change. Please try again.');
+        }
+      });
   }
 
   confirmEmailChange(token: string) {
@@ -126,17 +121,19 @@ export class ChangeEmailComponent implements OnInit, AfterViewInit {
     this.isError = false;
 
     this.authService.confirmEmailChange(token).subscribe({
-      next: (response) => {
+      next: () => {
         this.isVerifying = false;
         this.isSuccess = true;
-        
-        // Log out the user for security (they need to login with new email)
+
+        // The address the account signs in with has changed, so this session is deliberately
+        // ended — the customer signs in again with the new one.
         this.authService.logout();
       },
       error: (error) => {
         this.isVerifying = false;
         this.isError = true;
-        this.verificationErrorMessage = error.error?.message || 'Failed to verify email change';
+        this.verificationErrorMessage = extractApiErrorMessage(
+          error, 'We could not verify that link.');
       }
     });
   }
@@ -152,14 +149,8 @@ export class ChangeEmailComponent implements OnInit, AfterViewInit {
     this.isSuccess = false;
     this.isError = false;
     this.verificationErrorMessage = '';
-    
-    // Clear URL parameters
+
     this.router.navigate(['/change-email']);
-    
-    // Prevent autofill again
-    setTimeout(() => {
-      this.preventAutofill();
-    }, 100);
   }
 
   goToLogin() {
@@ -167,6 +158,6 @@ export class ChangeEmailComponent implements OnInit, AfterViewInit {
   }
 
   goBack() {
-    this.router.navigate(['/profile']);
+    this.router.navigate(['/profile'], { queryParams: { tab: 'security' } });
   }
 }

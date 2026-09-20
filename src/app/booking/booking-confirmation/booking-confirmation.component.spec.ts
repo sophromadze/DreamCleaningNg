@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 
 import { BookingConfirmationComponent } from './booking-confirmation.component';
 import { BookingDataService } from '../../services/booking-data.service';
@@ -8,6 +8,7 @@ import { BookingService } from '../../services/booking.service';
 import { StripeService } from '../../services/stripe.service';
 import { OrderSoundService } from '../../services/order-sound.service';
 import { Router } from '@angular/router';
+import { AuthService } from '../../services/auth.service';
 
 import { testProviders } from '../../../testing/test-providers';
 
@@ -143,6 +144,191 @@ describe('BookingConfirmationComponent', () => {
       // gift-card branch, which would build an order nobody paid for.
       expect(confirm).toHaveBeenCalledWith(0, 'pi_first', 'prepare_payment_1_638');
       expect(component.orderId).toBe(370);
+    });
+  });
+
+  // ── the card WAS charged, but our confirmation of it failed to arrive (2026-09 billing) ──────
+  //
+  // A timeout or a 5xx after Stripe took the money is not a failed payment. Showing "Payment
+  // confirmation failed" and re-enabling Pay is exactly what made a customer pay twice. The page
+  // must say it is finalising, keep the Pay button down, and retry the SAME idempotent confirm.
+  describe('a confirmation that fails in transit after the card was charged', () => {
+    let bookingService: BookingService;
+    let stripeService: StripeService;
+
+    beforeEach(() => {
+      bookingService = TestBed.inject(BookingService);
+      stripeService = TestBed.inject(StripeService);
+      component.bookingData = { serviceTypeId: 1, total: 120 };
+      component.orderTotal = 120;
+      spyOn(TestBed.inject(Router), 'navigate').and.returnValue(Promise.resolve(true));
+      spyOn(TestBed.inject(OrderSoundService), 'playBookingConfirmed').and.stub();
+      spyOn(bookingService, 'preparePayment').and.returnValue(of({
+        orderId: 0, status: 'Pending', total: 120, requiresPayment: true,
+        paymentIntentId: 'pi_charged', paymentClientSecret: 'secret', alreadyPaidPaymentIntentId: null,
+        sessionId: 'prepare_payment_1_1'
+      }));
+      spyOn(stripeService, 'confirmCardPayment').and.returnValue(Promise.resolve({ id: 'pi_charged', status: 'succeeded' }));
+    });
+
+    it('shows a finalising state instead of an error, keeps Pay disabled, and retries the same intent', async () => {
+      jasmine.clock().install();
+      try {
+        const markIdle = spyOn(bookingDataService, 'markPaymentIdle').and.callThrough();
+        let calls = 0;
+        const confirm = spyOn(bookingService, 'confirmPayment').and.callFake((() => {
+          calls++;
+          return calls === 1
+            ? throwError(() => ({ status: 0, error: null }))   // the response never arrived
+            : of({ orderId: 501 });
+        }) as any);
+
+        await component.processPayment();
+        await Promise.resolve();
+
+        expect(component.finalizingPayment).toBeTrue();
+        expect(component.errorMessage).toBe('');
+        expect(component.isProcessing).toBeTrue();       // Pay stays down
+        expect(markIdle).not.toHaveBeenCalled();         // the in-flight guard stays up
+
+        jasmine.clock().tick(2100);
+
+        expect(confirm).toHaveBeenCalledTimes(2);
+        expect(confirm.calls.argsFor(1)).toEqual([0, 'pi_charged', 'prepare_payment_1_1']);
+        expect(component.orderId).toBe(501);
+        expect(component.paymentCompleted).toBeTrue();
+        expect(component.finalizingPayment).toBeFalse();
+        expect(stripeService.confirmCardPayment).toHaveBeenCalledTimes(1); // never charged twice
+      } finally {
+        jasmine.clock().uninstall();
+      }
+    });
+
+    it('still reports a definite server answer (a 4xx) the way it always did', async () => {
+      spyOn(bookingService, 'confirmPayment').and.returnValue(
+        throwError(() => ({ status: 400, error: { message: 'Payment not completed' } })) as any);
+
+      await component.processPayment();
+      await Promise.resolve();
+
+      expect(component.finalizingPayment).toBeFalse();
+      expect(component.errorMessage).toContain('Payment not completed');
+    });
+  });
+  // ── "Save your card?", asked BEFORE the charge (2026-09) ────────────────────────────────
+  //
+  // The modal replaced both the booking-form tick-box and the post-payment prompt. What matters
+  // for payment safety: it is asked between the Pay click and prepare-payment, so opening or
+  // closing it can neither create a PaymentIntent nor charge anything.
+  describe('the pre-payment save-card modal', () => {
+    let bookingService: BookingService;
+    let stripeService: StripeService;
+    let prepare: jasmine.Spy;
+
+    beforeEach(() => {
+      bookingService = TestBed.inject(BookingService);
+      stripeService = TestBed.inject(StripeService);
+      component.bookingData = { serviceTypeId: 1, total: 141.54 };
+      component.orderTotal = 141.54;
+      component.savedCardsFeature = true;
+      component.savedCards = [];
+      component.selectedCardId = null;
+      spyOn(TestBed.inject(AuthService), 'isLoggedIn').and.returnValue(true);
+
+      prepare = spyOn(bookingService, 'preparePayment').and.returnValue(of({
+        orderId: 0, status: 'Pending', total: 141.54, requiresPayment: true,
+        paymentIntentId: 'pi_new', paymentClientSecret: 'secret_new',
+        alreadyPaidPaymentIntentId: null, canSaveCard: true, sessionId: 'prepare_1'
+      }));
+      spyOn(stripeService, 'confirmCardPayment').and.returnValue(Promise.resolve({ id: 'pi_new' }) as any);
+      spyOn(bookingService, 'confirmPayment').and.returnValue(of({ orderId: 501 }));
+      spyOn(TestBed.inject(Router), 'navigate').and.returnValue(Promise.resolve(true));
+      spyOn(TestBed.inject(OrderSoundService), 'playBookingConfirmed').and.stub();
+    });
+
+    it('asks before anything is prepared or charged', () => {
+      component.onPayClicked();
+
+      expect(component.showSaveCardModal).toBeTrue();
+      expect(prepare).not.toHaveBeenCalled();
+      expect(stripeService.confirmCardPayment).not.toHaveBeenCalled();
+    });
+
+    it('closing it charges nothing and leaves the payment form as it was', () => {
+      component.onPayClicked();
+      component.onSaveCardDismissed();
+
+      expect(component.showSaveCardModal).toBeFalse();
+      expect(prepare).not.toHaveBeenCalled();
+      expect(stripeService.confirmCardPayment).not.toHaveBeenCalled();
+      expect(component.isProcessing).toBeFalse();
+    });
+
+    it('"Save Card & Pay" pays ONCE, with the save applied to that same intent', async () => {
+      component.onPayClicked();
+      component.onSaveCardChoice(true);
+      await fixture.whenStable();
+
+      expect(prepare).toHaveBeenCalledTimes(1);
+      expect(stripeService.confirmCardPayment).toHaveBeenCalledTimes(1);
+      expect((stripeService.confirmCardPayment as jasmine.Spy).calls.mostRecent().args[2]).toBeTrue();
+      expect(component.paymentCompleted).toBeTrue();
+    });
+
+    it('"Pay Without Saving" pays ONCE and saves nothing', async () => {
+      component.onPayClicked();
+      component.onSaveCardChoice(false);
+      await fixture.whenStable();
+
+      expect(prepare).toHaveBeenCalledTimes(1);
+      expect((stripeService.confirmCardPayment as jasmine.Spy).calls.mostRecent().args[2]).toBeFalse();
+      expect(component.paymentCompleted).toBeTrue();
+    });
+
+    it('never saves when the server says this intent cannot carry the choice', async () => {
+      prepare.and.returnValue(of({
+        orderId: 0, status: 'Pending', total: 141.54, requiresPayment: true,
+        paymentIntentId: 'pi_new', paymentClientSecret: 'secret_new',
+        alreadyPaidPaymentIntentId: null, canSaveCard: false, sessionId: 'prepare_1'
+      }));
+
+      component.onPayClicked();
+      component.onSaveCardChoice(true);
+      await fixture.whenStable();
+
+      expect((stripeService.confirmCardPayment as jasmine.Spy).calls.mostRecent().args[2]).toBeFalse();
+      expect(component.paymentCompleted).toBeTrue();   // the payment is unaffected
+    });
+
+    it('does not ask again once answered, and never asks for a SAVED card', () => {
+      component.onPayClicked();
+      component.onSaveCardChoice(false);
+      component.showSaveCardModal = false;
+
+      component.onPayClicked();
+      expect(component.showSaveCardModal).toBeFalse();   // same attempt, same answer
+
+      component.savedCards = [{ id: 7, paymentMethodId: 'pm_saved', isPrimary: true } as any];
+      component.selectPaymentMethod(7);
+      component.onPayClicked();
+      expect(component.showSaveCardModal).toBeFalse();   // a saved card is already saved
+    });
+
+    it('asks again when the customer switches from a saved card to a new one', async () => {
+      component.savedCards = [{ id: 7, paymentMethodId: 'pm_saved', isPrimary: true } as any];
+      component.selectPaymentMethod(7);
+      component.onPayClicked();
+      expect(component.showSaveCardModal).toBeFalse();   // a saved card is never asked about
+
+      // Let that attempt settle before the next click — the Pay button is held down while a
+      // payment is in flight, which is a separate guarantee from this one.
+      await fixture.whenStable();
+      component.isProcessing = false;
+      component.paymentCompleted = false;
+
+      component.selectPaymentMethod(null);
+      component.onPayClicked();
+      expect(component.showSaveCardModal).toBeTrue();
     });
   });
 });

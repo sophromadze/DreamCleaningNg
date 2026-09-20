@@ -580,16 +580,19 @@
                               : 'Email and text an updated confirmation showing the current date, time and address'">
                       {{ loadingStates.resendingConfirmation ? 'Sending…' : 'Send Updated Confirmation' }}
                     </button>
-                    <!-- Explicit charge of the owner's card on file (unpaid orders only).
-                         Fires ONLY on this click — nothing is ever charged automatically. -->
+                    <!-- Charge the owner's Primary card for the BALANCE DUE. Offered only when the
+                         customer authorised charges for office-booked orders; fires only on this click. -->
                     <button *ngIf="canChargeSavedCard() && (isSuperAdmin || userPermissions.permissions.canUpdate)"
                             type="button"
                             class="action-btn charge-saved-card"
                             (click)="chargeSavedCard()"
                             [disabled]="loadingStates.chargingSavedCard"
-                            [title]="'Charge the customer\'s saved card ending ' + (orderSavedCardInfo?.last4 || '')">
-                      {{ loadingStates.chargingSavedCard ? 'Charging…' : ('Charge $' + (selectedOrder.total | number:'1.2-2') + ' to card •••• ' + (orderSavedCardInfo?.last4 || '')) }}
+                            [title]="'Charge the balance due to the customer\'s saved card ending ' + (orderSavedCardInfo?.last4 || '')">
+                      {{ loadingStates.chargingSavedCard ? 'Charging…' : ('Charge $' + (orderSavedCardInfo?.amountDue | number:'1.2-2') + ' to card •••• ' + (orderSavedCardInfo?.last4 || '')) }}
                     </button>
+                    <span class="charge-saved-card-hint" *ngIf="!canChargeSavedCard() && savedCardUnavailableReason() as reason">
+                      <i class="fas fa-credit-card" aria-hidden="true"></i> Saved card: {{ reason }}
+                    </span>
                   </div>
 
                   <!-- Order Edit Form (SuperAdmin: direct save; Admin: submit for approval) -->

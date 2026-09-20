@@ -23,6 +23,10 @@ import {
 export class BookingSuccessComponent implements OnInit, OnDestroy {
   orderId: string = '';
   order: Order | null = null;
+
+  /** True only when this page was reached by the navigation that follows a payment. */
+  private arrivedFromPayment = false;
+
   hasCleaningSupplies = false;
   isCustomServiceType = false;
   suppliesLoaded = false;
@@ -66,6 +70,12 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
       this.loginEmail = state.contactEmail
         ?? this.authService.currentUserValue?.email
         ?? '';
+
+      // The purchase conversion belongs to the payment that just happened, not to somebody
+      // re-opening their receipt. The sessionStorage guard below de-duplicates within a tab; a
+      // NEW tab has none, so the page is only allowed to report a purchase when it was actually
+      // reached by the post-payment navigation (2026-09).
+      this.arrivedFromPayment = state.paymentSuccess === true;
 
       const id = Number(this.orderId);
       if (!Number.isNaN(id)) {
@@ -207,6 +217,9 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
   private trackPurchaseConversion(order: Order): void {
     if (!isPlatformBrowser(this.platformId)) return;
     if (!order || !order.id) return;
+    // Re-opening a receipt is not a purchase. The sessionStorage key below de-duplicates within
+    // one tab; a new tab has none, so the payment navigation itself is what authorises reporting.
+    if (!this.arrivedFromPayment) return;
 
     const dedupeKey = `booking_conversion_fired_${order.id}`;
     if (sessionStorage.getItem(dedupeKey)) return;

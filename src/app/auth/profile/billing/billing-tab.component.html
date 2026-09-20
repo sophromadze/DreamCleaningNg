@@ -1,0 +1,306 @@
+<div class="billing-tab">
+  <div class="billing-flash billing-flash--ok" *ngIf="message" role="status">{{ message }}</div>
+  <div class="billing-flash billing-flash--error" *ngIf="errorMessage" role="alert">{{ errorMessage }}</div>
+
+  <!-- ═══ Loading / error ═══ -->
+  <div class="billing-card" *ngIf="loading">
+    <h2 class="billing-card__title">Payment methods</h2>
+    <div class="billing-skeleton" [attr.aria-busy]="true">Loading your billing details…</div>
+  </div>
+  <div class="billing-card" *ngIf="!loading && loadError">
+    <p class="billing-error">{{ loadError }}</p>
+    <button type="button" class="btn btn--secondary" (click)="reload()">Try again</button>
+  </div>
+
+  <ng-container *ngIf="!loading && !loadError">
+
+    <!-- ═══ Payment issues & balances ═══ -->
+    <section class="billing-card billing-card--alert" *ngIf="openIssues.length > 0" aria-labelledby="billing-issues">
+      <h2 class="billing-card__title" id="billing-issues"><i class="fas fa-exclamation-circle" aria-hidden="true"></i> Payment issues</h2>
+      <ul class="notice-list">
+        <li *ngFor="let n of openIssues" class="notice" [class.notice--critical]="n.severity === 'critical'"
+            [class.notice--unread]="!n.isRead" (mouseenter)="markRead(n)" (focusin)="markRead(n)" tabindex="0">
+          <div class="notice__body">
+            <strong>{{ n.title }}</strong>
+            <p>{{ n.message }}</p>
+            <small>{{ n.createdAt | date:'MMM d, y, h:mm a' }}</small>
+          </div>
+          <a *ngIf="n.actionUrl" class="btn btn--primary btn--small" [routerLink]="n.actionUrl.split('?')[0]"
+             [queryParams]="n.actionUrl.includes('tab=billing') ? { tab: 'billing' } : null">{{ n.actionLabel || 'Open' }}</a>
+        </li>
+      </ul>
+    </section>
+
+    <section class="billing-card" *ngIf="outstanding.length > 0" aria-labelledby="billing-outstanding">
+      <h2 class="billing-card__title" id="billing-outstanding">Balance due</h2>
+      <ul class="obligation-list">
+        <li *ngFor="let o of outstanding" class="obligation">
+          <div class="obligation__info">
+            <strong>{{ o.reference }}</strong>
+            <span>{{ o.description }}</span>
+            <span class="obligation__flag" *ngIf="o.autoPayFailed">Automatic payment failed</span>
+          </div>
+          <div class="obligation__amount">${{ o.amountDue | number:'1.2-2' }}</div>
+          <div class="obligation__action">
+            <span class="pill pill--pending" *ngIf="o.paymentInProgress">Payment processing</span>
+            <ng-container *ngIf="!o.paymentInProgress">
+              <a *ngIf="o.type === 'order'" class="btn btn--primary btn--small" [routerLink]="o.payUrl">Pay now</a>
+              <ng-container *ngIf="o.type === 'invoice'">
+                <button *ngIf="featureEnabled && usableCards.length > 0" type="button" class="btn btn--primary btn--small"
+                        (click)="openPayInvoice(o)">Pay with saved card</button>
+                <a class="btn btn--secondary btn--small" [href]="o.payUrl">Open invoice</a>
+              </ng-container>
+            </ng-container>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <!-- ═══ Payment methods ═══ -->
+    <section class="billing-card" aria-labelledby="billing-cards">
+      <div class="billing-card__header">
+        <h2 class="billing-card__title" id="billing-cards">Payment methods</h2>
+        <button *ngIf="featureEnabled && !addingCard" type="button" class="btn btn--primary btn--small" (click)="openAddCard()">
+          <i class="fas fa-plus" aria-hidden="true"></i> Add card
+        </button>
+      </div>
+
+      <p class="billing-muted" *ngIf="!featureEnabled">Saving cards isn't available yet.</p>
+
+      <div class="card-form" *ngIf="addingCard">
+        <p class="billing-muted">Your card is securely handled by Stripe. We never see or store the full number. Nothing is charged.</p>
+        <div id="billing-card-element" class="card-element-box"></div>
+        <p class="billing-error" *ngIf="addCardError" role="alert">{{ addCardError }}</p>
+        <div class="button-row">
+          <button type="button" class="btn btn--primary" (click)="saveNewCard()" [disabled]="addCardSaving">
+            {{ addCardSaving ? 'Saving…' : 'Save card' }}
+          </button>
+          <button type="button" class="btn btn--ghost" (click)="cancelAddCard()" [disabled]="addCardSaving">Cancel</button>
+        </div>
+      </div>
+
+      <p class="billing-empty" *ngIf="featureEnabled && cards.length === 0 && !addingCard">
+        <i class="far fa-credit-card" aria-hidden="true"></i>
+        You have no saved cards. Add one for faster checkout — saving a card never turns on automatic payments.
+      </p>
+
+      <ul class="saved-cards" *ngIf="cards.length > 0">
+        <li *ngFor="let card of cards" class="saved-card" [class.saved-card--unusable]="!card.isUsable">
+          <div class="saved-card__brand" aria-hidden="true"><i class="fas fa-credit-card"></i></div>
+          <div class="saved-card__info">
+            <div class="saved-card__name">
+              {{ cardLabel(card) }}
+              <span class="pill pill--primary" *ngIf="card.isPrimary">Primary</span>
+              <span class="pill pill--backup" *ngIf="card.isBackup">Backup</span>
+              <span class="pill pill--danger" *ngIf="card.isExpired">Expired</span>
+              <span class="pill pill--danger" *ngIf="card.status === 'blocked'">Blocked</span>
+            </div>
+            <div class="saved-card__meta">
+              <span *ngIf="cardExpiry(card)">Expires {{ cardExpiry(card) }}</span>
+              <span *ngIf="card.wallet"> · {{ card.wallet }}</span>
+            </div>
+            <div class="saved-card__warning" *ngIf="card.statusMessage">{{ card.statusMessage }}</div>
+          </div>
+          <div class="saved-card__actions">
+            <button *ngIf="!card.isPrimary && card.isUsable" type="button" class="btn btn--ghost btn--small"
+                    (click)="setPrimary(card)" [disabled]="busyCardId !== null">Set as Primary</button>
+            <button *ngIf="!card.isPrimary && !card.isBackup && card.isUsable && hasUsablePrimary" type="button"
+                    class="btn btn--ghost btn--small" (click)="setBackup(card)" [disabled]="busyCardId !== null">Set as Backup</button>
+            <button *ngIf="card.isBackup" type="button" class="btn btn--ghost btn--small"
+                    (click)="setBackup(null)" [disabled]="busyCardId !== null">Remove Backup role</button>
+            <button type="button" class="btn btn--danger-ghost btn--small" (click)="openRemove(card)"
+                    [disabled]="busyCardId !== null" [attr.aria-label]="'Remove ' + cardLabel(card)">Remove</button>
+          </div>
+        </li>
+      </ul>
+      <p class="billing-muted billing-roles-help" *ngIf="cards.length > 0">
+        <strong>Primary</strong> is the card automatic payments use. <strong>Backup</strong> is tried once, only for
+        arrangements where you allowed it, when the Primary card can't be charged.
+      </p>
+    </section>
+
+    <!-- ═══ Automatic payments ═══ -->
+    <section class="billing-card" *ngIf="autoPay" aria-labelledby="billing-autopay">
+      <div class="billing-card__header">
+        <h2 class="billing-card__title" id="billing-autopay">Automatic payments</h2>
+        <div class="autopay-switch" *ngIf="autoPay.featureEnabled">
+          <span class="autopay-switch__state" [class.on]="autoPay.autoPayEnabled">{{ autoPay.autoPayEnabled ? 'ON' : 'OFF' }}</span>
+          <button type="button" role="switch" class="switch" [attr.aria-checked]="autoPay.autoPayEnabled"
+                  aria-label="Automatic payments" (click)="toggleAutoPay()"
+                  [disabled]="autoPayBusy || (!autoPay.autoPayEnabled && !hasUsablePrimary)">
+            <span class="switch__knob"></span>
+          </button>
+        </div>
+      </div>
+
+      <p class="billing-muted" *ngIf="!autoPay.featureEnabled">Automatic payments aren't available yet.</p>
+
+      <ng-container *ngIf="autoPay.featureEnabled">
+        <p class="billing-muted" *ngIf="!hasUsablePrimary && !autoPay.autoPayEnabled">
+          Add a card first — Automatic Payments charge your Primary card.
+        </p>
+        <div class="autopay-cards" *ngIf="autoPay.primaryCard">
+          <div><span class="billing-label">Primary</span> {{ cardLabel(autoPay.primaryCard) }}</div>
+          <div><span class="billing-label">Backup</span> {{ autoPay.backupCard ? cardLabel(autoPay.backupCard) : 'None — a failed payment will not fall back to another card' }}</div>
+        </div>
+        <p class="billing-muted">
+          Turning Automatic Payments on is a general agreement only. Nothing is charged automatically until you
+          authorize a specific arrangement below.
+        </p>
+      </ng-container>
+
+      <ul class="arrangement-list" *ngIf="autoPay.arrangements.length > 0">
+        <li *ngFor="let a of autoPay.arrangements" class="arrangement">
+          <div class="arrangement__info">
+            <div class="arrangement__title">
+              {{ a.title }}
+              <span class="pill pill--primary" *ngIf="a.isEffective">Active</span>
+              <span class="pill pill--pending" *ngIf="a.isAuthorized && !a.isEffective">Paused</span>
+              <span class="pill pill--muted" *ngIf="!a.isAuthorized">Not authorized</span>
+            </div>
+            <p>{{ a.description }}</p>
+            <p class="arrangement__timing"><i class="far fa-clock" aria-hidden="true"></i> {{ a.timing }}</p>
+            <p class="arrangement__paused" *ngIf="a.pausedReason">{{ a.pausedReason }}</p>
+            <p class="billing-muted" *ngIf="a.isAuthorized">
+              Authorized {{ a.authorizedAt | date:'MMM d, y' }} · Backup card {{ a.allowBackupFallback ? 'allowed' : 'not used' }}
+            </p>
+          </div>
+          <div class="arrangement__actions">
+            <button *ngIf="!a.isAuthorized" type="button" class="btn btn--primary btn--small"
+                    (click)="openTerms('arrangement', a)"
+                    [disabled]="autoPayBusy || !hasUsablePrimary || (a.scope !== 'office' && !autoPay.autoPayEnabled)">Authorize</button>
+            <button *ngIf="a.isAuthorized" type="button" class="btn btn--ghost btn--small"
+                    (click)="openTerms('arrangement', a)" [disabled]="autoPayBusy">Change</button>
+            <button *ngIf="a.isAuthorized" type="button" class="btn btn--danger-ghost btn--small"
+                    (click)="revoke(a)" [disabled]="autoPayBusy">Revoke</button>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <!-- ═══ Billing history ═══ -->
+    <section class="billing-card" aria-labelledby="billing-history">
+      <h2 class="billing-card__title" id="billing-history">Billing history</h2>
+      <div class="billing-skeleton" *ngIf="historyLoading">Loading…</div>
+      <p class="billing-empty" *ngIf="!historyLoading && history.length === 0">
+        <i class="fas fa-receipt" aria-hidden="true"></i> No payments yet. Your payments, refunds and invoice payments will appear here.
+      </p>
+
+      <div class="history" *ngIf="!historyLoading && history.length > 0">
+        <div class="history__row history__row--head" aria-hidden="true">
+          <span>Date</span><span>Reference</span><span>Description</span><span>Method</span><span class="num">Amount</span><span>Status</span><span></span>
+        </div>
+        <div class="history__row" *ngFor="let item of history">
+          <span class="history__date" data-label="Date">{{ item.date | date:'MMM d, y' }}</span>
+          <span data-label="Reference">{{ item.reference }}</span>
+          <span data-label="Description">{{ item.description }}</span>
+          <span data-label="Method">{{ item.paymentMethodLabel || '—' }}</span>
+          <span class="num" data-label="Amount" [class.negative]="item.amount < 0">
+            {{ item.amount < 0 ? '−' : '' }}${{ (item.amount < 0 ? -item.amount : item.amount) | number:'1.2-2' }}
+          </span>
+          <span data-label="Status"><span class="pill" [ngClass]="statusClass(item.status)">{{ item.status }}</span></span>
+          <span>
+            <a *ngIf="item.actionUrl && item.actionUrl.startsWith('/order')" [routerLink]="item.actionUrl" class="history__link">{{ item.actionLabel }}</a>
+            <a *ngIf="item.actionUrl && item.actionUrl.startsWith('/invoice')" [href]="item.actionUrl" class="history__link">{{ item.actionLabel }}</a>
+          </span>
+        </div>
+      </div>
+
+      <nav class="pager" *ngIf="historyPageCount > 1" aria-label="Billing history pages">
+        <button type="button" class="btn btn--ghost btn--small" (click)="loadHistory(historyPage - 1)" [disabled]="historyPage <= 1 || historyLoading">Previous</button>
+        <span>Page {{ historyPage }} of {{ historyPageCount }}</span>
+        <button type="button" class="btn btn--ghost btn--small" (click)="loadHistory(historyPage + 1)" [disabled]="historyPage >= historyPageCount || historyLoading">Next</button>
+      </nav>
+
+      <div class="recent-notices" *ngIf="recentNotices.length > 0">
+        <h3>Recent billing messages</h3>
+        <ul class="notice-list notice-list--compact">
+          <li *ngFor="let n of recentNotices" class="notice notice--compact">
+            <strong>{{ n.title }}</strong>
+            <span>{{ n.message }}</span>
+            <small>{{ n.createdAt | date:'MMM d, y' }}</small>
+          </li>
+        </ul>
+      </div>
+    </section>
+  </ng-container>
+
+  <!-- ═══ Remove card dialog ═══ -->
+  <div class="billing-modal-backdrop" *ngIf="removeDialog" (click)="closeRemove()"></div>
+  <div class="billing-modal" *ngIf="removeDialog" role="dialog" aria-modal="true" aria-labelledby="remove-card-title">
+    <h3 id="remove-card-title">Remove {{ cardLabel(removeDialog.card) }}?</h3>
+    <p>{{ removeConsequence() }}</p>
+    <div class="radio-list" *ngIf="removeDialog.card.isPrimary && removeSuccessorOptions.length > 0" role="radiogroup">
+      <label *ngFor="let c of removeSuccessorOptions">
+        <input type="radio" name="newPrimary" [value]="c.id" [(ngModel)]="removeDialog.newPrimaryId">
+        {{ cardLabel(c) }}<span *ngIf="c.isBackup"> (currently Backup)</span>
+      </label>
+    </div>
+    <p class="billing-error" *ngIf="removeDialog.error" role="alert">{{ removeDialog.error }}</p>
+    <div class="button-row">
+      <button type="button" class="btn btn--danger" (click)="confirmRemove()" [disabled]="removeDialog.busy">
+        {{ removeDialog.busy ? 'Removing…' : 'Remove card' }}
+      </button>
+      <button type="button" class="btn btn--ghost" (click)="removeDialog = null" [disabled]="removeDialog.busy">Keep it</button>
+    </div>
+  </div>
+
+  <!-- ═══ Authorization dialog ═══ -->
+  <div class="billing-modal-backdrop" *ngIf="terms" (click)="closeTerms()"></div>
+  <div class="billing-modal billing-modal--wide" *ngIf="terms" role="dialog" aria-modal="true" aria-labelledby="terms-title">
+    <h3 id="terms-title">{{ terms.title }}</h3>
+
+    <label class="check" *ngIf="terms.kind === 'arrangement'">
+      <input type="checkbox" [(ngModel)]="terms.allowBackup" (ngModelChange)="loadTermsText()"
+             [disabled]="!hasBackupCard || terms.submitting">
+      <span>Allow my Backup card to be tried once if my Primary card can't be charged
+        <em *ngIf="!hasBackupCard">(set a Backup card first)</em></span>
+    </label>
+
+    <div class="terms-text" tabindex="0" aria-label="Authorization terms">
+      <p *ngIf="terms.loading">Loading…</p>
+      <pre *ngIf="!terms.loading">{{ terms.text }}</pre>
+    </div>
+
+    <ng-container *ngIf="terms.arrangement?.scope === 'office'">
+      <p class="billing-muted">These three agreements apply to every order our office books for you:</p>
+      <label class="check"><input type="checkbox" [(ngModel)]="terms.smsConsent" [disabled]="terms.submitting"><span>I agree to receive customer-care text messages (see above).</span></label>
+      <label class="check"><input type="checkbox" [(ngModel)]="terms.cancellationFeeConsent" [disabled]="terms.submitting"><span>I agree to the $70 late-cancellation fee and booking-accuracy terms (see above).</span></label>
+      <label class="check"><input type="checkbox" [(ngModel)]="terms.termsOfServiceConsent" [disabled]="terms.submitting"><span>I have read and agree to the <a routerLink="/privacy-policy" target="_blank">Privacy Policy</a> and <a routerLink="/terms-and-conditions" target="_blank">Terms and Conditions</a>.</span></label>
+    </ng-container>
+
+    <label class="check check--strong">
+      <input type="checkbox" [(ngModel)]="terms.accepted" [disabled]="terms.loading || terms.submitting">
+      <span>I have read and agree to this authorization.</span>
+    </label>
+
+    <p class="billing-error" *ngIf="terms.error" role="alert">{{ terms.error }}</p>
+    <div class="button-row">
+      <button type="button" class="btn btn--primary" (click)="submitTerms()" [disabled]="!termsCanSubmit">
+        {{ terms.submitting ? 'Saving…' : (terms.kind === 'general' ? 'Turn on Automatic Payments' : 'Authorize') }}
+      </button>
+      <button type="button" class="btn btn--ghost" (click)="terms = null" [disabled]="terms.submitting">Cancel</button>
+    </div>
+  </div>
+
+  <!-- ═══ Pay an invoice with a saved card ═══ -->
+  <div class="billing-modal-backdrop" *ngIf="payDialog" (click)="closePay()"></div>
+  <div class="billing-modal" *ngIf="payDialog" role="dialog" aria-modal="true" aria-labelledby="pay-title">
+    <h3 id="pay-title">Pay {{ payDialog.obligation.reference }}</h3>
+    <p>Amount due: <strong>${{ payDialog.obligation.amountDue | number:'1.2-2' }}</strong></p>
+    <div class="radio-list" role="radiogroup" aria-label="Card">
+      <label *ngFor="let c of usableCards">
+        <input type="radio" name="payCard" [value]="c.id" [(ngModel)]="payDialog.cardId" [disabled]="payDialog.busy">
+        {{ cardLabel(c) }}<span *ngIf="c.isPrimary"> · Primary</span>
+      </label>
+    </div>
+    <p class="billing-muted">Want to use a different card? <button type="button" class="link-btn" (click)="payDialog = null; openAddCard()">Add a card</button> first, or open the invoice to pay another way.</p>
+    <p class="billing-error" *ngIf="payDialog.error" role="alert">{{ payDialog.error }}</p>
+    <div class="button-row">
+      <button type="button" class="btn btn--primary" (click)="confirmPayInvoice()" [disabled]="payDialog.busy || !payDialog.cardId">
+        {{ payDialog.busy ? 'Processing…' : 'Pay now' }}
+      </button>
+      <button type="button" class="btn btn--ghost" (click)="payDialog = null" [disabled]="payDialog.busy">Cancel</button>
+    </div>
+  </div>
+</div>

@@ -82,3 +82,12 @@
     </div>
   </div>
 </div>
+
+<!-- Asked between the Pay click and the charge; the batch intent is untouched by it. -->
+<app-save-card-modal
+  [open]="showSaveCardModal"
+  [busy]="payingAll"
+  [amountLabel]="(data?.payAllTotal ?? 0) | currency:'USD'"
+  (choose)="onSaveCardChoice($event)"
+  (dismissed)="onSaveCardDismissed()">
+</app-save-card-modal>

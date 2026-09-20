@@ -595,9 +595,18 @@ export const routes: Routes = [
   },
 
   {
+    // The standalone order-history page is GONE (2026-09): the customer's cleanings live on the
+    // profile's Overview tab, which is where they land anyway. Kept as a redirect rather than
+    // deleted outright because this URL is in bookmarks and in already-sent emails, and the
+    // wildcard route would answer those with a 404 for a page that simply moved.
+    //
+    // ABSOLUTE '/profile', not the relative 'profile'. A relative redirectTo is resolved against
+    // this route's own parent, and under SSR that produced a 302 to '/profile/profile' — which
+    // matches nothing, so the wildcard sent the customer to the home page. It only showed up on
+    // a HARD load: an in-app navigation resolved it correctly and looked fine.
     path: 'profile/orders',
-    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
-    loadComponent: () => import('./auth/profile/order-history/order-history.component').then(m => m.OrderHistoryComponent)
+    pathMatch: 'full',
+    redirectTo: '/profile'
   },
   {
     path: 'order/:id',

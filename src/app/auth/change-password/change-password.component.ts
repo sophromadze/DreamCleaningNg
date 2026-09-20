@@ -1,227 +1,34 @@
 import { Component, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, NgModel } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
+import { finalize } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
-import { validatePassword } from '../../utils/password-validator';
+import { validatePassword, getPasswordRequirements } from '../../utils/password-validator';
+import { extractApiErrorMessage } from '../../utils/http-error.utils';
 
+/**
+ * Change password, reached from the profile's Security tab.
+ *
+ * Two things worth knowing before editing this:
+ *
+ *  - **The server ends every OTHER session and re-issues this one.** `AuthController`'s
+ *    change-password calls `EndOtherSessionsAsync` and revokes every trusted device, because
+ *    changing a password is what people do when they think somebody else is in the account.
+ *    `AuthService.changePassword` wraps the call in `trackSessionReissue`, which is what stores
+ *    the re-issued tokens — without it this browser would be refused on its very next request.
+ *    The page says so in words, or the customer's other phone silently signing out reads as a
+ *    fault.
+ *  - **It returns to /profile.** It used to navigate to `/cabinet`, which is not a route in this
+ *    application at all: a successful password change dropped the customer on the wildcard
+ *    not-found page.
+ */
 @Component({
   selector: 'app-change-password',
   standalone: true,
-  imports: [CommonModule, FormsModule],
-  template: `
-    <div class="change-password-wrapper">
-      <div class="change-password-container">
-        <h1>Change Password</h1>
-        <div class="change-password-content">
-          <form (ngSubmit)="onSubmit()" #passwordForm="ngForm">
-          <div class="form-group">
-            <label for="currentPassword">Current Password</label>
-            <div class="password-input-wrap">
-              <input
-                [type]="showCurrentPassword ? 'text' : 'password'"
-                id="currentPassword"
-                name="currentPassword"
-                [(ngModel)]="currentPassword"
-                required
-                #currentPasswordField="ngModel"
-              />
-              <button type="button" class="password-toggle" (click)="showCurrentPassword = !showCurrentPassword" [attr.aria-label]="showCurrentPassword ? 'Hide password' : 'Show password'" title="{{ showCurrentPassword ? 'Hide' : 'Show' }}">
-                <svg *ngIf="!showCurrentPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <svg *ngIf="showCurrentPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-              </button>
-            </div>
-            <div class="error" *ngIf="currentPasswordField.invalid && currentPasswordField.touched">
-              Current password is required
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="newPassword">New Password</label>
-            <div class="password-input-wrap">
-              <input
-                [type]="showNewPassword ? 'text' : 'password'"
-                id="newPassword"
-                name="newPassword"
-                [(ngModel)]="newPassword"
-                (ngModelChange)="validateNewPassword()"
-                required
-                minlength="8"
-                #newPasswordField="ngModel"
-              />
-              <button type="button" class="password-toggle" (click)="showNewPassword = !showNewPassword" [attr.aria-label]="showNewPassword ? 'Hide password' : 'Show password'" title="{{ showNewPassword ? 'Hide' : 'Show' }}">
-                <svg *ngIf="!showNewPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <svg *ngIf="showNewPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-              </button>
-            </div>
-
-            <div class="error" *ngIf="newPasswordField.touched && passwordErrors.length > 0">
-              <span *ngFor="let error of passwordErrors">{{ error }}<br></span>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label for="confirmPassword">Confirm New Password</label>
-            <div class="password-input-wrap">
-              <input
-                [type]="showConfirmPassword ? 'text' : 'password'"
-                id="confirmPassword"
-                name="confirmPassword"
-                [(ngModel)]="confirmPassword"
-                required
-                #confirmPasswordField="ngModel"
-              />
-              <button type="button" class="password-toggle" (click)="showConfirmPassword = !showConfirmPassword" [attr.aria-label]="showConfirmPassword ? 'Hide password' : 'Show password'" title="{{ showConfirmPassword ? 'Hide' : 'Show' }}">
-                <svg *ngIf="!showConfirmPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <svg *ngIf="showConfirmPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-              </button>
-            </div>
-            <div class="error" *ngIf="confirmPasswordField.invalid && confirmPasswordField.touched">
-              Please confirm your new password
-            </div>
-            <div class="error" *ngIf="confirmPassword !== newPassword && confirmPasswordField.touched">
-              Passwords do not match
-            </div>
-          </div>
-
-          <div class="success" *ngIf="successMessage">
-            {{ successMessage }}
-          </div>
-
-          <div class="error" *ngIf="errorMessage">
-            {{ errorMessage }}
-          </div>
-
-          <button type="submit" [disabled]="!isFormValid() || isSubmitting">
-            {{ isSubmitting ? 'Changing Password...' : 'Change Password' }}
-          </button>
-        </form>
-        </div>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .change-password-wrapper {
-      padding: 2rem;
-    }
-
-    .change-password-container {
-      padding: 2rem;
-      max-width: 500px;
-      margin: 0 auto;
-      background-color: var(--mint-fresh);
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);;
-    }
-
-    @media (max-width: 768px) {
-      .change-password-wrapper {
-        padding: 1rem;
-      }
-    }
-
-    h1 {
-      margin-bottom: 2rem;
-    }
-
-    .password-input-wrap {
-      position: relative;
-      display: flex;
-      align-items: center;
-      input {
-        flex: 1;
-        padding-right: 2.75rem;
-      }
-    }
-    .password-toggle {
-      position: absolute;
-      right: 0.5rem;
-      top: 50%;
-      transform: translateY(-50%);
-      background: none;
-      border: none;
-      padding: 0.25rem;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--text-muted, #666);
-    }
-    .password-toggle:hover {
-      color: var(--text-primary, #333);
-    }
-    .icon-eye {
-      width: 1.25rem;
-      height: 1.25rem;
-    }
-    .form-group {
-      margin-bottom: 1.5rem;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 0.5rem;
-      font-weight: 500;
-    }
-
-    input {
-      width: 100%;
-      padding: 12px 16px;
-      padding-right: 2.75rem;
-      border: 2px solid var(--border-color, #e1e1e1);
-      border-radius: 8px;
-      font-size: 1rem;
-      transition: border-color 0.2s ease;
-    }
-
-    input:focus {
-      outline: none;
-      border-color: var(--primary-color, #007bff);
-    }
-
-    input.ng-invalid.ng-touched {
-      border-color: var(--bright-red);
-    }
-
-    .error {
-      color: var(--bright-red);
-      font-size: 0.875rem;
-      margin-top: 0.5rem;
-    }
-
-    .success {
-      color: #4CAF50;
-      font-size: 0.875rem;
-      margin-bottom: 1rem;
-    }
-
-    button[type="submit"] {
-      width: 100%;
-      padding: 0.75rem;
-      background: var(--btn-primary);
-      color: white;
-      border: none;
-      border-radius: 4px;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: var(--btn-primary-shadow);
-    }
-
-    button[type="submit"]:hover:not(:disabled) {
-      background: var(--btn-primary-hover);
-      transform: translateY(-2px);
-      box-shadow: var(--btn-primary-shadow-hover);
-    }
-
-    button[type="submit"]:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-
-  `]
+  imports: [CommonModule, FormsModule, RouterModule],
+  templateUrl: './change-password.component.html',
+  styleUrls: ['../account-form.scss']
 })
 export class ChangePasswordComponent {
   currentPassword = '';
@@ -234,6 +41,8 @@ export class ChangePasswordComponent {
   showCurrentPassword = false;
   showNewPassword = false;
   showConfirmPassword = false;
+
+  readonly requirements = getPasswordRequirements();
 
   @ViewChild('currentPasswordField') currentPasswordField?: NgModel;
   @ViewChild('newPasswordField') newPasswordField?: NgModel;
@@ -251,9 +60,13 @@ export class ChangePasswordComponent {
 
   isFormValid(): boolean {
     const validation = validatePassword(this.newPassword);
-    return this.currentPassword.length > 0 && 
-           validation.isValid && 
+    return this.currentPassword.length > 0 &&
+           validation.isValid &&
            this.newPassword === this.confirmPassword;
+  }
+
+  goBack() {
+    this.router.navigate(['/profile'], { queryParams: { tab: 'security' } });
   }
 
   onSubmit() {
@@ -262,7 +75,7 @@ export class ChangePasswordComponent {
     this.confirmPasswordField?.control.markAsTouched();
     this.validateNewPassword();
 
-    if (!this.isFormValid()) {
+    if (!this.isFormValid() || this.isSubmitting) {
       return;
     }
 
@@ -270,18 +83,24 @@ export class ChangePasswordComponent {
     this.errorMessage = '';
     this.successMessage = '';
 
-    this.authService.changePassword(this.currentPassword, this.newPassword).subscribe({
-      next: () => {
-        this.successMessage = 'Password changed successfully!';
-        this.isSubmitting = false;
-        setTimeout(() => {
-          this.router.navigate(['/cabinet']);
-        }, 2000);
-      },
-      error: (error) => {
-        this.errorMessage = error.error?.message || 'Failed to change password';
-        this.isSubmitting = false;
-      }
-    });
+    this.authService.changePassword(this.currentPassword, this.newPassword)
+      // `finalize`, not the `complete` callback: RxJS never calls `complete` on an HTTP error,
+      // so a failed attempt used to leave the button stuck on "Changing Password...".
+      .pipe(finalize(() => this.isSubmitting = false))
+      .subscribe({
+        next: () => {
+          this.successMessage = 'Password changed. Your other devices have been signed out.';
+          this.currentPassword = '';
+          this.newPassword = '';
+          this.confirmPassword = '';
+          this.passwordErrors = [];
+          setTimeout(() => {
+            this.router.navigate(['/profile'], { queryParams: { tab: 'security' } });
+          }, 2000);
+        },
+        error: (error) => {
+          this.errorMessage = extractApiErrorMessage(error, 'Failed to change password');
+        }
+      });
   }
 }

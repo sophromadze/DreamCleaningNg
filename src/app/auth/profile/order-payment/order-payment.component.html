@@ -184,6 +184,16 @@
         <span>Terms accepted{{ consentAcceptedAt ? ' on ' + formatDateTime(consentAcceptedAt) : '' }}.</span>
       </div>
 
+      <!-- Nothing owed: a plain statement, never a payment form (see nothingDue). -->
+      <div class="nothing-due-notice" *ngIf="nothingDue" role="status">
+        <i class="fas fa-check-circle" aria-hidden="true"></i>
+        <div>
+          <strong>Nothing to pay.</strong>
+          <p>{{ errorMessage }}</p>
+          <a [routerLink]="['/order', order.id]">View order details</a>
+        </div>
+      </div>
+
       <!-- Payment Form Section -->
       <div class="payment-section" *ngIf="showPaymentSection">
         <h2>Payment Information</h2>
@@ -195,16 +205,16 @@
         </div>
 
         <!-- Apple Pay / Google Pay button -->
-        <!-- Saved card vs. new card (owner only; selecting never charges — the Pay button does) -->
-        <div class="saved-card-choice" *ngIf="savedCard && !fullyCovered">
-          <label class="pay-option" [class.selected]="payWithSavedCard">
-            <input type="radio" name="paymentMethodChoice" [checked]="payWithSavedCard"
-                   (change)="selectPaymentMethod(true)" [disabled]="isProcessing">
-            <span>Pay with {{ savedCardLabel }}</span>
+        <!-- Saved cards vs. a new card (owner only; selecting never charges — the Pay button does) -->
+        <div class="saved-card-choice" *ngIf="savedCards.length > 0 && !fullyCovered" role="radiogroup" aria-label="Payment method">
+          <label class="pay-option" *ngFor="let card of savedCards" [class.selected]="selectedCardId === card.id">
+            <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId === card.id"
+                   (change)="selectPaymentMethod(card.id)" [disabled]="isProcessing">
+            <span>Pay with {{ cardLabel(card) }}<span class="pay-option-badge" *ngIf="card.isPrimary"> · Primary</span></span>
           </label>
-          <label class="pay-option" [class.selected]="!payWithSavedCard">
-            <input type="radio" name="paymentMethodChoice" [checked]="!payWithSavedCard"
-                   (change)="selectPaymentMethod(false)" [disabled]="isProcessing">
+          <label class="pay-option" [class.selected]="selectedCardId === null">
+            <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId === null"
+                   (change)="selectPaymentMethod(null)" [disabled]="isProcessing">
             <span>Enter a new card</span>
           </label>
         </div>
@@ -221,6 +231,15 @@
           {{ cardError }}
         </div>
 
+        <!-- The card WAS charged; only our confirmation is late. Never phrased as a failure. -->
+        <div class="finalizing-notice" *ngIf="finalizingPayment" role="status" aria-live="polite">
+          <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+          <div>
+            <strong>Your payment went through — we're finalising it.</strong>
+            <p>Please don't pay again. If this message stays, refresh the page in a minute.</p>
+          </div>
+        </div>
+
         <!-- Error Message -->
         <div class="error-message" *ngIf="errorMessage">
           {{ errorMessage }}
@@ -230,7 +249,7 @@
         <div class="payment-actions">
           <button
             class="pay-btn"
-            (click)="processPayment()"
+            (click)="onPayClicked()"
             [disabled]="isProcessing || (!fullyCovered && !usingSavedCard && !!cardError) || isLoading">
             <span *ngIf="!isProcessing && fullyCovered">Complete Booking</span>
             <span *ngIf="!isProcessing && !fullyCovered">Pay ${{ orderTotal | number:'1.2-2' }}</span>
@@ -298,3 +317,11 @@
     <a *ngIf="!isGuestMode" [routerLink]="['/order', orderId]" class="view-order-btn">View Order Now</a>
   </div>
 </div>
+<!-- Asked between the Pay click and the charge. Starts nothing by itself. -->
+<app-save-card-modal
+  [open]="showSaveCardModal"
+  [busy]="isProcessing"
+  [amountLabel]="'$' + (orderTotal | number:'1.2-2')"
+  (choose)="onSaveCardChoice($event)"
+  (dismissed)="onSaveCardDismissed()">
+</app-save-card-modal>

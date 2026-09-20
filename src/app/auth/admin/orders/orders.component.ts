@@ -20,8 +20,7 @@ import { catchError, finalize, last } from 'rxjs/operators';
 import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
 import { extractApiErrorMessage } from '../../../utils/http-error.utils';
 import { ShiftService, ShiftAdmin } from '../../../services/shift.service';
-import { CardOnFileService, OrderSavedCardInfo } from '../../../services/card-on-file.service';
-import { CARD_ON_FILE_ENABLED } from '../../../shared/card-on-file.flag';
+import { BillingService, AdminOrderSavedCardInfo } from '../../../services/billing.service';
 import { formatNy, formatNyDateTime } from '../../../shared/ny-time.util';
 import {
   formatAdminServiceTypeLabel,
@@ -370,7 +369,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // Card on file for the open order's owner (Charge button). Loaded when the details
   // panel opens; null until then / when the owner has no saved card.
-  orderSavedCardInfo: OrderSavedCardInfo | null = null;
+  orderSavedCardInfo: AdminOrderSavedCardInfo | null = null;
   private resendingCleanerEmailKeys = new Set<string>();
 
   // "Send Payment Link" modal — re-sends the original payment-link email/SMS to the
@@ -569,7 +568,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     public orderReminderService: OrderReminderService,
     public newOrderNotificationService: NewOrderNotificationService,
     private bubbleRewardsService: BubbleRewardsService,
-    private cardOnFileService: CardOnFileService,
+    private billingService: BillingService,
     private cdr: ChangeDetectorRef,
     private shiftService: ShiftService,
     // Only used by the Invoice payment method's commercial-client picker.
@@ -1076,8 +1075,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private loadOrderSavedCardInfo(orderId: number): void {
     this.orderSavedCardInfo = null;
-    if (!CARD_ON_FILE_ENABLED) return;
-    this.cardOnFileService.getOrderSavedCardInfo(orderId).subscribe({
+    const order = this.selectedOrder;
+    // Nothing to ask about for a settled or non-card order.
+    if (order && (order.isPaid || (order.paymentMethod && order.paymentMethod !== 'Normal'))) return;
+    this.billingService.getAdminOrderSavedCardInfo(orderId).subscribe({
       next: (info) => {
         if (this.viewingOrderId === orderId) this.orderSavedCardInfo = info;
       },
@@ -1085,31 +1086,41 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  /** Charge button shows only for a plain unpaid order whose owner has a card on file. */
+  /**
+   * The Charge button — the server decides. It is offered only when the customer has a usable
+   * card AND has authorised card charges for office-booked orders (with the SMS / fee / Terms
+   * consents), and nothing else is paying the order. Otherwise the panel shows why, and the
+   * answer is the existing "Send payment link".
+   */
   canChargeSavedCard(): boolean {
     const order = this.selectedOrder;
-    return CARD_ON_FILE_ENABLED &&
-      !!order &&
-      !order.isPaid &&
-      (!order.paymentMethod || order.paymentMethod === 'Normal') &&
-      (order.status || '').toLowerCase() !== 'cancelled' &&
-      this.orderSavedCardInfo?.hasCard === true;
+    const info = this.orderSavedCardInfo;
+    return !!order && !order.isPaid && !!info && info.featureEnabled && info.hasCard
+      && info.hasOfficeAuthorization && !info.unavailableReason;
+  }
+
+  /** Why the Charge button is absent, when the customer has a card but it can't be used here. */
+  savedCardUnavailableReason(): string | null {
+    const info = this.orderSavedCardInfo;
+    if (!info || !info.featureEnabled || !info.hasCard || this.selectedOrder?.isPaid) return null;
+    return info.unavailableReason;
   }
 
   chargeSavedCard(): void {
     const order = this.selectedOrder;
-    if (!order || this.loadingStates.chargingSavedCard || !this.canChargeSavedCard()) return;
+    const info = this.orderSavedCardInfo;
+    if (!order || !info || this.loadingStates.chargingSavedCard || !this.canChargeSavedCard()) return;
 
-    const cardLabel = this.orderSavedCardInfo?.last4
-      ? `card ending ${this.orderSavedCardInfo.last4}`
-      : 'saved card';
-    if (!confirm(`Charge $${order.total?.toFixed(2)} to the customer's ${cardLabel} now?`)) return;
+    const cardLabel = info.last4 ? `card ending ${info.last4}` : 'saved card';
+    // The BALANCE DUE — never the order total, which would re-take a deposit already paid.
+    const backup = info.backupAllowed ? ' If it is declined, their authorised Backup card will be tried once.' : '';
+    if (!confirm(`Charge $${info.amountDue.toFixed(2)} (balance due) to the customer's ${cardLabel} now?${backup}`)) return;
 
     this.loadingStates.chargingSavedCard = true;
     this.successMessage = '';
     this.errorMessage = '';
 
-    this.cardOnFileService.chargeOrderSavedCard(order.id).subscribe({
+    this.billingService.adminChargeOrder(order.id).subscribe({
       next: (res) => {
         this.loadingStates.chargingSavedCard = false;
         // charged=false is a clean outcome (declined / needs the customer present) —
@@ -1124,7 +1135,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       },
       error: (err) => {
         this.loadingStates.chargingSavedCard = false;
-        this.errorMessage = err.error?.message || 'The charge failed unexpectedly. The order is unchanged.';
+        // No answer is not a "no": the charge may have gone through with only the response lost.
+        // The server's lock refuses a second charge while it finds out, but say so plainly.
+        this.errorMessage = err.error?.message
+          || 'We could not confirm the result of this charge. Do NOT charge again — refresh the order in a minute to see whether it was paid.';
+        this.refreshSelectedOrderAfterTransfer(order.id);
       }
     });
   }

@@ -170,7 +170,7 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
     this.orderService.cancelOrder(this.order.id, { reason: this.cancelReason }).subscribe({
       next: (response) => {
         this.closeCancelModal();
-        this.router.navigate(['/profile/orders']);
+        this.router.navigate(['/profile']);
       },
       error: (error) => {
         this.errorMessage = error.error?.message || 'Failed to cancel order';
@@ -422,7 +422,7 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new Event('ordersUpdated'));
         }
-        this.router.navigate(['/profile/orders']);
+        this.router.navigate(['/profile']);
       },
       error: (error) => {
         this.isCancelling = false;

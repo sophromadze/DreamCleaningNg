@@ -7,7 +7,7 @@ import { InvoiceDetail, InvoiceStatus, InvoiceTaxType, InvoiceDiscountType } fro
 import { RecurringSeriesPanelComponent } from './components/recurring-series-panel/recurring-series-panel.component';
 import { RecurringOrderService, RecurringSeries, RecurrenceIntervalUnit } from '../services/recurring-order.service';
 import { UserManagementComponent } from '../auth/admin/user-management/user-management.component';
-import { OrderHistoryComponent } from '../auth/profile/order-history/order-history.component';
+import { ProfileComponent } from '../auth/profile/profile.component';
 import { OrderDetailsComponent } from '../auth/profile/order-details/order-details.component';
 
 describe('Recurring and commercial refinement', () => {
@@ -141,7 +141,9 @@ describe('Recurring and commercial refinement', () => {
   });
 
   it('blocks recurring customer edits and cancellation but retains ordinary behavior', () => {
-    const list = Object.create(OrderHistoryComponent.prototype);
+    // The customer's order list moved onto the profile's Overview tab (2026-09); the two rules
+    // under test came with it.
+    const list = Object.create(ProfileComponent.prototype);
     const order = { recurringSeriesId: 1, status: 'Active', isPaid: true, serviceDate: '2999-10-01' };
     expect(list.canEditOrder(order)).toBeFalse(); expect(list.canCancelOrder(order)).toBeFalse();
     const detail = Object.create(OrderDetailsComponent.prototype); detail.order = order;

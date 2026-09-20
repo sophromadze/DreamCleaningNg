@@ -1,98 +1,235 @@
+<!-- The customer account area. Deliberately NO <app-bubble-field> here (2026-09): the decorative
+     bubbles belong to the marketing pages, and behind a dense list of cleanings, cards and forms
+     they read as noise. The surfaces below sit on flat theme tokens instead. -->
 <div class="profile-page">
-  <app-bubble-field></app-bubble-field>
 <div class="profile-container">
     <div class="profile-header">
-      <h1>My Profile</h1>
+      <div>
+        <h1>My Account</h1>
+        <p class="profile-subtitle" *ngIf="profile">Hi {{ displayFirstName }} — manage your details, orders and payments.</p>
+      </div>
       <button class="logout-btn" (click)="logout()">Logout</button>
     </div>
-  
-    <div *ngIf="errorMessage" class="error-message">{{ errorMessage }}</div>
+
+    <div *ngIf="errorMessage && activeTab !== 'addresses'" class="error-message">{{ errorMessage }}</div>
     <div *ngIf="successMessage" class="success-message">{{ successMessage }}</div>
+
+    <!-- ═══ Tab navigation: one strip that wraps onto more rows when it has to ═══ -->
+    <nav class="profile-tabs" role="tablist" aria-label="Account sections" (keydown)="onTabKeydown($event)">
+      <button *ngFor="let tab of tabs" type="button" role="tab" class="profile-tab"
+              [id]="'profile-tab-' + tab.key"
+              [class.active]="activeTab === tab.key"
+              [attr.aria-selected]="activeTab === tab.key"
+              [attr.aria-controls]="'profile-panel-' + tab.key"
+              [attr.tabindex]="activeTab === tab.key ? 0 : -1"
+              (click)="setTab(tab.key)">
+        <i [class]="tab.icon" aria-hidden="true"></i>
+        <span>{{ tab.label }}</span>
+        <span class="profile-tab__badge" *ngIf="tab.key === 'billing' && billingIssueCount > 0"
+              [attr.aria-label]="billingIssueCount + ' payment issue(s)'">{{ billingIssueCount }}</span>
+      </button>
+    </nav>
 
     <!-- Loading skeleton: labels visible, shimmer for backend data -->
     <div *ngIf="isLoading" class="profile-content profile-content-skeleton">
-      <div class="section">
-        <div class="section-header">
-          <h2>Personal Information</h2>
-          <div class="header-actions header-actions-shimmer">
-            <span class="profile-shimmer-header-btn" [shimmer]="true"></span>
-            <span class="profile-shimmer-header-btn" [shimmer]="true"></span>
-            <span class="profile-shimmer-header-btn" [shimmer]="true"></span>
-          </div>
+      <div class="overview-grid">
+        <div class="overview-card">
+          <span class="overview-card__label">Current plan</span>
+          <span class="profile-shimmer-value" [shimmer]="true"></span>
         </div>
-        <div class="info-display">
-          <div class="info-row">
-            <label>First Name:</label>
-            <span class="profile-shimmer-value" [shimmer]="true"></span>
-          </div>
-          <div class="info-row">
-            <label>Last Name:</label>
-            <span class="profile-shimmer-value" [shimmer]="true"></span>
-          </div>
-          <div class="info-row">
-            <label>Email:</label>
-            <span class="profile-shimmer-value" [shimmer]="true"></span>
-          </div>
-          <div class="info-row">
-            <label>Phone:</label>
-            <span class="profile-shimmer-value" [shimmer]="true"></span>
-          </div>
-          <div class="info-row subscription-row">
-            <label>Current plan:</label>
-            <span class="profile-shimmer-value profile-shimmer-subscription" [shimmer]="true"></span>
-          </div>
-          <div class="info-row">
-            <label>Emails:</label>
-            <span class="profile-shimmer-value profile-shimmer-toggle" [shimmer]="true"></span>
-          </div>
-          <div class="info-row">
-            <label>Messages:</label>
-            <span class="profile-shimmer-value profile-shimmer-toggle" [shimmer]="true"></span>
-          </div>
-          <div class="info-row">
-            <label>Special Discount:</label>
-            <span class="profile-shimmer-value" [shimmer]="true"></span>
-          </div>
-          <div class="info-row">
-            <label>Special Offers:</label>
-            <span class="profile-shimmer-value profile-shimmer-offers" [shimmer]="true"></span>
-          </div>
+        <div class="overview-card">
+          <span class="overview-card__label">Saved addresses</span>
+          <span class="profile-shimmer-value" [shimmer]="true"></span>
         </div>
-      </div>
-      <div class="section recent-orders-section">
-        <div class="section-header">
-          <h2>Recent Orders</h2>
-        </div>
-        <div class="recent-orders">
-          <div class="profile-shimmer-order" [shimmer]="true"></div>
-          <div class="view-all-orders">
-            <button class="view-all-btn" disabled>View All Orders</button>
-          </div>
+        <div class="overview-card">
+          <span class="overview-card__label">Payments</span>
+          <span class="profile-shimmer-value" [shimmer]="true"></span>
         </div>
       </div>
       <div class="section">
-        <div class="section-header">
-          <h2>Saved Addresses</h2>
-        </div>
-        <div class="apartments-list">
-          <div class="profile-shimmer-apartment" [shimmer]="true"></div>
-        </div>
+        <div class="section-header"><h2>Your cleanings</h2></div>
+        <div class="profile-shimmer-order" [shimmer]="true"></div>
+        <div class="profile-shimmer-order" [shimmer]="true"></div>
       </div>
     </div>
-  
+
     <div *ngIf="!isLoading && profile" class="profile-content">
+
+      <!-- ═══ OVERVIEW ═══ -->
+      <section *ngIf="activeTab === 'overview'" role="tabpanel" id="profile-panel-overview" aria-labelledby="profile-tab-overview" class="tab-panel">
+        <div class="overview-alert" *ngIf="billingIssueCount > 0" role="alert">
+          <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+          <div>
+            <strong>{{ billingIssueCount === 1 ? 'A payment needs your attention.' : billingIssueCount + ' payments need your attention.' }}</strong>
+            <span>Open Billing to update your card or pay.</span>
+          </div>
+          <button type="button" class="overview-alert__btn" (click)="setTab('billing')">Go to Billing</button>
+        </div>
+
+        <!-- Three cards, each one a door into the tab that owns it. -->
+        <div class="overview-grid">
+          <button type="button" class="overview-card overview-card--link" (click)="setTab('plan')">
+            <span class="overview-card__label">Current plan</span>
+            <strong *ngIf="!hasActiveSubscription">No active plan</strong>
+            <strong *ngIf="hasActiveSubscription">{{ profile.subscriptionName }} · {{ profile.subscriptionDiscountPercentage }}% off</strong>
+            <span class="overview-card__hint">
+              {{ hasActiveSubscription ? 'View or change your plan' : 'See our plans' }}
+              <i class="fas fa-arrow-right" aria-hidden="true"></i>
+            </span>
+          </button>
+
+          <button type="button" class="overview-card overview-card--link" (click)="setTab('addresses')">
+            <span class="overview-card__label">Saved addresses</span>
+            <strong>{{ profile.apartments.length }} saved</strong>
+            <span class="overview-card__hint">
+              Add or edit an address <i class="fas fa-arrow-right" aria-hidden="true"></i>
+            </span>
+          </button>
+
+          <button type="button" class="overview-card overview-card--link" (click)="setTab('billing')">
+            <span class="overview-card__label">Payments</span>
+            <strong>Cards, AutoPay &amp; history</strong>
+            <span class="overview-card__hint">
+              Manage your payment methods <i class="fas fa-arrow-right" aria-hidden="true"></i>
+            </span>
+          </button>
+
+          <div class="overview-card overview-card--static" *ngIf="profile.hasLoyaltyDiscount">
+            <span class="overview-card__label">Special discount</span>
+            <strong>{{ profile.loyaltyDiscountPercentage | number:'1.0-2' }}%</strong>
+            <span class="overview-card__hint overview-card__hint--plain">Applied automatically at checkout</span>
+          </div>
+        </div>
+
+        <!-- Invoices and contracts are business-customer areas. A residential customer has
+             neither, so each link only appears once the account actually has one. -->
+        <!-- No "Book a cleaning" here: the Your cleanings header below carries that action, and
+             two identical CTAs a few hundred pixels apart read as a rendering fault.
+             The row itself is conditional so a residential customer — who has neither invoices
+             nor contracts — gets no empty flex box holding open an unexplained gap. -->
+        <div class="overview-links" *ngIf="hasInvoices || hasContracts">
+          <a routerLink="/profile/invoices" class="overview-link" *ngIf="hasInvoices"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> My invoices</a>
+          <a routerLink="/profile/contracts" class="overview-link" *ngIf="hasContracts"><i class="fas fa-file-signature" aria-hidden="true"></i> My contracts</a>
+        </div>
+
+        <!-- ── Refer a Friend — the SAME card the Rewards page shows (shared component, so the
+             wording and the copy/share behaviour cannot drift between the two). It sits between
+             the overview cards and the cleanings list: a customer scrolling to their history
+             passes it, and it is not competing with the three "doors into a tab" above. It
+             draws nothing at all until the code arrives. ── -->
+        <app-refer-a-friend class="overview-referral"
+                            [code]="referralCode"
+                            [shareUrl]="referralShareUrl"></app-refer-a-friend>
+
+        <!-- Upcoming recurring cleanings, nearest first, with what may be paid now. Sits ABOVE
+             the history: the list below is "everything that has ever happened", this answers
+             "what is coming up on my plan". Recurring orders still appear in the list too. -->
+        <app-upcoming-recurring-orders (paid)="loadOrders()"></app-upcoming-recurring-orders>
+
+        <!-- ── Every cleaning on the account, newest first, 10 to a page ── -->
+        <div class="section orders-section" id="profile-orders">
+          <div class="section-header section-header--split">
+            <h2>Your cleanings <span class="orders-count" *ngIf="orders">({{ orders.length }})</span></h2>
+            <a routerLink="/booking" class="add-btn">Book a cleaning</a>
+          </div>
+
+          <div class="error-message" *ngIf="ordersError">{{ ordersError }}</div>
+
+          <div *ngIf="orders === null" class="orders-list">
+            <div class="profile-shimmer-order" [shimmer]="true"></div>
+            <div class="profile-shimmer-order" [shimmer]="true"></div>
+          </div>
+
+          <div *ngIf="orders !== null && orders.length === 0" class="no-orders">
+            <i class="fas fa-broom" aria-hidden="true"></i>
+            <p>You haven't booked a cleaning yet.</p>
+            <a routerLink="/booking" class="no-orders__cta">Book your first cleaning</a>
+          </div>
+
+          <div class="orders-list" *ngIf="orders !== null && orders.length > 0">
+            <article class="order-card" *ngFor="let order of pagedOrders">
+              <header class="order-card__head">
+                <div class="order-card__title">
+                  <h3>{{ order.serviceTypeName }}</h3>
+                  <p class="order-card__placed">Booked {{ formatOrderDate(order.orderDate) }} · #{{ order.id }}</p>
+                </div>
+                <div class="order-card__badges">
+                  <span class="status-badge" [ngClass]="getStatusClass(order.status)">{{ order.status }}</span>
+                  <!-- "Unpaid" on an order already carrying a deposit is wrong twice over: it
+                       hides money the customer has handed over, and it does not say what is left. -->
+                  <span class="payment-badge unpaid" *ngIf="!isEffectivelyPaid(order) && !order.isPartiallyPaid">Unpaid</span>
+                  <span class="payment-badge partial" *ngIf="!isEffectivelyPaid(order) && order.isPartiallyPaid">${{ (order.amountDue || 0).toFixed(2) }} due</span>
+                  <span class="payment-badge unpaid" *ngIf="order.isPaid && (order.pendingUpdateAmount || 0) > 0.01 && order.status !== 'Cancelled'">Payment due</span>
+                  <span class="payment-badge paid" *ngIf="isEffectivelyPaid(order) && (order.pendingUpdateAmount || 0) <= 0.01">Paid</span>
+                  <span class="payment-badge plan" *ngIf="order.recurrenceLabel">{{ order.recurrenceLabel }}</span>
+                </div>
+              </header>
+
+              <dl class="order-card__facts">
+                <div><dt>When</dt><dd>{{ formatDate(order.serviceDate) }} at {{ formatTime(order.serviceTime) }}</dd></div>
+                <div><dt>Where</dt><dd>{{ order.serviceAddress }}</dd></div>
+                <div><dt>Total</dt><dd class="order-card__price">${{ order.total.toFixed(2) }}</dd></div>
+              </dl>
+
+              <footer class="order-card__actions">
+                <button type="button" class="btn btn--primary" *ngIf="!order.recurringSeriesId && !isEffectivelyPaid(order) && order.status !== 'Cancelled'"
+                        (click)="payOrder(order.id)">
+                  Pay ${{ order.total.toFixed(2) }}
+                </button>
+                <button type="button" class="btn btn--primary" *ngIf="order.isPaid && order.status !== 'Cancelled' && (order.pendingUpdateAmount || 0) > 0.01"
+                        (click)="payOrder(order.id)">
+                  Pay additional ${{ getEffectivePendingUpdateAmount(order).toFixed(2) }}
+                </button>
+
+                <button type="button" class="btn btn--secondary" (click)="viewOrderDetails(order.id)">View details</button>
+
+                <a class="btn btn--secondary" [routerLink]="['/order', order.id, 'edit']" *ngIf="canEditOrder(order)">Edit</a>
+
+                <button type="button" class="btn btn--secondary" *ngIf="!order.isCustomServiceType && (isEffectivelyPaid(order) || order.status === 'Cancelled')"
+                        (click)="reorder(order.id)" [disabled]="isReordering(order.id)">
+                  {{ isReordering(order.id) ? 'Loading…' : 'Reorder' }}
+                </button>
+
+                <button type="button" class="btn btn--danger-ghost" *ngIf="!order.recurringSeriesId && !isEffectivelyPaid(order) && order.status !== 'Cancelled'"
+                        (click)="cancelUnpaidOrder(order.id)" [disabled]="isCancellingOrder(order.id)">
+                  {{ isCancellingOrder(order.id) ? 'Cancelling…' : 'Cancel' }}
+                </button>
+
+                <button type="button" class="btn btn--danger-ghost" *ngIf="canCancelOrder(order)"
+                        (click)="openCancelModal(order.id)">Cancel order</button>
+              </footer>
+            </article>
+          </div>
+
+          <nav class="orders-pager" *ngIf="orderPageCount > 1" aria-label="Your cleanings, by page">
+            <button type="button" class="orders-pager__step" (click)="goToOrderPage(ordersPage - 1)"
+                    [disabled]="ordersPage <= 1" aria-label="Previous page">
+              <i class="fas fa-chevron-left" aria-hidden="true"></i>
+            </button>
+            <button type="button" class="orders-pager__page" *ngFor="let page of orderPageNumbers"
+                    [class.active]="page === ordersPage"
+                    [attr.aria-current]="page === ordersPage ? 'page' : null"
+                    (click)="goToOrderPage(page)">{{ page }}</button>
+            <button type="button" class="orders-pager__step" (click)="goToOrderPage(ordersPage + 1)"
+                    [disabled]="ordersPage >= orderPageCount" aria-label="Next page">
+              <i class="fas fa-chevron-right" aria-hidden="true"></i>
+            </button>
+            <span class="orders-pager__summary">Page {{ ordersPage }} of {{ orderPageCount }}</span>
+          </nav>
+        </div>
+      </section>
+
+      <!-- ═══ PERSONAL INFORMATION ═══ -->
+      <section *ngIf="activeTab === 'personal'" role="tabpanel" id="profile-panel-personal" aria-labelledby="profile-tab-personal" class="tab-panel">
       <!-- Profile Information Section -->
       <div class="section">
-        <div class="section-header">
+        <div class="section-header section-header--split">
           <h2>Personal Information</h2>
           <div class="header-actions">
-            <a routerLink="/change-email" class="change-email-btn">Change Email</a>
-            <a *ngIf="profile.hasPassword !== false" routerLink="/change-password" class="change-password-btn">Change Password</a>
-            <a *ngIf="profile.hasPassword === false" routerLink="/set-password" class="set-password-btn">Set Password</a>
             <button *ngIf="!isEditingProfile" class="edit-btn" (click)="startEditProfile()">Edit</button>
           </div>
         </div>
-  
+
         <div *ngIf="!isEditingProfile" class="info-display">
           <div class="info-row">
             <label>First Name:</label>
@@ -188,7 +325,7 @@
             </div>
           </div>
         </div>
-  
+
         <div *ngIf="isEditingProfile" class="edit-form">
           <div class="form-group">
             <label>First Name</label>
@@ -200,11 +337,11 @@
           </div>
           <div class="form-group">
             <label>Phone</label>
-            <input type="tel" 
-                   [(ngModel)]="editProfileForm.phone" 
+            <input type="tel"
+                   [(ngModel)]="editProfileForm.phone"
                    (input)="onPhoneInput($event)"
-                   pattern="[0-9]{10}" 
-                   maxlength="10" 
+                   pattern="[0-9]{10}"
+                   maxlength="10"
                    placeholder="1234567890">
             <div class="error-message" *ngIf="errorMessage && errorMessage.includes('phone number')">
               {{ errorMessage }}
@@ -216,96 +353,128 @@
           </div>
         </div>
       </div>
+      </section>
 
-      <!-- Trusted Devices — only renders for staff (Admin / SuperAdmin / Moderator).
-           Lets the user see and revoke devices they've passed 2FA on. -->
-      <app-trusted-devices></app-trusted-devices>
+      <!-- ═══ PLAN ═══
+           Choosing a plan here records a PREFERENCE: it pre-selects the cadence when the
+           customer books and does nothing else. No charge, no activation — the discount starts
+           on the second cleaning in a row, which is what the explanation below says in words.
+           See DreamCleaningBackend/Helpers/PlanSelectionPolicy. -->
+      <section *ngIf="activeTab === 'plan'" role="tabpanel" id="profile-panel-plan" aria-labelledby="profile-tab-plan" class="tab-panel">
+        <div class="section">
+          <div class="section-header section-header--split">
+            <h2>Your plan</h2>
+            <a routerLink="/booking" class="add-btn">Book a cleaning</a>
+          </div>
 
-      <!-- Recent Orders Section -->
-      <div class="section recent-orders-section">
-        <div class="section-header">
-          <h2>Recent Orders</h2>
-        </div>
-
-        <div class="recent-orders">
-          <div *ngIf="recentOrders === null" class="profile-shimmer-order" [shimmer]="true"></div>
-          <div *ngIf="recentOrders !== null && recentOrders.length > 0">
-            <div *ngFor="let order of recentOrders" class="order-item">
-              <div class="order-info">
-                <span class="service-type">{{ order.serviceTypeName }}</span>
-                <span class="order-date">{{ formatDate(order.serviceDate) }}</span>
-                <span class="order-amount">${{ order.total }}</span>
-                <span class="order-status" [ngClass]="order.status.toLowerCase()">{{ order.status }}</span>
-              </div>
-              <div class="order-actions">
-                <div class="unpaid-actions" *ngIf="order.status !== 'Cancelled' && (!isEffectivelyPaid(order) || (order.pendingUpdateAmount || 0) > 0.01)">
-                  <button
-                    class="pay-btn"
-                    (click)="payOrder(order.id)">
-                    {{ !isEffectivelyPaid(order) ? 'Pay' : 'Pay Additional' }}
-                  </button>
-                  <button
-                    class="cancel-btn"
-                    (click)="cancelUnpaidOrder(order.id)"
-                    [disabled]="isCancellingOrder(order.id)"
-                    *ngIf="!isEffectivelyPaid(order)">
-                    <span *ngIf="!isCancellingOrder(order.id)">Cancel</span>
-                    <span *ngIf="isCancellingOrder(order.id)">Cancelling...</span>
-                  </button>
-                </div>
-                <button class="view-details-btn" (click)="viewOrderDetails(order.id)">View Details</button>
-              </div>
+          <div class="plan-status" [class.plan-status--active]="plan?.activeSubscriptionId">
+            <i class="fas" [ngClass]="plan?.activeSubscriptionId ? 'fa-circle-check' : 'fa-circle-info'" aria-hidden="true"></i>
+            <div>
+              <strong *ngIf="plan?.activeSubscriptionId">
+                {{ plan?.activeSubscriptionName }} is active — {{ plan?.activeDiscountPercentage }}% off your next cleaning
+              </strong>
+              <strong *ngIf="plan && !plan.activeSubscriptionId">You're not on a plan yet</strong>
+              <span *ngIf="plan?.activeExpiresAt">
+                Keep your cleanings going to stay on it — it runs until {{ plan?.activeExpiresAt | date: 'MMM d, y' }}.
+              </span>
+              <span *ngIf="plan && !plan.activeSubscriptionId">
+                Pick the cadence you want below and we'll have it ready when you book.
+              </span>
             </div>
           </div>
-          <div *ngIf="recentOrders !== null && recentOrders.length === 0" class="no-orders">
-            <p>No recent orders found.</p>
+
+          <!-- The rules, stated before the choice rather than after it. -->
+          <div class="plan-explainer">
+            <h3>How our plans work</h3>
+            <ul>
+              <li><i class="fas fa-tag" aria-hidden="true"></i><span><strong>Joining a plan is free.</strong> There's no subscription fee and nothing is charged for choosing one — you only ever pay for the cleanings you book.</span></li>
+              <li><i class="fas fa-1" aria-hidden="true"></i><span><strong>Your first cleaning on a plan is full price.</strong> The plan starts with it, so there's no discount to apply yet.</span></li>
+              <li><i class="fas fa-2" aria-hidden="true"></i><span><strong>The discount lands on your second cleaning in a row</strong>, and on every one after it, as long as you book again within the plan's window.</span></li>
+              <li><i class="fas fa-rotate-right" aria-hidden="true"></i><span><strong>Miss the window and the plan simply lapses.</strong> Nothing is charged and nothing is owed — your next cleaning starts a fresh plan at full price.</span></li>
+              <li><i class="fas fa-pen" aria-hidden="true"></i><span><strong>You can change or drop your plan at any time</strong>, here or while you're booking.</span></li>
+            </ul>
           </div>
-          <div class="view-all-orders">
-            <button class="view-all-btn" routerLink="/profile/orders">View All Orders</button>
+
+          <div class="error-message" *ngIf="planError">{{ planError }}</div>
+
+          <div class="plan-grid" *ngIf="planLoading && !plan">
+            <div class="profile-shimmer-order" [shimmer]="true"></div>
+            <div class="profile-shimmer-order" [shimmer]="true"></div>
+            <div class="profile-shimmer-order" [shimmer]="true"></div>
           </div>
+
+          <div class="plan-grid" *ngIf="plan">
+            <article class="plan-card" *ngFor="let option of plan.plans"
+                     [class.plan-card--preferred]="option.isPreferred"
+                     [class.plan-card--active]="option.isActive">
+              <div class="plan-card__head">
+                <h3>{{ option.name }}</h3>
+                <span class="plan-card__pill plan-card__pill--active" *ngIf="option.isActive">Active</span>
+                <span class="plan-card__pill" *ngIf="option.isPreferred && !option.isActive">Chosen</span>
+              </div>
+              <p class="plan-card__discount"><strong>{{ option.discountPercentage }}%</strong> off</p>
+              <p class="plan-card__cadence">{{ planCadence(option) }}</p>
+              <p class="plan-card__desc" *ngIf="option.description">{{ option.description }}</p>
+              <button type="button" class="btn"
+                      [class.btn--primary]="!option.isPreferred"
+                      [class.btn--secondary]="option.isPreferred"
+                      (click)="choosePlan(option)"
+                      [disabled]="planSavingId !== undefined">
+                <ng-container *ngIf="!isPlanSaving(option)">{{ option.isPreferred ? 'Remove' : 'Choose ' + option.name }}</ng-container>
+                <ng-container *ngIf="isPlanSaving(option)">Saving…</ng-container>
+              </button>
+            </article>
+          </div>
+
+          <p class="plan-footnote" *ngIf="plan && plan.plans.length > 0">
+            Choosing a plan here doesn't book anything and doesn't charge anything — it just means
+            we have it selected for you when you come to book.
+          </p>
         </div>
-      </div>
-  
+      </section>
+
+      <!-- ═══ SAVED ADDRESSES ═══ -->
+      <section *ngIf="activeTab === 'addresses'" role="tabpanel" id="profile-panel-addresses" aria-labelledby="profile-tab-addresses" class="tab-panel">
       <!-- Apartments Section -->
       <div class="section">
-        <div class="section-header">
+        <div class="section-header section-header--split">
           <h2>Saved Addresses ({{ profile.apartments.length }}/10)</h2>
-          <button 
-            class="add-btn" 
+          <button
+            class="add-btn"
             (click)="startAddApartment()"
             [disabled]="profile.apartments.length >= 10"
             *ngIf="!isAddingApartment && !editingApartmentId">
             Add New Address
           </button>
         </div>
-        
+
         <!-- Show message when at limit -->
         <div class="info-message" *ngIf="profile.apartments.length >= 10">
           You have reached the maximum limit of 10 saved addresses.
         </div>
-      
+
         <!-- Add New Apartment Form -->
         <div *ngIf="isAddingApartment" class="apartment-form">
           <h3>Add New Apartment</h3>
-          
+
           <!-- Show error message at the top of the form -->
           <div class="error-message" *ngIf="errorMessage">
             {{ errorMessage }}
           </div>
-          
+
           <div class="form-grid">
             <div class="form-group">
               <label>Name *</label>
-              <input type="text" 
-                     [(ngModel)]="newApartment.name" 
+              <input type="text"
+                     [(ngModel)]="newApartment.name"
                      (ngModelChange)="onApartmentNameChange()"
-                     placeholder="e.g., My Home" 
+                     placeholder="e.g., My Home"
                      required>
             </div>
             <div class="form-group full-width">
               <label>Address *</label>
-              <input type="text" 
-                     [(ngModel)]="newApartment.address" 
+              <input type="text"
+                     [(ngModel)]="newApartment.address"
                      (input)="onApartmentAddressChange()"
                      required>
             </div>
@@ -315,8 +484,8 @@
             </div>
             <div class="form-group">
               <label>State *</label>
-              <select [(ngModel)]="newApartment.state" 
-                      (change)="onStateChange(newApartment.state)" 
+              <select [(ngModel)]="newApartment.state"
+                      (change)="onStateChange(newApartment.state)"
                       required>
                 <option value="">Select state</option>
                 <option *ngFor="let state of states" [value]="state">{{ state }}</option>
@@ -324,7 +493,7 @@
             </div>
             <div class="form-group">
               <label>City *</label>
-              <select [(ngModel)]="newApartment.city" 
+              <select [(ngModel)]="newApartment.city"
                       required>
                 <option value="">Select city</option>
                 <option *ngFor="let city of cities" [value]="city">{{ city }}</option>
@@ -332,13 +501,13 @@
             </div>
             <div class="form-group">
               <label>Zip Code *</label>
-              <input type="text" 
-                     [(ngModel)]="newApartment.postalCode" 
-                     pattern="[0-9]{5}" 
-                     maxlength="5" 
-                     placeholder="12345" 
+              <input type="text"
+                     [(ngModel)]="newApartment.postalCode"
+                     pattern="[0-9]{5}"
+                     maxlength="5"
+                     placeholder="12345"
                      required>
-            </div>            
+            </div>
             <div class="form-group full-width">
               <label>Special Instructions</label>
               <textarea [(ngModel)]="newApartment.specialInstructions" rows="3" maxlength="2000"></textarea>
@@ -349,16 +518,16 @@
             </div>
           </div>
           <div class="form-actions">
-            <button class="save-btn" 
+            <button class="save-btn"
                     (click)="addApartment()"
-                    [disabled]="!newApartment.name || !newApartment.address || !newApartment.city || 
+                    [disabled]="!newApartment.name || !newApartment.address || !newApartment.city ||
                                !newApartment.state || !newApartment.postalCode || errorMessage">
               Add Apartment
             </button>
             <button class="cancel-btn" (click)="cancelAddApartment()">Cancel</button>
           </div>
         </div>
-      
+
         <!-- Apartments List -->
         <div class="apartments-list" *ngIf="!isAddingApartment">
           <div *ngFor="let apartment of profile.apartments" class="apartment-card">
@@ -376,15 +545,15 @@
                 <button class="delete-btn" (click)="deleteApartment(apartment)">Delete</button>
               </div>
             </div>
-      
+
             <!-- Edit Apartment Form -->
             <div *ngIf="editingApartmentId === apartment.id && editingApartment" class="edit-apartment-form">
-              
+
               <!-- Show error message at the top of the form -->
               <div class="error-message" *ngIf="errorMessage">
                 {{ errorMessage }}
               </div>
-              
+
               <div class="form-grid">
                 <div class="form-group">
                   <label>Name *</label>
@@ -400,8 +569,8 @@
                 </div>
                 <div class="form-group">
                   <label>State *</label>
-                  <select [(ngModel)]="editingApartment.state" 
-                          (change)="onStateChange(editingApartment.state)" 
+                  <select [(ngModel)]="editingApartment.state"
+                          (change)="onStateChange(editingApartment.state)"
                           required>
                     <option value="">Select state</option>
                     <option *ngFor="let state of states" [value]="state">{{ state }}</option>
@@ -416,11 +585,11 @@
                 </div>
                 <div class="form-group">
                   <label>Zip Code *</label>
-                  <input type="text" 
-                         [(ngModel)]="editingApartment.postalCode" 
-                         pattern="[0-9]{5}" 
-                         maxlength="5" 
-                         placeholder="12345" 
+                  <input type="text"
+                         [(ngModel)]="editingApartment.postalCode"
+                         pattern="[0-9]{5}"
+                         maxlength="5"
+                         placeholder="12345"
                          required>
                 </div>
                 <div class="form-group full-width">
@@ -433,9 +602,9 @@
                 </div>
               </div>
               <div class="form-actions">
-                <button class="save-btn" 
+                <button class="save-btn"
                         (click)="saveApartment()"
-                        [disabled]="!editingApartment.name || !editingApartment.address || !editingApartment.city || 
+                        [disabled]="!editingApartment.name || !editingApartment.address || !editingApartment.city ||
                                    !editingApartment.state || !editingApartment.postalCode">
                   Save
                 </button>
@@ -443,16 +612,78 @@
               </div>
             </div>
           </div>
-      
+
           <div *ngIf="profile.apartments.length === 0" class="no-apartments">
             <p>You haven't added any apartments yet.</p>
           </div>
         </div>
       </div>
+      </section>
 
-      <!-- Saved Card (card on file — explicit-charge only) -->
-      <app-saved-card></app-saved-card>
+      <!-- ═══ BILLING ═══ -->
+      <section *ngIf="activeTab === 'billing'" role="tabpanel" id="profile-panel-billing" aria-labelledby="profile-tab-billing" class="tab-panel">
+        <app-billing-tab></app-billing-tab>
+      </section>
 
+      <!-- ═══ SECURITY ═══ -->
+      <section *ngIf="activeTab === 'security'" role="tabpanel" id="profile-panel-security" aria-labelledby="profile-tab-security" class="tab-panel">
+        <div class="section">
+          <div class="section-header"><h2>Sign-in &amp; security</h2></div>
+          <div class="security-list">
+            <div class="security-item">
+              <div class="security-item__text">
+                <strong>Email</strong>
+                <span>{{ profile.email }}</span>
+                <!-- Email change is Local-account only server-side. Saying so here beats letting
+                     a Google/Apple customer fill in a password they don't have and be refused. -->
+                <small class="security-item__note" *ngIf="!canChangeEmail">
+                  You sign in with Google or Apple, so your email address is managed there.
+                </small>
+              </div>
+              <a *ngIf="canChangeEmail" routerLink="/change-email" class="security-btn security-btn--brand" role="button">Change email</a>
+            </div>
+            <div class="security-item">
+              <div class="security-item__text">
+                <strong>Password</strong>
+                <span>{{ profile.hasPassword === false ? 'You sign in with Google or Apple and have no password yet.' : '••••••••' }}</span>
+              </div>
+              <a *ngIf="profile.hasPassword !== false" routerLink="/change-password" class="security-btn security-btn--primary" role="button">Change password</a>
+              <a *ngIf="profile.hasPassword === false" routerLink="/set-password" class="security-btn security-btn--warning" role="button">Set password</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Trusted Devices — only renders for staff (Admin / SuperAdmin / Moderator).
+             Lets the user see and revoke devices they've passed 2FA on. -->
+        <app-trusted-devices></app-trusted-devices>
+      </section>
+
+    </div>
+
+    <!-- ═══ Cancel a paid cleaning ═══ -->
+    <div class="modal-backdrop" *ngIf="showCancelModal" (click)="closeCancelModal()">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cancel-order-title" (click)="$event.stopPropagation()">
+        <h2 id="cancel-order-title">Cancel this cleaning?</h2>
+        <p>Your payment will be refunded within 7 working days.</p>
+
+        <p *ngIf="getCancelModalOrder() && isLateCancellation(getCancelModalOrder()!)" class="late-cancellation-notice">
+          <strong>Please note:</strong> because this is less than 48 hours before the scheduled
+          service, a $70.00 late cancellation fee applies under our terms of service.
+        </p>
+
+        <div class="form-group">
+          <label for="cancel-reason">Reason for cancellation</label>
+          <textarea id="cancel-reason" [(ngModel)]="cancelReason" rows="3" placeholder="Please tell us why…"></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn--danger" (click)="confirmCancelOrder()"
+                  [disabled]="!cancelReason.trim() || cancellingOrderId !== null">
+            {{ cancellingOrderId !== null ? 'Cancelling…' : 'Confirm cancellation' }}
+          </button>
+          <button type="button" class="btn btn--secondary" (click)="closeCancelModal()">Keep it</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>

@@ -1249,26 +1249,26 @@
             <div class="form-grid" *ngIf="!showPollForm">
               <!-- Full contact form for regular bookings -->
               <div class="form-group">
-                <input type="text" [formControl]="contactFirstName" placeholder="First Name *" id="contactFirstName">
+                <input type="text" [formControl]="contactFirstName" placeholder="First Name *" id="contactFirstName" autocomplete="given-name">
                 <div class="error-message" *ngIf="contactFirstName.invalid && contactFirstName.touched">
                   <div *ngIf="contactFirstName.errors?.['required']">First name is required</div>
                 </div>
               </div>
               <div class="form-group">
-                <input type="text" [formControl]="contactLastName" placeholder="Last Name *" id="contactLastName">
+                <input type="text" [formControl]="contactLastName" placeholder="Last Name *" id="contactLastName" autocomplete="family-name">
                 <div class="error-message" *ngIf="contactLastName.invalid && contactLastName.touched">
                   <div *ngIf="contactLastName.errors?.['required']">Last name is required</div>
                 </div>
               </div>
               <div class="form-group">
-                <input type="email" [formControl]="contactEmail" [placeholder]="isNoEmailTargetUser ? 'Email (optional)' : 'Email *'" id="contactEmail">
+                <input type="email" [formControl]="contactEmail" [placeholder]="isNoEmailTargetUser ? 'Email (optional)' : 'Email *'" id="contactEmail" autocomplete="email">
                 <div class="error-message" *ngIf="contactEmail.invalid && contactEmail.touched">
                   <div *ngIf="contactEmail.errors?.['required']">Email is required</div>
                   <div *ngIf="contactEmail.errors?.['email']">Please enter a valid email address</div>
                 </div>
               </div>
               <div class="form-group">
-                <input type="tel" inputmode="numeric" [formControl]="contactPhone" (input)="onContactPhoneInput($event)" placeholder="Phone *" id="contactPhone">
+                <input type="tel" inputmode="numeric" [formControl]="contactPhone" (input)="onContactPhoneInput($event)" placeholder="Phone *" id="contactPhone" autocomplete="tel-national">
                 <div class="error-message" *ngIf="contactPhone.invalid && contactPhone.touched">
                   <div *ngIf="contactPhone.errors?.['required']">Phone number is required</div>
                   <div *ngIf="contactPhone.errors?.['pattern']">Please enter a valid 10-digit phone number</div>
@@ -1320,7 +1320,7 @@
               <div class="address-apt-row">
                 <div class="form-group address-field">
                   <!-- Saved apartment: show address input -->
-                  <input *ngIf="selectedApartmentId.value" type="text" [formControl]="serviceAddress" placeholder="Address *" id="serviceAddress">
+                  <input *ngIf="selectedApartmentId.value" type="text" [formControl]="serviceAddress" placeholder="Address *" id="serviceAddress" autocomplete="address-line1">
                   <!-- New address: Google Places Autocomplete or fallback -->
                   <ng-container *ngIf="!selectedApartmentId.value">
                     <!-- [hidden], not *ngIf: the widget is injected into this element via
@@ -1335,14 +1335,15 @@
                            [formControl]="serviceAddress"
                            placeholder="Address *"
                            class="form-control"
-                           id="serviceAddressFallback">
+                           id="serviceAddressFallback"
+                           autocomplete="address-line1">
                   </ng-container>
                   <div class="error-message" *ngIf="serviceAddress.invalid && serviceAddress.touched">
                     <div *ngIf="serviceAddress.errors?.['required']">Service address is required</div>
                   </div>
                 </div>
                 <div class="form-group apt-field">
-                  <input type="text" [formControl]="aptSuite" placeholder="Apt/Suite (optional)" id="aptSuite">
+                  <input type="text" [formControl]="aptSuite" placeholder="Apt/Suite (optional)" id="aptSuite" autocomplete="address-line2">
                 </div>
               </div>
               <div class="form-group">
@@ -1397,7 +1398,7 @@
                 </div>
               </div>
               <div class="form-group">
-                <input type="text" [formControl]="zipCode" placeholder="Zip Code *" id="zipCode">
+                <input type="text" [formControl]="zipCode" placeholder="Zip Code *" id="zipCode" autocomplete="postal-code">
                 <div class="error-message" *ngIf="zipCode.invalid && zipCode.touched">
                   <div *ngIf="zipCode.errors?.['required']">Zip code is required</div>
                   <div *ngIf="zipCode.errors?.['pattern']">Please enter a valid 5-digit zip code</div>
@@ -1654,22 +1655,6 @@
             </div>
             <div class="error-message" *ngIf="termsConsent.invalid && termsConsent.touched">
               <div *ngIf="termsConsent.errors?.['required']">You must accept the Privacy Policy and Terms of Service to proceed with booking</div>
-            </div>
-          </div>
-
-          <!-- Card on file opt-in (optional; customer self-booking only) -->
-          <div class="save-card-section" *ngIf="cardOnFileEnabled && !showPollForm && !isAdminMode">
-            <div class="checkbox-group">
-              <input
-                type="checkbox"
-                id="saveCardForFutureUse"
-                [(ngModel)]="saveCardForFutureUse"
-                [ngModelOptions]="{standalone: true}"
-                class="form-checkbox">
-              <label for="saveCardForFutureUse" class="checkbox-label">
-                Save this card for faster checkout next time. Your card is only ever charged
-                when you confirm a payment — never automatically.
-              </label>
             </div>
           </div>
 

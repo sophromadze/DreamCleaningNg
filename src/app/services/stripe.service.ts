@@ -152,7 +152,13 @@ export class StripeService {
   }
 
   // Confirm card payment
-  async confirmCardPayment(clientSecret: string, billingDetails?: any): Promise<any> {
+  /**
+   * @param saveForFutureUse ONLY when the customer ticked "save this card" before paying. Stripe
+   * then attaches the card to their Customer for later payments (setup_future_usage=off_session);
+   * the server verifies that flag on the intent before recording the card, so nothing is saved
+   * without this explicit choice. Saving never turns AutoPay on.
+   */
+  async confirmCardPayment(clientSecret: string, billingDetails?: any, saveForFutureUse = false): Promise<any> {
     if (!this.stripe || !this.cardElement) {
       throw new Error('Stripe not initialized');
     }
@@ -161,7 +167,8 @@ export class StripeService {
       payment_method: {
         card: this.cardElement,
         billing_details: billingDetails
-      }
+      },
+      ...(saveForFutureUse ? { setup_future_usage: 'off_session' as const } : {})
     });
 
     if (error) {
@@ -304,6 +311,19 @@ export class StripeService {
       if (res.error) throw res.error;
       return res.paymentIntent;
     }
+    return paymentIntent;
+  }
+
+  /**
+   * Completes the bank's challenge (3DS) on an intent the SERVER already confirmed with a saved
+   * card while the customer was present. Returns the intent's final state; the server is then
+   * asked to settle from Stripe's own record — the browser's answer is never trusted on its own.
+   */
+  async completeBankChallenge(clientSecret: string): Promise<any> {
+    if (!this.stripe) await this.initializeStripe();
+    if (!this.stripe) throw new Error('Stripe not initialized');
+    const { error, paymentIntent } = await this.stripe.confirmCardPayment(clientSecret);
+    if (error) throw error;
     return paymentIntent;
   }
 

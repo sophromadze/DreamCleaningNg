@@ -7,7 +7,7 @@ import { AuthService } from '../../../services/auth.service';
 import { BookingService } from '../../../services/booking.service';
 import { OrderService, Order } from '../../../services/order.service';
 import { StripeService } from '../../../services/stripe.service';
-import { CardOnFileService } from '../../../services/card-on-file.service';
+import { BillingService } from '../../../services/billing.service';
 import { testProviders } from '../../../../testing/test-providers';
 
 /**
@@ -94,8 +94,8 @@ describe('OrderPaymentComponent — consent gate', () => {
           ])
         },
         {
-          provide: CardOnFileService,
-          useValue: { getSavedCard: () => of({ card: null }) }
+          provide: BillingService,
+          useValue: { savedCardsEnabled: () => of(false), getCards: () => of([]) }
         },
         {
           provide: ActivatedRoute,
@@ -160,6 +160,26 @@ describe('OrderPaymentComponent — consent gate', () => {
     expect(component.paymentType).toBe('update');
     expect(component.consentRequired).toBeFalse();
     expect(orderService.createPendingUpdatePaymentIntent).toHaveBeenCalled();
+  });
+
+  // A revisited payment link on a paid order (2026-09): the page used to render the whole
+  // payment form — with an enabled "Pay $0.00" button — under "no pending payments".
+  it('shows "nothing to pay" and NO payment form when the order is already paid', () => {
+    setup(makeOrder({ isPaid: true, pendingUpdateAmount: 0 }));
+
+    expect(component.nothingDue).toBeTrue();
+    expect(component.showPaymentSection).toBeFalse();
+    const el: HTMLElement = fixture.nativeElement;
+    expect(el.textContent).toContain('Nothing to pay');
+    expect(el.querySelector('.pay-btn')).toBeNull();
+    expect(bookingService.createPaymentIntentForOrder).not.toHaveBeenCalled();
+  });
+
+  it('shows "nothing to pay" for an order settled outside the website', () => {
+    setup(makeOrder({ paymentMethod: 'Cash' as any }));
+
+    expect(component.nothingDue).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.pay-btn')).toBeNull();
   });
 
   it('keeps the payer on the checkboxes when recording consent fails', () => {
@@ -288,7 +308,7 @@ describe('OrderPaymentComponent — part-payments', () => {
           useValue: { currentUser: of({ id: USER_ID }), refreshUserProfile: () => of(null) }
         },
         { provide: StripeService, useValue: stripeService },
-        { provide: CardOnFileService, useValue: { getSavedCard: () => of({ card: null }) } },
+        { provide: BillingService, useValue: { savedCardsEnabled: () => of(false), getCards: () => of([]) } },
         {
           provide: ActivatedRoute,
           useValue: {
@@ -395,5 +415,136 @@ describe('OrderPaymentComponent — part-payments', () => {
     component['handlePaymentSuccess']({ success: true, orderId: 7, status: 'Active' });
 
     expect(component.partialPaymentRemaining).toBeNull();
+  });
+});
+
+/**
+ * THE PRE-PAYMENT SAVE-CARD MODAL on the payment page (2026-09).
+ *
+ * It replaced the tick-box that used to sit under the card field AND the prompt that used to
+ * appear after payment. The rules it must keep: asked only for a new card the server says can be
+ * saved, asked once per attempt, and neither opening nor closing it may charge anything.
+ */
+describe('OrderPaymentComponent — save-card modal', () => {
+  let fixture: ComponentFixture<OrderPaymentComponent>;
+  let component: OrderPaymentComponent;
+  let bookingService: jasmine.SpyObj<BookingService>;
+  let orderService: jasmine.SpyObj<OrderService>;
+  let stripeService: jasmine.SpyObj<StripeService>;
+  let billing: any;
+
+  const USER_ID = 42;
+
+  function order(): Order {
+    return {
+      id: 7, userId: USER_ID, serviceTypeId: 1, serviceTypeName: 'Residential Cleaning',
+      orderDate: new Date(), serviceDate: new Date(), serviceTime: '10:00:00', status: 'Pending',
+      subTotal: 130, tax: 11.54, tips: 0, total: 141.54, amountDue: 141.54, isPaid: false,
+      paymentMethod: 'Normal', services: [], extraServices: []
+    } as unknown as Order;
+  }
+
+  function setup(canSaveCard: boolean, cards: any[] = []): void {
+    orderService.getOrderById.and.returnValue(of(order()));
+    bookingService.createPaymentIntentForOrder.and.returnValue(of({
+      paymentIntentId: 'pi_order', paymentClientSecret: 'secret_order', canSaveCard
+    } as any));
+    billing.getCards.and.returnValue(of(cards));
+    fixture = TestBed.createComponent(OrderPaymentComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+  }
+
+  beforeEach(async () => {
+    stripeService = jasmine.createSpyObj<StripeService>('StripeService', [
+      'initializeElements', 'createCardElement', 'destroyCardElement', 'destroyPaymentRequestButton',
+      'createPaymentRequest', 'createPaymentRequestButton', 'confirmCardPayment', 'confirmPaymentRequest'
+    ]);
+    stripeService.initializeElements.and.returnValue(Promise.resolve(undefined as any));
+    stripeService.createPaymentRequest.and.returnValue(Promise.resolve(null as any));
+    stripeService.confirmCardPayment.and.returnValue(Promise.resolve({ id: 'pi_order' }) as any);
+    stripeService.confirmPaymentRequest.and.returnValue(Promise.resolve({ id: 'pi_order' }) as any);
+
+    bookingService = jasmine.createSpyObj<BookingService>('BookingService', [
+      'acceptPaymentConsent', 'createPaymentIntentForOrder', 'confirmPayment'
+    ]);
+    bookingService.confirmPayment.and.returnValue(of({ orderId: 7, orderFullyPaid: true } as any));
+
+    orderService = jasmine.createSpyObj<OrderService>('OrderService', [
+      'getOrderById', 'getOrderByIdGuest', 'createPendingUpdatePaymentIntent'
+    ]);
+
+    billing = jasmine.createSpyObj('BillingService', ['savedCardsEnabled', 'getCards', 'saveCardFromPayment']);
+    billing.savedCardsEnabled.and.returnValue(of(true));
+    billing.saveCardFromPayment.and.returnValue(of(null));
+
+    await TestBed.configureTestingModule({
+      imports: [OrderPaymentComponent],
+      providers: [
+        ...testProviders,
+        { provide: BookingService, useValue: bookingService },
+        { provide: OrderService, useValue: orderService },
+        { provide: AuthService, useValue: { currentUser: of({ id: USER_ID }), refreshUserProfile: () => of(null) } },
+        { provide: StripeService, useValue: stripeService },
+        { provide: BillingService, useValue: billing },
+        { provide: ActivatedRoute, useValue: { params: of({ id: '7' }), snapshot: { queryParamMap: { get: () => null } } } }
+      ]
+    }).compileComponents();
+  });
+
+  it('asks before charging, and closing it charges nothing', () => {
+    setup(true);
+
+    component.onPayClicked();
+    expect(component.showSaveCardModal).toBeTrue();
+    expect(stripeService.confirmCardPayment).not.toHaveBeenCalled();
+
+    component.onSaveCardDismissed();
+    expect(component.showSaveCardModal).toBeFalse();
+    expect(stripeService.confirmCardPayment).not.toHaveBeenCalled();
+    expect(component.isProcessing).toBeFalse();
+  });
+
+  it('pays once and records the card on "Save Card & Pay"', async () => {
+    setup(true);
+
+    component.onPayClicked();
+    component.onSaveCardChoice(true);
+    await fixture.whenStable();
+
+    expect(stripeService.confirmCardPayment).toHaveBeenCalledTimes(1);
+    expect(stripeService.confirmCardPayment.calls.mostRecent().args[2]).toBeTrue();
+    expect(billing.saveCardFromPayment).toHaveBeenCalledWith('pi_order');
+  });
+
+  it('pays once and records nothing on "Pay Without Saving"', async () => {
+    setup(true);
+
+    component.onPayClicked();
+    component.onSaveCardChoice(false);
+    await fixture.whenStable();
+
+    expect(stripeService.confirmCardPayment).toHaveBeenCalledTimes(1);
+    expect(stripeService.confirmCardPayment.calls.mostRecent().args[2]).toBeFalse();
+    expect(billing.saveCardFromPayment).not.toHaveBeenCalled();
+  });
+
+  it('never asks when the server says the intent cannot carry the choice', async () => {
+    setup(false);
+
+    component.onPayClicked();
+    await fixture.whenStable();
+
+    expect(component.showSaveCardModal).toBeFalse();
+    expect(stripeService.confirmCardPayment).toHaveBeenCalledTimes(1);   // it just pays
+  });
+
+  it('never asks when paying with an already saved card', () => {
+    setup(true, [{ id: 3, paymentMethodId: 'pm_saved', isPrimary: true, isUsable: true }]);
+    component.selectPaymentMethod(3);
+
+    component.onPayClicked();
+
+    expect(component.showSaveCardModal).toBeFalse();
   });
 });

@@ -10,11 +10,17 @@ import {
 } from '../../../services/recurring-order.service';
 import { StripeService } from '../../../services/stripe.service';
 import { extractApiErrorMessage } from '../../../utils/http-error.utils';
+import { BillingService } from '../../../services/billing.service';
+import { SaveCardModalComponent } from '../save-card-modal/save-card-modal.component';
+
+/** Shown when the card step ends without a clear answer. Never phrased as a failure. */
+export const PAY_ALL_UNCONFIRMED_MESSAGE =
+  "We couldn't confirm your payment. Please don't pay again — refresh this page in a minute to see whether it went through.";
 
 @Component({
   selector: 'app-upcoming-recurring-orders',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, SaveCardModalComponent],
   templateUrl: './upcoming-recurring-orders.component.html',
   styleUrls: ['./upcoming-recurring-orders.component.scss']
 })
@@ -52,12 +58,21 @@ export class UpcomingRecurringOrdersComponent implements OnInit, OnDestroy {
   payingAll = false;
   payAllError = '';
   private clientSecret: string | null = null;
+  private paymentIntentId: string | null = null;
+
+  // ── "Save your card?", asked before the charge (2026-09) ────────────────────────────────
+  // The batch's PaymentIntent already exists (it was created when this form opened), so the
+  // choice is applied to THAT intent at confirmation — no second payment is ever created.
+  showSaveCardModal = false;
+  saveCardChoice: boolean | null = null;
+  canSaveCard = false;
   private cardMounted = false;
 
   constructor(
     private recurring: RecurringOrderService,
     private stripe: StripeService,
-    private router: Router
+    private router: Router,
+    private billing: BillingService
   ) {}
 
   ngOnInit(): void {
@@ -109,6 +124,9 @@ export class UpcomingRecurringOrdersComponent implements OnInit, OnDestroy {
       .subscribe({
         next: async (batch) => {
           this.clientSecret = batch.paymentClientSecret;
+          this.paymentIntentId = batch.paymentIntentId ?? null;
+          this.canSaveCard = (batch as any).canSaveCard === true;
+          this.saveCardChoice = null;
           // Mounted only once the modal is actually on screen; Stripe needs the target element
           // to exist before it will attach to it.
           setTimeout(() => this.mountCard(), 0);
@@ -141,18 +159,52 @@ export class UpcomingRecurringOrdersComponent implements OnInit, OnDestroy {
     }
   }
 
+  /** The Pay button: ask about saving first when there is something to ask. */
   async confirmPayAll(): Promise<void> {
+    if (this.payingAll || !this.clientSecret) return;
+
+    if (this.canSaveCard && this.saveCardChoice === null) {
+      this.showSaveCardModal = true;
+      return;
+    }
+    await this.chargeNow();
+  }
+
+  onSaveCardChoice(save: boolean): void {
+    this.saveCardChoice = save;
+    this.showSaveCardModal = false;
+    void this.chargeNow();
+  }
+
+  /** ✕ / Escape / backdrop: the card form is still filled in and nothing has been charged. The
+   *  batch's PaymentIntent is untouched, so pressing Pay again uses that same one. */
+  onSaveCardDismissed(): void {
+    this.showSaveCardModal = false;
+  }
+
+  private async chargeNow(): Promise<void> {
     if (this.payingAll || !this.clientSecret) return;
 
     this.payingAll = true;
     this.payAllError = '';
 
     try {
-      const result = await this.stripe.confirmCardPayment(this.clientSecret);
+      const result = await this.stripe.confirmCardPayment(
+        this.clientSecret,
+        undefined,
+        // The customer's answer, applied to the batch's existing intent at confirmation.
+        this.canSaveCard && this.saveCardChoice === true
+      );
 
       if (result?.error) {
         this.payAllError = result.error.message || 'The card was declined.';
         return;
+      }
+
+      // Fire-and-forget, AFTER the charge: the money is in, so a card that cannot be recorded is
+      // not a payment problem — the Billing tab's reconciliation with Stripe picks it up.
+      if (this.saveCardChoice === true && this.paymentIntentId) {
+        this.billing.saveCardFromPayment(this.paymentIntentId).subscribe({ next: () => {}, error: () => {} });
       }
 
       // NOTHING IS MARKED PAID HERE. The orders are settled by the webhook, in one transaction
@@ -160,8 +212,13 @@ export class UpcomingRecurringOrdersComponent implements OnInit, OnDestroy {
       // financial fact. So the page simply reloads and shows whatever the server now says.
       this.closePayAll();
       this.paid.emit();
-    } catch (err) {
-      this.payAllError = extractApiErrorMessage(err, 'The payment could not be completed.');
+    } catch {
+      // Stripe.js THREW rather than answering — a dropped connection, possibly AFTER the card
+      // was submitted. That is not a decline (a decline arrives as result.error above), so it
+      // must never read as one: the charge may well have gone through, and "could not be
+      // completed" is an invitation to pay again. The server settles a succeeded charge on its
+      // own and refuses a second one while it does.
+      this.payAllError = PAY_ALL_UNCONFIRMED_MESSAGE;
     } finally {
       this.payingAll = false;
     }

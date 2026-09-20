@@ -3,6 +3,7 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { ShimmerDirective } from '../shared/directives/shimmer.directive';
 import { NyDatePipe } from '../shared/ny-time.util';
+import { ReferAFriendComponent } from '../shared/components/refer-a-friend/refer-a-friend.component';
 import {
   BubbleRewardsService,
   RewardsSummary,
@@ -14,7 +15,7 @@ import {
 @Component({
   selector: 'app-rewards',
   standalone: true,
-  imports: [CommonModule, RouterModule, ShimmerDirective, NyDatePipe],
+  imports: [CommonModule, RouterModule, ShimmerDirective, NyDatePipe, ReferAFriendComponent],
   templateUrl: './rewards.component.html',
   styleUrl: './rewards.component.scss'
 })
@@ -30,8 +31,6 @@ export class RewardsComponent implements OnInit {
   referrals: Referral[] = [];
   referralsLoading = false;
 
-  /** Which control just copied: 'link' | 'code' — for button feedback */
-  copyFeedback: 'link' | 'code' | null = null;
   isBrowser: boolean;
 
   constructor(
@@ -76,63 +75,6 @@ export class RewardsComponent implements OnInit {
       next: r => { this.referrals = r; this.referralsLoading = false; },
       error: () => { this.referralsLoading = false; }
     });
-  }
-
-  /** Full invite URL; uses API value when it is absolute, otherwise current origin (fixes local dev). */
-  getReferralShareUrl(): string {
-    const code = this.summary?.referralCode?.trim();
-    if (!code) return '';
-    const fromApi = this.summary?.shareUrl?.trim() ?? '';
-    if (/^https?:\/\//i.test(fromApi)) {
-      return fromApi;
-    }
-    if (this.isBrowser && typeof window !== 'undefined') {
-      return `${window.location.origin}/?ref=${encodeURIComponent(code)}`;
-    }
-    return fromApi;
-  }
-
-  copyReferralLink(): void {
-    const url = this.getReferralShareUrl();
-    if (!url) return;
-    navigator.clipboard.writeText(url).then(() => {
-      this.copyFeedback = 'link';
-      setTimeout(() => (this.copyFeedback = null), 2000);
-    });
-  }
-
-  copyReferralCode(): void {
-    const code = this.summary?.referralCode;
-    if (!code) return;
-    navigator.clipboard.writeText(code).then(() => {
-      this.copyFeedback = 'code';
-      setTimeout(() => (this.copyFeedback = null), 2000);
-    });
-  }
-
-  shareReferralLink(): void {
-    if (!this.summary) return;
-    const url = this.getReferralShareUrl();
-    if (!url) return;
-    if (navigator.share) {
-      navigator.share({
-        title: 'Dream Cleaning — Bubble Rewards',
-        text: 'Get a bonus when you book your first cleaning with Dream Cleaning!',
-        url
-      });
-    } else {
-      this.copyReferralLink();
-    }
-  }
-
-  shareReferralCode(): void {
-    const code = this.summary?.referralCode;
-    if (!code) return;
-    if (navigator.share) {
-      navigator.share({ text: code });
-    } else {
-      this.copyReferralCode();
-    }
   }
 
   getTierLabel(tier: string): string {

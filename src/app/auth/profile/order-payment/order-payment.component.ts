@@ -7,13 +7,13 @@ import { AuthService } from '../../../services/auth.service';
 import { BookingService } from '../../../services/booking.service';
 import { OrderService, Order, OrderPartialPayment } from '../../../services/order.service';
 import { StripeService } from '../../../services/stripe.service';
-import { CardOnFileService, SavedCard } from '../../../services/card-on-file.service';
+import { BillingService, SavedCard, cardLabel } from '../../../services/billing.service';
+import { SaveCardModalComponent } from '../../../shared/components/save-card-modal/save-card-modal.component';
 import {
   SMS_CONSENT_LEAD,
   CANCELLATION_CONSENT_TEXT,
   TERMS_CONSENT_LEAD
 } from '../../../shared/booking/consent-texts';
-import { CARD_ON_FILE_ENABLED } from '../../../shared/card-on-file.flag';
 import {
   buildSupplyChecklistItems,
   extraServiceNamesOf,
@@ -24,7 +24,7 @@ import {
 @Component({
   selector: 'app-order-payment',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, SaveCardModalComponent],
   templateUrl: './order-payment.component.html',
   styleUrls: ['./order-payment.component.scss']
 })
@@ -107,11 +107,26 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   readonly cancellationConsentText = CANCELLATION_CONSENT_TEXT;
   readonly termsConsentLead = TERMS_CONSENT_LEAD;
 
-  // Card on file: offered ONLY to the logged-in owner — never in guest/token mode, where
-  // the payer is often a relative who must not touch the owner's card. Selecting it never
-  // charges anything; the Pay button click does.
-  savedCard: SavedCard | null = null;
-  payWithSavedCard = false;
+  // Saved cards: offered ONLY to the logged-in owner — never in guest/token mode, where the
+  // payer is often a relative who must not touch the owner's cards. Selecting one never charges
+  // anything; the Pay button click does. null = a new card.
+  savedCards: SavedCard[] = [];
+  selectedCardId: number | null = null;
+  /** Server rollout switch — the "save this card" box only exists while it is on. */
+  savedCardsFeature = false;
+  // ── "Save your card?", asked before the charge (2026-09) ────────────────────────────────
+  //
+  // Replaces the old tick-box on this form AND the post-payment prompt: one question, asked once,
+  // between the Pay click and the charge. The answer is applied to the SAME PaymentIntent
+  // (setup_future_usage at confirmation), so saving never creates a second payment.
+  showSaveCardModal = false;
+  /** The answer for THIS attempt; kept across a confirmation retry so nobody is asked twice. */
+  saveCardChoice: boolean | null = null;
+  /** The server's word that this intent can carry the choice (it holds the owner's Customer). */
+  intentCanSaveCard = false;
+  /** The card was charged; only our confirmation is late. See confirmCharged(). */
+  finalizingPayment = false;
+  readonly cardLabel = cardLabel;
 
   constructor(
     private route: ActivatedRoute,
@@ -120,24 +135,54 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
     private bookingService: BookingService,
     private orderService: OrderService,
     private stripeService: StripeService,
-    private cardOnFileService: CardOnFileService,
+    private billingService: BillingService,
     private cdr: ChangeDetectorRef
   ) {}
 
+  get selectedCard(): SavedCard | null {
+    return this.savedCards.find(c => c.id === this.selectedCardId) ?? null;
+  }
+
   get usingSavedCard(): boolean {
-    return !!this.savedCard && this.payWithSavedCard;
+    return !!this.selectedCard?.paymentMethodId;
   }
 
-  get savedCardLabel(): string {
-    if (!this.savedCard) return '';
-    const brand = this.savedCard.brand
-      ? this.savedCard.brand.charAt(0).toUpperCase() + this.savedCard.brand.slice(1)
-      : 'Card';
-    return this.savedCard.last4 ? `${brand} ending ${this.savedCard.last4}` : brand;
+  /**
+   * The "save this card" box: the owner, typing a NEW card, for the order's own payment. Not on
+   * a guest link (the payer may not be the owner), not with a saved card (already saved), and not
+   * for a part-payment or top-up, whose intents the server does not attach a Customer to.
+   */
+  get canOfferSaveCard(): boolean {
+    return this.savedCardsFeature && !this.isGuestMode && !this.usingSavedCard
+      && !this.fullyCovered && this.intentCanSaveCard;
   }
 
-  selectPaymentMethod(useSaved: boolean): void {
-    this.payWithSavedCard = useSaved;
+  /** The Pay button: ask first when there is something to ask, otherwise pay as before. */
+  onPayClicked(): void {
+    if (this.isProcessing) return;
+    if (this.canOfferSaveCard && this.saveCardChoice === null) {
+      this.showSaveCardModal = true;
+      return;
+    }
+    this.processPayment();
+  }
+
+  onSaveCardChoice(save: boolean): void {
+    this.saveCardChoice = save;
+    this.showSaveCardModal = false;
+    this.processPayment();
+  }
+
+  /** ✕ / Escape / backdrop: nothing was charged, and the typed card is still there. */
+  onSaveCardDismissed(): void {
+    this.showSaveCardModal = false;
+    this.cdr.detectChanges();
+  }
+
+  /** null = enter a new card. */
+  selectPaymentMethod(cardId: number | null): void {
+    if (cardId !== this.selectedCardId) this.saveCardChoice = null;   // a different card is a new question
+    this.selectedCardId = cardId;
     this.cdr.detectChanges();
   }
 
@@ -199,6 +244,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         // isPaid=false by backend design — there is nothing to pay on the website.
         if (order.paymentMethod && order.paymentMethod !== 'Normal') {
           this.errorMessage = 'This order was paid outside the website and has no payment due.';
+          this.nothingDue = true;
           this.isLoading = false;
           return;
         }
@@ -226,6 +272,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
           this.orderTotal = Math.round(pendingUpdateAmount * 100) / 100;
         } else {
           this.errorMessage = 'This order has no pending payments';
+          this.nothingDue = true;
           this.isLoading = false;
           return;
         }
@@ -253,17 +300,20 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         this.consentAccepted = !!order.paymentConsentAcceptedAt;
         this.consentAcceptedAt = order.paymentConsentAcceptedAt ?? null;
 
-        // Saved card — logged-in owner only (guest/token payers never see it).
-        if (CARD_ON_FILE_ENABLED && !this.isGuestMode && order.userId === this.currentUser?.id) {
-          this.cardOnFileService.getSavedCard().subscribe({
-            next: (res) => {
-              if (res.card) {
-                this.savedCard = res.card;
-                this.payWithSavedCard = true; // default to the faster path
+        // Saved cards — logged-in owner only (guest/token payers never see them), and only while
+        // the server's rollout switch is on. Any failure leaves the ordinary card form.
+        if (!this.isGuestMode && order.userId === this.currentUser?.id) {
+          this.billingService.savedCardsEnabled().subscribe(enabled => {
+            this.savedCardsFeature = enabled;
+            if (!enabled) return;
+            this.billingService.getCards().subscribe({
+              next: (cards) => {
+                this.savedCards = cards.filter(c => c.isUsable && !!c.paymentMethodId);
+                this.selectedCardId = (this.savedCards.find(c => c.isPrimary) ?? this.savedCards[0])?.id ?? null;
                 this.cdr.detectChanges();
-              }
-            },
-            error: () => { /* no saved-card option — normal card form remains */ }
+              },
+              error: () => { /* no saved-card options — normal card form remains */ }
+            });
           });
         }
 
@@ -336,6 +386,16 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
           this.isFinalPartialPayment = !!response.isFinalPayment;
         }
 
+        // An earlier attempt on this order was ALREADY PAID but its confirmation never reached us
+        // (a closed tab, a dropped connection). Confirm THAT payment — never take a second one.
+        if (response.alreadyPaidPaymentIntentId) {
+          this.isLoading = false;
+          this.isProcessing = true;
+          this.cdr.detectChanges();
+          this.confirmCharged(response.alreadyPaidPaymentIntentId);
+          return;
+        }
+
         // Gift card covers the full amount — server skipped Stripe. Confirm directly, no card form.
         if (response.requiresPayment === false) {
           this.fullyCovered = true;
@@ -346,6 +406,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
 
         this.paymentClientSecret = response.paymentClientSecret;
         this.paymentIntentId = response.paymentIntentId ?? response.PaymentIntentId ?? null;
+        this.intentCanSaveCard = response.canSaveCard === true;
         this.isLoading = false;
 
         // Force change detection to ensure DOM is updated
@@ -460,20 +521,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         );
         ev.complete('success');
         const idForConfirm = paymentIntent?.id ?? this.paymentIntentId;
-        const guestToken = this.isGuestMode ? this.guestToken! : undefined;
-        const confirm$ = this.paymentType === 'partial'
-          ? this.bookingService.confirmPartialPayment(this.orderId, idForConfirm, guestToken)
-          : this.paymentType === 'order'
-            ? this.bookingService.confirmPayment(this.orderId, idForConfirm, undefined, guestToken)
-            : this.orderService.confirmPendingUpdatePayment(this.orderId, idForConfirm, guestToken);
-        confirm$.subscribe({
-          next: (res: any) => this.handlePaymentSuccess(res),
-          error: (err: any) => {
-            this.errorMessage = err.error?.message || err.message || 'Payment confirmation failed';
-            this.isProcessing = false;
-            this.cdr.detectChanges();
-          }
-        });
+        this.confirmCharged(idForConfirm);
       } catch (payErr: any) {
         ev.complete('fail');
         this.errorMessage = payErr.message || 'Payment failed. Please try again.';
@@ -490,7 +538,15 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   }
 
   /** The card form / Apple Pay / Pay button are shown only once consent is settled. */
+  /**
+   * Nothing is owed on this order (paid, or settled outside the website). The page then shows
+   * a plain notice and NO payment form: a "Pay $0.00" button under "no pending payments" reads
+   * as an invitation to pay again, which is exactly what a revisited payment link must not do.
+   */
+  nothingDue = false;
+
   get showPaymentSection(): boolean {
+    if (this.nothingDue) return false;
     return !this.consentRequired || this.consentAccepted;
   }
 
@@ -561,16 +617,20 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
       // confirmPaymentRequest accepts any payment-method id and handles 3DS in-browser),
       // otherwise with the entered card. Non-null: this path only runs when !fullyCovered,
       // where the early guard above already ensured paymentClientSecret is set.
-      const paymentIntent = this.usingSavedCard && this.savedCard
+      const selected = this.selectedCard;
+      const paymentIntent = this.usingSavedCard && selected?.paymentMethodId
         ? await this.stripeService.confirmPaymentRequest(
             this.paymentClientSecret!,
-            this.savedCard.paymentMethodId
+            selected.paymentMethodId
           )
         : await this.stripeService.confirmCardPayment(
             this.paymentClientSecret!,
-            this.billingDetails
+            this.billingDetails,
+            // The customer's answer from the pre-payment modal. The server re-verifies it
+            // against Stripe's own record on the intent before recording any card.
+            this.canOfferSaveCard && this.saveCardChoice === true
           );
-      
+
       // Same as booking-confirmation: use paymentIntent.id from Stripe after confirmCardPayment
       const idForConfirm = paymentIntent?.id ?? (paymentIntent as any)?.paymentIntent?.id ?? this.paymentIntentId;
       if (!idForConfirm) {
@@ -579,27 +639,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
         return;
       }
 
-      const guestToken = this.isGuestMode ? this.guestToken! : undefined;
-      const confirm$ = this.paymentType === 'partial'
-        ? this.bookingService.confirmPartialPayment(this.orderId, idForConfirm, guestToken)
-        : this.paymentType === 'order'
-          ? this.bookingService.confirmPayment(this.orderId, idForConfirm, undefined, guestToken)
-          : this.orderService.confirmPendingUpdatePayment(this.orderId, idForConfirm, guestToken);
-
-      confirm$.subscribe({
-        next: (res: any) => {
-          this.handlePaymentSuccess(res);
-        },
-        error: (error) => {
-          const msg = error.error?.message || error.message || 'Payment confirmation failed';
-          this.errorMessage = msg;
-          this.isProcessing = false;
-          console.error('Confirm payment failed', error.status, msg, error.error);
-          if (error.status === 400 && msg.toLowerCase().includes('payment not completed')) {
-            this.errorMessage += ' If you were charged, refresh the page—your order may already be paid.';
-          }
-        }
-      });
+      this.confirmCharged(idForConfirm);
     } catch (paymentError: any) {
       // Payment failed
       this.errorMessage = paymentError.message || 'Payment failed. Please try again.';
@@ -608,11 +648,67 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   }
 
   /**
+   * Tells the server about a payment Stripe HAS ALREADY TAKEN. Every confirm endpoint is
+   * idempotent for the same intent, so a transport failure (no response, timeout, 5xx) is
+   * retried rather than shown as an error — the page says the payment went through and is being
+   * finalised, and the Pay button stays down. A definite 4xx answer is reported as before.
+   */
+  private confirmCharged(paymentIntentId: string, attempt = 1): void {
+    const guestToken = this.isGuestMode ? this.guestToken! : undefined;
+    const confirm$ = this.paymentType === 'partial'
+      ? this.bookingService.confirmPartialPayment(this.orderId, paymentIntentId, guestToken)
+      : this.paymentType === 'order'
+        ? this.bookingService.confirmPayment(this.orderId, paymentIntentId, undefined, guestToken)
+        : this.orderService.confirmPendingUpdatePayment(this.orderId, paymentIntentId, guestToken);
+
+    confirm$.subscribe({
+      next: (res: any) => {
+        this.finalizingPayment = false;
+        this.recordSavedCard(paymentIntentId);
+        this.handlePaymentSuccess(res);
+      },
+      error: (error) => {
+        const transient = !error?.status || error.status === 0 || error.status >= 500;
+        if (transient) {
+          this.finalizingPayment = true;
+          this.errorMessage = '';
+          this.isProcessing = true;
+          this.cdr.detectChanges();
+          if (attempt < 4) setTimeout(() => this.confirmCharged(paymentIntentId, attempt + 1), 2000 * attempt);
+          return;
+        }
+
+        this.finalizingPayment = false;
+        const msg = error.error?.message || error.message || 'Payment confirmation failed';
+        this.errorMessage = msg;
+        this.isProcessing = false;
+        console.error('Confirm payment failed', error.status, msg, error.error);
+        if (error.status === 400 && msg.toLowerCase().includes('payment not completed')) {
+          this.errorMessage += ' If you were charged, refresh the page—your order may already be paid.';
+        }
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  /**
    * @param response the confirmation body. A part-payment that did NOT settle the order comes
    * back with `orderFullyPaid: false` and the amount still owed — the page then reports the
    * remaining balance instead of confirming a booking that is not yet paid for, and never
    * redirects to booking-success, whose Google Ads conversion must fire once per order.
    */
+  /**
+   * Records the card the customer chose to save, AFTER the payment is confirmed. Deliberately
+   * fire-and-forget: the money is in and the order is settled, so a failure here is not a payment
+   * failure and must never be shown as one. What it does not do is decide anything — the server
+   * saves a card only if Stripe's own record on the intent says the customer chose to. A save lost
+   * here is recovered the next time the Billing tab reconciles with Stripe.
+   */
+  private recordSavedCard(paymentIntentId: string): void {
+    if (this.saveCardChoice !== true || !paymentIntentId || this.isGuestMode) return;
+    this.billingService.saveCardFromPayment(paymentIntentId).subscribe({ next: () => {}, error: () => {} });
+  }
+
   private handlePaymentSuccess(response?: any) {
     this.paymentCompleted = true;
     this.isProcessing = false;

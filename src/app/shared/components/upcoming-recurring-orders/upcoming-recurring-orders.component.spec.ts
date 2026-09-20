@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController } from '@angular/common/http/testing';
 
-import { UpcomingRecurringOrdersComponent } from './upcoming-recurring-orders.component';
+import { PAY_ALL_UNCONFIRMED_MESSAGE, UpcomingRecurringOrdersComponent } from './upcoming-recurring-orders.component';
+import { StripeService } from '../../../services/stripe.service';
 import { UpcomingRecurringOrders } from '../../../services/recurring-order.service';
 import { environment } from '../../../../environments/environment';
 import { testProviders } from '../../../../testing/test-providers';
@@ -193,5 +194,32 @@ describe('UpcomingRecurringOrdersComponent', () => {
     expect(component.errorMessage).toBeTruthy();
     // The section reports itself as broken; it does not throw, and the page around it is fine.
     expect(fixture.nativeElement.querySelector('.uro-error')).not.toBeNull();
+  });
+
+  // ── Pay all: an unanswered card step is never reported as a failed payment (2026-09) ──
+
+  it('never tells the customer the payment failed when Stripe.js throws instead of answering', async () => {
+    load();
+    const stripe = TestBed.inject(StripeService);
+    spyOn(stripe, 'confirmCardPayment').and.returnValue(Promise.reject(new Error('network down')));
+    (component as any).clientSecret = 'secret_1';
+
+    await component.confirmPayAll();
+
+    expect(component.payAllError).toBe(PAY_ALL_UNCONFIRMED_MESSAGE);
+    expect(component.payAllError).toContain("don't pay again");
+    expect(component.payAllError).not.toMatch(/could not be completed|declined|failed/i);
+    expect(component.payingAll).toBeFalse();
+  });
+
+  it('still reports a genuine card decline as a decline', async () => {
+    load();
+    const stripe = TestBed.inject(StripeService);
+    spyOn(stripe, 'confirmCardPayment').and.returnValue(Promise.resolve({ error: { message: 'Your card was declined.' } } as any));
+    (component as any).clientSecret = 'secret_1';
+
+    await component.confirmPayAll();
+
+    expect(component.payAllError).toBe('Your card was declined.');
   });
 });

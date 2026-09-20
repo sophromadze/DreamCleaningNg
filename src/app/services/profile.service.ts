@@ -65,6 +65,35 @@ export interface CreateApartment {
   specialInstructions?: string;
 }
 
+/**
+ * One repeating plan on the profile's Plan tab.
+ *
+ * `isPreferred` and `isActive` are DIFFERENT facts and the tab must never conflate them:
+ * `isPreferred` is the tier the customer picked here, which only pre-selects it on the booking
+ * page; `isActive` means they actually hold the plan, so their next cleaning on it is discounted.
+ * A plan becomes active by booking a cleaning on it — see Helpers/PlanSelectionPolicy.
+ */
+export interface PlanOption {
+  id: number;
+  name: string;
+  description?: string | null;
+  discountPercentage: number;
+  subscriptionDays: number;
+  displayOrder: number;
+  isPreferred: boolean;
+  isActive: boolean;
+}
+
+export interface PlanOverview {
+  plans: PlanOption[];
+  preferredSubscriptionId?: number | null;
+  activeSubscriptionId?: number | null;
+  activeSubscriptionName?: string | null;
+  activeDiscountPercentage?: number | null;
+  activeExpiresAt?: string | null;
+  nextCleaningIsFirstOnPlan: boolean;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -95,5 +124,18 @@ export class ProfileService {
 
   deleteApartment(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/profile/apartments/${id}`);
+  }
+
+  /** Everything the Plan tab renders: the tiers, which one is preferred, which one is live. */
+  getPlan(): Observable<PlanOverview> {
+    return this.http.get<PlanOverview>(`${this.apiUrl}/profile/plan`);
+  }
+
+  /**
+   * Records the plan the customer wants. A PREFERENCE only — the server never activates a
+   * subscription or grants a discount from here, and nothing is charged. Pass null to clear it.
+   */
+  selectPlan(subscriptionId: number | null): Observable<PlanOverview> {
+    return this.http.put<PlanOverview>(`${this.apiUrl}/profile/plan`, { subscriptionId });
   }
 }

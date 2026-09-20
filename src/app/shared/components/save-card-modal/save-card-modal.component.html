@@ -1,0 +1,47 @@
+<ng-container *ngIf="open">
+  <div class="scm-backdrop" (click)="dismiss()"></div>
+
+  <div #dialog class="scm-modal" role="dialog" aria-modal="true"
+       aria-labelledby="scm-title" aria-describedby="scm-desc"
+       (keydown)="onKeydown($event)">
+
+    <button type="button" class="scm-close" (click)="dismiss()" [disabled]="busy" aria-label="Close and go back to the payment form">
+      <span aria-hidden="true">&times;</span>
+    </button>
+
+    <h2 id="scm-title">Save your card for faster checkout?</h2>
+
+    <p id="scm-desc">
+      Would you like to securely save this card for future payments? You can manage or remove it
+      anytime in your Billing settings.
+    </p>
+
+    <p class="scm-fine">
+      <i class="fas fa-lock" aria-hidden="true"></i>
+      <!-- One flex ITEM, not three: the row is icon + text. Left bare, the emphasis and the text
+           either side of it became their own flex items and "not" was laid out in its own
+           column, which read as a rendering fault in the one line that is about trust. -->
+      <span>
+        Your card will be securely stored through Stripe. Saving your card does
+        <strong>not</strong> enable automatic payments.
+      </span>
+    </p>
+
+    <div class="scm-actions">
+      <button #primaryBtn type="button" class="scm-btn scm-btn--primary"
+              (click)="decide(true)" [disabled]="busy"
+              [attr.aria-label]="'Save card and pay' + (amountLabel ? ' ' + amountLabel : '')">
+        <i class="fas fa-circle-notch fa-spin" *ngIf="busy" aria-hidden="true"></i>
+        {{ busy ? 'Paying…' : 'Save Card & Pay' }}
+      </button>
+
+      <button type="button" class="scm-btn scm-btn--ghost"
+              (click)="decide(false)" [disabled]="busy"
+              [attr.aria-label]="'Pay without saving the card' + (amountLabel ? ' ' + amountLabel : '')">
+        Pay Without Saving
+      </button>
+    </div>
+
+    <p class="scm-foot">Either way, your payment{{ amountLabel ? ' of ' + amountLabel : '' }} is taken once.</p>
+  </div>
+</ng-container>

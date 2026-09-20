@@ -1,0 +1,91 @@
+<div class="aub">
+  <div class="aub-loading" *ngIf="loading">Loading billing…</div>
+  <div class="aub-error" *ngIf="!loading && error">{{ error }} <button type="button" class="aub-link" (click)="load()">Retry</button></div>
+
+  <ng-container *ngIf="!loading && !error && data">
+    <p class="aub-muted" *ngIf="!data.featureEnabled">Saved cards are switched off on this server — nothing below can be charged.</p>
+
+    <!-- Open problems first -->
+    <div class="aub-issues" *ngIf="data.openIssues.length > 0">
+      <div class="aub-issue" *ngFor="let n of data.openIssues" [class.critical]="n.severity === 'critical'">
+        <strong>{{ n.title }}</strong>
+        <span>{{ n.message }}</span>
+        <small>{{ n.createdAt | date:'MMM d, y, h:mm a' }}</small>
+      </div>
+    </div>
+
+    <h4>Saved cards <span class="aub-count">{{ data.cards.length }}</span></h4>
+    <p class="aub-muted" *ngIf="data.cards.length === 0">No saved cards.</p>
+    <ul class="aub-cards" *ngIf="data.cards.length > 0">
+      <li *ngFor="let c of data.cards">
+        <span class="aub-card-name">{{ cardLabel(c) }}</span>
+        <span class="aub-chip ok" *ngIf="c.isPrimary">Primary</span>
+        <span class="aub-chip info" *ngIf="c.isBackup">Backup</span>
+        <span class="aub-chip bad" *ngIf="c.isExpired">Expired</span>
+        <span class="aub-chip bad" *ngIf="c.status === 'blocked'">Blocked by issuer</span>
+        <span class="aub-muted" *ngIf="cardExpiry(c)">exp {{ cardExpiry(c) }}</span>
+      </li>
+    </ul>
+
+    <h4>Automatic payments</h4>
+    <div class="aub-row">
+      <span>General agreement</span>
+      <span class="aub-chip" [class.ok]="data.autoPay.autoPayEnabled">{{ data.autoPay.autoPayEnabled ? 'On' : 'Off' }}</span>
+      <span class="aub-muted" *ngIf="data.autoPay.autoPayEnabledAt">since {{ data.autoPay.autoPayEnabledAt | date:'MMM d, y' }}</span>
+    </div>
+    <ul class="aub-arrangements">
+      <li *ngFor="let a of data.autoPay.arrangements">
+        <div>
+          <strong>{{ a.title }}</strong>
+          <span class="aub-muted" *ngIf="a.isAuthorized">
+            authorized {{ a.authorizedAt | date:'MMM d, y' }} · Backup {{ a.allowBackupFallback ? 'allowed' : 'not allowed' }} · terms {{ a.termsVersion }}
+          </span>
+          <span class="aub-warn" *ngIf="a.pausedReason">{{ a.pausedReason }}</span>
+        </div>
+        <span class="aub-chip" [class.ok]="a.isEffective" [class.warn]="a.isAuthorized && !a.isEffective">
+          {{ a.isEffective ? 'Active' : (a.isAuthorized ? 'Paused' : 'Not authorized') }}
+        </span>
+      </li>
+    </ul>
+
+    <h4>Balance due</h4>
+    <p class="aub-muted" *ngIf="data.outstanding.length === 0">Nothing owed.</p>
+    <ul class="aub-list" *ngIf="data.outstanding.length > 0">
+      <li *ngFor="let o of data.outstanding">
+        <span>{{ o.reference }} — {{ o.description }}</span>
+        <strong>${{ o.amountDue | number:'1.2-2' }}</strong>
+        <span class="aub-chip warn" *ngIf="o.paymentInProgress">Processing</span>
+        <span class="aub-chip bad" *ngIf="o.autoPayFailed">AutoPay failed</span>
+      </li>
+    </ul>
+
+    <h4>Saved-card charge attempts</h4>
+    <p class="aub-muted" *ngIf="data.recentAttempts.length === 0">None.</p>
+    <div class="aub-table" *ngIf="data.recentAttempts.length > 0">
+      <div class="aub-tr aub-th"><span>When</span><span>For</span><span>By</span><span>Card</span><span class="num">Amount</span><span>Result</span></div>
+      <div class="aub-tr" *ngFor="let a of data.recentAttempts">
+        <span>{{ a.createdAt | date:'MMM d, h:mm a' }}</span>
+        <span>{{ a.obligation }}</span>
+        <span>{{ a.trigger }}</span>
+        <span>{{ a.cardLabel || '—' }} <em *ngIf="a.cardRole === 'Backup'">(Backup)</em></span>
+        <span class="num">${{ a.amount | number:'1.2-2' }}</span>
+        <span><span class="aub-chip" [ngClass]="statusClass(a.status)">{{ a.status }}</span>
+          <small class="aub-muted" *ngIf="a.failureCode"> {{ a.failureCode }}</small></span>
+      </div>
+    </div>
+
+    <h4>Recent billing history</h4>
+    <p class="aub-muted" *ngIf="data.recentHistory.length === 0">No payments yet.</p>
+    <div class="aub-table" *ngIf="data.recentHistory.length > 0">
+      <div class="aub-tr aub-th"><span>Date</span><span>Reference</span><span>Description</span><span>Method</span><span class="num">Amount</span><span>Status</span></div>
+      <div class="aub-tr" *ngFor="let h of data.recentHistory">
+        <span>{{ h.date | date:'MMM d, y' }}</span>
+        <span>{{ h.reference }}</span>
+        <span>{{ h.description }}</span>
+        <span>{{ h.paymentMethodLabel || '—' }}</span>
+        <span class="num">${{ h.amount | number:'1.2-2' }}</span>
+        <span><span class="aub-chip" [ngClass]="statusClass(h.status)">{{ h.status }}</span></span>
+      </div>
+    </div>
+  </ng-container>
+</div>
