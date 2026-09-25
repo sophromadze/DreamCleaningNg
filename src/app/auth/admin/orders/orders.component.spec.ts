@@ -2120,6 +2120,23 @@ describe('OrdersComponent — additional amount owed after a down-then-up edit',
     expect(component.getUnpaidAdditionalAmount()).toBe(150);
   });
 
+  /** Order #386: a tip added after payment is owed like any other increase — the tip-free sum
+   * read $0.00, so no Send button appeared for the "Unpaid +$270.00" row. */
+  it('counts a tip added after payment as money owed', () => {
+    component.selectedOrder = {
+      id: 386, total: 1750, tips: 270, companyDevelopmentTips: 0,
+      initialTotal: 1150, initialTips: 0, initialCompanyDevelopmentTips: 0,
+      isPaid: true, status: 'Pending', paymentMethod: 'Normal'
+    } as any;
+    component.orderUpdateHistory = [
+      { id: 1, originalTotal: 1150, newTotal: 1480, additionalAmount: 330, isPaid: true },
+      { id: 2, originalTotal: 1480, newTotal: 1750, additionalAmount: 270, isPaid: false }
+    ] as any;
+
+    expect(component.getUnpaidAdditionalAmount()).toBe(270);
+    expect(component.shouldShowPaymentReminderRow()).toBeTrue();
+  });
+
   it('never reports a negative amount owed on an order that only got cheaper', () => {
     component.selectedOrder = {
       id: 361, total: 500, tips: 0, companyDevelopmentTips: 0,

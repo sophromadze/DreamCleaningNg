@@ -273,7 +273,7 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
     return !!this.order && (!!this.order.isPaid || (!!this.order.paymentMethod && this.order.paymentMethod !== 'Normal'));
   }
 
-  /** Additional amount to pay. Backend sends the correct difference (current − tips) − (original − tips). Use it as-is; do not add tips. */
+  /** Additional amount to pay. The backend resolves it (tips included, less what was already collected — `OrderAdditionalCharge`). Use it as-is. */
   getEffectivePendingUpdateAmount(): number {
     if (!this.order || (this.order.pendingUpdateAmount ?? 0) <= 0.01) return 0;
     return Math.round((this.order.pendingUpdateAmount ?? 0) * 100) / 100;

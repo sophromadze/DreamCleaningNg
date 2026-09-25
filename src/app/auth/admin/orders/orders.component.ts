@@ -2860,12 +2860,29 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  /** Total additional payment = difference (current total − tips) − (original total − tips), not sum of all update amounts. */
+  /**
+   * Total additional payment = current total − original total, TIPS INCLUDED — not the sum of
+   * the update rows. Mirrors `OrderAdditionalCharge` on the server.
+   *
+   * It used to compare the tip-free totals. That made a tip added to a paid order (order #386,
+   * +$270.00) write an "Unpaid" history row that nothing could collect: the unpaid amount read
+   * $0.00, so the Send updated payment / reminder row never appeared and the payment page said
+   * "Nothing to pay". The "(no tips)" pricing columns still display tip-free; only this sum moved.
+   */
   getTotalAdditionalAmount(): number {
     if (!this.selectedOrder || !this.orderUpdateHistory?.length) return 0;
-    const current = this.getCurrentTotalWithoutTips();
-    const original = this.getOriginalTotalWithoutTips();
+    const current = Number(this.selectedOrder.total ?? 0) || 0;
+    const original = this.getOriginalTotalWithTips();
     return Math.max(0, Math.round((current - original) * 100) / 100);
+  }
+
+  /** What the customer originally paid, tips included — the booking snapshot, else the earliest
+   * update row's original total (legacy orders carry no snapshot). */
+  private getOriginalTotalWithTips(): number {
+    if (!this.selectedOrder) return 0;
+    if (this.selectedOrder.initialTotal > 0) return Number(this.selectedOrder.initialTotal) || 0;
+    const first = this.orderUpdateHistory?.[0];
+    return first ? Number(first.originalTotal) || 0 : 0;
   }
 
   /**

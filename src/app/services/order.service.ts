@@ -431,10 +431,9 @@ export class OrderService {
     });
   }
 
-  /** When an admin increased the order total, customer can pay the pending additional amount here.
-   * Pass amount (in dollars) so the backend can create a payment intent for the correct amount when the
-   * stored pendingUpdateAmount was computed including tips (legacy bug). Backend should use this amount
-   * when provided. */
+  /** When an admin increased the order total (tips included), the customer can pay the pending
+   * additional amount here. The backend charges what `OrderAdditionalCharge` resolves; `amount`
+   * is informational only and is never trusted as the charge. */
   createPendingUpdatePaymentIntent(orderId: number, amount?: number, guestToken?: string): Observable<any> {
     const body = amount != null && amount > 0 ? { amount } : {};
     const options = guestToken ? { params: { guestToken } } : {};

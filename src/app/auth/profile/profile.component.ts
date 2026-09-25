@@ -781,16 +781,15 @@ export class ProfileComponent implements OnInit {
     return true;
   }
 
-  /** Additional amount to pay. Backend sends the correct difference (current − tips) − (original − tips). Show it as-is; do not add tips. */
+  /**
+   * Additional amount to pay — the backend's `pendingUpdateAmount`, as-is. It is resolved by
+   * `OrderAdditionalCharge` (tips included, less what was already collected), which is also the
+   * figure the payment intent charges. Never re-derive it here: this used to recompute a
+   * tip-free delta, which hid a tip added after payment and ignored already-paid top-ups.
+   */
   getEffectivePendingUpdateAmount(order: OrderList): number {
     const pending = order.pendingUpdateAmount ?? 0;
     if (pending <= 0.01) return 0;
-    const hasInitial = (order.initialTotal ?? 0) > 0;
-    if (hasInitial) {
-      const currentWithoutTips = (order.total ?? 0) - (order.tips ?? 0) - (order.companyDevelopmentTips ?? 0);
-      const originalWithoutTips = (order.initialTotal ?? 0) - (order.initialTips ?? 0) - (order.initialCompanyDevelopmentTips ?? 0);
-      return Math.max(0, Math.round((currentWithoutTips - originalWithoutTips) * 100) / 100);
-    }
     return Math.round(pending * 100) / 100;
   }
 
