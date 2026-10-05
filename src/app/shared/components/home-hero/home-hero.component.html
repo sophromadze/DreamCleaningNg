@@ -57,7 +57,7 @@
             </button>
             @if (serviceTypeDropdownOpen) {
             <div class="dropdown-menu">
-              @for (type of serviceTypes; track type) {
+              @for (type of serviceTypes; track type.id) {
               <button
                 type="button"
                 class="dropdown-item"
@@ -103,7 +103,7 @@
           }
           @if (!isLoadingServiceTypes && selectedServiceType) {
           <div class="services">
-            @for (selected of selectedServices; track selected) {
+            @for (selected of selectedServices; track $index) {
               <!-- Sq.ft has its own slider below. Levels is never offered here at all: the hero
                    asks four questions and a fifth would defeat the point of a quick estimate. -->
               @if (selected.service.serviceKey !== 'sqft' && !isLevelsService(selected.service)) {

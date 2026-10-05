@@ -29,7 +29,7 @@
                 [disabled]="savingLanguage"
                 (change)="onLanguageChange($any($event.target).value)">
           <option value="">{{ t.language }}: {{ t.languageAutomatic }}</option>
-          @for (option of languageOptions; track option) {
+          @for (option of languageOptions; track option.code) {
           <option [value]="option.code">{{ option.name }}</option>
           }
         </select>
@@ -41,7 +41,7 @@
                 [disabled]="savingLanguage"
                 (change)="onLanguageChange($any($event.target).value)">
           <option value="">AUTO</option>
-          @for (option of languageOptions; track option) {
+          @for (option of languageOptions; track option.code) {
           <option [value]="option.code">{{ option.short }}</option>
           }
         </select>
@@ -85,7 +85,7 @@
       <label class="language-picker language-picker--full">
         <span class="sr-only">{{ t.language }}</span>
         <select [value]="languageChoice" (change)="onLanguageChange($any($event.target).value)">
-          @for (option of languageOptions; track option) {
+          @for (option of languageOptions; track option.code) {
           <option [value]="option.code">{{ option.name }}</option>
           }
         </select>
@@ -94,7 +94,7 @@
       <label class="language-picker language-picker--short">
         <span class="sr-only">{{ t.language }}</span>
         <select [value]="languageChoice" (change)="onLanguageChange($any($event.target).value)">
-          @for (option of languageOptions; track option) {
+          @for (option of languageOptions; track option.code) {
           <option [value]="option.code">{{ option.short }}</option>
           }
         </select>
@@ -205,7 +205,7 @@
         </div>
 
         <div class="calendar-grid">
-          @for (weekday of t.weekdays; track weekday) {
+          @for (weekday of t.weekdays; track $index) {
           <div class="calendar-weekday">{{ weekday }}</div>
           }
 
@@ -396,7 +396,7 @@
             @if (selectedJob.levelsQuantity) {
             <span>{{ levelsLabel(selectedJob.levelsQuantity) }}</span>
             }
-            @for (line of selectedJob.services; track line) {
+            @for (line of selectedJob.services; track $index) {
             <span>{{ formatServiceLine(line) }}</span>
             }
           </div>
@@ -624,7 +624,7 @@
           <span>Services</span>
           <strong>
             <ul class="plain-list">
-              @for (line of selectedDetail.cleanerView.services; track line) {
+              @for (line of selectedDetail.cleanerView.services; track $index) {
               <li>{{ formatServiceLine(line) }}</li>
               }
             </ul>
@@ -681,7 +681,7 @@
         @if (selectedDetail.assignedCleaners.length === 0) {
         <p class="muted">Nobody assigned yet.</p>
         }
-        @for (cleaner of selectedDetail.assignedCleaners; track cleaner) {
+        @for (cleaner of selectedDetail.assignedCleaners; track $index) {
         <div class="cleaner-line">
           <strong>{{ cleaner.name }}</strong>
           @if (cleaner.phone) {

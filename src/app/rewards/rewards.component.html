@@ -31,7 +31,7 @@
     <!-- Referral list -->
     @if (referrals.length > 0) {
     <div class="referral-list referral-list--scroll">
-      @for (r of referrals; track r) {
+      @for (r of referrals; track $index) {
       <div class="referral-item">
         <div class="referral-item__name">{{ r.referredUserName }}</div>
         <div class="referral-item__status" [class.status-done]="r.orderBonusGiven" [class.status-pending]="!r.orderBonusGiven">
@@ -124,7 +124,7 @@
       <h2 class="section-title">Redeem Points</h2>
       <p class="section-hint">Apply points at checkout on your next booking.</p>
       <div class="redemption-grid">
-        @for (opt of summary.availableRedemptions; track opt) {
+        @for (opt of summary.availableRedemptions; track $index) {
         <div
              class="redemption-card"
              [class.redemption-card--available]="opt.available"
@@ -158,7 +158,7 @@
       }
       @if (!historyLoading && history.length > 0) {
       <div class="history-list history-list--scroll">
-        @for (item of history; track item) {
+        @for (item of history; track $index) {
         <div
              class="history-item"
              [class.history-item--clickable]="!!item.orderId"
@@ -235,7 +235,7 @@
           <p>Apply points at checkout to get a discount on your next booking:</p>
           @if (summary.availableRedemptions.length > 0) {
           <ul class="guide-list">
-            @for (opt of summary.availableRedemptions; track opt) {
+            @for (opt of summary.availableRedemptions; track $index) {
             <li>
               <strong>{{ opt.points | number }} pts</strong> = <strong>${{ opt.dollarValue | number:'1.0-0' }} off</strong>
             </li>

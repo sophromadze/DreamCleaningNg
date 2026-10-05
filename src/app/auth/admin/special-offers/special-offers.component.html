@@ -42,7 +42,7 @@
         <div class="form-group">
           <label>Offer Type *</label>
           <select aria-label="Offer Type" formControlName="type">
-            @for (type of offerTypes; track type) {
+            @for (type of offerTypes; track type.value) {
             <option [value]="type.value">{{ type.label }}</option>
             }
           </select>
@@ -152,7 +152,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (offer of specialOffers; track offer) {
+        @for (offer of specialOffers; track offer.id) {
         <tr [class.inactive]="!offer.isActive">
           @if (editingOfferId !== offer.id) {
           <td>{{ offer.name }}</td>
@@ -248,7 +248,7 @@
                   <label>Offer Type *</label>
                   <select aria-label="Offer Type" [(ngModel)]="editingOfferType[offer.id]" 
                           [disabled]="isEditingFirstTimeOffer()">
-                    @for (type of offerTypes; track type) {
+                    @for (type of offerTypes; track type.value) {
                     <option [value]="type.value">{{ type.label }}</option>
                     }
                   </select>

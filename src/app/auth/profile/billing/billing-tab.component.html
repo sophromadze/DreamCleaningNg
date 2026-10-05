@@ -27,7 +27,7 @@
     <section class="billing-card billing-card--alert" aria-labelledby="billing-issues">
       <h2 class="billing-card__title" id="billing-issues"><i class="fas fa-exclamation-circle" aria-hidden="true"></i> Payment issues</h2>
       <ul class="notice-list">
-        @for (n of openIssues; track n) {
+        @for (n of openIssues; track $index) {
         <li class="notice" [class.notice--critical]="n.severity === 'critical'"
             [class.notice--unread]="!n.isRead" (mouseenter)="markRead(n)" (focusin)="markRead(n)" tabindex="0">
           <div class="notice__body">
@@ -49,7 +49,7 @@
     <section class="billing-card" aria-labelledby="billing-outstanding">
       <h2 class="billing-card__title" id="billing-outstanding">Balance due</h2>
       <ul class="obligation-list">
-        @for (o of outstanding; track o) {
+        @for (o of outstanding; track $index) {
         <li class="obligation">
           <div class="obligation__info">
             <strong>{{ o.reference }}</strong>
@@ -122,7 +122,7 @@
 
       @if (cards.length > 0) {
       <ul class="saved-cards">
-        @for (card of cards; track card) {
+        @for (card of cards; track $index) {
         <li class="saved-card" [class.saved-card--unusable]="!card.isUsable">
           <div class="saved-card__brand" aria-hidden="true"><i class="fas fa-credit-card"></i></div>
           <div class="saved-card__info">
@@ -222,7 +222,7 @@
 
       @if (autoPay.arrangements.length > 0) {
       <ul class="arrangement-list">
-        @for (a of autoPay.arrangements; track a) {
+        @for (a of autoPay.arrangements; track $index) {
         <li class="arrangement">
           <div class="arrangement__info">
             <div class="arrangement__title">
@@ -287,7 +287,7 @@
         <div class="history__row history__row--head" aria-hidden="true">
           <span>Date</span><span>Reference</span><span>Description</span><span>Method</span><span class="num">Amount</span><span>Status</span><span></span>
         </div>
-        @for (item of history; track item) {
+        @for (item of history; track $index) {
         <div class="history__row">
           <span class="history__date" data-label="Date">{{ item.date | date:'MMM d, y' }}</span>
           <span data-label="Reference">{{ item.reference }}</span>
@@ -322,7 +322,7 @@
       <div class="recent-notices">
         <h3>Recent billing messages</h3>
         <ul class="notice-list notice-list--compact">
-          @for (n of recentNotices; track n) {
+          @for (n of recentNotices; track $index) {
           <li class="notice notice--compact">
             <strong>{{ n.title }}</strong>
             <span>{{ n.message }}</span>
@@ -345,7 +345,7 @@
     <p>{{ removeConsequence() }}</p>
     @if (removeDialog.card.isPrimary && removeSuccessorOptions.length > 0) {
     <div class="radio-list" role="radiogroup">
-      @for (c of removeSuccessorOptions; track c) {
+      @for (c of removeSuccessorOptions; track c.id) {
       <label>
         <input type="radio" name="newPrimary" [value]="c.id" [(ngModel)]="removeDialog.newPrimaryId">
         {{ cardLabel(c) }}@if (c.isBackup) {
@@ -428,7 +428,7 @@
     <h3 id="pay-title">Pay {{ payDialog.obligation.reference }}</h3>
     <p>Amount due: <strong>${{ payDialog.obligation.amountDue | number:'1.2-2' }}</strong></p>
     <div class="radio-list" role="radiogroup" aria-label="Card">
-      @for (c of usableCards; track c) {
+      @for (c of usableCards; track c.id) {
       <label>
         <input type="radio" name="payCard" [value]="c.id" [(ngModel)]="payDialog.cardId" [disabled]="payDialog.busy">
         {{ cardLabel(c) }}@if (c.isPrimary) {

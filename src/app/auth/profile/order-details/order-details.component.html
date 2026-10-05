@@ -29,7 +29,7 @@
                     (click)="selectAssignedAdmin(null)">
               Unassigned
             </button>
-            @for (a of availableAdmins; track a) {
+            @for (a of availableAdmins; track a.id) {
             <button type="button"
                     class="assigned-admin-option"
                     [class.is-selected]="order.assignedAdminId === a.id"
@@ -144,7 +144,7 @@
       <div class="section">
         <h3>Services</h3>
         <div class="services-list">
-          @for (service of order.services; track service) {
+          @for (service of order.services; track $index) {
           <div class="service-item">
             <span class="service-name">{{ service.serviceName }}</span>
             <span class="service-quantity">
@@ -186,7 +186,7 @@
         }
         @if (getDisplayExtraServices().length > 0) {
         <div class="extra-services-list">
-          @for (extra of getDisplayExtraServices(); track extra) {
+          @for (extra of getDisplayExtraServices(); track $index) {
           <div class="extra-service-item">
             <span class="service-name">{{ extra.extraServiceName }}</span>
             <span class="service-quantity">

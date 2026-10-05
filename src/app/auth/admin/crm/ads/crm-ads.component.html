@@ -50,7 +50,7 @@
 
       @if (dropdownOpen) {
       <ul class="dropdown-menu" role="listbox">
-        @for (p of presets; track p) {
+        @for (p of presets; track p.key) {
         <li
             class="dropdown-item"
             [class.active]="period === p.key"

@@ -3,7 +3,7 @@
     Floor Type <span class="optional-tag">(optional)</span>
   </label>
   <div class="floor-type-chips">
-    @for (option of floorTypeOptions; track option) {
+    @for (option of floorTypeOptions; track option.value) {
     <span
       class="floor-type-chip"
       [class.selected]="isFloorTypeSelected(option.value)"

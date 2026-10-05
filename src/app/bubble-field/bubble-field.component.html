@@ -1,5 +1,5 @@
 <div class="bubble-field">
-  @for (b of bubbles; track b) {
+  @for (b of bubbles; track $index) {
   <div class="bubble" [ngStyle]="b.style"></div>
   }
 </div>

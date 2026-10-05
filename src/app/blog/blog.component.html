@@ -51,7 +51,7 @@
     <!-- Posts -->
     @if (!loading && posts.length > 0) {
     <div class="posts-grid">
-      @for (post of posts; track post) {
+      @for (post of posts; track post.slug) {
       <a class="post-card" [routerLink]="['/blog', post.slug]">
         <div class="card-image">
           @if (post.featuredImagePath) {

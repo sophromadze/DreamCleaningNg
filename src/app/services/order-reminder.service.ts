@@ -1,9 +1,10 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID, NgZone, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject, combineLatest } from 'rxjs';
 import { AuthService } from './auth.service';
 import { AdminService } from './admin.service';
 import { SignalRService } from './signalr.service';
+import { setIntervalOutsideZone } from '../shared/zone-free-timers';
 
 export interface OrderReminder {
   orderId: number;
@@ -24,6 +25,7 @@ interface OrderData {
   providedIn: 'root'
 })
 export class OrderReminderService {
+  private readonly zone = inject(NgZone);
   private isBrowser: boolean;
   private orders: OrderData[] = [];
   private checkInterval: any;
@@ -203,8 +205,8 @@ export class OrderReminderService {
   }
 
   private startPeriodicChecks(): void {
-    this.checkInterval = setInterval(() => this.checkReminders(), 30000);
-    this.refreshInterval = setInterval(() => {
+    this.checkInterval = setIntervalOutsideZone(this.zone, () => this.checkReminders(), 30000);
+    this.refreshInterval = setIntervalOutsideZone(this.zone, () => {
       this.adminService.getAllOrders().subscribe({
         next: (orders) => {
           this.orders = orders as OrderData[];
@@ -217,7 +219,7 @@ export class OrderReminderService {
     // Safety net: SignalR delivers acknowledgments instantly, but if an admin's
     // connection dropped the event, poll the DB-backed acknowledged set so a reminder
     // any admin already dismissed is suppressed for everyone within ~1 minute.
-    this.ackSyncInterval = setInterval(() => this.syncAcknowledged(), 60 * 1000);
+    this.ackSyncInterval = setIntervalOutsideZone(this.zone, () => this.syncAcknowledged(), 60 * 1000);
   }
 
   /** Pull the authoritative acknowledged set and drop any reminder another admin has dismissed. */
@@ -608,7 +610,7 @@ export class OrderReminderService {
       this.titleFlashInterval = true;
       this.timerWorker.postMessage({ command: 'startTitle' });
     } else {
-      this.titleFlashInterval = setInterval(() => this.onWorkerTitleTick(), 1500);
+      this.titleFlashInterval = setIntervalOutsideZone(this.zone, () => this.onWorkerTitleTick(), 1500);
     }
   }
 
@@ -637,7 +639,7 @@ export class OrderReminderService {
       this.timerWorker.postMessage({ command: 'startNotify' });
     } else {
       this.sendRepeatingNotification();
-      this.notificationInterval = setInterval(() => this.onWorkerNotifyTick(), 3000);
+      this.notificationInterval = setIntervalOutsideZone(this.zone, () => this.onWorkerNotifyTick(), 3000);
     }
   }
 

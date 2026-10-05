@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener, ElementRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ElementRef, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -15,6 +15,7 @@ import {
 import { isDeepOrSuperDeepExtra, isSuperDeepExtra } from '../../../shared/booking/extra-service-keys';
 import { OrderExtraService } from '../../../services/order.service';
 import { isBedroomsLine, isCleanersLine, KeyedOrderService } from '../../../shared/booking/order-service-keys';
+import { setIntervalOutsideZone } from '../../../shared/zone-free-timers';
 
 @Component({
   selector: 'app-order-details',
@@ -25,6 +26,7 @@ import { isBedroomsLine, isCleanersLine, KeyedOrderService } from '../../../shar
   styleUrls: ['./order-details.component.scss']
 })
 export class OrderDetailsComponent implements OnInit, OnDestroy {
+  private readonly zone = inject(NgZone);
   order: Order | null = null;
   isLoading = true;
   errorMessage = '';
@@ -62,7 +64,7 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
     }
 
     // Update current time every minute
-    this.timeUpdateInterval = setInterval(() => {
+    this.timeUpdateInterval = setIntervalOutsideZone(this.zone, () => {
       this.now = new Date();
     }, 60000);
 

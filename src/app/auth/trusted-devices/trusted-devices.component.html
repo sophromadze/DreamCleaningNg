@@ -35,7 +35,7 @@
   }
   @if (!loading && devices.length > 0) {
   <ul class="td-list">
-    @for (d of devices; track d) {
+    @for (d of devices; track d.id) {
 
       <li class="td-item" [class.is-current]="d.isCurrentDevice">
         <div class="td-item-icon">

@@ -250,7 +250,7 @@
           <label for="defaultDueTerms">Default payment terms</label>
           <select id="defaultDueTerms" [(ngModel)]="form.defaultDueTerms" name="defaultDueTerms"
                   [disabled]="!canEdit">
-            @for (t of dueTermsOptions; track t) {
+            @for (t of dueTermsOptions; track t.value) {
             <option [ngValue]="t.value">{{ t.label }}</option>
             }
           </select>

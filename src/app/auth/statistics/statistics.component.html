@@ -188,14 +188,14 @@
     @if (expenseCategories.length > 0) {
     <div class="breakdown-expenses">
       <h4 class="breakdown-section-title">Expenses by category — monthly</h4>
-      @for (cat of expenseCategories; track cat) {
+      @for (cat of expenseCategories; track $index) {
       <div class="expense-category">
         <div class="expense-category-header">
           <span class="expense-category-name">{{ cat.categoryName }}</span>
           <span class="expense-category-total">{{ cat.total | currency:'USD' }}</span>
         </div>
         <ul class="expense-items">
-          @for (item of cat.items; track item) {
+          @for (item of cat.items; track $index) {
           <li>
             <span class="expense-item-date">{{ item.monthLabel }}</span>
             <span class="expense-item-name">
@@ -261,7 +261,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (r of rates; track r) {
+          @for (r of rates; track $index) {
           <tr>
             <td class="rate-month">{{ r.monthKey }}</td>
             <td>

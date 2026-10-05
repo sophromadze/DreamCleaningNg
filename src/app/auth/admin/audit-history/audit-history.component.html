@@ -39,7 +39,7 @@
       <select aria-label="Changed by" [(ngModel)]="selectedAdminId" class="filter-select" (change)="onFilterChange()"
               title="Who made the change">
         <option value="all">Anyone</option>
-        @for (admin of metadata.admins; track admin) {
+        @for (admin of metadata.admins; track admin.id) {
         <option [value]="admin.id">
           {{ admin.name || admin.email }}
         </option>
@@ -112,7 +112,7 @@
             </tr>
           </thead>
           <tbody>
-          @for (log of filteredLogs; track log) {
+          @for (log of filteredLogs; track log.id) {
             <tr [class.expanded]="viewingLogId === log.id" (click)="viewLogDetails(log.id)" style="cursor: pointer;">
               <td>#{{ log.id }}</td>
               <td>
@@ -426,7 +426,7 @@
                       }
 
                       <!-- Service changes from related logs -->
-                      @for (serviceLog of log.serviceLogs; track serviceLog) {
+                      @for (serviceLog of log.serviceLogs; track serviceLog.id) {
                         @if (getServiceUpdateDetails(serviceLog); as details) {
                           
                           <!-- Regular Services -->
@@ -434,7 +434,7 @@
                           <div class="services-section">
                             <h3>Services</h3>
                             <div class="service-changes">
-                              @for (service of getAllServices(details.services.old, details.services.new); track service) {
+                              @for (service of getAllServices(details.services.old, details.services.new); track $index) {
                                 <div class="service-change"
                                      [class.added]="!isServiceInList(service, details.services.old)"
                                      [class.modified]="isServiceModified(service, details.services.old)"
@@ -468,7 +468,7 @@
                           <div class="extra-services-section">
                             <h3>Extra Services</h3>
                             <div class="service-changes">
-                              @for (service of getAllExtraServices(details.extraServices.old, details.extraServices.new); track service) {
+                              @for (service of getAllExtraServices(details.extraServices.old, details.extraServices.new); track $index) {
                                 <div class="service-change"
                                      [class.added]="!isExtraServiceInList(service, details.extraServices.old)"
                                      [class.modified]="isExtraServiceModified(service, details.extraServices.old)"
@@ -561,7 +561,7 @@
                         <div class="services-section">
                         <h3>Services</h3>
                         <div class="service-changes">
-                          @for (service of getAllServices(details.services.old, details.services.new); track service) {
+                          @for (service of getAllServices(details.services.old, details.services.new); track $index) {
                             <div class="service-change"
                                  [class.added]="!isServiceInList(service, details.services.old)"
                                  [class.modified]="isServiceModified(service, details.services.old)"
@@ -595,7 +595,7 @@
                       <div class="extra-services-section">
                         <h3>Extra Services</h3>
                         <div class="service-changes">
-                          @for (service of getAllExtraServices(details.extraServices.old, details.extraServices.new); track service) {
+                          @for (service of getAllExtraServices(details.extraServices.old, details.extraServices.new); track $index) {
                             <div class="service-change"
                                  [class.added]="!isExtraServiceInList(service, details.extraServices.old)"
                                  [class.modified]="isExtraServiceModified(service, details.extraServices.old)"

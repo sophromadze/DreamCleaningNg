@@ -61,7 +61,7 @@
              and it gets it wrong from free text — one tap here settles it before the first
              sentence. Typing instead is untouched; these are a shortcut, not a gate. -->
         <div class="chat-quick-replies chat-quick-replies--openers">
-          @for (opener of openers; track opener) {
+          @for (opener of openers; track $index) {
           <button
             type="button"
             class="chat-quick-reply"
@@ -74,7 +74,7 @@
       </div>
       }
 
-      @for (m of messages; track m) {
+      @for (m of messages; track $index) {
       <div
         class="chat-msg"
         [class.chat-msg--user]="m.role === 'user'"

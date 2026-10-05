@@ -131,7 +131,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (s of list; track s) {
+        @for (s of list; track s.id) {
         <tr>
           <td>{{ (s.content || '').length > 60 ? (s.content || '').slice(0, 60) + '…' : s.content }}</td>
           <td>{{ targetRolesDisplay(s.targetRoles) }}</td>

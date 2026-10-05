@@ -134,7 +134,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (m of mails; track m) {
+        @for (m of mails; track m.id) {
         <tr>
           <td>{{ m.subject }}</td>
           <td>{{ targetRolesDisplay(m.targetRoles) }}</td>

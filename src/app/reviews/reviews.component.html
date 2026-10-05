@@ -45,7 +45,7 @@
     @if (hasLoaded && reviews.length > 0) {
     <section class="reviews-block">
       <div class="reviews-grid">
-        @for (r of reviews; track r) {
+        @for (r of reviews; track $index) {
         <article class="review-card">
           <div class="review-card__head">
             <div class="review-card__avatar">

@@ -49,7 +49,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (row of section.rows; track row) {
+              @for (row of section.rows; track $index) {
               <tr>
                 <td class="cell-task">{{ row.task }}</td>
                 <td class="cell-status" data-label="Standard">
@@ -90,7 +90,7 @@
               <span>Deep</span>
             </div>
 
-            @for (row of section.rows; track row) {
+            @for (row of section.rows; track $index) {
             <div
               class="mobile-comparison__row"
              >
@@ -147,7 +147,7 @@
            >
             <h3>{{ section.heading }}</h3>
             <ul>
-              @for (row of section.rows; track row) {
+              @for (row of section.rows; track $index) {
               <li>
                 <span class="status-icon status-icon--yes" aria-hidden="true">
                   <i [appIcon]="icons.faCheck"></i>

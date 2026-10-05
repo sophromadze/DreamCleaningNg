@@ -8,6 +8,7 @@ import {
   ViewChild,
   ElementRef,
   inject,
+  NgZone,
   afterNextRender,
   ChangeDetectionStrategy
 } from '@angular/core';
@@ -34,6 +35,7 @@ import { responsiveImage } from '../shared/images/responsive-image.loader';
 import { CardImageDirective } from '../shared/images/card-image.directive';
 import { HomeLayoutMemoryService, SectionHeights } from './home-layout-memory.service';
 import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-keys';
+import { setIntervalOutsideZone } from '../shared/zone-free-timers';
 
 /**
  * Drawn widths, measured from the rendered images. The About photo is 3:2 inside a 4:3 box with
@@ -90,6 +92,7 @@ export class MainComponent implements OnInit, OnDestroy {
 
   specialOffers: PublicSpecialOffer[] = [];
   isLoggedIn: boolean = false;
+  private readonly zone = inject(NgZone);
   protected readonly phoneNumber = inject(PhoneNumberService);
   private readonly googlePlacesService = inject(GooglePlacesService);
   private readonly structuredData = inject(StructuredDataService);
@@ -508,7 +511,7 @@ export class MainComponent implements OnInit, OnDestroy {
     this.stopBeforeAfterAutoplay();
     if (!this.isBrowser || !this.beforeAfterMotionOk) return;
     if (this.beforeAfterBaseLength === 0) return;
-    this.beforeAfterAutoplayTimer = setInterval(() => {
+    this.beforeAfterAutoplayTimer = setIntervalOutsideZone(this.zone, () => {
       this.advanceBeforeAfter(1);
       this.cdr.detectChanges();
     }, MainComponent.BEFORE_AFTER_AUTO_MS);

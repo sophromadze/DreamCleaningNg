@@ -55,7 +55,7 @@
   <div class="pending-edits-global">
     <h3><i class="fas fa-clock"></i> Pending order edits ({{ pendingOrderEdits.length }}) — confirm or reject</h3>
     <div class="pending-edits-list">
-      @for (pe of pendingOrderEdits; track pe) {
+      @for (pe of pendingOrderEdits; track pe.id) {
       <div class="pending-edit-row">
         <span class="pending-summary">{{ pe.orderSummary }}</span>
         <span class="pending-meta">Requested by {{ pe.requestedByName }} · {{ formatUtcDateTime(pe.requestedAt) }}</span>
@@ -194,7 +194,7 @@
             </tr>
           </thead>
           <tbody>
-          @for (order of filteredOrders; track order) {
+          @for (order of filteredOrders; track order.id) {
             <tr [class.expanded]="viewingOrderId === order.id"
                 [class.has-reminder]="orderReminderService.hasActiveReminder(order.id)"
                 [class.is-new-order]="newOrderNotificationService.isUnviewed(order.id)"
@@ -536,7 +536,7 @@
                           <div class="manual-pay-row">
                             <label>Method</label>
                             <select aria-label="Method" [(ngModel)]="paymentMethodEdit">
-                              @for (opt of paymentMethodEditOptions; track opt) {
+                              @for (opt of paymentMethodEditOptions; track opt.value) {
                               <option [value]="opt.value">{{ opt.label }}</option>
                               }
                             </select>
@@ -566,7 +566,7 @@
                               <label>Billed to</label>
                               <select aria-label="Billed to" [(ngModel)]="paymentMethodEditClientId">
                                 <option [ngValue]="null">— Choose a commercial client —</option>
-                                @for (c of commercialClients; track c) {
+                                @for (c of commercialClients; track c.id) {
                                 <option [ngValue]="c.id">
                                   {{ c.legalEntityName }}
                                 </option>
@@ -621,7 +621,7 @@
                   @if (canSaveOrderEditsDirectly && !editingOrder && getPendingEditsForSelectedOrder().length > 0) {
                   <div class="pending-edits-inline">
                     <h4>Pending edit(s) for this order</h4>
-                    @for (pe of getPendingEditsForSelectedOrder(); track pe) {
+                    @for (pe of getPendingEditsForSelectedOrder(); track pe.id) {
                     <div class="pending-item">
                       <span class="pending-by">{{ pe.requestedByName }} at {{ formatUtcDateTime(pe.requestedAt) }}</span>
                       <button class="action-btn primary" (click)="openPendingEditDetail(pe.id)">Review &amp; confirm</button>
@@ -733,7 +733,7 @@
                                     (change)="addEditFloorType(addFloorSelect.value); addFloorSelect.value = ''"
                                     class="add-extra-select floortype-add">
                               <option value="">+ Add floor type</option>
-                              @for (o of getFloorTypesToAdd(); track o) {
+                              @for (o of getFloorTypesToAdd(); track o.value) {
                               <option [value]="o.value">{{ o.label }}</option>
                               }
                             </select>
@@ -879,7 +879,7 @@
                              through the shared calculator like any other row. It is hidden only
                              when the order is not a house, so the panel can never show an
                              editable stair charge on an order it labels an apartment. -->
-                        @for (s of editOrderForm.services; track s; let i = $index) {
+                        @for (s of editOrderForm.services; track $index; let i = $index) {
                         @if (isEditLevelsRowVisible(i)) {
                         <div class="mini-row">
                           <span class="minilabel">{{ getEditServiceDisplayName(s, i) }}</span>
@@ -923,7 +923,7 @@
                       <h5>{{ isCustomModeOrder() ? 'Extra Services (informational — no time or price)' : 'Extra Services (Qty or Hrs, Duration, Cost)' }}</h5>
                       @if (editOrderForm.extraServices && editOrderForm.extraServices.length > 0) {
                       <div class="mini-table">
-                        @for (e of editOrderForm.extraServices; track e; let i = $index) {
+                        @for (e of editOrderForm.extraServices; track $index; let i = $index) {
                         <div class="mini-row">
                           <span class="minilabel">{{ getExtraServiceName(selectedOrder, i, e) }}</span>
                           <div class="mini-controls">
@@ -966,7 +966,7 @@
                         <label>Add extra service:</label>
                         <select aria-label="Add extra service:" #addExtraSelect (change)="onAddExtraServiceChange(addExtraSelect.value); addExtraSelect.value = ''" class="add-extra-select">
                           <option value="">-- Select --</option>
-                          @for (ex of getEditOrderExtrasToAdd(); track ex) {
+                          @for (ex of getEditOrderExtrasToAdd(); track ex.id) {
                           <option [value]="ex.id">{{ ex.name }}</option>
                           }
                         </select>
@@ -1100,7 +1100,7 @@
                                 (click)="selectAssignedAdminForOrder(null)">
                           Unassigned
                         </button>
-                        @for (a of availableAdmins; track a) {
+                        @for (a of availableAdmins; track a.id) {
                         <button type="button"
                                 class="assigned-admin-option"
                                 [class.is-selected]="selectedOrder.assignedAdminId === a.id"
@@ -1205,7 +1205,7 @@
                             }
                             @if (!loadingTransferCandidates && transferSearchResults.length > 0) {
                             <div class="transfer-results">
-                              @for (u of transferSearchResults; track u) {
+                              @for (u of transferSearchResults; track u.id) {
                               <button type="button" class="transfer-result" (click)="selectTransferTarget(u)">
                                 {{ transferUserLabel(u) }}
                               </button>
@@ -1236,7 +1236,7 @@
                         @if (orderTransfers.length > 0) {
                         <div class="transfer-history">
                           <h5>Transfer history</h5>
-                          @for (t of orderTransfers; track t) {
+                          @for (t of orderTransfers; track t.id) {
                           <div class="transfer-entry" [class.is-undone]="t.isUndone">
                             <span class="transfer-line">
                               {{ formatUtcDateTime(t.createdAt) }} — {{ t.fromUserName }} → {{ t.toUserName }}
@@ -1361,7 +1361,7 @@
                       <h4>Services</h4>
                       <div class="services-content">
                         <ul class="services-list">
-                          @for (service of selectedOrder.services; track service) {
+                          @for (service of selectedOrder.services; track $index) {
                           <li>
                             @if (isBedroomsServiceLine(service) && service.quantity === 0) {
                             <span>
@@ -1397,7 +1397,7 @@
                         <ul class="services-list">
                           <!-- Custom Pricing orders price every extra at $0 (informational only),
                                so the cost is omitted there rather than printing "- $0.00". -->
-                          @for (extra of selectedOrder.extraServices; track extra) {
+                          @for (extra of selectedOrder.extraServices; track $index) {
                           <li>
                             @if (extra.hours > 0 && extra.quantity > 0) {
                               {{extra.extraServiceName}} - Qty: {{extra.quantity}} - Hours: {{extra.hours}}@if (!isCustomServiceType(selectedOrder) && !selectedOrder.billedByContractLabel) {
@@ -1540,7 +1540,7 @@
                     }
                     @if (orderPhotos.length > 0) {
                     <div class="order-photo-grid">
-                      @for (p of orderPhotos; track p) {
+                      @for (p of orderPhotos; track $index) {
                       <div class="order-photo-thumb">
                         <img [src]="resolvePhotoUrl(p)" [alt]="p.caption || 'Cleaning photo'" (click)="openOrderLightbox(p)">
                         @if (userPermissions.permissions.canUpdate) {
@@ -1765,7 +1765,7 @@
                           {{ sendingInvoiceReminder ? 'Sending…' : 'Send Invoice Reminder' }}
                         </button>
                         }
-                        @for (update of unpaidEditRows; track update) {
+                        @for (update of unpaidEditRows; track update.id) {
                         <button type="button" class="pay-action pay-action--manual"
                                 [disabled]="recordingManualPaymentForId === update.id"
                                 (click)="openManualPaymentForm(update)"
@@ -1783,7 +1783,7 @@
                       }
 
                       <!-- The manual-payment form, for the amount chosen above. -->
-                      @for (update of unpaidEditRows; track update) {
+                      @for (update of unpaidEditRows; track update.id) {
                         @if (recordingManualPaymentForId === update.id) {
                         <div class="manual-pay-form">
                           <div class="manual-pay-row">
@@ -2352,7 +2352,7 @@
                     @if (refundSummary.refunds.length > 0) {
                     <div class="refund-history">
                       <h5>Refund history</h5>
-                      @for (r of refundSummary.refunds; track r) {
+                      @for (r of refundSummary.refunds; track r.id) {
                       <div class="refund-entry"
                            [class.is-failed]="r.status === 'Failed'">
                         <span class="refund-line">
@@ -2580,7 +2580,7 @@
                           </div>
                           }
 
-                          @for (line of getOrderPayrollLines(); track line) {
+                          @for (line of getOrderPayrollLines(); track $index) {
                             @if (!isEditingPayrollLine(line)) {
                             <div class="cleaner-payroll-row"
                                  [class.unassigned]="line.isUnassignedSlot">
@@ -2669,7 +2669,7 @@
                          of Send email / Remove. -->
                     @if (cleanersWithoutPayrollRow.length > 0) {
                     <div class="cleaner-roster">
-                      @for (cleaner of cleanersWithoutPayrollRow; track cleaner) {
+                      @for (cleaner of cleanersWithoutPayrollRow; track $index) {
                       <div class="cleaner-roster-row">
                         <span class="cp-name">{{ cleaner.name }}</span>
                         <ng-container *ngTemplateOutlet="cleanerRosterActions; context: { $implicit: cleaner }"></ng-container>
@@ -2835,7 +2835,7 @@
         <strong>This order has changed since the request was submitted.</strong>
         The values below are what the requester saw. These fields are different now:
         <ul>
-          @for (ch of pendingEditDriftedFields(); track ch) {
+          @for (ch of pendingEditDriftedFields(); track $index) {
           <li>
             {{ ch.field }} — was <em>{{ ch.current }}</em> when requested, is <em>{{ ch.liveCurrent }}</em> now
           </li>
@@ -2867,7 +2867,7 @@
             <tr><th>Field</th><th>Current</th><th>Proposed</th><th>Difference</th></tr>
           </thead>
           <tbody>
-            @for (ch of getPendingEditChanges(); track ch) {
+            @for (ch of getPendingEditChanges(); track $index) {
             <tr
                 [class.change-row-total]="ch.emphasised"
                 [class.change-row-drifted]="ch.hasDrifted">
@@ -2931,7 +2931,7 @@
             <tr><th>Field</th><th>Current</th><th>New</th><th>Difference</th></tr>
           </thead>
           <tbody>
-            @for (ch of saveConfirmChanges; track ch) {
+            @for (ch of saveConfirmChanges; track $index) {
             <tr [class.change-row-total]="ch.emphasised">
               <td class="field-name">{{ ch.field }}</td>
               <td class="current-val">{{ ch.current }}</td>
@@ -2995,7 +2995,7 @@
           <!-- Every card is clickable, conflict or not. The gap rule cannot see that two jobs
                are on the same block; the admin can, so the conflict is warned about and
                acknowledged below rather than making the card dead. -->
-          @for (cleaner of availableCleanersFiltered; track cleaner) {
+          @for (cleaner of availableCleanersFiltered; track cleaner.id) {
           <div
                class="cleaner-card"
                [class.selected]="isCleanerSelected(cleaner.id)"
@@ -3124,7 +3124,7 @@
       <div class="payment-method-block">
         <label class="block-label">Payment Method</label>
         <div class="payment-method-options">
-          @for (opt of paymentMethodOptions; track opt) {
+          @for (opt of paymentMethodOptions; track opt.value) {
           <label class="radio-row">
             <input type="radio" name="donePaymentMethod"
                    [(ngModel)]="donePaymentMethod"
@@ -3402,7 +3402,7 @@
       <!-- ── Invoices that already cover it ── -->
       @if (coveringInvoices.length > 0) {
       <div class="order-invoice-list">
-        @for (inv of coveringInvoices; track inv) {
+        @for (inv of coveringInvoices; track inv.id) {
         <div class="order-invoice-row">
           <div class="order-invoice-main">
             <a class="order-invoice-number"
@@ -3530,7 +3530,7 @@
 
       @if (orderCustomerInvoices.length > 0) {
       <div class="order-invoice-list">
-        @for (inv of orderCustomerInvoices; track inv) {
+        @for (inv of orderCustomerInvoices; track inv.id) {
         <div class="order-invoice-row">
           <div class="order-invoice-main">
             <a class="order-invoice-number" [href]="inv.publicUrl" target="_blank" rel="noopener">{{ inv.invoiceNumber }}</a>
@@ -3683,7 +3683,7 @@
       <div class="export-modal-error">{{ exportError }}</div>
       }
       <ul class="export-column-list">
-        @for (col of exportColumns; track col) {
+        @for (col of exportColumns; track col.key) {
         <li>
           <label>
             <input type="checkbox"

@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ElementRef, Inject, Injector, PLATFORM_ID, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, Inject, Injector, PLATFORM_ID, OnDestroy, NgZone, inject, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink, RouterLinkActive, Router, NavigationEnd, NavigationStart } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
 import { BubbleBadgeComponent } from './bubble-badge/bubble-badge.component';
@@ -22,6 +22,7 @@ import { takeUntil, filter, debounceTime } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { HeaderAccountMenuComponent } from './header-account-menu/header-account-menu.component';
 import { UiHintService } from '../shared/ssr/ui-hint.service';
+import { setIntervalOutsideZone } from '../shared/zone-free-timers';
 
 interface HeaderAccountServices {
   orders: OrderService;
@@ -42,6 +43,7 @@ interface HeaderAccountServices {
   styleUrl: './header.component.scss'
 })
 export class HeaderComponent implements OnInit, OnDestroy {
+  private readonly zone = inject(NgZone);
   private destroy$ = new Subject<void>();
   isMenuOpen = false;
   isUserMenuOpen = false;
@@ -356,7 +358,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private startNyTimeClock(): void {
     if (!this.isBrowser) return;
     this.updateNyTime();
-    this.nyTimeInterval = setInterval(() => this.updateNyTime(), 1000);
+    this.nyTimeInterval = setIntervalOutsideZone(this.zone, () => this.updateNyTime(), 1000);
   }
 
   /**

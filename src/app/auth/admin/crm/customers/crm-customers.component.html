@@ -61,7 +61,7 @@
           <td class="num">{{ c.orderCount }}</td>
           <td>{{ formatDate(c.lastOrderDate) }}</td>
           <td>
-            @for (t of c.tags; track t) {
+            @for (t of c.tags; track $index) {
             <span class="tag-pill" [style.background]="t.color || ''" [style.color]="t.color ? labelColor(t.color) : null">{{ t.label }}</span>
             }
           </td>
@@ -167,7 +167,7 @@
       <section class="tag-section">
         <h3>Tags</h3>
         <div class="tag-pills">
-          @for (t of selected.tags; track t) {
+          @for (t of selected.tags; track t.id) {
           <span class="tag-pill removable" [style.background]="t.color || ''" [style.color]="t.color ? labelColor(t.color) : null">
             {{ t.label }}<button (click)="removeTag(t.id)" title="Remove">✕</button>
           </span>
@@ -192,7 +192,7 @@
       <section class="orders-section">
         <h3>Recent orders</h3>
         <ul class="order-list">
-          @for (o of selected.recentOrders; track o) {
+          @for (o of selected.recentOrders; track o.id) {
           <li>
             <a [routerLink]="['/admin']" [queryParams]="{ orderId: o.id }" (click)="closePanel()">#{{ o.id }}</a>
             <span class="o-type">{{ o.serviceTypeName }}</span>

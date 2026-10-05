@@ -36,7 +36,7 @@
 
       @if (rows.length) {
       <ul class="contract-list">
-        @for (row of rows; track row) {
+        @for (row of rows; track $index) {
         <li class="contract-row" (click)="open(row)" tabindex="0"
             (keyup.enter)="open(row)">
           <div class="row-main">

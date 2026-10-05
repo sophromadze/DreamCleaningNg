@@ -7,7 +7,7 @@
         <input type="search" class="search-input" placeholder="Search number, client or address…"
                [(ngModel)]="search" (ngModelChange)="onSearchChanged()" />
         <select aria-label="Filter by status" class="status-select" [(ngModel)]="statusFilter" (ngModelChange)="load()">
-          @for (option of statusOptions; track option) {
+          @for (option of statusOptions; track option.value) {
           <option [ngValue]="option.value">{{ option.label }}</option>
           }
         </select>
@@ -49,7 +49,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (row of contractsList; track row) {
+          @for (row of contractsList; track row.id) {
           <tr (click)="openDetail(row.id)" class="clickable">
             <td class="mono">
               {{ row.contractNumber }}

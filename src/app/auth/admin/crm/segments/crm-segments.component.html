@@ -7,7 +7,7 @@
 
   @if (!loading) {
   <div class="segments-grid">
-    @for (seg of segments; track seg) {
+    @for (seg of segments; track seg.key) {
     <button class="segment-card"
             [ngClass]="segClass(seg.key)"
             [class.empty]="seg.count === 0"

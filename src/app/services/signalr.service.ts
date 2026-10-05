@@ -1,10 +1,11 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID, NgZone, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HubConnection, HubConnectionBuilder, LogLevel, HttpTransportType } from '@microsoft/signalr';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { AuthService } from './auth.service';
 import { environment } from '../../environments/environment';
 import { filter, skip, debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import { setTimeoutOutsideZone } from '../shared/zone-free-timers';
 
 export interface UserNotification {
   message: string;
@@ -18,6 +19,7 @@ export interface UserNotification {
   providedIn: 'root'
 })
 export class SignalRService {
+  private readonly zone = inject(NgZone);
   private static instanceCount = 0;
   private static authSubscriptionSetup = false;
   private static globalConnectionState = new BehaviorSubject<boolean>(false);
@@ -152,7 +154,11 @@ export class SignalRService {
     this.setupEventHandlers();
 
     try {
-      await SignalRService.hubConnection.start();
+      // Started OUTSIDE Angular's zone: the connection's keep-alive, server-timeout and reconnect
+      // timers would otherwise keep the app unstable for as long as it is connected (NG0506 -
+      // hydration never completes). Every handler re-enters the zone (setupEventHandlers).
+      const connection = SignalRService.hubConnection;
+      await this.zone.runOutsideAngular(() => connection.start());
       SignalRService.globalConnectionState.next(true);
     } catch (error) {
       console.error('SignalR: Connection failed:', error);
@@ -160,7 +166,7 @@ export class SignalRService {
       
       // Retry after delay if user is still authenticated
       if (this.authService.isLoggedIn()) {
-        setTimeout(() => this.connect(), 5000);
+        setTimeoutOutsideZone(this.zone, () => this.connect(), 5000);
       }
     }
   }
@@ -178,11 +184,19 @@ export class SignalRService {
     }
   }
 
+  /**
+   * The hub runs outside Angular's zone (see connect()), so its callbacks arrive outside it too;
+   * every handler re-enters the zone so subscribers and change detection behave as before.
+   */
+  private inZone<A extends unknown[]>(handler: (...args: A) => void): (...args: A) => void {
+    return (...args: A) => this.zone.run(() => handler(...args));
+  }
+
   private setupEventHandlers(): void {
     if (!SignalRService.hubConnection) return;
   
     // Handle user blocked notification
-    SignalRService.hubConnection.on('UserBlocked', (data: any) => {
+    SignalRService.hubConnection.on('UserBlocked', this.inZone((data: any) => {
       
       // Show the notification modal
       SignalRService.globalNotifications.next({
@@ -198,10 +212,10 @@ export class SignalRService {
           this.authService.logout();
         }, 3000);
       }
-    });
+    }));
   
     // Handle user unblocked notification
-    SignalRService.hubConnection.on('UserUnblocked', (data: any) => {
+    SignalRService.hubConnection.on('UserUnblocked', this.inZone((data: any) => {
       
       SignalRService.globalNotifications.next({
         message: data.message || 'Your account has been unblocked.',
@@ -209,10 +223,10 @@ export class SignalRService {
         type: 'unblocked',
         data: data
       });
-    });
+    }));
   
     // Handle role changed notification (role-only update from admin)
-    SignalRService.hubConnection.on('RoleChanged', (data: any) => {
+    SignalRService.hubConnection.on('RoleChanged', this.inZone((data: any) => {
       SignalRService.globalNotifications.next({
         message: data.message || `Your role has been updated to ${data.newRole}. Please log in again to access your new permissions.`,
         timestamp: new Date(data.timestamp || new Date()),
@@ -222,10 +236,10 @@ export class SignalRService {
       setTimeout(() => {
         this.authService.logout();
       }, 4000);
-    });
+    }));
 
     // Handle account updated (e.g. phone, email, name, role - shows what changed)
-    SignalRService.hubConnection.on('AccountUpdated', (data: any) => {
+    SignalRService.hubConnection.on('AccountUpdated', this.inZone((data: any) => {
       SignalRService.globalNotifications.next({
         title: data.title || 'Account Updated',
         message: data.message || 'Your account was updated. Please log in again to continue.',
@@ -236,10 +250,10 @@ export class SignalRService {
       setTimeout(() => {
         this.authService.logout();
       }, 4000);
-    });
+    }));
   
     // Handle user deleted (account permanently deleted by admin)
-    SignalRService.hubConnection.on('UserDeleted', (data: any) => {
+    SignalRService.hubConnection.on('UserDeleted', this.inZone((data: any) => {
       SignalRService.globalNotifications.next({
         message: data.message || 'Your account has been permanently deleted by an administrator.',
         timestamp: new Date(data.timestamp || new Date()),
@@ -251,7 +265,7 @@ export class SignalRService {
           this.authService.logout();
         }, 3000);
       }
-    });
+    }));
 
     // Some of this account's sessions were just ended (a trusted device removed, "sign out
     // other devices", a password change). NOT a logout order — the browser that asked is in the
@@ -260,15 +274,15 @@ export class SignalRService {
     // logging out; a live one gets its user back and nothing happens. The browser that asked
     // (and its other tabs) skips the check while its request is in flight, so it can never be
     // judged on the token it is in the middle of replacing.
-    SignalRService.hubConnection.on('SessionsEnded', () => {
+    SignalRService.hubConnection.on('SessionsEnded', this.inZone(() => {
       setTimeout(() => {
         if (this.authService.isSessionReissuePending()) return;
         this.authService.checkCurrentUserSession().subscribe();
       }, 1000);
-    });
+    }));
 
     // Handle force logout
-    SignalRService.hubConnection.on('ForceLogout', (data: any) => {
+    SignalRService.hubConnection.on('ForceLogout', this.inZone((data: any) => {
       
       SignalRService.globalNotifications.next({
         message: data.reason || 'Your session has been terminated.',
@@ -281,45 +295,45 @@ export class SignalRService {
       setTimeout(() => {
         this.authService.logout();
       }, 2000);
-    });
+    }));
   
     // Handle order reminder acknowledged by another admin
-    SignalRService.hubConnection.on('OrderReminderAcknowledged', (data: any) => {
+    SignalRService.hubConnection.on('OrderReminderAcknowledged', this.inZone((data: any) => {
       SignalRService.globalReminderAcknowledged.next({
         orderId: data.orderId,
         type: data.type
       });
-    });
+    }));
 
     // Handle new order created notification
-    SignalRService.hubConnection.on('NewOrderCreated', (data: any) => {
+    SignalRService.hubConnection.on('NewOrderCreated', this.inZone((data: any) => {
       SignalRService.globalNewOrderCreated.next({ orderId: data.orderId });
-    });
+    }));
 
     // Handle "this admin viewed the order" arriving from one of their OWN other sessions
     // (second tab, phone). The green is per-admin now, so the server sends this to the
     // viewer's group alone — it is never another admin telling us to clear ours.
-    SignalRService.hubConnection.on('NewOrderViewed', (data: any) => {
+    SignalRService.hubConnection.on('NewOrderViewed', this.inZone((data: any) => {
       SignalRService.globalNewOrderViewed.next({ orderId: data.orderId });
-    });
+    }));
 
     // Handle task/interaction/handover updates from other admins
-    SignalRService.hubConnection.on('TasksUpdated', (data: any) => {
+    SignalRService.hubConnection.on('TasksUpdated', this.inZone((data: any) => {
       SignalRService.globalTasksUpdated.next({ type: data.type });
-    });
+    }));
 
     // Connection event handlers
-    SignalRService.hubConnection.onreconnected(() => {
+    SignalRService.hubConnection.onreconnected(this.inZone(() => {
       SignalRService.globalConnectionState.next(true);
-    });
+    }));
   
-    SignalRService.hubConnection.onreconnecting(() => {
+    SignalRService.hubConnection.onreconnecting(this.inZone(() => {
       SignalRService.globalConnectionState.next(false);
-    });
+    }));
   
-    SignalRService.hubConnection.onclose(() => {
+    SignalRService.hubConnection.onclose(this.inZone(() => {
       SignalRService.globalConnectionState.next(false);
-    });
+    }));
   }
 
   public isConnected(): boolean {

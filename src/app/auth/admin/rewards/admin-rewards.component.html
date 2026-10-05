@@ -38,7 +38,7 @@
     <div class="loading-text">Loading settings...</div>
     }
 
-    @for (group of categoryGroups; track group) {
+    @for (group of categoryGroups; track $index) {
     <div class="settings-category">
       <div class="category-header" (click)="group.open = !group.open">
         <h3>{{ group.category }}</h3>
@@ -47,7 +47,7 @@
 
       @if (group.open) {
       <div class="category-body">
-        @for (setting of group.settings; track setting) {
+        @for (setting of group.settings; track $index) {
         <div class="setting-row">
           <div class="setting-info">
             <div class="setting-key">{{ getDisplayLabel(setting.settingKey) }}</div>
@@ -172,7 +172,7 @@
         class="reset-search-input">
       @if (filteredUsers.length > 0 && !resetUserId && resetUserSearch.length > 0) {
       <div class="reset-user-dropdown">
-        @for (u of filteredUsers | slice:0:10; track u) {
+        @for (u of filteredUsers | slice:0:10; track $index) {
         <div
           class="reset-user-option"
           (click)="selectResetUser(u)">

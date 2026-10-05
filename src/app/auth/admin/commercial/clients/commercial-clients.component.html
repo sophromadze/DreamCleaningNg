@@ -364,7 +364,7 @@
           }
           @if (c.locations.length) {
           <ul class="cc-list">
-            @for (l of c.locations; track l) {
+            @for (l of c.locations; track $index) {
             <li>
               <strong>{{ l.label }}</strong> — {{ l.address }}
             </li>
@@ -382,7 +382,7 @@
           }
           @if (c.contracts.length) {
           <ul class="cc-list">
-            @for (k of c.contracts; track k) {
+            @for (k of c.contracts; track k.id) {
             <li>
               <a [routerLink]="['/admin/commercial/contracts', k.id]" class="cc-mono">{{ k.contractNumber }}</a>
               <span class="muted"> · {{ k.statusLabel }}</span>

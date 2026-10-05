@@ -30,7 +30,7 @@
   <!-- NEAREST FIRST. The server returns them in this order; the page does not re-sort. -->
   @if (!loading && hasAny) {
   <ul class="uro-list">
-    @for (o of orders; track o) {
+    @for (o of orders; track $index) {
     <li class="uro-item" [class.uro-item--paid]="o.isPaid">
       <div class="uro-item-main">
         <span class="uro-date">{{ o.serviceDate | date:'EEE d MMM' }}</span>
@@ -86,7 +86,7 @@
     }
     @if (data) {
     <ul class="uro-modal-list">
-      @for (o of orders; track o) {
+      @for (o of orders; track $index) {
       <li>
         @if (o.includedInPayAll) {
 

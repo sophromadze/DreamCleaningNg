@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input, ChangeDetectionStrategy, ApplicationRef, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderAdminNote, OrderTransferInfo, UserAdmin, OrderRefundSummary, OrderRefundInfo, OrderCleanerPayroll, OrderCleanerPayrollLine, OrderStaffingWarningsMap } from '../../../services/admin.service';
@@ -159,6 +159,7 @@ export interface PaymentTimelineRow {
   styleUrls: ['./orders.component.scss']
 })
 export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
+  private readonly appRef = inject(ApplicationRef);
   @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
   @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
 
@@ -2066,7 +2067,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       });
     };
 
-    loadBatch(0);
+    // Background enrichment, one batch after another for as long as there are residential orders,
+    // so it can easily outlast the 10s hydration window: it starts once the app is first stable
+    // (an immediate start when it already is), instead of keeping a freshly loaded /admin
+    // unstable until the last batch lands (NG0506).
+    this.appRef.whenStable().then(() => loadBatch(0));
   }
 
   // Bumped whenever order DATA changes (load, status update, edit save) so the

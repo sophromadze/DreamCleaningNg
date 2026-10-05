@@ -1,8 +1,9 @@
-import { Component, Inject, PLATFORM_ID, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Inject, PLATFORM_ID, OnInit, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService, AccountExistsResponse, MergeResultResponse } from '../../services/auth.service';
+import { setIntervalOutsideZone } from '../../shared/zone-free-timers';
 const RELAY_DOMAIN = '@privaterelay.appleid.com';
 
 type Step = 'email' | 'code' | 'account-found' | 'merge-email' | 'merge-success';
@@ -16,6 +17,7 @@ type Step = 'email' | 'code' | 'account-found' | 'merge-email' | 'merge-success'
   styleUrls: ['./real-email-verify.component.scss']
 })
 export class RealEmailVerifyComponent implements OnInit {
+  private readonly zone = inject(NgZone);
   step: Step = 'email';
   emailForm: FormGroup;
   codeForm: FormGroup;
@@ -218,7 +220,7 @@ export class RealEmailVerifyComponent implements OnInit {
       next: () => {
         this.mergeResendCooldown = 60;
         if (this.mergeCooldownInterval) clearInterval(this.mergeCooldownInterval);
-        this.mergeCooldownInterval = setInterval(() => {
+        this.mergeCooldownInterval = setIntervalOutsideZone(this.zone, () => {
           this.mergeResendCooldown--;
           if (this.mergeResendCooldown <= 0 && this.mergeCooldownInterval) {
             clearInterval(this.mergeCooldownInterval);
@@ -237,7 +239,7 @@ export class RealEmailVerifyComponent implements OnInit {
   private startResendCooldown() {
     this.resendCooldown = 60;
     if (this.cooldownInterval) clearInterval(this.cooldownInterval);
-    this.cooldownInterval = setInterval(() => {
+    this.cooldownInterval = setIntervalOutsideZone(this.zone, () => {
       this.resendCooldown--;
       if (this.resendCooldown <= 0 && this.cooldownInterval) {
         clearInterval(this.cooldownInterval);

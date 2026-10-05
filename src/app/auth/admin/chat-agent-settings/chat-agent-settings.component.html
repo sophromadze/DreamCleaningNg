@@ -21,7 +21,7 @@
     <!-- Visibility -->
     <fieldset class="chat-agent-panel__group" [disabled]="saving">
       <legend>Who can see the chat widget</legend>
-      @for (option of visibilityOptions; track option) {
+      @for (option of visibilityOptions; track $index) {
       <label class="chat-agent-option">
         <input
           type="radio"

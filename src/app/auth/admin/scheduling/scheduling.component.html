@@ -99,7 +99,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (slot of blockedSlots; track slot) {
+        @for (slot of blockedSlots; track $index) {
         <tr [class.past]="isPastDate(slot.date)">
           <td>{{ formatDate(slot.date) }}</td>
           <td>

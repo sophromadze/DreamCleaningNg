@@ -296,7 +296,7 @@
           <button class="btn-note" (click)="addNote()" [disabled]="addingNote || !newNote.trim()">Add</button>
         </div>
         <ul class="timeline-list">
-          @for (a of selectedLead.activities; track a) {
+          @for (a of selectedLead.activities; track $index) {
           <li class="timeline-item" [ngClass]="'type-' + a.type.toLowerCase()">
             <div class="ti-head">
               <span class="ti-type">{{ a.type === 'StageChange' ? 'Stage' : a.type }}</span>

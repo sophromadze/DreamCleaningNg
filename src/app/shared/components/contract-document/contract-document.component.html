@@ -3,7 +3,7 @@
 
   @if (showSignatureBlock && parties.length) {
   <div class="dc-signature-grid">
-    @for (party of parties; track party) {
+    @for (party of parties; track $index) {
     <div class="dc-signature-party">
       <div class="dc-signature-party-label">{{ party.partyLabel }}</div>
       <div class="dc-signature-entity">{{ party.entityName }}</div>

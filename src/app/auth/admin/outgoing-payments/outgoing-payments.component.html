@@ -139,7 +139,7 @@
     </div>
 
     <div class="salary-list">
-      @for (payee of salaries.payees; track payee) {
+      @for (payee of salaries.payees; track $index) {
       <div class="salary-payee">
         <div class="salary-payee-head">
           <span class="salary-name">{{ payee.name }}</span>
@@ -222,7 +222,7 @@
         }
 
         <div class="salary-instalments">
-          @for (inst of payee.instalments; track inst) {
+          @for (inst of payee.instalments; track $index) {
           <div class="salary-instalment" [class.paid]="inst.isPaid">
             <span class="inst-label">{{ inst.label }}</span>
 
@@ -1023,7 +1023,7 @@
 
     @if (!payCleaner) {
     <ul class="modal-lines">
-      @for (c of unpaidInPayOrder; track c) {
+      @for (c of unpaidInPayOrder; track $index) {
       <li>
         <span>{{ cleanerName(c) }}</span>
         <span class="modal-line-method">
@@ -1051,7 +1051,7 @@
     <label class="modal-field">
       <span>Sent via</span>
       <select [(ngModel)]="payVia" name="payVia">
-        @for (opt of paymentMethodOptions; track opt) {
+        @for (opt of paymentMethodOptions; track opt.value) {
         <option [value]="opt.value">{{ opt.label }}</option>
         }
       </select>

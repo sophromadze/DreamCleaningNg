@@ -31,7 +31,7 @@
       <!-- Saved cards vs. a new card (signed-in customer only; selecting never charges — Pay does) -->
       @if (savedCards.length > 0 && !fullyCovered) {
       <div class="saved-card-choice" role="radiogroup" aria-label="Payment method">
-        @for (card of savedCards; track card) {
+        @for (card of savedCards; track card.id) {
         <label class="pay-option" [class.selected]="selectedCardId === card.id">
           <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId === card.id"
                  (change)="selectPaymentMethod(card.id)" [disabled]="isProcessing">

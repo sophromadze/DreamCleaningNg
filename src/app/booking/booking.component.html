@@ -97,7 +97,7 @@
             </p>
 
             <div class="payment-method-options">
-              @for (opt of paymentMethodOptions; track opt) {
+              @for (opt of paymentMethodOptions; track opt.value) {
               <label class="radio-row">
                 <input type="radio" name="paymentMethod"
                        [(ngModel)]="adminPaymentMethod"
@@ -260,7 +260,7 @@
           <section class="special-offers-section">
             <h2 class="special-offers-heading">Special Discount</h2>
             <div class="special-offers-grid">
-              @for (offer of userSpecialOffers; track offer) {
+              @for (offer of userSpecialOffers; track offer.id) {
               <div class="special-offer-card"
                     [class.applied]="specialOfferApplied && selectedSpecialOffer?.id === offer.id"
                     (click)="onSpecialOfferCardClick(offer)">
@@ -334,7 +334,7 @@
                   </button>
                   @if (serviceTypeDropdownOpen) {
                   <div class="dropdown-menu">
-                    @for (type of visibleServiceTypes; track type) {
+                    @for (type of visibleServiceTypes; track type.id) {
                     <button
                       type="button"
                       class="dropdown-item"
@@ -394,7 +394,7 @@
             </p>
             
             <div class="poll-questions">
-              @for (question of pollQuestions; track question; let questionIndex = $index) {
+              @for (question of pollQuestions; track question.id; let questionIndex = $index) {
               <div class="poll-question">
                 <label class="question-label">
                   {{ question.question }}
@@ -434,7 +434,7 @@
                   class="poll-select"
                   [class.ng-invalid]="pollFormSubmitted && question.isRequired && (!pollAnswers[question.id] || pollAnswers[question.id].trim() === '')">
                   <option value="">Select an option</option>
-                  @for (option of question.options?.split(',') || []; track option) {
+                  @for (option of question.options?.split(',') || []; track $index) {
                   <option [value]="option.trim()">
                     {{ option.trim() }}
                   </option>
@@ -445,7 +445,7 @@
                 <!-- Radio buttons -->
                 @if (question.questionType === 'radio') {
                 <div class="radio-group">
-                  @for (option of question.options?.split(',') || []; track option; let i = $index) {
+                  @for (option of question.options?.split(',') || []; track $index; let i = $index) {
                   <label 
                          class="radio-option"
                          [for]="'question_' + question.id + '_' + i">
@@ -466,7 +466,7 @@
                 <!-- Checkboxes (multiple selection, stored as comma-separated) -->
                 @if (question.questionType === 'checkbox') {
                 <div class="checkbox-group">
-                  @for (option of question.options?.split(',') || []; track option; let i = $index) {
+                  @for (option of question.options?.split(',') || []; track $index; let i = $index) {
                   <label 
                          class="checkbox-option"
                          [for]="'question_' + question.id + '_cb_' + i">
@@ -766,7 +766,7 @@
                 <!-- Levels is excluded here even though it is an ordinary service: it has its own
                      gated block above, and rendering it twice would let a customer set a level
                      count without ever answering the property-type question. -->
-                @for (selected of selectedServices; track selected) {
+                @for (selected of selectedServices; track $index) {
                 @if (!isLevelsService(selected.service)) {
                 <div class="service-item">
                   <label>{{ selected.service.name }}</label>
@@ -1096,7 +1096,7 @@
               </div>
               }
               <div class="subscription-options" [shimmer]="loading.serviceTypes">
-                @for (subscription of subscriptions; track subscription) {
+                @for (subscription of subscriptions; track subscription.id) {
                 <div class="subscription-card"
                      [class.selected]="selectedSubscription?.id === subscription.id"
                      [class.user-subscription]="hasActiveSubscription && userSubscription?.subscriptionId === subscription.id"
@@ -1293,7 +1293,7 @@
                 <!-- Photo previews -->
                 @if (uploadedPhotos.length > 0) {
                 <div class="photo-previews">
-                  @for (photo of uploadedPhotos; track photo; let i = $index) {
+                  @for (photo of uploadedPhotos; track $index; let i = $index) {
                   <div class="photo-preview">
                     <img [src]="photo.preview" [alt]="photo.file.name">
                             <button 
@@ -1538,7 +1538,7 @@
                               class="dropdown-item"
                               [class.is-active]="!selectedApartmentId.value"
                               (click)="selectSavedAddress('')">Enter new address</button>
-                      @for (apt of userApartments; track apt) {
+                      @for (apt of userApartments; track apt.id) {
                       <button
                               type="button"
                               class="dropdown-item"
@@ -1778,7 +1778,7 @@
                   </div>
                 </div>
                 <div class="bubble-points-form-options">
-                  @for (opt of bubblePointsOptions; track opt) {
+                  @for (opt of bubblePointsOptions; track $index) {
                   <button
                           class="points-form-btn"
                           [class.selected]="selectedPointsToRedeem === opt.points"

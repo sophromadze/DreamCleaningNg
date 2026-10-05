@@ -146,7 +146,7 @@
             <div class="services">
               <!-- Levels is excluded: it has its own block above. The entry stays in
                    selectedServices so the FormArray of controls remains index-aligned. -->
-              @for (selected of selectedServices; track selected; let i = $index) {
+              @for (selected of selectedServices; track $index; let i = $index) {
               @if (!isLevelsService(selected.service)) {
               <div class="service-item">
                 <label>{{ selected.service.name }}</label>

@@ -119,7 +119,7 @@
       }
 
       <!-- Messages -->
-      @for (msg of messages; track msg) {
+      @for (msg of messages; track $index) {
       <div class="message-wrapper" [class.message-wrapper--visitor]="msg.isFromVisitor">
         @if (!msg.isFromVisitor) {
         <div class="message-sender-label">{{ msg.agentName || 'Dream Cleaning' }}</div>

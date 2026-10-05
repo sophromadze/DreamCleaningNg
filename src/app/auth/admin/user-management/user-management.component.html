@@ -92,7 +92,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (user of filteredUsers; track user) {
+            @for (user of filteredUsers; track user.id) {
             <tr
                 class="user-row"
                 [class.row-selected]="viewingUserId === user.id"
@@ -482,7 +482,7 @@
         <div class="referral-block">
           <div class="referral-block__label">Points taken back ({{ pointsReversals.length }})</div>
           <ul class="referral-list">
-            @for (h of pointsReversals; track h) {
+            @for (h of pointsReversals; track $index) {
             <li>
               <div class="referral-list__main">
                 <strong>{{ h.points | number }}</strong>
@@ -528,7 +528,7 @@
                      class="small-input flex">
               @if (newReferrerSearchResults.length > 0) {
               <ul class="suggest-list">
-                @for (s of newReferrerSearchResults; track s) {
+                @for (s of newReferrerSearchResults; track $index) {
                 <li (click)="selectReferrerSuggestion(s.email)">
                   <strong>{{ s.email }}</strong> <span class="muted">— {{ s.name }}</span>
                 </li>
@@ -551,7 +551,7 @@
           </div>
           @if (userRewardsSummary?.referrals?.length > 0) {
           <ul class="referral-list">
-            @for (r of userRewardsSummary.referrals; track r) {
+            @for (r of userRewardsSummary.referrals; track r.id) {
             <li>
               <div class="referral-list__main">
                 <strong>{{ r.referredUserEmail }}</strong>
@@ -582,7 +582,7 @@
                      class="small-input flex">
               @if (newReferralSearchResults.length > 0) {
               <ul class="suggest-list">
-                @for (s of newReferralSearchResults; track s) {
+                @for (s of newReferralSearchResults; track $index) {
                 <li (click)="selectReferralSuggestion(s.email)">
                   <strong>{{ s.email }}</strong> <span class="muted">— {{ s.name }}</span>
                 </li>
@@ -662,7 +662,7 @@
       @if (detailTab === 'invoices') {
       <section class="tab-pane">
         <div class="um-invoice-list">
-          @for (inv of userInvoices; track inv) {
+          @for (inv of userInvoices; track inv.id) {
           <a class="um-invoice-row"
              [href]="'/admin/commercial/invoices/' + inv.id" target="_blank" rel="noopener">
             <div class="um-invoice-main">
@@ -893,7 +893,7 @@
                           [disabled]="savingAdminPositionUserId === selectedUser.id"
                           (ngModelChange)="updateUserManager(selectedUser, $event)">
                     <option [ngValue]="null">No manager</option>
-                    @for (m of managerOptionsFor(selectedUser); track m) {
+                    @for (m of managerOptionsFor(selectedUser); track m.id) {
                     <option [ngValue]="m.id">
                       {{ m.firstName }} {{ m.lastName }}
                     </option>
@@ -920,7 +920,7 @@
                           [ngModel]="selectedUser.orgTitle || 'None'"
                           [disabled]="savingOrgTitleUserId === selectedUser.id"
                           (ngModelChange)="updateOrgTitle(selectedUser, $event)">
-                    @for (option of orgTitleOptions; track option) {
+                    @for (option of orgTitleOptions; track option.value) {
                     <option [value]="option.value">
                       {{ option.label }}
                     </option>
@@ -974,7 +974,7 @@
                   <span class="pref-label">Page access</span>
                   <span class="pref-hint">View-only access to restricted pages</span>
                 </span>
-                @for (page of viewablePageOptions; track page) {
+                @for (page of viewablePageOptions; track page.key) {
                 <span class="pref-row">
                   <span class="pref-label pref-label-sub">{{ page.label }}</span>
                   <span class="yes-no-toggle">
@@ -1166,7 +1166,7 @@
           <div class="info-card">
             <h4>Saved Addresses ({{ selectedUser.apartments?.length || 0 }})</h4>
             <div class="addresses">
-              @for (apt of selectedUser.apartments; track apt) {
+              @for (apt of selectedUser.apartments; track apt.id) {
               <div class="address-item">
                 @if (editingAddressId !== apt.id) {
                 <div class="address-display">
@@ -1248,7 +1248,7 @@
           <div class="success-message inline">{{ recreateSuccessMessage }}</div>
           }
           <div class="history-list">
-            @for (order of selectedUser.orders; track order) {
+            @for (order of selectedUser.orders; track order.id) {
             <div
                  class="history-row"
                  [class.cancelled]="isCancelledOrRefunded(order)"
@@ -1303,7 +1303,7 @@
           </div>
           }
 
-          @for (group of cleaningPhotoGroups; track group) {
+          @for (group of cleaningPhotoGroups; track group.orderId) {
           <div class="photo-group">
             <div class="photo-group__header">
               <strong>
@@ -1317,7 +1317,7 @@
               </strong>
             </div>
             <div class="photo-grid">
-              @for (p of group.photos; track p) {
+              @for (p of group.photos; track $index) {
               <div class="photo-thumb">
                 <img [src]="resolvePhotoUrl(p)"
                      [alt]="p.caption || 'Cleaning photo'"
@@ -1335,7 +1335,7 @@
               <span>Attach to order:</span>
               <select [ngModel]="photoUploadOrderId" (ngModelChange)="setPhotoOrderId($event)">
                 <option [ngValue]="null">— Select an order —</option>
-                @for (o of selectedUser.orders; track o) {
+                @for (o of selectedUser.orders; track o.id) {
                 <option [ngValue]="o.id">
                   #{{ o.id }} • {{ formatShortDate(o.serviceDate) }} • {{ o.serviceTypeName }}
                 </option>
@@ -1392,7 +1392,7 @@
           <div class="muted center">No general notes yet.</div>
           }
           <div class="note-list">
-            @for (n of generalNotes; track n) {
+            @for (n of generalNotes; track n.id) {
             <div class="note-item general">
               @if (editingNoteId !== n.id) {
                 <div class="note-content">{{ n.content }}</div>
@@ -1465,7 +1465,7 @@
       <div class="register-modal-error">{{ exportError }}</div>
       }
       <ul class="export-column-list">
-        @for (col of exportColumns; track col) {
+        @for (col of exportColumns; track col.key) {
         <li>
           <label>
             <input type="checkbox"

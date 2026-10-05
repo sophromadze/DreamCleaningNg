@@ -126,7 +126,7 @@
               <tr><th>Item</th><th>Then</th><th>Now</th><th>Time</th></tr>
             </thead>
             <tbody>
-              @for (line of preview.lineChanges; track line) {
+              @for (line of preview.lineChanges; track $index) {
               <tr>
                 <td>
                   {{ line.name }}
@@ -164,7 +164,7 @@
         <section class="rom-section">
           <h4>No longer available — these will be left out</h4>
           <ul class="rom-list">
-            @for (line of preview.unavailable; track line) {
+            @for (line of preview.unavailable; track $index) {
             <li>
               <strong>{{ line.name }}</strong>
               @if (line.quantity > 1) {
@@ -183,7 +183,7 @@
         <section class="rom-section">
           <h4>Discounts</h4>
           <ul class="rom-list">
-            @for (d of preview.discounts; track d) {
+            @for (d of preview.discounts; track $index) {
             <li [class.reapplicable]="d.canReapply">
               <strong>{{ d.label }}</strong>
               @if (d.originalAmount > 0) {
@@ -240,7 +240,7 @@
           <label class="rom-field">
             <span>Payment method</span>
             <select [(ngModel)]="paymentMethod" (ngModelChange)="onScheduleChange()">
-              @for (m of paymentMethods; track m) {
+              @for (m of paymentMethods; track m.value) {
               <option [value]="m.value">{{ m.label }}</option>
               }
             </select>
@@ -323,7 +323,7 @@
       <section class="rom-section">
         <h4>The job</h4>
         <div class="rom-services">
-          @for (selected of stepperServices; track selected) {
+          @for (selected of stepperServices; track $index) {
           <div class="rom-service-item">
             <label>{{ selected.service.name }}</label>
 
@@ -435,7 +435,7 @@
       <section class="rom-section">
         <h4>Cleaning type</h4>
         <div class="rom-chips">
-          @for (option of cleaningTypeOptions; track option) {
+          @for (option of cleaningTypeOptions; track option.value) {
           <button type="button" class="rom-chip"
                   [class.selected]="cleaningType === option.value"
                   (click)="selectCleaningType(option.value)">
@@ -451,7 +451,7 @@
       <section class="rom-section">
         <h4>Extra services</h4>
         <div class="rom-extras">
-          @for (extra of selectableExtras; track extra) {
+          @for (extra of selectableExtras; track $index) {
           <div class="rom-extra">
             <button type="button"
                     class="rom-extra__toggle"
@@ -570,7 +570,7 @@
                  (ngModelChange)="onDiscountToggleChange()">
           <span>
             Apply this customer's current discounts
-            (@for (d of reapplicableDiscounts; track d; let last = $last) {
+            (@for (d of reapplicableDiscounts; track $index; let last = $last) {
             {{ d.label }}{{ last ? '' : ', ' }}
             }) —
             about {{ reapplicableTotal | currency }} off

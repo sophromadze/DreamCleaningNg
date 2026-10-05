@@ -27,7 +27,7 @@
       </div>
       <div class="quick-filter-dropdown">
         <select aria-label="Period" [ngModel]="activeQuickFilter" (ngModelChange)="onQuickFilterChange($event)">
-          @for (f of quickFilters; track f) {
+          @for (f of quickFilters; track f.key) {
           <option [value]="f.key">{{ f.label }}</option>
           }
         </select>
@@ -67,7 +67,7 @@
     }
 
     <div class="headline-grid simple">
-      @for (item of simpleCards; track item) {
+      @for (item of simpleCards; track $index) {
       <div class="headline-card">
         <div class="headline-label">{{ item.label }}</div>
         <div class="headline-value" [class.shimmer-loading]="isLoading">
@@ -124,7 +124,7 @@
   @if (viewMode === 'full' && !error && !compareMode) {
 
     <div class="headline-grid">
-      @for (card of headlineCards; track card) {
+      @for (card of headlineCards; track $index) {
       <div class="headline-card">
         <div class="headline-label">{{ card.def.label }}</div>
         <div class="headline-value" [class.shimmer-loading]="isLoading">
@@ -157,7 +157,7 @@
           How many customers booked once, twice, or more inside the selected period.
         </p>
         <div class="freq-rows">
-          @for (bucket of stats.frequency; track bucket) {
+          @for (bucket of stats.frequency; track $index) {
           <div class="freq-row">
             <span class="freq-label">{{ bucket.label }} cleaning{{ bucket.label === '1' ? '' : 's' }}</span>
             <div class="freq-track">
@@ -174,7 +174,7 @@
     <ng-container *ngTemplateOutlet="trendCard"></ng-container>
 
     <!-- Everything else, grouped, with the period-over-period movement on each row -->
-    @for (section of groupedCards; track section) {
+    @for (section of groupedCards; track $index) {
     <div class="detail-card">
       <h2 class="viz-title">{{ section.group }}</h2>
       @if (section.note) {
@@ -230,7 +230,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (c of stats.topCustomers; track c) {
+            @for (c of stats.topCustomers; track $index) {
             <tr>
               <td>
                 <span class="cust-name">{{ c.fullName }}</span>
@@ -274,7 +274,7 @@
           <thead>
             <tr>
               <th class="metric-col"></th>
-              @for (r of compareResults; track r) {
+              @for (r of compareResults; track $index) {
               <th>
                 <div class="col-label">{{ r.label }}</div>
                 @if (r.rangeLabel) {
@@ -291,7 +291,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (row of compareRows; track row) {
+            @for (row of compareRows; track $index) {
               @if (row.groupStart) {
               <tr class="group-row">
                 <td [attr.colspan]="compareResults.length + 1">{{ row.def.group }}</td>
@@ -304,7 +304,7 @@
                   <span class="metric-hint">{{ row.def.hint }}</span>
                   }
                 </td>
-                @for (cell of row.cells; track cell; let i = $index) {
+                @for (cell of row.cells; track $index; let i = $index) {
                 <td [class.best]="isBest(row, i)">
                   <span class="cell-value">
                     <ng-container *ngTemplateOutlet="metricValue;
@@ -505,7 +505,7 @@
       </p>
 
       <div class="unit-tabs">
-        @for (u of compareUnits; track u) {
+        @for (u of compareUnits; track u.key) {
         <button
                 [class.active]="compareUnit === u.key"
                 (click)="setCompareUnit(u.key)">{{ u.label }}</button>
@@ -522,7 +522,7 @@
       </div>
 
       <div class="pick-list">
-        @for (pick of comparePicks; track pick; let i = $index) {
+        @for (pick of comparePicks; track $index; let i = $index) {
         <div class="pick-row">
           <span class="pick-num">{{ i + 1 }}</span>
 

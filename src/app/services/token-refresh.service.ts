@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID, NgZone, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { interval, Subscription, Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
@@ -11,11 +11,13 @@ import { AuthService } from './auth.service';
 // below no longer rotates twice.
 import { refreshOnce } from '../interceptors/auth.interceptor';
 import { environment } from '../../environments/environment';
+import { setTimeoutOutsideZone, subscribeOutsideZone } from '../shared/zone-free-timers';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TokenRefreshService {
+  private readonly zone = inject(NgZone);
   private refreshSubscription?: Subscription;
   private inactivityCheckSubscription?: Subscription;
   private isBrowser: boolean;
@@ -73,16 +75,17 @@ export class TokenRefreshService {
       return;
     }
 
-    // Delay the first check to avoid conflicts during page load
-    setTimeout(() => {
+    // Delay the first check to avoid conflicts during page load (outside the zone, so the wait
+    // does not hold up hydration - the callback itself still runs inside it)
+    setTimeoutOutsideZone(this.zone, () => {
       
       // Set up periodic token refresh
-      this.refreshSubscription = interval(this.clampTimerDelay(this.TOKEN_REFRESH_INTERVAL)).subscribe(() => {
+      this.refreshSubscription = subscribeOutsideZone(this.zone, interval(this.clampTimerDelay(this.TOKEN_REFRESH_INTERVAL)), () => {
         this.performTokenRefresh();
       });
 
       // Set up periodic inactivity check (every hour)
-      this.inactivityCheckSubscription = interval(this.clampTimerDelay(this.INACTIVITY_CHECK_INTERVAL)).subscribe(() => {
+      this.inactivityCheckSubscription = subscribeOutsideZone(this.zone, interval(this.clampTimerDelay(this.INACTIVITY_CHECK_INTERVAL)), () => {
         if (this.checkInactivity()) {
           this.authService.logout();
         }

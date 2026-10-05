@@ -54,7 +54,7 @@
           <tr><th>Telegram user ID</th><th>Display name</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr>
         </thead>
         <tbody>
-          @for (m of agentNames; track m) {
+          @for (m of agentNames; track $index) {
           <tr>
             <td class="col-id">{{ m.telegramUserId }}</td>
             <td>
@@ -81,7 +81,7 @@
             <tr><th>Telegram user ID</th><th>Last reply</th><th>Name</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr>
           </thead>
           <tbody>
-            @for (s of unmappedSenders; track s) {
+            @for (s of unmappedSenders; track $index) {
             <tr>
               <td class="col-id">{{ s.telegramUserId }}</td>
               <td>{{ asLocalDate(s.lastSeenAt) | date: 'MMM d, h:mm a' }} ({{ s.messageCount }} msg{{ s.messageCount === 1 ? '' : 's' }})</td>
@@ -141,7 +141,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (s of sessions; track s) {
+        @for (s of sessions; track s.id) {
         <tr (click)="openSession(s)" [class.row--active]="selectedSession?.id === s.id">
           <td>{{ asLocalDate(s.createdAt) | date: 'MMM d, h:mm a' }}</td>
           <td class="col-identity">{{ identityLabel(s) }}</td>
@@ -236,7 +236,7 @@
   }
   @if (transcript) {
   <div class="chat-transcript__messages">
-    @for (m of transcript.messages; track m) {
+    @for (m of transcript.messages; track $index) {
 
       <!-- Admin-only System audit notes (escalation reasons) -->
       @if (m.role === 'system') {

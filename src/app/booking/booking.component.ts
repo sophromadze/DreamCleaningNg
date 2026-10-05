@@ -130,6 +130,7 @@ import { faUserCheck } from '../shared/icons/glyphs/faUserCheck';
 import { faUserPlus } from '../shared/icons/glyphs/faUserPlus';
 import { faUserShield } from '../shared/icons/glyphs/faUserShield';
 import { faXmark } from '../shared/icons/glyphs/faXmark';
+import { setIntervalOutsideZone } from '../shared/zone-free-timers';
 
 /** Address-name presets. Anything that isn't one of the fixed labels is "Other" (free text). */
 type AddressNameType = 'Home' | 'Office' | 'Other';
@@ -754,7 +755,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.updateExtraServicesContainerMaxWidth();
     
     // Set up periodic check for same day service availability (every minute)
-    const intervalId = setInterval(() => {
+    const intervalId = setIntervalOutsideZone(this.ngZone, () => {
       this.checkSameDayServiceAvailability();
     }, 60000); // Check every minute
     

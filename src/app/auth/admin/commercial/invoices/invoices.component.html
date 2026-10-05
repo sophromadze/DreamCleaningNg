@@ -63,7 +63,7 @@
            aria-label="Search invoices">
 
     <select [(ngModel)]="statusFilter" (change)="onFilterChange()" aria-label="Filter by status">
-      @for (o of statusOptions; track o) {
+      @for (o of statusOptions; track o.value) {
       <option [ngValue]="o.value">{{ o.label }}</option>
       }
     </select>
@@ -77,20 +77,20 @@
 
     <select [(ngModel)]="clientFilter" (change)="onFilterChange()" aria-label="Filter by client">
       <option [ngValue]="null">All clients</option>
-      @for (c of clients; track c) {
+      @for (c of clients; track c.id) {
       <option [ngValue]="c.id">{{ c.legalEntityName }}</option>
       }
     </select>
 
     <select [(ngModel)]="paymentMethodFilter" (change)="onFilterChange()"
             aria-label="Filter by payment method">
-      @for (o of paymentMethodOptions; track o) {
+      @for (o of paymentMethodOptions; track o.value) {
       <option [ngValue]="o.value">{{ o.label }}</option>
       }
     </select>
 
     <select [(ngModel)]="dateRange" (change)="onFilterChange()" aria-label="Filter by date">
-      @for (o of dateOptions; track o) {
+      @for (o of dateOptions; track o.value) {
       <option [ngValue]="o.value">{{ o.label }}</option>
       }
     </select>
@@ -133,7 +133,7 @@
         </tr>
         }
 
-        @for (inv of invoices; track inv) {
+        @for (inv of invoices; track inv.id) {
         <tr class="invoice-row"
             [class.row-overdue]="isOverdue(inv)" (click)="view(inv)">
           <td class="mono">{{ inv.invoiceNumber }}</td>

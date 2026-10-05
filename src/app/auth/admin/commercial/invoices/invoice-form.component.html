@@ -85,7 +85,7 @@
           <select id="client" [(ngModel)]="clientId" name="clientId"
                   (change)="onClientChange()" [disabled]="monetaryLocked" required>
             <option [ngValue]="null" disabled>Select a client…</option>
-            @for (c of clients; track c) {
+            @for (c of clients; track c.id) {
             <option [ngValue]="c.id">{{ c.legalEntityName }}</option>
             }
           </select>
@@ -133,7 +133,7 @@
         <select id="location" [(ngModel)]="locationId" name="locationId"
                 (change)="onLocationChange()" [disabled]="monetaryLocked">
           <option [ngValue]="null">— None —</option>
-          @for (l of availableLocations; track l) {
+          @for (l of availableLocations; track l.id) {
           <option [ngValue]="l.id">
             {{ l.label }} — {{ l.address }}
           </option>
@@ -159,7 +159,7 @@
         <select id="contract" [(ngModel)]="contractId" name="contractId"
                 (change)="onContractChange()" [disabled]="monetaryLocked || !clientId">
           <option [ngValue]="null">— No contract —</option>
-          @for (c of availableContracts; track c) {
+          @for (c of availableContracts; track c.id) {
           <option [ngValue]="c.id">
             {{ c.contractNumber }} · {{ c.statusLabel }}{{ c.serviceAddress ? ' · ' + c.serviceAddress : '' }}
           </option>
@@ -201,7 +201,7 @@
           <label for="dueTerms">Payment terms</label>
           <select id="dueTerms" [(ngModel)]="dueTerms" name="dueTerms"
                   (change)="onDueTermsChange()" [disabled]="monetaryLocked">
-            @for (t of dueTermsOptions; track t) {
+            @for (t of dueTermsOptions; track t.value) {
             <option [ngValue]="t.value">{{ t.label }}</option>
             }
           </select>
@@ -338,7 +338,7 @@
         </div>
         }
 
-        @for (o of eligibleOrders; track o) {
+        @for (o of eligibleOrders; track o.orderId) {
         <label class="covered-row"
                [class.covered-row--blocked]="!o.canSelect">
           <input type="checkbox"
@@ -423,7 +423,7 @@
           <p class="allocation-head">
             {{ hasCommittedAllocation ? 'Applied to these cleanings' : 'Will be applied when you send this invoice' }}
           </p>
-          @for (a of allocations; track a) {
+          @for (a of allocations; track $index) {
           <div class="allocation-row">
             <span>{{ a.description }}</span>
             @if (a.originalOrderTotal !== a.allocatedAmount) {
@@ -477,7 +477,7 @@
           <span></span>
         </div>
 
-        @for (line of lines; track line; let i = $index) {
+        @for (line of lines; track $index; let i = $index) {
         <div class="items-row">
           <input aria-label="Description" type="text" [(ngModel)]="line.description" [name]="'desc' + i"
                  [disabled]="monetaryLocked" placeholder="Recurring commercial cleaning">
@@ -508,7 +508,7 @@
           <span>Description</span>
           <span class="align-right">Amount</span>
         </div>
-        @for (line of lines; track line) {
+        @for (line of lines; track $index) {
         <div class="items-row items-row--readonly">
           <span>{{ line.description }}</span>
           <span class="line-amount">{{ lineAmount(line) | currency:'USD' }}</span>

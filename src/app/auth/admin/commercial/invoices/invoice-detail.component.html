@@ -50,7 +50,7 @@
     @if (inv.cleaningsCovered?.length) {
     <section class="card">
       <h3>Cleanings Covered</h3>
-      @for (cleaning of inv.cleaningsCovered; track cleaning) {
+      @for (cleaning of inv.cleaningsCovered; track cleaning.orderId) {
       <div>
         <strong>{{ cleaning.serviceDate | date:'MMM d, y' }} · Order #{{ cleaning.orderId }}</strong>
         <p>{{ cleaning.serviceAddress }}</p>
@@ -204,7 +204,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (item of inv.items; track item) {
+                @for (item of inv.items; track $index) {
                 <tr>
                   <td>{{ item.description }}</td>
                   <td class="align-right">{{ item.quantity }}</td>
@@ -269,7 +269,7 @@
           </div>
           }
 
-          @for (a of inv.paymentAttempts; track a) {
+          @for (a of inv.paymentAttempts; track $index) {
           <div class="attempt">
             <div class="attempt-head">
               <span class="attempt-method">{{ a.paymentMethodLabel }}</span>
@@ -326,7 +326,7 @@
                 </tr>
               </thead>
               <tbody>
-                @for (p of inv.payments; track p) {
+                @for (p of inv.payments; track $index) {
                 <tr [class.reversal]="p.isReversal">
                   <td>{{ p.paymentDate | date:'MMM d, y' }}</td>
                   <td>{{ p.paymentMethodLabel }}</td>
@@ -412,7 +412,7 @@
           <p class="empty">No emails sent yet.</p>
           }
           <ul class="event-list">
-            @for (e of inv.emailHistory; track e) {
+            @for (e of inv.emailHistory; track $index) {
             <li [class.failed]="isFailed(e)">
               <span class="event-title">
                 {{ e.emailTypeLabel }}
@@ -432,7 +432,7 @@
         <section class="card">
           <h3>Activity</h3>
           <ul class="event-list">
-            @for (a of inv.activity; track a) {
+            @for (a of inv.activity; track $index) {
             <li>
               <span class="event-title">{{ a.description }}</span>
               <span class="event-meta">
@@ -504,7 +504,7 @@
         <div class="field">
           <label for="payMethod">Payment method *</label>
           <select id="payMethod" [(ngModel)]="payMethod">
-            @for (m of paymentMethods; track m) {
+            @for (m of paymentMethods; track m.value) {
             <option [ngValue]="m.value">{{ m.label }}</option>
             }
           </select>

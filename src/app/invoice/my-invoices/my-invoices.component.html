@@ -39,7 +39,7 @@
 
       @if (rows.length) {
       <ul class="invoice-list">
-        @for (row of rows; track row) {
+        @for (row of rows; track $index) {
         <li class="invoice-row" (click)="open(row)" tabindex="0"
             (keyup.enter)="open(row)">
 

@@ -22,7 +22,7 @@
   }
   @if (!loading) {
   <div class="extra-services">
-    @for (extra of extras; track extra) {
+    @for (extra of extras; track extra.id) {
     <div class="extra-service-wrapper">
       <div class="extra-service-card"
             [class.selected]="isSelected(extra)"

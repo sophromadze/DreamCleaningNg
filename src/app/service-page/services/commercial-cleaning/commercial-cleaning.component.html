@@ -671,7 +671,7 @@
       </div>
 
       <div class="faq-grid">
-        @for (faq of faqs; track faq) {
+        @for (faq of faqs; track $index) {
         <details class="faq-item">
           <summary>
             {{ faq.q }}

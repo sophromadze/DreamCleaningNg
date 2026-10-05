@@ -110,7 +110,7 @@
           </p>
           @if (recurringPlans.length) {
           <ul class="discount-card__list">
-            @for (plan of recurringPlans; track plan) {
+            @for (plan of recurringPlans; track $index) {
             <li>
               <strong>{{ plan.name }}</strong> — save <strong>{{ plan.label }}</strong> on every cleaning
             </li>
@@ -172,7 +172,7 @@
           </p>
           @if (seasonalOffers.length) {
           <ul class="discount-card__list discount-card__list--offers">
-            @for (offer of seasonalOffers; track offer) {
+            @for (offer of seasonalOffers; track $index) {
             <li>
               <span class="offer-pill">{{ offerLabel(offer) }} OFF</span>
               <strong>{{ offer.name }}</strong>

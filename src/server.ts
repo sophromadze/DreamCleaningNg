@@ -12,6 +12,7 @@ import type { PublicSpecialOffer } from './app/services/special-offer.service';
 import { renderLlmsTxt } from './llms-txt';
 import { CATALOGUE_TTL_MS, createCatalogueCache, createPublicOffersCache } from './catalogue-cache';
 import { ALLOWED_HOSTS, rejectedHeader } from './host-guard';
+import { removeNoscriptStylesheet } from './noscript-stylesheet';
 
 // Same loopback convention as server-url.interceptor.ts: SSR-side calls to the
 // backend go through localhost, never the public domain (Cloudflare loopback trap).
@@ -28,7 +29,7 @@ export function app(): express.Express {
   const serverDistFolder = dirname(fileURLToPath(import.meta.url));
   const browserDistFolder = resolve(serverDistFolder, '../browser');
   const indexHtml = join(browserDistFolder, 'index.html');
-  const indexHtmlContent = readFileSync(indexHtml, 'utf-8').toString();
+  const indexHtmlContent = removeNoscriptStylesheet(readFileSync(indexHtml, 'utf-8').toString());
 
   server.set('view engine', 'html');
   server.set('views', browserDistFolder);

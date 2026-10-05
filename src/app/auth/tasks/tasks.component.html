@@ -67,7 +67,7 @@
             </div>
             @if (!loadingTasks && urgentTasks.length > 0) {
             <div class="urgent-list" tabindex="0" role="region" aria-label="Urgent tasks">
-              @for (task of dashboardUrgentTasks; track task) {
+              @for (task of dashboardUrgentTasks; track task.id) {
               <div class="task-row task-row-columns"
                    (click)="openEditTask(task)">
                 <label class="checkbox-wrap" (click)="$event.stopPropagation()">
@@ -173,7 +173,7 @@
           </div>
           @if (!loadingTasks && activeTasks.length > 0) {
           <div class="tasks-list">
-            @for (task of dashboardActiveTasks; track task) {
+            @for (task of dashboardActiveTasks; track task.id) {
             <div class="task-row task-row-columns"
                  [class.task-done]="task.status === 'Done'" (click)="openEditTask(task)">
               <label class="checkbox-wrap" (click)="$event.stopPropagation()">
@@ -264,14 +264,14 @@
             </select>
             <select aria-label="Filter by admin" class="filter-select" [(ngModel)]="historyAdminFilter" (ngModelChange)="onHistoryFilterChange()">
               <option value="">All Admins</option>
-              @for (admin of historyAdmins; track admin) {
+              @for (admin of historyAdmins; track admin.id) {
               <option [value]="admin.id">{{ admin.firstName }}</option>
               }
             </select>
           </div>
           @if (!loadingInteractions && filteredHistory.length > 0) {
           <div class="history-list">
-            @for (item of dashboardInteractions; track item) {
+            @for (item of dashboardInteractions; track item.id) {
             <div class="history-row" (click)="openEditInteraction(item)">
               <div class="history-client">
                 <span class="avatar-circle" [style.background]="getAvatarColor(item.clientName)">{{ getInitials(item.clientName) }}</span>
@@ -326,7 +326,7 @@
           </div>
           @if (!loadingNotes && handoverNotes.length > 0) {
           <div class="notes-list">
-            @for (note of dashboardNotes; track note) {
+            @for (note of dashboardNotes; track note.id) {
             <div class="note-card">
               <div class="note-header">
                 <div class="note-meta">
@@ -391,7 +391,7 @@
           @case ('urgent') {
             @if (!loadingTasks && urgentTasks.length > 0) {
             <div class="urgent-list" tabindex="0" role="region" aria-label="Urgent tasks">
-              @for (task of paginatedUrgentTasks; track task) {
+              @for (task of paginatedUrgentTasks; track task.id) {
               <div class="task-row task-row-columns" (click)="openEditTask(task)">
                 <label class="checkbox-wrap" (click)="$event.stopPropagation()">
                   <input type="checkbox" [checked]="task.status === 'Done'" (change)="toggleTaskStatus(task)">
@@ -461,7 +461,7 @@
           @case ('active') {
             @if (!loadingTasks && activeTasks.length > 0) {
             <div class="tasks-list">
-              @for (task of paginatedActiveTasks; track task) {
+              @for (task of paginatedActiveTasks; track task.id) {
               <div class="task-row task-row-columns" (click)="openEditTask(task)">
                 <label class="checkbox-wrap" (click)="$event.stopPropagation()">
                   <input type="checkbox" [checked]="task.status === 'Done'" (change)="toggleTaskStatus(task)">
@@ -537,7 +537,7 @@
           @case ('done') {
             @if (!loadingTasks && doneSharedTasks.length > 0) {
             <div class="tasks-list">
-              @for (task of paginatedDoneSharedTasks; track task) {
+              @for (task of paginatedDoneSharedTasks; track task.id) {
               <div class="task-row task-row-columns task-done" (click)="openEditTask(task)">
                 <label class="checkbox-wrap" (click)="$event.stopPropagation()">
                   <input type="checkbox" [checked]="true" (change)="toggleTaskStatus(task)">
@@ -641,14 +641,14 @@
               </select>
               <select aria-label="Filter by admin" class="filter-select" [(ngModel)]="historyAdminFilter" (ngModelChange)="onHistoryFilterChange()">
                 <option value="">All Admins</option>
-                @for (admin of historyAdmins; track admin) {
+                @for (admin of historyAdmins; track admin.id) {
                 <option [value]="admin.id">{{ admin.firstName }}</option>
                 }
               </select>
             </div>
             @if (!loadingInteractions && filteredHistory.length > 0) {
             <div class="history-list">
-              @for (item of paginatedFilteredHistory; track item) {
+              @for (item of paginatedFilteredHistory; track item.id) {
               <div class="history-row" (click)="openEditInteraction(item)">
                 <div class="history-client">
                   <span class="avatar-circle" [style.background]="getAvatarColor(item.clientName)">{{ getInitials(item.clientName) }}</span>
@@ -713,7 +713,7 @@
           @case ('closed') {
             @if (!loadingInteractions && closedInteractions.length > 0) {
             <div class="history-list">
-              @for (item of paginatedClosedInteractions; track item) {
+              @for (item of paginatedClosedInteractions; track item.id) {
               <div class="history-row" (click)="openEditInteraction(item)">
                 <div class="history-client">
                   <span class="avatar-circle" [style.background]="getAvatarColor(item.clientName)">{{ getInitials(item.clientName) }}</span>
@@ -822,7 +822,7 @@
           @case ('assigned') {
             @if (!loadingPersonalTasks && myAssignedTasks.length > 0) {
             <div class="tasks-list">
-              @for (task of paginatedMyAssignedTasks; track task) {
+              @for (task of paginatedMyAssignedTasks; track task.id) {
               <div class="task-row task-row-columns" (click)="openEditPersonalTask(task)">
                 <label class="checkbox-wrap" (click)="$event.stopPropagation()">
                   <input type="checkbox" [checked]="task.status === 'Done'" (change)="togglePersonalTaskStatus(task)">
@@ -894,7 +894,7 @@
           @case ('created') {
             @if (!loadingPersonalTasks && myCreatedTasks.length > 0) {
             <div class="tasks-list">
-              @for (task of paginatedMyCreatedTasks; track task) {
+              @for (task of paginatedMyCreatedTasks; track task.id) {
               <div class="task-row task-row-columns" [class.task-done-unchecked]="task.status === 'Done' && !task.checkedByCreator" (click)="openEditPersonalTask(task)">
                 <label class="checkbox-wrap" (click)="$event.stopPropagation()">
                   <input type="checkbox" [checked]="task.status === 'Done'" (change)="togglePersonalTaskStatus(task)">
@@ -966,7 +966,7 @@
           @case ('done') {
             @if (!loadingPersonalTasks && donePersonalTasks.length > 0) {
             <div class="tasks-list">
-              @for (task of paginatedDonePersonalTasks; track task) {
+              @for (task of paginatedDonePersonalTasks; track task.id) {
               <div class="task-row task-row-columns task-done" [class.task-done-unchecked]="!task.checkedByCreator && task.createdByAdminId === currentAdminId" (click)="openEditPersonalTask(task)">
                 <label class="checkbox-wrap" (click)="$event.stopPropagation()">
                   <input type="checkbox" [checked]="true" (change)="togglePersonalTaskStatus(task)">
@@ -1029,7 +1029,7 @@
           @case ('allAdmin') {
             @if (!loadingAllAdminTasks && allAdminTasks.length > 0) {
             <div class="tasks-list">
-              @for (task of paginatedAllAdminTasks; track task) {
+              @for (task of paginatedAllAdminTasks; track task.id) {
               <div class="task-row task-row-columns" (click)="openViewPersonalTask(task)">
                 <div class="task-col-left">
                   <span class="task-title"><span class="entity-id">#{{ task.id }}</span> {{ task.title }}</span>
@@ -1106,7 +1106,7 @@
           </div>
           @if (!loadingNotes && handoverNotes.length > 0) {
           <div class="notes-list">
-            @for (note of paginatedHandoverNotes; track note) {
+            @for (note of paginatedHandoverNotes; track note.id) {
             <div class="note-card">
               <div class="note-header">
                 <div class="note-meta">
@@ -1189,14 +1189,14 @@
             </select>
             <select aria-label="Filter by admin" class="filter-select" [(ngModel)]="logAdminFilter" (ngModelChange)="onLogFilterChange()">
               <option value="">All Admins</option>
-              @for (admin of admins; track admin) {
+              @for (admin of admins; track admin.id) {
               <option [value]="admin.id">{{ admin.firstName }}</option>
               }
             </select>
           </div>
           @if (!loadingLogs || activityLogs.length > 0) {
           <div class="log-list">
-            @for (log of paginatedActivityLogs; track log) {
+            @for (log of paginatedActivityLogs; track $index) {
             <div class="log-entry">
               <div class="log-header-row">
                 <span class="log-action-badge" [ngClass]="getActionClass(log.action)">{{ getActionLabel(log.action) }}</span>
@@ -1210,7 +1210,7 @@
               </div>
               @if (log.changes && log.action !== 'Deleted') {
               <div class="log-changes">
-                @for (change of parseChanges(log.changes); track change) {
+                @for (change of parseChanges(log.changes); track $index) {
                 <div class="log-change-row">
                   <span class="log-field-name">{{ change.field }}:</span>
                   @if (change.from && log.action !== 'Created') {
@@ -1304,7 +1304,7 @@
           <input type="text" [ngModel]="taskClientQuery" (ngModelChange)="onTaskClientInput($event)" placeholder="Search or type client name..." class="form-input" autocomplete="off">
           @if (showTaskClientDropdown && taskClientResults.length > 0) {
           <div class="autocomplete-dropdown">
-            @for (client of taskClientResults; track client) {
+            @for (client of taskClientResults; track $index) {
             <div class="autocomplete-item" (click)="selectTaskClient(client, $event)">
               <span class="ac-name">{{ client.firstName }} {{ client.lastName }}</span>
               <span class="ac-email">{{ client.email }}</span>
@@ -1318,7 +1318,7 @@
           <input type="text" [ngModel]="taskOrderQuery" (ngModelChange)="onTaskOrderInput($event)" placeholder="Search by order ID or client name..." class="form-input" autocomplete="off">
           @if (showTaskOrderDropdown && taskOrderResults.length > 0) {
           <div class="autocomplete-dropdown">
-            @for (order of taskOrderResults; track order) {
+            @for (order of taskOrderResults; track order.id) {
             <div class="autocomplete-item order-item" (click)="selectTaskOrder(order, $event)">
               <span class="ac-name">#{{ order.id }} &ndash; {{ order.contactFirstName }} {{ order.contactLastName }}</span>
               <span class="ac-email">{{ order.serviceTypeName }} &bull; {{ formatDate(order.serviceDate) }} &bull; {{ order.status }}</span>
@@ -1386,7 +1386,7 @@
         <div class="form-group">
           <label>Assign To * (select one or more)</label>
           <div class="admin-multi-select">
-            @for (admin of admins; track admin) {
+            @for (admin of admins; track admin.id) {
             <div class="admin-select-item"
                  [class.selected]="isAdminSelected(admin.id)"
                  (click)="toggleAdminSelection(admin.id)">
@@ -1404,7 +1404,7 @@
           <label>Assigned To</label>
           <select aria-label="Assigned To" [(ngModel)]="personalTaskForm.assignedToAdminId" class="form-input" [disabled]="personalTaskReadOnly">
             <option [ngValue]="0" disabled>Select admin...</option>
-            @for (admin of admins; track admin) {
+            @for (admin of admins; track admin.id) {
             <option [ngValue]="admin.id">
               {{ admin.firstName }} ({{ displayRole(admin.role) }})
             </option>
@@ -1444,7 +1444,7 @@
           <input type="text" [ngModel]="interactionClientQuery" (ngModelChange)="onInteractionClientInput($event)" placeholder="Search or type client name..." class="form-input" autocomplete="off">
           @if (showInteractionClientDropdown && interactionClientResults.length > 0) {
           <div class="autocomplete-dropdown">
-            @for (client of interactionClientResults; track client) {
+            @for (client of interactionClientResults; track $index) {
             <div class="autocomplete-item" (click)="selectInteractionClient(client, $event)">
               <span class="ac-name">{{ client.firstName }} {{ client.lastName }}</span>
               <span class="ac-email">{{ client.email }}</span>

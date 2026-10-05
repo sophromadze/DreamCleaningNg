@@ -60,7 +60,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (inv of invoices; track inv) {
+        @for (inv of invoices; track inv.id) {
         <tr>
           <td>
             <strong>{{ inv.invoiceNumber }}</strong>
@@ -165,7 +165,7 @@
         }
         @if (orderOptions.length > 0) {
         <div class="ci-orders">
-          @for (o of orderOptions; track o) {
+          @for (o of orderOptions; track o.orderId) {
           <label class="ci-order" [class.disabled]="!o.canInvoice"
                  [class.selected]="selectedOrderId === o.orderId">
             <input type="radio" name="ciOrder" [value]="o.orderId" [(ngModel)]="selectedOrderId" [disabled]="!o.canInvoice">
@@ -284,7 +284,7 @@
       </p>
       <label class="ci-label" for="ciPayMethod">Paid by</label>
       <select id="ciPayMethod" [(ngModel)]="payMethod">
-        @for (m of manualPaymentOptions; track m) {
+        @for (m of manualPaymentOptions; track m.value) {
         <option [value]="m.value">{{ m.label }}</option>
         }
       </select>

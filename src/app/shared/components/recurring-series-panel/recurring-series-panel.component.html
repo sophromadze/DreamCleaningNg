@@ -112,7 +112,7 @@
 
     <h6 class="rsp-subhead">Upcoming cleanings</h6>
     <ul class="rsp-list">
-      @for (o of futureOccurrences; track o) {
+      @for (o of futureOccurrences; track $index) {
       <li class="rsp-occurrence">
         <span class="rsp-occ-date">{{ o.serviceDate | date:'EEE d MMM' }}</span>
         @if (!series.billingControlledByContract) {
@@ -203,7 +203,7 @@
             <input type="number" min="1" class="rsp-input rsp-input--count" [(ngModel)]="intervalValue"
                    (ngModelChange)="refreshSuggestedFirstCleaning()" aria-label="Interval">
             <select class="rsp-input" [(ngModel)]="intervalUnit" (ngModelChange)="onIntervalUnitChange()" aria-label="Interval unit">
-              @for (u of units; track u) {
+              @for (u of units; track u.value) {
               <option [ngValue]="u.value">{{ u.label }}</option>
               }
             </select>
@@ -229,7 +229,7 @@
       <div class="rsp-field">
         <span class="rsp-label">Service days</span>
         <div class="rsp-days" role="group" aria-label="Service days">
-          @for (d of weekdayChips; track d) {
+          @for (d of weekdayChips; track d.value) {
           <button type="button" class="rsp-day"
                   [class.rsp-day--on]="serviceDaysOfWeek.includes(d.value)"
                   [attr.aria-pressed]="serviceDaysOfWeek.includes(d.value)"
@@ -310,7 +310,7 @@
         <select class="rsp-input" [(ngModel)]="contractId" (ngModelChange)="refreshSuggestedFirstCleaning()"
                 aria-label="Commercial contract">
           <option [ngValue]="null">No contract</option>
-          @for (c of contractOptions; track c) {
+          @for (c of contractOptions; track c.id) {
           <option [ngValue]="c.id">
             {{ c.contractNumber }} — {{ c.isWeeklyFlatFee ? 'weekly flat fee' : 'per visit' }}
           </option>
@@ -347,7 +347,7 @@
           These were used once on the original cleaning and do <strong>not</strong> carry over.
         </p>
         <ul class="rsp-source-list">
-          @for (discount of pricePreview.sourceDiscounts; track discount) {
+          @for (discount of pricePreview.sourceDiscounts; track $index) {
           <li>
             <span class="rsp-source-label">{{ discount.label }}@if (discount.percent) {
             <span> ({{ discount.percent }}%)</span>

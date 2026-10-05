@@ -1,4 +1,4 @@
-import { Component, OnInit, Inject, PLATFORM_ID, HostListener, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, Inject, PLATFORM_ID, HostListener, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -11,6 +11,7 @@ import { faCircleExclamation } from '../../shared/icons/glyphs/faCircleExclamati
 import { faCircleInfo } from '../../shared/icons/glyphs/faCircleInfo';
 import { faShieldHalved } from '../../shared/icons/glyphs/faShieldHalved';
 import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
+import { setIntervalOutsideZone } from '../../shared/zone-free-timers';
 
 @Component({
   selector: 'app-two-factor-challenge',
@@ -21,6 +22,7 @@ import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
   styleUrls: ['./two-factor-challenge.component.scss']
 })
 export class TwoFactorChallengeComponent implements OnInit {
+  private readonly zone = inject(NgZone);
   protected readonly icons = { faArrowRight, faCheck, faCircleExclamation, faCircleInfo, faShieldHalved, faSpinner };
 
   // Pulled from localStorage so a page refresh on this screen survives. If missing
@@ -125,7 +127,7 @@ export class TwoFactorChallengeComponent implements OnInit {
   private startResendCooldown(seconds: number): void {
     this.resendCooldownSec = seconds;
     if (this.resendTimer) clearInterval(this.resendTimer);
-    this.resendTimer = setInterval(() => {
+    this.resendTimer = setIntervalOutsideZone(this.zone, () => {
       this.resendCooldownSec--;
       if (this.resendCooldownSec <= 0) {
         clearInterval(this.resendTimer);

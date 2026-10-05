@@ -14,7 +14,7 @@
   </header>
 
   <section class="policy-intro" aria-label="Introduction">
-    @for (item of introItems; track item) {
+    @for (item of introItems; track $index) {
       @if (item.kind === 'paragraph') {
       <p>{{ item.text }}</p>
       }
@@ -76,7 +76,7 @@
       <span class="section-number">{{ section.number }}.</span> {{ section.title }}
     </h2>
 
-    @for (item of itemsFor(section); track item) {
+    @for (item of itemsFor(section); track $index) {
       @if (item.kind === 'paragraph') {
       <p>{{ item.text }}</p>
       }

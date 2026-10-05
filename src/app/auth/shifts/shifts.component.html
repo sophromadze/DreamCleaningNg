@@ -11,7 +11,7 @@
       }
       @if (multiSelectedDates.length > 0) {
       <div class="multi-bar-dates">
-        @for (d of getMultiSelectedSorted(); track d) {
+        @for (d of getMultiSelectedSorted(); track $index) {
         <span class="multi-date-chip">
           {{ d.getDate() }}
           <i class="fas fa-times" (click)="toggleMultiDate(d)"></i>
@@ -93,7 +93,7 @@
       }
 
       @for (week of calendarWeeks; track week) {
-        @for (date of week; track date) {
+        @for (date of week; track $index) {
         <div
           class="calendar-cell"
           [class.other-month]="!isCurrentMonth(date)"
@@ -116,7 +116,7 @@
           }
           @if (getShiftCount(date) > 0) {
           <div class="cell-shifts">
-            @for (item of getShiftAdminNames(date); track item; let i = $index) {
+            @for (item of getShiftAdminNames(date); track $index; let i = $index) {
 
               @if (i < 3) {
               <span
@@ -270,7 +270,7 @@
         <div class="bonus-cell bonus-cell-total">Bonus</div>
       </div>
 
-      @for (b of bonuses; track b) {
+      @for (b of bonuses; track $index) {
         <div class="bonus-row" [class.is-me]="b.adminId === currentUserId" [class.is-manager]="isManager(b)">
           <div class="bonus-cell bonus-cell-admin">
             <span class="bonus-admin-dot" [style.background-color]="b.shiftColor || '#94a3b8'"></span>
@@ -449,7 +449,7 @@
       <div class="current-shifts-section">
         <h3>Current Shifts</h3>
         <div class="assigned-list">
-          @for (shift of selectedShifts; track shift) {
+          @for (shift of selectedShifts; track $index) {
           <div class="assigned-card">
             <div class="assigned-avatar" [style.background-color]="getAdminColor(shift.adminId, shift.adminName)"
                  [style.color]="labelColor(getAdminColor(shift.adminId, shift.adminName))">
@@ -477,7 +477,7 @@
         <h3>Select Admins for This Day</h3>
         @if (admins.length > 0) {
         <div class="admins-grid">
-          @for (admin of admins; track admin) {
+          @for (admin of admins; track admin.id) {
           <div
             class="admin-card"
             [class.selected]="isAdminSelected(admin.id)"
@@ -610,7 +610,7 @@
         <h3>Select Admins</h3>
         @if (admins.length > 0) {
         <div class="admins-grid">
-          @for (admin of admins; track admin) {
+          @for (admin of admins; track admin.id) {
           <div
             class="admin-card"
             [class.selected]="isMultiAdminSelected(admin.id)"

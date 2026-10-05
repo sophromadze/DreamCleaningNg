@@ -27,6 +27,7 @@ import { faPaperPlane } from '../shared/icons/glyphs/faPaperPlane';
 import { faPowerOff } from '../shared/icons/glyphs/faPowerOff';
 import { faSpinner } from '../shared/icons/glyphs/faSpinner';
 import { faXmark } from '../shared/icons/glyphs/faXmark';
+import { setIntervalOutsideZone } from '../shared/zone-free-timers';
 
 interface WidgetMessage {
   id: string | null; // null = optimistic local copy not yet seen from the server
@@ -794,7 +795,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
 
   private startPolling(): void {
     if (this.pollHandle || !this.isOpen) return;
-    this.pollHandle = setInterval(() => this.pollOnce(), ChatWidgetComponent.POLL_INTERVAL_MS);
+    this.pollHandle = setIntervalOutsideZone(this.ngZone, () => this.pollOnce(), ChatWidgetComponent.POLL_INTERVAL_MS);
   }
 
   private stopPolling(): void {
@@ -806,7 +807,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
 
   private startBackgroundPolling(): void {
     if (this.bgPollHandle || this.isOpen || !this.escalated || !this.sessionId || this.conversationEnded) return;
-    this.bgPollHandle = setInterval(() => this.pollOnce(), ChatWidgetComponent.BG_POLL_INTERVAL_MS);
+    this.bgPollHandle = setIntervalOutsideZone(this.ngZone, () => this.pollOnce(), ChatWidgetComponent.BG_POLL_INTERVAL_MS);
   }
 
   private stopBackgroundPolling(): void {

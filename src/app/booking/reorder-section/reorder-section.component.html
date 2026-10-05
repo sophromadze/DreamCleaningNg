@@ -29,7 +29,7 @@
     }
     @if (!isLoading && orders.length > 0) {
     <div class="orders-list">
-      @for (order of orders; track order) {
+      @for (order of orders; track order.id) {
       <div
         class="order-item"
         (click)="selectOrder(order.id)"

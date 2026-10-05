@@ -1,6 +1,6 @@
 <div class="admin-users">
   <nav class="admin-users-tabs" aria-label="User types">
-    @for (tab of tabs; track tab) {
+    @for (tab of tabs; track tab.key) {
     <button
             type="button"
             class="tab-btn"

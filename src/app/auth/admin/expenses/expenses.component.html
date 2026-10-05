@@ -71,7 +71,7 @@
       <label class="form-field">
         <span>Category</span>
         <select [(ngModel)]="form.categoryId" (ngModelChange)="onCategoryChange()">
-          @for (c of categories; track c) {
+          @for (c of categories; track c.id) {
           <option [ngValue]="c.id">{{ c.name }}</option>
           }
         </select>
@@ -87,14 +87,14 @@
           <option [ngValue]="''" disabled>Select a staff member…</option>
           @if (currentStaff.length) {
           <optgroup label="Staff">
-            @for (s of currentStaff; track s) {
+            @for (s of currentStaff; track s.id) {
             <option [ngValue]="s.id">{{ staffOptionLabel(s) }}</option>
             }
           </optgroup>
           }
           @if (formerStaff.length) {
           <optgroup label="No longer staff">
-            @for (s of formerStaff; track s) {
+            @for (s of formerStaff; track s.id) {
             <option [ngValue]="s.id">{{ staffOptionLabel(s) }}</option>
             }
           </optgroup>
@@ -188,7 +188,7 @@
         <div class="form-field span-2">
           <span>Quick pick</span>
           <div class="preset-row">
-            @for (p of frequencyPresets; track p) {
+            @for (p of frequencyPresets; track $index) {
             <button type="button"
                     class="preset-chip"
                     [class.active]="form.frequencyMonths === p.months"
@@ -254,7 +254,7 @@
     </div>
 
     <ul class="category-list">
-      @for (cat of categories; track cat) {
+      @for (cat of categories; track cat.id) {
       <li>
         @if (editingCategoryId !== cat.id) {
           <span class="cat-name">{{ cat.name }}</span>
@@ -308,7 +308,7 @@
       <p>No expenses recorded yet. Add your first one above.</p>
     </div>
     }
-    @for (cat of grouped.categories; track cat) {
+    @for (cat of grouped.categories; track $index) {
 
       <!-- A category only shows if it has names (any month/all-time activity). -->
       @if (cat.names.length > 0) {
@@ -329,7 +329,7 @@
         <!-- Names within the category -->
         @if (isCategoryOpen(cat.categoryId)) {
         <div class="name-list">
-          @for (n of cat.names; track n) {
+          @for (n of cat.names; track $index) {
           <div class="name-block">
             <div class="name-head" (click)="toggleName(cat.categoryId, n.name)">
               <span class="chevron"><i class="fas" [class.fa-chevron-right]="!isNameOpen(cat.categoryId, n.name)" [class.fa-chevron-down]="isNameOpen(cat.categoryId, n.name)"></i></span>
@@ -390,7 +390,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  @for (row of n.entries; track row) {
+                  @for (row of n.entries; track row.id) {
                     <tr [class.is-deleting]="pendingDeleteId === row.id">
                       <!-- The entry shows exactly what was typed; conversion is a reporting
                            concern and belongs on the totals, not on the record of the amount. -->

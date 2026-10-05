@@ -85,7 +85,7 @@
     <label class="control">
       <span class="control-label">Sort</span>
       <select [(ngModel)]="sortBy" aria-label="Sort cleaners">
-        @for (o of sortOptions; track o) {
+        @for (o of sortOptions; track o.value) {
         <option [value]="o.value">{{ o.label }}</option>
         }
       </select>
@@ -93,7 +93,7 @@
     <label class="control">
       <span class="control-label">Filter</span>
       <select [(ngModel)]="filterBy" aria-label="Filter cleaners">
-        @for (o of filterOptions; track o) {
+        @for (o of filterOptions; track o.value) {
         <option [value]="o.value">{{ o.label }}</option>
         }
       </select>
@@ -102,7 +102,7 @@
       <span class="control-label">Available on</span>
       <select [(ngModel)]="availableOnDay" aria-label="Filter by available weekday">
         <option value="">Any day</option>
-        @for (o of availableDayOptions; track o) {
+        @for (o of availableDayOptions; track o.value) {
         <option [value]="o.value">{{ o.label }}</option>
         }
       </select>
@@ -111,7 +111,7 @@
       <span class="control-label">Borough</span>
       <select [(ngModel)]="filterBorough" aria-label="Filter by operating borough">
         <option value="">Any borough</option>
-        @for (o of locationOptions; track o) {
+        @for (o of locationOptions; track o.value) {
         <option [value]="o.value">{{ o.label }}</option>
         }
       </select>
@@ -367,7 +367,7 @@
             }
             @if (selectedDetail.vacations?.length) {
             <span class="vacation-chips">
-              @for (v of selectedDetail.vacations; track v) {
+              @for (v of selectedDetail.vacations; track $index) {
               <span class="vacation-chip">
                 {{ formatDateOnly(v.startDate) }} – {{ formatDateOnly(v.endDate) }}@if (v.note) {
                 <span class="vac-note"> · {{ v.note }}</span>
@@ -617,7 +617,7 @@
           <span>Nationality</span>
           <select [(ngModel)]="formModel.nationality" name="nationality">
             <option [ngValue]="null">—</option>
-            @for (opt of nationalityOptions; track opt) {
+            @for (opt of nationalityOptions; track opt.value) {
             <option [value]="opt.value">{{ opt.label }}</option>
             }
           </select>
@@ -665,7 +665,7 @@
           <span>Location (lives in)</span>
           <select [(ngModel)]="formModel.location" name="location">
             <option [ngValue]="null">—</option>
-            @for (opt of locationOptions; track opt) {
+            @for (opt of locationOptions; track opt.value) {
             <option [value]="opt.value">{{ opt.label }}</option>
             }
           </select>
@@ -684,7 +684,7 @@
             <label class="payment-method-field">
               <span>Method</span>
               <select [(ngModel)]="formModel.paymentMethod" name="paymentMethod">
-                @for (opt of paymentMethodOptions; track opt) {
+                @for (opt of paymentMethodOptions; track opt.value) {
                 <option [ngValue]="opt.value || null">{{ opt.label }}</option>
                 }
               </select>
@@ -730,7 +730,7 @@
         <div class="full busy-days-block">
           <span class="field-label">Operating areas</span>
           <div class="busy-day-chips">
-            @for (opt of locationOptions; track opt) {
+            @for (opt of locationOptions; track opt.value) {
             <label class="busy-day-chip" [class.active]="operatingBoroughs[opt.value]">
               <input
                 type="checkbox"
@@ -767,7 +767,7 @@
           @if (vacations.length === 0) {
           <p class="field-hint">No vacations set. Add a date range when this cleaner will be away.</p>
           }
-          @for (vac of vacations; track vac; let i = $index) {
+          @for (vac of vacations; track $index; let i = $index) {
           <div class="vacation-row">
             <div class="vacation-dates">
               <label class="vacation-field">
@@ -794,7 +794,7 @@
         <label>
           <span>Ranking</span>
           <select [(ngModel)]="formModel.ranking" name="ranking">
-            @for (opt of rankingOptions; track opt) {
+            @for (opt of rankingOptions; track opt.value) {
             <option [value]="opt.value">{{ opt.label }}</option>
             }
           </select>
@@ -803,7 +803,7 @@
         <label>
           <span>Experience</span>
           <select [(ngModel)]="formModel.experience" name="experience">
-            @for (opt of experienceOptions; track opt) {
+            @for (opt of experienceOptions; track opt.value) {
             <option [value]="opt.value">{{ opt.label }}</option>
             }
           </select>
@@ -812,7 +812,7 @@
         <label>
           <span>Document type</span>
           <select [(ngModel)]="formModel.documentType" name="documentType">
-            @for (opt of documentTypeOptions; track opt) {
+            @for (opt of documentTypeOptions; track opt.value) {
             <option [ngValue]="opt.value || null">{{ opt.label }}</option>
             }
           </select>
@@ -920,7 +920,7 @@
       <div class="perf-field">
         <label class="perf-field-label">Performance</label>
         <div class="perf-choice-row" role="radiogroup">
-          @for (opt of performanceOptions; track opt) {
+          @for (opt of performanceOptions; track opt.value) {
           <button
             type="button"
             class="perf-choice"

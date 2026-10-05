@@ -26,7 +26,7 @@
 
       @if (invoices.length > 0) {
       <ul class="mi-list">
-        @for (inv of invoices; track inv) {
+        @for (inv of invoices; track inv.invoiceNumber) {
         <li class="mi-row" [class.is-muted]="inv.status === 'Void' || inv.status === 'Cancelled'">
           <div class="mi-row__main">
             <div>

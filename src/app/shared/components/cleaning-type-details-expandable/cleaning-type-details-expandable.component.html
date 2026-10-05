@@ -15,11 +15,11 @@
     [attr.aria-label]="cleaningType === 'deep' ? 'Deep cleaning checklist' : 'Regular cleaning checklist'">
     <h3 class="checklist-block-title">{{ panelTitle }}</h3>
 
-    @for (section of activeChecklist; track section) {
+    @for (section of activeChecklist; track $index) {
     <div class="checklist-area-card">
       <h4 class="checklist-area-card__title">{{ section.heading }}</h4>
       <div class="checklist-area-card__grid">
-        @for (row of section.rows; track row) {
+        @for (row of section.rows; track $index) {
         <div class="checklist-area-card__cell">
           <span
             class="checklist-area-row__icon"

@@ -18,7 +18,7 @@
 
   @if (details.length > 0) {
   <div class="summary-details" [class.hidden]="collapsed">
-    @for (line of details; track line) {
+    @for (line of details; track $index) {
     <div class="summary-item">
       <span>{{ line.label }}</span>
       <span [class]="line.valueClass || 'summary-value'" [shimmer]="line.shimmer || false">{{ line.value }}</span>
@@ -28,7 +28,7 @@
   }
 
   <div class="price-breakdown" [class.hidden]="collapsed">
-    @for (line of priceLines; track line) {
+    @for (line of priceLines; track $index) {
     <div [class]="'price-item ' + (line.rowClass || '')">
       <span>{{ line.label }}</span>
       <span [class]="line.valueClass || 'summary-value'" [shimmer]="line.shimmer || false">{{ line.value }}</span>

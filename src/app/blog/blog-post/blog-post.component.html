@@ -81,7 +81,7 @@
       <section class="related">
         <h2>Keep reading</h2>
         <div class="related-grid">
-          @for (related of post.relatedPosts; track related) {
+          @for (related of post.relatedPosts; track related.slug) {
           <a class="related-card" [routerLink]="['/blog', related.slug]">
             @if (related.featuredImagePath) {
             <div class="related-image">

@@ -36,7 +36,7 @@
 
           @if ((order.services?.length || 0) > 0) {
             <h3>Services</h3>
-            @for (s of order.services; track s) {
+            @for (s of order.services; track $index) {
             <div class="breakdown-line">
               <span>{{ s.serviceName }}</span>
               <span>{{ getServiceQuantityLabel(s) }}</span>
@@ -46,7 +46,7 @@
           @if (getDisplayExtraServices().length > 0) {
 
             <h3>Extra Services</h3>
-            @for (es of getDisplayExtraServices(); track es) {
+            @for (es of getDisplayExtraServices(); track $index) {
             <div class="breakdown-line">
               <span>{{ es.extraServiceName }}</span>
               @if (es.quantity > 0) {
@@ -262,7 +262,7 @@
         <!-- Saved cards vs. a new card (owner only; selecting never charges — the Pay button does) -->
         @if (savedCards.length > 0 && !fullyCovered) {
         <div class="saved-card-choice" role="radiogroup" aria-label="Payment method">
-          @for (card of savedCards; track card) {
+          @for (card of savedCards; track card.id) {
           <label class="pay-option" [class.selected]="selectedCardId === card.id">
             <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId === card.id"
                    (change)="selectPaymentMethod(card.id)" [disabled]="isProcessing">

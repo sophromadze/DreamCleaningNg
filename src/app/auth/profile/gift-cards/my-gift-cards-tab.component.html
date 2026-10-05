@@ -92,7 +92,7 @@
 
         @if (expandedUsageId === card.id) {
         <ul class="mgc-usage" [id]="'mgc-usage-' + card.id">
-          @for (use of card.usages; track use) {
+          @for (use of card.usages; track $index) {
           <li>
             <span>{{ use.usedAt | date:'MMM d, y' }}</span>
             <span>−${{ use.amountUsed | number:'1.2-2' }}</span>

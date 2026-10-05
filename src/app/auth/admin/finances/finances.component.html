@@ -19,7 +19,7 @@
     <div class="filters-left">
       <div class="quick-filter-dropdown">
         <select aria-label="Period" [ngModel]="activeQuickFilter" (ngModelChange)="onQuickFilterChange($event)">
-          @for (f of quickFilters; track f) {
+          @for (f of quickFilters; track f.key) {
           <option [value]="f.key">{{ f.label }}</option>
           }
         </select>
@@ -174,7 +174,7 @@
               <!-- Per-expense detail for category rows -->
               @if (row.expanded && row.items?.length) {
               <div class="row-items">
-                @for (item of row.items; track item) {
+                @for (item of row.items; track $index) {
                 <div class="row-item">
                   <span class="item-name">{{ item.name }}@if (item.isRecurring) {
                   <span class="item-recurring"> (subscription)</span>
@@ -316,7 +316,7 @@
           </div>
           @if (!isLoading) {
           <ul class="donut-legend">
-            @for (slice of donutLegend; track slice) {
+            @for (slice of donutLegend; track $index) {
             <li>
               <span class="legend-chip"
                     [style.background]="slice.colorVar ? 'var(' + slice.colorVar + ')' : 'var(--text-muted)'"></span>
@@ -371,7 +371,7 @@
     <div class="compare-card">
       <h3 class="viz-title">Net Company Income</h3>
       <div class="bars">
-        @for (r of compareResults; track r; let i = $index) {
+        @for (r of compareResults; track $index; let i = $index) {
         <div class="bar-row">
           <div class="bar-head">
             <span>{{ r.label }}</span>
@@ -422,7 +422,7 @@
           <tr>
             <th class="check-col"></th>
             <th class="metric-col"></th>
-            @for (r of compareResults; track r) {
+            @for (r of compareResults; track $index) {
             <th>
               <div class="col-label">{{ r.label }}</div>
               @if (r.rangeLabel) {
@@ -433,7 +433,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (row of rows; track row) {
+          @for (row of rows; track row.key) {
           <tr
               [class.emphasize]="row.emphasize"
               [class.subtotal]="row.subtotal"
@@ -498,7 +498,7 @@
       </p>
 
       <div class="unit-tabs">
-        @for (u of compareUnits; track u) {
+        @for (u of compareUnits; track u.key) {
         <button
                 [class.active]="compareUnit === u.key"
                 (click)="setCompareUnit(u.key)">{{ u.label }}</button>
@@ -515,7 +515,7 @@
       </div>
 
       <div class="pick-list">
-        @for (pick of comparePicks; track pick; let i = $index) {
+        @for (pick of comparePicks; track $index; let i = $index) {
         <div class="pick-row">
           <span class="pick-num">{{ i + 1 }}</span>
 

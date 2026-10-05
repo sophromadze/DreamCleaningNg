@@ -14,7 +14,7 @@
     <!-- Open problems first -->
     @if (data.openIssues.length > 0) {
     <div class="aub-issues">
-      @for (n of data.openIssues; track n) {
+      @for (n of data.openIssues; track $index) {
       <div class="aub-issue" [class.critical]="n.severity === 'critical'">
         <strong>{{ n.title }}</strong>
         <span>{{ n.message }}</span>
@@ -30,7 +30,7 @@
     }
     @if (data.cards.length > 0) {
     <ul class="aub-cards">
-      @for (c of data.cards; track c) {
+      @for (c of data.cards; track $index) {
       <li>
         <span class="aub-card-name">{{ cardLabel(c) }}</span>
         @if (c.isPrimary) {
@@ -62,7 +62,7 @@
       }
     </div>
     <ul class="aub-arrangements">
-      @for (a of data.autoPay.arrangements; track a) {
+      @for (a of data.autoPay.arrangements; track $index) {
       <li>
         <div>
           <strong>{{ a.title }}</strong>
@@ -88,7 +88,7 @@
     }
     @if (data.outstanding.length > 0) {
     <ul class="aub-list">
-      @for (o of data.outstanding; track o) {
+      @for (o of data.outstanding; track $index) {
       <li>
         <span>{{ o.reference }} — {{ o.description }}</span>
         <strong>${{ o.amountDue | number:'1.2-2' }}</strong>
@@ -110,7 +110,7 @@
     @if (data.recentAttempts.length > 0) {
     <div class="aub-table">
       <div class="aub-tr aub-th"><span>When</span><span>For</span><span>By</span><span>Card</span><span class="num">Amount</span><span>Result</span></div>
-      @for (a of data.recentAttempts; track a) {
+      @for (a of data.recentAttempts; track $index) {
       <div class="aub-tr">
         <span>{{ a.createdAt | date:'MMM d, h:mm a' }}</span>
         <span>{{ a.obligation }}</span>
@@ -135,7 +135,7 @@
     @if (data.recentHistory.length > 0) {
     <div class="aub-table">
       <div class="aub-tr aub-th"><span>Date</span><span>Reference</span><span>Description</span><span>Method</span><span class="num">Amount</span><span>Status</span></div>
-      @for (h of data.recentHistory; track h) {
+      @for (h of data.recentHistory; track $index) {
       <div class="aub-tr">
         <span>{{ h.date | date:'MMM d, y' }}</span>
         <span>{{ h.reference }}</span>

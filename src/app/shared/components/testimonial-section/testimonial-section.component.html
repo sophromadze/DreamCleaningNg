@@ -51,7 +51,7 @@
                    (mouseenter)="pauseReviewSlider()"
                    (mouseleave)="resumeReviewSlider()">
             <div class="testimonial-quote__viewport">
-              @for (r of renderedReviews; track r) {
+              @for (r of renderedReviews; track $index) {
               <div class="testimonial-quote__slide"
                    [class.is-active]="r === activeReview"
                    [attr.aria-hidden]="r !== activeReview">

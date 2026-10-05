@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -14,6 +14,7 @@ import {
 import { IconComponent } from '../../shared/icons/icon.component';
 import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
 import { faEnvelopeOpenText } from '../../shared/icons/glyphs/faEnvelopeOpenText';
+import { setIntervalOutsideZone } from '../../shared/zone-free-timers';
 
 @Component({
   selector: 'app-booking-success',
@@ -24,6 +25,7 @@ import { faEnvelopeOpenText } from '../../shared/icons/glyphs/faEnvelopeOpenText
   styleUrls: ['./booking-success.component.scss']
 })
 export class BookingSuccessComponent implements OnInit, OnDestroy {
+  private readonly zone = inject(NgZone);
   protected readonly icons = { faCircleCheck, faEnvelopeOpenText };
 
   orderId: string = '';
@@ -179,7 +181,7 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
 
   private startResendCooldown(seconds = 60) {
     this.resendCooldown = seconds;
-    this.resendTimer = setInterval(() => {
+    this.resendTimer = setIntervalOutsideZone(this.zone, () => {
       this.resendCooldown--;
       if (this.resendCooldown <= 0) {
         clearInterval(this.resendTimer);

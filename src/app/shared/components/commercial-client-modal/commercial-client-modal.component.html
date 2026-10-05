@@ -246,7 +246,7 @@
           <select id="cc-source" [(ngModel)]="form.sourceUserId"
                   (ngModelChange)="onSourceUserSelected()" [disabled]="saving || loadingCustomers">
             <option [ngValue]="null">— Not linked —</option>
-            @for (customer of businessCustomers; track customer) {
+            @for (customer of businessCustomers; track customer.userId) {
             <option [ngValue]="customer.userId">
               {{ customer.fullName }} · {{ customer.email }}
             </option>

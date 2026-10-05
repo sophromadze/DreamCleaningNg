@@ -40,7 +40,7 @@
       </div>
       
       <div class="calendar-days">
-        @for (day of calendarDays; track day) {
+        @for (day of calendarDays; track $index) {
         <div
           class="calendar-day"
           [class.current-month]="day.isCurrentMonth"

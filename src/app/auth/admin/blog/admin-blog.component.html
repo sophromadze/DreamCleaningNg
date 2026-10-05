@@ -48,7 +48,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (post of posts; track post) {
+          @for (post of posts; track post.id) {
           <tr [class.pending-row]="post.status === BlogPostStatus.PendingReview">
             <td>
               <span class="status-badge" [ngClass]="statusClass(post.status)">{{ statusLabel(post.status) }}</span>
@@ -249,7 +249,7 @@
 
         @if (!topicsLoading) {
         <div>
-          @for (topic of queuedTopics; track topic; let i = $index) {
+          @for (topic of queuedTopics; track topic.id; let i = $index) {
           <div class="topic-card">
             <div class="topic-order">
               @if (canManage) {
@@ -293,7 +293,7 @@
           @if (generatedTopics.length > 0) {
           <details class="generated-topics">
             <summary>Already generated ({{ generatedTopics.length }})</summary>
-            @for (topic of generatedTopics; track topic) {
+            @for (topic of generatedTopics; track $index) {
             <div class="topic-card done">
               <div class="topic-body">
                 <strong>{{ topic.topicTitle }}</strong>
@@ -364,7 +364,7 @@
         }
         @if (!suggestBusy) {
         <div class="suggestions-list">
-          @for (suggestion of suggestions; track suggestion) {
+          @for (suggestion of suggestions; track $index) {
           <label class="suggestion-row">
             <input type="checkbox" [(ngModel)]="suggestion.selected" />
             <span class="suggestion-text">
@@ -433,7 +433,7 @@
                   [ngModel]="settings.generationModel"
                   (ngModelChange)="onModelChange($event)"
                   [disabled]="settingsSaving">
-            @for (option of settings.modelOptions; track option) {
+            @for (option of settings.modelOptions; track option.id) {
             <option [value]="option.id">{{ option.label }}</option>
             }
           </select>

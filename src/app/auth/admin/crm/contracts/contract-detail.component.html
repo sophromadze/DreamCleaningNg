@@ -167,7 +167,7 @@
       @if (detail.versions.length > 1) {
       <div class="version-strip">
         <span class="strip-label">Versions</span>
-        @for (v of detail.versions; track v) {
+        @for (v of detail.versions; track v.id) {
         <button type="button" class="version-chip"
                 [class.active]="(viewingVersionId ?? detail.currentVersionId) === v.id"
                 (click)="viewVersion(v.id)">
@@ -203,7 +203,7 @@
       @if (detail.signers.length) {
       <section class="side-card">
         <h3>Signers</h3>
-        @for (signer of detail.signers; track signer) {
+        @for (signer of detail.signers; track signer.id) {
         <div class="signer">
           <div class="signer-head">
             <strong>{{ signerRoleLabel(signer.role) }}</strong>
@@ -242,8 +242,8 @@
 
       <section class="side-card">
         <h3>Documents</h3>
-        @for (version of detail.versions; track version) {
-          @for (file of version.files; track file) {
+        @for (version of detail.versions; track $index) {
+          @for (file of version.files; track file.id) {
           <div class="file-row">
             <div>
               <div class="file-name">{{ fileLabel(file.fileType) }}</div>
@@ -270,7 +270,7 @@
       <section class="side-card">
         <h3>Activity</h3>
         <ol class="timeline">
-          @for (entry of detail.auditLog; track entry) {
+          @for (entry of detail.auditLog; track $index) {
           <li>
             <div class="timeline-text">{{ entry.eventDescription }}</div>
             <!-- The description already names the version where it matters ("Version 2

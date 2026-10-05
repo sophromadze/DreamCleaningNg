@@ -136,7 +136,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (giftCard of paginatedGiftCards; track giftCard) {
+          @for (giftCard of paginatedGiftCards; track giftCard.id) {
             <tr [class.inactive]="!giftCard.isActive"
                 [class.fully-used]="giftCard.isFullyUsed"
                 [class.expanded]="selectedGiftCard?.id === giftCard.id"
@@ -317,7 +317,7 @@
                         </tr>
                       </thead>
                       <tbody>
-                        @for (usage of selectedGiftCard!.usages; track usage) {
+                        @for (usage of selectedGiftCard!.usages; track $index) {
                         <tr>
                           <td>{{ formatDateTime(usage.usedAt) }}</td>
                           <td>

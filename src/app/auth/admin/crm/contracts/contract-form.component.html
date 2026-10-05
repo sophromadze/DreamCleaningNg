@@ -27,7 +27,7 @@
         <div class="field">
           <label for="contractTemplate">Contract template</label>
           <select id="contractTemplate" name="contractTemplate" [(ngModel)]="model.contractTemplateId">
-            @for (t of templates; track t) {
+            @for (t of templates; track t.id) {
             <option [ngValue]="t.id">{{ t.name }} (v{{ t.version }})</option>
             }
           </select>
@@ -41,7 +41,7 @@
           <label for="scopeTemplate">Business type</label>
           <select id="scopeTemplate" name="scopeTemplate"
                   [(ngModel)]="model.scopeTemplateId" (ngModelChange)="onScopeTemplateChanged()">
-            @for (t of scopeTemplates; track t) {
+            @for (t of scopeTemplates; track t.id) {
             <option [ngValue]="t.id">{{ t.name }}</option>
             }
           </select>
@@ -76,7 +76,7 @@
         <label for="contractorProfile">Contractor profile</label>
         <select id="contractorProfile" name="contractorProfile"
                 [(ngModel)]="model.contractorProfileId" (ngModelChange)="onContractorProfileChange()">
-          @for (p of contractorProfiles; track p) {
+          @for (p of contractorProfiles; track p.id) {
           <option [ngValue]="p.id">
             {{ p.legalEntityName }}@if (p.dba) {
             <span> d/b/a {{ p.dba }}</span>
@@ -103,7 +103,7 @@
           <label for="contractorSigner">Signer</label>
           <select id="contractorSigner" name="contractorSigner"
                   [(ngModel)]="model.contractorSignerContactId">
-            @for (c of contractorSigners; track c) {
+            @for (c of contractorSigners; track c.id) {
             <option [ngValue]="c.id">
               {{ c.fullName }}@if (c.title) {
               <span> — {{ c.title }}</span>
@@ -149,7 +149,7 @@
         <select id="clientPicker" name="clientPicker"
                 [(ngModel)]="selectedClientId" (ngModelChange)="onClientSelected()">
           <option [ngValue]="null">— New client —</option>
-          @for (c of clients; track c) {
+          @for (c of clients; track c.id) {
           <option [ngValue]="c.id">
             {{ c.legalEntityName || '(company name not set)' }}
           </option>
@@ -176,7 +176,7 @@
                 [ngModel]="model.newClient?.sourceUserId ?? null"
                 (ngModelChange)="model.newClient!.sourceUserId = $event; onSourceUserSelected()">
           <option [ngValue]="null">— Not linked —</option>
-          @for (customer of businessCustomers; track customer) {
+          @for (customer of businessCustomers; track customer.userId) {
           <option [ngValue]="customer.userId">
             {{ customer.fullName }} ({{ customer.email }})
           </option>
@@ -246,7 +246,7 @@
           <select id="clientSignerPicker" name="clientSignerPicker"
                   [(ngModel)]="selectedClientSignerId" (ngModelChange)="onClientSignerSelected()">
             <option [ngValue]="null">— New contact —</option>
-            @for (c of clientSigners; track c) {
+            @for (c of clientSigners; track c.id) {
             <option [ngValue]="c.id">{{ c.fullName }}</option>
             }
           </select>
@@ -346,7 +346,7 @@
         <select id="locationPicker" name="locationPicker"
                 [(ngModel)]="selectedLocationId" (ngModelChange)="onLocationSelected()">
           <option [ngValue]="null">— New location —</option>
-          @for (l of locations; track l) {
+          @for (l of locations; track l.id) {
           <option [ngValue]="l.id">{{ l.displayLabel }}</option>
           }
         </select>
@@ -419,7 +419,7 @@
         <div class="field wide">
           <label>{{ serviceDaysLabel }}</label>
           <div class="day-chips">
-            @for (day of weekdays; track day) {
+            @for (day of weekdays; track $index) {
             <button type="button" class="day-chip"
                     [class.selected]="isServiceDaySelected(day)"
                     [attr.aria-pressed]="isServiceDaySelected(day)"
@@ -846,7 +846,7 @@
                  placeholder="e.g. we provide vacuums and tools; client provides chemicals" />
         </div>
         }
-        @for (row of standardConsumables; track row) {
+        @for (row of standardConsumables; track row.key) {
         <div class="field">
           <label [for]="row.key">{{ row.label }}</label>
           <select [id]="row.key" [name]="row.key" [(ngModel)]="model.supplies[row.key]">
@@ -859,7 +859,7 @@
       </div>
 
       <h3 class="subhead">Other consumables</h3>
-      @for (item of model.supplies.otherConsumables; track item; let i = $index) {
+      @for (item of model.supplies.otherConsumables; track $index; let i = $index) {
       <div class="grid">
         <div class="field">
           <input type="text" [name]="'otherConsumable-' + i" [(ngModel)]="item.item"
@@ -891,7 +891,7 @@
       <div class="field wide">
         <span class="field-label">Scope of Work detail</span>
         <div class="choice-row" role="radiogroup" aria-label="Scope of Work detail">
-          @for (option of scopeDetailOptions; track option) {
+          @for (option of scopeDetailOptions; track option.value) {
           <label class="check">
             <input type="radio" name="scopeDetail" [value]="option.value"
                    [(ngModel)]="model.scopeDetail" />
@@ -919,7 +919,7 @@
       <p class="muted">Untick anything this contract does not cover. Only ticked items are written
         into Exhibit A.</p>
 
-      @for (group of model.scope.groups; track group; let gi = $index) {
+      @for (group of model.scope.groups; track $index; let gi = $index) {
       <div class="scope-group">
         <div class="scope-head">
           <h3>{{ group.title }}</h3>
@@ -938,7 +938,7 @@
         -->
         @if (isTableGroup(group)) {
         <div class="scope-rows">
-          @for (item of group.items; track item; let ii = $index) {
+          @for (item of group.items; track $index; let ii = $index) {
           <div class="scope-row">
             <label class="check">
               <input type="checkbox" [(ngModel)]="item.selected" [name]="'scope-' + gi + '-' + ii" />
@@ -957,7 +957,7 @@
         } @else {
 
           <div class="scope-items">
-            @for (item of group.items; track item; let ii = $index) {
+            @for (item of group.items; track $index; let ii = $index) {
             <label class="check">
               <input type="checkbox" [(ngModel)]="item.selected" [name]="'scope-' + gi + '-' + ii" />
               <span>{{ item.label }}</span>

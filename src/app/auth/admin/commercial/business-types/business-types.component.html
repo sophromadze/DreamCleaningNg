@@ -31,7 +31,7 @@
 
       @if (!loading) {
       <ul class="type-list">
-        @for (t of templates; track t) {
+        @for (t of templates; track t.id) {
         <li>
           <button type="button" class="type-row"
                   [class.active]="selected?.id === t.id"

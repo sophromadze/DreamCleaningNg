@@ -22,7 +22,7 @@
 
     <!-- ═══ Tab navigation: one strip that wraps onto more rows when it has to ═══ -->
     <nav class="profile-tabs" role="tablist" aria-label="Account sections" (keydown)="onTabKeydown($event)">
-      @for (tab of tabs; track tab) {
+      @for (tab of tabs; track tab.key) {
       <button type="button" role="tab" class="profile-tab"
               [id]="'profile-tab-' + tab.key"
               [class.active]="activeTab === tab.key"
@@ -184,7 +184,7 @@
 
           @if (orders !== null && orders.length > 0) {
           <div class="orders-list">
-            @for (order of pagedOrders; track order) {
+            @for (order of pagedOrders; track order.id) {
             <article class="order-card">
               <header class="order-card__head">
                 <div class="order-card__title">
@@ -411,7 +411,7 @@
             }
             @if (specialOffers !== null && specialOffers.length > 0) {
             <div class="special-offers-container">
-              @for (offer of specialOffers; track offer) {
+              @for (offer of specialOffers; track $index) {
               <div class="special-offer-item">
                 <span class="offer-badge" [style.background-color]="offer.badgeColor || '#28a745'"
                       [style.color]="badgeLabelColor(offer.badgeColor || '#28a745')">
@@ -533,7 +533,7 @@
 
           @if (plan) {
           <div class="plan-grid">
-            @for (option of plan.plans; track option) {
+            @for (option of plan.plans; track $index) {
             <article class="plan-card"
                      [class.plan-card--preferred]="option.isPreferred"
                      [class.plan-card--active]="option.isActive">
@@ -689,7 +689,7 @@
         <!-- Apartments List -->
         @if (!isAddingApartment) {
         <div class="apartments-list">
-          @for (apartment of profile.apartments; track apartment) {
+          @for (apartment of profile.apartments; track apartment.id) {
           <div class="apartment-card">
             @if (editingApartmentId !== apartment.id) {
             <div>

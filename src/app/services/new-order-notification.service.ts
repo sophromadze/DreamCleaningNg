@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID, OnDestroy } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID, OnDestroy, NgZone, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject, combineLatest } from 'rxjs';
 import { AuthService } from './auth.service';
@@ -6,6 +6,7 @@ import { AdminService } from './admin.service';
 import { SignalRService } from './signalr.service';
 import { OrderSoundService } from './order-sound.service';
 import { parseUtcDate } from '../shared/ny-time.util';
+import { setIntervalOutsideZone } from '../shared/zone-free-timers';
 
 /**
  * How long an order counts as "new", measured from when it was CREATED.
@@ -34,6 +35,7 @@ const EXPIRY_SWEEP_MS = 60 * 1000;
   providedIn: 'root'
 })
 export class NewOrderNotificationService implements OnDestroy {
+  private readonly zone = inject(NgZone);
   private isBrowser: boolean;
   private initialized = false;
 
@@ -168,7 +170,7 @@ export class NewOrderNotificationService implements OnDestroy {
    */
   private startExpirySweep(): void {
     if (this.sweepHandle !== null) return;
-    this.sweepHandle = setInterval(() => this.pruneExpired(), EXPIRY_SWEEP_MS);
+    this.sweepHandle = setIntervalOutsideZone(this.zone, () => this.pruneExpired(), EXPIRY_SWEEP_MS);
   }
 
   private stopExpirySweep(): void {
