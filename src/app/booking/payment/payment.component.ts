@@ -1,11 +1,10 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges, SimpleChanges } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { StripeService } from '../../services/stripe.service';
 
 @Component({
   selector: 'app-payment',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './payment.component.html',
   styleUrls: ['./payment.component.scss']
 })

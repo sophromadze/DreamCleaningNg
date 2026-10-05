@@ -4,7 +4,11 @@
     <button type="button" class="sub-tab-btn" [class.active]="activeSubTab === 'sms'" (click)="setSubTab('sms')">SMS</button>
   </div>
   <div class="sub-content">
-    <app-mails *ngIf="activeSubTab === 'mails'"></app-mails>
-    <app-sms *ngIf="activeSubTab === 'sms'"></app-sms>
+    @if (activeSubTab === 'mails') {
+    <app-mails></app-mails>
+    }
+    @if (activeSubTab === 'sms') {
+    <app-sms></app-sms>
+    }
   </div>
 </div>

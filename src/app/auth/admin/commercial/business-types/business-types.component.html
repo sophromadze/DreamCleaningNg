@@ -12,8 +12,12 @@
     scope they were built with.
   </p>
 
-  <div class="alert alert-danger" *ngIf="error">{{ error }}</div>
-  <div class="alert alert-success" *ngIf="notice">{{ notice }}</div>
+  @if (error) {
+  <div class="alert alert-danger">{{ error }}</div>
+  }
+  @if (notice) {
+  <div class="alert alert-success">{{ notice }}</div>
+  }
 
   <div class="bt-layout">
 
@@ -21,22 +25,32 @@
     <aside class="bt-list">
       <h2>Business types</h2>
 
-      <p class="loading" *ngIf="loading">Loading…</p>
+      @if (loading) {
+      <p class="loading">Loading…</p>
+      }
 
-      <ul class="type-list" *ngIf="!loading">
-        <li *ngFor="let t of templates">
+      @if (!loading) {
+      <ul class="type-list">
+        @for (t of templates; track t) {
+        <li>
           <button type="button" class="type-row"
                   [class.active]="selected?.id === t.id"
                   [class.archived]="t.isActive === false"
                   (click)="open(t.id)">
             <span class="type-name">{{ t.name }}</span>
             <span class="type-premises">{{ t.premisesType }}</span>
-            <span class="type-badge" *ngIf="t.isActive === false">Archived</span>
+            @if (t.isActive === false) {
+            <span class="type-badge">Archived</span>
+            }
           </button>
-          <button type="button" class="link-btn restore" *ngIf="t.isActive === false"
+          @if (t.isActive === false) {
+          <button type="button" class="link-btn restore"
                   (click)="restoreType(t.id)">Restore</button>
+          }
         </li>
+        }
       </ul>
+      }
 
       <label class="check">
         <input type="checkbox" [(ngModel)]="includeArchived" name="includeArchived"
@@ -53,7 +67,8 @@
     </aside>
 
     <!-- ── The selected type's checklist ───────────────────────────────────────── -->
-    <section class="bt-editor" *ngIf="selected as t">
+    @if (selected; as t) {
+    <section class="bt-editor">
 
       <div class="editor-head">
         <div class="field">
@@ -76,7 +91,8 @@
       </div>
 
       <!-- ── Categories ──────────────────────────────────────────────────────── -->
-      <div class="category" *ngFor="let g of groups; let gi = index; trackBy: trackByIndex"
+      @for (g of groups; track trackByIndex(gi); let gi = $index) {
+      <div class="category"
            [class.archived]="g.archived">
 
         <header class="category-head">
@@ -103,13 +119,17 @@
           </div>
         </header>
 
-        <p class="archived-note" *ngIf="g.archived">
+        @if (g.archived) {
+        <p class="archived-note">
           Archived. It will not appear on new contracts, and contracts that already use it are
           unchanged.
         </p>
+        }
 
-        <ul class="item-list" *ngIf="!g.archived">
-          <li *ngFor="let item of g.items; let ii = index; trackBy: trackByIndex"
+        @if (!g.archived) {
+        <ul class="item-list">
+          @for (item of g.items; track trackByIndex(ii); let ii = $index) {
+          <li
               [class.archived]="item.archived">
             <label class="check item-check">
               <input type="checkbox" [(ngModel)]="item.selected"
@@ -130,19 +150,26 @@
               </button>
               <!-- Outright delete only for something archived: nothing on a live template is ever
                    removed without the archive step in between. -->
-              <button type="button" class="link-btn danger" *ngIf="item.archived"
+              @if (item.archived) {
+              <button type="button" class="link-btn danger"
                       (click)="deleteItem(gi, ii)">Delete</button>
+              }
             </div>
           </li>
+          }
         </ul>
+        }
 
-        <div class="add-item" *ngIf="!g.archived">
+        @if (!g.archived) {
+        <div class="add-item">
           <input type="text" [(ngModel)]="newItemLabels[gi]" [name]="'newItem' + gi"
                  placeholder="Add an item…" (keyup.enter)="addItem(gi)">
           <button type="button" class="btn-ghost small" (click)="addItem(gi)"
                   [disabled]="!newItemLabels[gi]">Add</button>
         </div>
+        }
       </div>
+      }
 
       <div class="add-category">
         <input type="text" [(ngModel)]="newCategoryTitle" name="newCategoryTitle"
@@ -152,16 +179,21 @@
       </div>
 
       <div class="editor-actions">
+        @if (t.isActive !== false) {
         <button type="button" class="btn-danger" (click)="archiveType()"
-                *ngIf="t.isActive !== false">Archive business type</button>
+               >Archive business type</button>
+        }
         <button type="button" class="btn-primary" (click)="save()" [disabled]="saving">
           {{ saving ? 'Saving…' : 'Save changes' }}
         </button>
       </div>
     </section>
+    }
 
-    <section class="bt-editor empty" *ngIf="!selected && !loading">
+    @if (!selected && !loading) {
+    <section class="bt-editor empty">
       <p class="muted">Select a business type on the left, or add a new one.</p>
     </section>
+    }
   </div>
 </div>

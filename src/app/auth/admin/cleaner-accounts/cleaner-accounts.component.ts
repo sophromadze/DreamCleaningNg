@@ -1,5 +1,4 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { finalize } from 'rxjs/operators';
@@ -37,7 +36,7 @@ import { getAdminAvatarColor, getAdminAvatarInitials } from '../../../shared/adm
 @Component({
   selector: 'app-cleaner-accounts',
   standalone: true,
-  imports: [CommonModule, FormsModule, CleanersDashboardComponent],
+  imports: [FormsModule, CleanersDashboardComponent],
   templateUrl: './cleaner-accounts.component.html',
   styleUrls: [
     '../user-management/user-management.component.scss',

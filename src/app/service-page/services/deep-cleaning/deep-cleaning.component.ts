@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { MarketingPricingService } from '../../../shared/pricing/marketing-pricing.service';
@@ -20,7 +19,7 @@ import { findAdvertisedFirstTimeOffer } from '../../../shared/booking/special-of
 @Component({
   selector: 'app-deep-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterModule, TestimonialSectionComponent, IconComponent, CardImageDirective],
+  imports: [RouterModule, TestimonialSectionComponent, IconComponent, CardImageDirective],
   templateUrl: './deep-cleaning.component.html',
   styleUrl: './deep-cleaning.component.scss'
 })

@@ -1,5 +1,6 @@
 <div class="tf-page">
-  <div class="tf-card" *ngIf="challenge">
+  @if (challenge) {
+  <div class="tf-card">
     <div class="tf-header">
       <i [appIcon]="icons.faShieldHalved" class="tf-shield"></i>
       <h1>Verify it's you</h1>
@@ -22,7 +23,8 @@
     </div>
 
     <!-- ── Step 1: email code ─────────────────────────────────────────── -->
-    <div *ngIf="step === 'email'" class="tf-step-panel">
+    @if (step === 'email') {
+    <div class="tf-step-panel">
       <p class="tf-hint">
         We sent a 6-digit code to <strong>{{ challenge.maskedEmail }}</strong>.
         It expires in 10 minutes.
@@ -61,9 +63,11 @@
         </button>
       </div>
     </div>
+    }
 
     <!-- ── Step 2: PIN ────────────────────────────────────────────────── -->
-    <div *ngIf="step === 'pin'" class="tf-step-panel">
+    @if (step === 'pin') {
+    <div class="tf-step-panel">
       <p class="tf-hint">Enter your security PIN to finish signing in.</p>
 
       <label class="tf-field">
@@ -93,14 +97,19 @@
         {{ isVerifying ? 'Verifying…' : 'Sign in' }}
       </button>
     </div>
+    }
 
     <!-- ── Messages ───────────────────────────────────────────────────── -->
-    <div class="tf-message tf-error" *ngIf="error">
+    @if (error) {
+    <div class="tf-message tf-error">
       <i [appIcon]="icons.faCircleExclamation"></i> {{ error }}
     </div>
-    <div class="tf-message tf-notice" *ngIf="notice && !error">
+    }
+    @if (notice && !error) {
+    <div class="tf-message tf-notice">
       <i [appIcon]="icons.faCircleInfo"></i> {{ notice }}
     </div>
+    }
 
     <div class="tf-footer">
       <button type="button" class="tf-link tf-cancel" (click)="cancelChallenge()">
@@ -108,4 +117,5 @@
       </button>
     </div>
   </div>
+  }
 </div>

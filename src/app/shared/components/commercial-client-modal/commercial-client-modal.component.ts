@@ -1,5 +1,4 @@
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 
@@ -93,7 +92,7 @@ const CLIENT_FORM_FIELD_IDS: Record<ClientFormField, string> = {
 @Component({
   selector: 'app-commercial-client-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './commercial-client-modal.component.html',
   styleUrls: ['./commercial-client-modal.component.scss']
 })

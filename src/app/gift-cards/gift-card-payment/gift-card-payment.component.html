@@ -1,25 +1,32 @@
 <div class="gift-card-payment-container">
-    <div class="payment-content" *ngIf="!paymentCompleted">
+    @if (!paymentCompleted) {
+    <div class="payment-content">
       <h1>Complete Gift Card Purchase</h1>
       <p class="amount-info">Amount: {{ amount | currency }}</p>
       
+      @if (clientSecret) {
       <app-payment
-        *ngIf="clientSecret"
         [amount]="amount"
         [clientSecret]="clientSecret"
         [billingDetails]="billingDetails"
         (paymentComplete)="onPaymentComplete($event)"
         (paymentError)="onPaymentError($event)">
       </app-payment>
+      }
       
-      <div class="error-message" *ngIf="errorMessage">
+      @if (errorMessage) {
+      <div class="error-message">
         {{ errorMessage }}
       </div>
+      }
     </div>
+    }
     
-    <div class="success-content" *ngIf="paymentCompleted">
+    @if (paymentCompleted) {
+    <div class="success-content">
       <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
       <h1>Payment Successful!</h1>
       <p>Your gift card has been sent to the recipient.</p>
     </div>
+    }
   </div>

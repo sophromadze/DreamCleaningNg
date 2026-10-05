@@ -1,29 +1,40 @@
 <div class="contracts-tab">
 
   <!-- List -->
-  <ng-container *ngIf="view === 'list'">
+  @if (view === 'list') {
     <div class="list-header">
       <div class="filters">
         <input type="search" class="search-input" placeholder="Search number, client or address…"
                [(ngModel)]="search" (ngModelChange)="onSearchChanged()" />
         <select aria-label="Filter by status" class="status-select" [(ngModel)]="statusFilter" (ngModelChange)="load()">
-          <option *ngFor="let option of statusOptions" [ngValue]="option.value">{{ option.label }}</option>
+          @for (option of statusOptions; track option) {
+          <option [ngValue]="option.value">{{ option.label }}</option>
+          }
         </select>
       </div>
         <!-- Mirrors the orders table's own show-hidden control. Archived contracts are hidden by
              default; this is how an admin gets back to one they filed away. -->
-        <label class="hidden-toggle" *ngIf="canDeleteContracts">
+        @if (canDeleteContracts) {
+        <label class="hidden-toggle">
           <input type="checkbox" [(ngModel)]="includeHidden" (ngModelChange)="load()" />
           <span>Show archived contracts</span>
         </label>
-      <button type="button" class="btn-primary" *ngIf="canCreateContract"
+        }
+      @if (canCreateContract) {
+      <button type="button" class="btn-primary"
               (click)="startNew()">New contract</button>
+      }
     </div>
 
-    <div class="alert error" *ngIf="errorMessage">{{ errorMessage }}</div>
-    <div class="alert success" *ngIf="successMessage">{{ successMessage }}</div>
+    @if (errorMessage) {
+    <div class="alert error">{{ errorMessage }}</div>
+    }
+    @if (successMessage) {
+    <div class="alert success">{{ successMessage }}</div>
+    }
 
-    <div class="table-wrap" *ngIf="!loading">
+    @if (!loading) {
+    <div class="table-wrap">
       <table class="contracts-table">
         <thead>
           <tr>
@@ -38,10 +49,13 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let row of contractsList" (click)="openDetail(row.id)" class="clickable">
+          @for (row of contractsList; track row) {
+          <tr (click)="openDetail(row.id)" class="clickable">
             <td class="mono">
               {{ row.contractNumber }}
-              <span class="hidden-chip" *ngIf="row.isHidden">Deleted</span>
+              @if (row.isHidden) {
+              <span class="hidden-chip">Deleted</span>
+              }
             </td>
             <td>{{ row.clientLegalName }}</td>
             <td class="secondary">{{ row.serviceLocationLabel }}</td>
@@ -52,7 +66,9 @@
             <td class="num">{{ row.totalPrice | currency }}</td>
             <td class="secondary">
               {{ row.createdAt | date: 'mediumDate' }}
-              <div class="sub" *ngIf="row.createdByAdminName">{{ row.createdByAdminName }}</div>
+              @if (row.createdByAdminName) {
+              <div class="sub">{{ row.createdByAdminName }}</div>
+              }
             </td>
 
             <!--
@@ -66,34 +82,45 @@
               (click)$event.stopPropagation() because the whole row opens the detail view.
             -->
             <td class="actions-col" (click)="$event.stopPropagation()">
+              @if (canCreateNextInvoice(row)) {
               <button type="button" class="btn-row-action"
-                      *ngIf="canCreateNextInvoice(row); else noBilling"
                       (click)="createNextInvoice(row)"
                       [disabled]="billingContractId === row.id">
                 {{ billingContractId === row.id ? 'Creating…' : 'Create next invoice' }}
               </button>
-              <ng-template #noBilling><span class="secondary">—</span></ng-template>
+              } @else {
+              <span class="secondary">—</span>
+              }
             </td>
           </tr>
+          }
         </tbody>
       </table>
 
-      <p class="empty" *ngIf="!contractsList.length">
+      @if (!contractsList.length) {
+      <p class="empty">
         No contracts yet. Start one with “New contract”.
       </p>
+      }
     </div>
+    }
 
-    <p class="empty" *ngIf="loading">Loading contracts…</p>
-  </ng-container>
+    @if (loading) {
+    <p class="empty">Loading contracts…</p>
+    }
+  }
 
   <!-- Create / edit -->
-  <app-contract-form *ngIf="view === 'form'"
+  @if (view === 'form') {
+  <app-contract-form
                      [contractId]="selectedContractId"
                      (generated)="onGenerated($event)"
                      (cancelled)="backToList()"></app-contract-form>
+  }
 
   <!-- Detail -->
-  <app-contract-detail *ngIf="view === 'detail' && selectedContractId"
+  @if (view === 'detail' && selectedContractId) {
+  <app-contract-detail
                        [contractId]="selectedContractId"
                        [preloaded]="preloadedDetail"
                        [permissions]="permissions"
@@ -101,4 +128,5 @@
                        (edit)="editContract($event)"
                        (invoiceCreated)="openInvoice($event)"
                        (deleted)="onContractDeleted($event)"></app-contract-detail>
+  }
 </div>

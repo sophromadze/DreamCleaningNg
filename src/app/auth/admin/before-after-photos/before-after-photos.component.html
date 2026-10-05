@@ -5,16 +5,23 @@
       <h2>Before &amp; After Gallery</h2>
       <p class="ba-admin__sub">These pairs render in the homepage "See the difference" section. Hidden when nothing is active.</p>
     </div>
-    <button type="button" class="btn-primary" (click)="openCreate()" *ngIf="!showCreateForm">
+    @if (!showCreateForm) {
+    <button type="button" class="btn-primary" (click)="openCreate()">
       + Add new pair
     </button>
+    }
   </header>
 
-  <div class="error-message" *ngIf="errorMessage">{{ errorMessage }}</div>
-  <div class="success-message" *ngIf="successMessage">{{ successMessage }}</div>
+  @if (errorMessage) {
+  <div class="error-message">{{ errorMessage }}</div>
+  }
+  @if (successMessage) {
+  <div class="success-message">{{ successMessage }}</div>
+  }
 
   <!-- Create form -->
-  <section class="ba-admin__create" *ngIf="showCreateForm">
+  @if (showCreateForm) {
+  <section class="ba-admin__create">
     <h3>New before/after pair</h3>
 
     <div class="ba-admin__create-grid">
@@ -55,8 +62,12 @@
       <div class="ba-admin__file-slot">
         <label class="ba-admin__file-label">Before photo <em>*</em></label>
         <div class="ba-admin__dropzone" [class.has-preview]="createForm.beforePreview">
-          <img *ngIf="createForm.beforePreview" [src]="createForm.beforePreview" alt="Before preview">
-          <span *ngIf="!createForm.beforePreview">Click to choose…</span>
+          @if (createForm.beforePreview) {
+          <img [src]="createForm.beforePreview" alt="Before preview">
+          }
+          @if (!createForm.beforePreview) {
+          <span>Click to choose…</span>
+          }
           <input aria-label="Before photo" type="file" accept="image/*" (change)="onBeforeFileChange($event)">
         </div>
       </div>
@@ -64,8 +75,12 @@
       <div class="ba-admin__file-slot">
         <label class="ba-admin__file-label">After photo <em>*</em></label>
         <div class="ba-admin__dropzone" [class.has-preview]="createForm.afterPreview">
-          <img *ngIf="createForm.afterPreview" [src]="createForm.afterPreview" alt="After preview">
-          <span *ngIf="!createForm.afterPreview">Click to choose…</span>
+          @if (createForm.afterPreview) {
+          <img [src]="createForm.afterPreview" alt="After preview">
+          }
+          @if (!createForm.afterPreview) {
+          <span>Click to choose…</span>
+          }
           <input aria-label="After photo" type="file" accept="image/*" (change)="onAfterFileChange($event)">
         </div>
       </div>
@@ -80,17 +95,22 @@
       </button>
     </div>
   </section>
+  }
 
   <!-- List -->
   <section class="ba-admin__list">
-    <p class="ba-admin__loading" *ngIf="isLoading">Loading…</p>
+    @if (isLoading) {
+    <p class="ba-admin__loading">Loading…</p>
+    }
 
-    <p class="ba-admin__empty" *ngIf="!isLoading && photos.length === 0">
+    @if (!isLoading && photos.length === 0) {
+    <p class="ba-admin__empty">
       No before/after pairs yet. Add the first one with the button above.
     </p>
+    }
 
+    @for (p of photos; track trackById($index, p)) {
     <article class="ba-admin__card"
-             *ngFor="let p of photos; trackBy: trackById"
              [class.is-inactive]="!p.isActive">
 
       <div class="ba-admin__card-media">
@@ -113,16 +133,21 @@
       </div>
 
       <!-- View mode -->
-      <div class="ba-admin__card-body" *ngIf="editing?.id !== p.id">
+      @if (editing?.id !== p.id) {
+      <div class="ba-admin__card-body">
         <div class="ba-admin__card-row">
           <h3>{{ p.title }}</h3>
           <span class="ba-admin__chip" [class.ba-admin__chip--off]="!p.isActive">
             {{ p.isActive ? 'Active' : 'Hidden' }}
           </span>
         </div>
-        <p class="ba-admin__sub" *ngIf="p.subtitle">{{ p.subtitle }}</p>
+        @if (p.subtitle) {
+        <p class="ba-admin__sub">{{ p.subtitle }}</p>
+        }
         <p class="ba-admin__meta">
-          Order: {{ p.displayOrder }}<span *ngIf="p.linkUrl"> · Link: {{ p.linkUrl }}</span>
+          Order: {{ p.displayOrder }}@if (p.linkUrl) {
+          <span> · Link: {{ p.linkUrl }}</span>
+          }
         </p>
         <div class="ba-admin__card-actions">
           <button type="button" class="btn-link" (click)="startEdit(p)">Edit</button>
@@ -132,9 +157,11 @@
           <button type="button" class="btn-link btn-link--danger" (click)="delete(p)">Delete</button>
         </div>
       </div>
+      }
 
       <!-- Edit mode -->
-      <div class="ba-admin__card-body" *ngIf="editing?.id === p.id">
+      @if (editing?.id === p.id) {
+      <div class="ba-admin__card-body">
         <label class="ba-admin__field">
           <span>Title</span>
           <input type="text" maxlength="120" [(ngModel)]="editing!.title" name="editTitle">
@@ -162,7 +189,9 @@
           <button type="button" class="ba-admin__cancel" (click)="cancelEdit()">Cancel</button>
         </div>
       </div>
+      }
     </article>
+    }
   </section>
 
 </div>

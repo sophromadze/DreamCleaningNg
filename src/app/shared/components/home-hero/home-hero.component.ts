@@ -13,7 +13,7 @@ import {
   makeStateKey,
   DOCUMENT
 } from '@angular/core';
-import { CommonModule, NgOptimizedImage, isPlatformBrowser } from '@angular/common';
+import { NgOptimizedImage, isPlatformBrowser } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { Observable, of, Subscription, throwError, timeout } from 'rxjs';
@@ -184,7 +184,7 @@ export function trimServiceTypesForHero(types: ServiceType[] | null | undefined)
 @Component({
   selector: 'app-home-hero',
   standalone: true,
-  imports: [CommonModule, NgOptimizedImage, RouterLink, FormsModule, ReactiveFormsModule, ShimmerDirective, IconComponent],
+  imports: [NgOptimizedImage, RouterLink, FormsModule, ReactiveFormsModule, ShimmerDirective, IconComponent],
   providers: [RESPONSIVE_IMAGE_LOADER_PROVIDER],
   templateUrl: './home-hero.component.html',
   styleUrl: './home-hero.component.scss'

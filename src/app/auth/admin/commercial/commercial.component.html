@@ -14,8 +14,10 @@
          changes what NEW contracts are built with and cannot reach a signed agreement, which
          carries its own frozen copy. -->
     <a class="commercial-tab" routerLink="business-types" routerLinkActive="active">Business Types</a>
-    <a class="commercial-tab" *ngIf="canManageBilling"
+    @if (canManageBilling) {
+    <a class="commercial-tab"
        routerLink="billing-settings" routerLinkActive="active">Billing Settings</a>
+    }
   </div>
 
   <div class="commercial-content">

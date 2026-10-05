@@ -5,52 +5,64 @@
       <h1>Book Your Cleaning Service</h1>
 
       <!-- Admin/Moderator Mode Toggle -->
-      <div class="admin-mode-toggle" *ngIf="isAdmin">
+      @if (isAdmin) {
+      <div class="admin-mode-toggle">
         <!-- Same "Register Customer" action as the admin Users tab, gated on the same
              `canCreate` permission (Admin + SuperAdmin; Moderators have View only). -->
+        @if (canRegisterCustomers) {
         <button
           type="button"
           class="register-customer-btn"
-          *ngIf="canRegisterCustomers"
           (click)="openRegisterCustomerModal()">
           <i [appIcon]="icons.faUserPlus"></i>
           <span>Register User</span>
         </button>
+        }
         <button
           type="button"
           class="admin-toggle-btn"
           [class.active]="isAdminMode"
           (click)="toggleAdminMode()">
           <i [appIcon]="icons.faUserShield"></i>
-          <span *ngIf="isModerator">
+          @if (isModerator) {
+          <span>
             {{ isAdminMode ? 'Moderator Mode: ON' : 'Moderator Mode: OFF' }}
           </span>
-          <span *ngIf="!isModerator">
+          }
+          @if (!isModerator) {
+          <span>
             {{ isAdminMode ? 'Admin Mode: ON' : 'Admin Mode: OFF' }}
           </span>
+          }
         </button>
       </div>
+      }
     </div>
 
     <!-- A draft written in Admin Mode was thrown away on load: the admin context behind it does
          not survive a reload, and resuming it silently would submit the booking as the admin.
          See discardAdminDraftIfPresent(). -->
-    <div class="admin-draft-discarded" *ngIf="adminDraftDiscarded">
+    @if (adminDraftDiscarded) {
+    <div class="admin-draft-discarded">
       <i [appIcon]="icons.faTriangleExclamation"></i>
       <span>
         Your admin booking session was not restored for safety reasons. Please start the booking
         again: turn on Admin Mode and re-select the customer.
       </span>
     </div>
+    }
 
     <!-- Result of the header's Register Customer action. -->
-    <div class="customer-registered-note" *ngIf="registeredCustomerMessage">
+    @if (registeredCustomerMessage) {
+    <div class="customer-registered-note">
       <i [appIcon]="icons.faCircleCheck"></i>
       <span>{{ registeredCustomerMessage }}</span>
     </div>
+    }
 
     <!-- Admin User Selector -->
-    <div class="admin-user-selector" *ngIf="isAdminMode">
+    @if (isAdminMode) {
+    <div class="admin-user-selector">
       <div class="user-selector-header">
         <h3>Create Booking For User</h3>
         <p>Select a user to create a booking on their behalf</p>
@@ -65,7 +77,8 @@
         (cleared)="clearSelectedUser()">
       </app-admin-user-search>
       
-      <div class="selected-user-info" *ngIf="selectedTargetUser">
+      @if (selectedTargetUser) {
+      <div class="selected-user-info">
         <div class="selected-user-panel">
           <div class="selected-user-card">
             <i [appIcon]="icons.faUserCheck"></i>
@@ -84,19 +97,21 @@
             </p>
 
             <div class="payment-method-options">
-              <label *ngFor="let opt of paymentMethodOptions" class="radio-row">
+              @for (opt of paymentMethodOptions; track opt) {
+              <label class="radio-row">
                 <input type="radio" name="paymentMethod"
                        [(ngModel)]="adminPaymentMethod"
                        [value]="opt.value"
                        (ngModelChange)="onAdminPaymentMethodChange()">
                 <span>{{ opt.label }}</span>
               </label>
+              }
             </div>
 
             <!-- Reference and notes record money that has ALREADY changed hands, so they are
                  offered for cash/Zelle/cheque/other and not for Invoice — which is unpaid by
                  definition until its invoice is settled. -->
-            <ng-container *ngIf="adminPaymentMethod !== 'Normal' && adminPaymentMethod !== 'Invoice' && adminPaymentMethod !== 'RegularInvoice'">
+            @if (adminPaymentMethod !== 'Normal' && adminPaymentMethod !== 'Invoice' && adminPaymentMethod !== 'RegularInvoice') {
               <div class="field">
                 <label>Reference (Zelle ID, check #, etc.)</label>
                 <input type="text"
@@ -110,47 +125,55 @@
                           rows="2"
                           maxlength="1000"></textarea>
               </div>
-            </ng-container>
+            }
 
             <!-- REGULAR INVOICE (2026-09): nothing to choose. The server creates the invoice and
                  sends it instead of the Pay Now link. -->
-            <ng-container *ngIf="adminPaymentMethod === 'RegularInvoice'">
+            @if (adminPaymentMethod === 'RegularInvoice') {
               <small class="payment-method-hint">
                 An invoice for this order is created and emailed / texted to the customer. They can pay
                 it by card or by bank transfer — find it in Admin → Invoices to resend it or mark a
                 bank transfer as paid. The order stays Pending Payment until it is paid.
               </small>
-            </ng-container>
+            }
 
             <!-- COMMERCIAL INVOICE: only offered when the customer has a linked business client, and
                  billed to that client automatically — no dropdown to get wrong. -->
-            <ng-container *ngIf="adminPaymentMethod === 'Invoice'">
+            @if (adminPaymentMethod === 'Invoice') {
               <div class="field">
                 <label>Billed to</label>
-                <div *ngIf="adminBusinessClient"><strong>{{ adminBusinessClient.legalEntityName }}</strong> (commercial client)</div>
+                @if (adminBusinessClient) {
+                <div><strong>{{ adminBusinessClient.legalEntityName }}</strong> (commercial client)</div>
+                }
                 <small class="payment-method-hint">
                   The order stays Pending Payment. It becomes Active when a commercial invoice covering it
                   is paid in full — no payment link is sent to the customer.
                 </small>
               </div>
-            </ng-container>
+            }
           </div>
         </div>
       </div>
+      }
     </div>
+    }
 
     <!-- Discounts are account-scoped: switching admin mode / customer clears them. -->
-    <div class="admin-discount-notice" *ngIf="discountsClearedForAccountSwitch">
+    @if (discountsClearedForAccountSwitch) {
+    <div class="admin-discount-notice">
       <i [appIcon]="icons.faTriangleExclamation"></i>
       <span>
         Applied discounts (special offer, promo code, gift card, points) were removed because the
         customer changed. Re-apply them from this account's own offers.
       </span>
     </div>
+    }
 
-    <div class="error-message" *ngIf="errorMessage">
+    @if (errorMessage) {
+    <div class="error-message">
       {{ errorMessage }}
     </div>
+    }
 
     <div class="booking-grid"
          [class.full-width]="showPollForm"
@@ -161,8 +184,9 @@
         <!-- Sticky "who is this for" bar. The Create Booking For User panel sits at the very top
              of the page, off-screen by step 3 — which is exactly where Book Now lives, and where
              an admin booked for the wrong customer without noticing (2026-08). -->
+        @if (isAdminMode && selectedTargetUser && currentStep === 3) {
         <div class="admin-target-banner"
-             *ngIf="isAdminMode && selectedTargetUser && currentStep === 3">
+            >
           <i [appIcon]="icons.faUserCheck"></i>
           <span class="admin-target-banner__text">
             Booking for
@@ -178,17 +202,20 @@
                : adminPaymentMethod }}
           </span>
         </div>
+        }
 
-        <div class="booking-form-top" *ngIf="!showPollForm && currentStep === 1">
+        @if (!showPollForm && currentStep === 1) {
+        <div class="booking-form-top">
           <!-- Reorder Section - only when loaded and user has previous orders (no shimmer; guests and users without orders don't see it) -->
+          @if (!loading.previousOrders && previousOrders.length > 0 && currentStep === 1) {
           <app-reorder-section
-            *ngIf="!loading.previousOrders && previousOrders.length > 0 && currentStep === 1"
             [orders]="previousOrders"
             [isLoading]="isLoadingOrders"
             [reorderingOrderId]="reorderingOrderId"
             (opened)="onReorderOpened()"
             (orderSelected)="selectOrderToReorder($event)">
           </app-reorder-section>
+          }
 
           <!-- Step progress indicator (decorative; visualises currentStep) -->
           <div class="booking-progress-stepper booking-progress-stepper--compact" [attr.data-current-step]="currentStep">
@@ -215,6 +242,7 @@
             </div>
           </div>
         </div>
+        }
 
         <!-- <div class="clear-form-section" *ngIf="formPersistenceService.hasSavedData() && selectedServiceType">
           <button class="clear-all-btn" (click)="clearAllFormData()">
@@ -225,12 +253,15 @@
         <!-- PART 1: Service Selection and Configuration -->
         <div class="form-step" [class.active]="currentStep === 1" [class.hidden]="currentStep !== 1">
           <!-- Your offers: one shimmer while loading, then section with content. Hidden for poll service types (no payment). -->
-          <div *ngIf="loading.promoBanner && !showPollForm" class="special-offers-loading-shimmer" [shimmer]="true"></div>
-          <section class="special-offers-section" *ngIf="!loading.promoBanner && userSpecialOffers.length > 0 && !showPollForm">
+          @if (loading.promoBanner && !showPollForm) {
+          <div class="special-offers-loading-shimmer" [shimmer]="true"></div>
+          }
+          @if (!loading.promoBanner && userSpecialOffers.length > 0 && !showPollForm) {
+          <section class="special-offers-section">
             <h2 class="special-offers-heading">Special Discount</h2>
             <div class="special-offers-grid">
+              @for (offer of userSpecialOffers; track offer) {
               <div class="special-offer-card"
-                    *ngFor="let offer of userSpecialOffers"
                     [class.applied]="specialOfferApplied && selectedSpecialOffer?.id === offer.id"
                     (click)="onSpecialOfferCardClick(offer)">
                 <div class="offer-info">
@@ -240,35 +271,47 @@
                       <h3>{{ offer.name }}</h3>
                     </div>
                     <div class="offer-details">
-                      <p class="offer-description" *ngIf="offer.description">{{ offer.description }}</p>
-                      <span class="offer-expiry" *ngIf="offer.expiresAt">
+                      @if (offer.description) {
+                      <p class="offer-description">{{ offer.description }}</p>
+                      }
+                      @if (offer.expiresAt) {
+                      <span class="offer-expiry">
                         Expires {{ offer.expiresAt | date: 'MMM d, y' }}
                       </span>
-                      <span class="offer-minimum" *ngIf="offer.minimumOrderAmount">
+                      }
+                      @if (offer.minimumOrderAmount) {
+                      <span class="offer-minimum">
                         Min. order ${{ offer.minimumOrderAmount }}
                       </span>
+                      }
                     </div>
                   </div>
                 </div>
                 <div class="offer-actions">
+                  @if (!(specialOfferApplied && selectedSpecialOffer?.id === offer.id)) {
                   <button
                     type="button"
                     class="apply-btn"
                     [attr.aria-label]="'Apply offer ' + offer.name"
-                    *ngIf="!(specialOfferApplied && selectedSpecialOffer?.id === offer.id)">
+                   >
                     Apply offer
                   </button>
+                  }
+                  @if (specialOfferApplied && selectedSpecialOffer?.id === offer.id) {
                   <button
                     type="button"
                     class="remove-btn"
                     [attr.aria-label]="'Remove offer ' + offer.name"
-                    *ngIf="specialOfferApplied && selectedSpecialOffer?.id === offer.id">
+                   >
                     Remove
                   </button>
+                  }
                 </div>
               </div>
+              }
             </div>
           </section>
+          }
           <!-- Step 3: Service Type Selection - ALWAYS VISIBLE -->
           <section class="booking-section">
             <h2 class="large-header">Tell us about your home</h2>
@@ -289,9 +332,10 @@
                     </span>
                     <i [appIcon]="icons.faChevronDown" class="dropdown-toggle__chevron"></i>
                   </button>
-                  <div class="dropdown-menu" *ngIf="serviceTypeDropdownOpen">
+                  @if (serviceTypeDropdownOpen) {
+                  <div class="dropdown-menu">
+                    @for (type of visibleServiceTypes; track type) {
                     <button
-                      *ngFor="let type of visibleServiceTypes"
                       type="button"
                       class="dropdown-item"
                       [class.is-active]="selectedServiceType?.id === type.id"
@@ -300,11 +344,17 @@
                          aria-hidden="true"></i>
                       <span>{{ type.name }}</span>
                     </button>
+                    }
                   </div>
+                  }
                 </div>
-                <div class="error-message" *ngIf="serviceTypeControl.invalid && serviceTypeControl.touched">
-                  <div *ngIf="serviceTypeControl.errors?.['required']">Service type is required</div>
+                @if (serviceTypeControl.invalid && serviceTypeControl.touched) {
+                <div class="error-message">
+                  @if (serviceTypeControl.errors?.['required']) {
+                  <div>Service type is required</div>
+                  }
                 </div>
+                }
               </div>
               
               <!-- Service Type Description -->
@@ -336,56 +386,67 @@
           </section>
 
           <!-- Poll Form Section (when service type has poll) -->
-          <section class="booking-section" *ngIf="selectedServiceType && showPollForm">
+          @if (selectedServiceType && showPollForm) {
+          <section class="booking-section">
             <h2>Tell us about your cleaning needs</h2>
             <p class="poll-description">
               Please answer the following questions so we can provide you with a customized quote.
             </p>
             
             <div class="poll-questions">
-              <div class="poll-question" *ngFor="let question of pollQuestions; let questionIndex = index">
+              @for (question of pollQuestions; track question; let questionIndex = $index) {
+              <div class="poll-question">
                 <label class="question-label">
                   {{ question.question }}
-                  <span class="required" *ngIf="question.isRequired">*</span>
+                  @if (question.isRequired) {
+                  <span class="required">*</span>
+                  }
                 </label>
                 
                 <!-- Text Input -->
+                @if (question.questionType === 'text') {
                 <input 
-                  *ngIf="question.questionType === 'text'"
                   type="text" 
                   [(ngModel)]="pollAnswers[question.id]"
                   (input)="onPollAnswerChange()"
                   [required]="question.isRequired"
                   class="poll-input"
                   [class.ng-invalid]="pollFormSubmitted && question.isRequired && (!pollAnswers[question.id] || pollAnswers[question.id].trim() === '')">
+                }
                 
                 <!-- Textarea -->
+                @if (question.questionType === 'textarea') {
                 <textarea 
-                  *ngIf="question.questionType === 'textarea'"
                   [(ngModel)]="pollAnswers[question.id]"
                   (input)="onPollAnswerChange()"
                   [required]="question.isRequired"
                   rows="3"
                   class="poll-textarea"
                   [class.ng-invalid]="pollFormSubmitted && question.isRequired && (!pollAnswers[question.id] || pollAnswers[question.id].trim() === '')"></textarea>
+                }
                 
                 <!-- Dropdown -->
+                @if (question.questionType === 'dropdown') {
                 <select 
-                  *ngIf="question.questionType === 'dropdown'"
                   [(ngModel)]="pollAnswers[question.id]"
                   (change)="onPollAnswerChange()"
                   [required]="question.isRequired"
                   class="poll-select"
                   [class.ng-invalid]="pollFormSubmitted && question.isRequired && (!pollAnswers[question.id] || pollAnswers[question.id].trim() === '')">
                   <option value="">Select an option</option>
-                  <option *ngFor="let option of question.options?.split(',') || []" [value]="option.trim()">
+                  @for (option of question.options?.split(',') || []; track option) {
+                  <option [value]="option.trim()">
                     {{ option.trim() }}
                   </option>
+                  }
                 </select>
+                }
                 
                 <!-- Radio buttons -->
-                <div *ngIf="question.questionType === 'radio'" class="radio-group">
-                  <label *ngFor="let option of question.options?.split(',') || []; let i = index" 
+                @if (question.questionType === 'radio') {
+                <div class="radio-group">
+                  @for (option of question.options?.split(',') || []; track option; let i = $index) {
+                  <label 
                          class="radio-option"
                          [for]="'question_' + question.id + '_' + i">
                     <input 
@@ -398,11 +459,15 @@
                       [required]="question.isRequired">
                     <span>{{ option.trim() }}</span>
                   </label>
+                  }
                 </div>
+                }
                 
                 <!-- Checkboxes (multiple selection, stored as comma-separated) -->
-                <div *ngIf="question.questionType === 'checkbox'" class="checkbox-group">
-                  <label *ngFor="let option of question.options?.split(',') || []; let i = index" 
+                @if (question.questionType === 'checkbox') {
+                <div class="checkbox-group">
+                  @for (option of question.options?.split(',') || []; track option; let i = $index) {
+                  <label 
                          class="checkbox-option"
                          [for]="'question_' + question.id + '_cb_' + i">
                     <input 
@@ -412,21 +477,27 @@
                       (change)="togglePollCheckbox(question.id, option.trim()); onPollAnswerChange()">
                     <span>{{ option.trim() }}</span>
                   </label>
+                  }
                 </div>
+                }
                 
                 <!-- Single error message per question -->
+                @if (pollFormSubmitted && question.isRequired && (!pollAnswers[question.id] || pollAnswers[question.id].trim() === '')) {
                 <div class="poll-error-message" 
-                     *ngIf="pollFormSubmitted && question.isRequired && (!pollAnswers[question.id] || pollAnswers[question.id].trim() === '')" 
                      [attr.data-question-id]="question.id"
                      [attr.data-question-index]="questionIndex">
                   Please answer the question
                 </div>
+                }
               </div>
+              }
             </div>
           </section>
+          }
 
           <!-- Custom Pricing Section (when service type has custom pricing) -->
-          <section class="booking-section" *ngIf="selectedServiceType && showCustomPricing">
+          @if (selectedServiceType && showCustomPricing) {
+          <section class="booking-section">
             <h2>Custom Service Details</h2>
             <p class="custom-description">
               Please specify your custom cleaning requirements below.
@@ -437,11 +508,17 @@
                 <label>Service Type Name <span class="required">*</span></label>
                 <select [formControl]="customServiceName" id="customServiceName">
                   <option value="" disabled>Select a service type name…</option>
-                  <option *ngFor="let name of customServiceNameOptions" [value]="name">{{ name }}</option>
+                  @for (name of customServiceNameOptions; track name) {
+                  <option [value]="name">{{ name }}</option>
+                  }
                 </select>
-                <div class="error-message" *ngIf="customServiceName.invalid && customServiceName.touched">
-                  <div *ngIf="customServiceName.errors?.['required']">Please choose a service type name</div>
+                @if (customServiceName.invalid && customServiceName.touched) {
+                <div class="error-message">
+                  @if (customServiceName.errors?.['required']) {
+                  <div>Please choose a service type name</div>
+                  }
                 </div>
+                }
               </div>
 
               <div class="form-group">
@@ -459,22 +536,34 @@
                 <p class="custom-amount-hint">
                   Sales tax is included — the subtotal and tax are calculated from this amount.
                 </p>
-                <div class="error-message" *ngIf="customAmount.invalid && customAmount.touched">
-                  <div *ngIf="customAmount.errors?.['required']">Amount is required</div>
-                  <div *ngIf="customAmount.errors?.['min']">Amount must be greater than 0</div>
+                @if (customAmount.invalid && customAmount.touched) {
+                <div class="error-message">
+                  @if (customAmount.errors?.['required']) {
+                  <div>Amount is required</div>
+                  }
+                  @if (customAmount.errors?.['min']) {
+                  <div>Amount must be greater than 0</div>
+                  }
                 </div>
+                }
               </div>
 
               <div class="form-group">
                 <label>Number of Cleaners <span class="required">*</span></label>
                 <select [formControl]="customCleaners" id="customCleaners">
-                  <option *ngFor="let num of [1,2,3,4,5,6,7,8,9,10]" [value]="num">
+                  @for (num of [1,2,3,4,5,6,7,8,9,10]; track num) {
+                  <option [value]="num">
                     {{num}} {{num === 1 ? 'Cleaner' : 'Cleaners'}}
                   </option>
+                  }
                 </select>
-                <div class="error-message" *ngIf="customCleaners.invalid && customCleaners.touched">
-                  <div *ngIf="customCleaners.errors?.['required']">Number of cleaners is required</div>
+                @if (customCleaners.invalid && customCleaners.touched) {
+                <div class="error-message">
+                  @if (customCleaners.errors?.['required']) {
+                  <div>Number of cleaners is required</div>
+                  }
                 </div>
+                }
               </div>
 
               <div class="form-group">
@@ -483,10 +572,16 @@
                   [value]="customDuration.value" 
                   (valueChange)="onDurationChange($event)">
                 </app-duration-selector>
-                <div class="error-message" *ngIf="customDuration.invalid && customDuration.touched">
-                  <div *ngIf="customDuration.errors?.['required']">Duration is required</div>
-                  <div *ngIf="customDuration.errors?.['min']">Duration must be at least 1 hour</div>
+                @if (customDuration.invalid && customDuration.touched) {
+                <div class="error-message">
+                  @if (customDuration.errors?.['required']) {
+                  <div>Duration is required</div>
+                  }
+                  @if (customDuration.errors?.['min']) {
+                  <div>Duration must be at least 1 hour</div>
+                  }
                 </div>
+                }
               </div>
 
               <div class="services custom-pricing-bed-bath-services">
@@ -545,43 +640,57 @@
                     [partiallyBlockedDates]="getPartiallyBlockedDates()"
                     (valueChange)="onDateSelectorChange($event)">
                   </app-date-selector>
-                  <div class="error-message" *ngIf="serviceDate.invalid && serviceDate.touched">
-                    <div *ngIf="serviceDate.errors?.['required']">Service date is required</div>
+                  @if (serviceDate.invalid && serviceDate.touched) {
+                  <div class="error-message">
+                    @if (serviceDate.errors?.['required']) {
+                    <div>Service date is required</div>
+                    }
                   </div>
-                  <div class="blocked-date-warning" *ngIf="isSelectedDateTimeBlocked()">
+                  }
+                  @if (isSelectedDateTimeBlocked()) {
+                  <div class="blocked-date-warning">
                     {{ getBlockedReasonForDate(serviceDate.value) || 'We are too busy on this date/time. Please select a different date or time.' }}
                   </div>
+                  }
                 </div>
               </div>
               <div class="form-group">
                 <label>Service Time <span class="required">*</span></label>
                 <div class="date-time-field date-time-field--time">
-                  <div *ngIf="loading.timeSlots" class="time-shimmer-fields">
+                  @if (loading.timeSlots) {
+                  <div class="time-shimmer-fields">
                     <div class="time-field-shimmer" [shimmer]="true"></div>
                     <div class="time-field-shimmer" [shimmer]="true"></div>
                   </div>
+                  }
+                  @if (!loading.timeSlots) {
                   <app-time-selector
-                    *ngIf="!loading.timeSlots"
                     [value]="serviceTime.value"
                     [availableTimeSlots]="getAvailableTimeSlots()"
                     [blockedHours]="getBlockedHoursForSelectedDate()"
                     (valueChange)="onTimeChange($event)">
                   </app-time-selector>
-                  <div class="error-message" *ngIf="serviceTime.invalid && serviceTime.touched">
-                    <div *ngIf="serviceTime.errors?.['required']">Service time is required</div>
+                  }
+                  @if (serviceTime.invalid && serviceTime.touched) {
+                  <div class="error-message">
+                    @if (serviceTime.errors?.['required']) {
+                    <div>Service time is required</div>
+                    }
                   </div>
+                  }
                 </div>
               </div>
             </div>
           </section>
+          }
 
           <!-- Regular Booking Sections - show during load (shimmer) or when service type selected -->
-          <ng-container *ngIf="loading.serviceTypes || (selectedServiceType && !showPollForm && !showCustomPricing)">
+          @if (loading.serviceTypes || (selectedServiceType && !showPollForm && !showCustomPricing)) {
             <!-- Cleaning Type + what's included: loading shimmer, or Residential with deep-cleaning option -->
-            <ng-container *ngIf="loading.serviceTypes || loading.cleaningTypes || (selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning)">
+            @if (loading.serviceTypes || loading.cleaningTypes || (selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning)) {
+              @if (!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning) {
               <div
                 class="cleaning-type-cta-banner"
-                *ngIf="!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning"
                 role="note">
                 <i [appIcon]="icons.faStar" class="cleaning-type-cta-banner__star" aria-hidden="true"></i>
                 <div class="cleaning-type-cta-banner__body">
@@ -590,12 +699,16 @@
                   </p>
                 </div>
               </div>
+              }
               <label>Cleaning Type <span class="required">*</span></label>
               <div class="cleaning-type-selection">
                 <!-- Shimmer when loading service types or cleaning types (visible on page refresh) -->
-                <div *ngIf="loading.serviceTypes || loading.cleaningTypes" class="cleaning-type-buttons" [shimmer]="true"></div>
+                @if (loading.serviceTypes || loading.cleaningTypes) {
+                <div class="cleaning-type-buttons" [shimmer]="true"></div>
+                }
                 <!-- Real buttons when loaded and this service type has deep cleaning -->
-                <div *ngIf="!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning" class="cleaning-type-buttons">
+                @if (!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning) {
+                <div class="cleaning-type-buttons">
                   <button
                     type="button"
                     class="cleaning-type-btn"
@@ -622,33 +735,45 @@
                     <i [appIcon]="icons.faCircleCheck" class="cleaning-type-btn__check" aria-hidden="true"></i>
                   </button>
                 </div>
-                <div class="error-message" *ngIf="!loading.serviceTypes && !loading.cleaningTypes && cleaningType.invalid && cleaningType.touched">
-                  <div *ngIf="cleaningType.errors?.['required']">Cleaning type is required</div>
+                }
+                @if (!loading.serviceTypes && !loading.cleaningTypes && cleaningType.invalid && cleaningType.touched) {
+                <div class="error-message">
+                  @if (cleaningType.errors?.['required']) {
+                  <div>Cleaning type is required</div>
+                  }
                 </div>
+                }
               </div>
+              @if (!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning) {
               <app-cleaning-type-details-expandable
-                *ngIf="!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning"
                 [cleaningType]="cleaningType.value === 'deep' ? 'deep' : 'normal'">
               </app-cleaning-type-details-expandable>
-            </ng-container>
+              }
+            }
 
-            <app-move-in-out-checklist *ngIf="!loading.serviceTypes && isMoveInOutCleaningServiceType()"></app-move-in-out-checklist>
+            @if (!loading.serviceTypes && isMoveInOutCleaningServiceType()) {
+            <app-move-in-out-checklist></app-move-in-out-checklist>
+            }
 
 
             <!-- Step 4: Services (Bedrooms / Bathrooms / SqFt) -->
             <section class="booking-section">
               <div class="services">
                 <!-- Single full-width shimmer when loading and no services yet -->
-                <div *ngIf="loading.serviceDetails && selectedServices.length === 0" class="services-shimmer-single" [shimmer]="true"></div>
+                @if (loading.serviceDetails && selectedServices.length === 0) {
+                <div class="services-shimmer-single" [shimmer]="true"></div>
+                }
                 <!-- Levels is excluded here even though it is an ordinary service: it has its own
                      gated block above, and rendering it twice would let a customer set a level
                      count without ever answering the property-type question. -->
-                <ng-container *ngFor="let selected of selectedServices">
-                <div class="service-item" *ngIf="!isLevelsService(selected.service)">
+                @for (selected of selectedServices; track selected) {
+                @if (!isLevelsService(selected.service)) {
+                <div class="service-item">
                   <label>{{ selected.service.name }}</label>
                   
                   <!-- Quantity Control Input -->
-                  <div class="service-input" *ngIf="selected.service.inputType === 'dropdown'" [shimmer]="loading.serviceDetails">
+                  @if (selected.service.inputType === 'dropdown') {
+                  <div class="service-input" [shimmer]="loading.serviceDetails">
                     <app-quantity-control class="quantity-control" [label]="selected.service.name"
                       [value]="selected.service.serviceKey === 'bedrooms' && selected.quantity === 0 ? 'Studio' : selected.quantity"
                       [decrementDisabled]="selected.quantity <= getServiceMinValue(selected.service)"
@@ -657,9 +782,11 @@
                       (increment)="incrementServiceQuantity(selected.service)">
                     </app-quantity-control>
                   </div>
+                  }
 
                   <!-- Slider Input for Square Feet -->
-                  <div class="service-input slider-input" *ngIf="selected.service.isRangeInput" [shimmer]="loading.serviceDetails">
+                  @if (selected.service.isRangeInput) {
+                  <div class="service-input slider-input" [shimmer]="loading.serviceDetails">
                     <div class="slider-container">
                       <span class="slider-quantity">{{ selected.quantity }}</span>
                       <!-- Index-based: the allowed Sq.ft values are a list, not a fixed step
@@ -675,10 +802,13 @@
                         <!-- Removed cost display -->
                     </div>                  
                   </div>
+                  }
                 </div>
-                </ng-container>
+                }
+                }
 
-                <div class="service-item" *ngIf="shouldShowStandaloneBedroomBathroom()">
+                @if (shouldShowStandaloneBedroomBathroom()) {
+                <div class="service-item">
                   <label>Bedrooms</label>
                   <div class="service-input">
                     <app-quantity-control class="quantity-control" label="bedrooms"
@@ -688,8 +818,10 @@
                     </app-quantity-control>
                   </div>
                 </div>
+                }
 
-                <div class="service-item" *ngIf="shouldShowStandaloneBedroomBathroom()">
+                @if (shouldShowStandaloneBedroomBathroom()) {
+                <div class="service-item">
                   <label>Bathrooms</label>
                   <div class="service-input">
                     <app-quantity-control class="quantity-control" label="bathrooms"
@@ -699,10 +831,11 @@
                     </app-quantity-control>
                   </div>
                 </div>
+                }
               </div>
             </section>
 
-          </ng-container>
+          }
 
             <!-- Property type. Deliberately OUTSIDE the regular-booking container, like the
                  extras grid below: it is asked on EVERY service type including Custom Pricing
@@ -711,7 +844,8 @@
 
                  The LEVELS chips inside are gated separately, on whether the type prices rooms,
                  because stair time on an hourly type is already inside the hours being bought. -->
-            <section class="booking-section property-type-section" *ngIf="showPropertyTypeSelector()">
+            @if (showPropertyTypeSelector()) {
+            <section class="booking-section property-type-section">
               <h3 class="property-type-heading">What kind of place is it? <span class="required">*</span></h3>
               <div class="property-type-options">
                 <button
@@ -749,33 +883,41 @@
               <!-- A greyed-out Continue with no explanation is not acceptable: the customer has
                    to be told which choice is missing. Shown once they have tried to move on,
                    matching how every other required step-1 field surfaces its error. -->
+              @if (isPropertyTypeMissing() && (formSubmitted || propertyTypeTouched)) {
               <div class="error-message property-type-error"
-                   *ngIf="isPropertyTypeMissing() && (formSubmitted || propertyTypeTouched)">
+                  >
                 Please tell us whether this is an apartment or a house.
               </div>
+              }
 
               <!-- Levels. Chips rather than a stepper on purpose: a stepper always displays a
                    number, so "nothing chosen yet" would be impossible to show. -->
-              <div class="levels-block" *ngIf="showLevelsSelector()">
+              @if (showLevelsSelector()) {
+              <div class="levels-block">
                 <h4 class="levels-heading">How many levels need cleaning?</h4>
                 <div class="levels-options" role="group" aria-label="Number of levels">
+                  @for (level of levelOptions; track level) {
                   <button
                     type="button"
                     class="level-chip"
-                    *ngFor="let level of levelOptions"
                     [class.selected]="isLevelsSelected(level)"
                     [attr.aria-pressed]="isLevelsSelected(level)"
                     (click)="selectLevels(level)">
                     {{ level }}
                   </button>
+                  }
                 </div>
                 <p class="levels-hint">Count the basement if it needs cleaning.</p>
+                @if (isLevelsMissing() && (formSubmitted || propertyTypeTouched)) {
                 <div class="error-message levels-error"
-                     *ngIf="isLevelsMissing() && (formSubmitted || propertyTypeTouched)">
+                    >
                   Please choose how many levels need cleaning.
                 </div>
+                }
               </div>
+              }
             </section>
+            }
 
           <!-- Step 5: Extra Services.
                Deliberately OUTSIDE the regular-booking container: Custom Pricing
@@ -783,19 +925,23 @@
                informational only — they cost $0 and add 0 minutes, and exist so the admin panel
                and the cleaner's job email know what work was agreed. The floor-type picker stays
                regular-booking-only, so this section renders identically to before on that path. -->
-          <section class="booking-section" *ngIf="loading.serviceTypes || (selectedServiceType && !showPollForm)">
+          @if (loading.serviceTypes || (selectedServiceType && !showPollForm)) {
+          <section class="booking-section">
             <!-- Floor Type (Optional) — moved from step 2, sits right above Extra Services -->
+            @if (!showCustomPricing) {
             <app-floor-type-selector
-              *ngIf="!showCustomPricing"
               [selectedTypes]="floorTypes"
               [otherText]="floorTypeOther"
               (selectionChange)="onFloorTypeSelectionChange($event)">
             </app-floor-type-selector>
+            }
 
-            <p class="custom-extras-note" *ngIf="showCustomPricing">
+            @if (showCustomPricing) {
+            <p class="custom-extras-note">
               Selected extras are recorded for the admin panel and the cleaners' job details.
               They do not change the total amount or the duration set above.
             </p>
+            }
 
             <app-extra-services-grid
               [extras]="getExtraServicesToDisplay()"
@@ -811,11 +957,14 @@
               (hoursChange)="updateExtraServiceHours($event.extra, $event.hours)">
             </app-extra-services-grid>
           </section>
+          }
 
           <!-- Same-day fully booked warning -->
-          <div class="blocked-date-warning" *ngIf="isSameDaySelected && isSameDayFullyBooked()">
+          @if (isSameDaySelected && isSameDayFullyBooked()) {
+          <div class="blocked-date-warning">
             We are fully booked for today. Please uncheck Same Day Service and select a different date.
           </div>
+          }
 
         </div>
 
@@ -827,15 +976,19 @@
               <span class="chevron-left">‹</span>
             </button>
 
+            @if (!showPollForm) {
             <div class="booking-progress-stepper booking-progress-stepper--compact booking-progress-stepper--inline"
-                 *ngIf="!showPollForm"
                  [attr.data-current-step]="currentStep">
               <div class="booking-progress-stepper__step"
                   [class.is-active]="currentStep === 1"
                   [class.is-complete]="currentStep > 1">
                 <div class="booking-progress-stepper__bubble" aria-hidden="true">
-                  <i *ngIf="currentStep > 1" [appIcon]="icons.faCheck"></i>
-                  <span *ngIf="currentStep <= 1">1</span>
+                  @if (currentStep > 1) {
+                  <i [appIcon]="icons.faCheck"></i>
+                  }
+                  @if (currentStep <= 1) {
+                  <span>1</span>
+                  }
                 </div>
                 <span class="booking-progress-stepper__label">Configure</span>
               </div>
@@ -844,8 +997,12 @@
                   [class.is-active]="currentStep === 2"
                   [class.is-complete]="currentStep > 2">
                 <div class="booking-progress-stepper__bubble" aria-hidden="true">
-                  <i *ngIf="currentStep > 2" [appIcon]="icons.faCheck"></i>
-                  <span *ngIf="currentStep <= 2">2</span>
+                  @if (currentStep > 2) {
+                  <i [appIcon]="icons.faCheck"></i>
+                  }
+                  @if (currentStep <= 2) {
+                  <span>2</span>
+                  }
                 </div>
                 <span class="booking-progress-stepper__label">Schedule</span>
               </div>
@@ -857,14 +1014,16 @@
                 <span class="booking-progress-stepper__label">Confirm</span>
               </div>
             </div>
+            }
           </div>
           
           <!-- Common sections for both regular and custom pricing (hidden only for poll) -->
-          <ng-container *ngIf="selectedServiceType && !showPollForm">
+          @if (selectedServiceType && !showPollForm) {
             <!-- Date & Time (moved to top of step 2 — was previously in step 1).
                  Hidden for custom pricing because that flow asks for date/time
                  inline in step 1 already, on the same FormControls. -->
-            <section class="booking-section" *ngIf="!showCustomPricing">
+            @if (!showCustomPricing) {
+            <section class="booking-section">
               <h2>When would you like us to come?</h2>
               <div class="date-time-selection">
                 <div class="form-group">
@@ -878,35 +1037,49 @@
                       [partiallyBlockedDates]="getPartiallyBlockedDates()"
                       (valueChange)="onDateSelectorChange($event)">
                     </app-date-selector>
-                    <div class="error-message" *ngIf="serviceDate.invalid && serviceDate.touched">
-                      <div *ngIf="serviceDate.errors?.['required']">Service date is required</div>
+                    @if (serviceDate.invalid && serviceDate.touched) {
+                    <div class="error-message">
+                      @if (serviceDate.errors?.['required']) {
+                      <div>Service date is required</div>
+                      }
                     </div>
-                    <div class="blocked-date-warning" *ngIf="isSelectedDateTimeBlocked()">
+                    }
+                    @if (isSelectedDateTimeBlocked()) {
+                    <div class="blocked-date-warning">
                       {{ getBlockedReasonForDate(serviceDate.value) || 'We are too busy on this date/time. Please select a different date or time.' }}
                     </div>
+                    }
                   </div>
                 </div>
                 <div class="form-group">
                   <label>Service Time <span class="required">*</span></label>
                   <div class="date-time-field date-time-field--time">
-                    <div *ngIf="loading.timeSlots" class="time-shimmer-fields">
+                    @if (loading.timeSlots) {
+                    <div class="time-shimmer-fields">
                       <div class="time-field-shimmer" [shimmer]="true"></div>
                       <div class="time-field-shimmer" [shimmer]="true"></div>
                     </div>
+                    }
+                    @if (!loading.timeSlots) {
                     <app-time-selector
-                      *ngIf="!loading.timeSlots"
                       [value]="serviceTime.value"
                       [availableTimeSlots]="getAvailableTimeSlots()"
                       [blockedHours]="getBlockedHoursForSelectedDate()"
                       (valueChange)="onTimeChange($event)">
                     </app-time-selector>
-                    <div class="error-message" *ngIf="serviceTime.invalid && serviceTime.touched">
-                      <div *ngIf="serviceTime.errors?.['required']">Service time is required</div>
+                    }
+                    @if (serviceTime.invalid && serviceTime.touched) {
+                    <div class="error-message">
+                      @if (serviceTime.errors?.['required']) {
+                      <div>Service time is required</div>
+                      }
                     </div>
+                    }
                   </div>
                 </div>
               </div>
             </section>
+            }
 
             <!-- Step 6: Subscription -->
             <section class="booking-section">
@@ -915,26 +1088,33 @@
                 <i [appIcon]="icons.faCircleCheck"></i>
                 No extra fee - a plan just lowers your price. Cancel anytime.
               </p>
-              <div class="active-subscription-notice" *ngIf="hasActiveSubscription && userSubscription">
+              @if (hasActiveSubscription && userSubscription) {
+              <div class="active-subscription-notice">
                 <i [appIcon]="icons.faCircleInfo"></i>
                 <span>Your current plan: {{ userSubscription?.subscriptionName }} 
                       ({{ userSubscription?.discountPercentage }}% discount)</span>
               </div>
+              }
               <div class="subscription-options" [shimmer]="loading.serviceTypes">
+                @for (subscription of subscriptions; track subscription) {
                 <div class="subscription-card"
-                     *ngFor="let subscription of subscriptions"
                      [class.selected]="selectedSubscription?.id === subscription.id"
                      [class.user-subscription]="hasActiveSubscription && userSubscription?.subscriptionId === subscription.id"
                      [class.mobile-tooltip-visible]="isMobileTooltipVisible(subscription.id)"
                      [class.subscription-card--popular]="subscription.isMostPopular"
                      (click)="selectSubscription(subscription)"
                      [attr.data-tooltip]="getSubscriptionTooltip(subscription)">
-                  <span class="subscription-card__badge" *ngIf="subscription.isMostPopular">Most popular</span>
+                  @if (subscription.isMostPopular) {
+                  <span class="subscription-card__badge">Most popular</span>
+                  }
                   <h3>{{ subscription.name }}</h3>
-                  <div class="discount" *ngIf="subscription.discountPercentage > 0">
+                  @if (subscription.discountPercentage > 0) {
+                  <div class="discount">
                     Save {{ subscription.discountPercentage }}%
                   </div>
+                  }
                 </div>
+                }
               </div>
 
             </section>
@@ -954,20 +1134,27 @@
                     <span>{{ entryMethod.value || 'Select entry method' }}</span>
                     <i [appIcon]="icons.faChevronDown"></i>
                   </button>
-                  <div class="dropdown-menu" *ngIf="entryMethodDropdownOpen">
+                  @if (entryMethodDropdownOpen) {
+                  <div class="dropdown-menu">
+                    @for (method of entryMethods; track method) {
                     <button 
-                      *ngFor="let method of entryMethods" 
                       type="button"
                       class="dropdown-item"
                       (click)="selectEntryMethod(method)">
                       {{ method }}
                     </button>
+                    }
                   </div>
+                  }
                 </div>
-                <div class="error-message" *ngIf="entryMethod.invalid && entryMethod.touched">
-                  <div *ngIf="entryMethod.errors?.['required']">Entry method is required</div>
+                @if (entryMethod.invalid && entryMethod.touched) {
+                <div class="error-message">
+                  @if (entryMethod.errors?.['required']) {
+                  <div>Entry method is required</div>
+                  }
                 </div>
-                <ng-container *ngIf="entryMethod.value === 'Other'">
+                }
+                @if (entryMethod.value === 'Other') {
                   <input type="text"
                           [formControl]="customEntryMethod"
                           placeholder="Please specify"
@@ -977,7 +1164,7 @@
                          [class.char-counter--limit]="(customEntryMethod.value?.length || 0) >= entryMethodMaxLength">
                     {{ customEntryMethod.value?.length || 0 }} / {{ entryMethodMaxLength }} characters
                   </small>
-                </ng-container>
+                }
               </div>
             </section>
 
@@ -985,26 +1172,32 @@
             <section class="booking-section">
               
               <!-- Show error message if there is one -->
-              <div class="discount-error" *ngIf="errorMessage">
+              @if (errorMessage) {
+              <div class="discount-error">
                 <p class="error-message">{{ errorMessage }}</p>
               </div>
+              }
               
               <div class="discounts">
                 <!-- Gift Card Applied Message -->
-                <div class="gift-card-applied" *ngIf="giftCardApplied && isGiftCard">
+                @if (giftCardApplied && isGiftCard) {
+                <div class="gift-card-applied">
                   <div class="gift-card-info">
                     <div class="gift-card-icon">🎁</div>
                     <div class="gift-card-details">
                       <div class="gift-card-title">Gift Card Applied</div>
                       <div class="gift-card-amounts">
                         <span class="amount-using">${{ getGiftCardDisplayInfo().amountToUse.toFixed(2) }} will be used</span>
-                        <span class="remaining-balance" *ngIf="getGiftCardDisplayInfo().remainingBalance > 0">
+                        @if (getGiftCardDisplayInfo().remainingBalance > 0) {
+                        <span class="remaining-balance">
                           ${{ getGiftCardDisplayInfo().remainingBalance.toFixed(2) }} remaining
                         </span>
+                        }
                       </div>
                     </div>
                   </div>
                 </div>
+                }
               </div>
             </section>
 
@@ -1017,7 +1210,8 @@
                  a hidden-but-validated control. -->
 
             <!-- Step 11: Special Instructions (hidden when custom pricing uses the same field earlier) -->
-            <section class="booking-section" *ngIf="!showCustomPricing">
+            @if (!showCustomPricing) {
+            <section class="booking-section">
               <h2>Special Instructions (Optional)</h2>
               <div class="form-group">
                 <textarea [formControl]="specialInstructions"
@@ -1031,10 +1225,12 @@
                 </small>
               </div>
             </section>
-          </ng-container>
+            }
+          }
 
           <!-- Photo Upload Section -->
-          <section class="booking-section" *ngIf="selectedServiceType">
+          @if (selectedServiceType) {
+          <section class="booking-section">
             <h2>Upload Photos (Optional)</h2>
             <p class="upload-description">
               You can upload up to {{ maxPhotos }} photos to help us better understand your cleaning needs.
@@ -1043,9 +1239,11 @@
             <div class="photo-upload-section">
               <div class="upload-container">
                 <!-- Mobile-friendly upload options -->
-                <div class="upload-options" *ngIf="uploadedPhotos.length < maxPhotos">
+                @if (uploadedPhotos.length < maxPhotos) {
+                <div class="upload-options">
                   <!-- Take Photo Button (Mobile Only) -->
-                  <div class="upload-button" *ngIf="isMobileDevice">
+                  @if (isMobileDevice) {
+                  <div class="upload-button">
                     <input 
                       type="file" 
                       id="camera-capture" 
@@ -1065,6 +1263,7 @@
                       <span>Take Photo</span>
                     </label>
                   </div>
+                  }
                   
                   <!-- Upload from Gallery Button -->
                   <div class="upload-button">
@@ -1089,10 +1288,13 @@
                     </label>
                   </div>
                 </div>
+                }
                 
                 <!-- Photo previews -->
-                <div class="photo-previews" *ngIf="uploadedPhotos.length > 0">
-                  <div class="photo-preview" *ngFor="let photo of uploadedPhotos; let i = index">
+                @if (uploadedPhotos.length > 0) {
+                <div class="photo-previews">
+                  @for (photo of uploadedPhotos; track photo; let i = $index) {
+                  <div class="photo-preview">
                     <img [src]="photo.preview" [alt]="photo.file.name">
                             <button 
                     type="button" 
@@ -1106,10 +1308,13 @@
                   </button>
                     <span class="photo-name">{{ photo.file.name }}</span>
                   </div>
+                  }
                 </div>
+                }
                 
                 <!-- Loading indicator -->
-                <div class="upload-loading" *ngIf="isUploadingPhoto">
+                @if (isUploadingPhoto) {
+                <div class="upload-loading">
                   <svg class="loading-icon" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12,4V2A10,10 0 0,0 2,12H4A8,8 0 0,1 12,4Z">
                       <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/>
@@ -1117,21 +1322,26 @@
                   </svg>
                   <span>Processing photo...</span>
                 </div>
+                }
                 
                 <!-- Error message -->
-                <div class="upload-error" *ngIf="photoUploadError">
+                @if (photoUploadError) {
+                <div class="upload-error">
                   <svg class="error-icon" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12,2L13.09,8.26L22,9L13.09,9.74L12,16L10.91,9.74L2,9L10.91,8.26L12,2Z"/>
                   </svg>
                   {{ photoUploadError }}
                 </div>
+                }
               </div>
             </div>
 
           </section>
+          }
 
           <!-- Poll Form Contact Information - On Step 2 -->
-          <section class="booking-section" *ngIf="selectedServiceType && showPollForm">
+          @if (selectedServiceType && showPollForm) {
+          <section class="booking-section">
             <h2>Contact Information</h2>
             <div class="contact-privacy-note">
               <p>We will use this information to stay in touch with you. We don't share your personal information with anyone.</p>
@@ -1141,32 +1351,53 @@
             <div class="form-grid">
               <div class="form-group">
                 <input type="text" [formControl]="contactFirstName" placeholder="Name *" id="contactFirstNamePollStep2">
-                <div class="error-message" *ngIf="contactFirstName.invalid && contactFirstName.touched">
-                  <div *ngIf="contactFirstName.errors?.['required']">Name is required</div>
+                @if (contactFirstName.invalid && contactFirstName.touched) {
+                <div class="error-message">
+                  @if (contactFirstName.errors?.['required']) {
+                  <div>Name is required</div>
+                  }
                 </div>
+                }
               </div>
               <div class="form-group">
                 <input type="tel" inputmode="numeric" [formControl]="contactPhone" (input)="onContactPhoneInput($event)" placeholder="Phone *" id="contactPhonePollStep2">
-                <div class="error-message" *ngIf="contactPhone.invalid && contactPhone.touched">
-                  <div *ngIf="contactPhone.errors?.['required']">Phone number is required</div>
-                  <div *ngIf="contactPhone.errors?.['pattern']">Please enter a valid 10-digit phone number</div>
+                @if (contactPhone.invalid && contactPhone.touched) {
+                <div class="error-message">
+                  @if (contactPhone.errors?.['required']) {
+                  <div>Phone number is required</div>
+                  }
+                  @if (contactPhone.errors?.['pattern']) {
+                  <div>Please enter a valid 10-digit phone number</div>
+                  }
                 </div>
+                }
               </div>
               <div class="form-group">
                 <input type="email" [formControl]="contactEmail" placeholder="Email *" id="contactEmailPollStep2" autocomplete="email">
-                <div class="error-message" *ngIf="contactEmail.invalid && contactEmail.touched">
-                  <div *ngIf="contactEmail.errors?.['required']">Email is required</div>
-                  <div *ngIf="contactEmail.errors?.['email']">Please enter a valid email address</div>
+                @if (contactEmail.invalid && contactEmail.touched) {
+                <div class="error-message">
+                  @if (contactEmail.errors?.['required']) {
+                  <div>Email is required</div>
+                  }
+                  @if (contactEmail.errors?.['email']) {
+                  <div>Please enter a valid email address</div>
+                  }
                 </div>
+                }
               </div>
               <div class="form-group">
                 <input type="text" [formControl]="serviceAddress" placeholder="Service Address *" id="serviceAddressPollStep2" autocomplete="street-address">
-                <div class="error-message" *ngIf="serviceAddress.invalid && serviceAddress.touched">
-                  <div *ngIf="serviceAddress.errors?.['required']">Service address is required</div>
+                @if (serviceAddress.invalid && serviceAddress.touched) {
+                <div class="error-message">
+                  @if (serviceAddress.errors?.['required']) {
+                  <div>Service address is required</div>
+                  }
                 </div>
+                }
               </div>
             </div>
           </section>
+          }
 
         </div>
 
@@ -1174,22 +1405,27 @@
 
 
         <!-- PART 3: Contact Information and Final Details -->
-        <div class="form-step step-3" *ngIf="!showPollForm" [class.active]="currentStep === 3" [class.hidden]="currentStep !== 3">
+        @if (!showPollForm) {
+        <div class="form-step step-3" [class.active]="currentStep === 3" [class.hidden]="currentStep !== 3">
           <div class="step-top-nav">
             <!-- Top-left chevron for Part 3 -->
             <button type="button" class="top-left-chevron" (click)="previousStep()" aria-label="Go back to previous step">
               <span class="chevron-left">‹</span>
             </button>
 
+            @if (!showPollForm) {
             <div class="booking-progress-stepper booking-progress-stepper--compact booking-progress-stepper--inline"
-                 *ngIf="!showPollForm"
                  [attr.data-current-step]="currentStep">
               <div class="booking-progress-stepper__step"
                   [class.is-active]="currentStep === 1"
                   [class.is-complete]="currentStep > 1">
                 <div class="booking-progress-stepper__bubble" aria-hidden="true">
-                  <i *ngIf="currentStep > 1" [appIcon]="icons.faCheck"></i>
-                  <span *ngIf="currentStep <= 1">1</span>
+                  @if (currentStep > 1) {
+                  <i [appIcon]="icons.faCheck"></i>
+                  }
+                  @if (currentStep <= 1) {
+                  <span>1</span>
+                  }
                 </div>
                 <span class="booking-progress-stepper__label">Configure</span>
               </div>
@@ -1198,8 +1434,12 @@
                   [class.is-active]="currentStep === 2"
                   [class.is-complete]="currentStep > 2">
                 <div class="booking-progress-stepper__bubble" aria-hidden="true">
-                  <i *ngIf="currentStep > 2" [appIcon]="icons.faCheck"></i>
-                  <span *ngIf="currentStep <= 2">2</span>
+                  @if (currentStep > 2) {
+                  <i [appIcon]="icons.faCheck"></i>
+                  }
+                  @if (currentStep <= 2) {
+                  <span>2</span>
+                  }
                 </div>
                 <span class="booking-progress-stepper__label">Schedule</span>
               </div>
@@ -1211,50 +1451,77 @@
                 <span class="booking-progress-stepper__label">Confirm</span>
               </div>
             </div>
+            }
           </div>
 
           <!-- Contact Information - Moved to bottom -->
-          <section class="booking-section" *ngIf="selectedServiceType">
+          @if (selectedServiceType) {
+          <section class="booking-section">
             <h2>Contact Information</h2>
             <div class="contact-privacy-note">
               <p>We will use this information to stay in touch with you. We don't share your personal information with anyone.</p>
             </div>
-            <div class="form-grid" *ngIf="!showPollForm">
+            @if (!showPollForm) {
+            <div class="form-grid">
               <!-- Full contact form for regular bookings -->
               <div class="form-group">
                 <input type="text" [formControl]="contactFirstName" placeholder="First Name *" id="contactFirstName" autocomplete="given-name">
-                <div class="error-message" *ngIf="contactFirstName.invalid && contactFirstName.touched">
-                  <div *ngIf="contactFirstName.errors?.['required']">First name is required</div>
+                @if (contactFirstName.invalid && contactFirstName.touched) {
+                <div class="error-message">
+                  @if (contactFirstName.errors?.['required']) {
+                  <div>First name is required</div>
+                  }
                 </div>
+                }
               </div>
               <div class="form-group">
                 <input type="text" [formControl]="contactLastName" placeholder="Last Name *" id="contactLastName" autocomplete="family-name">
-                <div class="error-message" *ngIf="contactLastName.invalid && contactLastName.touched">
-                  <div *ngIf="contactLastName.errors?.['required']">Last name is required</div>
+                @if (contactLastName.invalid && contactLastName.touched) {
+                <div class="error-message">
+                  @if (contactLastName.errors?.['required']) {
+                  <div>Last name is required</div>
+                  }
                 </div>
+                }
               </div>
               <div class="form-group">
                 <input type="email" [formControl]="contactEmail" [placeholder]="isNoEmailTargetUser ? 'Email (optional)' : 'Email *'" id="contactEmail" autocomplete="email">
-                <div class="error-message" *ngIf="contactEmail.invalid && contactEmail.touched">
-                  <div *ngIf="contactEmail.errors?.['required']">Email is required</div>
-                  <div *ngIf="contactEmail.errors?.['email']">Please enter a valid email address</div>
+                @if (contactEmail.invalid && contactEmail.touched) {
+                <div class="error-message">
+                  @if (contactEmail.errors?.['required']) {
+                  <div>Email is required</div>
+                  }
+                  @if (contactEmail.errors?.['email']) {
+                  <div>Please enter a valid email address</div>
+                  }
                 </div>
+                }
               </div>
               <div class="form-group">
                 <input type="tel" inputmode="numeric" [formControl]="contactPhone" (input)="onContactPhoneInput($event)" placeholder="Phone *" id="contactPhone" autocomplete="tel-national">
-                <div class="error-message" *ngIf="contactPhone.invalid && contactPhone.touched">
-                  <div *ngIf="contactPhone.errors?.['required']">Phone number is required</div>
-                  <div *ngIf="contactPhone.errors?.['pattern']">Please enter a valid 10-digit phone number</div>
+                @if (contactPhone.invalid && contactPhone.touched) {
+                <div class="error-message">
+                  @if (contactPhone.errors?.['required']) {
+                  <div>Phone number is required</div>
+                  }
+                  @if (contactPhone.errors?.['pattern']) {
+                  <div>Please enter a valid 10-digit phone number</div>
+                  }
                 </div>
+                }
               </div>
             </div>
+            }
           </section>
+          }
 
           <!-- Service Address - Moved to bottom -->
-          <section class="booking-section" *ngIf="selectedServiceType && !showPollForm">
+          @if (selectedServiceType && !showPollForm) {
+          <section class="booking-section">
             
             <!-- Saved Address Dropdown - Always visible if user has apartments -->
-            <div class="address-options" *ngIf="userApartments.length > 0">
+            @if (userApartments.length > 0) {
+            <div class="address-options">
               <div class="saved-address-container">
                 <div class="dropdown-with-clear">
                   <div class="service-type-dropdown compact-dropdown saved-address-dropdown">
@@ -1265,37 +1532,45 @@
                       <span [class.is-placeholder]="!selectedApartmentId.value">{{ savedAddressLabel }}</span>
                       <i [appIcon]="icons.faChevronDown"></i>
                     </button>
-                    <div class="dropdown-menu" *ngIf="savedAddressDropdownOpen">
+                    @if (savedAddressDropdownOpen) {
+                    <div class="dropdown-menu">
                       <button type="button"
                               class="dropdown-item"
                               [class.is-active]="!selectedApartmentId.value"
                               (click)="selectSavedAddress('')">Enter new address</button>
-                      <button *ngFor="let apt of userApartments"
+                      @for (apt of userApartments; track apt) {
+                      <button
                               type="button"
                               class="dropdown-item"
                               [class.is-active]="selectedApartmentId.value == apt.id"
                               (click)="selectSavedAddress(apt.id)">
                         {{ getSavedAddressLabel(apt) }}
                       </button>
+                      }
                     </div>
+                    }
                   </div>
+                  @if (selectedApartmentId.value) {
                   <button type="button"
                           class="clear-btn"
-                          *ngIf="selectedApartmentId.value"
                           (click)="clearApartmentSelection()">
                     Clear
                   </button>
+                  }
                 </div>
               </div>
             </div>
+            }
             
             <div class="form-grid">
               <div class="address-apt-row">
                 <div class="form-group address-field">
                   <!-- Saved apartment: show address input -->
-                  <input *ngIf="selectedApartmentId.value" type="text" [formControl]="serviceAddress" placeholder="Address *" id="serviceAddress" autocomplete="address-line1">
+                  @if (selectedApartmentId.value) {
+                  <input type="text" [formControl]="serviceAddress" placeholder="Address *" id="serviceAddress" autocomplete="address-line1">
+                  }
                   <!-- New address: Google Places Autocomplete or fallback -->
-                  <ng-container *ngIf="!selectedApartmentId.value">
+                  @if (!selectedApartmentId.value) {
                     <!-- [hidden], not *ngIf: the widget is injected into this element via
                          @ViewChild, so it must stay in the DOM. Left visible while the
                          fallback input shows, its empty 3rem box stacked above that input
@@ -1304,16 +1579,22 @@
                          #addressAutocompleteContainer
                          [hidden]="autocompleteError || showAddressFallbackAfterDelay">
                     </div>
-                    <input *ngIf="autocompleteError || showAddressFallbackAfterDelay"
+                    @if (autocompleteError || showAddressFallbackAfterDelay) {
+                    <input
                            [formControl]="serviceAddress"
                            placeholder="Address *"
                            class="form-control"
                            id="serviceAddressFallback"
                            autocomplete="address-line1">
-                  </ng-container>
-                  <div class="error-message" *ngIf="serviceAddress.invalid && serviceAddress.touched">
-                    <div *ngIf="serviceAddress.errors?.['required']">Service address is required</div>
+                    }
+                  }
+                  @if (serviceAddress.invalid && serviceAddress.touched) {
+                  <div class="error-message">
+                    @if (serviceAddress.errors?.['required']) {
+                    <div>Service address is required</div>
+                    }
                   </div>
+                  }
                 </div>
                 <div class="form-group apt-field">
                   <input type="text" [formControl]="aptSuite" placeholder="Apt/Suite (optional)" id="aptSuite" autocomplete="address-line2">
@@ -1332,20 +1613,30 @@
                     <span [class.is-placeholder]="!city.value">{{ city.value || 'City *' }}</span>
                     <i [appIcon]="icons.faChevronDown"></i>
                   </button>
-                  <div class="dropdown-menu" *ngIf="cityDropdownOpen">
-                    <button *ngFor="let cityOption of cities"
+                  @if (cityDropdownOpen) {
+                  <div class="dropdown-menu">
+                    @for (cityOption of cities; track cityOption) {
+                    <button
                             type="button"
                             class="dropdown-item"
                             [class.is-active]="city.value === cityOption"
                             (click)="selectCity(cityOption)">{{ cityOption }}</button>
-                    <div class="dropdown-empty" *ngIf="cities.length === 0">
+                    }
+                    @if (cities.length === 0) {
+                    <div class="dropdown-empty">
                       {{ state.value ? 'We do not serve this state yet' : 'Choose a state first' }}
                     </div>
+                    }
                   </div>
+                  }
                 </div>
-                <div class="error-message" *ngIf="city.invalid && city.touched">
-                  <div *ngIf="city.errors?.['required']">City is required</div>
+                @if (city.invalid && city.touched) {
+                <div class="error-message">
+                  @if (city.errors?.['required']) {
+                  <div>City is required</div>
+                  }
                 </div>
+                }
               </div>
               <div class="form-group">
                 <div class="service-type-dropdown compact-dropdown state-dropdown">
@@ -1358,24 +1649,38 @@
                     <span [class.is-placeholder]="!state.value">{{ state.value || 'State *' }}</span>
                     <i [appIcon]="icons.faChevronDown"></i>
                   </button>
-                  <div class="dropdown-menu" *ngIf="stateDropdownOpen">
-                    <button *ngFor="let stateOption of states"
+                  @if (stateDropdownOpen) {
+                  <div class="dropdown-menu">
+                    @for (stateOption of states; track stateOption) {
+                    <button
                             type="button"
                             class="dropdown-item"
                             [class.is-active]="state.value === stateOption"
                             (click)="selectState(stateOption)">{{ stateOption }}</button>
+                    }
                   </div>
+                  }
                 </div>
-                <div class="error-message" *ngIf="state.invalid && state.touched">
-                  <div *ngIf="state.errors?.['required']">State is required</div>
+                @if (state.invalid && state.touched) {
+                <div class="error-message">
+                  @if (state.errors?.['required']) {
+                  <div>State is required</div>
+                  }
                 </div>
+                }
               </div>
               <div class="form-group">
                 <input type="text" [formControl]="zipCode" placeholder="Zip Code *" id="zipCode" autocomplete="postal-code">
-                <div class="error-message" *ngIf="zipCode.invalid && zipCode.touched">
-                  <div *ngIf="zipCode.errors?.['required']">Zip code is required</div>
-                  <div *ngIf="zipCode.errors?.['pattern']">Please enter a valid 5-digit zip code</div>
+                @if (zipCode.invalid && zipCode.touched) {
+                <div class="error-message">
+                  @if (zipCode.errors?.['required']) {
+                  <div>Zip code is required</div>
+                  }
+                  @if (zipCode.errors?.['pattern']) {
+                  <div>Please enter a valid 5-digit zip code</div>
+                  }
                 </div>
+                }
               </div>
               <!-- Address name: Home (default) / Office / Other. Picking "Other" closes the
                    menu and puts a free-text field right next to the dropdown. -->
@@ -1390,7 +1695,8 @@
                       <span>{{ addressNameType }}</span>
                       <i [appIcon]="icons.faChevronDown"></i>
                     </button>
-                    <div class="dropdown-menu" *ngIf="addressNameDropdownOpen">
+                    @if (addressNameDropdownOpen) {
+                    <div class="dropdown-menu">
                       <button type="button"
                               class="dropdown-item"
                               [class.is-active]="addressNameType === 'Home'"
@@ -1404,8 +1710,10 @@
                               [class.is-active]="addressNameType === 'Other'"
                               (click)="selectAddressNameType('Other')">Other</button>
                     </div>
+                    }
                   </div>
-                  <input *ngIf="addressNameType === 'Other'"
+                  @if (addressNameType === 'Other') {
+                  <input
                          type="text"
                          class="address-name-custom-input"
                          [formControl]="apartmentName"
@@ -1414,20 +1722,24 @@
                          id="apartmentName"
                          #addressNameOtherInput
                          (blur)="onAddressNameBlur()">
+                  }
                 </div>
               </div>
             </div>
           </section>
+          }
 
           <!-- Combined Rewards (Reward balance + Bubble points) — compact two-row panel.
                Replaces the two previous standalone panels so the rewards block
                doesn't dominate vertical space when both are present. -->
+          @if (currentUser && (userBubbleCredits > 0 || bubblePointsOptions.length > 0) && !showPollForm) {
           <section class="booking-section bubble-points-form-section bubble-rewards-combined"
-                   *ngIf="currentUser && (userBubbleCredits > 0 || bubblePointsOptions.length > 0) && !showPollForm">
+                  >
             <h2>Your rewards</h2>
             <div class="bubble-rewards-stack">
               <!-- Reward balance row -->
-              <div class="bubble-reward-row" *ngIf="userBubbleCredits > 0">
+              @if (userBubbleCredits > 0) {
+              <div class="bubble-reward-row">
                 <div class="bubble-reward-row__info">
                   <i [appIcon]="icons.faPiggyBank" class="bubble-reward-row__icon" aria-hidden="true"></i>
                   <div class="bubble-reward-row__text">
@@ -1442,14 +1754,20 @@
                         (click)="useCredits = !useCredits; calculateTotal()"
                         type="button">
                   <span class="pts-num">
-                    <ng-container *ngIf="useCredits">Remove</ng-container>
-                    <ng-container *ngIf="!useCredits">Apply <span class="bubble-dollar">${{ userBubbleCredits.toFixed(2) }}</span></ng-container>
+                    @if (useCredits) {
+                    Remove
+                    }
+                    @if (!useCredits) {
+                    Apply <span class="bubble-dollar">${{ userBubbleCredits.toFixed(2) }}</span>
+                    }
                   </span>
                 </button>
               </div>
+              }
 
               <!-- Bubble points row -->
-              <div class="bubble-reward-row bubble-reward-row--points" *ngIf="bubblePointsOptions.length > 0">
+              @if (bubblePointsOptions.length > 0) {
+              <div class="bubble-reward-row bubble-reward-row--points">
                 <div class="bubble-reward-row__info">
                   <i [appIcon]="icons.faCoins" class="bubble-reward-row__icon" aria-hidden="true"></i>
                   <div class="bubble-reward-row__text">
@@ -1460,7 +1778,8 @@
                   </div>
                 </div>
                 <div class="bubble-points-form-options">
-                  <button *ngFor="let opt of bubblePointsOptions"
+                  @for (opt of bubblePointsOptions; track opt) {
+                  <button
                           class="points-form-btn"
                           [class.selected]="selectedPointsToRedeem === opt.points"
                           [class.unavailable]="!opt.available"
@@ -1471,13 +1790,17 @@
                     <span class="pts-arrow">→</span>
                     <span class="pts-val"><span class="bubble-dollar">${{ opt.dollarValue | number:'1.0-0' }}</span> off</span>
                   </button>
+                  }
                 </div>
               </div>
+              }
             </div>
           </section>
+          }
 
           <!-- Tips for Cleaners - Moved to bottom -->
-          <section class="booking-section" *ngIf="!showPollForm">
+          @if (!showPollForm) {
+          <section class="booking-section">
             <div class="entry-tips-container">
               <!-- Tips for Cleaners -->
               <div class="tips-section">
@@ -1491,7 +1814,8 @@
                       ${{ tipsAmount }}
                       <span class="dropdown-arrow">▼</span>
                     </button>
-                    <div class="tip-dropdown-menu" *ngIf="tipDropdownOpen">
+                    @if (tipDropdownOpen) {
+                    <div class="tip-dropdown-menu">
                       <button type="button"
                               class="tip-dropdown-item"
                               [class.selected]="tipsAmount === 0"
@@ -1523,6 +1847,7 @@
                         $100
                       </button>
                     </div>
+                    }
                   </div>
                   <div class="tip-custom-input">
                     <!-- (blur) snaps a cleared box back to 0 so "no tip" can never sit in the
@@ -1533,17 +1858,21 @@
                            placeholder="Or enter custom amount"
                            class="tip-input"
                            (blur)="normalizeTipsOnBlur()">
-                    <div class="error-message" *ngIf="tips.errors?.['minTipAmount']">
+                    @if (tips.errors?.['minTipAmount']) {
+                    <div class="error-message">
                       Custom tip amount must be at least $10
                     </div>
+                    }
                   </div>
                 </div>
               </div>
             </div>
           </section>
+          }
 
           <!-- Promo Code or Gift Card Section -->
-          <section class="booking-section" *ngIf="selectedServiceType && !showPollForm">
+          @if (selectedServiceType && !showPollForm) {
+          <section class="booking-section">
             <div class="promo-code-input-section">
               <div class="promo-code-group">
                 <input
@@ -1560,21 +1889,26 @@
                   Apply
                 </button>
               </div>
+              @if (promoCodeApplied || giftCardApplied) {
               <button
                 class="remove-promo-btn"
                 (click)="removePromoCode()"
-                *ngIf="promoCodeApplied || giftCardApplied"
                 type="button">
                 Remove Promo Code
               </button>
-              <p class="promo-note-info" *ngIf="specialOfferApplied">
+              }
+              @if (specialOfferApplied) {
+              <p class="promo-note-info">
                 <i [appIcon]="icons.faCircleInfo"></i> Remove special offer to use a promo code
               </p>
+              }
             </div>
           </section>
+          }
 
           <!-- SMS Consent Checkbox -->
-          <div class="sms-consent-section" *ngIf="!showPollForm && !isAdminMode">
+          @if (!showPollForm && !isAdminMode) {
+          <div class="sms-consent-section">
             <div class="checkbox-group">
               <input 
                 type="checkbox" 
@@ -1588,13 +1922,19 @@
                 <a routerLink="/terms-and-conditions" target="_blank">Terms of Service</a>. <span class="required">*</span>
               </label>
             </div>
-            <div class="error-message" *ngIf="smsConsent.invalid && smsConsent.touched">
-              <div *ngIf="smsConsent.errors?.['required']">SMS consent is required to proceed with booking</div>
+            @if (smsConsent.invalid && smsConsent.touched) {
+            <div class="error-message">
+              @if (smsConsent.errors?.['required']) {
+              <div>SMS consent is required to proceed with booking</div>
+              }
             </div>
+            }
           </div>
+          }
 
           <!-- Cancellation Fee and Booking Details Consent Checkbox -->
-          <div class="cancellation-consent-section" *ngIf="!showPollForm && !isAdminMode">
+          @if (!showPollForm && !isAdminMode) {
+          <div class="cancellation-consent-section">
             <div class="checkbox-group">
               <input 
                 type="checkbox" 
@@ -1606,13 +1946,19 @@
                 {{ cancellationConsentText }} <span class="required">*</span>
               </label>
             </div>
-            <div class="error-message" *ngIf="cancellationConsent.invalid && cancellationConsent.touched">
-              <div *ngIf="cancellationConsent.errors?.['required']">Cancellation fee and booking details consent is required to proceed with booking</div>
+            @if (cancellationConsent.invalid && cancellationConsent.touched) {
+            <div class="error-message">
+              @if (cancellationConsent.errors?.['required']) {
+              <div>Cancellation fee and booking details consent is required to proceed with booking</div>
+              }
             </div>
+            }
           </div>
+          }
 
           <!-- Privacy Policy and Terms of Service Consent Checkbox -->
-          <div class="terms-consent-section" *ngIf="!showPollForm && !isAdminMode">
+          @if (!showPollForm && !isAdminMode) {
+          <div class="terms-consent-section">
             <div class="checkbox-group">
               <input
                 type="checkbox"
@@ -1626,13 +1972,19 @@
                 <a routerLink="/terms-and-conditions" target="_blank">Terms of Service</a>. <span class="required">*</span>
               </label>
             </div>
-            <div class="error-message" *ngIf="termsConsent.invalid && termsConsent.touched">
-              <div *ngIf="termsConsent.errors?.['required']">You must accept the Privacy Policy and Terms of Service to proceed with booking</div>
+            @if (termsConsent.invalid && termsConsent.touched) {
+            <div class="error-message">
+              @if (termsConsent.errors?.['required']) {
+              <div>You must accept the Privacy Policy and Terms of Service to proceed with booking</div>
+              }
             </div>
+            }
           </div>
+          }
 
           <!-- Mobile Booking Summary - Only visible on Step 3 in the flow -->
-          <div class="mobile-booking-summary" *ngIf="!showPollForm">
+          @if (!showPollForm) {
+          <div class="mobile-booking-summary">
             <app-order-summary-card
               variant="mobile"
               [showToggle]="false"
@@ -1657,22 +2009,26 @@
                       type="button">
                       Apply
                     </button>
+                    @if (promoCodeApplied || giftCardApplied) {
                     <button
                       class="remove-btn"
                       (click)="removePromoCode()"
-                      *ngIf="promoCodeApplied || giftCardApplied"
                       type="button">
                       Remove
                     </button>
+                    }
                   </div>
-                  <p class="promo-note" *ngIf="specialOfferApplied">
+                  @if (specialOfferApplied) {
+                  <p class="promo-note">
                     <i [appIcon]="icons.faCircleInfo"></i> Remove special offer to use a promo code
                   </p>
+                  }
                 </div>
               </div>
 
               <!-- Show next order discount for subscription -->
-              <div summary-footer class="next-order-info" *ngIf="selectedSubscription && (selectedSubscription.subscriptionDays || 0) > 0 && !hasActiveSubscription">
+              @if (selectedSubscription && (selectedSubscription.subscriptionDays || 0) > 0 && !hasActiveSubscription) {
+              <div summary-footer class="next-order-info">
                 <div class="divider"></div>
                 <div class="next-order-title">Continue with {{ selectedSubscription.name }} plan:</div>
                 <div class="price-item">
@@ -1684,15 +2040,19 @@
                   <span>${{ nextOrderTotal.toFixed(2) }}</span>
                 </div>
               </div>
+              }
             </app-order-summary-card>
           </div>
+          }
 
         </div>
+        }
 
         <!-- Step Navigation - Always visible -->
         <div class="step-navigation">
           <!-- Part 1 Navigation (no shimmer on button: step 2/3 must never show a loading bar here) -->
-          <div *ngIf="currentStep === 1" class="step-nav-wrap">
+          @if (currentStep === 1) {
+          <div class="step-nav-wrap">
             <button 
               type="button" 
               class="next-btn" 
@@ -1702,9 +2062,11 @@
               Continue
             </button>
           </div>
+          }
           
           <!-- Part 2 Navigation -->
-          <div class="step-buttons-container" *ngIf="currentStep === 2">
+          @if (currentStep === 2) {
+          <div class="step-buttons-container">
             <button 
               type="button" 
               class="back-btn" 
@@ -1712,8 +2074,8 @@
               Back
             </button>
             <!-- For poll forms, show "Send for Quote" button that submits -->
+            @if (showPollForm) {
             <button 
-              *ngIf="showPollForm"
               type="button"
               class="book-now-btn" 
               [disabled]="isLoading"
@@ -1721,9 +2083,10 @@
               (click)="onSubmit()">
               {{ isLoading ? 'Processing...' : 'Send for Quote' }}
             </button>
+            }
             <!-- For regular bookings, show "Continue" button (no shimmer on step 2 to avoid shimmer on refresh) -->
+            @if (!showPollForm) {
             <button 
-              *ngIf="!showPollForm"
               type="button" 
               class="next-btn" 
               [disabled]="isLoading"
@@ -1731,10 +2094,13 @@
               [class.disabled]="!canProceedToNextStep() || isLoading">
               Continue
             </button>
+            }
           </div>
+          }
           
           <!-- Part 3 Navigation -->
-          <div class="step-buttons-container" *ngIf="currentStep === 3">
+          @if (currentStep === 3) {
+          <div class="step-buttons-container">
             <button
               type="button"
               class="back-btn"
@@ -1750,13 +2116,15 @@
               {{ isLoading ? 'Processing...' : submitButtonLabel }}
             </button>
           </div>
+          }
         </div>
 
         <!-- Partnership Overview — compact accordion shown only on step 3,
              below the Book Now button. Reuses the existing toggleExtraInfoExpansion()
              handler and isExtraInfoExpanded state. -->
+        @if (currentStep === 3 && !showPollForm && selectedServiceType) {
         <div class="partnership-accordion"
-             *ngIf="currentStep === 3 && !showPollForm && selectedServiceType">
+            >
           <button type="button"
                   class="partnership-accordion__toggle"
                   [class.is-open]="isExtraInfoExpanded"
@@ -1768,7 +2136,8 @@
             </span>
             <i [appIcon]="icons.faChevronDown" class="partnership-accordion__chevron" aria-hidden="true"></i>
           </button>
-          <div class="partnership-accordion__body" *ngIf="isExtraInfoExpanded">
+          @if (isExtraInfoExpanded) {
+          <div class="partnership-accordion__body">
             <!-- ONLY what the customer has to provide, and it depends on whether they added
                  Cleaning Supplies / Cleaning Essentials (and Vacuum Cleaner, Oven Cleaning, Deep).
                  Live for the CURRENT selection, from the same shared checklist the modal, the
@@ -1777,12 +2146,18 @@
                  removed (owner's call, 2026-09): the supplies modal already explains the add-ons. -->
             <div class="general-info">
               <p><strong>Please have these ready for our team:</strong></p>
-              <ul *ngIf="modalSupplyChecklistItems.length > 0">
-                <li *ngFor="let item of modalSupplyChecklistItems">{{ item }}</li>
+              @if (modalSupplyChecklistItems.length > 0) {
+              <ul>
+                @for (item of modalSupplyChecklistItems; track item) {
+                <li>{{ item }}</li>
+                }
               </ul>
-              <p *ngIf="modalSupplyChecklistItems.length === 0">
+              }
+              @if (modalSupplyChecklistItems.length === 0) {
+              <p>
                 Nothing — with Cleaning Supplies and Cleaning Essentials added, we bring everything for this cleaning.
               </p>
+              }
             </div>
 
             <div class="additional-reminders">
@@ -1801,7 +2176,9 @@
               </ul>
             </div>
           </div>
+          }
         </div>
+        }
 
         <!-- Supplies & Essentials Modal (Step 1).
              It offers the two supply extras and shows, live, what the customer is left to
@@ -1811,7 +2188,8 @@
              cannot name different items from the confirmation email, the SMS or the order
              pages. Both toggles go through the ordinary toggleExtraService, so an added extra
              lands in the summary total and on the order like any other. -->
-        <div class="dc-modal-backdrop" *ngIf="showCleaningSuppliesConfirm" (click)="closeCleaningSuppliesConfirm()">
+        @if (showCleaningSuppliesConfirm) {
+        <div class="dc-modal-backdrop" (click)="closeCleaningSuppliesConfirm()">
           <div class="dc-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Cleaning supplies and essentials">
             <div class="dc-modal-header">
               <h3>Supplies &amp; Essentials <span class="dc-modal-subtitle">({{ cleaningSuppliesCleaningTypeLabel }})</span></h3>
@@ -1834,7 +2212,8 @@
 
               <!-- Cleaning Supplies: the products. Hidden once selected; the "you provide"
                    list below is what confirms it took effect. -->
-              <div class="dc-modal-section dc-modal-section--green" *ngIf="cleaningSuppliesExtra">
+              @if (cleaningSuppliesExtra) {
+              <div class="dc-modal-section dc-modal-section--green">
                 <div class="dc-modal-section-header dc-modal-section-header--green">
                   <span class="dc-modal-section-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
@@ -1844,9 +2223,11 @@
                   </span>
                   <span>
                     Cleaning Supplies — we bring:
-                    <span class="dc-modal-cost" *ngIf="cleaningSuppliesExtraCost !== null">
+                    @if (cleaningSuppliesExtraCost !== null) {
+                    <span class="dc-modal-cost">
                       ({{ cleaningSuppliesExtraCost | currency:'USD':'symbol':'1.2-2' }})
                     </span>
+                    }
                   </span>
                 </div>
 
@@ -1857,7 +2238,9 @@
                         <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
                       </svg>
                     </span>
-                    <span>Zep liquids: Green, Floor<ng-container *ngIf="suppliesRequireOvenCleaner">, Oven Cleaner</ng-container></span>
+                    <span>Zep liquids: Green, Floor@if (suppliesRequireOvenCleaner) {
+                    , Oven Cleaner
+                    }</span>
                   </li>
                   <li>
                     <span class="dc-li-icon" aria-hidden="true">
@@ -1901,11 +2284,13 @@
                   {{ cleaningSuppliesSelected ? 'Added — tap to remove' : 'Add Cleaning Supplies' }}
                 </button>
               </div>
+              }
 
               <!-- Cleaning Essentials: paper towels, garbage bags, toilet brush. Deliberately
                    NOT the broom or vacuum — a cleaner can't carry one to every job, so the
                    customer either owns one or adds the Vacuum Cleaner extra. -->
-              <div class="dc-modal-section dc-modal-section--green" *ngIf="cleaningEssentialsExtra">
+              @if (cleaningEssentialsExtra) {
+              <div class="dc-modal-section dc-modal-section--green">
                 <div class="dc-modal-section-header dc-modal-section-header--green">
                   <span class="dc-modal-section-icon" aria-hidden="true">
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none">
@@ -1915,14 +2300,17 @@
                   </span>
                   <span>
                     Cleaning Essentials — we bring:
-                    <span class="dc-modal-cost" *ngIf="cleaningEssentialsExtraCost !== null">
+                    @if (cleaningEssentialsExtraCost !== null) {
+                    <span class="dc-modal-cost">
                       ({{ cleaningEssentialsExtraCost | currency:'USD':'symbol':'1.2-2' }})
                     </span>
+                    }
                   </span>
                 </div>
 
                 <ul class="dc-modal-list dc-modal-list--checks">
-                  <li *ngFor="let item of cleaningEssentialsItems">
+                  @for (item of cleaningEssentialsItems; track item) {
+                  <li>
                     <span class="dc-li-icon" aria-hidden="true">
                       <svg viewBox="0 0 24 24" width="16" height="16" fill="none">
                         <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path>
@@ -1930,6 +2318,7 @@
                     </span>
                     <span>{{ item }}</span>
                   </li>
+                  }
                 </ul>
 
                 <button type="button"
@@ -1940,6 +2329,7 @@
                   {{ cleaningEssentialsSelected ? 'Added — tap to remove' : 'Add Cleaning Essentials' }}
                 </button>
               </div>
+              }
 
               <!-- No "please provide the following items" recap here. The two sections above
                    already spell out exactly what each extra covers, so a third list restating
@@ -1956,9 +2346,11 @@
             </div>
           </div>
         </div>
+        }
 
         <!-- Guest-user Special Offer Login Required Modal -->
-        <div class="dc-modal-backdrop" *ngIf="showGuestOfferLoginModal" (click)="closeGuestOfferLoginModal()">
+        @if (showGuestOfferLoginModal) {
+        <div class="dc-modal-backdrop" (click)="closeGuestOfferLoginModal()">
           <div class="dc-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true" aria-label="Login required to apply special offer">
             <div class="dc-modal-header">
               <h3>Login required</h3>
@@ -1979,17 +2371,21 @@
             </div>
           </div>
         </div>
+        }
 
         <!-- Payment Note -->
-        <div class="payment-note" *ngIf="selectedServiceType && currentStep === 3">
+        @if (selectedServiceType && currentStep === 3) {
+        <div class="payment-note">
           <p><span class="note-label">Please note:</span> We accept credit or debit cards, and all online payments are securely processed through Stripe. When you book with Dream Cleaning, you can rest assured that your transaction is safe and protected. By ordering our services and providing your credit card details, you consent to us charging your card for the service fee.</p>
         </div>
+        }
 
       </div>
 
       <!-- Right Side - Booking Summary (Fixed) -->
 <!-- Card always visible when not in poll form; only dynamic values shimmer -->
-<div class="booking-summary" *ngIf="!showPollForm">
+@if (!showPollForm) {
+<div class="booking-summary">
   <app-order-summary-card
     title="Booking Summary"
     [collapsed]="isSummaryCollapsed"
@@ -2016,21 +2412,26 @@
             [disabled]="isPromoCodeDisabled()">
             Apply
           </button>
+          @if (promoCodeApplied || giftCardApplied) {
           <button
             class="remove-btn"
             (click)="removePromoCode()"
-            *ngIf="promoCodeApplied || giftCardApplied">
+           >
             Remove
           </button>
+          }
         </div>
-        <p class="promo-note" *ngIf="specialOfferApplied">
+        @if (specialOfferApplied) {
+        <p class="promo-note">
           <i [appIcon]="icons.faCircleInfo"></i> Remove special offer to use a promo code
         </p>
+        }
       </div>
     </div>
 
     <!-- Show next order discount for subscription -->
-    <div summary-footer class="next-order-info" *ngIf="selectedSubscription && (selectedSubscription.subscriptionDays || 0) > 0 && !hasActiveSubscription" [class.hidden]="isSummaryCollapsed">
+    @if (selectedSubscription && (selectedSubscription.subscriptionDays || 0) > 0 && !hasActiveSubscription) {
+    <div summary-footer class="next-order-info" [class.hidden]="isSummaryCollapsed">
       <div class="divider"></div>
       <div class="next-order-title">Continue with {{ selectedSubscription.name }} plan:</div>
       <div class="price-item">
@@ -2042,12 +2443,15 @@
         <span [shimmer]="loading.pricing" class="summary-value">${{ nextOrderTotal.toFixed(2) }}</span>
       </div>
     </div>
+    }
   </app-order-summary-card>
 </div>
+}
 </div>
 
 <!-- Trust strip (decorative reassurance) -->
-<div class="booking-trust-strip" *ngIf="!isAdminMode">
+@if (!isAdminMode) {
+<div class="booking-trust-strip">
   <div class="booking-trust-strip__item">
     <i [appIcon]="icons.faShieldHalved" class="booking-trust-strip__icon booking-trust-strip__icon--green" aria-hidden="true"></i>
     <span>Fully insured &amp; bonded</span>
@@ -2065,6 +2469,7 @@
     <span>Secure payment via Stripe</span>
   </div>
 </div>
+}
 
 
     </div>

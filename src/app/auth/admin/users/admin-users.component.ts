@@ -1,5 +1,4 @@
 import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
-import { CommonModule } from '@angular/common';
 
 import { UserManagementComponent } from '../user-management/user-management.component';
 import { CleanerAccountsComponent } from '../cleaner-accounts/cleaner-accounts.component';
@@ -16,11 +15,10 @@ export type AdminUsersTab = 'customers' | 'cleaners' | 'business-clients' | 'sta
   selector: 'app-admin-users',
   standalone: true,
   imports: [
-    CommonModule,
     UserManagementComponent,
     CleanerAccountsComponent,
     CommercialClientsComponent
-  ],
+],
   templateUrl: './admin-users.component.html',
   styleUrls: ['./admin-users.component.scss']
 })

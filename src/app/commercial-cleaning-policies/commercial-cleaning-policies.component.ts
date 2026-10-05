@@ -1,5 +1,4 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 
 import { COMMERCIAL_POLICY_CONTENT } from '../shared/commercial-policies/commercial-policy.content';
@@ -46,7 +45,7 @@ export interface PolicyRenderItem {
 @Component({
   selector: 'app-commercial-cleaning-policies',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [RouterLink],
   templateUrl: './commercial-cleaning-policies.component.html',
   styleUrls: ['./commercial-cleaning-policies.component.scss']
 })

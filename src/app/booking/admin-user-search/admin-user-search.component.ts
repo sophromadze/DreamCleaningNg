@@ -1,5 +1,4 @@
 import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { AdminService, UserAdmin } from '../../services/admin.service';
@@ -51,7 +50,7 @@ export const USER_LIST_SETTLE_MS = 350;
 @Component({
   selector: 'app-admin-user-search',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [FormsModule, IconComponent],
   templateUrl: './admin-user-search.component.html',
   styleUrls: ['./admin-user-search.component.scss']
 })

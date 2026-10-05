@@ -1,15 +1,18 @@
 <div class="promo-codes-section">
   <div class="section-header">
     <h2>Promo Codes Management</h2>
-    <button *ngIf="userPermissions.permissions.canCreate" 
+    @if (userPermissions.permissions.canCreate) {
+    <button 
             class="action-btn add" 
             (click)="startAddingPromoCode()">
       Add Promo Code
     </button>
+    }
   </div>
 
   <!-- Add Promo Code Form -->
-  <div *ngIf="isAddingPromoCode" class="add-form">
+  @if (isAddingPromoCode) {
+  <div class="add-form">
     <h3>Add New Promo Code</h3>
     <form (ngSubmit)="addPromoCode()">
       <div class="form-group">
@@ -66,6 +69,7 @@
       </div>
     </form>
   </div>
+  }
 
   <!-- Promo Codes List -->
   <div class="promo-codes-list">
@@ -80,94 +84,128 @@
             <th>Times Used</th>
             <th>Validity</th>
           <th>Status</th>
-          <th *ngIf="userRole !== 'Moderator'">Actions</th>
+          @if (userRole !== 'Moderator') {
+          <th>Actions</th>
+          }
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let code of promoCodes">
+        @for (code of promoCodes; track code) {
+        <tr>
           <td>{{code.code}}</td>
           <td>
-            <div *ngIf="editingPromoCodeId !== code.id">{{code.description}}</div>
-            <textarea aria-label="Description" *ngIf="editingPromoCodeId === code.id" [(ngModel)]="code.description"></textarea>
+            @if (editingPromoCodeId !== code.id) {
+            <div>{{code.description}}</div>
+            }
+            @if (editingPromoCodeId === code.id) {
+            <textarea aria-label="Description" [(ngModel)]="code.description"></textarea>
+            }
           </td>
           <td>
-            <div *ngIf="editingPromoCodeId !== code.id">
+            @if (editingPromoCodeId !== code.id) {
+            <div>
               {{code.isPercentage ? code.discountValue + '%' : '$' + code.discountValue}}
             </div>
-            <div *ngIf="editingPromoCodeId === code.id" class="edit-discount">
+            }
+            @if (editingPromoCodeId === code.id) {
+            <div class="edit-discount">
               <input aria-label="Discount value" type="number" [(ngModel)]="code.discountValue">
               <select aria-label="Discount type" [(ngModel)]="code.isPercentage">
                 <option [ngValue]="false">$</option>
                 <option [ngValue]="true">%</option>
               </select>
             </div>
+            }
           </td>
           <td>
-            <div *ngIf="editingPromoCodeId !== code.id">
+            @if (editingPromoCodeId !== code.id) {
+            <div>
               {{code.maxUsageCount ? 'Max: ' + code.maxUsageCount : 'Unlimited'}}
               {{code.maxUsagePerUser ? ' (Per User: ' + code.maxUsagePerUser + ')' : ''}}
             </div>
-            <div *ngIf="editingPromoCodeId === code.id" class="edit-limits">
+            }
+            @if (editingPromoCodeId === code.id) {
+            <div class="edit-limits">
               <input type="number" [(ngModel)]="code.maxUsageCount" placeholder="Max Usage">
               <input type="number" [(ngModel)]="code.maxUsagePerUser" placeholder="Per User">
             </div>
+            }
           </td>
           <td>
             {{code.timesUsed}} use{{code.timesUsed === 1 ? '' : 's'}} &middot; {{code.uniqueUsersUsed}} customer{{code.uniqueUsersUsed === 1 ? '' : 's'}}
           </td>
           <td>
-            <div *ngIf="editingPromoCodeId !== code.id">
+            @if (editingPromoCodeId !== code.id) {
+            <div>
               {{code.validFrom | date:'short'}} - {{code.validTo | date:'short'}}
             </div>
-            <div *ngIf="editingPromoCodeId === code.id" class="edit-validity">
+            }
+            @if (editingPromoCodeId === code.id) {
+            <div class="edit-validity">
               <input aria-label="Valid from" type="datetime-local" [(ngModel)]="code.validFrom">
               <input aria-label="Valid to" type="datetime-local" [(ngModel)]="code.validTo">
             </div>
+            }
           </td>
           <td>
             <span class="status-badge" [class.active]="code.isActive" [class.inactive]="!code.isActive">
               {{code.isActive ? 'Active' : 'Inactive'}}
             </span>
           </td>
-          <td class="actions" *ngIf="userRole !== 'Moderator'">
-            <ng-container *ngIf="editingPromoCodeId !== code.id">
-              <button *ngIf="userPermissions.permissions.canUpdate" 
+          @if (userRole !== 'Moderator') {
+          <td class="actions">
+            @if (editingPromoCodeId !== code.id) {
+              @if (userPermissions.permissions.canUpdate) {
+              <button 
                       class="action-btn edit" 
                       (click)="editPromoCode(code)">
                 Edit
               </button>
-              <button *ngIf="userPermissions.permissions.canActivate && !code.isActive" 
+              }
+              @if (userPermissions.permissions.canActivate && !code.isActive) {
+              <button 
                       class="action-btn activate" 
                       (click)="activatePromoCode(code)">
                 Enable
               </button>
-              <button *ngIf="userPermissions.permissions.canDeactivate && code.isActive" 
+              }
+              @if (userPermissions.permissions.canDeactivate && code.isActive) {
+              <button 
                       class="action-btn deactivate" 
                       (click)="deactivatePromoCode(code)">
                 Disable
               </button>
-              <button *ngIf="userPermissions.permissions.canDelete" 
+              }
+              @if (userPermissions.permissions.canDelete) {
+              <button 
                       class="action-btn delete" 
                       (click)="deletePromoCode(code)">
                 Delete
               </button>
-            </ng-container>
-            <ng-container *ngIf="editingPromoCodeId === code.id">
+              }
+            }
+            @if (editingPromoCodeId === code.id) {
               <button class="action-btn save" (click)="savePromoCode(code)">Save</button>
               <button class="action-btn cancel" (click)="cancelEditPromoCode()">Cancel</button>
-            </ng-container>
+            }
           </td>
+          }
         </tr>
+        }
       </tbody>
       </table>
     </div>
   </div>
 
   <!-- Messages -->
-  <div *ngIf="errorMessage" class="error-message">
+  @if (errorMessage) {
+  <div class="error-message">
     {{errorMessage}}
   </div>
-  <div *ngIf="successMessage" class="success-message">
+  }
+  @if (successMessage) {
+  <div class="success-message">
     {{successMessage}}
   </div>
+  }
 </div>

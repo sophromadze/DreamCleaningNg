@@ -1,5 +1,5 @@
 import { Component, OnInit, Inject, PLATFORM_ID, HostListener } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { TwoFactorService, TwoFactorChallenge } from '../../services/two-factor.service';
@@ -15,7 +15,7 @@ import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
 @Component({
   selector: 'app-two-factor-challenge',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, IconComponent],
+  imports: [FormsModule, RouterModule, IconComponent],
   templateUrl: './two-factor-challenge.component.html',
   styleUrls: ['./two-factor-challenge.component.scss']
 })

@@ -1,5 +1,4 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ShimmerDirective } from '../../directives/shimmer.directive';
 import { IconComponent } from '../../icons/icon.component';
 import { faReceipt } from '../../icons/glyphs/faReceipt';
@@ -34,7 +33,7 @@ export interface SummaryLine {
 @Component({
   selector: 'app-order-summary-card',
   standalone: true,
-  imports: [CommonModule, ShimmerDirective, IconComponent],
+  imports: [ShimmerDirective, IconComponent],
   templateUrl: './order-summary-card.component.html',
   styleUrls: ['./order-summary-card.component.scss']
 })

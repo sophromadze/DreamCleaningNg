@@ -1,5 +1,4 @@
 import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 export interface FloorTypeOption {
@@ -15,7 +14,7 @@ export interface FloorTypeSelection {
 @Component({
   selector: 'app-floor-type-selector',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './floor-type-selector.component.html',
   styleUrl: './floor-type-selector.component.scss'
 })

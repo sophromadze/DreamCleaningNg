@@ -1,5 +1,4 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -8,7 +7,7 @@ import { validatePassword } from '../../utils/password-validator';
 @Component({
   selector: 'app-set-password',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   template: `
     <div class="set-password-wrapper">
       <div class="set-password-container">
@@ -30,8 +29,12 @@ import { validatePassword } from '../../utils/password-validator';
                 #newPasswordInput="ngModel"
               />
               <button type="button" class="password-toggle" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'" title="{{ showPassword ? 'Hide' : 'Show' }}">
-                <svg *ngIf="!showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <svg *ngIf="showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                @if (!showPassword) {
+                <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                }
+                @if (showPassword) {
+                <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                }
               </button>
             </div>
             
@@ -56,9 +59,13 @@ import { validatePassword } from '../../utils/password-validator';
               </ul>
             </div>
             
-            <div class="error" *ngIf="newPasswordInput.touched && passwordErrors.length > 0">
-              <span *ngFor="let error of passwordErrors">{{ error }}<br></span>
+            @if (newPasswordInput.touched && passwordErrors.length > 0) {
+            <div class="error">
+              @for (error of passwordErrors; track error) {
+              <span>{{ error }}<br></span>
+              }
             </div>
+            }
           </div>
 
           <div class="form-group">
@@ -73,25 +80,37 @@ import { validatePassword } from '../../utils/password-validator';
                 #confirmPasswordInput="ngModel"
               />
               <button type="button" class="password-toggle" (click)="showConfirmPassword = !showConfirmPassword" [attr.aria-label]="showConfirmPassword ? 'Hide password' : 'Show password'" title="{{ showConfirmPassword ? 'Hide' : 'Show' }}">
-                <svg *ngIf="!showConfirmPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <svg *ngIf="showConfirmPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                @if (!showConfirmPassword) {
+                <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                }
+                @if (showConfirmPassword) {
+                <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                }
               </button>
             </div>
-            <div class="error" *ngIf="confirmPasswordInput.invalid && confirmPasswordInput.touched">
+            @if (confirmPasswordInput.invalid && confirmPasswordInput.touched) {
+            <div class="error">
               Please confirm your password
             </div>
-            <div class="error" *ngIf="confirmPassword !== newPassword && confirmPasswordInput.touched">
+            }
+            @if (confirmPassword !== newPassword && confirmPasswordInput.touched) {
+            <div class="error">
               Passwords do not match
             </div>
+            }
           </div>
 
-          <div class="success" *ngIf="successMessage">
+          @if (successMessage) {
+          <div class="success">
             {{ successMessage }}
           </div>
+          }
 
-          <div class="error" *ngIf="errorMessage">
+          @if (errorMessage) {
+          <div class="error">
             {{ errorMessage }}
           </div>
+          }
 
           <button type="submit" [disabled]="!isFormValid() || isSubmitting">
             {{ isSubmitting ? 'Setting Password...' : 'Set Password' }}

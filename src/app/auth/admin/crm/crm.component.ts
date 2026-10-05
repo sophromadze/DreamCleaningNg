@@ -1,5 +1,4 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { LeadsPipelineComponent } from './leads/leads-pipeline.component';
 import { CrmCustomersComponent } from './customers/crm-customers.component';
@@ -14,7 +13,7 @@ type CrmTab = 'leads' | 'calls' | 'customers' | 'segments' | 'automation';
 @Component({
   selector: 'app-crm',
   standalone: true,
-  imports: [CommonModule, RouterLink, LeadsPipelineComponent, CrmCustomersComponent, CrmSegmentsComponent, CrmAutomationComponent, CrmCallsComponent],
+  imports: [RouterLink, LeadsPipelineComponent, CrmCustomersComponent, CrmSegmentsComponent, CrmAutomationComponent, CrmCallsComponent],
   templateUrl: './crm.component.html',
   styleUrls: ['./crm.component.scss']
 })

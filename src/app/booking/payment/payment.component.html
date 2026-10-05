@@ -2,12 +2,16 @@
     <h3>Payment Information</h3>
 
     <!-- Apple Pay / Google Pay button -->
-    <div id="card-element-pr" class="applepay-button-container" *ngIf="showApplePay"></div>
+    @if (showApplePay) {
+    <div id="card-element-pr" class="applepay-button-container"></div>
+    }
 
     <div class="form-group">
       <label>Card Details</label>
       <div id="card-element" class="stripe-card-element"></div>
-      <div class="card-errors" *ngIf="cardError">{{ cardError }}</div>
+      @if (cardError) {
+      <div class="card-errors">{{ cardError }}</div>
+      }
     </div>
 
     <button 
@@ -17,7 +21,9 @@
       {{ isProcessing ? 'Processing...' : 'Pay $' + amount.toFixed(2) }}
     </button>
 
-    <div class="error-message" *ngIf="errorMessage">
+    @if (errorMessage) {
+    <div class="error-message">
       {{ errorMessage }}
     </div>
+    }
   </div>

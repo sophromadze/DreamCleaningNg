@@ -7,9 +7,11 @@
         logging in. Commercial (business) invoices are in Commercial → Invoices.
       </p>
     </div>
-    <button type="button" class="ci-btn ci-btn--primary" *ngIf="canCreate" (click)="openCreate()">
+    @if (canCreate) {
+    <button type="button" class="ci-btn ci-btn--primary" (click)="openCreate()">
       <i class="fas fa-plus" aria-hidden="true"></i> Create Invoice
     </button>
+    }
   </div>
 
   <div class="ci-filters">
@@ -25,16 +27,25 @@
     </select>
   </div>
 
-  <div class="ci-message ci-message--ok" *ngIf="message">{{ message }}</div>
-  <div class="ci-message ci-message--error" *ngIf="error">{{ error }}</div>
+  @if (message) {
+  <div class="ci-message ci-message--ok">{{ message }}</div>
+  }
+  @if (error) {
+  <div class="ci-message ci-message--error">{{ error }}</div>
+  }
 
-  <div class="ci-empty" *ngIf="!loading && invoices.length === 0">
+  @if (!loading && invoices.length === 0) {
+  <div class="ci-empty">
     No invoices yet. Use <strong>Create Invoice</strong>, or choose <strong>Invoice</strong> as the payment
     method when booking for a customer.
   </div>
-  <div class="ci-empty" *ngIf="loading && invoices.length === 0">Loading invoices…</div>
+  }
+  @if (loading && invoices.length === 0) {
+  <div class="ci-empty">Loading invoices…</div>
+  }
 
-  <div class="ci-table-wrap" *ngIf="invoices.length > 0">
+  @if (invoices.length > 0) {
+  <div class="ci-table-wrap">
     <table class="ci-table">
       <thead>
         <tr>
@@ -49,16 +60,25 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let inv of invoices">
+        @for (inv of invoices; track inv) {
+        <tr>
           <td>
             <strong>{{ inv.invoiceNumber }}</strong>
-            <span class="ci-kind" *ngIf="inv.kind === 'Split'">Split</span>
-            <span class="ci-kind" *ngIf="inv.kind === 'Additional'">Additional</span>
-            <div class="ci-sub">{{ inv.createdAt | date:'MMM d, y' }}<span *ngIf="inv.createdByName"> · {{ inv.createdByName }}</span></div>
+            @if (inv.kind === 'Split') {
+            <span class="ci-kind">Split</span>
+            }
+            @if (inv.kind === 'Additional') {
+            <span class="ci-kind">Additional</span>
+            }
+            <div class="ci-sub">{{ inv.createdAt | date:'MMM d, y' }}@if (inv.createdByName) {
+            <span> · {{ inv.createdByName }}</span>
+            }</div>
           </td>
           <td>
             {{ inv.customerName }}
-            <div class="ci-sub" *ngIf="inv.customerEmail">{{ inv.customerEmail }}</div>
+            @if (inv.customerEmail) {
+            <div class="ci-sub">{{ inv.customerEmail }}</div>
+            }
           </td>
           <td>
             #{{ inv.orderId }}
@@ -68,36 +88,57 @@
           <td class="num">${{ inv.amountDue | number:'1.2-2' }}</td>
           <td>
             <span class="ci-status" [ngClass]="statusClass(inv.status)">{{ statusLabels[inv.status] }}</span>
-            <div class="ci-sub" *ngIf="inv.status === 'Paid' && inv.paidVia">
-              {{ inv.paidVia === 'Other' ? 'Manual' : inv.paidVia }}<span *ngIf="inv.paidAt"> · {{ inv.paidAt | date:'MMM d' }}</span>
+            @if (inv.status === 'Paid' && inv.paidVia) {
+            <div class="ci-sub">
+              {{ inv.paidVia === 'Other' ? 'Manual' : inv.paidVia }}@if (inv.paidAt) {
+              <span> · {{ inv.paidAt | date:'MMM d' }}</span>
+              }
             </div>
-            <div class="ci-sub" *ngIf="inv.status === 'Void' && inv.voidReason">{{ inv.voidReason }}</div>
+            }
+            @if (inv.status === 'Void' && inv.voidReason) {
+            <div class="ci-sub">{{ inv.voidReason }}</div>
+            }
           </td>
           <td>
-            <span *ngIf="inv.lastSentAt">{{ inv.lastSentAt | date:'MMM d, h:mm a' }}</span>
-            <span *ngIf="!inv.lastSentAt" class="ci-sub">—</span>
-            <div class="ci-sub" *ngIf="inv.sendCount > 1">{{ inv.sendCount }} times</div>
+            @if (inv.lastSentAt) {
+            <span>{{ inv.lastSentAt | date:'MMM d, h:mm a' }}</span>
+            }
+            @if (!inv.lastSentAt) {
+            <span class="ci-sub">—</span>
+            }
+            @if (inv.sendCount > 1) {
+            <div class="ci-sub">{{ inv.sendCount }} times</div>
+            }
           </td>
           <td class="actions">
             <a class="ci-link" [href]="inv.publicUrl" target="_blank" rel="noopener">Open</a>
             <button type="button" class="ci-link" (click)="copyLink(inv)">Copy link</button>
-            <button type="button" class="ci-link" *ngIf="canUpdate && inv.canSend"
+            @if (canUpdate && inv.canSend) {
+            <button type="button" class="ci-link"
                     [disabled]="busyInvoiceId === inv.id" (click)="send(inv)">
               {{ busyInvoiceId === inv.id ? 'Sending…' : (inv.sendCount > 0 ? 'Resend' : 'Send') }}
             </button>
-            <button type="button" class="ci-link ci-link--strong" *ngIf="canUpdate && inv.canRecordPayment"
+            }
+            @if (canUpdate && inv.canRecordPayment) {
+            <button type="button" class="ci-link ci-link--strong"
                     (click)="openRecordPayment(inv)">Mark paid</button>
-            <button type="button" class="ci-link ci-link--danger" *ngIf="canUpdate && inv.canVoid"
+            }
+            @if (canUpdate && inv.canVoid) {
+            <button type="button" class="ci-link ci-link--danger"
                     (click)="openVoid(inv)">Void</button>
+            }
           </td>
         </tr>
+        }
       </tbody>
     </table>
   </div>
+  }
 </div>
 
 <!-- ═══ Create invoice ═══ -->
-<div class="ci-overlay" *ngIf="showCreate" (click)="closeCreate()">
+@if (showCreate) {
+<div class="ci-overlay" (click)="closeCreate()">
   <div class="ci-modal" role="dialog" aria-modal="true" aria-labelledby="ci-create-title" (click)="$event.stopPropagation()">
     <div class="ci-modal__head">
       <h3 id="ci-create-title">Create invoice</h3>
@@ -112,34 +153,49 @@
         (cleared)="onCreateUserCleared()">
       </app-admin-user-search>
 
-      <ng-container *ngIf="createUser">
+      @if (createUser) {
         <label class="ci-label">Order to invoice</label>
-        <div class="ci-sub" *ngIf="loadingOrders">Loading orders…</div>
-        <div class="ci-sub" *ngIf="!loadingOrders && orderOptions.length === 0">
+        @if (loadingOrders) {
+        <div class="ci-sub">Loading orders…</div>
+        }
+        @if (!loadingOrders && orderOptions.length === 0) {
+        <div class="ci-sub">
           This customer has no unpaid orders to invoice.
         </div>
-        <div class="ci-orders" *ngIf="orderOptions.length > 0">
-          <label class="ci-order" *ngFor="let o of orderOptions" [class.disabled]="!o.canInvoice"
+        }
+        @if (orderOptions.length > 0) {
+        <div class="ci-orders">
+          @for (o of orderOptions; track o) {
+          <label class="ci-order" [class.disabled]="!o.canInvoice"
                  [class.selected]="selectedOrderId === o.orderId">
             <input type="radio" name="ciOrder" [value]="o.orderId" [(ngModel)]="selectedOrderId" [disabled]="!o.canInvoice">
             <span class="ci-order__main">
               <strong>#{{ o.orderId }}</strong> · {{ o.serviceTypeName }} · {{ o.serviceDate | date:'MMM d, y' }}
               <span class="ci-sub">{{ o.status }} · total ${{ o.total | number:'1.2-2' }} · owes ${{ o.amountDue | number:'1.2-2' }}</span>
-              <span class="ci-sub ci-warn" *ngIf="!o.canInvoice">{{ o.cannotInvoiceReason }}</span>
-              <span class="ci-sub" *ngIf="o.canInvoice && o.openInvoiceNumbers.length > 0">
+              @if (!o.canInvoice) {
+              <span class="ci-sub ci-warn">{{ o.cannotInvoiceReason }}</span>
+              }
+              @if (o.canInvoice && o.openInvoiceNumbers.length > 0) {
+              <span class="ci-sub">
                 Already on {{ o.openInvoiceNumbers.join(', ') }} — ${{ o.availableToInvoice | number:'1.2-2' }} left to invoice
               </span>
+              }
             </span>
           </label>
+          }
         </div>
-      </ng-container>
+        }
+      }
+      @if (selectedOrder; as order) {
 
-      <ng-container *ngIf="selectedOrder as order">
         <label class="ci-label">What to bill</label>
-        <p class="ci-sub" *ngIf="order.isAdditionalCharge">
+        @if (order.isAdditionalCharge) {
+        <p class="ci-sub">
           This order was already paid; an edit added <strong>${{ order.availableToInvoice | number:'1.2-2' }}</strong>. The invoice bills that additional amount.
         </p>
-        <div class="ci-mode" *ngIf="order.openInvoiceNumbers.length === 0 && !order.isAdditionalCharge">
+        }
+        @if (order.openInvoiceNumbers.length === 0 && !order.isAdditionalCharge) {
+        <div class="ci-mode">
           <label class="radio-row">
             <input type="radio" name="ciMode" [value]="false" [(ngModel)]="splitMode">
             <span>The whole balance — <strong>${{ order.availableToInvoice | number:'1.2-2' }}</strong></span>
@@ -149,27 +205,42 @@
             <span>Split the payment into separate invoices</span>
           </label>
         </div>
-        <p class="ci-sub" *ngIf="order.openInvoiceNumbers.length > 0">
+        }
+        @if (order.openInvoiceNumbers.length > 0) {
+        <p class="ci-sub">
           This order is already split — add more invoices for what is not invoiced yet.
         </p>
+        }
 
-        <div class="ci-split" *ngIf="isSplit">
-          <div class="ci-split__row" *ngFor="let a of splitAmounts; let i = index; trackBy: trackByIndex">
+        @if (isSplit) {
+        <div class="ci-split">
+          @for (a of splitAmounts; track trackByIndex(i); let i = $index) {
+          <div class="ci-split__row">
             <span class="ci-split__label">Invoice {{ i + 1 }}</span>
             <span class="ci-money"><span>$</span>
               <input type="number" min="0.5" step="0.01" [(ngModel)]="splitAmounts[i]" [name]="'split' + i"
                      [attr.aria-label]="'Amount of invoice ' + (i + 1)">
             </span>
             <button type="button" class="ci-link" (click)="fillRemainder(i)">Rest</button>
-            <button type="button" class="ci-link ci-link--danger" *ngIf="splitAmounts.length > 1" (click)="removeSplitRow(i)">Remove</button>
+            @if (splitAmounts.length > 1) {
+            <button type="button" class="ci-link ci-link--danger" (click)="removeSplitRow(i)">Remove</button>
+            }
           </div>
-          <button type="button" class="ci-link" (click)="addSplitRow()" *ngIf="splitAmounts.length < 12">+ Add another invoice</button>
+          }
+          @if (splitAmounts.length < 12) {
+          <button type="button" class="ci-link" (click)="addSplitRow()">+ Add another invoice</button>
+          }
           <div class="ci-split__sum" [class.ci-warn]="splitUnallocated < 0">
             Total ${{ splitTotal | number:'1.2-2' }} of ${{ order.availableToInvoice | number:'1.2-2' }}
-            <span *ngIf="splitUnallocated > 0"> — ${{ splitUnallocated | number:'1.2-2' }} not invoiced yet</span>
-            <span *ngIf="splitUnallocated < 0"> — ${{ -splitUnallocated | number:'1.2-2' }} more than is owed</span>
+            @if (splitUnallocated > 0) {
+            <span> — ${{ splitUnallocated | number:'1.2-2' }} not invoiced yet</span>
+            }
+            @if (splitUnallocated < 0) {
+            <span> — ${{ -splitUnallocated | number:'1.2-2' }} more than is owed</span>
+            }
           </div>
         </div>
+        }
 
         <label class="ci-label" for="ciNote">Note on the invoice (optional)</label>
         <textarea id="ciNote" rows="2" maxlength="1000" [(ngModel)]="createNote"
@@ -179,9 +250,11 @@
           <label><input type="checkbox" [(ngModel)]="createSendEmail"> Email it to the customer</label>
           <label><input type="checkbox" [(ngModel)]="createSendSms"> Text it to the customer</label>
         </div>
-      </ng-container>
+      }
 
-      <div class="ci-message ci-message--error" *ngIf="createError">{{ createError }}</div>
+      @if (createError) {
+      <div class="ci-message ci-message--error">{{ createError }}</div>
+      }
     </div>
 
     <div class="ci-modal__foot">
@@ -192,9 +265,11 @@
     </div>
   </div>
 </div>
+}
 
 <!-- ═══ Mark paid ═══ -->
-<div class="ci-overlay" *ngIf="payingInvoice as inv" (click)="closeRecordPayment()">
+@if (payingInvoice; as inv) {
+<div class="ci-overlay" (click)="closeRecordPayment()">
   <div class="ci-modal ci-modal--small" role="dialog" aria-modal="true" aria-labelledby="ci-pay-title" (click)="$event.stopPropagation()">
     <div class="ci-modal__head">
       <h3 id="ci-pay-title">Mark {{ inv.invoiceNumber }} paid</h3>
@@ -209,14 +284,18 @@
       </p>
       <label class="ci-label" for="ciPayMethod">Paid by</label>
       <select id="ciPayMethod" [(ngModel)]="payMethod">
-        <option *ngFor="let m of manualPaymentOptions" [value]="m.value">{{ m.label }}</option>
+        @for (m of manualPaymentOptions; track m) {
+        <option [value]="m.value">{{ m.label }}</option>
+        }
       </select>
       <label class="ci-label" for="ciPayRef">Reference (optional)</label>
       <input id="ciPayRef" type="text" maxlength="255" [(ngModel)]="payReference"
              [placeholder]="payMethod === 'BankTransfer' ? 'Bank transfer — ' + inv.invoiceNumber : 'e.g. Zelle confirmation'">
       <label class="ci-label" for="ciPayNotes">Notes (optional)</label>
       <textarea id="ciPayNotes" rows="2" maxlength="1000" [(ngModel)]="payNotes"></textarea>
-      <div class="ci-message ci-message--error" *ngIf="payError">{{ payError }}</div>
+      @if (payError) {
+      <div class="ci-message ci-message--error">{{ payError }}</div>
+      }
     </div>
     <div class="ci-modal__foot">
       <button type="button" class="ci-btn" (click)="closeRecordPayment()" [disabled]="recordingPayment">Cancel</button>
@@ -226,9 +305,11 @@
     </div>
   </div>
 </div>
+}
 
 <!-- ═══ Void ═══ -->
-<div class="ci-overlay" *ngIf="voidingInvoice as inv" (click)="closeVoid()">
+@if (voidingInvoice; as inv) {
+<div class="ci-overlay" (click)="closeVoid()">
   <div class="ci-modal ci-modal--small" role="dialog" aria-modal="true" aria-labelledby="ci-void-title" (click)="$event.stopPropagation()">
     <div class="ci-modal__head">
       <h3 id="ci-void-title">Void {{ inv.invoiceNumber }}?</h3>
@@ -247,3 +328,4 @@
     </div>
   </div>
 </div>
+}

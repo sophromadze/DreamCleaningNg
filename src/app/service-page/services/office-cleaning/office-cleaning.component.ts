@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { PhoneNumberService } from '../../../services/phone-number.service';
 import { COMMERCIAL_FIRST_MONTH_DISCOUNT_PERCENT } from '../../../shared/commercial-offer.data';
@@ -8,7 +7,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
 @Component({
   selector: 'app-office-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './office-cleaning.component.html',
   styleUrl: './office-cleaning.component.scss'
 })

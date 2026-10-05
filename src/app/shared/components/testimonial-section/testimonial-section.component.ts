@@ -6,7 +6,7 @@ import {
   PLATFORM_ID,
   ChangeDetectorRef
 } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Subscription, concat, map, of } from 'rxjs';
 import { environment } from '../../../../environments/environment';
@@ -49,7 +49,7 @@ const FIRST_PAGE_SIZE = 2;
 @Component({
   selector: 'app-testimonial-section',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [RouterLink],
   templateUrl: './testimonial-section.component.html',
   styleUrl: './testimonial-section.component.scss'
 })

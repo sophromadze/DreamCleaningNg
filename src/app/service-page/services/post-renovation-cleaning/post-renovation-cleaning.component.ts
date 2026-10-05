@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { PhoneNumberService } from '../../../services/phone-number.service';
 import { CardImageDirective } from '../../../shared/images/card-image.directive';
@@ -8,7 +7,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
 @Component({
   selector: 'app-post-renovation-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterModule, CardImageDirective],
+  imports: [RouterModule, CardImageDirective],
   templateUrl: './post-renovation-cleaning.component.html',
   styleUrl: './post-renovation-cleaning.component.scss'
 })

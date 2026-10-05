@@ -6,8 +6,12 @@
     <a class="btn-primary" routerLink="/admin/commercial/invoices/create">+ Create Invoice</a>
   </div>
 
-  <div class="alert alert-error" *ngIf="error">{{ error }}</div>
-  <div class="alert alert-success" *ngIf="notice">{{ notice }}</div>
+  @if (error) {
+  <div class="alert alert-error">{{ error }}</div>
+  }
+  @if (notice) {
+  <div class="alert alert-success">{{ notice }}</div>
+  }
 
   <!-- Summary cards. Labels stay put while values shimmer — the project-wide convention. -->
   <div class="summary-cards">
@@ -16,7 +20,9 @@
         {{ loading ? '' : (summary.totalOutstanding | currency:'USD') }}
       </span>
       <span class="card-label">Outstanding</span>
-      <span class="card-sub" *ngIf="!loading">{{ summary.outstandingCount }} invoice(s)</span>
+      @if (!loading) {
+      <span class="card-sub">{{ summary.outstandingCount }} invoice(s)</span>
+      }
     </div>
 
     <div class="summary-card">
@@ -24,7 +30,9 @@
         {{ loading ? '' : (summary.paidThisMonth | currency:'USD') }}
       </span>
       <span class="card-label">Paid This Month</span>
-      <span class="card-sub" *ngIf="!loading">received this calendar month</span>
+      @if (!loading) {
+      <span class="card-sub">received this calendar month</span>
+      }
     </div>
 
     <div class="summary-card">
@@ -32,7 +40,9 @@
         {{ loading ? '' : (summary.overdue | currency:'USD') }}
       </span>
       <span class="card-label">Overdue</span>
-      <span class="card-sub" *ngIf="!loading">{{ summary.overdueCount }} invoice(s)</span>
+      @if (!loading) {
+      <span class="card-sub">{{ summary.overdueCount }} invoice(s)</span>
+      }
     </div>
 
     <div class="summary-card">
@@ -40,7 +50,9 @@
         {{ loading ? '' : summary.draftCount }}
       </span>
       <span class="card-label">Drafts</span>
-      <span class="card-sub" *ngIf="!loading">not yet sent</span>
+      @if (!loading) {
+      <span class="card-sub">not yet sent</span>
+      }
     </div>
   </div>
 
@@ -51,7 +63,9 @@
            aria-label="Search invoices">
 
     <select [(ngModel)]="statusFilter" (change)="onFilterChange()" aria-label="Filter by status">
-      <option *ngFor="let o of statusOptions" [ngValue]="o.value">{{ o.label }}</option>
+      @for (o of statusOptions; track o) {
+      <option [ngValue]="o.value">{{ o.label }}</option>
+      }
     </select>
 
     <!-- ARCHIVED IS ITS OWN AXIS, not a status. An archived Paid invoice is still Paid, so this
@@ -63,22 +77,28 @@
 
     <select [(ngModel)]="clientFilter" (change)="onFilterChange()" aria-label="Filter by client">
       <option [ngValue]="null">All clients</option>
-      <option *ngFor="let c of clients" [ngValue]="c.id">{{ c.legalEntityName }}</option>
+      @for (c of clients; track c) {
+      <option [ngValue]="c.id">{{ c.legalEntityName }}</option>
+      }
     </select>
 
     <select [(ngModel)]="paymentMethodFilter" (change)="onFilterChange()"
             aria-label="Filter by payment method">
-      <option *ngFor="let o of paymentMethodOptions" [ngValue]="o.value">{{ o.label }}</option>
+      @for (o of paymentMethodOptions; track o) {
+      <option [ngValue]="o.value">{{ o.label }}</option>
+      }
     </select>
 
     <select [(ngModel)]="dateRange" (change)="onFilterChange()" aria-label="Filter by date">
-      <option *ngFor="let o of dateOptions" [ngValue]="o.value">{{ o.label }}</option>
+      @for (o of dateOptions; track o) {
+      <option [ngValue]="o.value">{{ o.label }}</option>
+      }
     </select>
 
-    <ng-container *ngIf="dateRange === 'custom'">
+    @if (dateRange === 'custom') {
       <input type="date" [(ngModel)]="customFrom" (change)="onFilterChange()" aria-label="From date">
       <input type="date" [(ngModel)]="customTo" (change)="onFilterChange()" aria-label="To date">
-    </ng-container>
+    }
   </div>
 
   <!-- Table -->
@@ -99,17 +119,22 @@
       </thead>
 
       <tbody>
-        <tr *ngIf="loading">
+        @if (loading) {
+        <tr>
           <td colspan="9" class="empty-cell">Loading invoices…</td>
         </tr>
+        }
 
-        <tr *ngIf="!loading && invoices.length === 0">
+        @if (!loading && invoices.length === 0) {
+        <tr>
           <td colspan="9" class="empty-cell">
             No invoices match these filters.
           </td>
         </tr>
+        }
 
-        <tr *ngFor="let inv of invoices" class="invoice-row"
+        @for (inv of invoices; track inv) {
+        <tr class="invoice-row"
             [class.row-overdue]="isOverdue(inv)" (click)="view(inv)">
           <td class="mono">{{ inv.invoiceNumber }}</td>
           <td>{{ inv.clientName }}</td>
@@ -118,13 +143,17 @@
           <td>
             {{ inv.dueDate | date:'MMM d, y' }}
             <!-- A paid invoice shows WHEN, because "paid" without a date is the next question. -->
-            <div class="paid-on" *ngIf="inv.paidAt">Paid {{ inv.paidAt | date:'MMM d, y' }}</div>
+            @if (inv.paidAt) {
+            <div class="paid-on">Paid {{ inv.paidAt | date:'MMM d, y' }}</div>
+            }
           </td>
           <td class="align-right">
             <div class="amount">{{ inv.total | currency:'USD' }}</div>
-            <div class="balance" *ngIf="inv.balanceDue > 0 && inv.amountPaid > 0">
+            @if (inv.balanceDue > 0 && inv.amountPaid > 0) {
+            <div class="balance">
               {{ inv.balanceDue | currency:'USD' }} due
             </div>
+            }
           </td>
           <td>
             <span class="status-badge" [ngClass]="statusClass(inv.status)">{{ inv.statusLabel }}</span>
@@ -137,43 +166,56 @@
             </button>
 
             <!-- Every entry is gated on what the SERVER says is possible for this invoice. -->
-            <div class="action-menu" *ngIf="openMenuId === inv.id" (click)="$event.stopPropagation()">
+            @if (openMenuId === inv.id) {
+            <div class="action-menu" (click)="$event.stopPropagation()">
               <button type="button" (click)="view(inv)">View</button>
 
-              <button type="button" *ngIf="inv.status !== InvoiceStatus.Void"
+              @if (inv.status !== InvoiceStatus.Void) {
+              <button type="button"
                       (click)="edit(inv, $event)">Edit</button>
+              }
 
-              <button type="button" *ngIf="inv.status !== InvoiceStatus.Void"
+              @if (inv.status !== InvoiceStatus.Void) {
+              <button type="button"
                       (click)="view(inv)">
                 {{ inv.hasBeenSent ? 'Resend invoice' : 'Send invoice' }}
               </button>
+              }
 
               <button type="button" (click)="downloadPdf(inv, $event)">Download PDF</button>
               <button type="button" (click)="duplicate(inv, $event)">Duplicate invoice</button>
 
+              @if (inv.status !== InvoiceStatus.Void && inv.status !== InvoiceStatus.Draft) {
               <button type="button"
-                      *ngIf="inv.status !== InvoiceStatus.Void && inv.status !== InvoiceStatus.Draft"
                       (click)="view(inv)">
                 {{ inv.balanceDue > 0 ? 'Record payment' : 'Payment history' }}
               </button>
+              }
 
-              <button type="button" *ngIf="inv.status !== InvoiceStatus.Draft"
+              @if (inv.status !== InvoiceStatus.Draft) {
+              <button type="button"
                       (click)="copyLink(inv, $event)">Copy invoice link</button>
+              }
 
+              @if (inv.status !== InvoiceStatus.Void && inv.status !== InvoiceStatus.Paid) {
               <button type="button" class="danger"
-                      *ngIf="inv.status !== InvoiceStatus.Void && inv.status !== InvoiceStatus.Paid"
                       (click)="view(inv)">Void invoice</button>
+              }
             </div>
+            }
           </td>
         </tr>
+        }
       </tbody>
     </table>
   </div>
 
   <!-- Paging -->
-  <div class="pager" *ngIf="totalPages > 1">
+  @if (totalPages > 1) {
+  <div class="pager">
     <button type="button" (click)="goToPage(page - 1)" [disabled]="page <= 1">← Previous</button>
     <span>Page {{ page }} of {{ totalPages }} · {{ totalCount }} invoice(s)</span>
     <button type="button" (click)="goToPage(page + 1)" [disabled]="page >= totalPages">Next →</button>
   </div>
+  }
 </div>

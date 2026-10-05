@@ -1,33 +1,40 @@
 <div class="blog-post-page">
   <!-- Loading: keep structure stable, shimmer the values -->
-  <div class="container" *ngIf="loading">
+  @if (loading) {
+  <div class="container">
     <div class="post-skeleton">
       <div class="skeleton-line title shimmer-loading"></div>
       <div class="skeleton-line meta shimmer-loading"></div>
       <div class="skeleton-block shimmer-loading"></div>
     </div>
   </div>
+  }
 
   <!-- Coming soon (blog master switch is OFF) -->
-  <div class="container" *ngIf="!loading && comingSoon">
+  @if (!loading && comingSoon) {
+  <div class="container">
     <div class="not-found">
       <h1>Our blog is coming soon</h1>
       <p>We're putting the finishing touches on cleaning tips and NYC home-care guides. Check back shortly!</p>
       <a routerLink="/booking" class="btn btn-primary">Book a Cleaning</a>
     </div>
   </div>
+  }
 
   <!-- Not found -->
-  <div class="container" *ngIf="!loading && notFound">
+  @if (!loading && notFound) {
+  <div class="container">
     <div class="not-found">
       <h1>Article not found</h1>
       <p>This article doesn't exist or is no longer available.</p>
       <a routerLink="/blog" class="btn btn-primary">Browse All Articles</a>
     </div>
   </div>
+  }
 
   <!-- Article -->
-  <article class="post" *ngIf="!loading && post">
+  @if (!loading && post) {
+  <article class="post">
     <header class="post-hero">
       <div class="container narrow">
         <nav class="breadcrumb" aria-label="Breadcrumb">
@@ -39,22 +46,30 @@
         <div class="post-meta">
           <span class="author">{{ post.authorName }}</span>
           <span class="dot" aria-hidden="true">·</span>
-          <time *ngIf="post.publishedAt" [attr.datetime]="post.publishedAt">{{ formatDate(post.publishedAt) }}</time>
+          @if (post.publishedAt) {
+          <time [attr.datetime]="post.publishedAt">{{ formatDate(post.publishedAt) }}</time>
+          }
         </div>
       </div>
     </header>
 
     <div class="container narrow">
-      <figure class="featured-image" *ngIf="post.featuredImagePath">
+      @if (post.featuredImagePath) {
+      <figure class="featured-image">
         <img [src]="post.featuredImagePath" [alt]="post.featuredImageAlt || post.title" />
       </figure>
+      }
 
       <!-- Server-sanitized HTML (allowlist sanitizer runs on every save) -->
       <div class="post-content" [innerHTML]="safeContent"></div>
 
-      <div class="post-tags" *ngIf="post.tags.length > 0">
-        <span class="tag" *ngFor="let tag of post.tags">{{ tag }}</span>
+      @if (post.tags.length > 0) {
+      <div class="post-tags">
+        @for (tag of post.tags; track tag) {
+        <span class="tag">{{ tag }}</span>
+        }
       </div>
+      }
 
       <div class="post-cta">
         <h2>Ready for a spotless home?</h2>
@@ -62,20 +77,27 @@
         <a routerLink="/booking" class="btn btn-primary">Book a Cleaning</a>
       </div>
 
-      <section class="related" *ngIf="post.relatedPosts.length > 0">
+      @if (post.relatedPosts.length > 0) {
+      <section class="related">
         <h2>Keep reading</h2>
         <div class="related-grid">
-          <a class="related-card" *ngFor="let related of post.relatedPosts" [routerLink]="['/blog', related.slug]">
-            <div class="related-image" *ngIf="related.featuredImagePath">
+          @for (related of post.relatedPosts; track related) {
+          <a class="related-card" [routerLink]="['/blog', related.slug]">
+            @if (related.featuredImagePath) {
+            <div class="related-image">
               <img [src]="related.featuredImagePath" [alt]="related.featuredImageAlt || related.title" loading="lazy" />
             </div>
+            }
             <div class="related-body">
               <span class="related-category">{{ related.category }}</span>
               <h3>{{ related.title }}</h3>
             </div>
           </a>
+          }
         </div>
       </section>
+      }
     </div>
   </article>
+  }
 </div>

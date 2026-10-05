@@ -1,5 +1,5 @@
 import { Component, ElementRef, Inject, NgZone, OnDestroy, OnInit, PLATFORM_ID, ViewChild } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router } from '@angular/router';
 import { Subscription, filter } from 'rxjs';
@@ -56,7 +56,7 @@ interface WidgetMessage {
 @Component({
   selector: 'app-chat-widget',
   standalone: true,
-  imports: [CommonModule, FormsModule, ChatMarkdownPipe, IconComponent],
+  imports: [FormsModule, ChatMarkdownPipe, IconComponent],
   templateUrl: './chat-widget.component.html',
   styleUrl: './chat-widget.component.scss'
 })

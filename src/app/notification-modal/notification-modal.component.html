@@ -1,4 +1,5 @@
-<div class="modal-overlay" *ngIf="showModal" (click)="closeModal()">
+@if (showModal) {
+<div class="modal-overlay" (click)="closeModal()">
     <div class="modal-content" (click)="$event.stopPropagation()">
       <div class="modal-header" [ngClass]="getHeaderClass()">
         <h3>{{ getTitle() }}</h3>
@@ -14,15 +15,18 @@
         </small>
       </div>
       <div class="modal-footer">
+        @if (hasAction()) {
         <button 
           class="btn btn-primary" 
           (click)="handleAction()"
-          *ngIf="hasAction()">
+         >
           {{ getActionText() }}
         </button>
+        }
         <button class="btn btn-secondary" (click)="closeModal()">
           Close
         </button>
       </div>
     </div>
   </div>
+}

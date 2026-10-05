@@ -24,18 +24,22 @@
         </header>
 
         <!-- Success / error banners -->
-        <div class="quote-alert quote-alert--success" *ngIf="showSuccess" role="status">
+        @if (showSuccess) {
+        <div class="quote-alert quote-alert--success" role="status">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/>
           </svg>
           <span>Thanks - we have your details. We will call you back to arrange the walkthrough, usually the same business day.</span>
         </div>
-        <div class="quote-alert quote-alert--error" *ngIf="showError" role="alert">
+        }
+        @if (showError) {
+        <div class="quote-alert quote-alert--error" role="alert">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/>
           </svg>
           <span>{{ errorMessage }}</span>
         </div>
+        }
 
         <form class="booking-form quote-form" [formGroup]="quoteForm" (ngSubmit)="onSubmit()" novalidate>
 
@@ -44,7 +48,9 @@
             <input type="text" id="cc-business" formControlName="businessName"
                    class="form-control" [class.error]="hasError('businessName')"
                    placeholder="e.g. Hudson Dental Group" autocomplete="organization">
-            <div class="error-message" *ngIf="hasError('businessName')">{{ getErrorMessage('businessName') }}</div>
+            @if (hasError('businessName')) {
+            <div class="error-message">{{ getErrorMessage('businessName') }}</div>
+            }
           </div>
 
           <div class="form-row">
@@ -53,7 +59,9 @@
               <input type="text" id="cc-contact" formControlName="contactName"
                      class="form-control" [class.error]="hasError('contactName')"
                      placeholder="Full name" autocomplete="name">
-              <div class="error-message" *ngIf="hasError('contactName')">{{ getErrorMessage('contactName') }}</div>
+              @if (hasError('contactName')) {
+              <div class="error-message">{{ getErrorMessage('contactName') }}</div>
+              }
             </div>
             <div class="form-group">
               <label for="cc-phone">Phone *</label>
@@ -61,7 +69,9 @@
                      class="form-control" [class.error]="hasError('phone')"
                      (input)="onPhoneInput($event)" maxlength="10"
                      placeholder="10-digit number" autocomplete="tel-national" inputmode="numeric">
-              <div class="error-message" *ngIf="hasError('phone')">{{ getErrorMessage('phone') }}</div>
+              @if (hasError('phone')) {
+              <div class="error-message">{{ getErrorMessage('phone') }}</div>
+              }
             </div>
           </div>
 
@@ -70,7 +80,9 @@
             <input type="email" id="cc-email" formControlName="email"
                    class="form-control" [class.error]="hasError('email')"
                    placeholder="Email address" autocomplete="email">
-            <div class="error-message" *ngIf="hasError('email')">{{ getErrorMessage('email') }}</div>
+            @if (hasError('email')) {
+            <div class="error-message">{{ getErrorMessage('email') }}</div>
+            }
           </div>
 
           <div class="form-group">
@@ -78,7 +90,9 @@
             <input type="text" id="cc-address" formControlName="businessAddress"
                    class="form-control" [class.error]="hasError('businessAddress')"
                    placeholder="Street, borough" autocomplete="street-address">
-            <div class="error-message" *ngIf="hasError('businessAddress')">{{ getErrorMessage('businessAddress') }}</div>
+            @if (hasError('businessAddress')) {
+            <div class="error-message">{{ getErrorMessage('businessAddress') }}</div>
+            }
           </div>
 
           <div class="form-row">
@@ -98,7 +112,9 @@
                 <option value="Post-construction / renovation">Post-construction / renovation</option>
                 <option value="Other">Other</option>
               </select>
-              <div class="error-message" *ngIf="hasError('facilityType')">{{ getErrorMessage('facilityType') }}</div>
+              @if (hasError('facilityType')) {
+              <div class="error-message">{{ getErrorMessage('facilityType') }}</div>
+              }
             </div>
             <div class="form-group">
               <label for="cc-size">Approx. size</label>
@@ -120,7 +136,9 @@
               <option value="One-time clean">One-time clean</option>
               <option value="Not sure yet">Not sure yet</option>
             </select>
-            <div class="error-message" *ngIf="hasError('frequency')">{{ getErrorMessage('frequency') }}</div>
+            @if (hasError('frequency')) {
+            <div class="error-message">{{ getErrorMessage('frequency') }}</div>
+            }
           </div>
 
           <div class="form-group">
@@ -653,13 +671,15 @@
       </div>
 
       <div class="faq-grid">
-        <details class="faq-item" *ngFor="let faq of faqs">
+        @for (faq of faqs; track faq) {
+        <details class="faq-item">
           <summary>
             {{ faq.q }}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
           </summary>
           <p>{{ faq.a }}</p>
         </details>
+        }
       </div>
     </div>
   </section>

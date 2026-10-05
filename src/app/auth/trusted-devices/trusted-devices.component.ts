@@ -1,5 +1,4 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { TwoFactorService, TrustedDevice } from '../../services/two-factor.service';
 import { AuthService } from '../../services/auth.service';
 import { formatNy } from '../../shared/ny-time.util';
@@ -7,7 +6,7 @@ import { formatNy } from '../../shared/ny-time.util';
 @Component({
   selector: 'app-trusted-devices',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './trusted-devices.component.html',
   styleUrls: ['./trusted-devices.component.scss']
 })

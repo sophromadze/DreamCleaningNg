@@ -7,14 +7,19 @@
   <!-- Tabs -->
   <nav class="tabs" aria-label="Blog admin sections">
     <button type="button" [class.active]="activeTab === 'posts'" (click)="setTab('posts')">Posts</button>
-    <button type="button" [class.active]="activeTab === 'editor'" (click)="setTab('editor')" *ngIf="editingPost">Editor</button>
+    @if (editingPost) {
+    <button type="button" [class.active]="activeTab === 'editor'" (click)="setTab('editor')">Editor</button>
+    }
     <button type="button" [class.active]="activeTab === 'topics'" (click)="setTab('topics')">Topic Queue</button>
-    <button type="button" *ngIf="isSuperAdmin" [class.active]="activeTab === 'settings'" (click)="setTab('settings')">Settings</button>
+    @if (isSuperAdmin) {
+    <button type="button" [class.active]="activeTab === 'settings'" (click)="setTab('settings')">Settings</button>
+    }
     <button type="button" [class.active]="activeTab === 'guide'" (click)="setTab('guide')">How It Works</button>
   </nav>
 
   <!-- ═══════════ POSTS ═══════════ -->
-  <section *ngIf="activeTab === 'posts'" class="tab-panel">
+  @if (activeTab === 'posts') {
+  <section class="tab-panel">
     <div class="toolbar">
       <div class="filters">
         <button type="button" class="filter-chip" [class.active]="statusFilter === null" (click)="setStatusFilter(null)">All</button>
@@ -22,11 +27,15 @@
         <button type="button" class="filter-chip" [class.active]="statusFilter === BlogPostStatus.Draft" (click)="setStatusFilter(BlogPostStatus.Draft)">Drafts</button>
         <button type="button" class="filter-chip" [class.active]="statusFilter === BlogPostStatus.Published" (click)="setStatusFilter(BlogPostStatus.Published)">Published</button>
       </div>
-      <button type="button" class="btn btn-primary" *ngIf="canManage" (click)="newPost()">+ New Post</button>
+      @if (canManage) {
+      <button type="button" class="btn btn-primary" (click)="newPost()">+ New Post</button>
+      }
     </div>
 
-    <div class="table-wrapper" *ngIf="!postsLoading; else postsLoadingTpl">
-      <table class="posts-table" *ngIf="posts.length > 0; else noPostsTpl">
+    @if (!postsLoading) {
+    <div class="table-wrapper">
+      @if (posts.length > 0) {
+      <table class="posts-table">
         <thead>
           <tr>
             <th>Status</th>
@@ -39,10 +48,13 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let post of posts" [class.pending-row]="post.status === BlogPostStatus.PendingReview">
+          @for (post of posts; track post) {
+          <tr [class.pending-row]="post.status === BlogPostStatus.PendingReview">
             <td>
               <span class="status-badge" [ngClass]="statusClass(post.status)">{{ statusLabel(post.status) }}</span>
-              <span class="ai-chip" *ngIf="post.isAiGenerated" title="Written by AI — review before publishing">AI</span>
+              @if (post.isAiGenerated) {
+              <span class="ai-chip" title="Written by AI — review before publishing">AI</span>
+              }
             </td>
             <td class="title-cell">
               <a href="javascript:void(0)" (click)="openEditor(post.id)">{{ post.title }}</a>
@@ -53,56 +65,72 @@
             <td>{{ post.viewCount }}</td>
             <td class="actions-col">
               <button type="button" class="row-btn" (click)="openEditor(post.id)">{{ canManage ? 'Edit' : 'View' }}</button>
+              @if (canManage && post.status !== BlogPostStatus.Published) {
               <button type="button" class="row-btn publish"
-                      *ngIf="canManage && post.status !== BlogPostStatus.Published"
                       [disabled]="actionBusyId === post.id"
                       (click)="publishFromList(post)">Publish</button>
+              }
+              @if (canManage && post.status === BlogPostStatus.Published) {
               <button type="button" class="row-btn"
-                      *ngIf="canManage && post.status === BlogPostStatus.Published"
                       [disabled]="actionBusyId === post.id"
                       (click)="unpublishFromList(post)">Unpublish</button>
+              }
+              @if (isSuperAdmin) {
               <button type="button" class="row-btn danger"
-                      *ngIf="isSuperAdmin"
                       [disabled]="actionBusyId === post.id"
                       (click)="deletePost(post)">Delete</button>
+              }
             </td>
           </tr>
+          }
         </tbody>
       </table>
-      <ng-template #noPostsTpl>
+      } @else {
         <p class="empty-note">No posts yet. Add topics to the queue and press "Generate Now", or create one manually.</p>
-      </ng-template>
+      }
     </div>
-    <ng-template #postsLoadingTpl>
+    } @else {
       <p class="empty-note">Loading posts…</p>
-    </ng-template>
+    }
   </section>
+  }
 
   <!-- ═══════════ EDITOR ═══════════ -->
-  <section *ngIf="activeTab === 'editor' && editingPost" class="tab-panel">
-    <div class="editor-banner ai" *ngIf="editingPost.isAiGenerated && editingPost.status === BlogPostStatus.PendingReview">
+  @if (activeTab === 'editor' && editingPost) {
+  <section class="tab-panel">
+    @if (editingPost.isAiGenerated && editingPost.status === BlogPostStatus.PendingReview) {
+    <div class="editor-banner ai">
       🤖 This draft was written by AI — read the whole article and check every fact before publishing.
     </div>
+    }
 
     <div class="editor-topbar">
       <button type="button" class="btn btn-ghost" (click)="closeEditor()">‹ Back to posts</button>
       <div class="editor-status">
         <span class="status-badge" [ngClass]="statusClass(editingPost.status)">{{ statusLabel(editingPost.status) }}</span>
-        <a *ngIf="editingPost.status === BlogPostStatus.Published"
+        @if (editingPost.status === BlogPostStatus.Published) {
+        <a
            [href]="'/blog/' + editingPost.slug" target="_blank" rel="noopener">View live ↗</a>
+        }
       </div>
-      <div class="editor-actions" *ngIf="canManage">
+      @if (canManage) {
+      <div class="editor-actions">
         <button type="button" class="btn btn-brand" [disabled]="editorBusy" (click)="savePost(false)">Save Draft</button>
+        @if (editingPost.status !== BlogPostStatus.Published) {
         <button type="button" class="btn btn-primary"
-                *ngIf="editingPost.status !== BlogPostStatus.Published"
                 [disabled]="editorBusy" (click)="savePost(true)">Publish</button>
+        }
+        @if (editingPost.status === BlogPostStatus.Published) {
         <button type="button" class="btn btn-ghost"
-                *ngIf="editingPost.status === BlogPostStatus.Published"
                 [disabled]="editorBusy" (click)="unpublishFromEditor()">Unpublish</button>
+        }
       </div>
+      }
     </div>
 
-    <p class="editor-error" *ngIf="editorError">{{ editorError }}</p>
+    @if (editorError) {
+    <p class="editor-error">{{ editorError }}</p>
+    }
 
     <div class="editor-grid">
       <!-- Left: fields + markdown -->
@@ -114,7 +142,9 @@
         </label>
 
         <label class="field">
-          <span>Slug (the link) <small *ngIf="editorSlugLocked" class="locked-hint">🔒 locked — the article is published and Google has this link</small></span>
+          <span>Slug (the link) @if (editorSlugLocked) {
+          <small class="locked-hint">🔒 locked — the article is published and Google has this link</small>
+          }</span>
           <input type="text" [(ngModel)]="editorForm.slug" (ngModelChange)="onSlugEdited($event)"
                  maxlength="220" [disabled]="editorSlugLocked"
                  placeholder="auto-generated-from-title" />
@@ -124,7 +154,9 @@
           <label class="field">
             <span>Category</span>
             <select [(ngModel)]="editorForm.category">
-              <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+              @for (cat of categories; track cat) {
+              <option [value]="cat">{{ cat }}</option>
+              }
             </select>
           </label>
           <label class="field">
@@ -164,12 +196,16 @@
         <div class="field featured-image-field">
           <span>Featured Image</span>
           <div class="image-row">
-            <img *ngIf="editorForm.featuredImagePath" [src]="editorForm.featuredImagePath" alt="Featured image preview" class="image-preview" />
+            @if (editorForm.featuredImagePath) {
+            <img [src]="editorForm.featuredImagePath" alt="Featured image preview" class="image-preview" />
+            }
             <div class="image-controls">
-              <label class="btn btn-brand upload-btn" *ngIf="canManage">
+              @if (canManage) {
+              <label class="btn btn-brand upload-btn">
                 {{ uploadBusy ? 'Uploading…' : (editorForm.featuredImagePath ? 'Replace Image' : 'Upload Image') }}
                 <input type="file" accept="image/*" (change)="uploadFeaturedImage($event)" [disabled]="uploadBusy" hidden />
               </label>
+              }
               <input type="text" [(ngModel)]="editorForm.featuredImageAlt" maxlength="200"
                      placeholder="Image description (alt text)" />
             </div>
@@ -193,64 +229,97 @@
       </div>
     </div>
   </section>
+  }
 
   <!-- ═══════════ TOPIC QUEUE ═══════════ -->
-  <section *ngIf="activeTab === 'topics'" class="tab-panel">
+  @if (activeTab === 'topics') {
+  <section class="tab-panel">
     <div class="topics-layout">
       <div class="topics-main">
         <div class="toolbar">
           <h2>Queued Topics</h2>
-          <button type="button" class="btn btn-brand" *ngIf="canManage" [disabled]="suggestBusy" (click)="suggestTopics()">
+          @if (canManage) {
+          <button type="button" class="btn btn-brand" [disabled]="suggestBusy" (click)="suggestTopics()">
             {{ suggestBusy ? 'Asking AI…' : '✨ Suggest Topics with AI' }}
           </button>
+          }
         </div>
 
         <p class="hint">The scheduler always takes the topic at the top of this list. Heard a good customer question on a call or in chat? Add it — real questions make the best articles.</p>
 
-        <div *ngIf="!topicsLoading; else topicsLoadingTpl">
-          <div class="topic-card" *ngFor="let topic of queuedTopics; let i = index">
+        @if (!topicsLoading) {
+        <div>
+          @for (topic of queuedTopics; track topic; let i = $index) {
+          <div class="topic-card">
             <div class="topic-order">
-              <button type="button" class="order-btn" *ngIf="canManage" [disabled]="i === 0" (click)="moveTopic(topic, -1)" title="Move up">▲</button>
+              @if (canManage) {
+              <button type="button" class="order-btn" [disabled]="i === 0" (click)="moveTopic(topic, -1)" title="Move up">▲</button>
+              }
               <span class="order-num">{{ i + 1 }}</span>
-              <button type="button" class="order-btn" *ngIf="canManage" [disabled]="i === queuedTopics.length - 1" (click)="moveTopic(topic, 1)" title="Move down">▼</button>
+              @if (canManage) {
+              <button type="button" class="order-btn" [disabled]="i === queuedTopics.length - 1" (click)="moveTopic(topic, 1)" title="Move down">▼</button>
+              }
             </div>
             <div class="topic-body">
               <strong>{{ topic.topicTitle }}</strong>
-              <small *ngIf="topic.targetKeyword">keyword: {{ topic.targetKeyword }}</small>
-              <small *ngIf="topic.notes" class="topic-notes">{{ topic.notes }}</small>
+              @if (topic.targetKeyword) {
+              <small>keyword: {{ topic.targetKeyword }}</small>
+              }
+              @if (topic.notes) {
+              <small class="topic-notes">{{ topic.notes }}</small>
+              }
             </div>
             <div class="topic-actions">
+              @if (canManage) {
               <button type="button" class="row-btn publish"
-                      *ngIf="canManage"
                       [disabled]="generateBusyTopicId !== null"
                       (click)="generateNow(topic)">
                 {{ generateBusyTopicId === topic.id ? 'Writing… (up to a minute)' : 'Generate Now' }}
               </button>
-              <button type="button" class="row-btn" *ngIf="canManage" (click)="editTopic(topic)">Edit</button>
-              <button type="button" class="row-btn danger" *ngIf="isSuperAdmin" (click)="deleteTopic(topic)">Delete</button>
+              }
+              @if (canManage) {
+              <button type="button" class="row-btn" (click)="editTopic(topic)">Edit</button>
+              }
+              @if (isSuperAdmin) {
+              <button type="button" class="row-btn danger" (click)="deleteTopic(topic)">Delete</button>
+              }
             </div>
           </div>
-          <p class="empty-note" *ngIf="queuedTopics.length === 0">The queue is empty — add a topic below or use AI suggestions.</p>
+          }
+          @if (queuedTopics.length === 0) {
+          <p class="empty-note">The queue is empty — add a topic below or use AI suggestions.</p>
+          }
 
-          <details class="generated-topics" *ngIf="generatedTopics.length > 0">
+          @if (generatedTopics.length > 0) {
+          <details class="generated-topics">
             <summary>Already generated ({{ generatedTopics.length }})</summary>
-            <div class="topic-card done" *ngFor="let topic of generatedTopics">
+            @for (topic of generatedTopics; track topic) {
+            <div class="topic-card done">
               <div class="topic-body">
                 <strong>{{ topic.topicTitle }}</strong>
                 <small>generated {{ formatDate(topic.generatedAt) }}</small>
               </div>
               <div class="topic-actions">
-                <button type="button" class="row-btn" *ngIf="topic.generatedBlogPostId"
+                @if (topic.generatedBlogPostId) {
+                <button type="button" class="row-btn"
                         (click)="openEditor(topic.generatedBlogPostId!)">Open Draft</button>
-                <button type="button" class="row-btn danger" *ngIf="isSuperAdmin" (click)="deleteTopic(topic)">Delete</button>
+                }
+                @if (isSuperAdmin) {
+                <button type="button" class="row-btn danger" (click)="deleteTopic(topic)">Delete</button>
+                }
               </div>
             </div>
+            }
           </details>
+          }
         </div>
-        <ng-template #topicsLoadingTpl><p class="empty-note">Loading topics…</p></ng-template>
+        } @else {
+        <p class="empty-note">Loading topics…</p>
+        }
 
         <!-- Add / edit topic form -->
-        <div class="topic-form" *ngIf="canManage">
+        @if (canManage) {
+        <div class="topic-form">
           <h3>{{ editingTopicId ? 'Edit Topic' : 'Add a Topic' }}</h3>
           <label class="field">
             <span>Topic</span>
@@ -273,43 +342,59 @@
             <button type="button" class="btn btn-primary" [disabled]="!topicForm.topicTitle.trim()" (click)="saveTopic()">
               {{ editingTopicId ? 'Save Changes' : 'Add to Queue' }}
             </button>
-            <button type="button" class="btn btn-ghost" *ngIf="editingTopicId" (click)="cancelTopicEdit()">Cancel</button>
+            @if (editingTopicId) {
+            <button type="button" class="btn btn-ghost" (click)="cancelTopicEdit()">Cancel</button>
+            }
           </div>
         </div>
+        }
       </div>
     </div>
 
     <!-- AI suggestions panel -->
-    <div class="suggestions-overlay" *ngIf="suggestionsVisible">
+    @if (suggestionsVisible) {
+    <div class="suggestions-overlay">
       <div class="suggestions-panel">
         <div class="suggestions-header">
           <h3>AI Topic Suggestions</h3>
           <button type="button" class="btn btn-ghost" (click)="suggestionsVisible = false">✕ Close</button>
         </div>
-        <p class="hint" *ngIf="suggestBusy">Thinking of topics that don't overlap with what you already have…</p>
-        <div class="suggestions-list" *ngIf="!suggestBusy">
-          <label class="suggestion-row" *ngFor="let suggestion of suggestions">
+        @if (suggestBusy) {
+        <p class="hint">Thinking of topics that don't overlap with what you already have…</p>
+        }
+        @if (!suggestBusy) {
+        <div class="suggestions-list">
+          @for (suggestion of suggestions; track suggestion) {
+          <label class="suggestion-row">
             <input type="checkbox" [(ngModel)]="suggestion.selected" />
             <span class="suggestion-text">
               <strong>{{ suggestion.topicTitle }}</strong>
               <small>{{ suggestion.targetKeyword }}</small>
             </span>
           </label>
+          }
         </div>
-        <div class="suggestions-footer" *ngIf="!suggestBusy && suggestions.length > 0">
+        }
+        @if (!suggestBusy && suggestions.length > 0) {
+        <div class="suggestions-footer">
           <button type="button" class="btn btn-primary"
                   [disabled]="selectedSuggestionsCount === 0 || addSuggestionsBusy"
                   (click)="addSelectedSuggestions()">
             {{ addSuggestionsBusy ? 'Adding…' : 'Add ' + selectedSuggestionsCount + ' to Queue' }}
           </button>
         </div>
+        }
       </div>
     </div>
+    }
   </section>
+  }
 
   <!-- ═══════════ SETTINGS ═══════════ -->
-  <section *ngIf="activeTab === 'settings'" class="tab-panel">
-    <div *ngIf="!settingsLoading && settings; else settingsLoadingTpl" class="settings-panel">
+  @if (activeTab === 'settings') {
+  <section class="tab-panel">
+    @if (!settingsLoading && settings) {
+    <div class="settings-panel">
       <div class="setting-row">
         <div class="setting-text">
           <h2>Blog page visible to public</h2>
@@ -348,7 +433,9 @@
                   [ngModel]="settings.generationModel"
                   (ngModelChange)="onModelChange($event)"
                   [disabled]="settingsSaving">
-            <option *ngFor="let option of settings.modelOptions" [value]="option.id">{{ option.label }}</option>
+            @for (option of settings.modelOptions; track option) {
+            <option [value]="option.id">{{ option.label }}</option>
+            }
           </select>
           <p class="model-hint">Sonnet 5 is recommended for article quality — the cost difference is pennies per article at this volume.</p>
         </div>
@@ -359,28 +446,34 @@
           <span class="fact-label">Last generation</span>
           <span class="fact-value">{{ settings.lastRunAt ? formatDateTime(settings.lastRunAt) : 'Never ran yet' }}</span>
         </div>
-        <div class="fact" *ngIf="settings.lastRunResult">
+        @if (settings.lastRunResult) {
+        <div class="fact">
           <span class="fact-label">Result</span>
           <span class="fact-value" [class.failed]="settings.lastRunResult.startsWith('Failed')">{{ settings.lastRunResult }}</span>
         </div>
+        }
         <div class="fact">
           <span class="fact-label">Topics waiting in queue</span>
           <span class="fact-value">{{ settings.queuedTopicsCount }}</span>
         </div>
       </div>
     </div>
-    <ng-template #settingsLoadingTpl><p class="empty-note">Loading settings…</p></ng-template>
+    } @else {
+    <p class="empty-note">Loading settings…</p>
+    }
   </section>
+  }
 
   <!-- ═══════════ HOW IT WORKS ═══════════ -->
-  <section *ngIf="activeTab === 'guide'" class="tab-panel guide">
+  @if (activeTab === 'guide') {
+  <section class="tab-panel guide">
     <div class="lang-toggle" role="group" aria-label="Guide language">
       <button type="button" [class.active]="guideLang === 'ka'" (click)="guideLang = 'ka'">ქართული</button>
       <button type="button" [class.active]="guideLang === 'en'" (click)="guideLang = 'en'">EN</button>
     </div>
 
     <!-- ─── ქართული ─── -->
-    <ng-container *ngIf="guideLang === 'ka'">
+    @if (guideLang === 'ka') {
       <h2>როგორ მუშაობს ბლოგი — მარტივი ენით</h2>
 
       <div class="guide-block">
@@ -451,10 +544,10 @@
         ნახტომებს ჯობია — <strong>თვეში 2–4 კარგი სტატია</strong>, ყოველ თვეს, ბევრად მეტი ღირს, ვიდრე ათი
         სტატია ერთ კვირაში და მერე სიჩუმე.</p>
       </div>
-    </ng-container>
+    }
 
     <!-- ─── English ─── -->
-    <ng-container *ngIf="guideLang === 'en'">
+    @if (guideLang === 'en') {
     <h2>How the blog works — plain and simple</h2>
 
     <div class="guide-block">
@@ -523,6 +616,7 @@
       and the real effect shows after <strong>6+ months</strong>. Consistency beats bursts — <strong>2–4 good
       articles per month</strong>, every month, is worth more than ten articles in one week and then silence.</p>
     </div>
-    </ng-container>
+    }
   </section>
+  }
 </div>

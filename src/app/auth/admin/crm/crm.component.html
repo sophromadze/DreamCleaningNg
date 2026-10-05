@@ -25,11 +25,21 @@
   </div>
 
   <div class="crm-content">
-    <app-leads-pipeline *ngIf="activeTab === 'leads'" [openLeadId]="leadToOpen"></app-leads-pipeline>
-    <app-crm-calls *ngIf="activeTab === 'calls'" (openLead)="onCallLeadSelected($event)"></app-crm-calls>
-    <app-crm-customers *ngIf="activeTab === 'customers'" [segmentFilter]="customerSegmentFilter"></app-crm-customers>
-    <app-crm-segments *ngIf="activeTab === 'segments'" (selectSegment)="onSegmentSelected($event)"></app-crm-segments>
-    <app-crm-automation *ngIf="activeTab === 'automation'"></app-crm-automation>
+    @if (activeTab === 'leads') {
+    <app-leads-pipeline [openLeadId]="leadToOpen"></app-leads-pipeline>
+    }
+    @if (activeTab === 'calls') {
+    <app-crm-calls (openLead)="onCallLeadSelected($event)"></app-crm-calls>
+    }
+    @if (activeTab === 'customers') {
+    <app-crm-customers [segmentFilter]="customerSegmentFilter"></app-crm-customers>
+    }
+    @if (activeTab === 'segments') {
+    <app-crm-segments (selectSegment)="onSegmentSelected($event)"></app-crm-segments>
+    }
+    @if (activeTab === 'automation') {
+    <app-crm-automation></app-crm-automation>
+    }
   </div>
 
   <!-- ───────────────────────────────────────────────────────────
@@ -57,7 +67,8 @@
         </div>
 
         <!-- LEADS ტაბი -->
-        <div class="help-block" *ngIf="activeTab === 'leads'">
+        @if (activeTab === 'leads') {
+        <div class="help-block">
           <h2>Leads &amp; Pipeline — ლიდები და გაყიდვების ძაბრი</h2>
           <p><strong>ლიდი</strong> = პოტენციური კლიენტი, რომელმაც დაგვიკავშირდა, მაგრამ ჯერ არ დაუჯავშნია სერვისი.</p>
           <ul>
@@ -77,9 +88,11 @@
             <li><strong>Lost reason</strong> — როცა ლიდს Lost-ზე გადაიტანთ, შეგიძლიათ მიზეზი ჩაწეროთ.</li>
           </ul>
         </div>
+        }
 
         <!-- CUSTOMERS ტაბი -->
-        <div class="help-block" *ngIf="activeTab === 'customers'">
+        @if (activeTab === 'customers') {
+        <div class="help-block">
           <h2>Customers — კლიენტების 360° ხედი</h2>
           <p>ყველა რეგისტრირებული მომხმარებლის სრული სურათი ერთ ადგილას.</p>
           <ul>
@@ -94,9 +107,11 @@
             <li>დეტალებში ჩანს: საკონტაქტო, KPI-ები, ბოლო შეკვეთები, გამოწერა, ლოიალობა.</li>
           </ul>
         </div>
+        }
 
         <!-- SEGMENTS ტაბი -->
-        <div class="help-block" *ngIf="activeTab === 'segments'">
+        @if (activeTab === 'segments') {
+        <div class="help-block">
           <h2>Segments — სეგმენტები (ავტომატური ჯგუფები)</h2>
           <p>
             სეგმენტი ავტომატურად გამოითვლება შეკვეთების ისტორიის, დახარჯვისა და გამოწერის მიხედვით.
@@ -113,9 +128,11 @@
             <li><strong>Prospect</strong> — დარეგისტრირდა, მაგრამ შეკვეთა არ აქვს.</li>
           </ul>
         </div>
+        }
 
         <!-- AUTOMATION ტაბი -->
-        <div class="help-block" *ngIf="activeTab === 'automation'">
+        @if (activeTab === 'automation') {
+        <div class="help-block">
           <h2>Automation — ავტომატიზაცია</h2>
           <p class="help-warn">
             🔒 სისტემა კლიენტს <u>არასოდეს</u> უგზავნის შეტყობინებას. წესები მხოლოდ <strong>შესახსენებელ
@@ -165,6 +182,7 @@
             Cooldown = 40 → 40 დღე ხელახლა აღარ შეგაწუხებთ იმავე კლიენტით.
           </p>
         </div>
+        }
       </div>
     </details>
   </section>

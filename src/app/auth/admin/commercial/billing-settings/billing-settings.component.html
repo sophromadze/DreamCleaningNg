@@ -10,12 +10,19 @@
     hardcoded anywhere else.
   </p>
 
-  <div class="alert alert-error" *ngIf="error">{{ error }}</div>
-  <div class="alert alert-success" *ngIf="notice">{{ notice }}</div>
+  @if (error) {
+  <div class="alert alert-error">{{ error }}</div>
+  }
+  @if (notice) {
+  <div class="alert alert-success">{{ notice }}</div>
+  }
 
-  <div class="loading-note" *ngIf="loading">Loading…</div>
+  @if (loading) {
+  <div class="loading-note">Loading…</div>
+  }
 
-  <form *ngIf="!loading && settings" (ngSubmit)="save()">
+  @if (!loading && settings) {
+  <form (ngSubmit)="save()">
 
     <section class="card">
       <h3>Company</h3>
@@ -117,19 +124,23 @@
         The warning that stops misleading instructions going out: manual ACH switched on but
         missing the fields a customer actually needs to pay.
       -->
-      <div class="alert alert-warning" *ngIf="form.manualAchEnabled && !settings.manualAchComplete">
+      @if (form.manualAchEnabled && !settings.manualAchComplete) {
+      <div class="alert alert-warning">
         <strong>Manual ACH is enabled but incomplete.</strong>
         The bank details below are missing:
         {{ settings.missingManualAchFields.join(', ') }}.
         Invoices will not show manual transfer instructions until these are filled in — an
         incomplete block is worse than none, because the customer only finds out at their bank.
       </div>
+      }
 
+      @if (!form.stripeAchEnabled && !form.stripeCardEnabled && !form.manualAchEnabled) {
       <div class="alert alert-warning"
-           *ngIf="!form.stripeAchEnabled && !form.stripeCardEnabled && !form.manualAchEnabled">
+          >
         <strong>No payment method is enabled.</strong>
         Customers will have no way to pay their invoices online or by transfer.
       </div>
+      }
     </section>
 
     <section class="card">
@@ -239,7 +250,9 @@
           <label for="defaultDueTerms">Default payment terms</label>
           <select id="defaultDueTerms" [(ngModel)]="form.defaultDueTerms" name="defaultDueTerms"
                   [disabled]="!canEdit">
-            <option *ngFor="let t of dueTermsOptions" [ngValue]="t.value">{{ t.label }}</option>
+            @for (t of dueTermsOptions; track t) {
+            <option [ngValue]="t.value">{{ t.label }}</option>
+            }
           </select>
         </div>
       </div>
@@ -257,13 +270,18 @@
       </div>
     </section>
 
-    <div class="form-actions" *ngIf="canEdit">
-      <span class="updated-at" *ngIf="settings.updatedAt">
+    @if (canEdit) {
+    <div class="form-actions">
+      @if (settings.updatedAt) {
+      <span class="updated-at">
         Last updated {{ settings.updatedAt | date:'MMM d, y, h:mm a' }}
       </span>
+      }
       <button type="submit" class="btn-primary" [disabled]="saving || !form.companyLegalName">
         {{ saving ? 'Saving…' : 'Save billing settings' }}
       </button>
     </div>
+    }
   </form>
+  }
 </div>

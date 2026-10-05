@@ -13,14 +13,18 @@
       <option value="name">Name (A–Z)</option>
       <option value="oldest">Oldest</option>
     </select>
-    <span class="segment-chip" *ngIf="segmentFilter">
+    @if (segmentFilter) {
+    <span class="segment-chip">
       {{ segmentLabel(segmentFilter) }}
       <button (click)="clearSegmentFilter()">✕</button>
     </span>
+    }
     <span class="result-count">{{ total }} customer{{ total === 1 ? '' : 's' }}</span>
   </div>
 
-  <div class="error-message" *ngIf="errorMessage">{{ errorMessage }}</div>
+  @if (errorMessage) {
+  <div class="error-message">{{ errorMessage }}</div>
+  }
 
   <!-- Table -->
   <div class="table-wrap" [class.loading]="loading">
@@ -36,50 +40,75 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let c of customers; trackBy: trackById" (click)="openCustomer(c)" class="row">
+        @for (c of customers; track trackById($index, c)) {
+        <tr (click)="openCustomer(c)" class="row">
           <td>
             <div class="cust-name">{{ c.fullName || c.email }}</div>
-            <div class="cust-sub">{{ c.email }}<span *ngIf="c.phone"> · {{ c.phone }}</span></div>
+            <div class="cust-sub">{{ c.email }}@if (c.phone) {
+            <span> · {{ c.phone }}</span>
+            }</div>
           </td>
           <td>
             <span class="lc-badge" [ngClass]="lifecycleClass(c.lifecycleStage)">{{ c.lifecycleStage }}</span>
-            <span class="seg-mini" *ngIf="c.isSubscribed">Recurring</span>
-            <span class="seg-mini vip" *ngIf="c.segments.includes('vip')">VIP</span>
+            @if (c.isSubscribed) {
+            <span class="seg-mini">Recurring</span>
+            }
+            @if (c.segments.includes('vip')) {
+            <span class="seg-mini vip">VIP</span>
+            }
           </td>
           <td class="num">{{ c.lifetimeValue | currency:'USD':'symbol':'1.0-0' }}</td>
           <td class="num">{{ c.orderCount }}</td>
           <td>{{ formatDate(c.lastOrderDate) }}</td>
           <td>
-            <span class="tag-pill" *ngFor="let t of c.tags" [style.background]="t.color || ''" [style.color]="t.color ? labelColor(t.color) : null">{{ t.label }}</span>
+            @for (t of c.tags; track t) {
+            <span class="tag-pill" [style.background]="t.color || ''" [style.color]="t.color ? labelColor(t.color) : null">{{ t.label }}</span>
+            }
           </td>
         </tr>
-        <tr *ngIf="!loading && customers.length === 0">
+        }
+        @if (!loading && customers.length === 0) {
+        <tr>
           <td colspan="6" class="empty">No customers found.</td>
         </tr>
+        }
       </tbody>
     </table>
   </div>
 
   <!-- Pagination (matches the admin Users tab) -->
-  <div class="pagination" *ngIf="totalPages > 1">
+  @if (totalPages > 1) {
+  <div class="pagination">
     <button class="page-btn" (click)="goToPage(page - 1)" [disabled]="page === 1">‹ Previous</button>
     <button class="page-btn" (click)="goToPage(1)" [class.active]="page === 1">1</button>
-    <span *ngIf="totalPages > 5 && page > 3" class="page-ellipsis">…</span>
-    <button *ngFor="let p of getVisiblePages()"
+    @if (totalPages > 5 && page > 3) {
+    <span class="page-ellipsis">…</span>
+    }
+    @for (p of getVisiblePages(); track p) {
+    <button
             class="page-btn"
             (click)="goToPage(p)"
             [class.active]="page === p">{{ p }}</button>
-    <span *ngIf="totalPages > 5 && page < totalPages - 2" class="page-ellipsis">…</span>
-    <button *ngIf="totalPages > 1"
+    }
+    @if (totalPages > 5 && page < totalPages - 2) {
+    <span class="page-ellipsis">…</span>
+    }
+    @if (totalPages > 1) {
+    <button
             class="page-btn"
             (click)="goToPage(totalPages)"
             [class.active]="page === totalPages">{{ totalPages }}</button>
+    }
     <button class="page-btn" (click)="goToPage(page + 1)" [disabled]="page === totalPages">Next ›</button>
   </div>
+  }
 
   <!-- ───────────── Customer 360 slide-in ───────────── -->
-  <div class="panel-overlay" *ngIf="selected" (click)="closePanel()"></div>
-  <aside class="detail-panel" *ngIf="selected">
+  @if (selected) {
+  <div class="panel-overlay" (click)="closePanel()"></div>
+  }
+  @if (selected) {
+  <aside class="detail-panel">
     <div class="panel-header">
       <div>
         <h2>{{ selected.fullName || selected.email }}</h2>
@@ -88,11 +117,14 @@
       <button class="close-btn" (click)="closePanel()">✕</button>
     </div>
 
-    <div class="panel-body" *ngIf="!panelLoading">
+    @if (!panelLoading) {
+    <div class="panel-body">
       <!-- Contact -->
       <section class="contact-row">
         <a [href]="'mailto:' + selected.email" class="contact-link">✉ {{ selected.email }}</a>
-        <a *ngIf="selected.phone" [href]="'tel:' + selected.phone" class="contact-link">📞 {{ selected.phone }}</a>
+        @if (selected.phone) {
+        <a [href]="'tel:' + selected.phone" class="contact-link">📞 {{ selected.phone }}</a>
+        }
       </section>
 
       <!-- KPI grid -->
@@ -109,7 +141,9 @@
         <div><span>First order</span><b>{{ formatDate(selected.firstOrderDate) }}</b></div>
         <div><span>Last order</span><b>{{ formatDate(selected.lastOrderDate) }}</b></div>
         <div><span>Subscription</span><b>{{ selected.isSubscribed ? selected.subscriptionName : 'None' }}</b></div>
-        <div *ngIf="selected.loyaltyDiscountPercentage > 0"><span>Loyalty discount</span><b>{{ selected.loyaltyDiscountPercentage }}%</b></div>
+        @if (selected.loyaltyDiscountPercentage > 0) {
+        <div><span>Loyalty discount</span><b>{{ selected.loyaltyDiscountPercentage }}%</b></div>
+        }
         <div><span>Comms</span><b>
           <span [class.off]="!selected.canReceiveEmails">Email</span> ·
           <span [class.off]="!selected.canReceiveMessages">SMS</span>
@@ -120,8 +154,12 @@
       <section class="seg-section">
         <h3>Segments</h3>
         <div class="seg-pills">
-          <span class="seg-pill" *ngFor="let s of selected.segments" [ngClass]="'sp-' + s">{{ segmentLabel(s) }}</span>
-          <span *ngIf="selected.segments.length === 0" class="muted">None</span>
+          @for (s of selected.segments; track s) {
+          <span class="seg-pill" [ngClass]="'sp-' + s">{{ segmentLabel(s) }}</span>
+          }
+          @if (selected.segments.length === 0) {
+          <span class="muted">None</span>
+          }
         </div>
       </section>
 
@@ -129,16 +167,22 @@
       <section class="tag-section">
         <h3>Tags</h3>
         <div class="tag-pills">
-          <span class="tag-pill removable" *ngFor="let t of selected.tags" [style.background]="t.color || ''" [style.color]="t.color ? labelColor(t.color) : null">
+          @for (t of selected.tags; track t) {
+          <span class="tag-pill removable" [style.background]="t.color || ''" [style.color]="t.color ? labelColor(t.color) : null">
             {{ t.label }}<button (click)="removeTag(t.id)" title="Remove">✕</button>
           </span>
-          <span *ngIf="selected.tags.length === 0" class="muted">No tags yet</span>
+          }
+          @if (selected.tags.length === 0) {
+          <span class="muted">No tags yet</span>
+          }
         </div>
         <div class="add-tag">
           <input type="text" placeholder="Add a tag…" [(ngModel)]="newTagLabel"
                  list="tag-suggestions" (keyup.enter)="addTag()" />
           <datalist id="tag-suggestions">
-            <option *ngFor="let s of tagSuggestions" [value]="s"></option>
+            @for (s of tagSuggestions; track s) {
+            <option [value]="s"></option>
+            }
           </datalist>
           <button class="btn-add-tag" (click)="addTag()" [disabled]="addingTag || !newTagLabel.trim()">Add</button>
         </div>
@@ -148,18 +192,26 @@
       <section class="orders-section">
         <h3>Recent orders</h3>
         <ul class="order-list">
-          <li *ngFor="let o of selected.recentOrders">
+          @for (o of selected.recentOrders; track o) {
+          <li>
             <a [routerLink]="['/admin']" [queryParams]="{ orderId: o.id }" (click)="closePanel()">#{{ o.id }}</a>
             <span class="o-type">{{ o.serviceTypeName }}</span>
             <span class="o-date">{{ formatDate(o.serviceDate) }}</span>
             <span class="o-status" [ngClass]="'st-' + o.status">{{ o.status }}</span>
             <span class="o-total">{{ o.total | currency:'USD':'symbol':'1.0-0' }}</span>
           </li>
-          <li *ngIf="selected.recentOrders.length === 0" class="muted">No orders.</li>
+          }
+          @if (selected.recentOrders.length === 0) {
+          <li class="muted">No orders.</li>
+          }
         </ul>
       </section>
     </div>
+    }
 
-    <div class="panel-loading" *ngIf="panelLoading">Loading…</div>
+    @if (panelLoading) {
+    <div class="panel-loading">Loading…</div>
+    }
   </aside>
+  }
 </div>

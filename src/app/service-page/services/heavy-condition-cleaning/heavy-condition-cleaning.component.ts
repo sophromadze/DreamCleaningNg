@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MarketingPricingService } from '../../../shared/pricing/marketing-pricing.service';
 import { IconComponent } from '../../../shared/icons/icon.component';
@@ -16,7 +15,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
 @Component({
   selector: 'app-heavy-condition-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterModule, IconComponent, CardImageDirective],
+  imports: [RouterModule, IconComponent, CardImageDirective],
   templateUrl: './heavy-condition-cleaning.component.html',
   styleUrl: './heavy-condition-cleaning.component.scss'
 })

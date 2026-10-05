@@ -1,5 +1,4 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ContractDocumentComponent } from '../../shared/components/contract-document/contract-document.component';
@@ -25,7 +24,7 @@ import { extractApiErrorMessage } from '../../utils/http-error.utils';
 @Component({
   selector: 'app-my-contract-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, ContractDocumentComponent, SignatureCaptureComponent],
+  imports: [FormsModule, ContractDocumentComponent, SignatureCaptureComponent],
   templateUrl: './my-contract-detail.component.html',
   styleUrls: ['../contract-review/contract-review.component.scss']
 })

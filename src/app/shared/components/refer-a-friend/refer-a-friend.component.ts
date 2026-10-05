@@ -1,5 +1,5 @@
 import { Component, Inject, Input, PLATFORM_ID } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 
 /**
  * "Refer a Friend" — the invite link + code card, with its copy and share actions.
@@ -15,7 +15,7 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 @Component({
   selector: 'app-refer-a-friend',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './refer-a-friend.component.html',
   styleUrl: './refer-a-friend.component.scss'
 })

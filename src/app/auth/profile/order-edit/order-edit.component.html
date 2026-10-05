@@ -9,12 +9,17 @@
       <h1>Edit Order #{{ order?.id }}</h1>
     </div>
 
-    <div *ngIf="isLoading" class="loading">Loading order...</div>
-
-    <div class="error-message" *ngIf="errorMessage">{{ errorMessage }}</div>
-    <div class="success-message" *ngIf="successMessage">{{ successMessage }}</div>
-
-    <div class="booking-grid has-summary" *ngIf="!isLoading && order">
+    @if (isLoading) {
+    <div class="loading">Loading order...</div>
+    }
+    @if (errorMessage) {
+    <div class="error-message">{{ errorMessage }}</div>
+    }
+    @if (successMessage) {
+    <div class="success-message">{{ successMessage }}</div>
+    }
+    @if (!isLoading && order) {
+    <div class="booking-grid has-summary">
       <!-- Left Side - Edit Form (mirrors .booking-form on the booking page) -->
       <div class="booking-form">
         <form [formGroup]="orderForm" (ngSubmit)="onSubmit()">
@@ -25,7 +30,7 @@
           </section>
 
           <!-- Cleaning Type (same rich buttons as booking) -->
-          <ng-container *ngIf="canShowDeepCleaningOption">
+          @if (canShowDeepCleaningOption) {
             <label>Cleaning Type <span class="required">*</span></label>
             <div class="cleaning-type-selection">
               <div class="cleaning-type-buttons">
@@ -55,26 +60,34 @@
                   <i class="fas fa-check-circle cleaning-type-btn__check" aria-hidden="true"></i>
                 </button>
               </div>
-              <div class="error-message" *ngIf="cleaningType.invalid && cleaningType.touched">
-                <div *ngIf="cleaningType.errors?.['required']">Cleaning type is required</div>
+              @if (cleaningType.invalid && cleaningType.touched) {
+              <div class="error-message">
+                @if (cleaningType.errors?.['required']) {
+                <div>Cleaning type is required</div>
+                }
               </div>
+              }
             </div>
             <app-cleaning-type-details-expandable
               [cleaningType]="cleaningType.value === 'deep' ? 'deep' : 'normal'">
             </app-cleaning-type-details-expandable>
-          </ng-container>
+          }
 
           <!-- Services (Bedrooms / Bathrooms / SqFt) -->
-          <section class="booking-section" *ngIf="serviceType">
+          @if (serviceType) {
+          <section class="booking-section">
             <!-- Office Cleaning Pricing Text -->
-            <div class="service-pricing-info" *ngIf="hasCleanerServices()">
+            @if (hasCleanerServices()) {
+            <div class="service-pricing-info">
               <p class="pricing-text" [innerHTML]="getCleanerPricingText()"></p>
             </div>
+            }
 
             <!-- Property type. Same block as the booking page, styled by booking.component.scss
                  (listed first in this component's styleUrls). A legacy order arrives with
                  nothing selected and may be answered now, or left alone. -->
-            <div class="property-type-section" *ngIf="showPropertyTypeSelector()">
+            @if (showPropertyTypeSelector()) {
+            <div class="property-type-section">
               <h3 class="property-type-heading">What kind of place is it?</h3>
               <div class="property-type-options">
                 <button
@@ -109,32 +122,38 @@
                 </button>
               </div>
 
-              <div class="levels-block" *ngIf="showLevelsSelector()">
+              @if (showLevelsSelector()) {
+              <div class="levels-block">
                 <h4 class="levels-heading">How many levels need cleaning?</h4>
                 <div class="levels-options" role="group" aria-label="Number of levels">
+                  @for (level of levelOptions; track level) {
                   <button
                     type="button"
                     class="level-chip"
-                    *ngFor="let level of levelOptions"
                     [class.selected]="isLevelsSelected(level)"
                     [attr.aria-pressed]="isLevelsSelected(level)"
                     (click)="selectLevels(level)">
                     {{ level }}
                   </button>
+                  }
                 </div>
                 <p class="levels-hint">Count the basement if it needs cleaning.</p>
               </div>
+              }
             </div>
+            }
 
             <div class="services">
               <!-- Levels is excluded: it has its own block above. The entry stays in
                    selectedServices so the FormArray of controls remains index-aligned. -->
-              <ng-container *ngFor="let selected of selectedServices; let i = index">
-              <div class="service-item" *ngIf="!isLevelsService(selected.service)">
+              @for (selected of selectedServices; track selected; let i = $index) {
+              @if (!isLevelsService(selected.service)) {
+              <div class="service-item">
                 <label>{{ selected.service.name }}</label>
 
                 <!-- Quantity Control Input -->
-                <div class="service-input" *ngIf="selected.service.inputType === 'dropdown'">
+                @if (selected.service.inputType === 'dropdown') {
+                <div class="service-input">
                   <app-quantity-control class="quantity-control" [label]="selected.service.name"
                     [value]="selected.service.serviceKey === 'bedrooms' && getServiceControl(i).value === 0 ? 'Studio' : getServiceControl(i).value"
                     [decrementDisabled]="getServiceControl(i).value <= (selected.service.minValue || 0)"
@@ -143,9 +162,11 @@
                     (increment)="incrementServiceQuantity(selected.service)">
                   </app-quantity-control>
                 </div>
+                }
 
                 <!-- Slider Input for Square Feet -->
-                <div class="service-input slider-input" *ngIf="selected.service.isRangeInput">
+                @if (selected.service.isRangeInput) {
+                <div class="service-input slider-input">
                   <div class="slider-container">
                     <span class="slider-quantity">{{ getServiceControl(i).value }}</span>
                     <!-- Index-based, same as the booking page (see getSquareFeetOptions). -->
@@ -157,13 +178,17 @@
                           (input)="onSquareFeetSliderChange(selected.service, $any($event.target).value)">
                   </div>
                 </div>
+                }
               </div>
-              </ng-container>
+              }
+              }
             </div>
           </section>
+          }
 
           <!-- Extra Services (same card grid + show-more as booking) -->
-          <section class="booking-section" *ngIf="serviceType && getFilteredExtraServices().length > 0">
+          @if (serviceType && getFilteredExtraServices().length > 0) {
+          <section class="booking-section">
             <!-- Floor Type (Optional) — sits right above Extra Services, like booking -->
             <app-floor-type-selector
               [selectedTypes]="floorTypes"
@@ -180,6 +205,7 @@
               (hoursChange)="updateExtraServiceHours($event.extra, $event.hours)">
             </app-extra-services-grid>
           </section>
+          }
 
           <!-- Date & Time -->
           <section class="booking-section">
@@ -224,17 +250,20 @@
                   <span>{{ orderForm.get('entryMethod')?.value || 'Select entry method' }}</span>
                   <i class="fas fa-chevron-down"></i>
                 </button>
-                <div class="dropdown-menu" *ngIf="entryMethodDropdownOpen">
+                @if (entryMethodDropdownOpen) {
+                <div class="dropdown-menu">
+                  @for (method of entryMethods; track method) {
                   <button
-                    *ngFor="let method of entryMethods"
                     type="button"
                     class="dropdown-item"
                     (click)="selectEntryMethod(method)">
                     {{ method }}
                   </button>
+                  }
                 </div>
+                }
               </div>
-              <ng-container *ngIf="orderForm.get('entryMethod')?.value === 'Other'">
+              @if (orderForm.get('entryMethod')?.value === 'Other') {
                 <input type="text"
                         formControlName="customEntryMethod"
                         placeholder="Please specify"
@@ -244,7 +273,7 @@
                        [class.char-counter--limit]="(orderForm.get('customEntryMethod')?.value?.length || 0) >= entryMethodMaxLength">
                   {{ orderForm.get('customEntryMethod')?.value?.length || 0 }} / {{ entryMethodMaxLength }} characters
                 </small>
-              </ng-container>
+              }
             </div>
           </section>
 
@@ -262,7 +291,8 @@
                       ${{ tipsAmount }}
                       <span class="dropdown-arrow">▼</span>
                     </button>
-                    <div class="tip-dropdown-menu" *ngIf="tipDropdownOpen">
+                    @if (tipDropdownOpen) {
+                    <div class="tip-dropdown-menu">
                       <button type="button"
                               class="tip-dropdown-item"
                               [class.selected]="tipsAmount === 0"
@@ -294,6 +324,7 @@
                         $100
                       </button>
                     </div>
+                    }
                   </div>
                   <div class="tip-custom-input">
                     <!-- (blur) snaps a cleared box back to 0 so "no tip" can never sit in the
@@ -335,28 +366,46 @@
             <div class="form-grid">
               <div class="form-group">
                 <input type="text" formControlName="contactFirstName" placeholder="First Name *">
-                <div class="error-message" *ngIf="orderForm.get('contactFirstName')?.invalid && orderForm.get('contactFirstName')?.touched">
-                  <div *ngIf="orderForm.get('contactFirstName')?.errors?.['required']">First name is required</div>
+                @if (orderForm.get('contactFirstName')?.invalid && orderForm.get('contactFirstName')?.touched) {
+                <div class="error-message">
+                  @if (orderForm.get('contactFirstName')?.errors?.['required']) {
+                  <div>First name is required</div>
+                  }
                 </div>
+                }
               </div>
               <div class="form-group">
                 <input type="text" formControlName="contactLastName" placeholder="Last Name *">
-                <div class="error-message" *ngIf="orderForm.get('contactLastName')?.invalid && orderForm.get('contactLastName')?.touched">
-                  <div *ngIf="orderForm.get('contactLastName')?.errors?.['required']">Last name is required</div>
+                @if (orderForm.get('contactLastName')?.invalid && orderForm.get('contactLastName')?.touched) {
+                <div class="error-message">
+                  @if (orderForm.get('contactLastName')?.errors?.['required']) {
+                  <div>Last name is required</div>
+                  }
                 </div>
+                }
               </div>
               <div class="form-group">
                 <input type="email" formControlName="contactEmail" placeholder="Email *">
-                <div class="error-message" *ngIf="orderForm.get('contactEmail')?.invalid && orderForm.get('contactEmail')?.touched">
-                  <div *ngIf="orderForm.get('contactEmail')?.errors?.['required']">Email is required</div>
-                  <div *ngIf="orderForm.get('contactEmail')?.errors?.['email']">Please enter a valid email address</div>
+                @if (orderForm.get('contactEmail')?.invalid && orderForm.get('contactEmail')?.touched) {
+                <div class="error-message">
+                  @if (orderForm.get('contactEmail')?.errors?.['required']) {
+                  <div>Email is required</div>
+                  }
+                  @if (orderForm.get('contactEmail')?.errors?.['email']) {
+                  <div>Please enter a valid email address</div>
+                  }
                 </div>
+                }
               </div>
               <div class="form-group">
                 <input aria-label="Phone" type="tel" inputmode="numeric" formControlName="contactPhone" (input)="onPhoneInput($event)" placeholder="Phone *">
-                <div class="error-message" *ngIf="orderForm.get('contactPhone')?.invalid && orderForm.get('contactPhone')?.touched">
-                  <div *ngIf="orderForm.get('contactPhone')?.errors?.['required']">Phone number is required</div>
+                @if (orderForm.get('contactPhone')?.invalid && orderForm.get('contactPhone')?.touched) {
+                <div class="error-message">
+                  @if (orderForm.get('contactPhone')?.errors?.['required']) {
+                  <div>Phone number is required</div>
+                  }
                 </div>
+                }
               </div>
             </div>
           </section>
@@ -368,9 +417,13 @@
               <div class="address-apt-row">
                 <div class="form-group address-field">
                   <input type="text" formControlName="serviceAddress" placeholder="Address *">
-                  <div class="error-message" *ngIf="orderForm.get('serviceAddress')?.invalid && orderForm.get('serviceAddress')?.touched">
-                    <div *ngIf="orderForm.get('serviceAddress')?.errors?.['required']">Service address is required</div>
+                  @if (orderForm.get('serviceAddress')?.invalid && orderForm.get('serviceAddress')?.touched) {
+                  <div class="error-message">
+                    @if (orderForm.get('serviceAddress')?.errors?.['required']) {
+                    <div>Service address is required</div>
+                    }
                   </div>
+                  }
                 </div>
                 <div class="form-group apt-field">
                   <input type="text" formControlName="aptSuite" placeholder="Apt/Suite (optional)">
@@ -379,13 +432,17 @@
               <div class="form-group">
                 <select aria-label="City" formControlName="city">
                   <option value="">City *</option>
-                  <option *ngFor="let city of cities" [value]="city">{{ city }}</option>
+                  @for (city of cities; track city) {
+                  <option [value]="city">{{ city }}</option>
+                  }
                 </select>
               </div>
               <div class="form-group">
                 <select aria-label="State" formControlName="state" (change)="onStateChange($any($event.target).value)">
                   <option value="">State *</option>
-                  <option *ngFor="let state of states" [value]="state">{{ state }}</option>
+                  @for (state of states; track state) {
+                  <option [value]="state">{{ state }}</option>
+                  }
                 </select>
               </div>
               <div class="form-group">
@@ -395,7 +452,8 @@
           </section>
 
           <!-- Gift Card Applied (same panel as booking) -->
-          <section class="booking-section" *ngIf="giftCardApplied">
+          @if (giftCardApplied) {
+          <section class="booking-section">
             <div class="discounts">
               <div class="gift-card-applied">
                 <div class="gift-card-info">
@@ -404,9 +462,11 @@
                     <div class="gift-card-title">Gift Card Applied</div>
                     <div class="gift-card-amounts">
                       <span class="amount-using">${{ originalGiftCardAmountUsed.toFixed(2) }} spent on this order</span>
-                      <span class="remaining-balance" *ngIf="(giftCardBalance - originalGiftCardAmountUsed) > 0">
+                      @if ((giftCardBalance - originalGiftCardAmountUsed) > 0) {
+                      <span class="remaining-balance">
                         ${{ (giftCardBalance - originalGiftCardAmountUsed).toFixed(2) }} remaining
                       </span>
+                      }
                     </div>
                     <p class="info-note">The gift card will be automatically applied to the updated total.</p>
                   </div>
@@ -414,22 +474,27 @@
               </div>
             </div>
           </section>
+          }
 
           <!-- Additional Amount Info (order-edit specific) -->
-          <div class="additional-amount-info" *ngIf="additionalAmount > 0">
+          @if (additionalAmount > 0) {
+          <div class="additional-amount-info">
             <p class="info-message">
               <strong>Additional Payment Required:</strong> ${{ additionalAmount.toFixed(2) }}
             </p>
             <p>This additional amount will need to be paid to confirm your changes.</p>
           </div>
+          }
 
-          <div class="additional-amount-info warning" *ngIf="additionalAmount < 0">
+          @if (additionalAmount < 0) {
+          <div class="additional-amount-info warning">
             <p class="info-message">
               <strong>⚠️ Cannot Save Changes</strong>
             </p>
             <p>Your changes would reduce the order total by ${{ (-additionalAmount).toFixed(2) }}.</p>
             <p>Orders cannot be reduced after payment. Please add more services or keep the current selection.</p>
           </div>
+          }
 
           <!-- Action Buttons (same navigation styling as booking) -->
           <div class="step-navigation">
@@ -464,23 +529,29 @@
               <span class="summary-value">${{ originalTotal.toFixed(2) }}</span>
             </div>
 
-            <div class="price-item edit-diff-amount" *ngIf="additionalAmount !== 0">
+            @if (additionalAmount !== 0) {
+            <div class="price-item edit-diff-amount">
               <span>{{ additionalAmount > 0 ? 'Additional Payment:' : 'Reduction:' }}</span>
               <span [class.positive]="additionalAmount > 0" [class.negative]="additionalAmount < 0">
                 {{ additionalAmount > 0 ? '+' : '' }}${{ (additionalAmount > 0 ? additionalAmount : -additionalAmount).toFixed(2) }}
               </span>
             </div>
+            }
 
-            <div class="price-note" *ngIf="additionalAmount < 0">
+            @if (additionalAmount < 0) {
+            <div class="price-note">
               <p>⚠️ Refunds are not available for order reductions. The new total cannot be less than the original amount paid.</p>
             </div>
+            }
           </div>
         </app-order-summary-card>
       </div>
     </div>
+    }
 
     <!-- Payment Modal (order-edit specific) -->
-    <div class="modal-backdrop" *ngIf="showPaymentModal" (click)="closePaymentModal()">
+    @if (showPaymentModal) {
+    <div class="modal-backdrop" (click)="closePaymentModal()">
       <div class="modal" (click)="$event.stopPropagation()">
         <h2>Additional Payment Required</h2>
         <div class="payment-info">
@@ -490,14 +561,18 @@
         </div>
 
         <!-- Apple Pay / Google Pay button -->
-        <div id="payment-request-button-order-edit" class="applepay-button-container" *ngIf="showApplePay"></div>
+        @if (showApplePay) {
+        <div id="payment-request-button-order-edit" class="applepay-button-container"></div>
+        }
 
         <!-- Stripe Card Element -->
         <div class="payment-form">
           <div class="form-group">
             <label>Card Details</label>
             <div id="card-element-order-edit" class="stripe-card-element"></div>
-            <div class="card-errors" *ngIf="cardError">{{ cardError }}</div>
+            @if (cardError) {
+            <div class="card-errors">{{ cardError }}</div>
+            }
           </div>
         </div>
 
@@ -510,10 +585,13 @@
                   [disabled]="isProcessingPayment">Cancel Edit</button>
         </div>
 
-        <div class="error-message" *ngIf="paymentErrorMessage">
+        @if (paymentErrorMessage) {
+        <div class="error-message">
           {{ paymentErrorMessage }}
         </div>
+        }
       </div>
     </div>
+    }
   </div>
 </div>

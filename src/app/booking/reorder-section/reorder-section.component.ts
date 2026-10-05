@@ -1,5 +1,4 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { OrderList } from '../../services/order.service';
 import { formatTime12h } from '../../shared/booking/extra-service-display.utils';
 import { IconComponent } from '../../shared/icons/icon.component';
@@ -14,7 +13,7 @@ import { faXmark } from '../../shared/icons/glyphs/faXmark';
 @Component({
   selector: 'app-reorder-section',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [IconComponent],
   // The host carries the .reorder-section class so the booking page's existing
   // layout rules (.reorder-section, .booking-form-top .reorder-section) keep applying.
   host: { class: 'reorder-section' },

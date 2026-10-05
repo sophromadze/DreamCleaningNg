@@ -24,9 +24,11 @@
           autocomplete="one-time-code"
           class="otp-input"
           [class.error]="otpForm.get('code')?.invalid && otpForm.get('code')?.touched">
-        <div class="field-error" *ngIf="otpForm.get('code')?.invalid && otpForm.get('code')?.touched">
+        @if (otpForm.get('code')?.invalid && otpForm.get('code')?.touched) {
+        <div class="field-error">
           Please enter the 6-digit code
         </div>
+        }
       </div>
 
       <button type="submit" class="btn-primary" style="margin-top: 1.5rem;" [disabled]="otpForm.invalid || isVerifying">
@@ -41,13 +43,17 @@
       </button>
     </div>
 
-    <div *ngIf="successMessage" class="success-message">
+    @if (successMessage) {
+    <div class="success-message">
       {{ successMessage }}
     </div>
+    }
 
-    <div *ngIf="errorMessage" class="error-message">
+    @if (errorMessage) {
+    <div class="error-message">
       {{ errorMessage }}
     </div>
+    }
 
     <a routerLink="/login" class="back-link">Back to Login</a>
   </div>

@@ -1,5 +1,5 @@
 import { Component, Inject, OnInit, PLATFORM_ID } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { environment } from '../../../environments/environment';
@@ -9,18 +9,24 @@ declare const AppleID: any;
 @Component({
   selector: 'app-apple-callback',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   template: `
-    <div *ngIf="isBrowser" class="callback-container">
-      <div class="loading-spinner" *ngIf="isProcessing">
+    @if (isBrowser) {
+    <div class="callback-container">
+      @if (isProcessing) {
+      <div class="loading-spinner">
         <div class="spinner"></div>
         <p>Completing sign in...</p>
       </div>
-      <div class="error-message" *ngIf="errorMessage">
+      }
+      @if (errorMessage) {
+      <div class="error-message">
         <p>{{ errorMessage }}</p>
         <button (click)="goToLogin()">Return to Login</button>
       </div>
+      }
     </div>
+    }
   `,
   styles: [`
     .callback-container {

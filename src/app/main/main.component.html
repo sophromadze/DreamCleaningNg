@@ -59,17 +59,21 @@
         </article>
       </div>
 
-      <p class="rewards-login-note" *ngIf="isBrowser && !isLoggedIn">
+      @if (isBrowser && !isLoggedIn) {
+      <p class="rewards-login-note">
         <i [appIcon]="icons.faCircleInfo" aria-hidden="true"></i>
         <span>
           <button type="button" class="rewards-login-link" (click)="openRewardsLogin()">Log in or create an account</button>
           to track your bubble points, redeem rewards, and get your personal referral link — it's free to join.
         </span>
       </p>
-      <p class="rewards-login-note" *ngIf="isBrowser && isLoggedIn">
+      }
+      @if (isBrowser && isLoggedIn) {
+      <p class="rewards-login-note">
         <i [appIcon]="icons.faCircleInfo" aria-hidden="true"></i>
         <span><a routerLink="/rewards" class="rewards-login-link">View your Bubble Rewards</a> to check your points, redeem them, and share your referral link.</span>
       </p>
+      }
 
       <div class="rewards-cta">
         <a routerLink="/pricing-and-discounts" class="btn-cta-primary">See All Prices &amp; Discounts</a>
@@ -88,7 +92,8 @@
        measured itself (see HomeLayoutMemoryService), so the restored scroll position lands where the
        reader was. Exactly, not at least: before measuring, the cards are laid out at a default width
        and are taller, and the (hidden) track would push everything below down for a frame. -->
-  <section class="before-after-section" *ngIf="beforeAfterPhotos.length > 0"
+  @if (beforeAfterPhotos.length > 0) {
+  <section class="before-after-section"
            [style.contain-intrinsic-size]="rememberedIntrinsicSize('before-after-section')"
            [style.height.px]="beforeAfterStepPx > 0 ? null : rememberedHeights.box['before-after-section']"
            [style.overflow]="beforeAfterStepPx > 0 || !rememberedHeights.box['before-after-section'] ? null : 'clip'">
@@ -108,9 +113,11 @@
                  [class.before-after-carousel__track--no-transition]="beforeAfterSkipTransition"
                  [class.before-after-carousel__track--measuring]="beforeAfterStepPx <= 0"
                  [style.transform]="'translate3d(' + (-beforeAfterTranslatePx) + 'px,0,0)'">
+              @for (p of beforeAfterCarouselSlides; track trackBeforeAfterSlideIndex(i); let i = $index) {
               <div class="before-after-carousel__slide"
-                   *ngFor="let p of beforeAfterCarouselSlides; let i = index; trackBy: trackBeforeAfterSlideIndex">
-                <article class="before-after-card" *ngIf="isBeforeAfterSlideRendered(i)">
+                  >
+                @if (isBeforeAfterSlideRendered(i)) {
+                <article class="before-after-card">
                   <div class="before-after-card__surface">
                     <div class="before-after-card__media">
                       <img class="before-after-card__half before-after-card__half--before"
@@ -130,12 +137,18 @@
                     </div>
                     <div class="before-after-card__body">
                       <h3>{{ p.title }}</h3>
-                      <p *ngIf="p.subtitle">{{ p.subtitle }}</p>
-                      <a *ngIf="p.linkUrl" [routerLink]="p.linkUrl" class="link-pill">View more results</a>
+                      @if (p.subtitle) {
+                      <p>{{ p.subtitle }}</p>
+                      }
+                      @if (p.linkUrl) {
+                      <a [routerLink]="p.linkUrl" class="link-pill">View more results</a>
+                      }
                     </div>
                   </div>
                 </article>
+                }
               </div>
+              }
             </div>
           </div>
 
@@ -161,6 +174,7 @@
       </div>
     </div>
   </section>
+  }
 
   <!-- =========================================================
        ABOUT SECTION

@@ -6,13 +6,17 @@
         <span>{{ rangeLabel }}</span>
         <span class="caret" aria-hidden="true">▾</span>
       </button>
-      <ul class="dropdown-menu" *ngIf="dropdownOpen" role="listbox">
-        <li *ngFor="let p of presets" class="dropdown-item"
+      @if (dropdownOpen) {
+      <ul class="dropdown-menu" role="listbox">
+        @for (p of presets; track p) {
+        <li class="dropdown-item"
             [class.active]="period === p.key" role="option"
             [attr.aria-selected]="period === p.key" (click)="selectPreset(p.key)">
           {{ p.label }}
         </li>
+        }
       </ul>
+      }
     </div>
 
     <div class="custom-range">
@@ -34,22 +38,31 @@
     </button>
   </div>
 
-  <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
+  @if (errorMessage) {
+  <div class="error-banner">{{ errorMessage }}</div>
+  }
 
   <!-- Channel filter: plain checkboxes that show/hide channel columns (no colors) -->
-  <div class="channel-legend" *ngIf="!loading && rows.length > 0">
+  @if (!loading && rows.length > 0) {
+  <div class="channel-legend">
     <span class="legend-title">Show columns:</span>
-    <label class="legend-item" *ngFor="let ch of legendChannels" [class.off]="!isChannelSelected(ch)">
+    @for (ch of legendChannels; track ch) {
+    <label class="legend-item" [class.off]="!isChannelSelected(ch)">
       <input type="checkbox" [checked]="isChannelSelected(ch)" (change)="toggleChannel(ch)" />
       <span class="legend-label">{{ displayChannel(ch) }}</span>
     </label>
-    <button type="button" class="legend-reset" *ngIf="!allChannelsSelected" (click)="selectAllChannels()">
+    }
+    @if (!allChannelsSelected) {
+    <button type="button" class="legend-reset" (click)="selectAllChannels()">
       Show all
     </button>
+    }
   </div>
+  }
 
   <!-- Daily matrix: one column per channel + a Total, with a range-total footer -->
-  <div class="daily-section" *ngIf="!loading && rows.length > 0">
+  @if (!loading && rows.length > 0) {
+  <div class="daily-section">
     <div class="daily-head">
       <h2>Daily sessions by channel</h2>
       <span class="daily-sub">First-party visits per day, split across channels (not bot-filtered)</span>
@@ -60,49 +73,65 @@
         <thead>
           <tr>
             <th>Date</th>
-            <th class="num" *ngFor="let ch of visibleColumns; trackBy: trackByChannelName">{{ displayChannel(ch) }}</th>
+            @for (ch of visibleColumns; track trackByChannelName($index, ch)) {
+            <th class="num">{{ displayChannel(ch) }}</th>
+            }
             <th class="num total-col">Total</th>
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let row of rows; trackBy: trackByDate" [class.is-provisional]="row.provisional">
+          @for (row of rows; track trackByDate($index, row)) {
+          <tr [class.is-provisional]="row.provisional">
             <td class="date-cell">
               {{ row.date | date: 'EEE, MMM d, y' }}
-              <span class="provisional-tag" *ngIf="row.provisional"
+              @if (row.provisional) {
+              <span class="provisional-tag"
                     title="Provisional — raw first-party count, not yet reconciled to GA4.">provisional</span>
+              }
             </td>
-            <td class="num" *ngFor="let ch of visibleColumns; trackBy: trackByChannelName">
+            @for (ch of visibleColumns; track trackByChannelName($index, ch)) {
+            <td class="num">
               {{ sessionsFor(row, ch) | number }}
             </td>
+            }
             <td class="num total-col">{{ filteredSessions(row) | number }}</td>
           </tr>
+          }
         </tbody>
         <tfoot>
           <tr class="range-total">
             <td>Range total <span class="foot-sub">({{ totalCount }} day{{ totalCount === 1 ? '' : 's' }})</span></td>
-            <td class="num" *ngFor="let ch of visibleColumns; trackBy: trackByChannelName">
+            @for (ch of visibleColumns; track trackByChannelName($index, ch)) {
+            <td class="num">
               {{ channelRangeTotal(ch) | number }}
             </td>
+            }
             <td class="num total-col">{{ filteredSessionsTotal | number }}</td>
           </tr>
         </tfoot>
       </table>
 
-      <div class="paging" *ngIf="totalPages > 1">
+      @if (totalPages > 1) {
+      <div class="paging">
         <button class="btn-light" (click)="prevPage()" [disabled]="page <= 1">← Prev</button>
         <span class="page-info">Page {{ page }} of {{ totalPages }} · {{ totalCount }} days</span>
         <button class="btn-light" (click)="nextPage()" [disabled]="page >= totalPages">Next →</button>
       </div>
+      }
     </div>
 
-    <p class="provisional-note" *ngIf="hasProvisional">
+    @if (hasProvisional) {
+    <p class="provisional-note">
       <strong>provisional</strong> — the most recent days are raw first-party counts that self-correct
       toward GA4's bot-filtered numbers a couple of days later.
     </p>
+    }
   </div>
+  }
 
   <!-- Summary: sessions by channel over the whole range (ranked) -->
-  <div class="summary-section" *ngIf="!loading && visibleBreakdown.length > 0">
+  @if (!loading && visibleBreakdown.length > 0) {
+  <div class="summary-section">
     <div class="daily-head">
       <h2>Sessions by channel</h2>
       <span class="daily-sub">Totals for the selected range, highest first</span>
@@ -117,20 +146,27 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let c of visibleBreakdown; trackBy: trackByChannel">
+          @for (c of visibleBreakdown; track trackByChannel($index, c)) {
+          <tr>
             <td>{{ displayChannel(c.channel) }}</td>
             <td class="num">{{ c.sessions | number }}</td>
             <td class="num muted">{{ channelPercent(c) }}%</td>
           </tr>
+          }
         </tbody>
       </table>
     </div>
   </div>
+  }
 
-  <div class="state-msg" *ngIf="loading">Loading…</div>
-  <div class="state-msg" *ngIf="!loading && rows.length === 0 && !errorMessage">
+  @if (loading) {
+  <div class="state-msg">Loading…</div>
+  }
+  @if (!loading && rows.length === 0 && !errorMessage) {
+  <div class="state-msg">
     No visits recorded in this range yet.
   </div>
+  }
 
   <!-- ახსნა-განმარტება ადმინებისთვის (ქართულად) -->
   <section class="traffic-help">

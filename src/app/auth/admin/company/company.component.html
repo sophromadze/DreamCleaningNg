@@ -7,20 +7,34 @@
   </div>
 
   <div class="company-tabs">
-    <a class="company-tab" *ngIf="canView('statistics')"
+    @if (canView('statistics')) {
+    <a class="company-tab"
        routerLink="statistics" routerLinkActive="active">Statistics</a>
-    <a class="company-tab" *ngIf="canView('expenses')"
+    }
+    @if (canView('expenses')) {
+    <a class="company-tab"
        routerLink="expenses" routerLinkActive="active">Expenses</a>
-    <a class="company-tab" *ngIf="canView('finances')"
+    }
+    @if (canView('finances')) {
+    <a class="company-tab"
        routerLink="finances" routerLinkActive="active">Finances</a>
-    <a class="company-tab" *ngIf="canView('ads')"
+    }
+    @if (canView('ads')) {
+    <a class="company-tab"
        routerLink="ads" routerLinkActive="active">Ads</a>
-    <a class="company-tab" *ngIf="canView('traffic')"
+    }
+    @if (canView('traffic')) {
+    <a class="company-tab"
        routerLink="traffic" routerLinkActive="active">Traffic</a>
-    <a class="company-tab" *ngIf="canView('keywords')"
+    }
+    @if (canView('keywords')) {
+    <a class="company-tab"
        routerLink="keywords" routerLinkActive="active">Keywords</a>
-    <a class="company-tab" *ngIf="canView('customer-stats')"
+    }
+    @if (canView('customer-stats')) {
+    <a class="company-tab"
        routerLink="customers" routerLinkActive="active">Customers</a>
+    }
   </div>
 
   <div class="company-content">

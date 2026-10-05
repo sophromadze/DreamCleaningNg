@@ -1,6 +1,5 @@
 import { Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { CommonModule } from '@angular/common';
 import { PhoneNumberService } from '../services/phone-number.service';
 import { IconComponent } from '../shared/icons/icon.component';
 import { faFacebookF } from '../shared/icons/glyphs/faFacebookF';
@@ -12,7 +11,7 @@ import { faYelp } from '../shared/icons/glyphs/faYelp';
 @Component({
   selector: 'app-footer',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive, IconComponent],
+  imports: [RouterLink, RouterLinkActive, IconComponent],
   templateUrl: './footer.component.html',
   styleUrl: './footer.component.scss'
 })

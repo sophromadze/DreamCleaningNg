@@ -1,7 +1,8 @@
 <div class="leads-pipeline">
 
   <!-- Stats strip -->
-  <div class="stats-strip" *ngIf="stats">
+  @if (stats) {
+  <div class="stats-strip">
     <div class="stat">
       <span class="stat-value">{{ stats.openCount }}</span>
       <span class="stat-label">Open leads</span>
@@ -23,6 +24,7 @@
       <span class="stat-label">Won</span>
     </div>
   </div>
+  }
 
   <!-- Toolbar -->
   <div class="toolbar">
@@ -32,16 +34,22 @@
     </div>
     <select aria-label="Filter by stage" [(ngModel)]="stageFilter" (ngModelChange)="onStageFilterChange()" class="source-select">
       <option value="">All stages</option>
-      <option *ngFor="let s of stages" [value]="s">{{ s }}</option>
+      @for (s of stages; track s) {
+      <option [value]="s">{{ s }}</option>
+      }
       <option value="Archived">Archived</option>
     </select>
     <select aria-label="Filter by source" [(ngModel)]="sourceFilter" (ngModelChange)="onSourceFilterChange()" class="source-select">
       <option value="">All sources</option>
-      <option *ngFor="let s of sources" [value]="s">{{ sourceLabel(s) }}</option>
+      @for (s of sources; track s) {
+      <option [value]="s">{{ sourceLabel(s) }}</option>
+      }
     </select>
     <select aria-label="Filter by type" [(ngModel)]="typeFilter" (ngModelChange)="onTypeFilterChange()" class="source-select">
       <option value="">All types</option>
-      <option *ngFor="let t of types" [value]="t">{{ t }}</option>
+      @for (t of types; track t) {
+      <option [value]="t">{{ t }}</option>
+      }
     </select>
     <select aria-label="Period" [(ngModel)]="periodFilter" (ngModelChange)="onPeriodFilterChange()" class="source-select">
       <option value="">All time</option>
@@ -59,22 +67,29 @@
     <button class="btn-add" (click)="openAddModal()">+ Add lead</button>
   </div>
 
-  <div class="error-message" *ngIf="errorMessage">{{ errorMessage }}</div>
+  @if (errorMessage) {
+  <div class="error-message">{{ errorMessage }}</div>
+  }
 
   <!-- Kanban board (hidden entirely when filtering to Archived) -->
-  <div class="board" [class.loading]="loading" *ngIf="stageFilter !== 'Archived'"
+  @if (stageFilter !== 'Archived') {
+  <div class="board" [class.loading]="loading"
        [class.single-stage]="visibleStages.length === 1">
-    <div class="board-column" *ngFor="let stage of visibleStages; trackBy: trackByStage">
+    @for (stage of visibleStages; track trackByStage($index, stage)) {
+    <div class="board-column">
       <div class="column-header" [ngClass]="stageClass(stage)">
         <span class="column-title">{{ stage }}</span>
         <span class="column-count">{{ columnFor(stage).count }}</span>
-        <span class="column-value" *ngIf="columnFor(stage).totalEstimatedValue > 0">
+        @if (columnFor(stage).totalEstimatedValue > 0) {
+        <span class="column-value">
           {{ columnFor(stage).totalEstimatedValue | currency:'USD':'symbol':'1.0-0' }}
         </span>
+        }
       </div>
 
       <div class="column-body">
-        <div class="lead-card" *ngFor="let lead of columnFor(stage).leads; trackBy: trackByLeadId"
+        @for (lead of columnFor(stage).leads; track trackByLeadId($index, lead)) {
+        <div class="lead-card"
              (click)="openLead(lead)" [class.follow-due]="isFollowUpDue(lead)"
              [class.flagged-red]="lead.flag === 'Red'"
              [class.flagged-yellow]="lead.flag === 'Yellow'"
@@ -86,12 +101,22 @@
               <span class="source-badge" [ngClass]="'src-' + lead.source.toLowerCase()">{{ sourceLabel(lead.source) }}</span>
             </span>
           </div>
-          <div class="card-line" *ngIf="lead.phone">📞 {{ lead.phone }}</div>
-          <div class="card-line" *ngIf="lead.email">✉ {{ lead.email }}</div>
-          <div class="card-line muted" *ngIf="lead.cleaningType">{{ lead.cleaningType }}</div>
+          @if (lead.phone) {
+          <div class="card-line">📞 {{ lead.phone }}</div>
+          }
+          @if (lead.email) {
+          <div class="card-line">✉ {{ lead.email }}</div>
+          }
+          @if (lead.cleaningType) {
+          <div class="card-line muted">{{ lead.cleaningType }}</div>
+          }
           <div class="card-meta">
-            <span class="est-value" *ngIf="lead.estimatedValue">{{ lead.estimatedValue | currency:'USD':'symbol':'1.0-0' }}</span>
-            <span class="follow-flag" *ngIf="isFollowUpDue(lead)">⏰ due</span>
+            @if (lead.estimatedValue) {
+            <span class="est-value">{{ lead.estimatedValue | currency:'USD':'symbol':'1.0-0' }}</span>
+            }
+            @if (isFollowUpDue(lead)) {
+            <span class="follow-flag">⏰ due</span>
+            }
             <span class="time">{{ relativeTime(lead.lastActivityAt) }}</span>
           </div>
 
@@ -101,42 +126,59 @@
                     (click)="moveStage(lead, -1, $event)" title="Move back">◀</button>
             <select aria-label="Stage" class="stage-select" [ngModel]="lead.stage"
                     (ngModelChange)="onStageSelect(lead, $event)">
-              <option *ngFor="let s of stages" [value]="s">{{ s }}</option>
+              @for (s of stages; track s) {
+              <option [value]="s">{{ s }}</option>
+              }
             </select>
             <button class="move-btn" [disabled]="!canMoveRight(lead)"
                     (click)="moveStage(lead, 1, $event)" title="Move forward">▶</button>
           </div>
 
           <!-- Inline lost-reason prompt -->
-          <div class="lost-prompt" *ngIf="pendingLostLeadId === lead.id" (click)="$event.stopPropagation()">
+          @if (pendingLostLeadId === lead.id) {
+          <div class="lost-prompt" (click)="$event.stopPropagation()">
             <input type="text" placeholder="Reason lost (optional)" [(ngModel)]="lostReason" />
             <div class="lost-actions">
               <button class="btn-mini danger" (click)="confirmLost()">Mark Lost</button>
               <button class="btn-mini" (click)="cancelLost()">Cancel</button>
             </div>
           </div>
+          }
         </div>
+        }
 
-        <div class="empty-column" *ngIf="columnFor(stage).count === 0">No leads</div>
+        @if (columnFor(stage).count === 0) {
+        <div class="empty-column">No leads</div>
+        }
       </div>
     </div>
+    }
   </div>
+  }
 
   <!-- ─────────────  Archive drawer (full-width, below the board)  ─────────────
        Hidden while a specific stage is selected; shown for "All stages" and "Archived". -->
-  <div class="archive-drawer" *ngIf="!stageFilter || stageFilter === 'Archived'">
+  @if (!stageFilter || stageFilter === 'Archived') {
+  <div class="archive-drawer">
     <button class="archive-toggle" (click)="toggleArchived()">
       <span class="archive-caret" [class.open]="showArchived">▸</span>
       <span class="archive-label">Archived leads</span>
       <span class="archive-count">{{ archivedLeads.length }}</span>
     </button>
 
-    <div class="archive-body" *ngIf="showArchived">
-      <div class="archive-loading" *ngIf="loadingArchived">Loading…</div>
-      <div class="archive-empty" *ngIf="!loadingArchived && archivedLeads.length === 0">No archived leads.</div>
+    @if (showArchived) {
+    <div class="archive-body">
+      @if (loadingArchived) {
+      <div class="archive-loading">Loading…</div>
+      }
+      @if (!loadingArchived && archivedLeads.length === 0) {
+      <div class="archive-empty">No archived leads.</div>
+      }
 
-      <div class="archive-grid" *ngIf="!loadingArchived && archivedLeads.length > 0">
-        <div class="lead-card archived" *ngFor="let lead of archivedLeads; trackBy: trackByLeadId"
+      @if (!loadingArchived && archivedLeads.length > 0) {
+      <div class="archive-grid">
+        @for (lead of archivedLeads; track trackByLeadId($index, lead)) {
+        <div class="lead-card archived"
              (click)="openLead(lead)"
              [class.flagged-red]="lead.flag === 'Red'"
              [class.flagged-yellow]="lead.flag === 'Yellow'"
@@ -148,24 +190,39 @@
               <span class="source-badge" [ngClass]="'src-' + lead.source.toLowerCase()">{{ sourceLabel(lead.source) }}</span>
             </span>
           </div>
-          <div class="card-line" *ngIf="lead.phone">📞 {{ lead.phone }}</div>
-          <div class="card-line" *ngIf="lead.email">✉ {{ lead.email }}</div>
+          @if (lead.phone) {
+          <div class="card-line">📞 {{ lead.phone }}</div>
+          }
+          @if (lead.email) {
+          <div class="card-line">✉ {{ lead.email }}</div>
+          }
           <div class="card-meta">
-            <span class="est-value" *ngIf="lead.estimatedValue">{{ lead.estimatedValue | currency:'USD':'symbol':'1.0-0' }}</span>
+            @if (lead.estimatedValue) {
+            <span class="est-value">{{ lead.estimatedValue | currency:'USD':'symbol':'1.0-0' }}</span>
+            }
             <span class="time">{{ relativeTime(lead.archivedAt || lead.lastActivityAt) }}</span>
           </div>
           <div class="card-actions" (click)="$event.stopPropagation()">
             <button class="btn-mini" (click)="unarchiveLead(lead)" [disabled]="archivingLead">Restore</button>
-            <button *ngIf="isSuperAdmin" class="btn-mini danger" (click)="deleteLead(lead)">Delete</button>
+            @if (isSuperAdmin) {
+            <button class="btn-mini danger" (click)="deleteLead(lead)">Delete</button>
+            }
           </div>
         </div>
+        }
       </div>
+      }
     </div>
+    }
   </div>
+  }
 
   <!-- ─────────────  Detail slide-in panel  ───────────── -->
-  <div class="panel-overlay" *ngIf="selectedLead" (click)="closePanel()"></div>
-  <aside class="detail-panel" *ngIf="selectedLead" [class.open]="selectedLead">
+  @if (selectedLead) {
+  <div class="panel-overlay" (click)="closePanel()"></div>
+  }
+  @if (selectedLead) {
+  <aside class="detail-panel" [class.open]="selectedLead">
     <div class="panel-header">
       <div>
         <h2>{{ selectedLead.fullName || 'Unnamed lead' }}</h2>
@@ -176,7 +233,8 @@
       <button class="close-btn" (click)="closePanel()">✕</button>
     </div>
 
-    <div class="panel-body" *ngIf="!panelLoading">
+    @if (!panelLoading) {
+    <div class="panel-body">
       <!-- Editable details -->
       <section class="edit-grid">
         <label>First name<input type="text" [(ngModel)]="editBuffer.firstName" /></label>
@@ -187,7 +245,9 @@
         <label>Cleaning type<input type="text" [(ngModel)]="editBuffer.cleaningType" /></label>
         <label>Type
           <select [(ngModel)]="editBuffer.type">
-            <option *ngFor="let t of types" [value]="t">{{ t }}</option>
+            @for (t of types; track t) {
+            <option [value]="t">{{ t }}</option>
+            }
           </select>
         </label>
         <label>Est. value ($)<input type="number" min="0" [(ngModel)]="editBuffer.estimatedValue" /></label>
@@ -199,22 +259,34 @@
         <button class="btn-save" (click)="saveLeadEdits()" [disabled]="savingLead">
           {{ savingLead ? 'Saving…' : 'Save changes' }}
         </button>
-        <button *ngIf="!selectedLead.isArchived" class="btn-archive" (click)="archiveLead()" [disabled]="archivingLead">
+        @if (!selectedLead.isArchived) {
+        <button class="btn-archive" (click)="archiveLead()" [disabled]="archivingLead">
           {{ archivingLead ? 'Archiving…' : 'Archive' }}
         </button>
-        <button *ngIf="selectedLead.isArchived" class="btn-restore" (click)="unarchiveLead()" [disabled]="archivingLead">
+        }
+        @if (selectedLead.isArchived) {
+        <button class="btn-restore" (click)="unarchiveLead()" [disabled]="archivingLead">
           {{ archivingLead ? 'Restoring…' : 'Restore' }}
         </button>
-        <button *ngIf="isSuperAdmin" class="btn-delete" (click)="deleteLead()">Delete</button>
+        }
+        @if (isSuperAdmin) {
+        <button class="btn-delete" (click)="deleteLead()">Delete</button>
+        }
       </div>
-      <div class="archived-banner" *ngIf="selectedLead.isArchived">📦 This lead is archived.</div>
+      @if (selectedLead.isArchived) {
+      <div class="archived-banner">📦 This lead is archived.</div>
+      }
 
-      <div class="converted-note" *ngIf="selectedLead.convertedOrderId">
+      @if (selectedLead.convertedOrderId) {
+      <div class="converted-note">
         ✓ Converted to order #{{ selectedLead.convertedOrderId }}
       </div>
-      <div class="lost-note" *ngIf="selectedLead.stage === 'Lost' && selectedLead.lostReason">
+      }
+      @if (selectedLead.stage === 'Lost' && selectedLead.lostReason) {
+      <div class="lost-note">
         Lost reason: {{ selectedLead.lostReason }}
       </div>
+      }
 
       <!-- Activity timeline -->
       <section class="timeline">
@@ -224,24 +296,35 @@
           <button class="btn-note" (click)="addNote()" [disabled]="addingNote || !newNote.trim()">Add</button>
         </div>
         <ul class="timeline-list">
-          <li *ngFor="let a of selectedLead.activities" class="timeline-item" [ngClass]="'type-' + a.type.toLowerCase()">
+          @for (a of selectedLead.activities; track a) {
+          <li class="timeline-item" [ngClass]="'type-' + a.type.toLowerCase()">
             <div class="ti-head">
               <span class="ti-type">{{ a.type === 'StageChange' ? 'Stage' : a.type }}</span>
               <span class="ti-when">{{ relativeTime(a.createdAt) }}</span>
             </div>
             <div class="ti-content">{{ a.content }}</div>
-            <div class="ti-author" *ngIf="a.adminName">— {{ a.adminName }}</div>
+            @if (a.adminName) {
+            <div class="ti-author">— {{ a.adminName }}</div>
+            }
           </li>
-          <li *ngIf="selectedLead.activities.length === 0" class="timeline-empty">No activity yet.</li>
+          }
+          @if (selectedLead.activities.length === 0) {
+          <li class="timeline-empty">No activity yet.</li>
+          }
         </ul>
       </section>
     </div>
+    }
 
-    <div class="panel-loading" *ngIf="panelLoading">Loading…</div>
+    @if (panelLoading) {
+    <div class="panel-loading">Loading…</div>
+    }
   </aside>
+  }
 
   <!-- ─────────────  Add-lead modal  ───────────── -->
-  <div class="modal-overlay" *ngIf="showAddModal" (click)="closeAddModal()">
+  @if (showAddModal) {
+  <div class="modal-overlay" (click)="closeAddModal()">
     <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h2>Add lead</h2>
@@ -251,11 +334,17 @@
         <label class="full">Fill from order # (optional)
           <input type="number" min="1" placeholder="Order ID — auto-fills the fields below"
                  [(ngModel)]="prefillOrderId" (ngModelChange)="onPrefillOrderIdChange()" />
-          <span class="prefill-hint loading" *ngIf="prefillLoading">Loading order…</span>
-          <span class="prefill-hint loaded" *ngIf="!prefillLoading && prefillLoadedOrderId">
+          @if (prefillLoading) {
+          <span class="prefill-hint loading">Loading order…</span>
+          }
+          @if (!prefillLoading && prefillLoadedOrderId) {
+          <span class="prefill-hint loaded">
             ✓ Filled from order #{{ prefillLoadedOrderId }} — you can still edit any field.
           </span>
-          <span class="prefill-hint error" *ngIf="!prefillLoading && prefillError">{{ prefillError }}</span>
+          }
+          @if (!prefillLoading && prefillError) {
+          <span class="prefill-hint error">{{ prefillError }}</span>
+          }
         </label>
         <label>First name<input type="text" [(ngModel)]="newLead.firstName" /></label>
         <label>Last name<input type="text" [(ngModel)]="newLead.lastName" /></label>
@@ -265,13 +354,17 @@
         <label>Cleaning type<input type="text" [(ngModel)]="newLead.cleaningType" /></label>
         <label>Type
           <select [(ngModel)]="newLead.type">
-            <option *ngFor="let t of types" [value]="t">{{ t }}</option>
+            @for (t of types; track t) {
+            <option [value]="t">{{ t }}</option>
+            }
           </select>
         </label>
         <label>Est. value ($)<input type="number" min="0" [(ngModel)]="newLead.estimatedValue" /></label>
         <label>Source
           <select [(ngModel)]="newLead.source">
-            <option *ngFor="let s of sources" [value]="s">{{ sourceLabel(s) }}</option>
+            @for (s of sources; track s) {
+            <option [value]="s">{{ sourceLabel(s) }}</option>
+            }
           </select>
         </label>
         <label class="full">Message / notes<textarea rows="2" [(ngModel)]="newLead.message"></textarea></label>
@@ -284,4 +377,5 @@
       </div>
     </div>
   </div>
+  }
 </div>

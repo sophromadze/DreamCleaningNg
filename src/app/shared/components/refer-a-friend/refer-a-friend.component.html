@@ -1,4 +1,5 @@
-<div class="referral-hero" *ngIf="hasCode">
+@if (hasCode) {
+<div class="referral-hero">
   <div class="referral-hero__left">
     <div class="referral-hero__title">{{ heading }}</div>
     <div class="referral-hero__hint">{{ hint }}</div>
@@ -33,3 +34,4 @@
     <span class="rb rb--d"></span>
   </div>
 </div>
+}

@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectorRef, DOCUMENT } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { PlatformLocation } from '@angular/common';
 import { RouterOutlet, Router, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { Title, Meta } from '@angular/platform-browser';
@@ -85,7 +85,6 @@ function isSocialStickyHiddenRoute(url: string): boolean {
   selector: 'app-root',
   standalone: true,
   imports: [
-    CommonModule,
     RouterOutlet,
     HeaderComponent,
     FooterComponent,
@@ -98,8 +97,7 @@ function isSocialStickyHiddenRoute(url: string): boolean {
     FirstTimeOfferPopupComponent,
     ChatWidgetComponent,
     IconComponent
-    // LiveChatWidgetComponent  // disabled with the widget tag in app.component.html
-  ],
+],
   hostDirectives: [TelClickTrackingDirective],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'

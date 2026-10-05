@@ -1,22 +1,43 @@
 <div class="cip-page">
-  <div class="cip-state" *ngIf="loading">Loading your invoice…</div>
+  @if (loading) {
+  <div class="cip-state">Loading your invoice…</div>
+  }
 
-  <div class="cip-state" *ngIf="notFound">
+  @if (notFound) {
+  <div class="cip-state">
     <h1>Invoice not found</h1>
     <p>This link is not valid. Please check it, or contact us and we'll send you a new one.</p>
   </div>
+  }
 
-  <article class="cip-invoice" *ngIf="invoice as inv">
+  @if (invoice; as inv) {
+  <article class="cip-invoice">
     <header class="cip-head">
-      <div class="cip-company" *ngIf="inv.company as c">
+      @if (inv.company; as c) {
+      <div class="cip-company">
         <div class="cip-company__name">{{ c.primaryName || c.legalName }}</div>
-        <div class="cip-muted" *ngIf="c.dbaName">{{ c.legalName }}</div>
-        <div class="cip-muted" *ngIf="c.address">{{ c.address }}</div>
-        <div class="cip-muted" *ngIf="c.cityStateZip">{{ c.cityStateZip }}</div>
-        <div class="cip-muted" *ngIf="c.phone || c.email">
-          <span *ngIf="c.phone">{{ c.phone }}</span><span *ngIf="c.phone && c.email"> · </span><span *ngIf="c.email">{{ c.email }}</span>
+        @if (c.dbaName) {
+        <div class="cip-muted">{{ c.legalName }}</div>
+        }
+        @if (c.address) {
+        <div class="cip-muted">{{ c.address }}</div>
+        }
+        @if (c.cityStateZip) {
+        <div class="cip-muted">{{ c.cityStateZip }}</div>
+        }
+        @if (c.phone || c.email) {
+        <div class="cip-muted">
+          @if (c.phone) {
+          <span>{{ c.phone }}</span>
+          }@if (c.phone && c.email) {
+          <span> · </span>
+          }@if (c.email) {
+          <span>{{ c.email }}</span>
+          }
         </div>
+        }
       </div>
+      }
       <div class="cip-title">
         <h1>Invoice</h1>
         <div class="cip-number">{{ inv.invoiceNumber }}</div>
@@ -25,31 +46,45 @@
       </div>
     </header>
 
-    <div class="cip-banner cip-banner--paid" *ngIf="inv.status === 'Paid'">
+    @if (inv.status === 'Paid') {
+    <div class="cip-banner cip-banner--paid">
       <i [appIcon]="icons.faCircleCheck" aria-hidden="true"></i> This invoice is paid. Thank you!
     </div>
+    }
     <!-- An online bank payment was authorized and Stripe is settling it (a few business days). -->
-    <div class="cip-banner cip-banner--processing" *ngIf="inv.achProcessing && inv.status !== 'Paid'">
+    @if (inv.achProcessing && inv.status !== 'Paid') {
+    <div class="cip-banner cip-banner--processing">
       <i [appIcon]="icons.faHourglassHalf" aria-hidden="true"></i>
       Thank you — your bank payment is on its way. Bank payments take 3–5 business days to clear;
       you don't need to pay again. This page will show the invoice as paid once it does.
     </div>
-    <div class="cip-banner cip-banner--processing" *ngIf="checkingPayment && !inv.achProcessing && inv.status !== 'Paid'">
+    }
+    @if (checkingPayment && !inv.achProcessing && inv.status !== 'Paid') {
+    <div class="cip-banner cip-banner--processing">
       <i [appIcon]="icons.faSpinner" class="fa-spin" aria-hidden="true"></i> Confirming your bank payment with Stripe…
     </div>
-    <div class="cip-banner cip-banner--void" *ngIf="inv.status === 'Void'">
+    }
+    @if (inv.status === 'Void') {
+    <div class="cip-banner cip-banner--void">
       This invoice has been cancelled and can no longer be paid. Please contact us if you have questions.
     </div>
-    <div class="cip-banner cip-banner--void" *ngIf="inv.status === 'Cancelled'">
+    }
+    @if (inv.status === 'Cancelled') {
+    <div class="cip-banner cip-banner--void">
       The cleaning on this invoice was cancelled, so there is nothing to pay.
     </div>
+    }
 
     <section class="cip-parties">
       <div>
         <h2>Billed to</h2>
         <div><strong>{{ inv.billedToName }}</strong></div>
-        <div class="cip-muted" *ngIf="inv.billedToEmail">{{ inv.billedToEmail }}</div>
-        <div class="cip-muted" *ngIf="inv.billedToPhone">{{ inv.billedToPhone }}</div>
+        @if (inv.billedToEmail) {
+        <div class="cip-muted">{{ inv.billedToEmail }}</div>
+        }
+        @if (inv.billedToPhone) {
+        <div class="cip-muted">{{ inv.billedToPhone }}</div>
+        }
       </div>
       <div>
         <h2>Service</h2>
@@ -61,23 +96,38 @@
 
     <section class="cip-breakdown">
       <div class="cip-line"><span>Subtotal</span><span>${{ inv.subTotal | number:'1.2-2' }}</span></div>
-      <div class="cip-line" *ngIf="inv.discounts > 0"><span>Discounts</span><span>−${{ inv.discounts | number:'1.2-2' }}</span></div>
+      @if (inv.discounts > 0) {
+      <div class="cip-line"><span>Discounts</span><span>−${{ inv.discounts | number:'1.2-2' }}</span></div>
+      }
       <div class="cip-line"><span>Sales tax</span><span>${{ inv.tax | number:'1.2-2' }}</span></div>
-      <div class="cip-line" *ngIf="inv.tips > 0"><span>Tips</span><span>${{ inv.tips | number:'1.2-2' }}</span></div>
-      <div class="cip-line" *ngIf="inv.credits > 0"><span>Gift card / credits</span><span>−${{ inv.credits | number:'1.2-2' }}</span></div>
+      @if (inv.tips > 0) {
+      <div class="cip-line"><span>Tips</span><span>${{ inv.tips | number:'1.2-2' }}</span></div>
+      }
+      @if (inv.credits > 0) {
+      <div class="cip-line"><span>Gift card / credits</span><span>−${{ inv.credits | number:'1.2-2' }}</span></div>
+      }
       <div class="cip-line cip-line--total"><span>Order total</span><span>${{ inv.orderTotal | number:'1.2-2' }}</span></div>
-      <div class="cip-line" *ngIf="inv.orderAmountPaid > 0 && inv.status !== 'Paid'"><span>Already paid</span><span>${{ inv.orderAmountPaid | number:'1.2-2' }}</span></div>
-      <div class="cip-line cip-line--part" *ngIf="isSplit">
+      @if (inv.orderAmountPaid > 0 && inv.status !== 'Paid') {
+      <div class="cip-line"><span>Already paid</span><span>${{ inv.orderAmountPaid | number:'1.2-2' }}</span></div>
+      }
+      @if (isSplit) {
+      <div class="cip-line cip-line--part">
         <span>This invoice (part of your order)</span><span>${{ inv.amount | number:'1.2-2' }}</span>
       </div>
-      <div class="cip-line cip-line--part" *ngIf="isAdditional">
+      }
+      @if (isAdditional) {
+      <div class="cip-line cip-line--part">
         <span>This invoice (added after your order was updated)</span><span>${{ inv.amount | number:'1.2-2' }}</span>
       </div>
+      }
     </section>
 
-    <p class="cip-note" *ngIf="inv.note">{{ inv.note }}</p>
+    @if (inv.note) {
+    <p class="cip-note">{{ inv.note }}</p>
+    }
 
-    <section class="cip-due" *ngIf="isPayable && !inv.achProcessing">
+    @if (isPayable && !inv.achProcessing) {
+    <section class="cip-due">
       <div class="cip-due__label">Amount due</div>
       <div class="cip-due__amount">${{ inv.amountDue | number:'1.2-2' }}</div>
 
@@ -85,61 +135,89 @@
            they cannot be mistaken for each other; the manual bank transfer spans the full width
            underneath, because it is instructions rather than a button. -->
       <div class="cip-pay">
-        <div class="cip-pay__option cip-pay__option--card" *ngIf="inv.cardPaymentPath">
+        @if (inv.cardPaymentPath) {
+        <div class="cip-pay__option cip-pay__option--card">
           <span class="cip-pay__badge">Instant</span>
           <div class="cip-pay__icon" aria-hidden="true"><i [appIcon]="icons.faCreditCard"></i></div>
           <h3>Pay by card</h3>
           <p class="cip-muted">Visa, Mastercard, American Express or Discover. Confirmed immediately.</p>
           <button type="button" class="cip-btn cip-btn--card" (click)="payByCard()">Pay ${{ inv.amountDue | number:'1.2-2' }} by card</button>
         </div>
+        }
 
         <!-- Online bank payment (Stripe ACH). No fee on a regular invoice. -->
-        <div class="cip-pay__option cip-pay__option--ach" *ngIf="inv.achAvailable">
+        @if (inv.achAvailable) {
+        <div class="cip-pay__option cip-pay__option--ach">
           <span class="cip-pay__badge">3–5 business days</span>
           <div class="cip-pay__icon" aria-hidden="true"><i [appIcon]="icons.faBuildingColumns"></i></div>
           <h3>Pay from your bank online</h3>
           <p class="cip-muted">Pay straight from your US checking or savings account (ACH) on Stripe's secure page. No card needed.</p>
-          <p class="cip-muted" *ngIf="paymentHint === 'cancelled'">Bank payment was cancelled — nothing was charged.</p>
+          @if (paymentHint === 'cancelled') {
+          <p class="cip-muted">Bank payment was cancelled — nothing was charged.</p>
+          }
           <button type="button" class="cip-btn cip-btn--ach" (click)="startAch()" [disabled]="startingAch">
             {{ startingAch ? 'Opening secure bank payment…' : 'Pay $' + (inv.amountDue | number:'1.2-2') + ' from bank' }}
           </button>
-          <p class="cip-error" *ngIf="achError">{{ achError }}</p>
+          @if (achError) {
+          <p class="cip-error">{{ achError }}</p>
+          }
         </div>
+        }
 
-        <div class="cip-pay__option cip-pay__option--transfer" *ngIf="inv.bankTransfer as bank">
+        @if (inv.bankTransfer; as bank) {
+        <div class="cip-pay__option cip-pay__option--transfer">
           <h3><i [appIcon]="icons.faMoneyBillTransfer" aria-hidden="true"></i> Or pay by bank transfer yourself</h3>
           <p class="cip-muted">
             Send <strong>${{ inv.amountDue | number:'1.2-2' }}</strong> from your bank to the account below and use the
             invoice number as the reference. We'll mark the invoice paid once the transfer arrives.
           </p>
           <dl class="cip-bank">
-            <div *ngIf="bank.bankName"><dt>Bank</dt><dd>{{ bank.bankName }}</dd></div>
-            <div *ngIf="bank.accountHolder"><dt>Account holder</dt><dd>{{ bank.accountHolder }}</dd></div>
-            <div *ngIf="bank.routingNumber">
+            @if (bank.bankName) {
+            <div><dt>Bank</dt><dd>{{ bank.bankName }}</dd></div>
+            }
+            @if (bank.accountHolder) {
+            <div><dt>Account holder</dt><dd>{{ bank.accountHolder }}</dd></div>
+            }
+            @if (bank.routingNumber) {
+            <div>
               <dt>Routing number</dt>
               <dd>{{ bank.routingNumber }} <button type="button" class="cip-copy" (click)="copy(bank.routingNumber, 'routing')">{{ copied === 'routing' ? 'Copied' : 'Copy' }}</button></dd>
             </div>
-            <div *ngIf="bank.accountNumber">
+            }
+            @if (bank.accountNumber) {
+            <div>
               <dt>Account number</dt>
               <dd>{{ bank.accountNumber }} <button type="button" class="cip-copy" (click)="copy(bank.accountNumber, 'account')">{{ copied === 'account' ? 'Copied' : 'Copy' }}</button></dd>
             </div>
-            <div *ngIf="bank.accountType"><dt>Account type</dt><dd>{{ bank.accountType }}</dd></div>
+            }
+            @if (bank.accountType) {
+            <div><dt>Account type</dt><dd>{{ bank.accountType }}</dd></div>
+            }
             <div>
               <dt>Reference</dt>
               <dd><strong>{{ bank.paymentReference }}</strong> <button type="button" class="cip-copy" (click)="copy(bank.paymentReference, 'ref')">{{ copied === 'ref' ? 'Copied' : 'Copy' }}</button></dd>
             </div>
           </dl>
-          <p class="cip-muted" *ngIf="bank.achInstructions">{{ bank.achInstructions }}</p>
+          @if (bank.achInstructions) {
+          <p class="cip-muted">{{ bank.achInstructions }}</p>
+          }
         </div>
+        }
       </div>
     </section>
+    }
 
     <footer class="cip-foot">
       <button type="button" class="cip-link" (click)="downloadPdf()" [disabled]="downloading">
         <i [appIcon]="icons.faFilePdf" aria-hidden="true"></i> {{ downloading ? 'Preparing PDF…' : 'Download invoice (PDF)' }}
       </button>
-      <p class="cip-muted" *ngIf="downloadError">{{ downloadError }}</p>
-      <p class="cip-muted" *ngIf="inv.company?.footerText">{{ inv.company?.footerText }}</p>
+      @if (downloadError) {
+      <p class="cip-muted">{{ downloadError }}</p>
+      }
+      @if (inv.company?.footerText) {
+      <p class="cip-muted">{{ inv.company?.footerText }}</p>
+      }
     </footer>
   </article>
+  }
 </div>

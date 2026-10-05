@@ -12,17 +12,22 @@
               <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
-          <div class="selector-options" *ngIf="isHoursDropdownOpen">
+          @if (isHoursDropdownOpen) {
+          <div class="selector-options">
+            @for (hour of hours; track hour) {
             <div
-              *ngFor="let hour of hours"
               class="selector-option"
               [class.selected]="hour === selectedHour"
               [class.blocked]="isHourBlocked(hour)"
               (click)="selectHourIfNotBlocked(hour, $event)">
               {{ formatHour(hour) }}
-              <span class="busy-label" *ngIf="isHourBlocked(hour)">Busy</span>
+              @if (isHourBlocked(hour)) {
+              <span class="busy-label">Busy</span>
+              }
             </div>
+            }
           </div>
+          }
         </div>
       </div>
     </div>
@@ -39,17 +44,22 @@
               <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
-          <div class="selector-options" *ngIf="isMinutesDropdownOpen">
+          @if (isMinutesDropdownOpen) {
+          <div class="selector-options">
+            @for (minute of getAvailableMinutes(); track minute) {
             <div
-              *ngFor="let minute of getAvailableMinutes()"
               class="selector-option"
               [class.selected]="minute === selectedMinute"
               [class.blocked]="isMinuteBlocked(minute)"
               (click)="selectMinuteIfNotBlocked(minute, $event)">
               {{ formatMinute(minute) }}
-              <span class="busy-label" *ngIf="isMinuteBlocked(minute)">Busy</span>
+              @if (isMinuteBlocked(minute)) {
+              <span class="busy-label">Busy</span>
+              }
             </div>
+            }
           </div>
+          }
         </div>
       </div>
     </div>

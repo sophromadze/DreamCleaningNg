@@ -1,6 +1,7 @@
 <div class="crm-calls">
   <!-- Stats header — scoped to the selected date range + direction (full set, before category filter) -->
-  <div class="stats-section" *ngIf="summary">
+  @if (summary) {
+  <div class="stats-section">
     <div class="stats-strip">
       <div class="stat">
         <span class="stat-value">{{ summary.total }}</span>
@@ -40,6 +41,7 @@
       </div>
     </div>
   </div>
+  }
 
   <!-- Filters -->
   <div class="calls-toolbar">
@@ -73,7 +75,9 @@
     <label class="hide-toggle" [class.disabled]="!!categoryFilter">
       <input type="checkbox" [(ngModel)]="hideNonCustomer" (change)="onHideToggle()" [disabled]="!!categoryFilter" />
       Hide cleaners &amp; spam
-      <span class="hidden-count" *ngIf="hideNonCustomer && !categoryFilter && hiddenCount > 0">({{ hiddenCount }} hidden)</span>
+      @if (hideNonCustomer && !categoryFilter && hiddenCount > 0) {
+      <span class="hidden-count">({{ hiddenCount }} hidden)</span>
+      }
     </label>
 
     <div class="toolbar-spacer"></div>
@@ -86,11 +90,15 @@
     </button>
   </div>
 
-  <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
+  @if (errorMessage) {
+  <div class="error-banner">{{ errorMessage }}</div>
+  }
 
   <!-- Table -->
-  <div class="calls-table-wrap" *ngIf="!loading; else loadingTpl">
-    <table class="calls-table" *ngIf="calls.length; else emptyTpl">
+  @if (!loading) {
+  <div class="calls-table-wrap">
+    @if (calls.length) {
+    <table class="calls-table">
       <thead>
         <tr>
           <th>Date / Time</th>
@@ -103,46 +111,58 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let call of calls; trackBy: trackByCallId">
+        @for (call of calls; track trackByCallId($index, call)) {
+        <tr>
           <td>{{ call.startTimeUtc | date:'MMM d, y, HH:mm' }}</td>
           <td>
             <span class="cat-badge" [ngClass]="categoryClass(call.category)">{{ call.category }}</span>
-            <span class="cleaner-name" *ngIf="call.category === 'Cleaner' && call.matchedCleanerName">
+            @if (call.category === 'Cleaner' && call.matchedCleanerName) {
+            <span class="cleaner-name">
               {{ call.matchedCleanerName }}
             </span>
+            }
           </td>
           <td>{{ call.direction }}</td>
           <td>
             <div class="from-cell">
               <span class="from-number">{{ call.fromNumber || '—' }}</span>
-              <span class="from-name" *ngIf="call.fromName">{{ call.fromName }}</span>
+              @if (call.fromName) {
+              <span class="from-name">{{ call.fromName }}</span>
+              }
             </div>
           </td>
           <td>{{ formatDuration(call.durationSeconds) }}</td>
           <td><span class="result-pill" [ngClass]="resultClass(call.result)">{{ call.result }}</span></td>
           <td>
-            <a href="#" *ngIf="call.leadId" class="lead-link" (click)="goToLead(call.leadId, $event)">
+            @if (call.leadId) {
+            <a href="#" class="lead-link" (click)="goToLead(call.leadId, $event)">
               {{ call.leadName || 'View lead' }}
             </a>
-            <span *ngIf="!call.leadId" class="muted">—</span>
+            }
+            @if (!call.leadId) {
+            <span class="muted">—</span>
+            }
           </td>
         </tr>
+        }
       </tbody>
     </table>
+    } @else {
+    <div class="state-msg">No calls found for this range.</div>
+    }
 
     <!-- Paging -->
-    <div class="paging" *ngIf="totalPages > 1">
+    @if (totalPages > 1) {
+    <div class="paging">
       <button class="btn-light" (click)="prevPage()" [disabled]="page <= 1">← Prev</button>
       <span class="page-info">Page {{ page }} of {{ totalPages }} · {{ totalCount }} calls</span>
       <button class="btn-light" (click)="nextPage()" [disabled]="page >= totalPages">Next →</button>
     </div>
+    }
   </div>
+  } @else {
 
-  <ng-template #loadingTpl>
     <div class="state-msg">Loading calls…</div>
-  </ng-template>
+  }
 
-  <ng-template #emptyTpl>
-    <div class="state-msg">No calls found for this range.</div>
-  </ng-template>
 </div>

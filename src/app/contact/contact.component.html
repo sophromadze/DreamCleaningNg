@@ -6,16 +6,20 @@
       <p class="contact-intro">We'd love to hear from you! Send us a message and we'll respond as soon as possible.</p>
   
       <!-- Success Message -->
-      <div class="alert alert-success" *ngIf="showSuccess">
+      @if (showSuccess) {
+      <div class="alert alert-success">
         <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
         <span>Your message has been sent successfully! We'll get back to you soon.</span>
       </div>
+      }
   
       <!-- Error Message -->
-      <div class="alert alert-error" *ngIf="showError">
+      @if (showError) {
+      <div class="alert alert-error">
         <i [appIcon]="icons.faCircleXmark" class="error-icon"></i>
         <span>{{ errorMessage }}</span>
       </div>
+      }
   
       <form [formGroup]="contactForm" (ngSubmit)="onSubmit()" class="contact-form">
         <!-- Full Name Field -->
@@ -28,9 +32,11 @@
             class="form-control"
             [class.error]="hasError('fullName')"
             placeholder="Enter your full name">
-          <span class="error-message" *ngIf="hasError('fullName')">
+          @if (hasError('fullName')) {
+          <span class="error-message">
             {{ getErrorMessage('fullName') }}
           </span>
+          }
         </div>
   
         <!-- Email Field -->
@@ -43,12 +49,16 @@
             class="form-control"
             [class.error]="hasError('email')"
             placeholder="your@email.com">
-          <span class="error-message" *ngIf="hasError('email')">
+          @if (hasError('email')) {
+          <span class="error-message">
             {{ getErrorMessage('email') }}
           </span>
-          <small class="field-hint" *ngIf="currentUser">
+          }
+          @if (currentUser) {
+          <small class="field-hint">
             Using your account email address
           </small>
+          }
         </div>
   
         <!-- Phone Field -->
@@ -63,9 +73,11 @@
             (input)="onPhoneInput($event)"
             placeholder="1234567890"
             maxlength="10">
-          <span class="error-message" *ngIf="hasError('phone')">
+          @if (hasError('phone')) {
+          <span class="error-message">
             {{ getErrorMessage('phone') }}
           </span>
+          }
         </div>
   
         <!-- Message Field -->
@@ -78,9 +90,11 @@
             [class.error]="hasError('message')"
             rows="5"
             placeholder="Tell us how we can help you..."></textarea>
-          <span class="error-message" *ngIf="hasError('message')">
+          @if (hasError('message')) {
+          <span class="error-message">
             {{ getErrorMessage('message') }}
           </span>
+          }
         </div>
 
         <!-- SMS Consent Checkbox -->
@@ -98,9 +112,11 @@
               <a routerLink="/terms-and-conditions" target="_blank">Terms of Service</a>.
             </label>
           </div>
-          <span class="error-message" *ngIf="hasError('smsConsent')">
+          @if (hasError('smsConsent')) {
+          <span class="error-message">
             {{ getErrorMessage('smsConsent') }}
           </span>
+          }
         </div>
   
         <!-- Submit Button -->
@@ -109,10 +125,14 @@
             type="submit" 
             class="btn btn-primary"
             [disabled]="isSubmitting">
-            <span *ngIf="!isSubmitting">Send Message</span>
-            <span *ngIf="isSubmitting" class="loading">
+            @if (!isSubmitting) {
+            <span>Send Message</span>
+            }
+            @if (isSubmitting) {
+            <span class="loading">
               <i class="spinner"></i> Sending...
             </span>
+            }
           </button>
         </div>
       </form>

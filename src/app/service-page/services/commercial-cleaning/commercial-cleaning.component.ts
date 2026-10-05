@@ -7,7 +7,7 @@ import {
   inject,
   DOCUMENT
 } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -50,7 +50,7 @@ const SECTOR_PHOTO_SIZES = '(max-width: 580px) calc(100vw - 49px), 365px';
 @Component({
   selector: 'app-commercial-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, TestimonialSectionComponent],
+  imports: [RouterLink, ReactiveFormsModule, TestimonialSectionComponent],
   templateUrl: './commercial-cleaning.component.html',
   // Order matters. The homepage's two stylesheets are listed FIRST and own the shared look
   // (hero grid, form card, section headers, feature/offer/area cards, CTA buttons); the page's

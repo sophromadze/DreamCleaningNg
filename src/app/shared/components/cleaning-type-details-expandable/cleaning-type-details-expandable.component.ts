@@ -1,5 +1,4 @@
 import { Component, Input } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import {
   REGULAR_CLEANING_CHECKLIST,
   DEEP_CLEANING_CHECKLIST,
@@ -16,7 +15,7 @@ import { faXmark } from '../../icons/glyphs/faXmark';
 @Component({
   selector: 'app-cleaning-type-details-expandable',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [IconComponent],
   templateUrl: './cleaning-type-details-expandable.component.html',
   styleUrl: './cleaning-type-details-expandable.component.scss',
 })

@@ -1,5 +1,5 @@
 import { Component, Inject, OnDestroy, OnInit, PLATFORM_ID } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
@@ -22,7 +22,7 @@ import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-ke
 @Component({
   selector: 'app-first-time-offer-popup',
   standalone: true,
-  imports: [CommonModule, RouterModule, IconComponent],
+  imports: [RouterModule, IconComponent],
   templateUrl: './first-time-offer-popup.component.html',
   styleUrl: './first-time-offer-popup.component.scss'
 })

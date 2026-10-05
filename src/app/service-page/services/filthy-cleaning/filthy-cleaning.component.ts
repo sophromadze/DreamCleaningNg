@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MarketingPricingService } from '../../../shared/pricing/marketing-pricing.service';
 import { PhoneNumberService } from '../../../services/phone-number.service';
@@ -9,7 +8,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
 @Component({
   selector: 'app-filthy-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterModule, CardImageDirective],
+  imports: [RouterModule, CardImageDirective],
   templateUrl: './filthy-cleaning.component.html',
   styleUrl: './filthy-cleaning.component.scss'
 })

@@ -1,5 +1,4 @@
 import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 import { AdminService } from '../../../services/admin.service';
@@ -39,7 +38,7 @@ export interface RegisteredCustomer {
 @Component({
   selector: 'app-register-customer-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './register-customer-modal.component.html',
   styleUrls: ['./register-customer-modal.component.scss']
 })

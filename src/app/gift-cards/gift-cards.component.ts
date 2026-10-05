@@ -1,5 +1,5 @@
 import { Component, OnInit, Inject, PLATFORM_ID, afterNextRender } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
@@ -19,7 +19,7 @@ const GIFT_CARD_DRAFT_TTL_MS = 30 * 60 * 1000;
 @Component({
   selector: 'app-gift-cards',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, BubbleFieldComponent],
+  imports: [FormsModule, ReactiveFormsModule, BubbleFieldComponent],
   templateUrl: './gift-cards.component.html',
   styleUrls: ['./gift-cards.component.scss']
 })

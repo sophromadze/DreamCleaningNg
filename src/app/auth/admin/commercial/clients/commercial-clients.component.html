@@ -11,12 +11,16 @@
   <div class="section-header">
     <div class="header-left">
       <h2>Business Clients</h2>
-      <span class="user-count" *ngIf="!loading">{{ clients.length }} total</span>
+      @if (!loading) {
+      <span class="user-count">{{ clients.length }} total</span>
+      }
     </div>
     <div class="header-right">
-      <button type="button" class="action-btn register-customer" *ngIf="canCreate" (click)="openCreate()">
+      @if (canCreate) {
+      <button type="button" class="action-btn register-customer" (click)="openCreate()">
         + New Client
       </button>
+      }
       <button type="button" class="action-btn refresh" (click)="load()" [disabled]="loading">
         {{ loading ? 'Loading…' : 'Refresh' }}
       </button>
@@ -24,8 +28,12 @@
   </div>
 
   <div class="messages">
-    <div class="error-message" *ngIf="error">{{ error }}</div>
-    <div class="success-message" *ngIf="notice">{{ notice }}</div>
+    @if (error) {
+    <div class="error-message">{{ error }}</div>
+    }
+    @if (notice) {
+    <div class="success-message">{{ notice }}</div>
+    }
   </div>
 
   <div class="filters-section">
@@ -58,7 +66,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let c of filtered; trackBy: trackByClientId"
+            @for (c of filtered; track trackByClientId($index, c)) {
+            <tr
                 class="user-row"
                 [class.row-selected]="selectedClientId === c.id"
                 [class.row-blocked]="!c.isActive"
@@ -76,9 +85,11 @@
                       <span class="customer-id">#{{ c.id }}</span>
                       {{ c.billingContactName || '—' }}
                     </span>
-                    <span class="customer-tags" *ngIf="!c.isActive">
+                    @if (!c.isActive) {
+                    <span class="customer-tags">
                       <span class="tag-chip blocked">Removed</span>
                     </span>
+                    }
                   </div>
                 </div>
               </td>
@@ -86,8 +97,12 @@
               <td class="col-company">{{ c.legalEntityName }}</td>
 
               <td class="col-email">
-                <span *ngIf="!c.billingEmail" class="muted">—</span>
-                <span *ngIf="c.billingEmail" class="ellipsis-text">{{ c.billingEmail }}</span>
+                @if (!c.billingEmail) {
+                <span class="muted">—</span>
+                }
+                @if (c.billingEmail) {
+                <span class="ellipsis-text">{{ c.billingEmail }}</span>
+                }
               </td>
 
               <td class="col-origin">
@@ -101,8 +116,10 @@
                 · {{ c.invoiceCount }} invoice{{ c.invoiceCount === 1 ? '' : 's' }}
               </td>
             </tr>
+            }
 
-            <tr *ngIf="!loading && filtered.length === 0">
+            @if (!loading && filtered.length === 0) {
+            <tr>
               <td colspan="5" class="empty-row">
                 {{ search
                     ? 'No clients match that search.'
@@ -111,6 +128,7 @@
                         : 'No business clients yet.') }}
               </td>
             </tr>
+            }
           </tbody>
         </table>
       </div>
@@ -127,9 +145,10 @@
      They are SIBLINGS sharing the slot, never nested: `.detail-panel` is transformed and
      overflow-hidden, so it would become the containing block for the customer panel's
      fixed-position photo lightbox and recreate-order modal and clip both away. -->
+@if (selectedClientId !== null) {
 <div class="detail-overlay"
-     *ngIf="selectedClientId !== null"
      (click)="closeDetailPanel()"></div>
+}
 
 <!-- ONE strip, rendered into whichever panel is up — plain markup in the commercial one, and
      projected into the customer one. Two copies would be two things to keep in step. -->
@@ -144,10 +163,10 @@
   </div>
 </ng-template>
 
+@if (!showsCustomerPanel) {
 <aside class="detail-panel"
-       *ngIf="!showsCustomerPanel"
        [class.open]="selectedClientId !== null">
-  <ng-container *ngIf="selectedClient as c">
+  @if (selectedClient; as c) {
     <!-- ABOVE the header, in both panels. The strip switches between two whole records, so it
          belongs over the identity it is switching — and the customer panel projects it into the
          same place (see the ng-content in user-management's panel). Put it under the header here
@@ -163,52 +182,70 @@
           <!-- A client saved without a name renders an empty heading: name it for screen readers only. -->
           <h3 class="detail-name" [attr.aria-label]="c.legalEntityName ? null : 'Unnamed client'">
             {{ c.legalEntityName }}
-            <span *ngIf="!c.isActive" class="tag-chip blocked">Removed</span>
+            @if (!c.isActive) {
+            <span class="tag-chip blocked">Removed</span>
+            }
           </h3>
           <div class="detail-contact">
-            <span *ngIf="c.billingPhone" title="Phone">📞 {{ c.billingPhone }}</span>
-            <span *ngIf="c.billingEmail" title="Email">✉ {{ c.billingEmail }}</span>
-            <span *ngIf="!c.billingEmail" class="tag-chip blocked" title="Invoices cannot be sent without a billing email">No billing email</span>
+            @if (c.billingPhone) {
+            <span title="Phone">📞 {{ c.billingPhone }}</span>
+            }
+            @if (c.billingEmail) {
+            <span title="Email">✉ {{ c.billingEmail }}</span>
+            }
+            @if (!c.billingEmail) {
+            <span class="tag-chip blocked" title="Invoices cannot be sent without a billing email">No billing email</span>
+            }
           </div>
-          <div class="detail-address-line" *ngIf="c.billingAddress">📍 {{ c.billingAddress }}</div>
+          @if (c.billingAddress) {
+          <div class="detail-address-line">📍 {{ c.billingAddress }}</div>
+          }
         </div>
       </div>
       <div class="detail-header__actions">
         <div class="actions-row">
-          <button type="button" class="action-btn small" *ngIf="c.isActive && canUpdate"
+          @if (c.isActive && canUpdate) {
+          <button type="button" class="action-btn small"
                   (click)="openEdit(c)">Edit</button>
+          }
           <button type="button" class="action-btn small ghost"
                   (click)="closeDetailPanel()" aria-label="Close">✕</button>
         </div>
-        <button type="button" class="action-btn small primary" *ngIf="c.isActive"
+        @if (c.isActive) {
+        <button type="button" class="action-btn small primary"
                 (click)="createInvoice(c)">
           Create invoice
         </button>
+        }
         <!-- Same endpoint, two different acts. For a LINKED client this takes the business
              designation off the customer's account, which lists them under Customers again and
              nothing else — so it is offered in those words, and not painted as a deletion. -->
+        @if (c.isActive && canDeactivate && isLinked(c)) {
         <button type="button" class="action-btn small"
-                *ngIf="c.isActive && canDeactivate && isLinked(c)"
                 (click)="askDelete(c)">
           Move to Customers
         </button>
+        }
+        @if (c.isActive && canDeactivate && !isLinked(c)) {
         <button type="button" class="action-btn small danger"
-                *ngIf="c.isActive && canDeactivate && !isLinked(c)"
                 (click)="askDelete(c)">
           Delete
         </button>
+        }
+        @if (!c.isActive && canDeactivate && !isLinked(c)) {
         <button type="button" class="action-btn small"
-                *ngIf="!c.isActive && canDeactivate && !isLinked(c)"
                 (click)="restore(c)">
           Restore
         </button>
+        }
       </div>
     </div>
 
     <!-- The customer half with no customer behind it. The tab is still offered rather than hidden
          (owner's call): a standalone client is a company we invoice that has never booked through
          the site, and that is worth saying once, where somebody looked for it. -->
-    <div class="detail-body" *ngIf="panelTab === 'customer'">
+    @if (panelTab === 'customer') {
+    <div class="detail-body">
       <div class="overview-details">
         <div class="info-card">
           <h4>Customer account</h4>
@@ -222,8 +259,10 @@
         </div>
       </div>
     </div>
+    }
 
-    <div class="stats-row" *ngIf="panelTab === 'business'">
+    @if (panelTab === 'business') {
+    <div class="stats-row">
       <div class="stat">
         <span class="stat-label">Origin</span>
         <span class="stat-value">{{ isLinked(c) ? 'Linked account' : 'Standalone' }}</span>
@@ -241,8 +280,10 @@
         <span class="stat-value">{{ c.locations.length }}</span>
       </div>
     </div>
+    }
 
-    <div class="detail-body" *ngIf="panelTab === 'business'">
+    @if (panelTab === 'business') {
+    <div class="detail-body">
       <div class="overview-details">
 
         <div class="info-card">
@@ -265,9 +306,11 @@
               <strong>{{ c.billingAddress || 'No billing address on file' }}</strong>
             </div>
           </div>
-          <p class="hint-line cc-warn" *ngIf="!c.billingEmail">
+          @if (!c.billingEmail) {
+          <p class="hint-line cc-warn">
             No billing email — invoices for this client cannot be sent until one is added.
           </p>
+          }
         </div>
 
         <!-- ONE PANEL, BOTH HALVES. A business client is a commercial entity AND a customer
@@ -277,7 +320,8 @@
              The two are shown SIDE BY SIDE rather than merged: the account's email is a login and
              the billing email is where invoices go, and they are allowed to differ. Merging them
              would silently pick a winner. -->
-        <div class="info-card" *ngIf="isLinked(c)">
+        @if (isLinked(c)) {
+        <div class="info-card">
           <h4>Customer account</h4>
           <div class="info-grid">
             <div>
@@ -289,7 +333,7 @@
               <strong>{{ c.linkedAccountEmail || 'no account email' }}</strong>
             </div>
 
-            <ng-container *ngIf="linkedAccount as u">
+            @if (linkedAccount; as u) {
               <div><span>User ID</span><strong>{{ u.id }}</strong></div>
               <div><span>Phone</span><strong>{{ u.phone || '—' }}</strong></div>
               <div>
@@ -304,37 +348,55 @@
                 <span>Total spent</span>
                 <strong>{{ (u.totalSpent || 0) | currency:'USD' }}</strong>
               </div>
-            </ng-container>
+            }
           </div>
 
-          <p class="muted" *ngIf="loadingLinkedAccount">Loading the customer account…</p>
+          @if (loadingLinkedAccount) {
+          <p class="muted">Loading the customer account…</p>
+          }
         </div>
+        }
 
         <div class="info-card">
           <h4>Service locations</h4>
-          <p class="muted" *ngIf="!c.locations.length">None on file.</p>
-          <ul class="cc-list" *ngIf="c.locations.length">
-            <li *ngFor="let l of c.locations">
+          @if (!c.locations.length) {
+          <p class="muted">None on file.</p>
+          }
+          @if (c.locations.length) {
+          <ul class="cc-list">
+            @for (l of c.locations; track l) {
+            <li>
               <strong>{{ l.label }}</strong> — {{ l.address }}
             </li>
+            }
           </ul>
+          }
         </div>
 
         <div class="info-card">
           <h4>Contracts</h4>
-          <p class="muted" *ngIf="!c.contracts.length">
+          @if (!c.contracts.length) {
+          <p class="muted">
             None — this client can still be invoiced.
           </p>
-          <ul class="cc-list" *ngIf="c.contracts.length">
-            <li *ngFor="let k of c.contracts">
+          }
+          @if (c.contracts.length) {
+          <ul class="cc-list">
+            @for (k of c.contracts; track k) {
+            <li>
               <a [routerLink]="['/admin/commercial/contracts', k.id]" class="cc-mono">{{ k.contractNumber }}</a>
               <span class="muted"> · {{ k.statusLabel }}</span>
-              <span class="muted" *ngIf="k.serviceAddress"> · {{ k.serviceAddress }}</span>
+              @if (k.serviceAddress) {
+              <span class="muted"> · {{ k.serviceAddress }}</span>
+              }
             </li>
+            }
           </ul>
+          }
         </div>
 
-        <div class="info-card" *ngIf="!c.isActive && isLinked(c)">
+        @if (!c.isActive && isLinked(c)) {
+        <div class="info-card">
           <h4>Restore</h4>
           <p class="muted">
             {{ c.linkedAccountName }} is an ordinary customer again. Turn the business flag back on
@@ -342,68 +404,89 @@
             once more.
           </p>
         </div>
+        }
 
       </div>
     </div>
-  </ng-container>
+    }
+  }
 </aside>
+}
 
 <!-- THE CUSTOMER HALF — the Users panel itself, in its panel-only mode. Every tab it has on the
      Customers list (Details, Notes, Cleaning History, Photos, Invoices) and every action it
      allows, under the same permission gates, because it IS that panel. Mounted only while its tab
      is the one on screen, so an admin who never asks for it never pays for the load. -->
-<app-user-management *ngIf="showsCustomerPanel"
+@if (showsCustomerPanel) {
+<app-user-management
                      [embeddedUserId]="linkedUserId"
                      (closed)="closeDetailPanel()">
   <div panel-tabs>
     <ng-container *ngTemplateOutlet="clientPanelTabs"></ng-container>
   </div>
 </app-user-management>
+}
 
 <!-- ── Delete confirmation ────────────────────────────────────────────────────────────────
      The linked wording is the important half: staff have to know the customer loses their
      business designation, because that is what stops the client reappearing. -->
-<div class="cc-confirm-overlay" *ngIf="pendingDelete" (click)="cancelDelete()">
+@if (pendingDelete) {
+<div class="cc-confirm-overlay" (click)="cancelDelete()">
   <div class="cc-confirm" (click)="$event.stopPropagation()" role="dialog" aria-modal="true">
-    <h3 *ngIf="isLinked(pendingDelete)">
+    @if (isLinked(pendingDelete)) {
+    <h3>
       Move {{ pendingDelete.legalEntityName }} back to Customers?
     </h3>
-    <h3 *ngIf="!isLinked(pendingDelete)">Remove {{ pendingDelete.legalEntityName }}?</h3>
+    }
+    @if (!isLinked(pendingDelete)) {
+    <h3>Remove {{ pendingDelete.legalEntityName }}?</h3>
+    }
 
-    <p *ngIf="isLinked(pendingDelete)">
+    @if (isLinked(pendingDelete)) {
+    <p>
       <strong>{{ pendingDelete.linkedAccountName }}</strong> loses the Business designation and
       goes back to being an ordinary customer. The account itself is untouched — same login, same
       bookings, same history.
     </p>
+    }
 
     <p>
       Their contracts, invoices and payment history are kept and stay exactly as they are. The
       client simply stops appearing when you create a new invoice or contract.
     </p>
 
-    <p class="cc-confirm-back" *ngIf="isLinked(pendingDelete)">
+    @if (isLinked(pendingDelete)) {
+    <p class="cc-confirm-back">
       Turning the business flag back on for that customer brings this same client back, with its
       contracts and invoices.
     </p>
-    <p class="cc-confirm-back" *ngIf="!isLinked(pendingDelete)">
+    }
+    @if (!isLinked(pendingDelete)) {
+    <p class="cc-confirm-back">
       You can list them again from “Show removed clients”.
     </p>
+    }
 
     <div class="cc-confirm-actions">
       <button type="button" class="action-btn ghost" (click)="cancelDelete()" [disabled]="deleting">
         Cancel
       </button>
-      <button type="button" class="action-btn" *ngIf="isLinked(pendingDelete)"
+      @if (isLinked(pendingDelete)) {
+      <button type="button" class="action-btn"
               (click)="confirmDelete()" [disabled]="deleting">
         {{ deleting ? 'Moving…' : 'Move to Customers' }}
       </button>
-      <button type="button" class="action-btn danger" *ngIf="!isLinked(pendingDelete)"
+      }
+      @if (!isLinked(pendingDelete)) {
+      <button type="button" class="action-btn danger"
               (click)="confirmDelete()" [disabled]="deleting">
         {{ deleting ? 'Removing…' : 'Remove client' }}
       </button>
+      }
     </div>
   </div>
 </div>
+}
 
 <!-- As a right-side panel, not a centred modal: this is an edit opened from a table row, the
      same shape as every other detail/edit panel in the admin area. Same component, same form -

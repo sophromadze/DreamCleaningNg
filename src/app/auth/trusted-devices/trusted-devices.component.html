@@ -1,4 +1,5 @@
-<section class="td-section" *ngIf="showSection">
+@if (showSection) {
+<section class="td-section">
   <div class="td-header">
     <h2>
       <i class="fas fa-shield-halved"></i>
@@ -9,37 +10,56 @@
     </p>
   </div>
 
-  <div class="td-message td-error" *ngIf="error">
+  @if (error) {
+  <div class="td-message td-error">
     <i class="fas fa-exclamation-circle"></i> {{ error }}
   </div>
-  <div class="td-message td-notice" *ngIf="notice">
+  }
+  @if (notice) {
+  <div class="td-message td-notice">
     <i class="fas fa-check-circle"></i> {{ notice }}
   </div>
+  }
 
-  <div class="td-loading" *ngIf="loading">
+  @if (loading) {
+  <div class="td-loading">
     <i class="fas fa-spinner fa-spin"></i> Loading devices…
   </div>
+  }
 
-  <div class="td-empty" *ngIf="!loading && devices.length === 0">
+  @if (!loading && devices.length === 0) {
+  <div class="td-empty">
     <i class="fas fa-mobile-screen"></i>
     <p>No trusted devices yet. Sign in from a device and check "Trust this device" to add one.</p>
   </div>
+  }
+  @if (!loading && devices.length > 0) {
+  <ul class="td-list">
+    @for (d of devices; track d) {
 
-  <ul class="td-list" *ngIf="!loading && devices.length > 0">
-    <ng-container *ngFor="let d of devices">
       <li class="td-item" [class.is-current]="d.isCurrentDevice">
         <div class="td-item-icon">
-          <i class="fas fa-laptop" *ngIf="!(d.operatingSystem || '').toLowerCase().includes('ios') && !(d.operatingSystem || '').toLowerCase().includes('android')"></i>
-          <i class="fas fa-mobile-screen" *ngIf="(d.operatingSystem || '').toLowerCase().includes('ios') || (d.operatingSystem || '').toLowerCase().includes('android')"></i>
+          @if (!(d.operatingSystem || '').toLowerCase().includes('ios') && !(d.operatingSystem || '').toLowerCase().includes('android')) {
+          <i class="fas fa-laptop"></i>
+          }
+          @if ((d.operatingSystem || '').toLowerCase().includes('ios') || (d.operatingSystem || '').toLowerCase().includes('android')) {
+          <i class="fas fa-mobile-screen"></i>
+          }
         </div>
         <div class="td-item-body">
           <div class="td-item-name">
             {{ d.deviceName || 'Unknown device' }}
-            <span class="td-current-tag" *ngIf="d.isCurrentDevice">This device</span>
+            @if (d.isCurrentDevice) {
+            <span class="td-current-tag">This device</span>
+            }
           </div>
           <div class="td-item-meta">
-            <span *ngIf="d.ipAddress" title="IP at last sign-in">IP {{ d.ipAddress }}</span>
-            <span class="dot" *ngIf="d.ipAddress">·</span>
+            @if (d.ipAddress) {
+            <span title="IP at last sign-in">IP {{ d.ipAddress }}</span>
+            }
+            @if (d.ipAddress) {
+            <span class="dot">·</span>
+            }
             <span title="First trusted">Added {{ formatDate(d.createdAt) }}</span>
             <span class="dot">·</span>
             <span title="Last sign-in">Last used {{ formatDate(d.lastUsedAt) }}</span>
@@ -54,16 +74,21 @@
           </button>
         </div>
       </li>
-      <li *ngIf="pendingRevokeId === d.id" class="td-confirm">
+      @if (pendingRevokeId === d.id) {
+      <li class="td-confirm">
         <div>
           <i class="fas fa-exclamation-triangle"></i>
-          <span *ngIf="d.isCurrentDevice">
+          @if (d.isCurrentDevice) {
+          <span>
             This is the device you're using now. Remove it anyway? You'll need to clear 2FA on next sign-in.
           </span>
-          <span *ngIf="!d.isCurrentDevice">
+          }
+          @if (!d.isCurrentDevice) {
+          <span>
             Remove <strong>{{ d.deviceName }}</strong>? It will be signed out immediately, and so
             will your other devices (they only need your password to sign back in).
           </span>
+          }
         </div>
         <div class="td-confirm-actions">
           <button type="button" class="btn btn-secondary btn-cancel btn-sm" (click)="cancelRevoke()" [disabled]="revoking">Cancel</button>
@@ -73,24 +98,29 @@
           </button>
         </div>
       </li>
-    </ng-container>
+      }
+    }
   </ul>
+  }
 
   <!-- Shown even with an empty list: a device that signed in without "Trust this device"
        never appears above, and this is the only way to sign it out. -->
-  <div class="td-footer" *ngIf="!loading">
+  @if (!loading) {
+  <div class="td-footer">
     <p class="td-footer-hint">
       Someone else signed in to your account? Sign out everywhere except this device —
       this also reaches devices that aren't listed above.
     </p>
+    @if (!confirmingSignOutOthers) {
     <button type="button"
             class="td-revoke-btn"
-            *ngIf="!confirmingSignOutOthers"
             (click)="askSignOutOthers()"
             [disabled]="pendingRevokeId !== null">
       <i class="fas fa-right-from-bracket"></i> Sign out all other devices
     </button>
-    <div class="td-confirm" *ngIf="confirmingSignOutOthers">
+    }
+    @if (confirmingSignOutOthers) {
+    <div class="td-confirm">
       <div>
         <i class="fas fa-exclamation-triangle"></i>
         Sign out every other device and remove them from this list? You stay signed in here.
@@ -103,5 +133,8 @@
         </button>
       </div>
     </div>
+    }
   </div>
+  }
 </section>
+}

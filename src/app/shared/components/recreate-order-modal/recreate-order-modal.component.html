@@ -1,29 +1,37 @@
-<div class="rom-backdrop" *ngIf="open" (click)="close()">
+@if (open) {
+<div class="rom-backdrop" (click)="close()">
   <div class="rom-panel" (click)="onPanelClick($event)" role="dialog" aria-modal="true">
 
     <header class="rom-header">
       <div class="rom-header__text">
         <h3>Recreate order</h3>
-        <p class="rom-subtitle" *ngIf="preview">
+        @if (preview) {
+        <p class="rom-subtitle">
           #{{ preview.sourceOrderId }} · {{ preview.serviceTypeName }} ·
           {{ preview.originalServiceDate | date:'mediumDate' }} · {{ preview.customerName }}
         </p>
+        }
       </div>
       <button type="button" class="rom-close" (click)="close()" aria-label="Close">×</button>
     </header>
 
     <!-- ─── Loading ─────────────────────────────────────────────────────────────────── -->
-    <div class="rom-body" *ngIf="step === 'loading'">
+    @if (step === 'loading') {
+    <div class="rom-body">
       <p class="rom-muted rom-center">Working out what has changed since this order…</p>
     </div>
+    }
 
     <!-- ─── Load failure ────────────────────────────────────────────────────────────── -->
-    <div class="rom-body" *ngIf="step === 'error'">
+    @if (step === 'error') {
+    <div class="rom-body">
       <div class="rom-error">{{ errorMessage }}</div>
     </div>
+    }
 
     <!-- ─── Step 1: what will be different ──────────────────────────────────────────── -->
-    <div class="rom-body" *ngIf="step === 'changes' && preview">
+    @if (step === 'changes' && preview) {
+    <div class="rom-body">
 
       <p class="rom-lead">
         This will create a <strong>new</strong> order for {{ preview.customerName }}. The original
@@ -31,14 +39,17 @@
       </p>
 
       <!-- Nothing moved: say so in one line rather than render four empty sections. -->
-      <div class="rom-nochange" *ngIf="!preview.hasChanges">
+      @if (!preview.hasChanges) {
+      <div class="rom-nochange">
         Nothing has changed since this order was booked — the same job costs the same today.
       </div>
+      }
+      @if (preview.hasChanges) {
 
-      <ng-container *ngIf="preview.hasChanges">
 
         <!-- Bottom line -->
-        <section class="rom-section" *ngIf="hasTotalChange">
+        @if (hasTotalChange) {
+        <section class="rom-section">
           <h4>What the customer pays</h4>
           <table class="rom-table rom-totals">
             <thead>
@@ -50,9 +61,10 @@
                 <td>{{ preview.original.subTotal | currency }}</td>
                 <td>{{ preview.recreated.subTotal | currency }}</td>
               </tr>
-              <tr *ngIf="preview.original.discountAmount
+              @if (preview.original.discountAmount
                        || preview.original.subscriptionDiscountAmount
-                       || preview.original.loyaltyDiscountAmount">
+                       || preview.original.loyaltyDiscountAmount) {
+        <tr>
                 <td>Discounts</td>
                 <td class="rom-neg">
                   −{{ preview.original.discountAmount
@@ -61,9 +73,11 @@
                 </td>
                 <td class="rom-muted">none</td>
               </tr>
-              <tr *ngIf="preview.original.giftCardAmountUsed
+        }
+              @if (preview.original.giftCardAmountUsed
                        || preview.original.pointsRedeemedDiscount
-                       || preview.original.rewardBalanceUsed">
+                       || preview.original.rewardBalanceUsed) {
+      <tr>
                 <td>Gift card / points / reward balance</td>
                 <td class="rom-neg">
                   −{{ preview.original.giftCardAmountUsed
@@ -72,16 +86,19 @@
                 </td>
                 <td class="rom-muted">none</td>
               </tr>
+      }
               <tr>
                 <td>Sales tax</td>
                 <td>{{ preview.original.tax | currency }}</td>
                 <td>{{ preview.recreated.tax | currency }}</td>
               </tr>
-              <tr *ngIf="preview.original.tips || preview.recreated.tips">
+              @if (preview.original.tips || preview.recreated.tips) {
+              <tr>
                 <td>Tips</td>
                 <td>{{ preview.original.tips | currency }}</td>
                 <td>{{ preview.recreated.tips | currency }}</td>
               </tr>
+              }
               <tr class="rom-total-row">
                 <td>Total</td>
                 <td>{{ preview.original.total | currency }}</td>
@@ -98,20 +115,27 @@
             You can change any of this on the next screen before the order is created.
           </p>
         </section>
+    }
 
         <!-- Catalogue moves -->
-        <section class="rom-section" *ngIf="hasLineChanges">
+        @if (hasLineChanges) {
+        <section class="rom-section">
           <h4>Prices that have changed since then</h4>
           <table class="rom-table">
             <thead>
               <tr><th>Item</th><th>Then</th><th>Now</th><th>Time</th></tr>
             </thead>
             <tbody>
-              <tr *ngFor="let line of preview.lineChanges">
+              @for (line of preview.lineChanges; track line) {
+              <tr>
                 <td>
                   {{ line.name }}
-                  <span class="rom-muted" *ngIf="line.quantity > 1">× {{ line.quantity }}</span>
-                  <span class="rom-muted" *ngIf="line.hours">· {{ line.hours }}h</span>
+                  @if (line.quantity > 1) {
+                  <span class="rom-muted">× {{ line.quantity }}</span>
+                  }
+                  @if (line.hours) {
+                  <span class="rom-muted">· {{ line.hours }}h</span>
+                  }
                 </td>
                 <td>{{ line.originalCost | currency }}</td>
                 <td [class.rom-up]="line.newCost > line.originalCost"
@@ -119,48 +143,68 @@
                   {{ line.newCost | currency }}
                 </td>
                 <td class="rom-muted">
-                  <span *ngIf="line.newDuration !== line.originalDuration">
+                  @if (line.newDuration !== line.originalDuration) {
+                  <span>
                     {{ line.originalDuration }}m → {{ line.newDuration }}m
                   </span>
-                  <span *ngIf="line.newDuration === line.originalDuration">—</span>
+                  }
+                  @if (line.newDuration === line.originalDuration) {
+                  <span>—</span>
+                  }
                 </td>
               </tr>
+              }
             </tbody>
           </table>
         </section>
+        }
 
         <!-- Gone from the catalogue -->
-        <section class="rom-section" *ngIf="hasUnavailable">
+        @if (hasUnavailable) {
+        <section class="rom-section">
           <h4>No longer available — these will be left out</h4>
           <ul class="rom-list">
-            <li *ngFor="let line of preview.unavailable">
+            @for (line of preview.unavailable; track line) {
+            <li>
               <strong>{{ line.name }}</strong>
-              <span class="rom-muted" *ngIf="line.quantity > 1"> × {{ line.quantity }}</span>
+              @if (line.quantity > 1) {
+              <span class="rom-muted"> × {{ line.quantity }}</span>
+              }
               <span class="rom-was"> (was {{ line.originalCost | currency }})</span>
               <div class="rom-reason">{{ line.reason }}</div>
             </li>
+            }
           </ul>
         </section>
+        }
 
         <!-- Discounts -->
-        <section class="rom-section" *ngIf="hasDiscountChanges">
+        @if (hasDiscountChanges) {
+        <section class="rom-section">
           <h4>Discounts</h4>
           <ul class="rom-list">
-            <li *ngFor="let d of preview.discounts" [class.reapplicable]="d.canReapply">
+            @for (d of preview.discounts; track d) {
+            <li [class.reapplicable]="d.canReapply">
               <strong>{{ d.label }}</strong>
-              <span class="rom-was" *ngIf="d.originalAmount > 0">
+              @if (d.originalAmount > 0) {
+              <span class="rom-was">
                 (took {{ d.originalAmount | currency }} off the original order)
               </span>
+              }
               <div class="rom-reason">{{ d.reason }}</div>
             </li>
+            }
           </ul>
         </section>
+        }
 
-      </ng-container>
+}
     </div>
+}
 
     <!-- ─── Step 2: the mini booking form ───────────────────────────────────────────── -->
-    <div class="rom-body" *ngIf="step === 'form' && preview && serviceType">
+    @if (step === 'form' && preview && serviceType) {
+    <div class="rom-body">
 
       <!-- Schedule -->
       <section class="rom-section">
@@ -181,10 +225,12 @@
           Use the original date ({{ preview.originalServiceDate | date:'mediumDate' }})
         </button>
 
-        <div class="rom-banner rom-banner--info" *ngIf="isBackDated">
+        @if (isBackDated) {
+        <div class="rom-banner rom-banner--info">
           This order will be <strong>back-dated</strong>. It is exempt from the automatic
           “unpaid and the date has passed” cancellation, so it will stay exactly as you create it.
         </div>
+        }
       </section>
 
       <!-- Payment + status -->
@@ -194,7 +240,9 @@
           <label class="rom-field">
             <span>Payment method</span>
             <select [(ngModel)]="paymentMethod" (ngModelChange)="onScheduleChange()">
-              <option *ngFor="let m of paymentMethods" [value]="m.value">{{ m.label }}</option>
+              @for (m of paymentMethods; track m) {
+              <option [value]="m.value">{{ m.label }}</option>
+              }
             </select>
           </label>
           <label class="rom-field">
@@ -209,7 +257,7 @@
         <!-- Reference and notes describe money that has ALREADY changed hands, so they are
              offered for cash/Zelle/cheque/other and NOT for Invoice — an invoice-billed order has
              not been paid yet, and a reference for it would be a record of nothing. -->
-        <ng-container *ngIf="isSettledMethod">
+        @if (isSettledMethod) {
           <div class="rom-grid">
             <label class="rom-field">
               <span>Payment reference</span>
@@ -220,24 +268,31 @@
               <input type="text" [(ngModel)]="paymentNotes" placeholder="Optional">
             </label>
           </div>
-        </ng-container>
-        <p class="rom-note" *ngIf="paymentMethod === 'Normal'">
+        }
+        @if (paymentMethod === 'Normal') {
+        <p class="rom-note">
           Stripe: the order is created unpaid. Nothing is charged here, and no payment link goes
           out unless you turn a notification on below.
         </p>
-        <p class="rom-note" *ngIf="paymentMethod === 'Invoice'">
+        }
+        @if (paymentMethod === 'Invoice') {
+        <p class="rom-note">
           Invoice{{ contractClientName ? ' — billed to ' + contractClientName : '' }}: the order is
           created Pending. It becomes Active when a commercial invoice covering it is paid in full.
         </p>
+        }
+        @if (paymentMethod === 'Invoice' && !contractClientId) {
         <p class="rom-note rom-note--warn"
-           *ngIf="paymentMethod === 'Invoice' && !contractClientId">
+          >
           The original order has no commercial client on it, so this one cannot be billed by
           invoice. Choose a different payment method.
         </p>
+        }
       </section>
 
       <!-- Custom ("Pre-Arranged") pricing -->
-      <section class="rom-section" *ngIf="serviceType.isCustom">
+      @if (serviceType.isCustom) {
+      <section class="rom-section">
         <h4>Pre-arranged price</h4>
         <div class="rom-grid rom-grid--three">
           <label class="rom-field">
@@ -261,15 +316,19 @@
           pre-arranged job — the amount above is the whole quote.
         </p>
       </section>
+      }
 
       <!-- Services -->
-      <section class="rom-section" *ngIf="!serviceType.isCustom && stepperServices.length">
+      @if (!serviceType.isCustom && stepperServices.length) {
+      <section class="rom-section">
         <h4>The job</h4>
         <div class="rom-services">
-          <div class="rom-service-item" *ngFor="let selected of stepperServices">
+          @for (selected of stepperServices; track selected) {
+          <div class="rom-service-item">
             <label>{{ selected.service.name }}</label>
 
-            <div class="rom-service-input" *ngIf="selected.service.inputType === 'dropdown'">
+            @if (selected.service.inputType === 'dropdown') {
+            <div class="rom-service-input">
               <span class="rom-stepper">
                 <button type="button" aria-label="Decrease"
                         [disabled]="selected.quantity <= getServiceMinValue(selected.service)"
@@ -283,21 +342,27 @@
                         (click)="incrementService(selected.service)">+</button>
               </span>
             </div>
+            }
 
-            <div class="rom-service-input rom-slider" *ngIf="selected.service.isRangeInput">
+            @if (selected.service.isRangeInput) {
+            <div class="rom-service-input rom-slider">
               <span class="rom-slider__value">{{ selected.quantity }}</span>
               <input type="range" min="0" step="1"
                      [max]="squareFeetSliderMaxIndex(selected.service)"
                      [value]="squareFeetSliderIndex(selected.service, selected.quantity)"
                      (input)="onSquareFeetSliderChange(selected.service, $any($event.target).value)">
             </div>
+            }
           </div>
+          }
         </div>
       </section>
+      }
 
       <!-- Bed/bath for a type that prices neither (pre-arranged, cleaner+hours). Recorded for
            the crew and the admin list; they cost nothing and add no time. -->
-      <section class="rom-section" *ngIf="showInformationalBedBath()">
+      @if (showInformationalBedBath()) {
+      <section class="rom-section">
         <h4>The place</h4>
         <div class="rom-services">
           <div class="rom-service-item">
@@ -334,9 +399,11 @@
           Recorded for the crew and the admin list — they do not change the price or the time.
         </p>
       </section>
+      }
 
       <!-- Property type + levels -->
-      <section class="rom-section" *ngIf="showPropertyTypeSelector()">
+      @if (showPropertyTypeSelector()) {
+      <section class="rom-section">
         <h4>What kind of place is it?</h4>
         <div class="rom-chips">
           <button type="button" class="rom-chip"
@@ -347,36 +414,45 @@
                   (click)="selectPropertyType(houseType)">House / Townhouse</button>
         </div>
 
-        <div class="rom-levels" *ngIf="showLevelsSelector()">
+        @if (showLevelsSelector()) {
+        <div class="rom-levels">
           <span class="rom-levels__label">Levels being cleaned</span>
           <div class="rom-chips">
+            @for (level of levelOptions; track level) {
             <button type="button" class="rom-chip rom-chip--small"
-                    *ngFor="let level of levelOptions"
                     [class.selected]="levelsQuantity === level"
                     (click)="selectLevels(level)">{{ level }}</button>
+            }
           </div>
         </div>
+        }
       </section>
+      }
 
       <!-- Cleaning type. Deep / Super Deep are a TYPE, not an extra — the same rule the booking
            page applies. They never appear in the extras list below. -->
-      <section class="rom-section" *ngIf="showCleaningTypeSelector">
+      @if (showCleaningTypeSelector) {
+      <section class="rom-section">
         <h4>Cleaning type</h4>
         <div class="rom-chips">
+          @for (option of cleaningTypeOptions; track option) {
           <button type="button" class="rom-chip"
-                  *ngFor="let option of cleaningTypeOptions"
                   [class.selected]="cleaningType === option.value"
                   (click)="selectCleaningType(option.value)">
             {{ option.label }}
           </button>
+          }
         </div>
       </section>
+      }
 
       <!-- Extras -->
-      <section class="rom-section" *ngIf="selectableExtras.length">
+      @if (selectableExtras.length) {
+      <section class="rom-section">
         <h4>Extra services</h4>
         <div class="rom-extras">
-          <div class="rom-extra" *ngFor="let extra of selectableExtras">
+          @for (extra of selectableExtras; track extra) {
+          <div class="rom-extra">
             <button type="button"
                     class="rom-extra__toggle"
                     [class.selected]="isExtraSelected(extra)"
@@ -384,9 +460,11 @@
               {{ extra.name }}
             </button>
 
+            @if (isExtraSelected(extra) && (extra.hasQuantity || extra.hasHours)) {
             <div class="rom-extra__controls"
-                 *ngIf="isExtraSelected(extra) && (extra.hasQuantity || extra.hasHours)">
-              <span class="rom-extra__control" *ngIf="extra.hasQuantity">
+                >
+              @if (extra.hasQuantity) {
+              <span class="rom-extra__control">
                 <span class="rom-extra__label">Qty</span>
                 <span class="rom-stepper">
                   <button type="button" aria-label="Decrease quantity"
@@ -397,7 +475,9 @@
                           (click)="changeExtraQuantity(extra, 1)">+</button>
                 </span>
               </span>
-              <span class="rom-extra__control" *ngIf="extra.hasHours">
+              }
+              @if (extra.hasHours) {
+              <span class="rom-extra__control">
                 <span class="rom-extra__label">Hours</span>
                 <span class="rom-stepper">
                   <button type="button" aria-label="Decrease hours"
@@ -408,10 +488,14 @@
                           (click)="changeExtraHours(extra, 0.5)">+</button>
                 </span>
               </span>
+              }
             </div>
+            }
           </div>
+          }
         </div>
       </section>
+      }
 
       <!-- Where / who -->
       <section class="rom-section">
@@ -478,15 +562,17 @@
       </section>
 
       <!-- Discounts opt-in — only rendered when there is genuinely something to opt in to -->
-      <section class="rom-section" *ngIf="reapplicableDiscounts.length">
+      @if (reapplicableDiscounts.length) {
+      <section class="rom-section">
         <h4>Discounts</h4>
         <label class="rom-check">
           <input type="checkbox" [(ngModel)]="applyCurrentDiscounts"
                  (ngModelChange)="onDiscountToggleChange()">
           <span>
             Apply this customer's current discounts
-            (<ng-container *ngFor="let d of reapplicableDiscounts; let last = last"
-             >{{ d.label }}{{ last ? '' : ', ' }}</ng-container>) —
+            (@for (d of reapplicableDiscounts; track d; let last = $last) {
+            {{ d.label }}{{ last ? '' : ', ' }}
+            }) —
             about {{ reapplicableTotal | currency }} off
           </span>
         </label>
@@ -495,6 +581,7 @@
           this alone when you are simply re-entering a job that already happened.
         </p>
       </section>
+      }
 
       <!-- Notifications -->
       <section class="rom-section">
@@ -504,17 +591,25 @@
         </p>
         <label class="rom-check" [class.disabled]="!canNotifyByEmail">
           <input type="checkbox" [(ngModel)]="notifyByEmail" [disabled]="!canNotifyByEmail">
-          <span *ngIf="canNotifyByEmail">Email {{ preview.notificationEmail }}</span>
-          <span *ngIf="!canNotifyByEmail">
+          @if (canNotifyByEmail) {
+          <span>Email {{ preview.notificationEmail }}</span>
+          }
+          @if (!canNotifyByEmail) {
+          <span>
             No email on file for this customer — nothing can be emailed.
           </span>
+          }
         </label>
         <label class="rom-check" [class.disabled]="!canNotifyBySms">
           <input type="checkbox" [(ngModel)]="notifyBySms" [disabled]="!canNotifyBySms">
-          <span *ngIf="canNotifyBySms">Text {{ preview.notificationPhone }}</span>
-          <span *ngIf="!canNotifyBySms">
+          @if (canNotifyBySms) {
+          <span>Text {{ preview.notificationPhone }}</span>
+          }
+          @if (!canNotifyBySms) {
+          <span>
             No phone number on file for this customer — nothing can be texted.
           </span>
+          }
         </label>
       </section>
 
@@ -522,14 +617,20 @@
       <section class="rom-section rom-summary">
         <h4>This order</h4>
         <div class="rom-summary__row"><span>Subtotal</span><span>{{ quoteSubTotal | currency }}</span></div>
-        <div class="rom-summary__row" *ngIf="appliedLoyalty > 0">
+        @if (appliedLoyalty > 0) {
+        <div class="rom-summary__row">
           <span>Loyalty discount</span><span class="rom-neg">−{{ appliedLoyalty | currency }}</span>
         </div>
-        <div class="rom-summary__row" *ngIf="appliedSubscription > 0">
+        }
+        @if (appliedSubscription > 0) {
+        <div class="rom-summary__row">
           <span>Plan discount</span><span class="rom-neg">−{{ appliedSubscription | currency }}</span>
         </div>
+        }
         <div class="rom-summary__row"><span>Sales tax</span><span>{{ quoteTax | currency }}</span></div>
-        <div class="rom-summary__row" *ngIf="tips > 0"><span>Tips</span><span>{{ tips | currency }}</span></div>
+        @if (tips > 0) {
+        <div class="rom-summary__row"><span>Tips</span><span>{{ tips | currency }}</span></div>
+        }
         <div class="rom-summary__row rom-summary__row--total">
           <span>Total</span><span>{{ quoteTotal | currency }}</span>
         </div>
@@ -538,31 +639,35 @@
         </div>
       </section>
 
-      <div class="rom-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+      @if (errorMessage) {
+      <div class="rom-error">{{ errorMessage }}</div>
+      }
     </div>
+    }
 
     <!-- ─── Footer ──────────────────────────────────────────────────────────────────── -->
     <footer class="rom-footer">
-      <ng-container *ngIf="step === 'changes'">
+      @if (step === 'changes') {
         <button type="button" class="rom-btn ghost" (click)="close()">Cancel</button>
         <button type="button" class="rom-btn primary" (click)="continueToForm()">
           Continue to booking
         </button>
-      </ng-container>
+      }
+      @if (step === 'form') {
 
-      <ng-container *ngIf="step === 'form'">
         <button type="button" class="rom-btn ghost" (click)="backToChanges()" [disabled]="submitting">
           Back to changes
         </button>
         <button type="button" class="rom-btn primary" (click)="submit()" [disabled]="submitting">
           {{ submitting ? 'Creating…' : 'Create order' }}
         </button>
-      </ng-container>
+      }
+      @if (step === 'error' || step === 'loading') {
 
-      <ng-container *ngIf="step === 'error' || step === 'loading'">
         <button type="button" class="rom-btn ghost" (click)="close()">Close</button>
-      </ng-container>
+      }
     </footer>
 
   </div>
 </div>
+}

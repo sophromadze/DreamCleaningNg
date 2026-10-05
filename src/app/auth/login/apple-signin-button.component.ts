@@ -1,5 +1,5 @@
 import { Component, Inject, PLATFORM_ID, OnInit, Output, EventEmitter } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { environment } from '../../../environments/environment';
 
 declare const AppleID: any;
@@ -7,9 +7,10 @@ declare const AppleID: any;
 @Component({
   selector: 'app-apple-signin-button',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   template: `
-    <button *ngIf="isBrowser" 
+    @if (isBrowser) {
+    <button 
             class="apple-signin-btn" 
             (click)="signInWithApple()"
             [disabled]="isLoading">
@@ -18,6 +19,7 @@ declare const AppleID: any;
       </svg>
       <span>Sign in with Apple</span>
     </button>
+    }
   `,
   styles: [`
     :host {

@@ -1,5 +1,4 @@
 import { Component, Inject, OnDestroy, OnInit, Optional, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { Meta, Title, DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription, take } from 'rxjs';
@@ -20,7 +19,7 @@ const BASE_URL = 'https://dreamcleaningnyc.com';
 @Component({
   selector: 'app-blog-post',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './blog-post.component.html',
   styleUrl: './blog-post.component.scss'
 })

@@ -18,24 +18,31 @@
         <label>To</label>
         <input type="date" aria-label="To" [(ngModel)]="customTo" />
         <button class="apply-btn" (click)="applyCustomRange()" [disabled]="!customFrom || !customTo">Apply</button>
-        <button class="clear-btn" (click)="clearCustomRange()" *ngIf="customFrom || customTo">Clear</button>
+        @if (customFrom || customTo) {
+        <button class="clear-btn" (click)="clearCustomRange()">Clear</button>
+        }
       </div>
     </div>
   </div>
 
   <!-- Loading -->
-  <div class="loading-state" *ngIf="isLoading">
+  @if (isLoading) {
+  <div class="loading-state">
     <div class="spinner"></div>
     <p>Loading statistics...</p>
   </div>
+  }
 
   <!-- Error -->
-  <div class="error-state" *ngIf="error && !isLoading">
+  @if (error && !isLoading) {
+  <div class="error-state">
     <p>{{ error }}</p>
   </div>
+  }
 
   <!-- Stats Cards -->
-  <div class="stats-grid" *ngIf="stats && !isLoading">
+  @if (stats && !isLoading) {
+  <div class="stats-grid">
     <div class="stat-card">
       <div class="stat-label">Total Orders</div>
       <div class="stat-value orders">{{ stats.totalOrders | number }}</div>
@@ -44,12 +51,16 @@
     <div class="stat-card">
       <div class="stat-label">Company Revenue</div>
       <div class="stat-value amount">{{ stats.totalAmount | currency:'USD' }}</div>
-      <div class="stat-sub" *ngIf="stats.totalTaxRetained <= 0">after discounts, before tax, without tips</div>
+      @if (stats.totalTaxRetained <= 0) {
+      <div class="stat-sub">after discounts, before tax, without tips</div>
+      }
       <!-- Tax on a cash/Zelle/check order is never remitted, so it sits inside this figure
            rather than in Total Taxes below. Named here so the card is not silently larger. -->
-      <div class="stat-sub" *ngIf="stats.totalTaxRetained > 0">
+      @if (stats.totalTaxRetained > 0) {
+      <div class="stat-sub">
         after discounts, without tips — includes {{ stats.totalTaxRetained | currency:'USD' }} kept tax
       </div>
+      }
     </div>
 
     <!-- 8.875% of the taxable revenue that was CARD-paid. Tax charged on a payment collected
@@ -57,10 +68,14 @@
     <div class="stat-card">
       <div class="stat-label">Total Taxes</div>
       <div class="stat-value taxes">{{ stats.totalTaxes | currency:'USD' }}</div>
-      <div class="stat-sub" *ngIf="stats.totalTaxRetained <= 0">8.875% — collected for the state</div>
-      <div class="stat-sub" *ngIf="stats.totalTaxRetained > 0">
+      @if (stats.totalTaxRetained <= 0) {
+      <div class="stat-sub">8.875% — collected for the state</div>
+      }
+      @if (stats.totalTaxRetained > 0) {
+      <div class="stat-sub">
         collected for the state — card payments only
       </div>
+      }
     </div>
 
 
@@ -91,25 +106,33 @@
         <i class="fas fa-chevron-down stat-card-caret"></i>
       </div>
       <div class="stat-value revenue">{{ stats.totalCompanyRevenue | currency:'USD' }}</div>
-      <div class="stat-sub" *ngIf="stats.totalExpenses > 0">
+      @if (stats.totalExpenses > 0) {
+      <div class="stat-sub">
         after {{ stats.totalExpenses | currency:'USD' }} expenses
       </div>
+      }
     </div>
   </div>
+  }
 
   <!-- Net Income breakdown — opens when the card is clicked. Walks through the formula
        with every number labelled, then itemises expenses by category. -->
-  <div class="revenue-breakdown" *ngIf="stats && revenueBreakdownExpanded">
+  @if (stats && revenueBreakdownExpanded) {
+  <div class="revenue-breakdown">
     <h3 class="breakdown-title">How Net Income is calculated</h3>
 
     <div class="breakdown-formula">
       <div class="breakdown-line">
         <span class="breakdown-amount">{{ stats.totalAmount | currency:'USD' }}</span>
-        <span class="breakdown-label" *ngIf="stats.totalTaxRetained <= 0">(Company Revenue — order subtotals after discounts, before tax)</span>
-        <span class="breakdown-label" *ngIf="stats.totalTaxRetained > 0">
+        @if (stats.totalTaxRetained <= 0) {
+        <span class="breakdown-label">(Company Revenue — order subtotals after discounts, before tax)</span>
+        }
+        @if (stats.totalTaxRetained > 0) {
+        <span class="breakdown-label">
           (Company Revenue — order subtotals after discounts, plus
           {{ stats.totalTaxRetained | currency:'USD' }} tax kept on non-card payments)
         </span>
+        }
       </div>
       <!-- Sales tax is NOT subtracted here. It is charged on top of the price, so it was never
            inside the amount above — it is money collected for the state, shown separately. -->
@@ -152,46 +175,60 @@
       are deliberately outside this formula — customers pay them on top of the price and they pass
       straight through to the state and the cleaners. Discounts ({{ stats.totalDiscounts | currency:'USD' }})
       are already deducted from the Company Revenue on the first line.
-      <ng-container *ngIf="stats.totalTaxRetained > 0">
+      @if (stats.totalTaxRetained > 0) {
         Tax charged on cash, Zelle and check payments ({{ stats.totalTaxRetained | currency:'USD' }})
         is not remitted, so it is counted as company revenue on the first line instead of as a
         pass-through. Customers were still charged and shown the full tax on their orders.
-      </ng-container>
+      }
     </p>
 
     <!-- Per-category expense itemisation, rolled up to ONE line per expense per month.
          Daily-billed integrations (Google Ads syncs a row a day) used to render ~30 near
          identical lines a month here and bury everything else. -->
-    <div class="breakdown-expenses" *ngIf="expenseCategories.length > 0">
+    @if (expenseCategories.length > 0) {
+    <div class="breakdown-expenses">
       <h4 class="breakdown-section-title">Expenses by category — monthly</h4>
-      <div class="expense-category" *ngFor="let cat of expenseCategories">
+      @for (cat of expenseCategories; track cat) {
+      <div class="expense-category">
         <div class="expense-category-header">
           <span class="expense-category-name">{{ cat.categoryName }}</span>
           <span class="expense-category-total">{{ cat.total | currency:'USD' }}</span>
         </div>
         <ul class="expense-items">
-          <li *ngFor="let item of cat.items">
+          @for (item of cat.items; track item) {
+          <li>
             <span class="expense-item-date">{{ item.monthLabel }}</span>
             <span class="expense-item-name">
               {{ item.name }}
-              <span class="recurring-tag" *ngIf="item.isRecurring" title="Recurring expense">↻</span>
-              <span class="expense-item-count" *ngIf="item.occurrences > 1">
+              @if (item.isRecurring) {
+              <span class="recurring-tag" title="Recurring expense">↻</span>
+              }
+              @if (item.occurrences > 1) {
+              <span class="expense-item-count">
                 {{ item.occurrences }} charges
               </span>
+              }
             </span>
             <span class="expense-item-amount">{{ item.amount | currency:'USD' }}</span>
           </li>
+          }
         </ul>
       </div>
+      }
     </div>
+    }
 
-    <div class="breakdown-empty" *ngIf="expenseCategories.length === 0">
+    @if (expenseCategories.length === 0) {
+    <div class="breakdown-empty">
       No expenses recorded in this window.
     </div>
+    }
   </div>
+  }
 
   <!-- Exchange & bonus rates (per-month GEL→USD used for admin-bonus conversion) -->
-  <div class="rates-panel" *ngIf="stats && !isLoading">
+  @if (stats && !isLoading) {
+  <div class="rates-panel">
     <div class="rates-header" (click)="toggleRatesPanel()" role="button" tabindex="0"
          (keydown.enter)="toggleRatesPanel()">
       <span class="rates-title">
@@ -201,22 +238,31 @@
       <span class="rates-hint">Each month locks its own rate. Auto-fetched; override if needed.</span>
     </div>
 
-    <div class="rates-body" *ngIf="ratesExpanded">
-      <div class="rates-loading" *ngIf="ratesLoading">Loading rates…</div>
-      <div class="rates-error" *ngIf="ratesError">{{ ratesError }}</div>
+    @if (ratesExpanded) {
+    <div class="rates-body">
+      @if (ratesLoading) {
+      <div class="rates-loading">Loading rates…</div>
+      }
+      @if (ratesError) {
+      <div class="rates-error">{{ ratesError }}</div>
+      }
 
-      <table class="rates-table" *ngIf="!ratesLoading && rates.length > 0">
+      @if (!ratesLoading && rates.length > 0) {
+      <table class="rates-table">
         <thead>
           <tr>
             <th>Month</th>
             <th>USD per 1 GEL</th>
             <th title="Staff bonuses owed for the month, at today's rates">Staff bonuses</th>
             <th>Source</th>
-            <th *ngIf="canEdit"></th>
+            @if (canEdit) {
+            <th></th>
+            }
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let r of rates">
+          @for (r of rates; track r) {
+          <tr>
             <td class="rate-month">{{ r.monthKey }}</td>
             <td>
               <input type="number" aria-label="USD per 1 GEL" step="0.0001" min="0.0001"
@@ -230,23 +276,32 @@
               <span class="rate-source" [class.manual]="r.fxSource === 'manual'"
                     [class.fallback]="r.fxSource === 'fallback'">{{ r.fxSource }}</span>
             </td>
-            <td class="rate-actions" *ngIf="canEdit">
+            @if (canEdit) {
+            <td class="rate-actions">
               <button class="rate-save" (click)="saveRate(r)" [disabled]="r.saving">Save</button>
               <button class="rate-refetch" (click)="refetchRate(r)" [disabled]="r.saving"
                       title="Discard override and re-fetch the auto rate">Re-fetch</button>
             </td>
+            }
           </tr>
+          }
         </tbody>
       </table>
+      }
 
-      <div class="rates-empty" *ngIf="!ratesLoading && rates.length === 0 && !ratesError">
+      @if (!ratesLoading && rates.length === 0 && !ratesError) {
+      <div class="rates-empty">
         No months in the selected range.
       </div>
+      }
     </div>
+    }
   </div>
+  }
 
   <!-- Orders Chart -->
-  <div class="chart-section" *ngIf="stats && !isLoading">
+  @if (stats && !isLoading) {
+  <div class="chart-section">
     <div class="chart-header">
       <div class="chart-header-left">
         <h2>Orders</h2>
@@ -261,9 +316,11 @@
       <canvas #ordersChart></canvas>
     </div>
   </div>
+  }
 
   <!-- Revenue Chart -->
-  <div class="chart-section" *ngIf="stats && !isLoading">
+  @if (stats && !isLoading) {
+  <div class="chart-section">
     <div class="chart-header">
       <div class="chart-header-left">
         <h2>Net Income</h2>
@@ -278,4 +335,5 @@
       <canvas #revenueChart></canvas>
     </div>
   </div>
+  }
 </div>

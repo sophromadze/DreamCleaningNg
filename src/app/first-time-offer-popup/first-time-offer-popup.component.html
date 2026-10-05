@@ -1,4 +1,5 @@
-<div class="first-time-popup" *ngIf="isVisible" role="dialog" aria-label="First-time customer offer">
+@if (isVisible) {
+<div class="first-time-popup" role="dialog" aria-label="First-time customer offer">
   <button type="button" class="first-time-popup__close" (click)="close()" aria-label="Close offer">
     <i [appIcon]="icons.faXmark" aria-hidden="true"></i>
   </button>
@@ -18,3 +19,4 @@
     </a>
   </div>
 </div>
+}

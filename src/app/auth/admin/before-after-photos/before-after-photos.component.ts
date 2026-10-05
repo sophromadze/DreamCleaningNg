@@ -1,5 +1,4 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   BeforeAfterPhotoService,
@@ -31,7 +30,7 @@ interface EditState {
 @Component({
   selector: 'app-before-after-photos',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './before-after-photos.component.html',
   styleUrl: './before-after-photos.component.scss'
 })

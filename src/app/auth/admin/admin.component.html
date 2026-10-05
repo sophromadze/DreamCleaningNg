@@ -3,14 +3,15 @@
 <div class="admin-container">
   <div class="admin-header">
     <h1>Admin Panel</h1>
+    @if (userRole === 'SuperAdmin') {
     <button
-      *ngIf="userRole === 'SuperAdmin'"
       class="maintenance-btn"
       [class.enabled]="maintenanceStatus?.isEnabled"
       (click)="confirmToggleMaintenance()"
       [disabled]="isTogglingMaintenance">
       {{ maintenanceStatus?.isEnabled ? 'Stop Maintenance' : 'Start Maintenance' }}
     </button>
+    }
     <!-- Live-chat toggle — TEMPORARILY DISABLED. Telegram integration is off; re-enable when bot is back. -->
     <!--
     <button
@@ -26,137 +27,187 @@
     <!-- AI chat agent settings popover (visibility + escalation email).
          Role-gated to match the backend's [Authorize(Roles = "SuperAdmin,Admin")] —
          deliberately NOT the canView permission, which Moderators can hold. -->
-    <app-chat-agent-settings *ngIf="userRole === 'Admin' || userRole === 'SuperAdmin'"></app-chat-agent-settings>
+    @if (userRole === 'Admin' || userRole === 'SuperAdmin') {
+    <app-chat-agent-settings></app-chat-agent-settings>
+    }
   </div>
 
   <!-- Tab Navigation -->
   <div class="admin-tabs">
+    @if (userPermissions?.permissions?.canView) {
     <button class="tab-btn" 
             [class.active]="activeTab === 'orders'"
             (click)="setActiveTab('orders')"
-            *ngIf="userPermissions?.permissions?.canView">
+           >
       Orders
     </button>
+    }
     <!-- ONE Users area with four sub-tabs (2026-09): Customers / Cleaners / Business Clients /
          Staff. The old top-level "Cleaners" tab moved inside it; its key still resolves (see
          AdminComponent.LEGACY_TAB_REDIRECTS) so a bookmarked ?tab=cleaner-accounts and a stale
          sessionStorage value both land on Users → Cleaners rather than on Orders. -->
+    @if (userPermissions?.permissions?.canView) {
     <button class="tab-btn"
             [class.active]="activeTab === 'users'"
             (click)="setActiveTab('users')"
-            *ngIf="userPermissions?.permissions?.canView">
+           >
       Users
     </button>
+    }
     <!-- Services edits the price catalogue every quote is built from, so it is SuperAdmin-only —
          deliberately NOT canView, which regular Admins and Moderators hold. Matched by
          [Authorize(Roles = "SuperAdmin")] on the catalogue half of AdminCatalogController. -->
+    @if (userRole === 'SuperAdmin') {
     <button class="tab-btn"
             [class.active]="activeTab === 'booking-services'"
             (click)="setActiveTab('booking-services')"
-            *ngIf="userRole === 'SuperAdmin'">
+           >
       Services
     </button>
+    }
+    @if (userPermissions?.permissions?.canView) {
     <button class="tab-btn" 
             [class.active]="activeTab === 'discounts'"
             (click)="setActiveTab('discounts')"
-            *ngIf="userPermissions?.permissions?.canView">
+           >
       Discounts
     </button>
+    }
+    @if (userPermissions?.permissions?.canView) {
     <button class="tab-btn"
             [class.active]="activeTab === 'scheduling'"
             (click)="setActiveTab('scheduling')"
-            *ngIf="userPermissions?.permissions?.canView">
+           >
       Scheduling
     </button>
+    }
+    @if (userPermissions?.permissions?.canView) {
     <button class="tab-btn"
             [class.active]="activeTab === 'audit-history'"
             (click)="setActiveTab('audit-history')"
-            *ngIf="userPermissions?.permissions?.canView">
+           >
       Audits
     </button>
+    }
+    @if (userPermissions?.permissions?.canView) {
     <button class="tab-btn"
             [class.active]="activeTab === 'mails-sms'"
             (click)="setActiveTab('mails-sms')"
-            *ngIf="userPermissions?.permissions?.canView">
+           >
       Mails &amp; SMS
     </button>
+    }
+    @if (userPermissions?.permissions?.canView) {
     <button class="tab-btn"
             [class.active]="activeTab === 'before-after'"
             (click)="setActiveTab('before-after')"
-            *ngIf="userPermissions?.permissions?.canView">
+           >
       Before &amp; After
     </button>
+    }
     <!-- Role-gated like the chat-agent settings popover (backend is SuperAdmin/Admin) —
          deliberately NOT canView, which Moderators can hold. -->
+    @if (userRole === 'Admin' || userRole === 'SuperAdmin') {
     <button class="tab-btn"
             [class.active]="activeTab === 'chats'"
             (click)="setActiveTab('chats')"
-            *ngIf="userRole === 'Admin' || userRole === 'SuperAdmin'">
+           >
       Chats
     </button>
+    }
     <!-- Bubble Rewards MOVED here from the header dropdown (2026-09). SuperAdmin-only: the
          settings on it set the points economy every customer earns and spends against, so it is
          role-gated like Services, not canView-gated. Matched by [Authorize(Roles = "SuperAdmin")]
          on AdminRewardsController's settings and stats reads. -->
+    @if (userRole === 'SuperAdmin') {
     <button class="tab-btn"
             [class.active]="activeTab === 'rewards'"
             (click)="setActiveTab('rewards')"
-            *ngIf="userRole === 'SuperAdmin'">
+           >
       Rewards
     </button>
+    }
     <!-- Regular customer invoices (2026-09). ALWAYS THE LAST TAB — owner's call; add new tabs
          above it. Role-gated to match [Authorize(Roles = "Admin,SuperAdmin")] on
          AdminCustomerInvoicesController, like Chats. -->
+    @if (userRole === 'Admin' || userRole === 'SuperAdmin') {
     <button class="tab-btn"
             [class.active]="activeTab === 'invoices'"
             (click)="setActiveTab('invoices')"
-            *ngIf="userRole === 'Admin' || userRole === 'SuperAdmin'">
+           >
       Invoices
     </button>
+    }
   </div>
 
   <!-- Messages -->
-  <div class="error-message" *ngIf="errorMessage">
+  @if (errorMessage) {
+  <div class="error-message">
     {{ errorMessage }}
   </div>
-  <div class="success-message" *ngIf="successMessage">
+  }
+  @if (successMessage) {
+  <div class="success-message">
     {{ successMessage }}
   </div>
+  }
 
   <!-- Tab Content -->
   <div class="tab-content">
-    <ng-container [ngSwitch]="activeTab">
-      <app-orders *ngSwitchCase="'orders'" [openOrderId]="pendingOrderId"></app-orders>
+@switch (activeTab) {
+      @case ('orders') {
+      <app-orders [openOrderId]="pendingOrderId"></app-orders>
+      }
       <!-- The Users shell owns the four sub-tabs; `initialUsersTab` is set only when a legacy
            deep link asked for the old top-level Cleaners tab. -->
-      <app-admin-users *ngSwitchCase="'users'"
+      @case ('users') {
+      <app-admin-users
                        [openUserId]="pendingUserId"
                        [openClientId]="pendingClientId"
                        [initialTab]="initialUsersTab"></app-admin-users>
+      }
       <!-- Guarded as well as hidden: a stale 'booking-services' in sessionStorage would otherwise
            mount the component (and fire its now-403 catalogue GETs) before the role has loaded.
            setActiveTab / the permission load move a non-SuperAdmin back to Orders. -->
-      <ng-container *ngSwitchCase="'booking-services'">
-        <app-booking-services *ngIf="userRole === 'SuperAdmin'"></app-booking-services>
-      </ng-container>
-      <app-discounts *ngSwitchCase="'discounts'" [initialSubTab]="selectedDiscountSubTab"></app-discounts>
-      <app-scheduling *ngSwitchCase="'scheduling'"></app-scheduling>
-      <app-audit-history *ngSwitchCase="'audit-history'"></app-audit-history>
-      <app-communications *ngSwitchCase="'mails-sms'"></app-communications>
-      <app-before-after-photos *ngSwitchCase="'before-after'"></app-before-after-photos>
-      <app-chat-sessions *ngSwitchCase="'chats'" [userRole]="userRole"></app-chat-sessions>
+      @case ('booking-services') {
+        @if (userRole === 'SuperAdmin') {
+        <app-booking-services></app-booking-services>
+        }
+      }
+      @case ('discounts') {
+      <app-discounts [initialSubTab]="selectedDiscountSubTab"></app-discounts>
+      }
+      @case ('scheduling') {
+      <app-scheduling></app-scheduling>
+      }
+      @case ('audit-history') {
+      <app-audit-history></app-audit-history>
+      }
+      @case ('mails-sms') {
+      <app-communications></app-communications>
+      }
+      @case ('before-after') {
+      <app-before-after-photos></app-before-after-photos>
+      }
+      @case ('chats') {
+      <app-chat-sessions [userRole]="userRole"></app-chat-sessions>
+      }
       <!-- Guarded as well as hidden, same reason as Services above: a stale 'rewards' in
            sessionStorage would otherwise mount the component and fire its now-403 GETs before the
            role has loaded. -->
-      <ng-container *ngSwitchCase="'rewards'">
-        <app-admin-rewards *ngIf="userRole === 'SuperAdmin'"></app-admin-rewards>
-      </ng-container>
-      <ng-container *ngSwitchCase="'invoices'">
-        <app-admin-customer-invoices *ngIf="userRole === 'Admin' || userRole === 'SuperAdmin'"
+      @case ('rewards') {
+        @if (userRole === 'SuperAdmin') {
+        <app-admin-rewards></app-admin-rewards>
+        }
+      }
+      @case ('invoices') {
+        @if (userRole === 'Admin' || userRole === 'SuperAdmin') {
+        <app-admin-customer-invoices
                                      [canCreate]="!!userPermissions?.permissions?.canCreate"
                                      [canUpdate]="!!userPermissions?.permissions?.canUpdate">
         </app-admin-customer-invoices>
-      </ng-container>
-    </ng-container>
+        }
+      }
+}
   </div>
 </div>

@@ -1,5 +1,4 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { ContractsComponent } from '../crm/contracts/contracts.component';
 
@@ -22,7 +21,7 @@ import { ContractsComponent } from '../crm/contracts/contracts.component';
 @Component({
   selector: 'app-contracts-page',
   standalone: true,
-  imports: [CommonModule, ContractsComponent],
+  imports: [ContractsComponent],
   templateUrl: './contracts-page.component.html',
   styleUrls: ['./contracts-page.component.scss']
 })

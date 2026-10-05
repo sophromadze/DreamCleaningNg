@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { IconComponent } from '../../../../shared/icons/icon.component';
 import { faBan } from '../../../../shared/icons/glyphs/faBan';
@@ -9,7 +8,7 @@ import { StructuredDataService } from '../../../../services/structured-data.serv
 @Component({
   selector: 'app-kitchen-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterModule, IconComponent],
+  imports: [RouterModule, IconComponent],
   templateUrl: './kitchen-cleaning.component.html',
   styleUrl: './kitchen-cleaning.component.scss'
 })

@@ -1,12 +1,14 @@
 <div class="admin-users">
   <nav class="admin-users-tabs" aria-label="User types">
-    <button *ngFor="let tab of tabs"
+    @for (tab of tabs; track tab) {
+    <button
             type="button"
             class="tab-btn"
             [class.active]="activeTab === tab.key"
             (click)="setActiveTab(tab.key)">
       {{ tab.label }}
     </button>
+    }
   </nav>
 
   <div class="admin-users-content">
@@ -20,21 +22,29 @@
     -->
     <!-- Bound literal rather than a static `scope="customers"` attribute: the input is a string
          UNION, and a bound literal is unambiguously that literal type under strictTemplates. -->
-    <app-user-management *ngIf="activeTab === 'customers'"
+    @if (activeTab === 'customers') {
+    <app-user-management
                          [scope]="'customers'"
                          [openUserId]="openUserId"></app-user-management>
+    }
 
     <!-- The existing cleaner-accounts component, unchanged. Cleaner functionality is untouched;
          it simply lives under Users now instead of at the top level. -->
-    <app-cleaner-accounts *ngIf="activeTab === 'cleaners'"></app-cleaner-accounts>
+    @if (activeTab === 'cleaners') {
+    <app-cleaner-accounts></app-cleaner-accounts>
+    }
 
     <!-- ContractClient is the source of truth here, NOT website Users — so standalone commercial
          clients created by hand appear alongside the ones linked to a business account. This is
          the same component Commercial → Clients renders; there is deliberately only one. -->
-    <app-commercial-clients *ngIf="activeTab === 'business-clients'"
+    @if (activeTab === 'business-clients') {
+    <app-commercial-clients
                             [openClientId]="openClientId"></app-commercial-clients>
+    }
 
-    <app-user-management *ngIf="activeTab === 'staff'"
+    @if (activeTab === 'staff') {
+    <app-user-management
                          [scope]="'staff'"></app-user-management>
+    }
   </div>
 </div>

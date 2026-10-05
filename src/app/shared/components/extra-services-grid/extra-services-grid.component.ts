@@ -1,5 +1,4 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ExtraService } from '../../../services/booking.service';
 import { ShimmerDirective } from '../../directives/shimmer.directive';
 import { QuantityControlComponent } from '../quantity-control/quantity-control.component';
@@ -32,7 +31,7 @@ export interface ExtraServiceSelection {
 @Component({
   selector: 'app-extra-services-grid',
   standalone: true,
-  imports: [CommonModule, ShimmerDirective, QuantityControlComponent, IconComponent],
+  imports: [ShimmerDirective, QuantityControlComponent, IconComponent],
   templateUrl: './extra-services-grid.component.html',
   styleUrls: ['./extra-services-grid.component.scss']
 })

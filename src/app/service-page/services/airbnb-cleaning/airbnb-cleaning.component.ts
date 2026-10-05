@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MarketingPricingService } from '../../../shared/pricing/marketing-pricing.service';
 import { priceFragment, startingPriceOffer } from '../../../shared/pricing/marketing-price-format';
@@ -10,7 +9,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
 @Component({
   selector: 'app-airbnb-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterModule, CardImageDirective],
+  imports: [RouterModule, CardImageDirective],
   templateUrl: './airbnb-cleaning.component.html',
   styleUrl: './airbnb-cleaning.component.scss'
 })

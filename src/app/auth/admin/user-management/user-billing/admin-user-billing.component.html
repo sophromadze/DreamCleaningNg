@@ -1,84 +1,142 @@
 <div class="aub">
-  <div class="aub-loading" *ngIf="loading">Loading billing…</div>
-  <div class="aub-error" *ngIf="!loading && error">{{ error }} <button type="button" class="aub-link" (click)="load()">Retry</button></div>
+  @if (loading) {
+  <div class="aub-loading">Loading billing…</div>
+  }
+  @if (!loading && error) {
+  <div class="aub-error">{{ error }} <button type="button" class="aub-link" (click)="load()">Retry</button></div>
+  }
 
-  <ng-container *ngIf="!loading && !error && data">
-    <p class="aub-muted" *ngIf="!data.featureEnabled">Saved cards are switched off on this server — nothing below can be charged.</p>
+  @if (!loading && !error && data) {
+    @if (!data.featureEnabled) {
+    <p class="aub-muted">Saved cards are switched off on this server — nothing below can be charged.</p>
+    }
 
     <!-- Open problems first -->
-    <div class="aub-issues" *ngIf="data.openIssues.length > 0">
-      <div class="aub-issue" *ngFor="let n of data.openIssues" [class.critical]="n.severity === 'critical'">
+    @if (data.openIssues.length > 0) {
+    <div class="aub-issues">
+      @for (n of data.openIssues; track n) {
+      <div class="aub-issue" [class.critical]="n.severity === 'critical'">
         <strong>{{ n.title }}</strong>
         <span>{{ n.message }}</span>
         <small>{{ n.createdAt | date:'MMM d, y, h:mm a' }}</small>
       </div>
+      }
     </div>
+    }
 
     <h4>Saved cards <span class="aub-count">{{ data.cards.length }}</span></h4>
-    <p class="aub-muted" *ngIf="data.cards.length === 0">No saved cards.</p>
-    <ul class="aub-cards" *ngIf="data.cards.length > 0">
-      <li *ngFor="let c of data.cards">
+    @if (data.cards.length === 0) {
+    <p class="aub-muted">No saved cards.</p>
+    }
+    @if (data.cards.length > 0) {
+    <ul class="aub-cards">
+      @for (c of data.cards; track c) {
+      <li>
         <span class="aub-card-name">{{ cardLabel(c) }}</span>
-        <span class="aub-chip ok" *ngIf="c.isPrimary">Primary</span>
-        <span class="aub-chip info" *ngIf="c.isBackup">Backup</span>
-        <span class="aub-chip bad" *ngIf="c.isExpired">Expired</span>
-        <span class="aub-chip bad" *ngIf="c.status === 'blocked'">Blocked by issuer</span>
-        <span class="aub-muted" *ngIf="cardExpiry(c)">exp {{ cardExpiry(c) }}</span>
+        @if (c.isPrimary) {
+        <span class="aub-chip ok">Primary</span>
+        }
+        @if (c.isBackup) {
+        <span class="aub-chip info">Backup</span>
+        }
+        @if (c.isExpired) {
+        <span class="aub-chip bad">Expired</span>
+        }
+        @if (c.status === 'blocked') {
+        <span class="aub-chip bad">Blocked by issuer</span>
+        }
+        @if (cardExpiry(c)) {
+        <span class="aub-muted">exp {{ cardExpiry(c) }}</span>
+        }
       </li>
+      }
     </ul>
+    }
 
     <h4>Automatic payments</h4>
     <div class="aub-row">
       <span>General agreement</span>
       <span class="aub-chip" [class.ok]="data.autoPay.autoPayEnabled">{{ data.autoPay.autoPayEnabled ? 'On' : 'Off' }}</span>
-      <span class="aub-muted" *ngIf="data.autoPay.autoPayEnabledAt">since {{ data.autoPay.autoPayEnabledAt | date:'MMM d, y' }}</span>
+      @if (data.autoPay.autoPayEnabledAt) {
+      <span class="aub-muted">since {{ data.autoPay.autoPayEnabledAt | date:'MMM d, y' }}</span>
+      }
     </div>
     <ul class="aub-arrangements">
-      <li *ngFor="let a of data.autoPay.arrangements">
+      @for (a of data.autoPay.arrangements; track a) {
+      <li>
         <div>
           <strong>{{ a.title }}</strong>
-          <span class="aub-muted" *ngIf="a.isAuthorized">
+          @if (a.isAuthorized) {
+          <span class="aub-muted">
             authorized {{ a.authorizedAt | date:'MMM d, y' }} · Backup {{ a.allowBackupFallback ? 'allowed' : 'not allowed' }} · terms {{ a.termsVersion }}
           </span>
-          <span class="aub-warn" *ngIf="a.pausedReason">{{ a.pausedReason }}</span>
+          }
+          @if (a.pausedReason) {
+          <span class="aub-warn">{{ a.pausedReason }}</span>
+          }
         </div>
         <span class="aub-chip" [class.ok]="a.isEffective" [class.warn]="a.isAuthorized && !a.isEffective">
           {{ a.isEffective ? 'Active' : (a.isAuthorized ? 'Paused' : 'Not authorized') }}
         </span>
       </li>
+      }
     </ul>
 
     <h4>Balance due</h4>
-    <p class="aub-muted" *ngIf="data.outstanding.length === 0">Nothing owed.</p>
-    <ul class="aub-list" *ngIf="data.outstanding.length > 0">
-      <li *ngFor="let o of data.outstanding">
+    @if (data.outstanding.length === 0) {
+    <p class="aub-muted">Nothing owed.</p>
+    }
+    @if (data.outstanding.length > 0) {
+    <ul class="aub-list">
+      @for (o of data.outstanding; track o) {
+      <li>
         <span>{{ o.reference }} — {{ o.description }}</span>
         <strong>${{ o.amountDue | number:'1.2-2' }}</strong>
-        <span class="aub-chip warn" *ngIf="o.paymentInProgress">Processing</span>
-        <span class="aub-chip bad" *ngIf="o.autoPayFailed">AutoPay failed</span>
+        @if (o.paymentInProgress) {
+        <span class="aub-chip warn">Processing</span>
+        }
+        @if (o.autoPayFailed) {
+        <span class="aub-chip bad">AutoPay failed</span>
+        }
       </li>
+      }
     </ul>
+    }
 
     <h4>Saved-card charge attempts</h4>
-    <p class="aub-muted" *ngIf="data.recentAttempts.length === 0">None.</p>
-    <div class="aub-table" *ngIf="data.recentAttempts.length > 0">
+    @if (data.recentAttempts.length === 0) {
+    <p class="aub-muted">None.</p>
+    }
+    @if (data.recentAttempts.length > 0) {
+    <div class="aub-table">
       <div class="aub-tr aub-th"><span>When</span><span>For</span><span>By</span><span>Card</span><span class="num">Amount</span><span>Result</span></div>
-      <div class="aub-tr" *ngFor="let a of data.recentAttempts">
+      @for (a of data.recentAttempts; track a) {
+      <div class="aub-tr">
         <span>{{ a.createdAt | date:'MMM d, h:mm a' }}</span>
         <span>{{ a.obligation }}</span>
         <span>{{ a.trigger }}</span>
-        <span>{{ a.cardLabel || '—' }} <em *ngIf="a.cardRole === 'Backup'">(Backup)</em></span>
+        <span>{{ a.cardLabel || '—' }} @if (a.cardRole === 'Backup') {
+        <em>(Backup)</em>
+        }</span>
         <span class="num">${{ a.amount | number:'1.2-2' }}</span>
         <span><span class="aub-chip" [ngClass]="statusClass(a.status)">{{ a.status }}</span>
-          <small class="aub-muted" *ngIf="a.failureCode"> {{ a.failureCode }}</small></span>
+          @if (a.failureCode) {
+          <small class="aub-muted"> {{ a.failureCode }}</small>
+          }</span>
       </div>
+      }
     </div>
+    }
 
     <h4>Recent billing history</h4>
-    <p class="aub-muted" *ngIf="data.recentHistory.length === 0">No payments yet.</p>
-    <div class="aub-table" *ngIf="data.recentHistory.length > 0">
+    @if (data.recentHistory.length === 0) {
+    <p class="aub-muted">No payments yet.</p>
+    }
+    @if (data.recentHistory.length > 0) {
+    <div class="aub-table">
       <div class="aub-tr aub-th"><span>Date</span><span>Reference</span><span>Description</span><span>Method</span><span class="num">Amount</span><span>Status</span></div>
-      <div class="aub-tr" *ngFor="let h of data.recentHistory">
+      @for (h of data.recentHistory; track h) {
+      <div class="aub-tr">
         <span>{{ h.date | date:'MMM d, y' }}</span>
         <span>{{ h.reference }}</span>
         <span>{{ h.description }}</span>
@@ -86,6 +144,8 @@
         <span class="num">${{ h.amount | number:'1.2-2' }}</span>
         <span><span class="aub-chip" [ngClass]="statusClass(h.status)">{{ h.status }}</span></span>
       </div>
+      }
     </div>
-  </ng-container>
+    }
+  }
 </div>

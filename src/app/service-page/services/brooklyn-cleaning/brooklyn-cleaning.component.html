@@ -554,7 +554,8 @@
       </div>
       <div class="hero-content">
         <h1>Cleaning Service in Brooklyn NY</h1>
-        <div class="overall-rating" *ngIf="stats">
+        @if (stats) {
+        <div class="overall-rating">
           <div class="rating-stars">
             <span class="star">⭐</span>
             <span class="rating-number">{{ ratingLabel }}</span>
@@ -562,6 +563,7 @@
           </div>
           <a href="https://g.page/r/CSmN7-QdmiyoEAI/review" target="_blank" class="reviews-link">Based on {{ reviewCountLabel }}</a>
         </div>
+        }
         <p class="hero-description">
           Dream Cleaning is a 5.0-star rated professional cleaning service serving 38 ZIP codes across Brooklyn, New York — including Park Slope, Williamsburg, DUMBO, Brooklyn Heights, Bay Ridge, Sunset Park, Bushwick, Flatbush, Greenpoint, and Bensonhurst. We offer standard cleaning@if (pricing().standardFrom; as p) { (from {{ p }})}, deep cleaning@if (pricing().deepFrom; as p) { (from {{ p }})}, move in/out cleaning@if (pricing().moveInOutFrom; as p) { (from {{ p }})}, office cleaning, and specialized services with online booking and a 100% satisfaction guarantee.
         </p>

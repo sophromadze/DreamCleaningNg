@@ -1,5 +1,4 @@
 import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ROLES } from '../../../services/mail.service';
 import { AdminService, UserPermissions } from '../../../services/admin.service';
@@ -20,7 +19,7 @@ const STATUS_SENT = 2;
 @Component({
   selector: 'app-sms',
   standalone: true,
-  imports: [CommonModule, FormsModule, NyDatePipe],
+  imports: [FormsModule, NyDatePipe],
   templateUrl: './sms.component.html',
   styleUrls: ['./sms.component.scss']
 })

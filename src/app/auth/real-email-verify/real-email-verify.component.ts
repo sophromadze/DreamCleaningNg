@@ -1,5 +1,5 @@
 import { Component, Inject, PLATFORM_ID, OnInit } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService, AccountExistsResponse, MergeResultResponse } from '../../services/auth.service';
@@ -10,7 +10,7 @@ type Step = 'email' | 'code' | 'account-found' | 'merge-email' | 'merge-success'
 @Component({
   selector: 'app-real-email-verify',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [ReactiveFormsModule],
   templateUrl: './real-email-verify.component.html',
   styleUrls: ['./real-email-verify.component.scss']
 })

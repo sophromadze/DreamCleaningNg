@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, HostListener, ElementRef } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { FormPersistenceService, BookingFormData } from '../services/form-persistence.service';
 import { Subject, takeUntil, filter } from 'rxjs';
@@ -8,9 +8,8 @@ import { Subject, takeUntil, filter } from 'rxjs';
   selector: 'app-continue-booking',
   standalone: true,
   imports: [
-    CommonModule,
     RouterModule
-  ],
+],
   templateUrl: './continue-booking.component.html',
   styleUrl: './continue-booking.component.scss'
 })

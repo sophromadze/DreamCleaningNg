@@ -1,18 +1,23 @@
 <div class="contract-page">
 
-  <div class="contract-shell" *ngIf="loading">
+  @if (loading) {
+  <div class="contract-shell">
     <div class="contract-card contract-status-card">Loading your agreement…</div>
   </div>
+  }
 
-  <div class="contract-shell" *ngIf="!loading && loadError">
+  @if (!loading && loadError) {
+  <div class="contract-shell">
     <div class="contract-card contract-status-card error">
       <h1>We could not open this agreement</h1>
       <p>{{ loadError }}</p>
       <button type="button" class="btn-ghost" (click)="back()">Back to My Contracts</button>
     </div>
   </div>
+  }
 
-  <div class="contract-shell" *ngIf="!loading && page">
+  @if (!loading && page) {
+  <div class="contract-shell">
 
     <header class="contract-card contract-header">
       <button type="button" class="btn-ghost back-link" (click)="back()">← My Contracts</button>
@@ -25,35 +30,49 @@
       <span class="contract-status-pill">{{ page.statusLabel }}</span>
     </header>
 
-    <div class="contract-card notice" *ngIf="page.message">{{ page.message }}</div>
+    @if (page.message) {
+    <div class="contract-card notice">{{ page.message }}</div>
+    }
 
-    <div class="contract-card notice revision" *ngIf="revisionNotice">
+    @if (revisionNotice) {
+    <div class="contract-card notice revision">
       <strong>Thank you — we are preparing a revised version.</strong>
       <p>{{ revisionNotice.message }}</p>
-      <ul><li *ngFor="let field of revisionNotice.fields">{{ field }}</li></ul>
+      <ul>@for (field of revisionNotice.fields; track field) {
+      <li>{{ field }}</li>
+      }</ul>
     </div>
+    }
 
-    <div class="contract-card notice success" *ngIf="successMessage">{{ successMessage }}</div>
+    @if (successMessage) {
+    <div class="contract-card notice success">{{ successMessage }}</div>
+    }
 
-    <div class="contract-card notice success" *ngIf="signed">
+    @if (signed) {
+    <div class="contract-card notice success">
       <strong>{{ signedMessage }}</strong>
     </div>
+    }
 
     <!-- Your information, before the agreement so corrections happen first -->
     <section class="contract-card">
       <div class="section-head">
         <h2>Your information</h2>
+        @if (page.canEdit && !editing) {
         <button type="button" class="btn-ghost"
-                *ngIf="page.canEdit && !editing"
                 (click)="startEditing()">Edit</button>
+        }
       </div>
 
-      <p class="muted" *ngIf="page.canEdit && !editing">
+      @if (page.canEdit && !editing) {
+      <p class="muted">
         Please check these details before signing. Correcting a name, title, email or phone is
         applied straight away.
       </p>
+      }
 
-      <dl class="info-grid" *ngIf="!editing">
+      @if (!editing) {
+      <dl class="info-grid">
         <div><dt>Company</dt><dd>{{ page.yourInformation.companyLegalName }}</dd></div>
         <div><dt>Name</dt>
           <dd>{{ page.yourInformation.firstName }} {{ page.yourInformation.lastName }}</dd></div>
@@ -64,8 +83,10 @@
           <dd>{{ page.yourInformation.companyAddress }}, {{ page.yourInformation.city }},
               {{ page.yourInformation.state }} {{ page.yourInformation.zip }}</dd></div>
       </dl>
+      }
 
-      <form class="info-form" *ngIf="editing" (ngSubmit)="save()">
+      @if (editing) {
+      <form class="info-form" (ngSubmit)="save()">
         <div class="field wide">
           <label for="myCompanyLegalName">Company legal name</label>
           <input id="myCompanyLegalName" name="companyLegalName" type="text"
@@ -109,12 +130,16 @@
           <input id="myZip" name="zip" type="text" [(ngModel)]="form.zip" />
         </div>
 
-        <div class="field wide revision-warning" *ngIf="willCreateRevision">
+        @if (willCreateRevision) {
+        <div class="field wide revision-warning">
           Changing your legal entity name or company address changes the agreement itself. We will
           prepare a revised version and confirm it with you before signing.
         </div>
+        }
 
-        <div class="field wide error-text" *ngIf="saveError">{{ saveError }}</div>
+        @if (saveError) {
+        <div class="field wide error-text">{{ saveError }}</div>
+        }
 
         <div class="field wide form-actions">
           <button type="submit" class="btn-primary" [disabled]="saving">
@@ -125,6 +150,7 @@
           </button>
         </div>
       </form>
+      }
     </section>
 
     <!-- The complete agreement -->
@@ -135,7 +161,8 @@
     </section>
 
     <!-- Signing, in the same capture UI the emailed link uses -->
-    <section class="contract-card signing-card" *ngIf="canSign">
+    @if (canSign) {
+    <section class="contract-card signing-card">
       <h2>Sign this agreement</h2>
       <app-signature-capture
         [signerName]="page.yourInformation.firstName + ' ' + page.yourInformation.lastName"
@@ -146,11 +173,15 @@
         [errorMessage]="signError"
         (signed)="onSigned($event)"></app-signature-capture>
     </section>
+    }
 
-    <footer class="contract-card contract-footer" *ngIf="isExecuted">
+    @if (isExecuted) {
+    <footer class="contract-card contract-footer">
       <button type="button" class="btn-primary large" (click)="downloadExecuted()">
         Download the executed agreement
       </button>
     </footer>
+    }
   </div>
+  }
 </div>

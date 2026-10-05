@@ -1,5 +1,4 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
@@ -15,7 +14,7 @@ import { faCircleXmark } from '../shared/icons/glyphs/faCircleXmark';
 @Component({
   selector: 'app-free-quote',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule, BubbleFieldComponent, IconComponent],
+  imports: [ReactiveFormsModule, RouterModule, BubbleFieldComponent, IconComponent],
   templateUrl: './free-quote.component.html',
   styleUrl: './free-quote.component.scss'
 })

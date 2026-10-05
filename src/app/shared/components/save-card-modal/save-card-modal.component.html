@@ -1,4 +1,4 @@
-<ng-container *ngIf="open">
+@if (open) {
   <div class="scm-backdrop" (click)="dismiss()"></div>
 
   <div #dialog class="scm-modal" role="dialog" aria-modal="true"
@@ -31,7 +31,9 @@
       <button #primaryBtn type="button" class="scm-btn scm-btn--primary"
               (click)="decide(true)" [disabled]="busy"
               [attr.aria-label]="'Save card and pay' + (amountLabel ? ' ' + amountLabel : '')">
-        <i [appIcon]="icons.faCircleNotch" class="fa-spin" *ngIf="busy" aria-hidden="true"></i>
+        @if (busy) {
+        <i [appIcon]="icons.faCircleNotch" class="fa-spin" aria-hidden="true"></i>
+        }
         {{ busy ? 'Paying…' : 'Save Card & Pay' }}
       </button>
 
@@ -44,4 +46,4 @@
 
     <p class="scm-foot">Either way, your payment{{ amountLabel ? ' of ' + amountLabel : '' }} is taken once.</p>
   </div>
-</ng-container>
+}

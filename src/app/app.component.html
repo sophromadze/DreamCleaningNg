@@ -3,7 +3,8 @@
      not add a <main> of their own (a second one is an accessibility failure). -->
 <main class="main-content">
   <!-- Same flow as header auth slot: show shimmer until auth ready, then show content (outlet) -->
-  <div *ngIf="showRouteLoading" class="route-loading-overlay">
+  @if (showRouteLoading) {
+  <div class="route-loading-overlay">
     <div class="route-loading-animation">
       <div class="loader-rings">
         <div class="loader-ring loader-ring-outer"></div>
@@ -12,9 +13,10 @@
       <p class="loader-label">Loading</p>
     </div>
   </div>
-  <ng-container *ngIf="!showRouteLoading">
+  }
+  @if (!showRouteLoading) {
     <router-outlet></router-outlet>
-  </ng-container>
+  }
 </main>
 <!-- [incremental-hydration] Footer: full HTML in the server render (SEO links), hydrated only
      when it scrolls into view - see withIncrementalHydration in app.config.ts. -->
@@ -38,8 +40,11 @@
 
 <!-- Floating contact buttons (Call / Email / Book / Quote). Customer-facing, so they stay off the
      cleaner portal - see isCleanerPortalRoute. -->
-<app-floating-action-buttons *ngIf="showFloatingActions"></app-floating-action-buttons>
-<div *ngIf="showSocialStickyBanners" class="social-sticky-banners" role="complementary" aria-label="Social media links">
+@if (showFloatingActions) {
+<app-floating-action-buttons></app-floating-action-buttons>
+}
+@if (showSocialStickyBanners) {
+<div class="social-sticky-banners" role="complementary" aria-label="Social media links">
   <a href="https://www.facebook.com/profile.php?id=61563387757936" target="_blank" rel="noopener noreferrer" aria-label="Facebook" class="social-sticky-banner social-sticky-banner-facebook">
     <i [appIcon]="icons.faFacebookF"></i>
   </a>
@@ -50,6 +55,7 @@
     <i [appIcon]="icons.faTiktok"></i>
   </a>
 </div>
+}
 
 <!-- Continue-booking card and first-time-offer popup are browser-only (they render nothing on the
      server) and appear after load, so their code waits for the page to go idle. -->

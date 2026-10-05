@@ -1,5 +1,4 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 
@@ -30,7 +29,7 @@ import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
 @Component({
   selector: 'app-business-types',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './business-types.component.html',
   styleUrls: ['./business-types.component.scss']
 })

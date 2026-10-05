@@ -1,5 +1,5 @@
 import { Component, Inject, PLATFORM_ID } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { StickyCtaService } from '../services/sticky-cta.service';
 import { SpecialOfferService, PublicSpecialOffer } from '../services/special-offer.service';
@@ -8,7 +8,7 @@ import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-ke
 @Component({
   selector: 'app-sticky-mobile-cta',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './sticky-mobile-cta.component.html',
   styleUrl: './sticky-mobile-cta.component.scss'
 })

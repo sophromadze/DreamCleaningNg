@@ -1,5 +1,4 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { BlogService, BlogPostListItem } from '../services/blog.service';
 
@@ -11,7 +10,7 @@ import { BlogService, BlogPostListItem } from '../services/blog.service';
 @Component({
   selector: 'app-blog',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './blog.component.html',
   styleUrl: './blog.component.scss'
 })

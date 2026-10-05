@@ -1,6 +1,6 @@
 // src/app/poll-success/poll-success.component.ts
 import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AnalyticsService } from '../../services/analytics.service';
 import { IconComponent } from '../../shared/icons/icon.component';
@@ -9,7 +9,7 @@ import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
 @Component({
   selector: 'app-poll-success',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [IconComponent],
   template: `
     <div class="poll-success-container">
       <div class="success-card">

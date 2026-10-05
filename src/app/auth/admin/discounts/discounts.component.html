@@ -7,10 +7,20 @@
     <button type="button" class="sub-tab-btn" [class.active]="activeSubTab === 'loyalty'" (click)="setSubTab('loyalty')">Loyalty</button>
   </div>
   <div class="sub-content">
-    <app-promo-codes *ngIf="activeSubTab === 'promo-codes'"></app-promo-codes>
-    <app-special-offers *ngIf="activeSubTab === 'special-offers'"></app-special-offers>
-    <app-subscriptions *ngIf="activeSubTab === 'subscriptions'"></app-subscriptions>
-    <app-admin-gift-cards *ngIf="activeSubTab === 'gift-cards'"></app-admin-gift-cards>
-    <app-loyalty-discount-admin *ngIf="activeSubTab === 'loyalty'"></app-loyalty-discount-admin>
+    @if (activeSubTab === 'promo-codes') {
+    <app-promo-codes></app-promo-codes>
+    }
+    @if (activeSubTab === 'special-offers') {
+    <app-special-offers></app-special-offers>
+    }
+    @if (activeSubTab === 'subscriptions') {
+    <app-subscriptions></app-subscriptions>
+    }
+    @if (activeSubTab === 'gift-cards') {
+    <app-admin-gift-cards></app-admin-gift-cards>
+    }
+    @if (activeSubTab === 'loyalty') {
+    <app-loyalty-discount-admin></app-loyalty-discount-admin>
+    }
   </div>
 </div>

@@ -1,12 +1,15 @@
 <div class="verify-container">
     <div class="verify-card">
-      <div *ngIf="isVerifying" class="verifying">
+      @if (isVerifying) {
+      <div class="verifying">
         <div class="spinner"></div>
         <h2>Verifying your email...</h2>
         <p>Please wait while we verify your email address.</p>
       </div>
+      }
 
-      <div *ngIf="!isVerifying && isSuccess" class="success">
+      @if (!isVerifying && isSuccess) {
+      <div class="success">
         <div class="success-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M20 6L9 17l-5-5"/>
@@ -16,8 +19,10 @@
         <p>Your email has been verified. You will be redirected to login in a moment.</p>
         <a routerLink="/login" class="btn-primary">Go to Login</a>
       </div>
+      }
 
-      <div *ngIf="!isVerifying && !isSuccess" class="error">
+      @if (!isVerifying && !isSuccess) {
+      <div class="error">
         <div class="error-icon">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
@@ -29,5 +34,6 @@
         <p>{{ errorMessage }}</p>
         <a routerLink="/login" class="btn-brand">Back to Login</a>
       </div>
+      }
     </div>
   </div>

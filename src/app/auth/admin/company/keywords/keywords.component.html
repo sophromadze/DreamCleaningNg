@@ -6,13 +6,17 @@
         <span>{{ rangeLabel }}</span>
         <span class="caret" aria-hidden="true">▾</span>
       </button>
-      <ul class="dropdown-menu" *ngIf="dropdownOpen" role="listbox">
-        <li *ngFor="let p of presets" class="dropdown-item"
+      @if (dropdownOpen) {
+      <ul class="dropdown-menu" role="listbox">
+        @for (p of presets; track p) {
+        <li class="dropdown-item"
             [class.active]="period === p.key" role="option"
             [attr.aria-selected]="period === p.key" (click)="selectPreset(p.key)">
           {{ p.label }}
         </li>
+        }
       </ul>
+      }
     </div>
 
     <div class="custom-range">
@@ -34,7 +38,9 @@
     </button>
   </div>
 
-  <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
+  @if (errorMessage) {
+  <div class="error-banner">{{ errorMessage }}</div>
+  }
 
   <div class="kw-grid">
     <!-- ── Organic (Search Console) ── -->
@@ -45,15 +51,18 @@
           <h2>Organic — Google Search</h2>
         </div>
         <span class="panel-sub">Queries people typed to find you in unpaid Google results</span>
-        <div class="panel-stats" *ngIf="organicTotals">
+        @if (organicTotals) {
+        <div class="panel-stats">
           <span><strong>{{ organicTotals.clicks | number }}</strong> clicks</span>
           <span><strong>{{ organicTotals.impressions | number }}</strong> impressions</span>
           <span><strong>{{ organicTotals.ctr }}%</strong> CTR</span>
           <span><strong>{{ organicTotals.queries | number }}</strong> queries</span>
         </div>
+        }
       </div>
 
-      <div class="ads-table-wrap" *ngIf="!loadingOrganic && organic.length > 0">
+      @if (!loadingOrganic && organic.length > 0) {
+      <div class="ads-table-wrap">
         <table class="ads-table">
           <thead>
             <tr>
@@ -65,27 +74,36 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let r of organic; trackBy: trackByQuery">
+            @for (r of organic; track trackByQuery($index, r)) {
+            <tr>
               <td class="kw-term" [title]="r.query">{{ r.query }}</td>
               <td class="num"><span class="conv-booked">{{ r.clicks | number }}</span></td>
               <td class="num muted">{{ r.impressions | number }}</td>
               <td class="num muted">{{ r.ctr }}%</td>
               <td class="num muted">{{ r.avgPosition }}</td>
             </tr>
+            }
           </tbody>
         </table>
 
-        <div class="paging" *ngIf="organicTotalPages > 1">
+        @if (organicTotalPages > 1) {
+        <div class="paging">
           <button class="btn-light" (click)="organicPrev()" [disabled]="organicPage <= 1">← Prev</button>
           <span class="page-info">Page {{ organicPage }} of {{ organicTotalPages }} · {{ organicTotalCount }} queries</span>
           <button class="btn-light" (click)="organicNext()" [disabled]="organicPage >= organicTotalPages">Next →</button>
         </div>
+        }
       </div>
+      }
 
-      <div class="state-msg" *ngIf="loadingOrganic">Loading…</div>
-      <div class="state-msg" *ngIf="!loadingOrganic && organic.length === 0">
+      @if (loadingOrganic) {
+      <div class="state-msg">Loading…</div>
+      }
+      @if (!loadingOrganic && organic.length === 0) {
+      <div class="state-msg">
         No organic search data in this range yet.
       </div>
+      }
     </section>
 
     <!-- ── Paid (Google Ads search terms) ── -->
@@ -96,15 +114,18 @@
           <h2>Paid — Google Ads</h2>
         </div>
         <span class="panel-sub">Actual search terms that triggered your ads</span>
-        <div class="panel-stats" *ngIf="paidTotals">
+        @if (paidTotals) {
+        <div class="panel-stats">
           <span><strong>{{ paidTotals.clicks | number }}</strong> clicks</span>
           <span><strong>{{ paidTotals.costUsd | currency }}</strong> cost</span>
           <span><strong>{{ paidTotals.conversions }}</strong> conv.</span>
           <span><strong>{{ paidTotals.terms | number }}</strong> terms</span>
         </div>
+        }
       </div>
 
-      <div class="ads-table-wrap" *ngIf="!loadingPaid && paid.length > 0">
+      @if (!loadingPaid && paid.length > 0) {
+      <div class="ads-table-wrap">
         <table class="ads-table">
           <thead>
             <tr>
@@ -116,27 +137,36 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let r of paid; trackBy: trackByTerm">
+            @for (r of paid; track trackByTerm($index, r)) {
+            <tr>
               <td class="kw-term" [title]="r.searchTerm">{{ r.searchTerm }}</td>
               <td class="num"><span class="conv-booked">{{ r.clicks | number }}</span></td>
               <td class="num muted">{{ r.costUsd | currency }}</td>
               <td class="num muted">{{ r.conversions }}</td>
               <td class="num muted">{{ r.cpc | currency }}</td>
             </tr>
+            }
           </tbody>
         </table>
 
-        <div class="paging" *ngIf="paidTotalPages > 1">
+        @if (paidTotalPages > 1) {
+        <div class="paging">
           <button class="btn-light" (click)="paidPrev()" [disabled]="paidPage <= 1">← Prev</button>
           <span class="page-info">Page {{ paidPage }} of {{ paidTotalPages }} · {{ paidTotalCount }} terms</span>
           <button class="btn-light" (click)="paidNext()" [disabled]="paidPage >= paidTotalPages">Next →</button>
         </div>
+        }
       </div>
+      }
 
-      <div class="state-msg" *ngIf="loadingPaid">Loading…</div>
-      <div class="state-msg" *ngIf="!loadingPaid && paid.length === 0">
+      @if (loadingPaid) {
+      <div class="state-msg">Loading…</div>
+      }
+      @if (!loadingPaid && paid.length === 0) {
+      <div class="state-msg">
         No paid search-term data in this range yet.
       </div>
+      }
     </section>
   </div>
 

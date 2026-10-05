@@ -1,17 +1,25 @@
 <article class="dc-document">
   <div class="dc-document-body" [innerHTML]="htmlBeforeSignatures"></div>
 
-  <div class="dc-signature-grid" *ngIf="showSignatureBlock && parties.length">
-    <div class="dc-signature-party" *ngFor="let party of parties">
+  @if (showSignatureBlock && parties.length) {
+  <div class="dc-signature-grid">
+    @for (party of parties; track party) {
+    <div class="dc-signature-party">
       <div class="dc-signature-party-label">{{ party.partyLabel }}</div>
       <div class="dc-signature-entity">{{ party.entityName }}</div>
 
       <div class="dc-signature-mark" [class.signed]="party.hasSigned">
-        <img *ngIf="party.hasSigned && isImageMark(party)"
+        @if (party.hasSigned && isImageMark(party)) {
+        <img
              [src]="party.signatureMark" alt="Signature of {{ party.signerName }}" />
+        }
+        @if (party.hasSigned && !isImageMark(party)) {
         <span class="dc-signature-typed"
-              *ngIf="party.hasSigned && !isImageMark(party)">{{ party.signatureMark }}</span>
-        <span class="dc-signature-pending" *ngIf="!party.hasSigned">Awaiting signature</span>
+             >{{ party.signatureMark }}</span>
+        }
+        @if (!party.hasSigned) {
+        <span class="dc-signature-pending">Awaiting signature</span>
+        }
       </div>
 
       <div class="dc-signature-rule"></div>
@@ -23,11 +31,15 @@
       <div class="dc-signature-value">{{ party.signerTitle || '—' }}</div>
       <div class="dc-signature-caption">Title</div>
 
-      <div class="dc-signature-timestamp" *ngIf="party.signedAt">
+      @if (party.signedAt) {
+      <div class="dc-signature-timestamp">
         Signed electronically {{ party.signedAt | date: 'medium' }}
       </div>
+      }
     </div>
+    }
   </div>
+  }
 
   <div class="dc-document-body" [innerHTML]="htmlAfterSignatures"></div>
 </article>

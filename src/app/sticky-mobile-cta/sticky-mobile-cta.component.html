@@ -1,6 +1,10 @@
-<div class="sticky-mobile-cta" *ngIf="isVisible">
+@if (isVisible) {
+<div class="sticky-mobile-cta">
   <a routerLink="/booking" class="cta-book-full">
     <span class="cta-book-main">Book Online</span>
-    <span class="cta-book-offer" *ngIf="firstTimeDiscountLabel">- {{ firstTimeDiscountLabel }} Off First Cleaning</span>
+    @if (firstTimeDiscountLabel) {
+    <span class="cta-book-offer">- {{ firstTimeDiscountLabel }} Off First Cleaning</span>
+    }
   </a>
 </div>
+}

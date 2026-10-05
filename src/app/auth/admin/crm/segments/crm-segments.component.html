@@ -1,19 +1,29 @@
 <div class="crm-segments">
   <p class="intro">Segments are computed live from order history, spend and subscriptions. Click a segment to see its customers.</p>
 
-  <div class="error-message" *ngIf="errorMessage">{{ errorMessage }}</div>
+  @if (errorMessage) {
+  <div class="error-message">{{ errorMessage }}</div>
+  }
 
-  <div class="segments-grid" *ngIf="!loading">
-    <button class="segment-card" *ngFor="let seg of segments"
+  @if (!loading) {
+  <div class="segments-grid">
+    @for (seg of segments; track seg) {
+    <button class="segment-card"
             [ngClass]="segClass(seg.key)"
             [class.empty]="seg.count === 0"
             (click)="open(seg)">
       <div class="seg-count">{{ seg.count }}</div>
       <div class="seg-label">{{ seg.label }}</div>
       <div class="seg-desc">{{ seg.description }}</div>
-      <div class="seg-value" *ngIf="seg.totalValue > 0">{{ seg.totalValue | currency:'USD':'symbol':'1.0-0' }} total value</div>
+      @if (seg.totalValue > 0) {
+      <div class="seg-value">{{ seg.totalValue | currency:'USD':'symbol':'1.0-0' }} total value</div>
+      }
     </button>
+    }
   </div>
+  }
 
-  <div class="loading-state" *ngIf="loading">Loading segments…</div>
+  @if (loading) {
+  <div class="loading-state">Loading segments…</div>
+  }
 </div>

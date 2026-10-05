@@ -6,17 +6,24 @@
     <div class="profile-header">
       <div>
         <h1>My Account</h1>
-        <p class="profile-subtitle" *ngIf="profile">Hi {{ displayFirstName }} — manage your details, orders and payments.</p>
+        @if (profile) {
+        <p class="profile-subtitle">Hi {{ displayFirstName }} — manage your details, orders and payments.</p>
+        }
       </div>
       <button class="logout-btn" (click)="logout()">Logout</button>
     </div>
 
-    <div *ngIf="errorMessage && activeTab !== 'addresses'" class="error-message">{{ errorMessage }}</div>
-    <div *ngIf="successMessage" class="success-message">{{ successMessage }}</div>
+    @if (errorMessage && activeTab !== 'addresses') {
+    <div class="error-message">{{ errorMessage }}</div>
+    }
+    @if (successMessage) {
+    <div class="success-message">{{ successMessage }}</div>
+    }
 
     <!-- ═══ Tab navigation: one strip that wraps onto more rows when it has to ═══ -->
     <nav class="profile-tabs" role="tablist" aria-label="Account sections" (keydown)="onTabKeydown($event)">
-      <button *ngFor="let tab of tabs" type="button" role="tab" class="profile-tab"
+      @for (tab of tabs; track tab) {
+      <button type="button" role="tab" class="profile-tab"
               [id]="'profile-tab-' + tab.key"
               [class.active]="activeTab === tab.key"
               [attr.aria-selected]="activeTab === tab.key"
@@ -25,13 +32,17 @@
               (click)="setTab(tab.key)">
         <i [class]="tab.icon" aria-hidden="true"></i>
         <span>{{ tab.label }}</span>
-        <span class="profile-tab__badge" *ngIf="tab.key === 'billing' && billingIssueCount > 0"
+        @if (tab.key === 'billing' && billingIssueCount > 0) {
+        <span class="profile-tab__badge"
               [attr.aria-label]="billingIssueCount + ' payment issue(s)'">{{ billingIssueCount }}</span>
+        }
       </button>
+      }
     </nav>
 
     <!-- Loading skeleton: labels visible, shimmer for backend data -->
-    <div *ngIf="isLoading" class="profile-content profile-content-skeleton">
+    @if (isLoading) {
+    <div class="profile-content profile-content-skeleton">
       <div class="overview-grid">
         <div class="overview-card">
           <span class="overview-card__label">Current plan</span>
@@ -52,12 +63,16 @@
         <div class="profile-shimmer-order" [shimmer]="true"></div>
       </div>
     </div>
+    }
 
-    <div *ngIf="!isLoading && profile" class="profile-content">
+    @if (!isLoading && profile) {
+    <div class="profile-content">
 
       <!-- ═══ OVERVIEW ═══ -->
-      <section *ngIf="activeTab === 'overview'" role="tabpanel" id="profile-panel-overview" aria-labelledby="profile-tab-overview" class="tab-panel">
-        <div class="overview-alert" *ngIf="billingIssueCount > 0" role="alert">
+      @if (activeTab === 'overview') {
+      <section role="tabpanel" id="profile-panel-overview" aria-labelledby="profile-tab-overview" class="tab-panel">
+        @if (billingIssueCount > 0) {
+        <div class="overview-alert" role="alert">
           <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
           <div>
             <strong>{{ billingIssueCount === 1 ? 'A payment needs your attention.' : billingIssueCount + ' payments need your attention.' }}</strong>
@@ -65,13 +80,18 @@
           </div>
           <button type="button" class="overview-alert__btn" (click)="setTab('billing')">Go to Billing</button>
         </div>
+        }
 
         <!-- Three cards, each one a door into the tab that owns it. -->
         <div class="overview-grid">
           <button type="button" class="overview-card overview-card--link" (click)="setTab('plan')">
             <span class="overview-card__label">Current plan</span>
-            <strong *ngIf="!hasActiveSubscription">No active plan</strong>
-            <strong *ngIf="hasActiveSubscription">{{ profile.subscriptionName }} · {{ profile.subscriptionDiscountPercentage }}% off</strong>
+            @if (!hasActiveSubscription) {
+            <strong>No active plan</strong>
+            }
+            @if (hasActiveSubscription) {
+            <strong>{{ profile.subscriptionName }} · {{ profile.subscriptionDiscountPercentage }}% off</strong>
+            }
             <span class="overview-card__hint">
               {{ hasActiveSubscription ? 'View or change your plan' : 'See our plans' }}
               <i class="fas fa-arrow-right" aria-hidden="true"></i>
@@ -94,11 +114,13 @@
             </span>
           </button>
 
-          <div class="overview-card overview-card--static" *ngIf="profile.hasLoyaltyDiscount">
+          @if (profile.hasLoyaltyDiscount) {
+          <div class="overview-card overview-card--static">
             <span class="overview-card__label">Special discount</span>
             <strong>{{ profile.loyaltyDiscountPercentage | number:'1.0-2' }}%</strong>
             <span class="overview-card__hint overview-card__hint--plain">Applied automatically at checkout</span>
           </div>
+          }
         </div>
 
         <!-- Invoices and contracts are business-customer areas. A residential customer has
@@ -107,10 +129,16 @@
              two identical CTAs a few hundred pixels apart read as a rendering fault.
              The row itself is conditional so a residential customer — who has neither invoices
              nor contracts — gets no empty flex box holding open an unexplained gap. -->
-        <div class="overview-links" *ngIf="hasInvoices || hasContracts">
-          <a routerLink="/profile/invoices" class="overview-link" *ngIf="hasInvoices"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> My invoices</a>
-          <a routerLink="/profile/contracts" class="overview-link" *ngIf="hasContracts"><i class="fas fa-file-signature" aria-hidden="true"></i> My contracts</a>
+        @if (hasInvoices || hasContracts) {
+        <div class="overview-links">
+          @if (hasInvoices) {
+          <a routerLink="/profile/invoices" class="overview-link"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i> My invoices</a>
+          }
+          @if (hasContracts) {
+          <a routerLink="/profile/contracts" class="overview-link"><i class="fas fa-file-signature" aria-hidden="true"></i> My contracts</a>
+          }
         </div>
+        }
 
         <!-- ── Refer a Friend — the SAME card the Rewards page shows (shared component, so the
              wording and the copy/share behaviour cannot drift between the two). It sits between
@@ -129,25 +157,35 @@
         <!-- ── Every cleaning on the account, newest first, 10 to a page ── -->
         <div class="section orders-section" id="profile-orders">
           <div class="section-header section-header--split">
-            <h2>Your cleanings <span class="orders-count" *ngIf="orders">({{ realOrderCount }})</span></h2>
+            <h2>Your cleanings @if (orders) {
+            <span class="orders-count">({{ realOrderCount }})</span>
+            }</h2>
             <a routerLink="/booking" class="add-btn">Book a cleaning</a>
           </div>
 
-          <div class="error-message" *ngIf="ordersError">{{ ordersError }}</div>
+          @if (ordersError) {
+          <div class="error-message">{{ ordersError }}</div>
+          }
 
-          <div *ngIf="orders === null" class="orders-list">
+          @if (orders === null) {
+          <div class="orders-list">
             <div class="profile-shimmer-order" [shimmer]="true"></div>
             <div class="profile-shimmer-order" [shimmer]="true"></div>
           </div>
+          }
 
-          <div *ngIf="orders !== null && orders.length === 0" class="no-orders">
+          @if (orders !== null && orders.length === 0) {
+          <div class="no-orders">
             <i class="fas fa-broom" aria-hidden="true"></i>
             <p>You haven't booked a cleaning yet.</p>
             <a routerLink="/booking" class="no-orders__cta">Book your first cleaning</a>
           </div>
+          }
 
-          <div class="orders-list" *ngIf="orders !== null && orders.length > 0">
-            <article class="order-card" *ngFor="let order of pagedOrders">
+          @if (orders !== null && orders.length > 0) {
+          <div class="orders-list">
+            @for (order of pagedOrders; track order) {
+            <article class="order-card">
               <header class="order-card__head">
                 <div class="order-card__title">
                   <h3>{{ order.serviceTypeName }}</h3>
@@ -157,81 +195,118 @@
                   <span class="status-badge" [ngClass]="getStatusClass(order.status)">{{ order.status }}</span>
                   <!-- "Unpaid" on an order already carrying a deposit is wrong twice over: it
                        hides money the customer has handed over, and it does not say what is left. -->
-                  <span class="payment-badge unpaid" *ngIf="!isEffectivelyPaid(order) && !order.isPartiallyPaid">Unpaid</span>
-                  <span class="payment-badge partial" *ngIf="!isEffectivelyPaid(order) && order.isPartiallyPaid">${{ (order.amountDue || 0).toFixed(2) }} due</span>
-                  <span class="payment-badge unpaid" *ngIf="order.isPaid && (order.pendingUpdateAmount || 0) > 0.01 && order.status !== 'Cancelled'">Payment due</span>
-                  <span class="payment-badge paid" *ngIf="isEffectivelyPaid(order) && (order.pendingUpdateAmount || 0) <= 0.01">Paid</span>
-                  <span class="payment-badge plan" *ngIf="order.recurrenceLabel">{{ order.recurrenceLabel }}</span>
+                  @if (!isEffectivelyPaid(order) && !order.isPartiallyPaid) {
+                  <span class="payment-badge unpaid">Unpaid</span>
+                  }
+                  @if (!isEffectivelyPaid(order) && order.isPartiallyPaid) {
+                  <span class="payment-badge partial">${{ (order.amountDue || 0).toFixed(2) }} due</span>
+                  }
+                  @if (order.isPaid && (order.pendingUpdateAmount || 0) > 0.01 && order.status !== 'Cancelled') {
+                  <span class="payment-badge unpaid">Payment due</span>
+                  }
+                  @if (isEffectivelyPaid(order) && (order.pendingUpdateAmount || 0) <= 0.01) {
+                  <span class="payment-badge paid">Paid</span>
+                  }
+                  @if (order.recurrenceLabel) {
+                  <span class="payment-badge plan">{{ order.recurrenceLabel }}</span>
+                  }
                 </div>
               </header>
 
               <dl class="order-card__facts">
                 <div><dt>When</dt><dd>{{ formatDate(order.serviceDate) }} at {{ formatTime(order.serviceTime) }}</dd></div>
                 <div><dt>Where</dt><dd>{{ order.serviceAddress }}</dd></div>
-                <div *ngIf="!order.billedByContractLabel"><dt>Total</dt><dd class="order-card__price">${{ order.total.toFixed(2) }}</dd></div>
-                <div *ngIf="order.billedByContractLabel"><dt>Billing</dt><dd class="order-card__price">{{ order.billedByContractLabel }}</dd></div>
+                @if (!order.billedByContractLabel) {
+                <div><dt>Total</dt><dd class="order-card__price">${{ order.total.toFixed(2) }}</dd></div>
+                }
+                @if (order.billedByContractLabel) {
+                <div><dt>Billing</dt><dd class="order-card__price">{{ order.billedByContractLabel }}</dd></div>
+                }
               </dl>
 
               <footer class="order-card__actions">
-                <button type="button" class="btn btn--primary" *ngIf="!order.recurringSeriesId && !isEffectivelyPaid(order) && order.status !== 'Cancelled'"
+                @if (!order.recurringSeriesId && !isEffectivelyPaid(order) && order.status !== 'Cancelled') {
+                <button type="button" class="btn btn--primary"
                         (click)="payOrder(order.id)">
                   Pay ${{ order.total.toFixed(2) }}
                 </button>
-                <button type="button" class="btn btn--primary" *ngIf="order.isPaid && order.status !== 'Cancelled' && (order.pendingUpdateAmount || 0) > 0.01"
+                }
+                @if (order.isPaid && order.status !== 'Cancelled' && (order.pendingUpdateAmount || 0) > 0.01) {
+                <button type="button" class="btn btn--primary"
                         (click)="payOrder(order.id)">
                   Pay additional ${{ getEffectivePendingUpdateAmount(order).toFixed(2) }}
                 </button>
+                }
 
                 <button type="button" class="btn btn--secondary" (click)="viewOrderDetails(order.id)">View details</button>
 
-                <a class="btn btn--secondary" [routerLink]="['/order', order.id, 'edit']" *ngIf="canEditOrder(order)">Edit</a>
+                @if (canEditOrder(order)) {
+                <a class="btn btn--secondary" [routerLink]="['/order', order.id, 'edit']">Edit</a>
+                }
 
-                <button type="button" class="btn btn--secondary" *ngIf="!order.isCustomServiceType && (isEffectivelyPaid(order) || order.status === 'Cancelled')"
+                @if (!order.isCustomServiceType && (isEffectivelyPaid(order) || order.status === 'Cancelled')) {
+                <button type="button" class="btn btn--secondary"
                         (click)="reorder(order.id)" [disabled]="isReordering(order.id)">
                   {{ isReordering(order.id) ? 'Loading…' : 'Reorder' }}
                 </button>
+                }
 
-                <button type="button" class="btn btn--danger-ghost" *ngIf="!order.recurringSeriesId && !isEffectivelyPaid(order) && order.status !== 'Cancelled'"
+                @if (!order.recurringSeriesId && !isEffectivelyPaid(order) && order.status !== 'Cancelled') {
+                <button type="button" class="btn btn--danger-ghost"
                         (click)="cancelUnpaidOrder(order.id)" [disabled]="isCancellingOrder(order.id)">
                   {{ isCancellingOrder(order.id) ? 'Cancelling…' : 'Cancel' }}
                 </button>
+                }
 
-                <button type="button" class="btn btn--danger-ghost" *ngIf="canCancelOrder(order)"
+                @if (canCancelOrder(order)) {
+                <button type="button" class="btn btn--danger-ghost"
                         (click)="openCancelModal(order.id)">Cancel order</button>
+                }
               </footer>
             </article>
+            }
           </div>
+          }
 
-          <nav class="orders-pager" *ngIf="orderPageCount > 1" aria-label="Your cleanings, by page">
+          @if (orderPageCount > 1) {
+          <nav class="orders-pager" aria-label="Your cleanings, by page">
             <button type="button" class="orders-pager__step" (click)="goToOrderPage(ordersPage - 1)"
                     [disabled]="ordersPage <= 1" aria-label="Previous page">
               <i class="fas fa-chevron-left" aria-hidden="true"></i>
             </button>
-            <button type="button" class="orders-pager__page" *ngFor="let page of orderPageNumbers"
+            @for (page of orderPageNumbers; track page) {
+            <button type="button" class="orders-pager__page"
                     [class.active]="page === ordersPage"
                     [attr.aria-current]="page === ordersPage ? 'page' : null"
                     (click)="goToOrderPage(page)">{{ page }}</button>
+            }
             <button type="button" class="orders-pager__step" (click)="goToOrderPage(ordersPage + 1)"
                     [disabled]="ordersPage >= orderPageCount" aria-label="Next page">
               <i class="fas fa-chevron-right" aria-hidden="true"></i>
             </button>
             <span class="orders-pager__summary">Page {{ ordersPage }} of {{ orderPageCount }}</span>
           </nav>
+          }
         </div>
       </section>
+      }
 
       <!-- ═══ PERSONAL INFORMATION ═══ -->
-      <section *ngIf="activeTab === 'personal'" role="tabpanel" id="profile-panel-personal" aria-labelledby="profile-tab-personal" class="tab-panel">
+      @if (activeTab === 'personal') {
+      <section role="tabpanel" id="profile-panel-personal" aria-labelledby="profile-tab-personal" class="tab-panel">
       <!-- Profile Information Section -->
       <div class="section">
         <div class="section-header section-header--split">
           <h2>Personal Information</h2>
           <div class="header-actions">
-            <button *ngIf="!isEditingProfile" class="edit-btn" (click)="startEditProfile()">Edit</button>
+            @if (!isEditingProfile) {
+            <button class="edit-btn" (click)="startEditProfile()">Edit</button>
+            }
           </div>
         </div>
 
-        <div *ngIf="!isEditingProfile" class="info-display">
+        @if (!isEditingProfile) {
+        <div class="info-display">
           <div class="info-row">
             <label>First Name:</label>
             <span>{{ displayFirstName }}</span>
@@ -250,13 +325,19 @@
           </div>
           <div class="info-row subscription-row">
             <label>Current plan:</label>
-            <span *ngIf="!hasActiveSubscription">No active plan</span>
-            <span *ngIf="hasActiveSubscription" class="subscription-value-wrap">
+            @if (!hasActiveSubscription) {
+            <span>No active plan</span>
+            }
+            @if (hasActiveSubscription) {
+            <span class="subscription-value-wrap">
               <span class="subscription-active">{{ profile.subscriptionName }} ({{ profile.subscriptionDiscountPercentage }}% discount)</span>
-              <small class="subscription-details" *ngIf="profile.subscriptionExpiryDate">
+              @if (profile.subscriptionExpiryDate) {
+              <small class="subscription-details">
                 Expires: {{ profile.subscriptionExpiryDate | date: 'MMM d, y' }}
               </small>
+              }
             </span>
+            }
           </div>
           <div class="info-row comm-preference">
             <label>Emails:</label>
@@ -270,14 +351,20 @@
                       [class.active]="!canReceiveEmails"
                       [class.disabled]="updatingComms"
                       (click)="!updatingComms && setEmailsPreference(false)">No</span>
-                <span class="yn-icon yes-icon" *ngIf="canReceiveEmails" aria-hidden="true">
+                @if (canReceiveEmails) {
+                <span class="yn-icon yes-icon" aria-hidden="true">
                   <i class="fas fa-check"></i>
                 </span>
-                <span class="yn-icon no-icon" *ngIf="!canReceiveEmails" aria-hidden="true">
+                }
+                @if (!canReceiveEmails) {
+                <span class="yn-icon no-icon" aria-hidden="true">
                   <i class="fas fa-ban"></i>
                 </span>
+                }
               </span>
-              <span *ngIf="updatingComms" class="comm-saving">Updating...</span>
+              @if (updatingComms) {
+              <span class="comm-saving">Updating...</span>
+              }
             </span>
           </div>
           <div class="info-row comm-preference">
@@ -292,43 +379,65 @@
                       [class.active]="!canReceiveMessages"
                       [class.disabled]="updatingComms"
                       (click)="!updatingComms && setMessagesPreference(false)">No</span>
-                <span class="yn-icon yes-icon" *ngIf="canReceiveMessages" aria-hidden="true">
+                @if (canReceiveMessages) {
+                <span class="yn-icon yes-icon" aria-hidden="true">
                   <i class="fas fa-check"></i>
                 </span>
-                <span class="yn-icon no-icon" *ngIf="!canReceiveMessages" aria-hidden="true">
+                }
+                @if (!canReceiveMessages) {
+                <span class="yn-icon no-icon" aria-hidden="true">
                   <i class="fas fa-ban"></i>
                 </span>
+                }
               </span>
-              <span *ngIf="updatingComms" class="comm-saving">Updating...</span>
+              @if (updatingComms) {
+              <span class="comm-saving">Updating...</span>
+              }
             </span>
           </div>
-          <div class="info-row" *ngIf="profile.hasLoyaltyDiscount">
+          @if (profile.hasLoyaltyDiscount) {
+          <div class="info-row">
             <label>Special Discount:</label>
             <span>{{ profile.loyaltyDiscountPercentage | number:'1.0-2' }}%</span>
           </div>
+          }
           <div class="info-row special-offers-row">
             <label>Special Offers:</label>
-            <div *ngIf="specialOffers === null" class="profile-shimmer-value profile-shimmer-offers" [shimmer]="true"></div>
-            <span *ngIf="specialOffers !== null && specialOffers.length === 0" class="no-offers-text">No special offers yet.</span>
-            <div *ngIf="specialOffers !== null && specialOffers.length > 0" class="special-offers-container">
-              <div class="special-offer-item" *ngFor="let offer of specialOffers">
+            @if (specialOffers === null) {
+            <div class="profile-shimmer-value profile-shimmer-offers" [shimmer]="true"></div>
+            }
+            @if (specialOffers !== null && specialOffers.length === 0) {
+            <span class="no-offers-text">No special offers yet.</span>
+            }
+            @if (specialOffers !== null && specialOffers.length > 0) {
+            <div class="special-offers-container">
+              @for (offer of specialOffers; track offer) {
+              <div class="special-offer-item">
                 <span class="offer-badge" [style.background-color]="offer.badgeColor || '#28a745'"
                       [style.color]="badgeLabelColor(offer.badgeColor || '#28a745')">
                   <i class="fas fa-gift"></i>
                 </span>
                 <div class="offer-details">
                   <span class="offer-name">{{ offer.name }}:</span>
-                  <span class="offer-description" *ngIf="offer.description"> {{ offer.description }}</span>
-                  <span class="offer-expiry" *ngIf="offer.expiresAt">
+                  @if (offer.description) {
+                  <span class="offer-description"> {{ offer.description }}</span>
+                  }
+                  @if (offer.expiresAt) {
+                  <span class="offer-expiry">
                     (Expires: {{ offer.expiresAt | date: 'MMM d, y' }})
                   </span>
+                  }
                 </div>
               </div>
+              }
             </div>
+            }
           </div>
         </div>
+        }
 
-        <div *ngIf="isEditingProfile" class="edit-form">
+        @if (isEditingProfile) {
+        <div class="edit-form">
           <div class="form-group">
             <label>First Name</label>
             <input aria-label="First Name" type="text" [(ngModel)]="editProfileForm.firstName" (blur)="onNameBlur('firstName')" required>
@@ -345,24 +454,29 @@
                    pattern="[0-9]{10}"
                    maxlength="10"
                    placeholder="1234567890">
-            <div class="error-message" *ngIf="errorMessage && errorMessage.includes('phone number')">
+            @if (errorMessage && errorMessage.includes('phone number')) {
+            <div class="error-message">
               {{ errorMessage }}
             </div>
+            }
           </div>
           <div class="form-actions">
             <button class="save-btn" (click)="saveProfile()">Save</button>
             <button class="cancel-btn" (click)="cancelEditProfile()">Cancel</button>
           </div>
         </div>
+        }
       </div>
       </section>
+      }
 
       <!-- ═══ PLAN ═══
            Choosing a plan here records a PREFERENCE: it pre-selects the cadence when the
            customer books and does nothing else. No charge, no activation — the discount starts
            on the second cleaning in a row, which is what the explanation below says in words.
            See DreamCleaningBackend/Helpers/PlanSelectionPolicy. -->
-      <section *ngIf="activeTab === 'plan'" role="tabpanel" id="profile-panel-plan" aria-labelledby="profile-tab-plan" class="tab-panel">
+      @if (activeTab === 'plan') {
+      <section role="tabpanel" id="profile-panel-plan" aria-labelledby="profile-tab-plan" class="tab-panel">
         <div class="section">
           <div class="section-header section-header--split">
             <h2>Your plan</h2>
@@ -372,16 +486,24 @@
           <div class="plan-status" [class.plan-status--active]="plan?.activeSubscriptionId">
             <i class="fas" [ngClass]="plan?.activeSubscriptionId ? 'fa-circle-check' : 'fa-circle-info'" aria-hidden="true"></i>
             <div>
-              <strong *ngIf="plan?.activeSubscriptionId">
+              @if (plan?.activeSubscriptionId) {
+              <strong>
                 {{ plan?.activeSubscriptionName }} is active — {{ plan?.activeDiscountPercentage }}% off your next cleaning
               </strong>
-              <strong *ngIf="plan && !plan.activeSubscriptionId">You're not on a plan yet</strong>
-              <span *ngIf="plan?.activeExpiresAt">
+              }
+              @if (plan && !plan.activeSubscriptionId) {
+              <strong>You're not on a plan yet</strong>
+              }
+              @if (plan?.activeExpiresAt) {
+              <span>
                 Keep your cleanings going to stay on it — it runs until {{ plan?.activeExpiresAt | date: 'MMM d, y' }}.
               </span>
-              <span *ngIf="plan && !plan.activeSubscriptionId">
+              }
+              @if (plan && !plan.activeSubscriptionId) {
+              <span>
                 Pick the cadence you want below and we'll have it ready when you book.
               </span>
+              }
             </div>
           </div>
 
@@ -397,72 +519,101 @@
             </ul>
           </div>
 
-          <div class="error-message" *ngIf="planError">{{ planError }}</div>
+          @if (planError) {
+          <div class="error-message">{{ planError }}</div>
+          }
 
-          <div class="plan-grid" *ngIf="planLoading && !plan">
+          @if (planLoading && !plan) {
+          <div class="plan-grid">
             <div class="profile-shimmer-order" [shimmer]="true"></div>
             <div class="profile-shimmer-order" [shimmer]="true"></div>
             <div class="profile-shimmer-order" [shimmer]="true"></div>
           </div>
+          }
 
-          <div class="plan-grid" *ngIf="plan">
-            <article class="plan-card" *ngFor="let option of plan.plans"
+          @if (plan) {
+          <div class="plan-grid">
+            @for (option of plan.plans; track option) {
+            <article class="plan-card"
                      [class.plan-card--preferred]="option.isPreferred"
                      [class.plan-card--active]="option.isActive">
               <div class="plan-card__head">
                 <h3>{{ option.name }}</h3>
-                <span class="plan-card__pill plan-card__pill--active" *ngIf="option.isActive">Active</span>
-                <span class="plan-card__pill" *ngIf="option.isPreferred && !option.isActive">Chosen</span>
+                @if (option.isActive) {
+                <span class="plan-card__pill plan-card__pill--active">Active</span>
+                }
+                @if (option.isPreferred && !option.isActive) {
+                <span class="plan-card__pill">Chosen</span>
+                }
               </div>
               <p class="plan-card__discount"><strong>{{ option.discountPercentage }}%</strong> off</p>
               <p class="plan-card__cadence">{{ planCadence(option) }}</p>
-              <p class="plan-card__desc" *ngIf="option.description">{{ option.description }}</p>
+              @if (option.description) {
+              <p class="plan-card__desc">{{ option.description }}</p>
+              }
               <button type="button" class="btn"
                       [class.btn--primary]="!option.isPreferred"
                       [class.btn--secondary]="option.isPreferred"
                       (click)="choosePlan(option)"
                       [disabled]="planSavingId !== undefined">
-                <ng-container *ngIf="!isPlanSaving(option)">{{ option.isPreferred ? 'Remove' : 'Choose ' + option.name }}</ng-container>
-                <ng-container *ngIf="isPlanSaving(option)">Saving…</ng-container>
+                @if (!isPlanSaving(option)) {
+                {{ option.isPreferred ? 'Remove' : 'Choose ' + option.name }}
+                }
+                @if (isPlanSaving(option)) {
+                Saving…
+                }
               </button>
             </article>
+            }
           </div>
+          }
 
-          <p class="plan-footnote" *ngIf="plan && plan.plans.length > 0">
+          @if (plan && plan.plans.length > 0) {
+          <p class="plan-footnote">
             Choosing a plan here doesn't book anything and doesn't charge anything — it just means
             we have it selected for you when you come to book.
           </p>
+          }
         </div>
       </section>
+      }
 
       <!-- ═══ SAVED ADDRESSES ═══ -->
-      <section *ngIf="activeTab === 'addresses'" role="tabpanel" id="profile-panel-addresses" aria-labelledby="profile-tab-addresses" class="tab-panel">
+      @if (activeTab === 'addresses') {
+      <section role="tabpanel" id="profile-panel-addresses" aria-labelledby="profile-tab-addresses" class="tab-panel">
       <!-- Apartments Section -->
       <div class="section">
         <div class="section-header section-header--split">
           <h2>Saved Addresses ({{ profile.apartments.length }}/10)</h2>
+          @if (!isAddingApartment && !editingApartmentId) {
           <button
             class="add-btn"
             (click)="startAddApartment()"
             [disabled]="profile.apartments.length >= 10"
-            *ngIf="!isAddingApartment && !editingApartmentId">
+           >
             Add New Address
           </button>
+          }
         </div>
 
         <!-- Show message when at limit -->
-        <div class="info-message" *ngIf="profile.apartments.length >= 10">
+        @if (profile.apartments.length >= 10) {
+        <div class="info-message">
           You have reached the maximum limit of 10 saved addresses.
         </div>
+        }
 
         <!-- Add New Apartment Form -->
-        <div *ngIf="isAddingApartment" class="apartment-form">
+        @if (isAddingApartment) {
+        <div class="apartment-form">
           <h3>Add New Apartment</h3>
 
           <!-- Show error message at the top of the form -->
-          <div class="error-message" *ngIf="errorMessage">
+          @if (errorMessage) {
+          <div class="error-message">
             {{ errorMessage }}
           </div>
+          }
 
           <div class="form-grid">
             <div class="form-group">
@@ -490,7 +641,9 @@
                       (change)="onStateChange(newApartment.state)"
                       required>
                 <option value="">Select state</option>
-                <option *ngFor="let state of states" [value]="state">{{ state }}</option>
+                @for (state of states; track state) {
+                <option [value]="state">{{ state }}</option>
+                }
               </select>
             </div>
             <div class="form-group">
@@ -498,7 +651,9 @@
               <select aria-label="City" [(ngModel)]="newApartment.city"
                       required>
                 <option value="">Select city</option>
-                <option *ngFor="let city of cities" [value]="city">{{ city }}</option>
+                @for (city of cities; track city) {
+                <option [value]="city">{{ city }}</option>
+                }
               </select>
             </div>
             <div class="form-group">
@@ -529,32 +684,44 @@
             <button class="cancel-btn" (click)="cancelAddApartment()">Cancel</button>
           </div>
         </div>
+        }
 
         <!-- Apartments List -->
-        <div class="apartments-list" *ngIf="!isAddingApartment">
-          <div *ngFor="let apartment of profile.apartments" class="apartment-card">
-            <div *ngIf="editingApartmentId !== apartment.id">
+        @if (!isAddingApartment) {
+        <div class="apartments-list">
+          @for (apartment of profile.apartments; track apartment) {
+          <div class="apartment-card">
+            @if (editingApartmentId !== apartment.id) {
+            <div>
               <h3>{{ apartment.name }}</h3>
-              <p><strong>Address:</strong> {{ apartment.address }}<span *ngIf="apartment.aptSuite">, {{ apartment.aptSuite }}</span></p>
+              <p><strong>Address:</strong> {{ apartment.address }}@if (apartment.aptSuite) {
+              <span>, {{ apartment.aptSuite }}</span>
+              }</p>
               <p><strong>City:</strong> {{ apartment.city }}</p>
               <p><strong>State:</strong> {{ apartment.state }}</p>
               <p><strong>Postal Code:</strong> {{ apartment.postalCode }}</p>
-              <p *ngIf="apartment.specialInstructions" class="special-instructions">
+              @if (apartment.specialInstructions) {
+              <p class="special-instructions">
                 <strong>Special Instructions:</strong> {{ apartment.specialInstructions }}
               </p>
+              }
               <div class="apartment-actions">
                 <button class="edit-btn" (click)="startEditApartment(apartment)">Edit</button>
                 <button class="delete-btn" (click)="deleteApartment(apartment)">Delete</button>
               </div>
             </div>
+            }
 
             <!-- Edit Apartment Form -->
-            <div *ngIf="editingApartmentId === apartment.id && editingApartment" class="edit-apartment-form">
+            @if (editingApartmentId === apartment.id && editingApartment) {
+            <div class="edit-apartment-form">
 
               <!-- Show error message at the top of the form -->
-              <div class="error-message" *ngIf="errorMessage">
+              @if (errorMessage) {
+              <div class="error-message">
                 {{ errorMessage }}
               </div>
+              }
 
               <div class="form-grid">
                 <div class="form-group">
@@ -575,14 +742,18 @@
                           (change)="onStateChange(editingApartment.state)"
                           required>
                     <option value="">Select state</option>
-                    <option *ngFor="let state of states" [value]="state">{{ state }}</option>
+                    @for (state of states; track state) {
+                    <option [value]="state">{{ state }}</option>
+                    }
                   </select>
                 </div>
                 <div class="form-group">
                   <label>City *</label>
                   <select aria-label="City" [(ngModel)]="editingApartment.city" required>
                     <option value="">Select city</option>
-                    <option *ngFor="let city of cities" [value]="city">{{ city }}</option>
+                    @for (city of cities; track city) {
+                    <option [value]="city">{{ city }}</option>
+                    }
                   </select>
                 </div>
                 <div class="form-group">
@@ -613,38 +784,51 @@
                 <button class="cancel-btn" (click)="cancelEditApartment()">Cancel</button>
               </div>
             </div>
+            }
           </div>
+          }
 
-          <div *ngIf="profile.apartments.length === 0" class="no-apartments">
+          @if (profile.apartments.length === 0) {
+          <div class="no-apartments">
             <p>You haven't added any apartments yet.</p>
           </div>
+          }
         </div>
+        }
       </div>
       </section>
+      }
 
       <!-- ═══ BILLING ═══ -->
-      <section *ngIf="activeTab === 'billing'" role="tabpanel" id="profile-panel-billing" aria-labelledby="profile-tab-billing" class="tab-panel">
+      @if (activeTab === 'billing') {
+      <section role="tabpanel" id="profile-panel-billing" aria-labelledby="profile-tab-billing" class="tab-panel">
         <app-billing-tab></app-billing-tab>
       </section>
+      }
 
       <!-- ═══ INVOICES — the customer's own invoices, paid and unpaid (2026-09) ═══ -->
-      <section *ngIf="activeTab === 'invoices'" role="tabpanel" id="profile-panel-invoices" aria-labelledby="profile-tab-invoices" class="tab-panel">
+      @if (activeTab === 'invoices') {
+      <section role="tabpanel" id="profile-panel-invoices" aria-labelledby="profile-tab-invoices" class="tab-panel">
         <div class="section">
           <div class="section-header"><h2>Invoices</h2></div>
           <app-my-invoices-tab></app-my-invoices-tab>
         </div>
       </section>
+      }
 
       <!-- ═══ GIFT CARDS — cards this customer bought; "send later" cards are sent from here (2026-10) ═══ -->
-      <section *ngIf="activeTab === 'gift-cards'" role="tabpanel" id="profile-panel-gift-cards" aria-labelledby="profile-tab-gift-cards" class="tab-panel">
+      @if (activeTab === 'gift-cards') {
+      <section role="tabpanel" id="profile-panel-gift-cards" aria-labelledby="profile-tab-gift-cards" class="tab-panel">
         <div class="section">
           <div class="section-header"><h2>Gift Cards</h2></div>
           <app-my-gift-cards-tab></app-my-gift-cards-tab>
         </div>
       </section>
+      }
 
       <!-- ═══ SECURITY ═══ -->
-      <section *ngIf="activeTab === 'security'" role="tabpanel" id="profile-panel-security" aria-labelledby="profile-tab-security" class="tab-panel">
+      @if (activeTab === 'security') {
+      <section role="tabpanel" id="profile-panel-security" aria-labelledby="profile-tab-security" class="tab-panel">
         <div class="section">
           <div class="section-header"><h2>Sign-in &amp; security</h2></div>
           <div class="security-list">
@@ -654,19 +838,27 @@
                 <span>{{ profile.email }}</span>
                 <!-- Email change is Local-account only server-side. Saying so here beats letting
                      a Google/Apple customer fill in a password they don't have and be refused. -->
-                <small class="security-item__note" *ngIf="!canChangeEmail">
+                @if (!canChangeEmail) {
+                <small class="security-item__note">
                   You sign in with Google or Apple, so your email address is managed there.
                 </small>
+                }
               </div>
-              <a *ngIf="canChangeEmail" routerLink="/change-email" class="security-btn security-btn--brand" role="button">Change email</a>
+              @if (canChangeEmail) {
+              <a routerLink="/change-email" class="security-btn security-btn--brand" role="button">Change email</a>
+              }
             </div>
             <div class="security-item">
               <div class="security-item__text">
                 <strong>Password</strong>
                 <span>{{ profile.hasPassword === false ? 'You sign in with Google or Apple and have no password yet.' : '••••••••' }}</span>
               </div>
-              <a *ngIf="profile.hasPassword !== false" routerLink="/change-password" class="security-btn security-btn--primary" role="button">Change password</a>
-              <a *ngIf="profile.hasPassword === false" routerLink="/set-password" class="security-btn security-btn--warning" role="button">Set password</a>
+              @if (profile.hasPassword !== false) {
+              <a routerLink="/change-password" class="security-btn security-btn--primary" role="button">Change password</a>
+              }
+              @if (profile.hasPassword === false) {
+              <a routerLink="/set-password" class="security-btn security-btn--warning" role="button">Set password</a>
+              }
             </div>
           </div>
         </div>
@@ -675,21 +867,28 @@
              Lets the user see and revoke devices they've passed 2FA on. -->
         <app-trusted-devices></app-trusted-devices>
       </section>
+      }
 
     </div>
+    }
 
     <!-- ═══ Cancel a paid cleaning ═══ -->
-    <div class="modal-backdrop" *ngIf="showCancelModal" (click)="closeCancelModal()">
+    @if (showCancelModal) {
+    <div class="modal-backdrop" (click)="closeCancelModal()">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cancel-order-title" (click)="$event.stopPropagation()">
         <h2 id="cancel-order-title">Cancel this cleaning?</h2>
         <!-- Card (Stripe) payments only. Cash / Zelle / Check / Other money is collected at the
              door when the job starts, so a cancelled one has nothing to give back. -->
-        <p *ngIf="getCancelModalOrder()?.isPaid">Your payment will be refunded within 7 working days.</p>
+        @if (getCancelModalOrder()?.isPaid) {
+        <p>Your payment will be refunded within 7 working days.</p>
+        }
 
-        <p *ngIf="getCancelModalOrder() && isLateCancellation(getCancelModalOrder()!)" class="late-cancellation-notice">
+        @if (getCancelModalOrder() && isLateCancellation(getCancelModalOrder()!)) {
+        <p class="late-cancellation-notice">
           <strong>Please note:</strong> because this is less than 48 hours before the scheduled
           service, a $70.00 late cancellation fee applies under our terms of service.
         </p>
+        }
 
         <div class="form-group">
           <label for="cancel-reason">Reason for cancellation</label>
@@ -705,5 +904,6 @@
         </div>
       </div>
     </div>
+    }
   </div>
 </div>

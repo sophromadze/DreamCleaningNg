@@ -1,5 +1,4 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ActivatedRoute, ParamMap } from '@angular/router';
 import { skip } from 'rxjs/operators';
 import { AdminService, UserPermissions } from '../../services/admin.service';
@@ -22,7 +21,6 @@ import { AdminCustomerInvoicesComponent } from './customer-invoices/admin-custom
   selector: 'app-admin',
   standalone: true,
   imports: [
-    CommonModule,
     OrdersComponent,
     AdminUsersComponent,
     BookingServicesComponent,
@@ -35,7 +33,7 @@ import { AdminCustomerInvoicesComponent } from './customer-invoices/admin-custom
     ChatSessionsComponent,
     AdminRewardsComponent,
     AdminCustomerInvoicesComponent
-  ],
+],
   templateUrl: './admin.component.html',
   styleUrls: ['./admin.component.scss']
 })

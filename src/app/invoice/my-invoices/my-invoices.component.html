@@ -8,43 +8,62 @@
       </p>
 
       <!-- What is actually owed, with anything already authorized excluded — see totalOutstanding. -->
-      <div class="awaiting-banner" *ngIf="totalOutstanding > 0">
-        {{ totalOutstanding | currency:'USD' }} outstanding<span *ngIf="overdueCount > 0">,
-          including {{ overdueCount }} past due</span>.
+      @if (totalOutstanding > 0) {
+      <div class="awaiting-banner">
+        {{ totalOutstanding | currency:'USD' }} outstanding@if (overdueCount > 0) {
+        <span>,
+          including {{ overdueCount }} past due</span>
+        }.
       </div>
+      }
     </header>
 
-    <div class="contract-card contract-status-card" *ngIf="loading">Loading your invoices…</div>
+    @if (loading) {
+    <div class="contract-card contract-status-card">Loading your invoices…</div>
+    }
 
-    <div class="contract-card contract-status-card error" *ngIf="!loading && errorMessage">
+    @if (!loading && errorMessage) {
+    <div class="contract-card contract-status-card error">
       <h1>We could not load your invoices</h1>
       <p>{{ errorMessage }}</p>
     </div>
+    }
 
-    <div class="contract-card" *ngIf="!loading && !errorMessage">
-      <p class="muted" *ngIf="!rows.length">
+    @if (!loading && !errorMessage) {
+    <div class="contract-card">
+      @if (!rows.length) {
+      <p class="muted">
         You do not have any invoices yet. When we issue one, it will appear here.
       </p>
+      }
 
-      <ul class="invoice-list" *ngIf="rows.length">
-        <li *ngFor="let row of rows" class="invoice-row" (click)="open(row)" tabindex="0"
+      @if (rows.length) {
+      <ul class="invoice-list">
+        @for (row of rows; track row) {
+        <li class="invoice-row" (click)="open(row)" tabindex="0"
             (keyup.enter)="open(row)">
 
           <div class="row-main">
             <div class="row-number">{{ row.invoiceNumber }}</div>
-            <div class="row-location" *ngIf="row.serviceAddress">{{ row.serviceAddress }}</div>
-            <div class="row-contract" *ngIf="row.contractNumber">
+            @if (row.serviceAddress) {
+            <div class="row-location">{{ row.serviceAddress }}</div>
+            }
+            @if (row.contractNumber) {
+            <div class="row-contract">
               Contract {{ row.contractNumber }}
             </div>
+            }
           </div>
 
           <div class="row-dates">
             <span class="row-date">Invoiced {{ row.invoiceDate | date:'mediumDate' }}</span>
             <!-- The label follows the shape the invoice actually records: one date, several
                  dates, or a period. Absent entirely when it records none. -->
-            <span class="row-date" *ngIf="row.serviceDateText">
+            @if (row.serviceDateText) {
+            <span class="row-date">
               {{ row.serviceDateLabel }}: {{ row.serviceDateText }}
             </span>
+            }
             <span class="row-date"
                   [class.due-soon]="row.balanceDue > 0 && !row.paymentInProgress">
               Due {{ row.dueDate | date:'mediumDate' }}
@@ -53,12 +72,16 @@
 
           <div class="row-amounts">
             <span class="row-total">{{ row.total | currency:'USD' }}</span>
-            <span class="row-balance" *ngIf="row.balanceDue > 0">
+            @if (row.balanceDue > 0) {
+            <span class="row-balance">
               {{ row.balanceDue | currency:'USD' }} due
             </span>
-            <span class="row-balance settled" *ngIf="row.balanceDue <= 0 && row.paidAt">
+            }
+            @if (row.balanceDue <= 0 && row.paidAt) {
+            <span class="row-balance settled">
               Paid {{ row.paidAt | date:'mediumDate' }}
             </span>
+            }
           </div>
 
           <div class="row-action">
@@ -66,11 +89,16 @@
             <span class="chevron" aria-hidden="true">›</span>
           </div>
         </li>
+        }
       </ul>
+      }
 
-      <p class="muted list-footnote" *ngIf="rows.length">
+      @if (rows.length) {
+      <p class="muted list-footnote">
         Open an invoice to see the full breakdown, pay it online or download the PDF.
       </p>
+      }
     </div>
+    }
   </div>
 </div>

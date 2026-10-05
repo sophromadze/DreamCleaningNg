@@ -19,7 +19,9 @@
     <div class="filters-left">
       <div class="quick-filter-dropdown">
         <select aria-label="Period" [ngModel]="activeQuickFilter" (ngModelChange)="onQuickFilterChange($event)">
-          <option *ngFor="let f of quickFilters" [value]="f.key">{{ f.label }}</option>
+          @for (f of quickFilters; track f) {
+          <option [value]="f.key">{{ f.label }}</option>
+          }
         </select>
       </div>
       <button class="compare-open-btn" (click)="openCompareModal()">
@@ -31,7 +33,9 @@
       <label>From <input type="date" [(ngModel)]="customFrom" /></label>
       <label>To <input type="date" [(ngModel)]="customTo" /></label>
       <button class="apply-btn" (click)="applyCustomRange()" [disabled]="!customFrom || !customTo">Apply</button>
-      <button class="clear-btn" (click)="clearCustomRange()" *ngIf="customFrom || customTo">Clear</button>
+      @if (customFrom || customTo) {
+      <button class="clear-btn" (click)="clearCustomRange()">Clear</button>
+      }
     </div>
   </div>
 
@@ -45,9 +49,11 @@
              [disabled]="isLoading || isComparing" />
       <span>
         Include cleanings that haven't happened yet
-        <span class="option-hint" *ngIf="!includeUpcoming && upcomingCount > 0">
+        @if (!includeUpcoming && upcomingCount > 0) {
+        <span class="option-hint">
           ({{ upcomingCount | number }} still booked{{ compareMode ? ' across these periods' : ' in this period' }})
         </span>
+        }
       </span>
     </label>
     <label class="option-check">
@@ -56,62 +62,75 @@
     </label>
   </div>
 
-  <div class="projection-banner" *ngIf="includeUpcoming">
+  @if (includeUpcoming) {
+  <div class="projection-banner">
     <i class="fas fa-clock"></i>
     <span>
-      <b>Projection</b> — counts cleanings that haven't happened yet<ng-container
-        *ngIf="!compareMode && projectedAdSpend > 0">, plus
+      <b>Projection</b> — counts cleanings that haven't happened yet@if (!compareMode && projectedAdSpend > 0) {
+      , plus
         {{ projectedAdSpend | currency:'USD' }} of forecast Google Ads spend for the remaining
-        {{ projectedAdDays | number }} day{{ projectedAdDays === 1 ? '' : 's' }}</ng-container>.
+        {{ projectedAdDays | number }} day{{ projectedAdDays === 1 ? '' : 's' }}
+      }.
     </span>
   </div>
+  }
 
   <!-- Error -->
-  <div class="error-state" *ngIf="error && !isLoading && !compareMode">
+  @if (error && !isLoading && !compareMode) {
+  <div class="error-state">
     <p>{{ error }}</p>
   </div>
+  }
+  @if (!error && !compareMode) {
 
-  <ng-container *ngIf="!error && !compareMode">
 
     <!-- Hero: the answer -->
     <div class="hero-card" [class.negative]="!isLoading && profit < 0">
       <div class="hero-label">Net Company Income — what's left for the company</div>
       <div class="hero-value" [class.shimmer-loading]="isLoading">{{ profit | currency:'USD' }}</div>
 
-      <div class="hero-margin" *ngIf="!isLoading">
+      @if (!isLoading) {
+      <div class="hero-margin">
         <span class="margin-value">{{ grossMarginPercent | number:'1.1-1' }}% gross</span>
         <span class="margin-sep">·</span>
         <span class="margin-value">{{ profitMargin | number:'1.1-1' }}% net margin</span>
+        @if (hasMarginComparison) {
         <span class="margin-delta"
-              *ngIf="hasMarginComparison"
               [class.up]="marginDelta >= 0"
               [class.down]="marginDelta < 0">
           {{ marginDelta >= 0 ? '+' : '−' }}{{ marginDeltaAbs | number:'1.1-1' }} pts
         </span>
+        }
       </div>
+      }
 
+      @if (!isLoading && hasComparison) {
       <div class="hero-compare"
-           *ngIf="!isLoading && hasComparison"
            [class.up]="profitDelta >= 0"
            [class.down]="profitDelta < 0">
         <span class="compare-arrow">{{ profitDelta >= 0 ? '▲' : '▼' }}</span>
         <span>{{ profitDelta >= 0 ? '+' : '' }}{{ profitDelta | currency:'USD' }}</span>
-        <span *ngIf="hasDeltaPercent">({{ profitDeltaPercent >= 0 ? '+' : '' }}{{ profitDeltaPercent | number:'1.0-1' }}%)</span>
+        @if (hasDeltaPercent) {
+        <span>({{ profitDeltaPercent >= 0 ? '+' : '' }}{{ profitDeltaPercent | number:'1.0-1' }}%)</span>
+        }
         <span class="compare-label">{{ compareLabel }}</span>
       </div>
+      }
+      @if (!isLoading) {
+      <div class="hero-note">
+        @if (matchesOfficial) {
 
-      <div class="hero-note" *ngIf="!isLoading">
-        <ng-container *ngIf="matchesOfficial">
           <i class="fas fa-check-circle"></i>
           This is the official Net Income — every cost is counted.
-        </ng-container>
-        <ng-container *ngIf="!matchesOfficial">
+        }
+        @if (!matchesOfficial) {
           <i class="fas fa-sliders-h"></i>
           You unchecked {{ excludedCount }} cost{{ excludedCount === 1 ? '' : 's' }}.
           With everything counted it would be {{ officialRevenue | currency:'USD' }}.
           <button class="link-btn" (click)="includeEverything()">Count everything again</button>
-        </ng-container>
+        }
       </div>
+      }
     </div>
 
     <div class="content-grid">
@@ -124,59 +143,79 @@
             <h2 class="viz-title">Where the money went</h2>
           </div>
 
+          @for (row of pnlRows; track trackByLabel($index, row)) {
           <div class="pnl-row"
-               *ngFor="let row of pnlRows; trackBy: trackByLabel"
                [ngClass]="'kind-' + row.kind"
                [class.indented]="row.indent"
                [class.excluded]="!row.included"
                [class.expandable]="!!row.items?.length">
 
-            <label class="row-check" *ngIf="row.kind === 'deduction'">
+            @if (row.kind === 'deduction') {
+            <label class="row-check">
               <input type="checkbox"
                      [checked]="row.included"
                      (change)="toggleLine(row.line)"
                      [attr.aria-label]="'Count ' + row.label + ' in the totals'" />
             </label>
-            <span class="row-check spacer" *ngIf="row.kind !== 'deduction'"></span>
+            }
+            @if (row.kind !== 'deduction') {
+            <span class="row-check spacer"></span>
+            }
 
             <div class="row-main" (click)="toggleExpand(row)">
               <div class="row-label">
                 {{ row.label }}
+                @if (row.items?.length) {
                 <i class="fas fa-chevron-down expand-caret"
-                   *ngIf="row.items?.length"
                    [class.open]="row.expanded"></i>
+                }
               </div>
 
               <!-- Per-expense detail for category rows -->
-              <div class="row-items" *ngIf="row.expanded && row.items?.length">
-                <div class="row-item" *ngFor="let item of row.items">
-                  <span class="item-name">{{ item.name }}<span class="item-recurring" *ngIf="item.isRecurring"> (subscription)</span></span>
+              @if (row.expanded && row.items?.length) {
+              <div class="row-items">
+                @for (item of row.items; track item) {
+                <div class="row-item">
+                  <span class="item-name">{{ item.name }}@if (item.isRecurring) {
+                  <span class="item-recurring"> (subscription)</span>
+                  }</span>
                   <span class="item-date">{{ item.date | date:'MMM d, y' }}</span>
                   <span class="item-amount">{{ item.amount | currency:'USD' }}</span>
                 </div>
+                }
               </div>
+              }
             </div>
 
             <div class="row-side">
               <div class="row-amount"
                    [class.shimmer-loading]="isLoading"
                    [class.negative]="!isLoading && row.amount < 0">
-                <span *ngIf="row.kind === 'deduction'">− </span>{{ row.amount | currency:'USD' }}
+                @if (row.kind === 'deduction') {
+                <span>− </span>
+                }{{ row.amount | currency:'USD' }}
               </div>
-              <div class="row-percent" *ngIf="showPercents && !isLoading">
+              @if (showPercents && !isLoading) {
+              <div class="row-percent">
                 {{ row.percent | number:'1.1-1' }}%
               </div>
+              }
             </div>
           </div>
+          }
 
           <!-- Why the sales-tax line is below 8.875% of the revenue above it. Only rendered
                when the window actually contains a non-card payment. -->
-          <p class="viz-hint" *ngIf="!isLoading && hasRetainedTax">
+          @if (!isLoading && hasRetainedTax) {
+          <p class="viz-hint">
             Sales tax charged on cash, Zelle and check orders
-            <ng-container *ngIf="!compareMode"> ({{ retainedTax | currency:'USD' }})</ng-container>
+            @if (!compareMode) {
+ ({{ retainedTax | currency:'USD' }})
+            }
             is not remitted, so it is not deducted here — it stays in the baseline and lands in
             Net Company Income. Customers were still charged and shown the full tax.
           </p>
+          }
         </div>
 
         <!-- Card 2: totals, averages and the pass-throughs -->
@@ -185,13 +224,17 @@
             <h2 class="viz-title">Totals &amp; averages</h2>
           </div>
 
+          @for (row of summaryRows; track trackByRowKey($index, row)) {
           <div class="pnl-row kind-summary"
-               *ngFor="let row of summaryRows; trackBy: trackByRowKey"
                [class.excluded]="row.key === 'tips' && !showTips">
-            <label class="row-check" *ngIf="row.key === 'tips'">
+            @if (row.key === 'tips') {
+            <label class="row-check">
               <input type="checkbox" [(ngModel)]="showTips" aria-label="Show tips" />
             </label>
-            <span class="row-check spacer" *ngIf="row.key !== 'tips'"></span>
+            }
+            @if (row.key !== 'tips') {
+            <span class="row-check spacer"></span>
+            }
 
             <div class="row-main">
               <div class="row-label">{{ row.label }}</div>
@@ -199,24 +242,38 @@
 
             <div class="row-side">
               <div class="row-amount" [class.shimmer-loading]="isLoading">
-                <ng-container *ngIf="row.format === 'money'">{{ row.value | currency:'USD' }}</ng-container>
-                <ng-container *ngIf="row.format === 'count'">{{ row.value | number }}</ng-container>
+                @if (row.format === 'money') {
+                {{ row.value | currency:'USD' }}
+                }
+                @if (row.format === 'count') {
+                {{ row.value | number }}
+                }
               </div>
-              <div class="row-percent" *ngIf="showPercents && !isLoading && row.percent !== null">
+              @if (showPercents && !isLoading && row.percent !== null) {
+              <div class="row-percent">
                 {{ row.percent | number:'1.1-1' }}%
               </div>
+              }
+              @if (!isLoading && row.delta !== null && row.betterWhen !== 'none') {
               <div class="row-delta"
-                   *ngIf="!isLoading && row.delta !== null && row.betterWhen !== 'none'"
                    [class.up]="isDeltaGood(row)"
                    [class.down]="!isDeltaGood(row)">
                 {{ deltaArrow(row) }}
-                <ng-container *ngIf="row.format === 'money'">{{ deltaAbs(row) | currency:'USD' }}</ng-container>
-                <ng-container *ngIf="row.format === 'count'">{{ deltaAbs(row) | number }}</ng-container>
+                @if (row.format === 'money') {
+                {{ deltaAbs(row) | currency:'USD' }}
+                }
+                @if (row.format === 'count') {
+                {{ deltaAbs(row) | number }}
+                }
               </div>
+              }
             </div>
           </div>
+          }
 
-          <p class="viz-hint" *ngIf="!isLoading && hasComparison">Arrows compare {{ compareLabel }}.</p>
+          @if (!isLoading && hasComparison) {
+          <p class="viz-hint">Arrows compare {{ compareLabel }}.</p>
+          }
         </div>
       </div>
 
@@ -251,27 +308,34 @@
           <h2 class="viz-title">Where the money goes</h2>
           <div class="donut-wrap" [class.shimmer-loading]="isLoading">
             <canvas #donutCanvas [hidden]="isLoading || donutLegend.length === 0"></canvas>
-            <div class="donut-empty" *ngIf="!isLoading && donutLegend.length === 0">
+            @if (!isLoading && donutLegend.length === 0) {
+            <div class="donut-empty">
               Nothing checked (or no costs in this period).
             </div>
+            }
           </div>
-          <ul class="donut-legend" *ngIf="!isLoading">
-            <li *ngFor="let slice of donutLegend">
+          @if (!isLoading) {
+          <ul class="donut-legend">
+            @for (slice of donutLegend; track slice) {
+            <li>
               <span class="legend-chip"
                     [style.background]="slice.colorVar ? 'var(' + slice.colorVar + ')' : 'var(--text-muted)'"></span>
               <span class="legend-label">{{ slice.label }}</span>
               <span class="legend-amount">{{ slice.amount | currency:'USD' }}</span>
               <span class="legend-percent">{{ slice.percent | number:'1.0-1' }}%</span>
             </li>
+            }
           </ul>
+          }
         </div>
 
       </div>
     </div>
-  </ng-container>
+  }
 
   <!-- Side-by-side comparison (replaces the single-period view while active) -->
-  <div class="compare-section" *ngIf="compareMode">
+  @if (compareMode) {
+  <div class="compare-section">
 
     <div class="compare-head">
       <h2>Side-by-side comparison</h2>
@@ -285,12 +349,15 @@
       </div>
     </div>
 
-    <div class="winner-card" *ngIf="winnerLine">
+    @if (winnerLine) {
+    <div class="winner-card">
       <i class="fas fa-trophy"></i>
       <span>{{ winnerLine }}</span>
     </div>
+    }
 
-    <div class="compare-note" *ngIf="compareExcludedCount > 0">
+    @if (compareExcludedCount > 0) {
+    <div class="compare-note">
       <i class="fas fa-sliders-h"></i>
       <span>
         You unchecked {{ compareExcludedCount }} cost{{ compareExcludedCount === 1 ? '' : 's' }} —
@@ -299,11 +366,13 @@
       </span>
       <button class="link-btn" (click)="includeEverything()">Count everything again</button>
     </div>
+    }
 
     <div class="compare-card">
       <h3 class="viz-title">Net Company Income</h3>
       <div class="bars">
-        <div class="bar-row" *ngFor="let r of compareResults; let i = index">
+        @for (r of compareResults; track r; let i = $index) {
+        <div class="bar-row">
           <div class="bar-head">
             <span>{{ r.label }}</span>
             <span class="bar-amount" [class.neg]="compareProfits[i] < 0">
@@ -317,6 +386,7 @@
                  [style.width.%]="compareBarWidth(i)"></div>
           </div>
         </div>
+        }
       </div>
     </div>
 
@@ -326,10 +396,12 @@
         <h3 class="viz-title">Where the money went</h3>
       </div>
       <ng-container *ngTemplateOutlet="compareTable; context: { rows: compareChainRows }"></ng-container>
-      <p class="viz-hint" *ngIf="hasRetainedTax">
+      @if (hasRetainedTax) {
+      <p class="viz-hint">
         Sales tax charged on cash, Zelle and check orders is not remitted, so it is not deducted
         here — it stays in the baseline and lands in Net Company Income.
       </p>
+      }
     </div>
 
     <!-- Card 2: totals, averages and pass-throughs -->
@@ -340,6 +412,7 @@
       <ng-container *ngTemplateOutlet="compareTable; context: { rows: compareSummaryRows }"></ng-container>
     </div>
   </div>
+  }
 
   <!-- One table shape, used by both comparison cards. -->
   <ng-template #compareTable let-rows="rows">
@@ -349,51 +422,71 @@
           <tr>
             <th class="check-col"></th>
             <th class="metric-col"></th>
-            <th *ngFor="let r of compareResults">
+            @for (r of compareResults; track r) {
+            <th>
               <div class="col-label">{{ r.label }}</div>
-              <div class="col-range" *ngIf="r.rangeLabel">{{ r.rangeLabel }}</div>
+              @if (r.rangeLabel) {
+              <div class="col-range">{{ r.rangeLabel }}</div>
+              }
             </th>
+            }
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let row of rows"
+          @for (row of rows; track row) {
+          <tr
               [class.emphasize]="row.emphasize"
               [class.subtotal]="row.subtotal"
               [class.indented]="row.indent"
               [class.excluded]="!row.included">
             <td class="check-col">
+              @if (row.key) {
               <input type="checkbox"
-                     *ngIf="row.key"
                      [checked]="row.included"
                      (change)="toggleCompareRow(row)"
                      [attr.aria-label]="'Count ' + row.label + ' in the totals'" />
+              }
             </td>
             <td class="metric-col">{{ row.label }}</td>
-            <td *ngFor="let v of row.values; let i = index"
+            @for (v of row.values; track v; let i = $index) {
+            <td
                 [class.best]="isBest(row, i)"
                 [class.neg]="row.format !== 'count' && v < 0">
               <span class="cell-value">
-                <ng-container [ngSwitch]="row.format">
-                  <ng-container *ngSwitchCase="'money'">{{ v | currency:'USD' }}</ng-container>
-                  <ng-container *ngSwitchCase="'percent'">{{ v | number:'1.1-1' }}%</ng-container>
-                  <ng-container *ngSwitchDefault>{{ v | number }}</ng-container>
-                </ng-container>
+            @switch (row.format) {
+                  @case ('money') {
+                  {{ v | currency:'USD' }}
+                  }
+                  @case ('percent') {
+                  {{ v | number:'1.1-1' }}%
+                  }
+                  @default {
+                  {{ v | number }}
+                  }
+            }
               </span>
-              <span class="best-chip" *ngIf="isBest(row, i)">best</span>
-              <span class="cell-share" *ngIf="showPercents && row.sharePercents">
+              @if (isBest(row, i)) {
+              <span class="best-chip">best</span>
+              }
+              @if (showPercents && row.sharePercents) {
+              <span class="cell-share">
                 {{ row.sharePercents[i] | number:'1.1-1' }}%
               </span>
+              }
               <!-- Percentages are shares of the Net Revenue Baseline, which therefore always
                    reads 100% and Total Revenue reads 100% + the sales-tax rate. -->
             </td>
+            }
           </tr>
+          }
         </tbody>
       </table>
     </div>
   </ng-template>
 
   <!-- Compare periods modal -->
-  <div class="modal-overlay" *ngIf="showCompareModal" (click)="closeCompareModal()">
+  @if (showCompareModal) {
+  <div class="modal-overlay" (click)="closeCompareModal()">
     <div class="compare-modal" (click)="$event.stopPropagation()">
       <div class="modal-head">
         <h2>Compare periods</h2>
@@ -405,56 +498,76 @@
       </p>
 
       <div class="unit-tabs">
-        <button *ngFor="let u of compareUnits"
+        @for (u of compareUnits; track u) {
+        <button
                 [class.active]="compareUnit === u.key"
                 (click)="setCompareUnit(u.key)">{{ u.label }}</button>
+        }
       </div>
 
       <div class="quick-fill">
         <span class="quick-fill-label">Quick fill:</span>
-        <button *ngFor="let n of quickFillCounts" (click)="quickFill(n)">
+        @for (n of quickFillCounts; track n) {
+        <button (click)="quickFill(n)">
           Last {{ n }} {{ unitNoun }}s
         </button>
+        }
       </div>
 
       <div class="pick-list">
-        <div class="pick-row" *ngFor="let pick of comparePicks; let i = index">
+        @for (pick of comparePicks; track pick; let i = $index) {
+        <div class="pick-row">
           <span class="pick-num">{{ i + 1 }}</span>
 
-          <ng-container [ngSwitch]="compareUnit">
-            <input aria-label="Day" *ngSwitchCase="'day'" type="date" [(ngModel)]="pick.date" />
+        @switch (compareUnit) {
+            @case ('day') {
+            <input aria-label="Day" type="date" [(ngModel)]="pick.date" />
+            }
+            @case ('week') {
 
-            <ng-container *ngSwitchCase="'week'">
               <input aria-label="Week starting" type="date" [(ngModel)]="pick.date" />
-              <span class="pick-preview" *ngIf="pick.date">{{ weekPreview(pick.date) }}</span>
-            </ng-container>
+              @if (pick.date) {
+              <span class="pick-preview">{{ weekPreview(pick.date) }}</span>
+              }
+            }
+            @case ('month') {
 
-            <ng-container *ngSwitchCase="'month'">
               <select aria-label="Month" [(ngModel)]="pick.month">
-                <option *ngFor="let m of monthNames; let mi = index" [ngValue]="mi">{{ m }}</option>
+                @for (m of monthNames; track m; let mi = $index) {
+                <option [ngValue]="mi">{{ m }}</option>
+                }
               </select>
               <select aria-label="Year" [(ngModel)]="pick.year">
-                <option *ngFor="let y of yearOptions" [ngValue]="y">{{ y }}</option>
+                @for (y of yearOptions; track y) {
+                <option [ngValue]="y">{{ y }}</option>
+                }
               </select>
-            </ng-container>
-
-            <select aria-label="Year" *ngSwitchCase="'year'" [(ngModel)]="pick.year">
-              <option *ngFor="let y of yearOptions" [ngValue]="y">{{ y }}</option>
+            }
+            @case ('year') {
+            <select aria-label="Year" [(ngModel)]="pick.year">
+              @for (y of yearOptions; track y) {
+              <option [ngValue]="y">{{ y }}</option>
+              }
             </select>
-          </ng-container>
+            }
+        }
 
+          @if (comparePicks.length > 2) {
           <button class="remove-pick"
-                  *ngIf="comparePicks.length > 2"
                   (click)="removePick(i)"
                   aria-label="Remove this period">×</button>
+          }
         </div>
+        }
       </div>
 
       <button class="add-pick" (click)="addPick()">
         <i class="fas fa-plus"></i> Add another {{ unitNoun }}
       </button>
 
-      <div class="modal-error" *ngIf="compareError">{{ compareError }}</div>
+      @if (compareError) {
+      <div class="modal-error">{{ compareError }}</div>
+      }
 
       <div class="modal-footer">
         <span class="pick-count">{{ comparePicks.length }} {{ unitNoun }}{{ comparePicks.length === 1 ? '' : 's' }} selected</span>
@@ -466,4 +579,5 @@
       </div>
     </div>
   </div>
+  }
 </div>

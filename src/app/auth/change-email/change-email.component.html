@@ -1,7 +1,7 @@
 <div class="account-form-page">
 
   <!-- ═══ Step 1: ask for the new address ═══ -->
-  <ng-container *ngIf="currentStep === 'form'">
+  @if (currentStep === 'form') {
     <button type="button" class="account-form-back" (click)="goBack()">
       <i [appIcon]="icons.faArrowLeft" aria-hidden="true"></i> Back to My Account
     </button>
@@ -17,15 +17,19 @@
         <span aria-labelledby="current-email-label">{{ currentUser?.email }}</span>
       </div>
 
-      <div class="account-form-alert account-form-alert--success" *ngIf="successMessage" role="status">
+      @if (successMessage) {
+      <div class="account-form-alert account-form-alert--success" role="status">
         <i [appIcon]="icons.faPaperPlane" aria-hidden="true"></i>
         <span>{{ successMessage }}</span>
       </div>
+      }
 
-      <div class="account-form-alert account-form-alert--error" *ngIf="errorMessage" role="alert">
+      @if (errorMessage) {
+      <div class="account-form-alert account-form-alert--error" role="alert">
         <i [appIcon]="icons.faCircleExclamation" aria-hidden="true"></i>
         <span>{{ errorMessage }}</span>
       </div>
+      }
 
       <!-- autocomplete="off" is the whole autofill defence now. The old version made both fields
            `readonly` until clicked, which locked keyboard users out of the form entirely. -->
@@ -46,7 +50,9 @@
           />
           <!-- Names the actual mistake ("missing the @ symbol"), the same sentence the server
                would answer with. See utils/email.utils.ts. -->
-          <div class="error" *ngIf="newEmailInput.touched && emailProblem">{{ emailProblem }}</div>
+          @if (newEmailInput.touched && emailProblem) {
+          <div class="error">{{ emailProblem }}</div>
+          }
         </div>
 
         <div class="form-group">
@@ -64,13 +70,19 @@
             />
             <button type="button" class="password-toggle" (click)="showPassword = !showPassword"
                     [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'">
-              <svg *ngIf="!showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              <svg *ngIf="showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              @if (!showPassword) {
+              <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              }
+              @if (showPassword) {
+              <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              }
             </button>
           </div>
-          <div class="error" *ngIf="currentPasswordInput.invalid && currentPasswordInput.touched && !successMessage">
+          @if (currentPasswordInput.invalid && currentPasswordInput.touched && !successMessage) {
+          <div class="error">
             Enter your current password to confirm it's you
           </div>
+          }
         </div>
 
         <div class="account-form-actions">
@@ -93,57 +105,81 @@
         </ul>
       </div>
     </div>
-  </ng-container>
+  }
 
   <!-- ═══ Step 2: the mailed link landed here ═══ -->
-  <div class="account-form-card account-form-status" *ngIf="currentStep === 'verification'">
+  @if (currentStep === 'verification') {
+  <div class="account-form-card account-form-status">
     <div class="status-icon" [ngClass]="{'success': isSuccess, 'error': isError, 'loading': isVerifying}">
-      <svg *ngIf="isVerifying" class="spinner" viewBox="0 0 24 24" aria-hidden="true">
+      @if (isVerifying) {
+      <svg class="spinner" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"
                 stroke-linecap="round" stroke-dasharray="47 16"/>
       </svg>
+      }
 
-      <svg *ngIf="isSuccess" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      @if (isSuccess) {
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <polyline points="20,6 9,17 4,12"></polyline>
       </svg>
+      }
 
-      <svg *ngIf="isError" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+      @if (isError) {
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <circle cx="12" cy="12" r="10"></circle>
         <line x1="15" y1="9" x2="9" y2="15"></line>
         <line x1="9" y1="9" x2="15" y2="15"></line>
       </svg>
+      }
     </div>
 
-    <h1 *ngIf="isVerifying">Verifying your new address…</h1>
-    <h1 *ngIf="isSuccess">Email changed</h1>
-    <h1 *ngIf="isError">We couldn't verify that link</h1>
-
-    <p class="account-form-lede" *ngIf="isVerifying">This only takes a moment.</p>
-
-    <p class="account-form-lede" *ngIf="isSuccess">
+    @if (isVerifying) {
+    <h1>Verifying your new address…</h1>
+    }
+    @if (isSuccess) {
+    <h1>Email changed</h1>
+    }
+    @if (isError) {
+    <h1>We couldn't verify that link</h1>
+    }
+    @if (isVerifying) {
+    <p class="account-form-lede">This only takes a moment.</p>
+    }
+    @if (isSuccess) {
+    <p class="account-form-lede">
       Your new address is now on the account. For security you've been signed out — sign back in
       with the new address.
     </p>
+    }
+    @if (isError) {
 
-    <ng-container *ngIf="isError">
       <p class="account-form-lede">{{ verificationErrorMessage }}</p>
       <ul>
         <li>The link may have expired — they last 1 hour.</li>
         <li>It may already have been used.</li>
         <li>The address may have been taken by another account in the meantime.</li>
       </ul>
-    </ng-container>
+    }
 
-    <div class="account-form-actions" *ngIf="!isVerifying">
-      <button type="button" class="account-btn account-btn--primary" (click)="goToLogin()" *ngIf="isSuccess">
+    @if (!isVerifying) {
+    <div class="account-form-actions">
+      @if (isSuccess) {
+      <button type="button" class="account-btn account-btn--primary" (click)="goToLogin()">
         Sign in with the new address
       </button>
-      <button type="button" class="account-btn account-btn--primary" (click)="resetForm()" *ngIf="isError">
+      }
+      @if (isError) {
+      <button type="button" class="account-btn account-btn--primary" (click)="resetForm()">
         Try again
       </button>
-      <button type="button" class="account-btn account-btn--secondary" (click)="goBack()" *ngIf="isError">
+      }
+      @if (isError) {
+      <button type="button" class="account-btn account-btn--secondary" (click)="goBack()">
         Back to My Account
       </button>
+      }
     </div>
+    }
   </div>
+  }
 </div>

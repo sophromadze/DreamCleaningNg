@@ -1,5 +1,4 @@
 import { Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
 import { MarketingPricingService } from '../shared/pricing/marketing-pricing.service';
@@ -19,7 +18,7 @@ const TEAM_PHOTO_SIZES =
 @Component({
   selector: 'app-about',
   standalone: true,
-  imports: [CommonModule, BubbleFieldComponent],
+  imports: [BubbleFieldComponent],
   templateUrl: './about.component.html',
   styleUrl: './about.component.scss'
 })

@@ -1,11 +1,16 @@
-<div class="invoice-detail-page" *ngIf="!loading; else loadingTpl">
+@if (!loading) {
+<div class="invoice-detail-page">
 
   <a class="back-link" routerLink="/admin/commercial/invoices">← Invoices</a>
 
-  <div class="alert alert-error" *ngIf="error">{{ error }}</div>
-  <div class="alert alert-success" *ngIf="notice">{{ notice }}</div>
+  @if (error) {
+  <div class="alert alert-error">{{ error }}</div>
+  }
+  @if (notice) {
+  <div class="alert alert-success">{{ notice }}</div>
+  }
+  @if (invoice; as inv) {
 
-  <ng-container *ngIf="invoice as inv">
 
     <!-- Header -->
     <div class="detail-head">
@@ -16,65 +21,89 @@
       <div class="client-name">{{ inv.clientName }}</div>
     </div>
 
-    <div class="alert alert-warning" *ngIf="isVoid">
+    @if (isVoid) {
+    <div class="alert alert-warning">
       <strong>This invoice is void.</strong>
       {{ inv.voidReason }}
-      <span *ngIf="inv.voidedAt">— voided {{ inv.voidedAt | date:'MMM d, y' }}.</span>
+      @if (inv.voidedAt) {
+      <span>— voided {{ inv.voidedAt | date:'MMM d, y' }}.</span>
+      }
       Its number stays permanently reserved and is never reused.
     </div>
+    }
 
     <!-- POSSIBLE DUPLICATE PAYMENT. A Stripe settlement AND a manual payment, with more received
          than was billed — almost always an invoice marked paid by hand while an ACH debit was
          still settling. Nothing is auto-corrected: both are real money that arrived, and only a
          person can decide which half to refund. Flagged loudly because the customer notices a
          duplicate debit long before a month-end reconciliation does. -->
-    <div class="alert alert-danger" *ngIf="inv.potentialDuplicatePayment">
+    @if (inv.potentialDuplicatePayment) {
+    <div class="alert alert-danger">
       <strong>Possible duplicate payment.</strong>
       This invoice has both a Stripe payment and a manually recorded one, and is overpaid by
       {{ inv.overpayment | currency:'USD' }}. Review the payment history below and refund whichever
       is the duplicate — reverse a payment rather than editing or deleting it, so the trail shows
       both the mistake and the correction.
     </div>
+    }
 
-    <section class="card" *ngIf="inv.cleaningsCovered?.length">
+    @if (inv.cleaningsCovered?.length) {
+    <section class="card">
       <h3>Cleanings Covered</h3>
-      <div *ngFor="let cleaning of inv.cleaningsCovered">
+      @for (cleaning of inv.cleaningsCovered; track cleaning) {
+      <div>
         <strong>{{ cleaning.serviceDate | date:'MMM d, y' }} · Order #{{ cleaning.orderId }}</strong>
         <p>{{ cleaning.serviceAddress }}</p>
         <p>Allocated amount: {{ cleaning.allocatedAmount | currency:'USD' }} · {{ cleaning.orderStatus }}</p>
       </div>
+      }
     </section>
+    }
 
     <!-- Actions. Every button is gated on a server capability flag, not a local status test. -->
     <div class="action-bar">
-      <button type="button" class="btn-ghost" *ngIf="inv.canEdit" (click)="edit()">Edit</button>
+      @if (inv.canEdit) {
+      <button type="button" class="btn-ghost" (click)="edit()">Edit</button>
+      }
 
-      <button type="button" class="btn-primary" *ngIf="inv.canSend" (click)="openSend()">
+      @if (inv.canSend) {
+      <button type="button" class="btn-primary" (click)="openSend()">
         {{ inv.firstSentAt ? 'Resend invoice' : 'Send invoice' }}
       </button>
+      }
 
       <button type="button" class="btn-ghost" (click)="downloadPdf()">Download PDF</button>
 
+      @if (inv.canRecordPayment && inv.balanceDue > 0) {
       <button type="button" class="btn-secondary"
-              *ngIf="inv.canRecordPayment && inv.balanceDue > 0" (click)="openPayment(false)">
+              (click)="openPayment(false)">
         Record payment
       </button>
+      }
 
+      @if (inv.canRecordPayment && inv.balanceDue > 0) {
       <button type="button" class="btn-secondary"
-              *ngIf="inv.canRecordPayment && inv.balanceDue > 0" (click)="openPayment(true)">
+              (click)="openPayment(true)">
         Mark as paid
       </button>
+      }
 
-      <button type="button" class="btn-ghost" *ngIf="inv.canSendReminder" (click)="openReminder()">
+      @if (inv.canSendReminder) {
+      <button type="button" class="btn-ghost" (click)="openReminder()">
         Send reminder
       </button>
+      }
 
-      <button type="button" class="btn-ghost" *ngIf="isPaid" (click)="sendReceipt()" [disabled]="busy">
+      @if (isPaid) {
+      <button type="button" class="btn-ghost" (click)="sendReceipt()" [disabled]="busy">
         Send receipt
       </button>
+      }
 
-      <button type="button" class="btn-ghost" *ngIf="inv.status !== InvoiceStatus.Draft"
+      @if (inv.status !== InvoiceStatus.Draft) {
+      <button type="button" class="btn-ghost"
               (click)="copyLink()">Copy invoice link</button>
+      }
 
       <button type="button" class="btn-ghost" (click)="duplicate()" [disabled]="busy">Duplicate</button>
 
@@ -83,12 +112,15 @@
            invoices — permanently reserving a number for something that never existed. The old
            "Delete draft" button is gone with it: a draft is simply the case where Full delete has
            nothing to refuse. -->
+      @if (inv.canVoid || inv.canDelete || canHardDelete) {
       <button type="button" class="btn-danger"
-              *ngIf="inv.canVoid || inv.canDelete || canHardDelete"
               (click)="openDispose()" [disabled]="busy">Void, archive or delete</button>
+      }
 
-      <button type="button" class="btn-ghost" *ngIf="inv.isArchived"
+      @if (inv.isArchived) {
+      <button type="button" class="btn-ghost"
               (click)="unarchiveInvoice()" [disabled]="busy">Unarchive</button>
+      }
     </div>
 
     <div class="detail-grid">
@@ -102,15 +134,21 @@
           <span class="total-value">
             {{ (inv.balanceDue > 0 ? inv.balanceDue : inv.total) | currency:'USD' }}
           </span>
-          <span class="total-sub" *ngIf="inv.balanceDue > 0">
+          @if (inv.balanceDue > 0) {
+          <span class="total-sub">
             Due {{ inv.dueDate | date:'MMM d, y' }}
           </span>
-          <span class="total-sub paid-note" *ngIf="isPaid && inv.paidAt">
+          }
+          @if (isPaid && inv.paidAt) {
+          <span class="total-sub paid-note">
             Paid in full on {{ inv.paidAt | date:'MMMM d, y' }}
           </span>
-          <span class="total-sub warn" *ngIf="inv.overpayment > 0">
+          }
+          @if (inv.overpayment > 0) {
+          <span class="total-sub warn">
             Overpaid by {{ inv.overpayment | currency:'USD' }}
           </span>
+          }
         </section>
 
         <!-- Facts -->
@@ -119,26 +157,36 @@
           <div class="fact-grid">
             <div><span class="label">Invoice date</span><span>{{ inv.invoiceDate | date:'MMM d, y' }}</span></div>
             <div><span class="label">Due date</span><span>{{ inv.dueDate | date:'MMM d, y' }}</span></div>
-            <div *ngIf="servicePeriod">
+            @if (servicePeriod) {
+            <div>
               <span class="label">{{ serviceDateLabel }}</span><span>{{ servicePeriod }}</span>
             </div>
+            }
             <div>
               <span class="label">Contract</span>
               <span>
-                <a *ngIf="inv.contractId" [routerLink]="['/admin/commercial/contracts', inv.contractId]">
+                @if (inv.contractId) {
+                <a [routerLink]="['/admin/commercial/contracts', inv.contractId]">
                   {{ inv.contractNumber }}
                 </a>
-                <span *ngIf="!inv.contractId">—</span>
+                }
+                @if (!inv.contractId) {
+                <span>—</span>
+                }
               </span>
             </div>
             <div><span class="label">Service location</span><span>{{ inv.serviceAddress || '—' }}</span></div>
             <div><span class="label">Billing contact</span><span>{{ inv.billingContactName || '—' }}</span></div>
             <div><span class="label">Email</span><span>{{ inv.billingEmail || 'None on file' }}</span></div>
             <div><span class="label">Billing address</span><span>{{ inv.billingAddress || '—' }}</span></div>
-            <div *ngIf="inv.poNumber"><span class="label">PO number</span><span>{{ inv.poNumber }}</span></div>
-            <div *ngIf="inv.clientReference">
+            @if (inv.poNumber) {
+            <div><span class="label">PO number</span><span>{{ inv.poNumber }}</span></div>
+            }
+            @if (inv.clientReference) {
+            <div>
               <span class="label">Client reference</span><span>{{ inv.clientReference }}</span>
             </div>
+            }
           </div>
         </section>
 
@@ -156,33 +204,45 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let item of inv.items">
+                @for (item of inv.items; track item) {
+                <tr>
                   <td>{{ item.description }}</td>
                   <td class="align-right">{{ item.quantity }}</td>
                   <td class="align-right">{{ item.unitPrice | currency:'USD' }}</td>
                   <td class="align-right">{{ item.amount | currency:'USD' }}</td>
                 </tr>
+                }
               </tbody>
             </table>
           </div>
 
           <div class="totals">
             <div class="totals-row"><span>Subtotal</span><span>{{ inv.subTotal | currency:'USD' }}</span></div>
-            <div class="totals-row" *ngIf="inv.discountAmount > 0">
+            @if (inv.discountAmount > 0) {
+            <div class="totals-row">
               <span>Discount</span><span>−{{ inv.discountAmount | currency:'USD' }}</span>
             </div>
+            }
             <!-- THE REAL TAX AMOUNT, ALWAYS. This used to print the bare word "Included" on a
                  tax-inclusive invoice, which stated the tax nowhere at all — unreconcilable
                  against a sales-tax return, and it made the subtotal above look wrong too. The
                  "(included)" note keeps the one thing that wording got right: the figure is
                  already inside the total, not added to it. -->
             <div class="totals-row">
-              <span>Sales tax<span *ngIf="inv.taxRate"> ({{ inv.taxRate }}%)</span></span>
-              <span *ngIf="inv.taxType === InvoiceTaxType.Exempt">Exempt</span>
-              <span *ngIf="inv.taxType === InvoiceTaxType.Included">
+              <span>Sales tax@if (inv.taxRate) {
+              <span> ({{ inv.taxRate }}%)</span>
+              }</span>
+              @if (inv.taxType === InvoiceTaxType.Exempt) {
+              <span>Exempt</span>
+              }
+              @if (inv.taxType === InvoiceTaxType.Included) {
+              <span>
                 {{ inv.taxAmount | currency:'USD' }} <small class="muted">(included)</small>
               </span>
-              <span *ngIf="inv.taxType === InvoiceTaxType.Added">{{ inv.taxAmount | currency:'USD' }}</span>
+              }
+              @if (inv.taxType === InvoiceTaxType.Added) {
+              <span>{{ inv.taxAmount | currency:'USD' }}</span>
+              }
             </div>
             <div class="totals-row total"><span>Total</span><span>{{ inv.total | currency:'USD' }}</span></div>
             <div class="totals-row"><span>Amount paid</span><span>{{ inv.amountPaid | currency:'USD' }}</span></div>
@@ -197,16 +257,20 @@
           The banner matters most: an admin about to chase an invoice needs to know the money is
           already on its way.
         -->
-        <section class="card" *ngIf="inv.paymentAttempts.length">
+        @if (inv.paymentAttempts.length) {
+        <section class="card">
           <h3>Online Payment</h3>
 
-          <div class="processing-banner" *ngIf="inv.hasPaymentInProgress">
+          @if (inv.hasPaymentInProgress) {
+          <div class="processing-banner">
             <strong>ACH payment processing.</strong>
             The customer has authorized a bank payment and Stripe is settling it. This takes
             several business days — no reminder will be sent while it is in flight.
           </div>
+          }
 
-          <div class="attempt" *ngFor="let a of inv.paymentAttempts">
+          @for (a of inv.paymentAttempts; track a) {
+          <div class="attempt">
             <div class="attempt-head">
               <span class="attempt-method">{{ a.paymentMethodLabel }}</span>
               <span class="attempt-status" [ngClass]="attemptStatusClass(a)">{{ a.statusLabel }}</span>
@@ -215,34 +279,45 @@
 
             <div class="attempt-meta">
               Started {{ a.createdAt | date:'MMM d, y, h:mm a' }}
-              <ng-container *ngIf="a.completedAt">
+              @if (a.completedAt) {
                 · finished {{ a.completedAt | date:'MMM d, y, h:mm a' }}
-              </ng-container>
+              }
             </div>
 
             <!-- Bank/card name and last four only — all Stripe exposes, all anyone needs. -->
-            <div class="attempt-meta" *ngIf="a.paymentSourceLabel">
+            @if (a.paymentSourceLabel) {
+            <div class="attempt-meta">
               Paid from {{ a.paymentSourceLabel }}
             </div>
+            }
 
             <!-- Stripe's own failure text, admin-facing only; the customer sees fixed wording. -->
-            <div class="attempt-failure" *ngIf="a.failureMessage">
+            @if (a.failureMessage) {
+            <div class="attempt-failure">
               {{ a.failureCode ? a.failureCode + ': ' : '' }}{{ a.failureMessage }}
             </div>
+            }
 
-            <div class="attempt-meta mono" *ngIf="a.stripePaymentIntentId">
+            @if (a.stripePaymentIntentId) {
+            <div class="attempt-meta mono">
               {{ a.stripePaymentIntentId }}
             </div>
+            }
           </div>
+          }
         </section>
+        }
 
         <!-- Payments -->
         <section class="card">
           <h3>Payment History</h3>
 
-          <p class="empty" *ngIf="!inv.payments.length">No payments recorded yet.</p>
+          @if (!inv.payments.length) {
+          <p class="empty">No payments recorded yet.</p>
+          }
 
-          <div class="table-wrap" *ngIf="inv.payments.length">
+          @if (inv.payments.length) {
+          <div class="table-wrap">
             <table class="line-table">
               <thead>
                 <tr>
@@ -251,48 +326,63 @@
                 </tr>
               </thead>
               <tbody>
-                <tr *ngFor="let p of inv.payments" [class.reversal]="p.isReversal">
+                @for (p of inv.payments; track p) {
+                <tr [class.reversal]="p.isReversal">
                   <td>{{ p.paymentDate | date:'MMM d, y' }}</td>
                   <td>{{ p.paymentMethodLabel }}</td>
                   <!-- MANUAL OR STRIPE, SAID PLAINLY. A bank transfer an admin read off a statement
                        must never look like it came through the processor: only one of the two can
                        be looked up in Stripe, and reconciliation depends on knowing which. -->
                   <td class="muted">
-                    {{ p.providerLabel }}<span *ngIf="p.recordedByName"> · {{ p.recordedByName }}</span>
+                    {{ p.providerLabel }}@if (p.recordedByName) {
+                    <span> · {{ p.recordedByName }}</span>
+                    }
                   </td>
                   <td class="muted">{{ p.transactionReference || '—' }}</td>
                   <td class="align-right">
                     {{ p.amount | currency:'USD' }}
                     <!-- The ACH fee sits BESIDE the amount, never inside it: the invoice was met by
                          the amount, and the fee is what the payment method cost the customer. -->
-                    <small class="muted block" *ngIf="p.processingFee > 0">
+                    @if (p.processingFee > 0) {
+                    <small class="muted block">
                       + {{ p.processingFee | currency:'USD' }} ACH fee
                       ({{ p.totalCharged | currency:'USD' }} debited)
                     </small>
+                    }
                   </td>
                   <td class="align-right">
                     <!-- No edit and no delete: a correction is its own auditable entry. -->
+                    @if (!p.isReversal && !isVoid) {
                     <button type="button" class="link-button"
-                            *ngIf="!p.isReversal && !isVoid" (click)="openReverse(p)">Reverse</button>
+                            (click)="openReverse(p)">Reverse</button>
+                    }
                   </td>
                 </tr>
+                }
               </tbody>
             </table>
           </div>
+          }
         </section>
 
         <!-- Notes -->
-        <section class="card" *ngIf="inv.customerNote || inv.internalNote">
+        @if (inv.customerNote || inv.internalNote) {
+        <section class="card">
           <h3>Notes</h3>
-          <div class="note-block" *ngIf="inv.customerNote">
+          @if (inv.customerNote) {
+          <div class="note-block">
             <span class="label">Customer note — shown on the invoice</span>
             <p>{{ inv.customerNote }}</p>
           </div>
-          <div class="note-block internal" *ngIf="inv.internalNote">
+          }
+          @if (inv.internalNote) {
+          <div class="note-block internal">
             <span class="label">Internal note — never sent to the client</span>
             <p>{{ inv.internalNote }}</p>
           </div>
+          }
         </section>
+        }
       </div>
 
       <!-- ── Right column ────────────────────────────────────────────────────────────── -->
@@ -303,53 +393,70 @@
           <div class="fact-list">
             <div><span class="label">First sent</span>
               <span>{{ inv.firstSentAt ? (inv.firstSentAt | date:'MMM d, y, h:mm a') : 'Not sent' }}</span></div>
-            <div *ngIf="inv.lastSentAt"><span class="label">Last sent</span>
+            @if (inv.lastSentAt) {
+            <div><span class="label">Last sent</span>
               <span>{{ inv.lastSentAt | date:'MMM d, y, h:mm a' }}</span></div>
+            }
             <div><span class="label">First viewed</span>
               <span>{{ inv.firstViewedAt ? (inv.firstViewedAt | date:'MMM d, y, h:mm a') : 'Not opened yet' }}</span></div>
-            <div *ngIf="inv.viewCount"><span class="label">Times opened</span>
+            @if (inv.viewCount) {
+            <div><span class="label">Times opened</span>
               <span>{{ inv.viewCount }}</span></div>
+            }
           </div>
         </section>
 
         <section class="card">
           <h3>Email History</h3>
-          <p class="empty" *ngIf="!inv.emailHistory.length">No emails sent yet.</p>
+          @if (!inv.emailHistory.length) {
+          <p class="empty">No emails sent yet.</p>
+          }
           <ul class="event-list">
-            <li *ngFor="let e of inv.emailHistory" [class.failed]="isFailed(e)">
+            @for (e of inv.emailHistory; track e) {
+            <li [class.failed]="isFailed(e)">
               <span class="event-title">
                 {{ e.emailTypeLabel }}
-                <em *ngIf="isFailed(e)">failed</em>
+                @if (isFailed(e)) {
+                <em>failed</em>
+                }
               </span>
               <span class="event-meta">{{ e.sentAt | date:'MMM d, y, h:mm a' }} · to {{ e.recipient }}</span>
-              <span class="event-error" *ngIf="e.failureReason">{{ e.failureReason }}</span>
+              @if (e.failureReason) {
+              <span class="event-error">{{ e.failureReason }}</span>
+              }
             </li>
+            }
           </ul>
         </section>
 
         <section class="card">
           <h3>Activity</h3>
           <ul class="event-list">
-            <li *ngFor="let a of inv.activity">
+            @for (a of inv.activity; track a) {
+            <li>
               <span class="event-title">{{ a.description }}</span>
               <span class="event-meta">
                 {{ a.createdAt | date:'MMM d, y, h:mm a' }}
-                <ng-container *ngIf="a.actorName"> · {{ a.actorName }}</ng-container>
+                @if (a.actorName) {
+ · {{ a.actorName }}
+                }
               </span>
             </li>
+            }
           </ul>
         </section>
       </aside>
     </div>
-  </ng-container>
+  }
 
   <!-- ── Modals ──────────────────────────────────────────────────────────────────────── -->
 
-  <div class="modal-backdrop" *ngIf="modal !== 'none'" (click)="closeModal()">
+  @if (modal !== 'none') {
+  <div class="modal-backdrop" (click)="closeModal()">
     <div class="modal" (click)="$event.stopPropagation()">
 
       <!-- Record payment -->
-      <ng-container *ngIf="modal === 'payment'">
+      @if (modal === 'payment') {
         <h3>{{ markingAsPaid ? 'Mark as Paid' : 'Record Payment' }}</h3>
         <p class="modal-hint">
           Records money that arrived OUTSIDE Stripe — a bank transfer, a cheque, cash. Record it
@@ -361,12 +468,15 @@
              authorized a debit days ago and nothing has settled, so the invoice legitimately still
              reads unpaid — and an admin tidying it up here is how the same money gets counted
              twice. Refused until they say they know. -->
-        <div class="alert alert-warning" *ngIf="processingPaymentWarning">
+        @if (processingPaymentWarning) {
+        <div class="alert alert-warning">
           <strong>A bank payment is already being processed.</strong>
-          <span *ngIf="processingAttempt">
+          @if (processingAttempt) {
+          <span>
             {{ processingAttempt.amount | currency:'USD' }} was authorized on
             {{ processingAttempt.createdAt | date:'MMM d, y' }} and is still settling.
           </span>
+          }
           ACH takes several business days, so the money may already be on its way. If it succeeds
           after you record this, the invoice will be flagged as a possible duplicate payment.
           <label class="checkbox">
@@ -374,13 +484,16 @@
             <span>I understand — record a separate payment anyway</span>
           </label>
         </div>
+        }
 
         <div class="field">
           <label for="payAmount">Amount received *</label>
           <input id="payAmount" type="number" [(ngModel)]="payAmount" min="0.01" step="0.01">
-          <span class="hint" *ngIf="invoice">
+          @if (invoice) {
+          <span class="hint">
             Balance due is {{ invoice.balanceDue | currency:'USD' }}.
           </span>
+          }
         </div>
 
         <div class="field">
@@ -391,7 +504,9 @@
         <div class="field">
           <label for="payMethod">Payment method *</label>
           <select id="payMethod" [(ngModel)]="payMethod">
-            <option *ngFor="let m of paymentMethods" [ngValue]="m.value">{{ m.label }}</option>
+            @for (m of paymentMethods; track m) {
+            <option [ngValue]="m.value">{{ m.label }}</option>
+            }
           </select>
         </div>
 
@@ -406,13 +521,15 @@
         </div>
 
         <!-- An overpayment is surfaced and must be acknowledged, never silently banked. -->
-        <div class="alert alert-warning" *ngIf="overpaymentBlocked">
+        @if (overpaymentBlocked) {
+        <div class="alert alert-warning">
           That is more than the balance outstanding.
           <label class="checkbox">
             <input type="checkbox" [(ngModel)]="payAllowOverpayment">
             <span>Yes, the client overpaid — record it anyway</span>
           </label>
         </div>
+        }
 
         <div class="modal-actions">
           <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
@@ -421,10 +538,10 @@
             {{ busy ? 'Saving…' : (markingAsPaid ? 'Mark as paid' : 'Record payment') }}
           </button>
         </div>
-      </ng-container>
+      }
 
       <!-- Reverse payment -->
-      <ng-container *ngIf="modal === 'reverse'">
+      @if (modal === 'reverse') {
         <h3>Reverse Payment</h3>
         <p class="modal-hint">
           The original payment is kept exactly as it is and a reversing entry is added, so the
@@ -444,10 +561,10 @@
             {{ busy ? 'Saving…' : 'Reverse payment' }}
           </button>
         </div>
-      </ng-container>
+      }
 
       <!-- Send / resend -->
-      <ng-container *ngIf="modal === 'send'">
+      @if (modal === 'send') {
         <h3>{{ invoice?.firstSentAt ? 'Resend Invoice' : 'Send Invoice' }}</h3>
 
         <div class="field">
@@ -473,10 +590,10 @@
             {{ busy ? 'Sending…' : 'Send invoice' }}
           </button>
         </div>
-      </ng-container>
+      }
 
       <!-- Reminder -->
-      <ng-container *ngIf="modal === 'reminder'">
+      @if (modal === 'reminder') {
         <h3>Send Payment Reminder</h3>
 
         <div class="field">
@@ -495,17 +612,18 @@
             {{ busy ? 'Sending…' : 'Send reminder' }}
           </button>
         </div>
-      </ng-container>
+      }
 
       <!-- CHOOSE WHAT TO DO WITH THIS INVOICE. Three outcomes, visually distinct, with the
            destructive one last and hardest to reach. -->
-      <ng-container *ngIf="modal === 'dispose'">
+      @if (modal === 'dispose') {
         <h3>Choose what to do with this invoice</h3>
         <p class="modal-sub">{{ invoice?.invoiceNumber }} — {{ invoice?.clientName }}</p>
 
         <!-- A: Void. Unchanged in meaning and behaviour; still the right answer for a real
              invoice that should not be collected. -->
-        <div class="choice" *ngIf="invoice?.canVoid">
+        @if (invoice?.canVoid) {
+        <div class="choice">
           <div class="choice-head"><strong>Void</strong><span class="choice-tag">Financial record</span></div>
           <p>
             Cancels the invoice and keeps it. Its number stays permanently reserved, the payment
@@ -515,9 +633,11 @@
             Void invoice…
           </button>
         </div>
+        }
 
         <!-- B: Archive. The safe filing action; states nothing about the money. -->
-        <div class="choice" *ngIf="!invoice?.isArchived">
+        @if (!invoice?.isArchived) {
+        <div class="choice">
           <div class="choice-head">
             <strong>Archive</strong><span class="choice-tag safe">Recommended</span>
           </div>
@@ -530,6 +650,7 @@
             Archive invoice
           </button>
         </div>
+        }
 
         <!-- C: Full delete. Offered only when the server says there is no financial activity;
              otherwise the reason replaces it, because a disabled button with no explanation sends
@@ -539,7 +660,7 @@
             <strong>Full delete</strong><span class="choice-tag destructive">Permanent</span>
           </div>
 
-          <ng-container *ngIf="canHardDelete; else invoiceHardDeleteBlocked">
+          @if (canHardDelete) {
             <p>
               Permanently destroys this invoice and its line items, activity, emails and reminders.
               For a test or mistaken invoice only. <strong>This cannot be undone.</strong>
@@ -555,19 +676,18 @@
                     [disabled]="busy || !hardDeleteConfirmed">
               Permanently delete
             </button>
-          </ng-container>
+          } @else {
 
-          <ng-template #invoiceHardDeleteBlocked>
             <p class="blocked-reason">{{ hardDeleteBlockedReason }}</p>
-          </ng-template>
+          }
         </div>
 
         <div class="modal-actions">
           <button type="button" class="btn-ghost" (click)="closeModal()">Cancel</button>
         </div>
-      </ng-container>
+      }
       <!-- Void -->
-      <ng-container *ngIf="modal === 'void'">
+      @if (modal === 'void') {
         <h3>Void Invoice</h3>
         <p class="modal-hint">
           The invoice is kept and its number stays permanently reserved — an issued invoice is
@@ -587,11 +707,12 @@
             {{ busy ? 'Voiding…' : 'Void invoice' }}
           </button>
         </div>
-      </ng-container>
+      }
     </div>
   </div>
+  }
 </div>
+} @else {
 
-<ng-template #loadingTpl>
   <div class="loading-note">Loading invoice…</div>
-</ng-template>
+}

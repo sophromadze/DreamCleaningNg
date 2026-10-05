@@ -3,16 +3,17 @@
     Floor Type <span class="optional-tag">(optional)</span>
   </label>
   <div class="floor-type-chips">
+    @for (option of floorTypeOptions; track option) {
     <span
-      *ngFor="let option of floorTypeOptions"
       class="floor-type-chip"
       [class.selected]="isFloorTypeSelected(option.value)"
       (click)="toggleFloorType(option.value)">
       {{ option.label }}
     </span>
+    }
   </div>
   <div class="floor-type-other-wrapper" [class.visible]="showOtherInput()">
-    <ng-container *ngIf="showOtherInput()">
+    @if (showOtherInput()) {
       <input
         type="text"
         class="floor-type-other-input"
@@ -28,6 +29,6 @@
         aria-live="polite">
         {{ otherLength }}/{{ maxOtherLength }} characters
       </div>
-    </ng-container>
+    }
   </div>
 </div>

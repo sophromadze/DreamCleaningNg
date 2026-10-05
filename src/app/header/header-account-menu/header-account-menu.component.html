@@ -1,4 +1,4 @@
-<ng-container *ngIf="header.shouldShowLogin(); else userMenu">
+@if (header.shouldShowLogin()) {
   <div class="guest-auth-actions">
     <div class="guest-auth-menu" (click)="header.toggleLoginMenu($event)">
       <div class="login-avatar">
@@ -9,7 +9,8 @@
           </g>
         </svg>
       </div>
-      <div class="dropdown-menu" *ngIf="header.isLoginMenuOpen" (click)="$event.stopPropagation()">
+      @if (header.isLoginMenuOpen) {
+      <div class="dropdown-menu" (click)="$event.stopPropagation()">
         <div class="guest-menu-header">
           <span>Theme</span>
           <button type="button"
@@ -30,23 +31,32 @@
         <a (click)="header.openLoginModal($event); header.closeLoginMenu()">Log In</a>
         <a (click)="header.openRegisterModal($event); header.closeLoginMenu()">Sign Up</a>
       </div>
+      }
     </div>
   </div>
-</ng-container>
-<ng-template #userMenu>
-  <div class="user-menu" (click)="header.toggleUserMenu($event)" *ngIf="header.shouldShowUserMenu()">
+} @else {
+  @if (header.shouldShowUserMenu()) {
+  <div class="user-menu" (click)="header.toggleUserMenu($event)">
   <div class="user-avatar">
-    <img *ngIf="header.currentUser?.profilePictureUrl" 
+    @if (header.currentUser?.profilePictureUrl) {
+    <img 
          [src]="header.currentUser.profilePictureUrl" 
          [alt]="header.currentUser.firstName + ' ' + header.currentUser.lastName"
          class="user-avatar-img">
-    <span *ngIf="!header.currentUser?.profilePictureUrl" class="user-initials">
+    }
+    @if (!header.currentUser?.profilePictureUrl) {
+    <span class="user-initials">
       {{ header.userInitials }}
     </span>
+    }
     <!-- Unpaid orders notification indicator -->
-    <span class="unpaid-orders-indicator" *ngIf="header.hasUnpaidOrders"></span>
+    @if (header.hasUnpaidOrders) {
+    <span class="unpaid-orders-indicator"></span>
+    }
     <!-- New order indicator for admins -->
-    <span class="new-order-indicator" *ngIf="header.hasUnviewedNewOrders && header.isAdminOrSuperAdmin"></span>
+    @if (header.hasUnviewedNewOrders && header.isAdminOrSuperAdmin) {
+    <span class="new-order-indicator"></span>
+    }
     <!--
       RETIRED (2026-09) along with the Tasks menu entry below: Tasks is not in use for
       now. The avatar dots went with the link rather than after it - a notification dot
@@ -66,7 +76,8 @@
       </g>
     </svg>
   </div>
-  <div class="dropdown-menu" *ngIf="header.isUserMenuOpen" (click)="$event.stopPropagation()">
+  @if (header.isUserMenuOpen) {
+  <div class="dropdown-menu" (click)="$event.stopPropagation()">
     <div class="user-info">
       <div class="user-info__name">
         {{ header.currentUser?.firstName }}
@@ -92,81 +103,111 @@
     </div>
     <!-- Cleaner accounts have no customer side: no profile to edit, no orders of
          their own and no rewards balance. Their one destination is the portal. -->
+    @if (header.isCleanerAccount) {
     <a routerLink="/cleaner-portal"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
-       *ngIf="header.isCleanerAccount">
+      >
       My Jobs
     </a>
-    <a routerLink="/profile" (click)="header.closeAllMenus(); $event.stopPropagation()" *ngIf="!header.isCleanerAccount">Profile</a>
-    <a routerLink="/profile" (click)="header.closeAllMenus(); $event.stopPropagation()" class="orders-menu-item" *ngIf="!header.isCleanerAccount">
+    }
+    @if (!header.isCleanerAccount) {
+    <a routerLink="/profile" (click)="header.closeAllMenus(); $event.stopPropagation()">Profile</a>
+    }
+    @if (!header.isCleanerAccount) {
+    <a routerLink="/profile" (click)="header.closeAllMenus(); $event.stopPropagation()" class="orders-menu-item">
       My Orders
-      <span class="unpaid-orders-menu-indicator" *ngIf="header.hasUnpaidOrders"></span>
+      @if (header.hasUnpaidOrders) {
+      <span class="unpaid-orders-menu-indicator"></span>
+      }
     </a>
-    <a routerLink="/rewards" (click)="header.closeAllMenus(); $event.stopPropagation()" *ngIf="!header.isCleanerAccount">My Rewards</a>
+    }
+    @if (!header.isCleanerAccount) {
+    <a routerLink="/rewards" (click)="header.closeAllMenus(); $event.stopPropagation()">My Rewards</a>
+    }
     <!-- Business customers only, and only once they actually have a contract. Driven
          by one cheap boolean endpoint that applies both halves of that rule, so a
          residential customer and a business with nothing on file both see nothing. -->
+    @if (!header.isCleanerAccount && header.hasContracts) {
     <a routerLink="/profile/contracts"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
-       *ngIf="!header.isCleanerAccount && header.hasContracts">
+      >
       My Contracts
     </a>
+    }
     <!-- Its own boolean, not a reuse of hasContracts: commercial work is routinely
          invoiced without a signed agreement, and an agreement may have nothing billed
          against it yet. Each entry appears on its own evidence. -->
+    @if (!header.isCleanerAccount && header.hasInvoices) {
     <a routerLink="/profile/invoices"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
-       *ngIf="!header.isCleanerAccount && header.hasInvoices">
+      >
       My Invoices
     </a>
+    }
+    @if (header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin' || header.currentUser?.role === 'Moderator') {
     <a routerLink="/admin"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
-       *ngIf="header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin' || header.currentUser?.role === 'Moderator'"
        class="admin-panel-menu-item">
       Admin Panel
-      <span class="new-order-menu-indicator" *ngIf="header.hasUnviewedNewOrders"></span>
+      @if (header.hasUnviewedNewOrders) {
+      <span class="new-order-menu-indicator"></span>
+      }
     </a>
+    }
+    @if (header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin' || header.currentUser?.role === 'Moderator') {
     <a routerLink="/admin/crm"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
-       *ngIf="header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin' || header.currentUser?.role === 'Moderator'">
+      >
       CRM
     </a>
+    }
     <!-- Contracts became its own top-level section (2026-09), then joined Invoices
          and Clients under Commercial. Role-gated the same way as CRM here; the
          Contracts permission matrix and the invoicing role checks are both enforced
          server-side on every action inside it. -->
+    @if (header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin') {
     <a routerLink="/admin/commercial"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
-       *ngIf="header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin'">
+      >
       Commercial
     </a>
+    }
     <!-- Company shell (Statistics/Expenses/Finances/Ads) — single entry, shown only when
          the user can see at least one tab. Replaces the old separate Stats/Expenses/
          Finances links (those routes still exist as redirects for old bookmarks). -->
+    @if (header.canViewCompany()) {
     <a routerLink="/admin/company"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
-       *ngIf="header.canViewCompany()">
+      >
       Company
     </a>
+    }
     <!-- SuperAdmin only: cleaner wages and the record of paying them. Gated on the
          role here and by superAdminGuard on the route. -->
+    @if (header.currentUser?.role === 'SuperAdmin') {
     <a routerLink="/admin/outgoing-payments"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
-       *ngIf="header.currentUser?.role === 'SuperAdmin'">
+      >
       Outgoing Payments
     </a>
+    }
+    @if (header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin' || header.currentUser?.role === 'Moderator') {
     <a routerLink="/admin/blog"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
-       *ngIf="header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin' || header.currentUser?.role === 'Moderator'"
        class="blog-menu-item">
       Blog
-      <span class="pending-drafts-badge" *ngIf="header.pendingBlogDrafts > 0">{{ header.pendingBlogDrafts }}</span>
+      @if (header.pendingBlogDrafts > 0) {
+      <span class="pending-drafts-badge">{{ header.pendingBlogDrafts }}</span>
+      }
     </a>
+    }
+    @if (header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin' || header.currentUser?.role === 'Moderator') {
     <a routerLink="/cleaners-dashboard"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
-       *ngIf="header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin' || header.currentUser?.role === 'Moderator'">
+      >
       Cleaners
     </a>
+    }
     <!--
       "All Cleanings" MOVED (2026-09) into /cleaners-dashboard as its Portal tab, so an
       admin has one door to the cleaners section instead of two entries that opened
@@ -189,16 +230,20 @@
         <span class="done-task-menu-indicator" *ngIf="header.hasUncheckedDoneTasks && !header.hasPendingPersonalTasks"></span>
       </a>
     -->
+    @if (header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin') {
     <a routerLink="/admin/shifts"
        (click)="header.closeAllMenus(); $event.stopPropagation()"
-       *ngIf="header.currentUser?.role === 'SuperAdmin' || header.currentUser?.role === 'Admin'">
+      >
       Shifts
     </a>
+    }
     <!-- Statistics / Expenses / Finances collapsed into the single "Company" entry above.
          Bubble Rewards MOVED (2026-09) into the admin panel as its SuperAdmin-only
          Rewards tab, so it has no entry of its own here either; /admin/rewards
          redirects onto that tab. -->
     <a (click)="header.logout(); header.closeAllMenus(); $event.stopPropagation()">Logout</a>
   </div>
+  }
 </div>
-</ng-template>
+  }
+}

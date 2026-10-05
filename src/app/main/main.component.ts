@@ -10,7 +10,7 @@ import {
   inject,
   afterNextRender
 } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { NavigationStart, Router, RouterLink } from '@angular/router';
 import { GooglePlacesService, aggregateRatingSchema } from '../services/google-reviews.service';
 import { StructuredDataService } from '../services/structured-data.service';
@@ -77,7 +77,7 @@ export interface BeforeAfterPhoto {
 @Component({
   selector: 'app-main',
   standalone: true,
-  imports: [CommonModule, RouterLink, HomeHeroComponent, TestimonialSectionComponent, IconComponent, CardImageDirective],
+  imports: [RouterLink, HomeHeroComponent, TestimonialSectionComponent, IconComponent, CardImageDirective],
   templateUrl: './main.component.html',
   styleUrl: './main.component.scss'
 })

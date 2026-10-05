@@ -3,16 +3,22 @@
   <p class="muted">Compose and send emails to users by role. Only users who have agreed to receive communications (<strong>Can receive emails</strong> in their profile) will receive mail. Use a blank line between paragraphs to keep spacing in the email.</p>
 
   <div class="alerts">
-    <div class="error" *ngIf="error">{{ error }}</div>
-    <div class="success" *ngIf="success">{{ success }}</div>
+    @if (error) {
+    <div class="error">{{ error }}</div>
+    }
+    @if (success) {
+    <div class="success">{{ success }}</div>
+    }
   </div>
 
-  <div class="stats" *ngIf="stats">
+  @if (stats) {
+  <div class="stats">
     <span>Drafts: {{ stats.draftCount }}</span>
     <span>Scheduled: {{ stats.scheduledCount }}</span>
     <span>Sent: {{ stats.sentCount }}</span>
     <span>Total sends: {{ stats.totalMailsSent }}</span>
   </div>
+  }
 
   <div class="toolbar">
     <div class="filters">
@@ -21,10 +27,13 @@
       <button type="button" [class.active]="filterStatus === 1" (click)="setFilter(1)">Scheduled</button>
       <button type="button" [class.active]="filterStatus === 2" (click)="setFilter(2)">Sent</button>
     </div>
-    <button type="button" class="btn-compose" (click)="startCompose()" *ngIf="userPermissions?.permissions?.canCreate">Compose</button>
+    @if (userPermissions?.permissions?.canCreate) {
+    <button type="button" class="btn-compose" (click)="startCompose()">Compose</button>
+    }
   </div>
 
-  <div class="compose-form" *ngIf="isComposing">
+  @if (isComposing) {
+  <div class="compose-form">
     <h3>{{ editingId ? 'Edit mail' : 'New mail' }}</h3>
     <div class="form-group">
       <label>Subject</label>
@@ -37,15 +46,22 @@
     <div class="form-group">
       <label>Send to roles (only users with &quot;Can receive emails&quot; ON will receive)</label>
       <div class="role-chks">
-        <label *ngFor="let r of ROLES"><input type="checkbox" [(ngModel)]="selectedRoles[r]" /> {{ r }}</label>
+        @for (r of ROLES; track r) {
+        <label><input type="checkbox" [(ngModel)]="selectedRoles[r]" /> {{ r }}</label>
+        }
       </div>
-      <span class="hint" *ngIf="userCounts.length">Recipients: {{ canReceiveCount() }}</span>
+      @if (userCounts.length) {
+      <span class="hint">Recipients: {{ canReceiveCount() }}</span>
+      }
     </div>
-    <div class="form-group" *ngIf="!editingId">
+    @if (!editingId) {
+    <div class="form-group">
       <label><input type="radio" [(ngModel)]="sendNow" [value]="true" /> Send now</label>
       <label><input type="radio" [(ngModel)]="sendNow" [value]="false" /> Schedule</label>
     </div>
-    <div class="schedule-opts" *ngIf="!sendNow || editingId">
+    }
+    @if (!sendNow || editingId) {
+    <div class="schedule-opts">
       <p class="timezone-note">All times are in <strong>New York (NY)</strong> time.</p>
       <div class="form-group">
         <label>Schedule</label>
@@ -55,11 +71,14 @@
           <option [ngValue]="2">Monthly (specific day of month)</option>
         </select>
       </div>
-      <div class="form-group" *ngIf="frequency === null">
+      @if (frequency === null) {
+      <div class="form-group">
         <label>Date</label>
         <input aria-label="Date" type="date" [(ngModel)]="scheduledDate" />
       </div>
-      <div class="form-group" *ngIf="frequency === 1">
+      }
+      @if (frequency === 1) {
+      <div class="form-group">
         <label>Day of week</label>
         <select aria-label="Day of week" [(ngModel)]="dayOfWeek">
           <option [ngValue]="0">Sunday</option>
@@ -71,24 +90,35 @@
           <option [ngValue]="6">Saturday</option>
         </select>
       </div>
-      <div class="form-group" *ngIf="frequency === 2">
+      }
+      @if (frequency === 2) {
+      <div class="form-group">
         <label>Day of month (1–31)</label>
         <select aria-label="Day of month (1–31)" [(ngModel)]="dayOfMonth">
-          <option *ngFor="let d of daysOfMonth" [ngValue]="d">{{ d }}</option>
+          @for (d of daysOfMonth; track d) {
+          <option [ngValue]="d">{{ d }}</option>
+          }
         </select>
       </div>
+      }
       <div class="form-group">
         <label>Time</label>
         <input aria-label="Time" type="time" [(ngModel)]="scheduledTime" step="3600" />
       </div>
     </div>
+    }
     <div class="form-actions">
-      <button type="button" class="btn-send-now" (click)="doSendNow()" *ngIf="sendNow && !editingId">Send now</button>
-      <button type="button" class="btn-success" (click)="doSchedule()" *ngIf="!sendNow || editingId">Schedule</button>
+      @if (sendNow && !editingId) {
+      <button type="button" class="btn-send-now" (click)="doSendNow()">Send now</button>
+      }
+      @if (!sendNow || editingId) {
+      <button type="button" class="btn-success" (click)="doSchedule()">Schedule</button>
+      }
       <button type="button" class="btn-save-draft" (click)="doSaveDraft()">Save as draft</button>
       <button type="button" class="btn-cancel-red" (click)="cancelCompose()">Cancel</button>
     </div>
   </div>
+  }
 
   <div class="table-wrap">
     <div class="table-wrapper" #tableWrapper>
@@ -104,23 +134,37 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let m of mails">
+        @for (m of mails; track m) {
+        <tr>
           <td>{{ m.subject }}</td>
           <td>{{ targetRolesDisplay(m.targetRoles) }}</td>
           <td>{{ statusLabel(m) }}</td>
           <td>{{ m.recipientCount }}</td>
           <td>{{ m.nextScheduledAt ? (m.nextScheduledAt | nyDate:'datetime') : (m.sentAt ? (m.sentAt | nyDate:'datetime') : '–') }}</td>
           <td>
-            <button type="button" class="btn-send" (click)="sendNowFor(m.id)" *ngIf="m.status === 0 && userPermissions?.permissions?.canCreate">Send now</button>
-            <button type="button" class="btn-edit" (click)="edit(m)" *ngIf="(m.status === 0 || m.status === 1) && userPermissions?.permissions?.canUpdate">Edit</button>
-            <button type="button" class="btn-disable" (click)="disable(m.id)" *ngIf="m.status === 1 && m.isActive && userPermissions?.permissions?.canUpdate">Disable</button>
-            <button type="button" class="btn-enable" (click)="enable(m.id)" *ngIf="m.status === 1 && !m.isActive && userPermissions?.permissions?.canUpdate">Enable</button>
-            <button type="button" class="btn-delete" (click)="delete(m.id)" *ngIf="(m.status === 0 || m.status === 1 || m.status === 3) && userPermissions?.permissions?.canDelete">Delete</button>
+            @if (m.status === 0 && userPermissions?.permissions?.canCreate) {
+            <button type="button" class="btn-send" (click)="sendNowFor(m.id)">Send now</button>
+            }
+            @if ((m.status === 0 || m.status === 1) && userPermissions?.permissions?.canUpdate) {
+            <button type="button" class="btn-edit" (click)="edit(m)">Edit</button>
+            }
+            @if (m.status === 1 && m.isActive && userPermissions?.permissions?.canUpdate) {
+            <button type="button" class="btn-disable" (click)="disable(m.id)">Disable</button>
+            }
+            @if (m.status === 1 && !m.isActive && userPermissions?.permissions?.canUpdate) {
+            <button type="button" class="btn-enable" (click)="enable(m.id)">Enable</button>
+            }
+            @if ((m.status === 0 || m.status === 1 || m.status === 3) && userPermissions?.permissions?.canDelete) {
+            <button type="button" class="btn-delete" (click)="delete(m.id)">Delete</button>
+            }
           </td>
         </tr>
+        }
       </tbody>
       </table>
     </div>
-    <p *ngIf="mails.length === 0" class="empty">No mails.</p>
+    @if (mails.length === 0) {
+    <p class="empty">No mails.</p>
+    }
   </div>
 </div>

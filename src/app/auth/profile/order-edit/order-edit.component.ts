@@ -1,6 +1,6 @@
 // src/app/auth/profile/order-edit/order-edit.component.ts
 import { Component, OnDestroy, OnInit, Inject, PLATFORM_ID } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormArray, FormControl, Validators } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { OrderService, Order, UpdateOrder } from '../../../services/order.service';
@@ -76,7 +76,7 @@ interface SelectedExtraService {
 @Component({
   selector: 'app-order-edit',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterModule, DateSelectorComponent, TimeSelectorComponent, FloorTypeSelectorComponent, CleaningTypeDetailsExpandableComponent, QuantityControlComponent, ExtraServicesGridComponent, OrderSummaryCardComponent],
+  imports: [FormsModule, ReactiveFormsModule, RouterModule, DateSelectorComponent, TimeSelectorComponent, FloorTypeSelectorComponent, CleaningTypeDetailsExpandableComponent, QuantityControlComponent, ExtraServicesGridComponent, OrderSummaryCardComponent],
   templateUrl: './order-edit.component.html',
   // Booking's stylesheet is the single source of truth for the shared look; the local
   // file only styles order-edit-specific elements (back link, additional amount, modal).

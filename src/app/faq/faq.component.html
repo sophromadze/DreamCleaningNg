@@ -40,16 +40,17 @@
         </button>
         <div class="faq-answer" [class.open]="isOpen(2)">
           <div class="faq-answer-content">
-            <p *ngIf="hasExtraPrices; else supplyAnswerNoPrices">
+            @if (hasExtraPrices) {
+            <p>
               We can bring cleaning solutions for
               <span class="faq-price">{{ suppliesPriceLabel }}</span>
               and a vacuum for
               <span class="faq-price">{{ vacuumPriceLabel }}</span>.
               Please let us know in advance which location(s) may require them.
             </p>
-            <ng-template #supplyAnswerNoPrices>
+            } @else {
               <p>We can bring cleaning solutions and a vacuum on request. Please let us know in advance which location(s) may require them.</p>
-            </ng-template>
+            }
           </div>
         </div>
       </div>

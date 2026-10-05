@@ -11,12 +11,16 @@
         </span>
       </a>
       <!-- Server-rendered for an admin (layout hint), so it never pops in. -->
-      <span class="ny-time-clock" *ngIf="clockVisible">{{ nyTime }}</span>
+      @if (clockVisible) {
+      <span class="ny-time-clock">{{ nyTime }}</span>
+      }
       <div class="nav-container">
         <!-- Bubble Rewards Badge (kept at the left of the cluster). Its slot is part of the server
              render when the layout hint says the badge shows; it holds an invisible same-size
              placeholder until the points arrive, so the nav never moves. -->
-        <app-bubble-badge *ngIf="badgeVisible" (availability)="onPointsBadgeAvailability($event)"></app-bubble-badge>
+        @if (badgeVisible) {
+        <app-bubble-badge (availability)="onPointsBadgeAvailability($event)"></app-bubble-badge>
+        }
         <div class="nav-links" id="mobile-navigation">
           <!-- Cleaning Services Mega Dropdown -->
           <div class="has-dropdown services-dropdown"
@@ -140,8 +144,12 @@
                     <a routerLink="/gift-cards" (click)="closeAllMenus()">Gift Cards</a>
                     <!-- Driven by the admin toggle Blog → Settings → "Blog page visible
                          to public" (BlogStatusService) — no code change to go live. -->
-                    <a *ngIf="blogPublicVisible" routerLink="/blog" (click)="closeAllMenus()">Blog</a>
-                    <span *ngIf="!blogPublicVisible" class="sub-link-disabled" aria-disabled="true" title="Coming soon">Blog <small>Soon</small></span>
+                    @if (blogPublicVisible) {
+                    <a routerLink="/blog" (click)="closeAllMenus()">Blog</a>
+                    }
+                    @if (!blogPublicVisible) {
+                    <span class="sub-link-disabled" aria-disabled="true" title="Coming soon">Blog <small>Soon</small></span>
+                    }
                   </div>
                 </div>
                 <div class="dropdown-column">
@@ -162,15 +170,16 @@
             <!-- Desktop nav: soft "Get a Quote" ghost CTA. In the mobile hamburger menu
                  the always-visible top-bar quote button already covers this, so we swap
                  in a "Contact Us" link instead. -->
+            @if (!isMobile) {
             <a routerLink="/free-quote"
                routerLinkActive="active"
                class="btn-quote-ghost"
-               *ngIf="!isMobile"
                (click)="closeMobileMenu()">Get a Quote</a>
+            }
+            @if (isMobile) {
             <a routerLink="/contact"
                routerLinkActive="active"
                class="btn-contact-ghost"
-               *ngIf="isMobile"
                (click)="closeMobileMenu()">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="menu-contact-icon" aria-hidden="true">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
@@ -178,6 +187,7 @@
               </svg>
               Contact Us
             </a>
+            }
             <a routerLink="/booking"
                routerLinkActive="active"
                class="btn-book"
@@ -204,15 +214,17 @@
         </button>
         <!-- Auth slot: always reserve space; show spinner until auth ready, then login or user menu -->
         <div class="header-auth-slot">
-          <div *ngIf="!showAuthUI" class="header-auth-shimmer-wrap">
+          @if (!showAuthUI) {
+          <div class="header-auth-shimmer-wrap">
             <div class="header-auth-spinner">
               <div class="header-auth-loader-ring header-auth-loader-ring-outer"></div>
               <div class="header-auth-loader-ring header-auth-loader-ring-inner"></div>
             </div>
           </div>
-          <ng-container *ngIf="showAuthUI && isBrowser">
+          }
+          @if (showAuthUI && isBrowser) {
             <app-header-account-menu></app-header-account-menu>
-          </ng-container>
+          }
         </div>
         <!-- Mobile-only phone icon — always available now that the sticky CTA bar no longer has a call button -->
         <!-- Rendered on the server too: the stylesheet shows it only in the mobile layout

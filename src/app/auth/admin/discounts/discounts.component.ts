@@ -1,5 +1,4 @@
 import { Component, Input } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { PromoCodesComponent } from '../promo-codes/promo-codes.component';
 import { SpecialOffersComponent } from '../special-offers/special-offers.component';
 import { SubscriptionsComponent } from '../subscriptions/subscriptions.component';
@@ -12,13 +11,12 @@ type DiscountSubTab = 'promo-codes' | 'special-offers' | 'subscriptions' | 'gift
   selector: 'app-discounts',
   standalone: true,
   imports: [
-    CommonModule,
     PromoCodesComponent,
     SpecialOffersComponent,
     SubscriptionsComponent,
     AdminGiftCardsComponent,
     LoyaltyDiscountAdminComponent
-  ],
+],
   templateUrl: './discounts.component.html',
   styleUrls: ['./discounts.component.scss']
 })

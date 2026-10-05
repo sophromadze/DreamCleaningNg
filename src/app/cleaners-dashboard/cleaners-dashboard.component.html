@@ -4,14 +4,16 @@
   host supplies the cleaner id and the frame around it. See CleanersDashboardComponent.
 -->
 <div class="cleaners-dashboard" [class.embedded]="embedded">
-  <header class="dashboard-header" *ngIf="!embedded">
+  @if (!embedded) {
+  <header class="dashboard-header">
     <div class="title-block">
       <h1>Cleaners</h1>
     </div>
     <!-- Dashboard-only: the Portal tab is a read-only calendar with nothing to search, toggle or
          add here. Hidden rather than disabled - a control that does nothing on the tab you are
          looking at is worse than an absent one. -->
-    <div class="header-actions" *ngIf="activeTab === 'dashboard'">
+    @if (activeTab === 'dashboard') {
+    <div class="header-actions">
       <div class="search-box">
         <input
           type="text"
@@ -26,7 +28,9 @@
       </label>
       <button type="button" class="btn-primary" (click)="openCreate()">+ Add Cleaner</button>
     </div>
+    }
   </header>
+  }
 
   <!--
     TWO HALVES OF THE CLEANERS SECTION (2026-09), previously two separate header links:
@@ -37,7 +41,8 @@
     dashboard but not the schedule, so the tab strip is not rendered for them at all rather than
     showing one tab.
   -->
-  <nav class="dashboard-tabs" *ngIf="canSeePortal && !embedded" aria-label="Cleaners sections">
+  @if (canSeePortal && !embedded) {
+  <nav class="dashboard-tabs" aria-label="Cleaners sections">
     <button type="button"
             class="dashboard-tab"
             [class.active]="activeTab === 'dashboard'"
@@ -51,6 +56,7 @@
       Portal
     </button>
   </nav>
+  }
 
   <!--
     The cleaner portal component itself, not a second copy of the calendar: it asks the SERVER which
@@ -61,71 +67,102 @@
     Created on first visit and destroyed on leaving the tab, so the month it shows is always freshly
     fetched - one small request, against a calendar that must not show yesterday's staffing.
   -->
-  <app-cleaner-portal *ngIf="activeTab === 'portal' && !embedded" [embedded]="true"></app-cleaner-portal>
+  @if (activeTab === 'portal' && !embedded) {
+  <app-cleaner-portal [embedded]="true"></app-cleaner-portal>
+  }
 
-  <ng-container *ngIf="activeTab === 'dashboard'">
+  @if (activeTab === 'dashboard') {
 
-  <div *ngIf="errorMessage" class="error-banner" role="alert">
+  @if (errorMessage) {
+  <div class="error-banner" role="alert">
     {{ errorMessage }}
     <button type="button" (click)="errorMessage = ''">&times;</button>
   </div>
+  }
 
-  <div class="list-controls" *ngIf="!embedded">
+  @if (!embedded) {
+  <div class="list-controls">
     <label class="control">
       <span class="control-label">Sort</span>
       <select [(ngModel)]="sortBy" aria-label="Sort cleaners">
-        <option *ngFor="let o of sortOptions" [value]="o.value">{{ o.label }}</option>
+        @for (o of sortOptions; track o) {
+        <option [value]="o.value">{{ o.label }}</option>
+        }
       </select>
     </label>
     <label class="control">
       <span class="control-label">Filter</span>
       <select [(ngModel)]="filterBy" aria-label="Filter cleaners">
-        <option *ngFor="let o of filterOptions" [value]="o.value">{{ o.label }}</option>
+        @for (o of filterOptions; track o) {
+        <option [value]="o.value">{{ o.label }}</option>
+        }
       </select>
     </label>
     <label class="control">
       <span class="control-label">Available on</span>
       <select [(ngModel)]="availableOnDay" aria-label="Filter by available weekday">
         <option value="">Any day</option>
-        <option *ngFor="let o of availableDayOptions" [value]="o.value">{{ o.label }}</option>
+        @for (o of availableDayOptions; track o) {
+        <option [value]="o.value">{{ o.label }}</option>
+        }
       </select>
     </label>
     <label class="control">
       <span class="control-label">Borough</span>
       <select [(ngModel)]="filterBorough" aria-label="Filter by operating borough">
         <option value="">Any borough</option>
-        <option *ngFor="let o of locationOptions" [value]="o.value">{{ o.label }}</option>
+        @for (o of locationOptions; track o) {
+        <option [value]="o.value">{{ o.label }}</option>
+        }
       </select>
     </label>
-    <label class="control" *ngIf="availableNationalities.length > 0">
+    @if (availableNationalities.length > 0) {
+    <label class="control">
       <span class="control-label">Nationality</span>
       <select [(ngModel)]="filterNationality" aria-label="Filter by nationality">
         <option value="">Any nationality</option>
-        <option *ngFor="let n of availableNationalities" [value]="n">{{ n }}</option>
+        @for (n of availableNationalities; track n) {
+        <option [value]="n">{{ n }}</option>
+        }
       </select>
     </label>
-    <span class="result-count" *ngIf="!loading && cleaners.length > 0">{{ displayedCleaners.length }} shown</span>
+    }
+    @if (!loading && cleaners.length > 0) {
+    <span class="result-count">{{ displayedCleaners.length }} shown</span>
+    }
   </div>
+  }
 
   <section class="dashboard-body" [class.embedded]="embedded">
-    <div class="cards-column" *ngIf="!embedded">
-      <div *ngIf="loading && cleaners.length === 0" class="loading-state">Loading cleaners…</div>
-      <div *ngIf="!loading && cleaners.length === 0" class="empty-state">No cleaners found.</div>
-      <div *ngIf="!loading && cleaners.length > 0 && displayedCleaners.length === 0" class="empty-state">
+    @if (!embedded) {
+    <div class="cards-column">
+      @if (loading && cleaners.length === 0) {
+      <div class="loading-state">Loading cleaners…</div>
+      }
+      @if (!loading && cleaners.length === 0) {
+      <div class="empty-state">No cleaners found.</div>
+      }
+      @if (!loading && cleaners.length > 0 && displayedCleaners.length === 0) {
+      <div class="empty-state">
         No cleaners match this filter.
       </div>
+      }
 
+      @for (cleaner of displayedCleaners; track trackCleaner($index, cleaner)) {
       <article
-        *ngFor="let cleaner of displayedCleaners; trackBy: trackCleaner"
         class="cleaner-card"
         [class.inactive]="!cleaner.isActive"
         [class.selected]="selectedDetail?.id === cleaner.id"
         (click)="openDetail(cleaner)">
         <div class="avatar">
-          <img *ngIf="cleaner.photoUrl" [src]="cleaner.photoUrl" [alt]="cleaner.firstName + ' ' + cleaner.lastName" referrerpolicy="no-referrer" />
-          <span *ngIf="!cleaner.photoUrl" class="avatar-initials">
+          @if (cleaner.photoUrl) {
+          <img [src]="cleaner.photoUrl" [alt]="cleaner.firstName + ' ' + cleaner.lastName" referrerpolicy="no-referrer" />
+          }
+          @if (!cleaner.photoUrl) {
+          <span class="avatar-initials">
             {{ (cleaner.firstName.charAt(0) || '') + (cleaner.lastName.charAt(0) || '') }}
           </span>
+          }
         </div>
         <div class="card-body">
           <div class="card-top-row">
@@ -133,13 +170,14 @@
               <h2 class="name">{{ cleaner.firstName }} {{ cleaner.lastName }}</h2>
               <span [class]="rankingClass(cleaner.ranking)">{{ rankingLabel(cleaner.ranking) }}</span>
             </div>
+            @if (cleaner.phone) {
             <a
-              *ngIf="cleaner.phone"
               class="call-btn"
               [href]="telHref(cleaner.phone)"
               (click)="$event.stopPropagation()"
               ><span class="phone-icon" aria-hidden="true">📞</span>{{ cleaner.phone }}</a
             >
+            }
           </div>
           <div class="card-meta">
             <span class="meta-item">Added {{ cleaner.createdAt | nyDate }}</span>
@@ -147,22 +185,35 @@
           <div class="card-bottom-row">
             <div class="card-status-note">
               <div class="card-tags">
-                <span *ngIf="cleaner.alreadyWorkedWithUs" class="tag tag-active">Active</span>
-                <span *ngIf="!cleaner.alreadyWorkedWithUs" class="tag tag-reserve">Reserve</span>
-                <span *ngIf="isNewCleaner(cleaner)" class="tag tag-beginner">New</span>
+                @if (cleaner.alreadyWorkedWithUs) {
+                <span class="tag tag-active">Active</span>
+                }
+                @if (!cleaner.alreadyWorkedWithUs) {
+                <span class="tag tag-reserve">Reserve</span>
+                }
+                @if (isNewCleaner(cleaner)) {
+                <span class="tag tag-beginner">New</span>
+                }
               </div>
-              <span *ngIf="cleaner.mainNote" class="mini-main-note">📌 {{ cleaner.mainNote }}</span>
+              @if (cleaner.mainNote) {
+              <span class="mini-main-note">📌 {{ cleaner.mainNote }}</span>
+              }
             </div>
             <span class="meta-item address">📍 {{ boroughsDisplay(cleaner.operatingAreas) }}</span>
           </div>
         </div>
       </article>
+      }
     </div>
+    }
+    @if (selectedDetail || loadingDetail || embedded) {
+    <aside class="detail-column">
+      @if (loadingDetail) {
+      <div class="loading-state">Loading details…</div>
+      }
 
-    <aside class="detail-column" *ngIf="selectedDetail || loadingDetail || embedded">
-      <div *ngIf="loadingDetail" class="loading-state">Loading details…</div>
+      @if (selectedDetail && !loadingDetail) {
 
-      <ng-container *ngIf="selectedDetail && !loadingDetail">
         <div class="detail-header">
           <div
             class="avatar lg"
@@ -173,10 +224,14 @@
             [attr.aria-label]="selectedDetail.photoUrl ? 'View profile photo' : null"
             (keydown.enter)="openImageViewer(selectedDetail.photoUrl, selectedDetail.firstName + ' ' + selectedDetail.lastName, 'cleaner photo')"
             (keydown.space)="$event.preventDefault(); openImageViewer(selectedDetail.photoUrl, selectedDetail.firstName + ' ' + selectedDetail.lastName, 'cleaner photo')">
-            <img *ngIf="selectedDetail.photoUrl" [src]="selectedDetail.photoUrl" alt="cleaner photo" referrerpolicy="no-referrer" />
-            <span *ngIf="!selectedDetail.photoUrl" class="avatar-initials">
+            @if (selectedDetail.photoUrl) {
+            <img [src]="selectedDetail.photoUrl" alt="cleaner photo" referrerpolicy="no-referrer" />
+            }
+            @if (!selectedDetail.photoUrl) {
+            <span class="avatar-initials">
               {{ (selectedDetail.firstName.charAt(0) || '') + (selectedDetail.lastName.charAt(0) || '') }}
             </span>
+            }
           </div>
           <div class="detail-name-block">
             <div class="name-line">
@@ -184,11 +239,13 @@
               <span [class]="rankingClass(selectedDetail.ranking)">{{ rankingLabel(selectedDetail.ranking) }}</span>
             </div>
             <div class="contact-line">
-              <a *ngIf="selectedDetail.phone" class="detail-phone" [href]="telHref(selectedDetail.phone)">
+              @if (selectedDetail.phone) {
+              <a class="detail-phone" [href]="telHref(selectedDetail.phone)">
                 <span class="phone-icon" aria-hidden="true">📞</span>{{ selectedDetail.phone }}
               </a>
+              }
+              @if (selectedDetail.documentUrl) {
               <button
-                *ngIf="selectedDetail.documentUrl"
                 type="button"
                 class="detail-document-btn"
                 (click)="openImageViewer(selectedDetail.documentUrl, (selectedDetail.firstName + ' ' + selectedDetail.lastName + ' — ' + (documentTypeLabel(selectedDetail.documentType) || 'Document')), 'cleaner document')"
@@ -196,6 +253,7 @@
                 <span class="doc-icon" aria-hidden="true">📄</span>
                 <span class="doc-label">{{ documentTypeLabel(selectedDetail.documentType) || 'Document' }}</span>
               </button>
+              }
             </div>
           </div>
           <!--
@@ -204,8 +262,12 @@
             invitation to lose the edit. Close stays: it shuts the whole panel either way.
           -->
           <div class="detail-actions">
-            <button type="button" class="btn-secondary" *ngIf="!showsInlineForm" (click)="openEdit(selectedDetail)">Edit</button>
-            <button type="button" class="btn-danger" *ngIf="!showsInlineForm" (click)="deleteCleaner(selectedDetail)">Delete</button>
+            @if (!showsInlineForm) {
+            <button type="button" class="btn-secondary" (click)="openEdit(selectedDetail)">Edit</button>
+            }
+            @if (!showsInlineForm) {
+            <button type="button" class="btn-danger" (click)="deleteCleaner(selectedDetail)">Delete</button>
+            }
             <button type="button" class="btn-close" (click)="closeDetail()" aria-label="Close">&times;</button>
           </div>
         </div>
@@ -215,53 +277,83 @@
           replaces its detail body. Same markup as the modal - it is ONE template, rendered here or
           inside the overlay depending on which surface is asking.
         -->
-        <div class="inline-form-wrap" *ngIf="showsInlineForm">
+        @if (showsInlineForm) {
+        <div class="inline-form-wrap">
           <ng-container *ngTemplateOutlet="cleanerFormTpl"></ng-container>
         </div>
+        }
 
-        <ng-container *ngIf="!showsInlineForm">
+        @if (!showsInlineForm) {
 
-        <div class="pinned-note-row" *ngIf="selectedDetail.mainNote || selectedDetail.location">
-          <div *ngIf="selectedDetail.mainNote" class="pinned-note">
+        @if (selectedDetail.mainNote || selectedDetail.location) {
+        <div class="pinned-note-row">
+          @if (selectedDetail.mainNote) {
+          <div class="pinned-note">
             <strong>📌</strong>
             <span class="note-text-inline">{{ selectedDetail.mainNote }}</span>
           </div>
-          <div *ngIf="selectedDetail.location" class="note-location">
+          }
+          @if (selectedDetail.location) {
+          <div class="note-location">
             <span class="location-label">Location</span>
             <span class="location-value">{{ selectedDetail.location }}</span>
           </div>
+          }
         </div>
+        }
 
         <div class="info-grid">
           <div><label>ID</label><span class="info-id">#{{ selectedDetail.id }}</span></div>
-          <div *ngIf="selectedDetail.age != null"><label>Age</label><span>{{ selectedDetail.age }}</span></div>
-          <div *ngIf="selectedDetail.email">
+          @if (selectedDetail.age != null) {
+          <div><label>Age</label><span>{{ selectedDetail.age }}</span></div>
+          }
+          @if (selectedDetail.email) {
+          <div>
             <label>Email</label>
             <span>{{ selectedDetail.email }}</span>
             <!-- Why the edit form will not let this be changed, said where the value is read. -->
-            <span class="info-sub" *ngIf="selectedDetail.isEmailManagedByAccount">
+            @if (selectedDetail.isEmailManagedByAccount) {
+            <span class="info-sub">
               🔒 login account
             </span>
+            }
           </div>
-          <div *ngIf="selectedDetail.linkedUserId">
+          }
+          @if (selectedDetail.linkedUserId) {
+          <div>
             <label>Cleaner portal login</label>
             <span>{{ linkedAccountLabel(selectedDetail) }}</span>
           </div>
+          }
           <div><label>Jobs Completed</label><span>{{ jobsCompletedCount }}</span></div>
           <div><label>Operating areas</label><span>{{ boroughsDisplay(selectedDetail.operatingAreas) }}</span></div>
-          <div *ngIf="selectedDetail.nationality"><label>Nationality</label><span>{{ selectedDetail.nationality }}</span></div>
-          <div *ngIf="selectedDetail.experience"><label>Experience</label><span>{{ selectedDetail.experience }}</span></div>
-          <div *ngIf="paymentSummary(selectedDetail)"><label>Paid via</label><span>{{ paymentSummary(selectedDetail) }}</span></div>
-          <div *ngIf="selectedDetail.ranking === 'Restricted' || selectedDetail.ranking === 3">
+          @if (selectedDetail.nationality) {
+          <div><label>Nationality</label><span>{{ selectedDetail.nationality }}</span></div>
+          }
+          @if (selectedDetail.experience) {
+          <div><label>Experience</label><span>{{ selectedDetail.experience }}</span></div>
+          }
+          @if (paymentSummary(selectedDetail)) {
+          <div><label>Paid via</label><span>{{ paymentSummary(selectedDetail) }}</span></div>
+          }
+          @if (selectedDetail.ranking === 'Restricted' || selectedDetail.ranking === 3) {
+          <div>
             <label>Restriction reason</label>
             <span>{{ selectedDetail.restrictedReason || '—' }}</span>
           </div>
+          }
         </div>
 
-        <div *ngIf="selectedDetail.allergies || selectedDetail.restrictions" class="warnings">
-          <div *ngIf="selectedDetail.allergies"><strong>⚠ Allergies:</strong> {{ selectedDetail.allergies }}</div>
-          <div *ngIf="selectedDetail.restrictions"><strong>⚠ Restrictions:</strong> {{ selectedDetail.restrictions }}</div>
+        @if (selectedDetail.allergies || selectedDetail.restrictions) {
+        <div class="warnings">
+          @if (selectedDetail.allergies) {
+          <div><strong>⚠ Allergies:</strong> {{ selectedDetail.allergies }}</div>
+          }
+          @if (selectedDetail.restrictions) {
+          <div><strong>⚠ Restrictions:</strong> {{ selectedDetail.restrictions }}</div>
+          }
         </div>
+        }
 
         <div class="availability-summary">
           <div class="avail-row">
@@ -270,12 +362,20 @@
           </div>
           <div class="avail-row">
             <label>Vacations</label>
-            <span *ngIf="!selectedDetail.vacations?.length">None</span>
-            <span *ngIf="selectedDetail.vacations?.length" class="vacation-chips">
-              <span class="vacation-chip" *ngFor="let v of selectedDetail.vacations">
-                {{ formatDateOnly(v.startDate) }} – {{ formatDateOnly(v.endDate) }}<span *ngIf="v.note" class="vac-note"> · {{ v.note }}</span>
+            @if (!selectedDetail.vacations?.length) {
+            <span>None</span>
+            }
+            @if (selectedDetail.vacations?.length) {
+            <span class="vacation-chips">
+              @for (v of selectedDetail.vacations; track v) {
+              <span class="vacation-chip">
+                {{ formatDateOnly(v.startDate) }} – {{ formatDateOnly(v.endDate) }}@if (v.note) {
+                <span class="vac-note"> · {{ v.note }}</span>
+                }
               </span>
+              }
             </span>
+            }
           </div>
         </div>
 
@@ -283,7 +383,9 @@
           <div class="section-header">
             <div class="section-title-row">
               <h3>Cleaner Notes</h3>
-              <span class="notes-count" *ngIf="generalNotes.length > 0">{{ generalNotes.length }}</span>
+              @if (generalNotes.length > 0) {
+              <span class="notes-count">{{ generalNotes.length }}</span>
+              }
             </div>
             <div class="section-header-actions">
               <button
@@ -294,27 +396,33 @@
               </button>
             </div>
           </div>
-          <div class="notes-scroll" *ngIf="generalNotes.length > 0">
+          @if (generalNotes.length > 0) {
+          <div class="notes-scroll">
             <ul class="notes-list">
-              <li *ngFor="let note of generalNotes; trackBy: trackNote" class="note-item">
+              @for (note of generalNotes; track trackNote($index, note)) {
+              <li class="note-item">
                 <div class="note-meta">
-                  <span *ngIf="note.adminDisplayName" class="note-author">{{ note.adminDisplayName }}</span>
+                  @if (note.adminDisplayName) {
+                  <span class="note-author">{{ note.adminDisplayName }}</span>
+                  }
                   <span class="note-date">{{ note.createdAt | nyDate:'datetime' }}</span>
                   <div class="note-actions">
+                    @if (editingNoteId !== note.id) {
                     <button
-                      *ngIf="editingNoteId !== note.id"
                       type="button"
                       class="btn-link"
                       (click)="startEditNote(note)">Edit</button>
+                    }
+                    @if (editingNoteId !== note.id) {
                     <button
-                      *ngIf="editingNoteId !== note.id"
                       type="button"
                       class="btn-link danger"
                       (click)="deleteNote(note.id)">Delete</button>
+                    }
                   </div>
                 </div>
 
-                <ng-container *ngIf="editingNoteId === note.id; else readNote">
+                @if (editingNoteId === note.id) {
                   <textarea aria-label="Edit note"
                     class="note-edit-textarea"
                     [(ngModel)]="editingNoteText"
@@ -335,20 +443,23 @@
                       {{ savingNoteEdit ? 'Saving…' : 'Save' }}
                     </button>
                   </div>
-                </ng-container>
-                <ng-template #readNote>
+                } @else {
                   <p class="note-text">{{ note.text }}</p>
-                </ng-template>
+                }
               </li>
+              }
             </ul>
           </div>
+          }
         </section>
 
         <section class="orders-section">
-          <div *ngIf="upcomingOrders.length > 0" class="upcoming-section">
+          @if (upcomingOrders.length > 0) {
+          <div class="upcoming-section">
             <h4>Upcoming / Active ({{ upcomingOrders.length }})</h4>
             <ul class="upcoming-list">
-              <li *ngFor="let order of upcomingOrders; trackBy: trackOrder" class="upcoming-row">
+              @for (order of upcomingOrders; track trackOrder($index, order)) {
+              <li class="upcoming-row">
                 <a [routerLink]="['/admin']" [queryParams]="{ orderId: order.orderId }">#{{ order.orderId }}</a>
                 <span class="job-date-time">
                   {{ order.serviceDate | date:'MMM d, y' }} · {{ formatServiceTime(order.serviceTime) }}
@@ -356,23 +467,31 @@
                 <span>{{ order.serviceTypeName || '—' }}</span>
                 <span class="status">{{ order.status }}</span>
                 <span class="mail-state">
-                  <ng-container *ngIf="order.assignmentNotificationSentAt; else pending">✉ Sent</ng-container>
-                  <ng-template #pending>⏳ Pending email</ng-template>
+                  @if (order.assignmentNotificationSentAt) {
+                  ✉ Sent
+                  } @else {
+                  ⏳ Pending email
+                  }
                 </span>
               </li>
+              }
             </ul>
           </div>
+          }
 
           <div class="jobs-header">
             <h3>Jobs Completed</h3>
             <div class="jobs-stats">
               <span class="stat-pill" [class.has-issues]="issuesCount > 0">Issues: {{ issuesCount }}</span>
-              <span *ngIf="lastCompletedJobDate" class="stat-pill">Last Job: {{ lastCompletedJobDate | date:'MMM d' }}</span>
+              @if (lastCompletedJobDate) {
+              <span class="stat-pill">Last Job: {{ lastCompletedJobDate | date:'MMM d' }}</span>
+              }
             </div>
           </div>
 
           <ul class="completed-jobs">
-            <li *ngFor="let order of completedOrders; trackBy: trackOrder" class="completed-row">
+            @for (order of completedOrders; track trackOrder($index, order)) {
+            <li class="completed-row">
               <a
                 class="job-order-id"
                 [routerLink]="['/admin']"
@@ -382,11 +501,13 @@
               <span class="job-date">{{ order.serviceDate | date:'MMM d' }}</span>
               <span class="job-sep">–</span>
               <span class="job-service">{{ order.serviceTypeName || 'Cleaning' }}</span>
-              <span *ngIf="order.serviceCity" class="job-location">– {{ order.serviceCity }}</span>
+              @if (order.serviceCity) {
+              <span class="job-location">– {{ order.serviceCity }}</span>
+              }
               <span class="job-status-label">Completed</span>
 
               <div class="perf-selector" role="group" aria-label="Performance">
-                <ng-container *ngIf="performanceOptionForOrder(order.orderId) as opt; else addNote">
+                @if (performanceOptionForOrder(order.orderId); as opt) {
                   <button
                     type="button"
                     class="perf-btn active"
@@ -396,8 +517,7 @@
                     <span class="perf-icon">{{ opt.icon }}</span>
                     <span class="perf-label">{{ opt.label }}</span>
                   </button>
-                </ng-container>
-                <ng-template #addNote>
+                } @else {
                   <button
                     type="button"
                     class="perf-btn perf-btn-add"
@@ -406,21 +526,26 @@
                     <span class="perf-icon">✎</span>
                     <span class="perf-label">Note</span>
                   </button>
-                </ng-template>
+                }
               </div>
             </li>
-            <li *ngIf="completedOrders.length === 0" class="empty-state">No completed jobs yet.</li>
+            }
+            @if (completedOrders.length === 0) {
+            <li class="empty-state">No completed jobs yet.</li>
+            }
           </ul>
         </section>
 
-        </ng-container>
-      </ng-container>
+        }
+      }
     </aside>
+    }
   </section>
-  </ng-container>
+  }
 </div>
 
-<div *ngIf="addNoteModalOpen" class="modal-overlay" (click)="closeAddNoteModal()">
+@if (addNoteModalOpen) {
+<div class="modal-overlay" (click)="closeAddNoteModal()">
   <div class="modal note-modal" (click)="$event.stopPropagation()">
     <header class="modal-header">
       <h2>Add Cleaner Note</h2>
@@ -447,6 +572,7 @@
     </div>
   </div>
 </div>
+}
 
 <!--
   ONE form, TWO surfaces. On the full Cleaners Dashboard it opens as a centred modal, which is what
@@ -456,11 +582,13 @@
 
   The template is the single copy of the markup; only the frame around it differs.
 -->
-<div *ngIf="formOpen && !embedded" class="modal-overlay" (click)="closeForm()">
+@if (formOpen && !embedded) {
+<div class="modal-overlay" (click)="closeForm()">
   <div class="modal" (click)="$event.stopPropagation()">
     <ng-container *ngTemplateOutlet="cleanerFormTpl"></ng-container>
   </div>
 </div>
+}
 
 <ng-template #cleanerFormTpl>
     <header class="modal-header">
@@ -489,7 +617,9 @@
           <span>Nationality</span>
           <select [(ngModel)]="formModel.nationality" name="nationality">
             <option [ngValue]="null">—</option>
-            <option *ngFor="let opt of nationalityOptions" [value]="opt.value">{{ opt.label }}</option>
+            @for (opt of nationalityOptions; track opt) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+            }
           </select>
         </label>
 
@@ -522,18 +652,22 @@
                  [class.locked]="emailLockedByAccount"
                  [attr.aria-readonly]="emailLockedByAccount ? true : null"
                  [attr.title]="emailLockedByAccount ? 'Set from the linked login account - change it on the account instead' : null" />
-          <small class="field-hint locked-hint" *ngIf="emailLockedByAccount">
+          @if (emailLockedByAccount) {
+          <small class="field-hint locked-hint">
             🔒 Signs in as <strong>{{ lockedAccountEmail }}</strong>, so this is set from that
             account. Change the address on the account, then re-link them on the admin panel's
             Cleaners tab - that copies it across.
           </small>
+          }
         </label>
 
         <label>
           <span>Location (lives in)</span>
           <select [(ngModel)]="formModel.location" name="location">
             <option [ngValue]="null">—</option>
-            <option *ngFor="let opt of locationOptions" [value]="opt.value">{{ opt.label }}</option>
+            @for (opt of locationOptions; track opt) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+            }
           </select>
         </label>
 
@@ -550,7 +684,9 @@
             <label class="payment-method-field">
               <span>Method</span>
               <select [(ngModel)]="formModel.paymentMethod" name="paymentMethod">
-                <option *ngFor="let opt of paymentMethodOptions" [ngValue]="opt.value || null">{{ opt.label }}</option>
+                @for (opt of paymentMethodOptions; track opt) {
+                <option [ngValue]="opt.value || null">{{ opt.label }}</option>
+                }
               </select>
             </label>
 
@@ -572,15 +708,19 @@
                         (click)="copyFormPaymentDetails()"
                         [attr.aria-label]="'Copy ' + paymentDetailsLabel"
                         [title]="paymentDetailsCopied ? 'Copied' : 'Copy'">
-                  <svg *ngIf="!paymentDetailsCopied" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  @if (!paymentDetailsCopied) {
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                   </svg>
-                  <svg *ngIf="paymentDetailsCopied" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  }
+                  @if (paymentDetailsCopied) {
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="20 6 9 17 4 12"/>
                   </svg>
+                  }
                 </button>
               </div>
             </label>
@@ -590,7 +730,8 @@
         <div class="full busy-days-block">
           <span class="field-label">Operating areas</span>
           <div class="busy-day-chips">
-            <label class="busy-day-chip" *ngFor="let opt of locationOptions" [class.active]="operatingBoroughs[opt.value]">
+            @for (opt of locationOptions; track opt) {
+            <label class="busy-day-chip" [class.active]="operatingBoroughs[opt.value]">
               <input
                 type="checkbox"
                 [checked]="operatingBoroughs[opt.value]"
@@ -598,13 +739,15 @@
                 [name]="'borough-' + opt.value" />
               <span>{{ opt.label }}</span>
             </label>
+            }
           </div>
         </div>
 
         <div class="full busy-days-block">
           <span class="field-label">Available days</span>
           <div class="busy-day-chips">
-            <label class="busy-day-chip" *ngFor="let day of dayOrder" [class.active]="availableDays[day]">
+            @for (day of dayOrder; track day) {
+            <label class="busy-day-chip" [class.active]="availableDays[day]">
               <input
                 type="checkbox"
                 [checked]="availableDays[day]"
@@ -612,6 +755,7 @@
                 [name]="'available-' + day" />
               <span>{{ dayLabel[day] }}</span>
             </label>
+            }
           </div>
         </div>
 
@@ -620,8 +764,11 @@
             <span class="field-label">Vacations</span>
             <button type="button" class="add-vacation-btn" (click)="addVacation()">+ Add vacation</button>
           </div>
-          <p class="field-hint" *ngIf="vacations.length === 0">No vacations set. Add a date range when this cleaner will be away.</p>
-          <div class="vacation-row" *ngFor="let vac of vacations; let i = index">
+          @if (vacations.length === 0) {
+          <p class="field-hint">No vacations set. Add a date range when this cleaner will be away.</p>
+          }
+          @for (vac of vacations; track vac; let i = $index) {
+          <div class="vacation-row">
             <div class="vacation-dates">
               <label class="vacation-field">
                 <span>From</span>
@@ -641,26 +788,33 @@
               placeholder="Note (optional)" />
             <button type="button" class="remove-vacation-btn" (click)="removeVacation(i)" aria-label="Remove vacation">×</button>
           </div>
+          }
         </div>
 
         <label>
           <span>Ranking</span>
           <select [(ngModel)]="formModel.ranking" name="ranking">
-            <option *ngFor="let opt of rankingOptions" [value]="opt.value">{{ opt.label }}</option>
+            @for (opt of rankingOptions; track opt) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+            }
           </select>
         </label>
 
         <label>
           <span>Experience</span>
           <select [(ngModel)]="formModel.experience" name="experience">
-            <option *ngFor="let opt of experienceOptions" [value]="opt.value">{{ opt.label }}</option>
+            @for (opt of experienceOptions; track opt) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+            }
           </select>
         </label>
 
         <label>
           <span>Document type</span>
           <select [(ngModel)]="formModel.documentType" name="documentType">
-            <option *ngFor="let opt of documentTypeOptions" [ngValue]="opt.value || null">{{ opt.label }}</option>
+            @for (opt of documentTypeOptions; track opt) {
+            <option [ngValue]="opt.value || null">{{ opt.label }}</option>
+            }
           </select>
         </label>
 
@@ -668,32 +822,40 @@
           <div class="file-field">
             <span class="field-label">Document image</span>
             <div class="file-preview-row">
-              <div class="file-thumb" *ngIf="formDocumentPreview">
+              @if (formDocumentPreview) {
+              <div class="file-thumb">
                 <img [src]="formDocumentPreview" alt="document preview" />
               </div>
+              }
               <label class="file-button">
                 <input type="file" accept="image/*" (change)="onFormDocumentSelected($event)" />
                 <span>{{ formDocumentPreview ? 'Change document' : 'Upload document' }}</span>
               </label>
-              <button *ngIf="formDocumentFile || formDocumentPreview" type="button" class="btn-link danger" (click)="clearFormDocument()">
+              @if (formDocumentFile || formDocumentPreview) {
+              <button type="button" class="btn-link danger" (click)="clearFormDocument()">
                 Clear
               </button>
+              }
             </div>
           </div>
 
           <div class="file-field">
             <span class="field-label">Profile photo</span>
             <div class="file-preview-row">
-              <div class="file-thumb" *ngIf="formPhotoPreview">
+              @if (formPhotoPreview) {
+              <div class="file-thumb">
                 <img [src]="formPhotoPreview" alt="photo preview" referrerpolicy="no-referrer" />
               </div>
+              }
               <label class="file-button">
                 <input type="file" accept="image/*" (change)="onFormPhotoSelected($event)" />
                 <span>{{ formPhotoPreview ? 'Change photo' : 'Upload photo' }}</span>
               </label>
-              <button *ngIf="formPhotoFile || formPhotoPreview" type="button" class="btn-link danger" (click)="clearFormPhoto()">
+              @if (formPhotoFile || formPhotoPreview) {
+              <button type="button" class="btn-link danger" (click)="clearFormPhoto()">
                 Clear
               </button>
+              }
             </div>
           </div>
         </div>
@@ -703,15 +865,19 @@
           <span>Already worked with us (not reserve)</span>
         </label>
 
-        <label *ngIf="formMode === 'edit'" class="checkbox">
+        @if (formMode === 'edit') {
+        <label class="checkbox">
           <input type="checkbox" [(ngModel)]="formModel.isActive" name="isActive" />
           <span>Active</span>
         </label>
+        }
 
-        <label class="full" *ngIf="formModel.ranking === 'Restricted'">
+        @if (formModel.ranking === 'Restricted') {
+        <label class="full">
           <span>Restriction reason</span>
           <input type="text" [(ngModel)]="formModel.restrictedReason" name="restrictedReason" maxlength="500" />
         </label>
+        }
 
         <label class="full">
           <span>Allergies (e.g. cats, dogs)</span>
@@ -729,7 +895,9 @@
         </label>
       </div>
 
-      <div *ngIf="formError" class="error-banner inline">{{ formError }}</div>
+      @if (formError) {
+      <div class="error-banner inline">{{ formError }}</div>
+      }
 
       <div class="modal-footer">
         <button type="button" class="btn-secondary" (click)="closeForm()">Cancel</button>
@@ -740,7 +908,8 @@
     </form>
 </ng-template>
 
-<div *ngIf="performanceModalOpen && performanceModal" class="modal-overlay" (click)="closePerformanceModal()">
+@if (performanceModalOpen && performanceModal) {
+<div class="modal-overlay" (click)="closePerformanceModal()">
   <div class="modal perf-modal" (click)="$event.stopPropagation()">
     <header class="modal-header">
       <h2>Performance — Order #{{ performanceModal.orderId }}</h2>
@@ -751,8 +920,8 @@
       <div class="perf-field">
         <label class="perf-field-label">Performance</label>
         <div class="perf-choice-row" role="radiogroup">
+          @for (opt of performanceOptions; track opt) {
           <button
-            *ngFor="let opt of performanceOptions"
             type="button"
             class="perf-choice"
             [attr.data-category]="opt.value.toLowerCase()"
@@ -761,6 +930,7 @@
             <span class="perf-icon">{{ opt.icon }}</span>
             <span class="perf-label">{{ opt.label }}</span>
           </button>
+          }
           <button
             type="button"
             class="perf-choice perf-choice-clear"
@@ -786,16 +956,19 @@
         <span class="perf-order-readonly">#{{ performanceModal.orderId }}</span>
       </div>
 
-      <div *ngIf="performanceModal.error" class="error-banner inline">{{ performanceModal.error }}</div>
+      @if (performanceModal.error) {
+      <div class="error-banner inline">{{ performanceModal.error }}</div>
+      }
     </div>
 
     <div class="modal-footer">
+      @if (performanceModal.existingNoteId) {
       <button
-        *ngIf="performanceModal.existingNoteId"
         type="button"
         class="btn-danger"
         (click)="clearPerformance()"
         [disabled]="performanceModal.saving">Clear</button>
+      }
       <button type="button" class="btn-secondary" (click)="closePerformanceModal()" [disabled]="performanceModal.saving">Cancel</button>
       <button type="button" class="btn-primary" (click)="savePerformance()" [disabled]="performanceModal.saving">
         {{ performanceModal.saving ? 'Saving…' : 'Save' }}
@@ -803,11 +976,16 @@
     </div>
   </div>
 </div>
+}
 
-<div *ngIf="imageViewer" class="image-viewer-overlay" (click)="closeImageViewer()">
+@if (imageViewer) {
+<div class="image-viewer-overlay" (click)="closeImageViewer()">
   <button type="button" class="image-viewer-close" (click)="closeImageViewer()" aria-label="Close">&times;</button>
   <figure class="image-viewer-figure" (click)="$event.stopPropagation()">
     <img [src]="imageViewer.src" [alt]="imageViewer.alt" referrerpolicy="no-referrer" />
-    <figcaption *ngIf="imageViewer.title">{{ imageViewer.title }}</figcaption>
+    @if (imageViewer.title) {
+    <figcaption>{{ imageViewer.title }}</figcaption>
+    }
   </figure>
 </div>
+}

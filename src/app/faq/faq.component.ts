@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, inject } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
 import { StructuredDataService } from '../services/structured-data.service';
 import { MarketingPricingService } from '../shared/pricing/marketing-pricing.service';
@@ -8,7 +8,7 @@ import { listStartingPrices } from '../shared/pricing/marketing-price-format';
 @Component({
   selector: 'app-faq',
   standalone: true,
-  imports: [CommonModule, BubbleFieldComponent],
+  imports: [BubbleFieldComponent],
   templateUrl: './faq.component.html',
   styleUrls: ['./faq.component.scss']
 })

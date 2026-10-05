@@ -5,24 +5,31 @@
         <p>{{ isLoginMode ? 'Please sign in to continue' : 'Please fill in your details' }}</p>
       </div>
 
-      <div class="error-banner" *ngIf="errorMessage">
+      @if (errorMessage) {
+      <div class="error-banner">
         {{ errorMessage }}
-        <div *ngIf="showResendOption" class="resend-section">
+        @if (showResendOption) {
+        <div class="resend-section">
           <button type="button" (click)="resendVerification()" class="resend-link">
             Resend verification email
           </button>
         </div>
+        }
       </div>
+      }
 
-      <div class="success-banner" *ngIf="successMessage">
+      @if (successMessage) {
+      <div class="success-banner">
         {{ successMessage }}
       </div>
+      }
 
       <!-- LOGIN FLOW -->
-      <ng-container *ngIf="isLoginMode">
+      @if (isLoginMode) {
 
         <!-- STEP 1: Email -->
-        <form *ngIf="loginStep === 'email'" [formGroup]="emailForm" (ngSubmit)="onEmailSubmit()" class="auth-form">
+        @if (loginStep === 'email') {
+        <form [formGroup]="emailForm" (ngSubmit)="onEmailSubmit()" class="auth-form">
           <div class="form-group">
             <label for="loginEmail">Email</label>
             <input
@@ -32,18 +39,22 @@
               [class.error]="emailForm.get('email')?.invalid && emailForm.get('email')?.touched"
               placeholder="Enter your email"
               autocomplete="email">
-            <div class="error-message" *ngIf="emailForm.get('email')?.invalid && emailForm.get('email')?.touched">
+            @if (emailForm.get('email')?.invalid && emailForm.get('email')?.touched) {
+            <div class="error-message">
               Please enter a valid email
             </div>
+            }
           </div>
 
           <button type="submit" class="submit-btn" [disabled]="emailForm.invalid || isLoading">
             {{ isLoading ? 'Checking...' : 'Continue' }}
           </button>
         </form>
+        }
 
         <!-- STEP 2a: Password -->
-        <form *ngIf="loginStep === 'password'" [formGroup]="passwordForm" (ngSubmit)="onPasswordSubmit()" class="auth-form">
+        @if (loginStep === 'password') {
+        <form [formGroup]="passwordForm" (ngSubmit)="onPasswordSubmit()" class="auth-form">
           <div class="step-info">
             <span class="step-email">{{ checkedEmail }}</span>
             <button type="button" class="change-email-btn" (click)="goBackToEmail()">Change</button>
@@ -60,13 +71,19 @@
                 placeholder="Enter your password"
                 autocomplete="current-password">
               <button type="button" class="password-toggle" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'">
-                <svg *ngIf="!showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                <svg *ngIf="showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                @if (!showPassword) {
+                <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                }
+                @if (showPassword) {
+                <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                }
               </button>
             </div>
-            <div class="error-message" *ngIf="passwordForm.get('password')?.invalid && passwordForm.get('password')?.touched">
+            @if (passwordForm.get('password')?.invalid && passwordForm.get('password')?.touched) {
+            <div class="error-message">
               Password is required
             </div>
+            }
           </div>
 
           <button type="submit" class="submit-btn" [disabled]="passwordForm.invalid || isLoading">
@@ -77,9 +94,11 @@
             <a (click)="onForgotPassword()" class="text-link">Forgot your password?</a>
           </p>
         </form>
+        }
 
         <!-- STEP 2b: OTP -->
-        <form *ngIf="loginStep === 'otp'" [formGroup]="otpForm" (ngSubmit)="onOtpSubmit()" class="auth-form">
+        @if (loginStep === 'otp') {
+        <form [formGroup]="otpForm" (ngSubmit)="onOtpSubmit()" class="auth-form">
           <div class="step-info">
             <span class="step-email">{{ checkedEmail }}</span>
             <button type="button" class="change-email-btn" (click)="goBackToEmail()">Change</button>
@@ -101,9 +120,11 @@
               inputmode="numeric"
               autocomplete="one-time-code"
               class="otp-input">
-            <div class="error-message" *ngIf="otpForm.get('code')?.invalid && otpForm.get('code')?.touched">
+            @if (otpForm.get('code')?.invalid && otpForm.get('code')?.touched) {
+            <div class="error-message">
               Please enter the 6-digit code
             </div>
+            }
           </div>
 
           <button type="submit" class="submit-btn" [disabled]="otpForm.invalid || isLoading">
@@ -115,9 +136,10 @@
             <button type="button" class="text-link" (click)="resendOtp()" [disabled]="isLoading">Resend</button>
           </p>
         </form>
+        }
 
         <!-- Social login (only on email step) -->
-        <ng-container *ngIf="loginStep === 'email'">
+        @if (loginStep === 'email') {
           <div class="social-login-section">
             <div class="divider"><span>OR</span></div>
 
@@ -132,12 +154,13 @@
               </app-apple-signin-button>
             </div>
           </div>
-        </ng-container>
+        }
 
-      </ng-container>
+      }
 
       <!-- REGISTRATION FLOW -->
-      <form *ngIf="!isLoginMode" [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="auth-form">
+      @if (!isLoginMode) {
+      <form [formGroup]="registerForm" (ngSubmit)="onSubmit()" class="auth-form">
         <div class="form-group">
           <label for="firstName">First Name</label>
           <input
@@ -147,9 +170,11 @@
             (blur)="onNameBlur('firstName')"
             [class.error]="registerForm.get('firstName')?.invalid && registerForm.get('firstName')?.touched"
             placeholder="Enter your first name">
-          <div class="error-message" *ngIf="registerForm.get('firstName')?.invalid && registerForm.get('firstName')?.touched">
+          @if (registerForm.get('firstName')?.invalid && registerForm.get('firstName')?.touched) {
+          <div class="error-message">
             First name is required
           </div>
+          }
         </div>
 
         <div class="form-group">
@@ -161,9 +186,11 @@
             (blur)="onNameBlur('lastName')"
             [class.error]="registerForm.get('lastName')?.invalid && registerForm.get('lastName')?.touched"
             placeholder="Enter your last name">
-          <div class="error-message" *ngIf="registerForm.get('lastName')?.invalid && registerForm.get('lastName')?.touched">
+          @if (registerForm.get('lastName')?.invalid && registerForm.get('lastName')?.touched) {
+          <div class="error-message">
             Last name is required
           </div>
+          }
         </div>
 
         <div class="form-group">
@@ -185,9 +212,11 @@
             formControlName="email"
             [class.error]="registerForm.get('email')?.invalid && registerForm.get('email')?.touched"
             placeholder="Enter your email">
-          <div class="error-message" *ngIf="registerForm.get('email')?.invalid && registerForm.get('email')?.touched">
+          @if (registerForm.get('email')?.invalid && registerForm.get('email')?.touched) {
+          <div class="error-message">
             Please enter a valid email
           </div>
+          }
         </div>
 
         <div class="form-group">
@@ -200,14 +229,22 @@
               placeholder="Enter password"
               [class.error]="registerForm.get('password')?.invalid && registerForm.get('password')?.touched">
             <button type="button" class="password-toggle" (click)="showPassword = !showPassword" [attr.aria-label]="showPassword ? 'Hide password' : 'Show password'">
-              <svg *ngIf="!showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              <svg *ngIf="showPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              @if (!showPassword) {
+              <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              }
+              @if (showPassword) {
+              <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              }
             </button>
           </div>
 
-          <div class="error-message" *ngIf="registerForm.get('password')?.invalid && registerForm.get('password')?.touched">
-            <span *ngFor="let error of getPasswordErrors()">{{ error }}<br></span>
+          @if (registerForm.get('password')?.invalid && registerForm.get('password')?.touched) {
+          <div class="error-message">
+            @for (error of getPasswordErrors(); track error) {
+            <span>{{ error }}<br></span>
+            }
           </div>
+          }
         </div>
 
         <div class="form-group">
@@ -220,14 +257,24 @@
               [class.error]="registerForm.get('confirmPassword')?.invalid && registerForm.get('confirmPassword')?.touched"
               placeholder="Confirm your password">
             <button type="button" class="password-toggle" (click)="showConfirmPassword = !showConfirmPassword" [attr.aria-label]="showConfirmPassword ? 'Hide password' : 'Show password'">
-              <svg *ngIf="!showConfirmPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-              <svg *ngIf="showConfirmPassword" class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              @if (!showConfirmPassword) {
+              <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              }
+              @if (showConfirmPassword) {
+              <svg class="icon-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              }
             </button>
           </div>
-          <div class="error-message" *ngIf="registerForm.get('confirmPassword')?.invalid && registerForm.get('confirmPassword')?.touched">
-            <span *ngIf="registerForm.get('confirmPassword')?.errors?.['required']">Confirm password is required</span>
-            <span *ngIf="registerForm.get('confirmPassword')?.errors?.['passwordMismatch']">Passwords do not match</span>
+          @if (registerForm.get('confirmPassword')?.invalid && registerForm.get('confirmPassword')?.touched) {
+          <div class="error-message">
+            @if (registerForm.get('confirmPassword')?.errors?.['required']) {
+            <span>Confirm password is required</span>
+            }
+            @if (registerForm.get('confirmPassword')?.errors?.['passwordMismatch']) {
+            <span>Passwords do not match</span>
+            }
           </div>
+          }
         </div>
 
         <div class="form-group">
@@ -239,8 +286,12 @@
             placeholder="e.g. DREAM-XXXXX"
             style="text-transform: uppercase;"
             maxlength="11">
-          <small class="referral-hint" *ngIf="referralValid === true">Referral code applied!</small>
-          <small class="referral-hint referral-invalid" *ngIf="referralValid === false">Invalid referral code.</small>
+          @if (referralValid === true) {
+          <small class="referral-hint">Referral code applied!</small>
+          }
+          @if (referralValid === false) {
+          <small class="referral-hint referral-invalid">Invalid referral code.</small>
+          }
         </div>
 
         <button type="submit" class="submit-btn" [disabled]="registerForm.invalid || isLoading">
@@ -262,6 +313,7 @@
           </div>
         </div>
       </form>
+      }
 
       <div class="auth-footer">
         <p>

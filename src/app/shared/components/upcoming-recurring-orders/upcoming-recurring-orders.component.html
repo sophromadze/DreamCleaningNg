@@ -1,77 +1,112 @@
-<section class="uro" *ngIf="loading || hasAny || errorMessage">
+@if (loading || hasAny || errorMessage) {
+<section class="uro">
   <div class="uro-head">
     <h3>Your upcoming cleanings</h3>
-    <button *ngIf="data?.canPayAll"
+    @if (data?.canPayAll) {
+    <button
             type="button"
             class="uro-payall-btn"
             (click)="openPayAll()"
             [disabled]="payingAll">
       Pay all upcoming — {{ data!.payAllTotal | currency:'USD' }}
     </button>
+    }
   </div>
 
-  <p class="uro-loading" *ngIf="loading">Loading your schedule…</p>
-  <p class="uro-error" *ngIf="errorMessage">{{ errorMessage }}</p>
+  @if (loading) {
+  <p class="uro-loading">Loading your schedule…</p>
+  }
+  @if (errorMessage) {
+  <p class="uro-error">{{ errorMessage }}</p>
+  }
 
-  <p class="uro-intro" *ngIf="!loading && hasAny">
+  @if (!loading && hasAny) {
+  <p class="uro-intro">
     These are the cleanings already booked on your recurring plan. You can pay them one at a time
     as they come up, or settle them all at once — there is no rush.
   </p>
+  }
 
   <!-- NEAREST FIRST. The server returns them in this order; the page does not re-sort. -->
-  <ul class="uro-list" *ngIf="!loading && hasAny">
-    <li *ngFor="let o of orders" class="uro-item" [class.uro-item--paid]="o.isPaid">
+  @if (!loading && hasAny) {
+  <ul class="uro-list">
+    @for (o of orders; track o) {
+    <li class="uro-item" [class.uro-item--paid]="o.isPaid">
       <div class="uro-item-main">
         <span class="uro-date">{{ o.serviceDate | date:'EEE d MMM' }}</span>
         <span class="uro-type">{{ o.serviceTypeName }}</span>
       </div>
 
       <div class="uro-item-money">
-        <span class="uro-total" *ngIf="!o.billedByContractLabel">{{ o.total | currency:'USD' }}</span>
-        <span class="uro-total uro-total--contract" *ngIf="o.billedByContractLabel">{{ o.billedByContractLabel }}</span>
+        @if (!o.billedByContractLabel) {
+        <span class="uro-total">{{ o.total | currency:'USD' }}</span>
+        }
+        @if (o.billedByContractLabel) {
+        <span class="uro-total uro-total--contract">{{ o.billedByContractLabel }}</span>
+        }
 
-        <span class="uro-paid" *ngIf="o.isPaid">Paid</span>
+        @if (o.isPaid) {
+        <span class="uro-paid">Paid</span>
+        }
 
         <!-- Only the nearest unpaid cleaning offers a button. The ones behind it show WHY they
              do not yet, rather than being silently inert. -->
-        <button *ngIf="!o.isPaid && o.isPayable"
+        @if (!o.isPaid && o.isPayable) {
+        <button
                 type="button"
                 class="uro-pay-btn"
                 (click)="payOne(o)">
           Pay now
         </button>
+        }
 
-        <span *ngIf="!o.isPaid && !o.isPayable && o.blockedReason" class="uro-blocked">
+        @if (!o.isPaid && !o.isPayable && o.blockedReason) {
+        <span class="uro-blocked">
           {{ o.blockedReason }}
         </span>
+        }
       </div>
     </li>
+    }
   </ul>
+  }
 </section>
+}
 
 <!-- ── Pay all upcoming ─────────────────────────────────────────────────────────────────── -->
-<div class="uro-modal-backdrop" *ngIf="showPayAll" (click)="closePayAll()">
+@if (showPayAll) {
+<div class="uro-modal-backdrop" (click)="closePayAll()">
   <div class="uro-modal" (click)="$event.stopPropagation()">
     <h4>Pay all upcoming cleanings</h4>
 
-    <p class="uro-modal-summary" *ngIf="data">
+    @if (data) {
+    <p class="uro-modal-summary">
       {{ data.payAllCount }} cleaning(s) — <strong>{{ data.payAllTotal | currency:'USD' }}</strong>
     </p>
+    }
+    @if (data) {
+    <ul class="uro-modal-list">
+      @for (o of orders; track o) {
+      <li>
+        @if (o.includedInPayAll) {
 
-    <ul class="uro-modal-list" *ngIf="data">
-      <li *ngFor="let o of orders">
-        <ng-container *ngIf="o.includedInPayAll">
           {{ o.serviceDate | date:'d MMM' }} — {{ o.total | currency:'USD' }}
-        </ng-container>
-        <span *ngIf="!o.includedInPayAll && (!o.isPaid || (o.paymentMethod && o.paymentMethod !== 'Normal'))">{{ o.serviceDate | date:'d MMM' }} — excluded ({{ o.paymentMethod }}). {{ o.blockedReason }}</span>
+        }
+        @if (!o.includedInPayAll && (!o.isPaid || (o.paymentMethod && o.paymentMethod !== 'Normal'))) {
+        <span>{{ o.serviceDate | date:'d MMM' }} — excluded ({{ o.paymentMethod }}). {{ o.blockedReason }}</span>
+        }
       </li>
+      }
     </ul>
+    }
 
     <!-- The amount is computed on the server from your own upcoming cleanings; the figure above
          is what it returned. -->
     <div id="recurring-pay-all-card" class="uro-card-element"></div>
 
-    <p class="uro-error" *ngIf="payAllError">{{ payAllError }}</p>
+    @if (payAllError) {
+    <p class="uro-error">{{ payAllError }}</p>
+    }
 
     <div class="uro-modal-actions">
       <button type="button" class="uro-pay-btn" (click)="confirmPayAll()" [disabled]="payingAll">
@@ -83,6 +118,7 @@
     </div>
   </div>
 </div>
+}
 
 <!-- Asked between the Pay click and the charge; the batch intent is untouched by it. -->
 <app-save-card-modal

@@ -1,5 +1,5 @@
 import { Component, HostListener, ElementRef, Inject, PLATFORM_ID } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { PhoneClickTrackingService } from '../services/phone-click-tracking.service';
 import { PhoneNumberService } from '../services/phone-number.service';
@@ -7,7 +7,7 @@ import { PhoneNumberService } from '../services/phone-number.service';
 @Component({
   selector: 'app-floating-action-buttons',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './floating-action-buttons.component.html',
   styleUrl: './floating-action-buttons.component.scss'
 })

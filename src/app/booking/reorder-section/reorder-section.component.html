@@ -8,7 +8,8 @@
 </button>
 
 <!-- Reorder Modal -->
-<div class="reorder-modal" *ngIf="showModal">
+@if (showModal) {
+<div class="reorder-modal">
   <div class="reorder-modal-header">
     <h3>Select an Order to Reorder</h3>
     <button type="button" class="close-btn" (click)="toggleModal()">
@@ -16,16 +17,21 @@
     </button>
   </div>
   <div class="reorder-modal-body">
-    <div *ngIf="isLoading" class="loading-orders">
+    @if (isLoading) {
+    <div class="loading-orders">
       Loading orders...
     </div>
-    <div *ngIf="!isLoading && orders.length === 0" class="no-orders">
+    }
+    @if (!isLoading && orders.length === 0) {
+    <div class="no-orders">
       You don't have any previous orders to reorder.
     </div>
-    <div class="orders-list" *ngIf="!isLoading && orders.length > 0">
+    }
+    @if (!isLoading && orders.length > 0) {
+    <div class="orders-list">
+      @for (order of orders; track order) {
       <div
         class="order-item"
-        *ngFor="let order of orders"
         (click)="selectOrder(order.id)"
         [class.reordering]="reorderingOrderId === order.id">
         <div class="order-item-header">
@@ -36,10 +42,15 @@
           <p class="order-date">{{ formatOrderDate(order.serviceDate) }} at {{ formatTime(order.serviceTime) }}</p>
           <p class="order-address">{{ order.serviceAddress }}</p>
         </div>
-        <div class="order-item-status" *ngIf="reorderingOrderId === order.id">
+        @if (reorderingOrderId === order.id) {
+        <div class="order-item-status">
           <span class="loading-text">Loading...</span>
         </div>
+        }
       </div>
+      }
     </div>
+    }
   </div>
 </div>
+}

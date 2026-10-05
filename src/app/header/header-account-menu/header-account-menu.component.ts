@@ -1,5 +1,4 @@
 import { Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { HeaderComponent } from '../header.component';
 import { IconComponent } from '../../shared/icons/icon.component';
@@ -16,7 +15,7 @@ import { faUser } from '../../shared/icons/glyphs/faUser';
 @Component({
   selector: 'app-header-account-menu',
   standalone: true,
-  imports: [CommonModule, RouterLink, IconComponent],
+  imports: [RouterLink, IconComponent],
   templateUrl: './header-account-menu.component.html',
   styleUrl: './header-account-menu.component.scss'
 })

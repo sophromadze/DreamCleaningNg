@@ -88,7 +88,9 @@
           <div class="discount-card__icon" aria-hidden="true"><i [appIcon]="icons.faGift"></i></div>
           <div class="discount-card__head">
             <h3 class="discount-card__title">First-Time Customer Discount</h3>
-            <span class="discount-card__badge" *ngIf="firstTimeLabel">{{ firstTimeLabel }} OFF</span>
+            @if (firstTimeLabel) {
+            <span class="discount-card__badge">{{ firstTimeLabel }} OFF</span>
+            }
           </div>
           <p class="discount-card__desc">
             New to Dream Cleaning? Your very first cleaning comes with an exclusive first-time discount{{ firstTimeLabel ? ' of ' + firstTimeLabel : '' }}, applied automatically at checkout. It's the easiest, lowest-risk way to experience our service.
@@ -106,14 +108,20 @@
           <p class="discount-card__desc">
             The more often we clean, the more you save. Pick a recurring plan when you book and the discount is applied automatically to <strong>every single visit</strong>.
           </p>
-          <ul class="discount-card__list" *ngIf="recurringPlans.length">
-            <li *ngFor="let plan of recurringPlans">
+          @if (recurringPlans.length) {
+          <ul class="discount-card__list">
+            @for (plan of recurringPlans; track plan) {
+            <li>
               <strong>{{ plan.name }}</strong> — save <strong>{{ plan.label }}</strong> on every cleaning
             </li>
+            }
           </ul>
-          <p class="discount-card__desc" *ngIf="!recurringPlans.length">
+          }
+          @if (!recurringPlans.length) {
+          <p class="discount-card__desc">
             Weekly, bi-weekly and monthly plans all include automatic savings — the more frequent your cleanings, the bigger your discount.
           </p>
+          }
           <p class="discount-card__benefit"><i [appIcon]="icons.faCheck"></i> A consistently fresh home for less, with zero effort to re-book.</p>
         </article>
 
@@ -162,13 +170,19 @@
           <p class="discount-card__desc">
             Throughout the year we run limited-time promotions around major events and seasons — think <strong>Black Friday</strong>, <strong>Christmas</strong>, <strong>New Year</strong>, <strong>Thanksgiving</strong> and spring-cleaning season. These are time-limited, so it pays to book while they're live.
           </p>
-          <ul class="discount-card__list discount-card__list--offers" *ngIf="seasonalOffers.length">
-            <li *ngFor="let offer of seasonalOffers">
+          @if (seasonalOffers.length) {
+          <ul class="discount-card__list discount-card__list--offers">
+            @for (offer of seasonalOffers; track offer) {
+            <li>
               <span class="offer-pill">{{ offerLabel(offer) }} OFF</span>
               <strong>{{ offer.name }}</strong>
-              <span *ngIf="offer.description"> — {{ offer.description }}</span>
+              @if (offer.description) {
+              <span> — {{ offer.description }}</span>
+              }
             </li>
+            }
           </ul>
+          }
           <p class="discount-card__benefit"><i [appIcon]="icons.faCheck"></i> Big seasonal savings for a deep clean when you need it most.</p>
         </article>
 
@@ -188,7 +202,8 @@
       </div>
 
       <!-- Log-in prompt — Bubble Rewards & referrals need an account -->
-      <div class="login-callout" *ngIf="!isLoggedIn">
+      @if (!isLoggedIn) {
+      <div class="login-callout">
         <div class="login-callout__icon" aria-hidden="true"><i [appIcon]="icons.faUnlockKeyhole"></i></div>
         <div class="login-callout__body">
           <h3 class="login-callout__title">Log in to unlock your rewards</h3>
@@ -198,7 +213,9 @@
         </div>
         <button type="button" class="btn-primary cta login-callout__btn" (click)="openRewardsLogin()">Log In or Sign Up</button>
       </div>
-      <div class="login-callout login-callout--member" *ngIf="isLoggedIn">
+      }
+      @if (isLoggedIn) {
+      <div class="login-callout login-callout--member">
         <div class="login-callout__icon" aria-hidden="true"><i [appIcon]="icons.faStar"></i></div>
         <div class="login-callout__body">
           <h3 class="login-callout__title">Your rewards are waiting</h3>
@@ -206,6 +223,7 @@
         </div>
         <a routerLink="/rewards" class="btn-primary cta login-callout__btn">View My Rewards</a>
       </div>
+      }
     </section>
 
     <!-- ── Frequently asked questions ────────────────────────── -->

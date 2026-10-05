@@ -30,7 +30,8 @@
                content hidden by the shimmer), so they size exactly like the loaded form at every
                breakpoint and the swap does not shift anything. Shown only when the server could
                not load the service types (see loadServiceTypes). -->
-          <div *ngIf="isLoadingServiceTypes" class="service-type-dropdown" aria-hidden="true" inert>
+          @if (isLoadingServiceTypes) {
+          <div class="service-type-dropdown" aria-hidden="true" inert>
             <button type="button" tabindex="-1" class="dropdown-toggle hero-skeleton" [shimmer]="true">
               <span class="dropdown-toggle__label">
                 <i [appIcon]="icons.faBroom" class="dropdown-toggle__icon"></i>
@@ -39,7 +40,9 @@
               <i [appIcon]="icons.faChevronDown" class="dropdown-toggle__chevron"></i>
             </button>
           </div>
-          <div *ngIf="!isLoadingServiceTypes" class="service-type-dropdown">
+          }
+          @if (!isLoadingServiceTypes) {
+          <div class="service-type-dropdown">
             <button
               type="button"
               class="dropdown-toggle"
@@ -52,9 +55,10 @@
               </span>
               <i [appIcon]="icons.faChevronDown" class="dropdown-toggle__chevron"></i>
             </button>
-            <div class="dropdown-menu" *ngIf="serviceTypeDropdownOpen">
+            @if (serviceTypeDropdownOpen) {
+            <div class="dropdown-menu">
+              @for (type of serviceTypes; track type) {
               <button
-                *ngFor="let type of serviceTypes"
                 type="button"
                 class="dropdown-item"
                 [class.is-active]="selectedServiceType?.id === type.id"
@@ -63,18 +67,26 @@
                    aria-hidden="true"></i>
                 <span>{{ type.name }}</span>
               </button>
+              }
             </div>
+            }
           </div>
-          <div class="error-message" *ngIf="!isLoadingServiceTypes && serviceTypeControl.invalid && serviceTypeControl.touched">
+          }
+          @if (!isLoadingServiceTypes && serviceTypeControl.invalid && serviceTypeControl.touched) {
+          <div class="error-message">
             Service type is required
           </div>
+          }
         </div>
 
         <!-- About Your Home -->
-        <div class="form-section" *ngIf="isLoadingServiceTypes || selectedServiceType">
+        @if (isLoadingServiceTypes || selectedServiceType) {
+        <div class="form-section">
           <h3 class="section-title">About Your Home</h3>
-          <div class="services" *ngIf="isLoadingServiceTypes" aria-hidden="true" inert>
-            <div class="service-item hero-skeleton" *ngFor="let label of skeletonServiceLabels" [shimmer]="true">
+          @if (isLoadingServiceTypes) {
+          <div class="services" aria-hidden="true" inert>
+            @for (label of skeletonServiceLabels; track label) {
+            <div class="service-item hero-skeleton" [shimmer]="true">
               <label>{{ label }}</label>
               <div class="service-input">
                 <div class="quantity-control">
@@ -86,15 +98,20 @@
                 </div>
               </div>
             </div>
+            }
           </div>
-          <div class="services" *ngIf="!isLoadingServiceTypes && selectedServiceType">
-            <ng-container *ngFor="let selected of selectedServices">
+          }
+          @if (!isLoadingServiceTypes && selectedServiceType) {
+          <div class="services">
+            @for (selected of selectedServices; track selected) {
               <!-- Sq.ft has its own slider below. Levels is never offered here at all: the hero
                    asks four questions and a fifth would defeat the point of a quick estimate. -->
-              <div class="service-item" *ngIf="selected.service.serviceKey !== 'sqft' && !isLevelsService(selected.service)">
+              @if (selected.service.serviceKey !== 'sqft' && !isLevelsService(selected.service)) {
+              <div class="service-item">
                 <label>{{ selected.service.name }}</label>
 
-                <div class="service-input" *ngIf="selected.service.inputType === 'dropdown'">
+                @if (selected.service.inputType === 'dropdown') {
+                <div class="service-input">
                   <div class="quantity-control">
                     <div class="control-buttons">
                       <button
@@ -122,15 +139,21 @@
                     </div>
                   </div>
                 </div>
+                }
               </div>
-            </ng-container>
+              }
+            }
           </div>
+          }
         </div>
+        }
 
         <!-- Cleaning Type -->
-        <div class="form-section" *ngIf="isLoadingServiceTypes || canSelectDeepCleaning">
+        @if (isLoadingServiceTypes || canSelectDeepCleaning) {
+        <div class="form-section">
           <h3 class="section-title">Cleaning Type</h3>
-          <div *ngIf="isLoadingServiceTypes" class="cleaning-type-buttons" aria-hidden="true" inert>
+          @if (isLoadingServiceTypes) {
+          <div class="cleaning-type-buttons" aria-hidden="true" inert>
             <button type="button" tabindex="-1" class="cleaning-type-btn hero-skeleton" [shimmer]="true">
               <i [appIcon]="icons.faBroom" class="cleaning-type-btn__icon"></i>
               <span class="cleaning-type-btn__body">
@@ -148,7 +171,9 @@
               <i [appIcon]="icons.faCircleCheck" class="cleaning-type-btn__check"></i>
             </button>
           </div>
-          <div *ngIf="!isLoadingServiceTypes && canSelectDeepCleaning" class="cleaning-type-buttons">
+          }
+          @if (!isLoadingServiceTypes && canSelectDeepCleaning) {
+          <div class="cleaning-type-buttons">
             <button
               type="button"
               class="cleaning-type-btn"
@@ -175,10 +200,14 @@
               <i [appIcon]="icons.faCircleCheck" class="cleaning-type-btn__check" aria-hidden="true"></i>
             </button>
           </div>
-          <div class="error-message" *ngIf="!isLoadingServiceTypes && cleaningTypeControl.invalid && cleaningTypeControl.touched">
+          }
+          @if (!isLoadingServiceTypes && cleaningTypeControl.invalid && cleaningTypeControl.touched) {
+          <div class="error-message">
             Cleaning type is required
           </div>
+          }
         </div>
+        }
 
         <!-- Property type. Fills the slot the Regular/Deep choice occupies on Residential, which
              every other service type leaves empty. Same two cards as the booking page.
@@ -186,7 +215,8 @@
              PROPERTY TYPE ONLY - the Levels chips are deliberately NEVER rendered here, so the
              hero can never write a level count and its estimate can never carry a stair charge.
              Selecting House therefore changes nothing on screen and nothing in the price. -->
-        <div class="form-section" *ngIf="showPropertyTypeSelector()">
+        @if (showPropertyTypeSelector()) {
+        <div class="form-section">
           <h3 class="section-title">What kind of place is it?</h3>
           <div class="property-type-options">
             <button
@@ -221,26 +251,37 @@
             </button>
           </div>
         </div>
+        }
 
         <!-- CTA -->
-        <button *ngIf="isLoadingServiceTypes" type="button" tabindex="-1" aria-hidden="true" inert
+        @if (isLoadingServiceTypes) {
+        <button type="button" tabindex="-1" aria-hidden="true" inert
                 class="btn-cta-secondary btn-cta-secondary--full hero-skeleton" [shimmer]="true">
           See Exact Times &amp; Price
           <svg class="btn-arrow" viewBox="0 0 24 24" aria-hidden="true"></svg>
         </button>
-        <button *ngIf="!isLoadingServiceTypes" type="submit" class="btn-cta-secondary btn-cta-secondary--full">
+        }
+        @if (!isLoadingServiceTypes) {
+        <button type="submit" class="btn-cta-secondary btn-cta-secondary--full">
           See Exact Times &amp; Price
           <svg class="btn-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="m9 18 6-6-6-6"/>
           </svg>
         </button>
+        }
 
         <!-- Starting estimate -->
-        <div class="estimate-row" *ngIf="isLoadingServiceTypes || selectedServiceType">
+        @if (isLoadingServiceTypes || selectedServiceType) {
+        <div class="estimate-row">
           <span class="estimate-row__label">Starting estimate</span>
-          <span *ngIf="isLoadingServiceTypes" class="estimate-row__price hero-skeleton" [shimmer]="true" aria-hidden="true">from $000</span>
-          <span *ngIf="!isLoadingServiceTypes" class="estimate-row__price">from ${{ getEstimatedPrice() }}</span>
+          @if (isLoadingServiceTypes) {
+          <span class="estimate-row__price hero-skeleton" [shimmer]="true" aria-hidden="true">from $000</span>
+          }
+          @if (!isLoadingServiceTypes) {
+          <span class="estimate-row__price">from ${{ getEstimatedPrice() }}</span>
+          }
         </div>
+        }
 
         <ul class="trust-mini-list">
           <li><i [appIcon]="icons.faCircleCheck" class="trust-mini-list__icon trust-mini-list__icon--green" aria-hidden="true"></i> No hidden fees</li>
@@ -262,7 +303,9 @@
         <svg viewBox="0 0 24 24" fill="currentColor" class="star-icon" aria-hidden="true">
           <path d="M12 2.75 14.86 8.55l6.4.93-4.63 4.51 1.09 6.37L12 17.35 6.28 20.36l1.09-6.37-4.63-4.51 6.4-.93L12 2.75Z"/>
         </svg>
-        <span *ngIf="reviewCountLabel">{{ reviewCountLabel }} ·&nbsp;</span>Trusted NYC Cleaners
+        @if (reviewCountLabel) {
+        <span>{{ reviewCountLabel }} ·&nbsp;</span>
+        }Trusted NYC Cleaners
       </div>
 
       <h1 class="hero-title">
@@ -270,7 +313,8 @@
       </h1>
       <p class="hero-slogan">Where dreams feel clean</p>
 
-      <div class="hero-locations" *ngIf="showLocations">
+      @if (showLocations) {
+      <div class="hero-locations">
         <a routerLink="/services/manhattan-cleaning" class="location-pill">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/>
@@ -293,6 +337,7 @@
           Queens
         </a>
       </div>
+      }
 
       <p class="hero-subtitle">
         {{ heroSubtitle }}
@@ -313,7 +358,8 @@
 
         <!-- Shown to everyone and server-rendered whole (2026-10) - frame, icon, both lines and
              "OFF". Only the percentage may arrive later, into its reserved space. See showWelcomeCoupon. -->
-        <a class="hero-offer-coupon" *ngIf="showWelcomeCoupon"
+        @if (showWelcomeCoupon) {
+        <a class="hero-offer-coupon"
            routerLink="/booking"
            [attr.aria-label]="firstTimeDiscountLabel
              ? 'Welcome offer: ' + firstTimeDiscountLabel + ' off your first cleaning. Book now.'
@@ -334,6 +380,7 @@
             <span class="hero-offer-coupon__off">OFF</span>
           </div>
         </a>
+        }
 
         <div class="hero-trust-bar">
           <div class="hero-trust-bar__item">

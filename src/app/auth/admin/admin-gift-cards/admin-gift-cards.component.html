@@ -63,19 +63,21 @@
           <div class="preview-section">
             <div class="preview-container">
               <!-- Show uploaded preview if available -->
+              @if (imagePreviewUrl) {
               <div 
                 class="background-preview" 
-                *ngIf="imagePreviewUrl"
                 [style.backgroundImage]="'url(' + imagePreviewUrl + ')'">
                 <span class="preview-badge">New Upload</span>
               </div>
+              }
               <!-- Show current background -->
+              @if (!imagePreviewUrl && giftCardBackgroundPath) {
               <div 
                 class="background-preview" 
-                *ngIf="!imagePreviewUrl && giftCardBackgroundPath"
                 [style.backgroundImage]="'url(' + giftCardBackgroundPath + ')'">
                 <span class="preview-badge">{{ hasGiftCardBackground ? 'Current' : (giftCardBackgroundMissing ? 'Default — uploaded image missing, please re-upload' : 'Default') }}</span>
               </div>
+              }
             </div>
           </div>
         </div>
@@ -114,7 +116,8 @@
       </div>
     </div>
   
-    <div class="gift-cards-table" *ngIf="!loading">
+    @if (!loading) {
+    <div class="gift-cards-table">
       <div class="table-wrapper" #tableWrapper>
         <table>
           <thead #tableHeader>
@@ -127,11 +130,13 @@
             <th>Sender</th>
             <th>Purchaser</th>
             <th>Status</th>
-            <th *ngIf="isSuperAdmin || userPermissions.permissions.canActivate || userPermissions.permissions.canDeactivate">Actions</th>
+            @if (isSuperAdmin || userPermissions.permissions.canActivate || userPermissions.permissions.canDeactivate) {
+            <th>Actions</th>
+            }
           </tr>
         </thead>
         <tbody>
-          <ng-container *ngFor="let giftCard of paginatedGiftCards">
+          @for (giftCard of paginatedGiftCards; track giftCard) {
             <tr [class.inactive]="!giftCard.isActive"
                 [class.fully-used]="giftCard.isFullyUsed"
                 [class.expanded]="selectedGiftCard?.id === giftCard.id"
@@ -146,14 +151,18 @@
                 </span>
               </td>
               <td>
-                <div class="user-info" *ngIf="!giftCard.isPendingSend">
+                @if (!giftCard.isPendingSend) {
+                <div class="user-info">
                   <div>{{ giftCard.recipientName }}</div>
                   <small>{{ giftCard.recipientEmail }}</small>
                 </div>
-                <div class="user-info not-sent" *ngIf="giftCard.isPendingSend">
+                }
+                @if (giftCard.isPendingSend) {
+                <div class="user-info not-sent">
                   <div>Not sent yet</div>
                   <small>Kept by purchaser</small>
                 </div>
+                }
               </td>
               <td>
                 <div class="user-info">
@@ -162,14 +171,18 @@
                 </div>
               </td>
               <td>
-                <div class="user-info" *ngIf="giftCard.purchasedByUserName">
+                @if (giftCard.purchasedByUserName) {
+                <div class="user-info">
                   <div>{{ giftCard.purchasedByUserName }}</div>
                   <small>{{ giftCard.purchasedByUserEmail }}</small>
                 </div>
-                <div class="user-info not-sent" *ngIf="!giftCard.purchasedByUserName">
+                }
+                @if (!giftCard.purchasedByUserName) {
+                <div class="user-info not-sent">
                   <div>Guest</div>
                   <small>No account</small>
                 </div>
+                }
               </td>
               <td>
                 <span class="status-badge" [class.active]="giftCard.isActive && !giftCard.isFullyUsed"
@@ -184,18 +197,23 @@
                   {{ giftCard.isPendingSend ? 'Not sent yet' : 'Sent' }}
                 </span>
               </td>
-              <td *ngIf="isSuperAdmin || userPermissions.permissions.canActivate || userPermissions.permissions.canDeactivate" class="actions">
-                <button *ngIf="canToggleGiftCardStatus(giftCard)"
+              @if (isSuperAdmin || userPermissions.permissions.canActivate || userPermissions.permissions.canDeactivate) {
+              <td class="actions">
+                @if (canToggleGiftCardStatus(giftCard)) {
+                <button
                         (click)="toggleGiftCardStatus(giftCard); $event.stopPropagation()" 
                         class="btn-toggle"
                         [class.activate]="!giftCard.isActive"
                         [disabled]="giftCard.isFullyUsed">
                   {{ giftCard.isActive ? 'Deactivate' : 'Activate' }}
                 </button>
+                }
               </td>
+              }
             </tr>
             <!-- Expanded Details Row -->
-            <tr *ngIf="selectedGiftCard?.id === giftCard.id" class="details-row">
+            @if (selectedGiftCard?.id === giftCard.id) {
+            <tr class="details-row">
               <td colspan="9">
                 <div class="details-content">
                   <div class="detail-section">
@@ -221,15 +239,23 @@
                         <label>Created:</label>
                         <span>{{ formatDateTime(selectedGiftCard!.createdAt) }}</span>
                       </div>
-                      <div class="detail-item" *ngIf="selectedGiftCard!.paidAt">
+                      @if (selectedGiftCard!.paidAt) {
+                      <div class="detail-item">
                         <label>Paid At:</label>
                         <span>{{ formatDateTime(selectedGiftCard!.paidAt) }}</span>
                       </div>
+                      }
                       <div class="detail-item">
                         <label>Delivery:</label>
-                        <span *ngIf="selectedGiftCard!.isPendingSend">Not sent yet (bought to send later)</span>
-                        <span *ngIf="!selectedGiftCard!.isPendingSend && selectedGiftCard!.sentAt">Sent from profile {{ formatDateTime(selectedGiftCard!.sentAt) }}</span>
-                        <span *ngIf="!selectedGiftCard!.isPendingSend && !selectedGiftCard!.sentAt">Sent at purchase</span>
+                        @if (selectedGiftCard!.isPendingSend) {
+                        <span>Not sent yet (bought to send later)</span>
+                        }
+                        @if (!selectedGiftCard!.isPendingSend && selectedGiftCard!.sentAt) {
+                        <span>Sent from profile {{ formatDateTime(selectedGiftCard!.sentAt) }}</span>
+                        }
+                        @if (!selectedGiftCard!.isPendingSend && !selectedGiftCard!.sentAt) {
+                        <span>Sent at purchase</span>
+                        }
                       </div>
                     </div>
                   </div>
@@ -239,13 +265,17 @@
                     <div class="detail-grid">
                       <div class="detail-item">
                         <label>Recipient:</label>
-                        <div class="user-details" *ngIf="!selectedGiftCard!.isPendingSend">
+                        @if (!selectedGiftCard!.isPendingSend) {
+                        <div class="user-details">
                           <div>{{ selectedGiftCard!.recipientName }}</div>
                           <small>{{ selectedGiftCard!.recipientEmail }}</small>
                         </div>
-                        <div class="user-details" *ngIf="selectedGiftCard!.isPendingSend">
+                        }
+                        @if (selectedGiftCard!.isPendingSend) {
+                        <div class="user-details">
                           <div>Not sent yet</div>
                         </div>
+                        }
                       </div>
                       <div class="detail-item">
                         <label>Sender:</label>
@@ -258,18 +288,23 @@
                         <label>Purchased By:</label>
                         <div class="user-details">
                           <div>{{ selectedGiftCard!.purchasedByUserName || 'Guest (no account)' }}</div>
-                          <small *ngIf="selectedGiftCard!.purchasedByUserEmail">{{ selectedGiftCard!.purchasedByUserEmail }}</small>
+                          @if (selectedGiftCard!.purchasedByUserEmail) {
+                          <small>{{ selectedGiftCard!.purchasedByUserEmail }}</small>
+                          }
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div class="detail-section" *ngIf="selectedGiftCard!.message">
+                  @if (selectedGiftCard!.message) {
+                  <div class="detail-section">
                     <h3>Message</h3>
                     <p class="gift-message">{{ selectedGiftCard!.message }}</p>
                   </div>
+                  }
 
-                  <div class="detail-section" *ngIf="selectedGiftCard!.usages.length > 0">
+                  @if (selectedGiftCard!.usages.length > 0) {
+                  <div class="detail-section">
                     <h3>Usage History</h3>
                     <table class="usage-table">
                       <thead>
@@ -282,7 +317,8 @@
                         </tr>
                       </thead>
                       <tbody>
-                        <tr *ngFor="let usage of selectedGiftCard!.usages">
+                        @for (usage of selectedGiftCard!.usages; track usage) {
+                        <tr>
                           <td>{{ formatDateTime(usage.usedAt) }}</td>
                           <td>
                             <div class="user-info">
@@ -294,9 +330,11 @@
                           <td>{{ formatCurrency(usage.balanceAfterUsage) }}</td>
                           <td>{{ usage.orderReference }}</td>
                         </tr>
+                        }
                       </tbody>
                     </table>
                   </div>
+                  }
                   
                   <div class="close-details-container">
                     <button class="close-details-btn" (click)="closeDetails()">
@@ -306,44 +344,60 @@
                 </div>
               </td>
             </tr>
-          </ng-container>
+            }
+          }
         </tbody>
         </table>
       </div>
 
       <!-- Pagination (matches audit-history) -->
-      <div class="pagination" *ngIf="totalPages > 1">
+      @if (totalPages > 1) {
+      <div class="pagination">
         <button class="page-btn" (click)="previousPage()" [disabled]="currentPage === 1">‹ Previous</button>
         
         <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage === 1">1</button>
         
-        <span *ngIf="totalPages > 5 && currentPage > 3" class="page-ellipsis">...</span>
+        @if (totalPages > 5 && currentPage > 3) {
+        <span class="page-ellipsis">...</span>
+        }
         
-        <button *ngFor="let page of getVisiblePages()" 
+        @for (page of getVisiblePages(); track page) {
+        <button 
                 class="page-btn" 
                 (click)="goToPage(page)"
                 [class.active]="currentPage === page">
           {{ page }}
         </button>
+        }
         
-        <span *ngIf="totalPages > 5 && currentPage < totalPages - 2" class="page-ellipsis">...</span>
+        @if (totalPages > 5 && currentPage < totalPages - 2) {
+        <span class="page-ellipsis">...</span>
+        }
         
-        <button *ngIf="totalPages > 1" 
+        @if (totalPages > 1) {
+        <button 
                 class="page-btn" 
                 (click)="goToPage(totalPages)"
                 [class.active]="currentPage === totalPages">
           {{ totalPages }}
         </button>
+        }
         
         <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages">Next ›</button>
       </div>
+      }
     </div>
+    }
   
-    <div class="loading" *ngIf="loading">
+    @if (loading) {
+    <div class="loading">
       Loading gift cards...
     </div>
+    }
   
-    <div class="error-message" *ngIf="errorMessage">
+    @if (errorMessage) {
+    <div class="error-message">
       {{ errorMessage }}
     </div>
+    }
   </div>

@@ -30,9 +30,11 @@
             <i [appIcon]="showPin ? icons.faEyeSlash : icons.faEye"></i>
           </button>
         </div>
-        <small *ngIf="pin" class="pin-strength" [attr.data-strength]="strengthClass()">
+        @if (pin) {
+        <small class="pin-strength" [attr.data-strength]="strengthClass()">
           {{ strengthLabel() }} — {{ pin.length }} digit{{ pin.length === 1 ? '' : 's' }}
         </small>
+        }
       </label>
 
       <label class="pin-field">
@@ -54,9 +56,11 @@
             <i [appIcon]="showConfirm ? icons.faEyeSlash : icons.faEye"></i>
           </button>
         </div>
-        <small *ngIf="confirmPin && confirmPin !== pin" class="pin-mismatch">
+        @if (confirmPin && confirmPin !== pin) {
+        <small class="pin-mismatch">
           PINs don't match yet
         </small>
+        }
       </label>
 
       <button type="button"
@@ -68,12 +72,16 @@
       </button>
     </div>
 
-    <div class="pin-message pin-error" *ngIf="error">
+    @if (error) {
+    <div class="pin-message pin-error">
       <i [appIcon]="icons.faCircleExclamation"></i> {{ error }}
     </div>
-    <div class="pin-message pin-notice" *ngIf="notice && !error">
+    }
+    @if (notice && !error) {
+    <div class="pin-message pin-notice">
       <i [appIcon]="icons.faCircleCheck"></i> {{ notice }}
     </div>
+    }
 
     <div class="pin-footer">
       <p class="pin-tips">

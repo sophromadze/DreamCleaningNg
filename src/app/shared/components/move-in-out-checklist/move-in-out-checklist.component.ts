@@ -1,5 +1,4 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import {
   MOVE_IN_OUT_CHECKLIST_SECTIONS,
   MOVE_IN_OUT_IMPORTANT_REQUIREMENTS,
@@ -16,7 +15,7 @@ import { faXmark } from '../../icons/glyphs/faXmark';
 @Component({
   selector: 'app-move-in-out-checklist',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [IconComponent],
   templateUrl: './move-in-out-checklist.component.html',
   styleUrl: './move-in-out-checklist.component.scss',
 })

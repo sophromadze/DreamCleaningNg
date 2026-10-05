@@ -1,11 +1,10 @@
 import { Component, Input, Output, EventEmitter, OnInit, HostListener } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-duration-selector',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './duration-selector.component.html',
   styleUrls: ['./duration-selector.component.scss']
 })

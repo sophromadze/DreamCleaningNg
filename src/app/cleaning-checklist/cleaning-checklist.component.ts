@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -22,7 +21,7 @@ import { faXmark } from '../shared/icons/glyphs/faXmark';
 @Component({
   selector: 'app-cleaning-checklist',
   standalone: true,
-  imports: [CommonModule, RouterModule, IconComponent],
+  imports: [RouterModule, IconComponent],
   templateUrl: './cleaning-checklist.component.html',
   styleUrl: './cleaning-checklist.component.scss',
 })

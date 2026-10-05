@@ -15,39 +15,51 @@
         <p class="reviews-hero__subtitle">
           Real, verified reviews from homeowners and businesses across Brooklyn, Manhattan, and Queens.
         </p>
-        <div class="reviews-hero__rating" *ngIf="hasLoaded && totalReviews > 0">
+        @if (hasLoaded && totalReviews > 0) {
+        <div class="reviews-hero__rating">
           <span class="reviews-hero__score">{{ overallRating | number:'1.1-1' }}</span>
           <span class="rating-stars" aria-hidden="true">
-            <svg *ngFor="let star of [1,2,3,4,5]" viewBox="0 0 24 24" fill="currentColor"
+            @for (star of [1,2,3,4,5]; track star) {
+            <svg viewBox="0 0 24 24" fill="currentColor"
                  [class.filled]="star <= overallRating">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z"/>
             </svg>
+            }
           </span>
           <span class="reviews-hero__count">Based on {{ reviewCountLabel }}</span>
         </div>
+        }
       </div>
-      <div class="reviews-hero__media" *ngIf="!heroImageFailed">
+      @if (!heroImageFailed) {
+      <div class="reviews-hero__media">
         <img class="reviews-hero__img" [src]="heroImage"
              alt="A happy customer leaving a Google review on her smartphone"
              loading="eager" (error)="onHeroImageError()">
       </div>
+      }
     </div>
   </section>
 
   <div class="container">
     <!-- Reviews grid (sourced from the Google Reviews backend endpoint) -->
-    <section class="reviews-block" *ngIf="hasLoaded && reviews.length > 0">
+    @if (hasLoaded && reviews.length > 0) {
+    <section class="reviews-block">
       <div class="reviews-grid">
-        <article class="review-card" *ngFor="let r of reviews">
+        @for (r of reviews; track r) {
+        <article class="review-card">
           <div class="review-card__head">
             <div class="review-card__avatar">
-              <img *ngIf="r.profilePhotoUrl && !r.avatarFailed"
+              @if (r.profilePhotoUrl && !r.avatarFailed) {
+              <img
                    [src]="r.profilePhotoUrl" [alt]="r.authorName"
                    width="44" height="44" referrerpolicy="no-referrer"
                    loading="lazy" (error)="onAvatarError(r)">
-              <span *ngIf="!r.profilePhotoUrl || r.avatarFailed" class="review-card__initials">
+              }
+              @if (!r.profilePhotoUrl || r.avatarFailed) {
+              <span class="review-card__initials">
                 {{ initials(r.authorName) }}
               </span>
+              }
             </div>
             <div class="review-card__who">
               <p class="review-card__name">{{ r.authorName }}</p>
@@ -62,31 +74,40 @@
           </div>
 
           <div class="rating-stars review-card__stars" aria-hidden="true">
-            <svg *ngFor="let star of [1,2,3,4,5]" viewBox="0 0 24 24" fill="currentColor"
+            @for (star of [1,2,3,4,5]; track star) {
+            <svg viewBox="0 0 24 24" fill="currentColor"
                  [class.filled]="star <= r.rating">
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z"/>
             </svg>
+            }
           </div>
 
           <p class="review-card__text" [class.is-clamped]="!r.isExpanded">{{ r.text }}</p>
+          @if (r.text && r.text.length > 180) {
           <button type="button" class="review-card__more"
-                  *ngIf="r.text && r.text.length > 180"
                   (click)="toggleExpanded(r)">
             {{ r.isExpanded ? 'Show less' : 'Read more' }}
           </button>
+          }
         </article>
+        }
       </div>
 
-      <div class="reviews-more" *ngIf="hasMore">
+      @if (hasMore) {
+      <div class="reviews-more">
         <button type="button" class="btn-load-more" (click)="loadMore()" [disabled]="isLoadingMore">
           {{ isLoadingMore ? 'Loading…' : 'Load More Reviews' }}
         </button>
       </div>
+      }
     </section>
+    }
 
-    <p class="reviews-empty" *ngIf="hasLoaded && reviews.length === 0">
+    @if (hasLoaded && reviews.length === 0) {
+    <p class="reviews-empty">
       Reviews are loading from Google. Please check back shortly.
     </p>
+    }
 
     <!-- Leave a review on Google -->
     <div class="leave-review-cta">

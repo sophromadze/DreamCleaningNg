@@ -1,5 +1,4 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { MarketingPricingService } from '../../../shared/pricing/marketing-pricing.service';
 import { priceFragment, startingPriceOffer } from '../../../shared/pricing/marketing-price-format';
@@ -14,7 +13,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
 @Component({
   selector: 'app-move-in-out-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterModule, IconComponent, CardImageDirective],
+  imports: [RouterModule, IconComponent, CardImageDirective],
   templateUrl: './move-in-out-cleaning.component.html',
   styleUrl: './move-in-out-cleaning.component.scss'
 })

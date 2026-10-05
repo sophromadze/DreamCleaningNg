@@ -2,18 +2,28 @@
   <!-- ── Panel A: Global Settings ───────────────────────────────────────────────
        SuperAdmin only. Admin and Moderator get the audit feed below and nothing else;
        the endpoints are gated to match, so this *ngIf is convenience, not the control. -->
-  <section class="panel" *ngIf="canManageSettings">
+  @if (canManageSettings) {
+  <section class="panel">
     <div class="panel-header">
       <h2>Loyalty Discount Settings</h2>
-      <button *ngIf="!loadingSettings" type="button" class="action-btn ghost" (click)="loadSettings()">Refresh</button>
+      @if (!loadingSettings) {
+      <button type="button" class="action-btn ghost" (click)="loadSettings()">Refresh</button>
+      }
     </div>
 
-    <div class="error-message" *ngIf="settingsError">{{ settingsError }}</div>
-    <div class="success-message" *ngIf="settingsSuccess">{{ settingsSuccess }}</div>
+    @if (settingsError) {
+    <div class="error-message">{{ settingsError }}</div>
+    }
+    @if (settingsSuccess) {
+    <div class="success-message">{{ settingsSuccess }}</div>
+    }
 
-    <div class="muted" *ngIf="loadingSettings">Loading…</div>
+    @if (loadingSettings) {
+    <div class="muted">Loading…</div>
+    }
 
-    <form *ngIf="!loadingSettings" class="settings-form" (ngSubmit)="saveSettings()">
+    @if (!loadingSettings) {
+    <form class="settings-form" (ngSubmit)="saveSettings()">
       <!-- Master switch -->
       <div class="form-row form-row--toggle">
         <label class="switch">
@@ -70,23 +80,34 @@
         </button>
       </div>
     </form>
+    }
   </section>
+  }
 
   <!-- ── Panel B: Recent Activity (read-only) ─────────────────────────────────── -->
   <section class="panel">
     <div class="panel-header">
       <h2>Recent Activity (last 30 days)</h2>
-      <button *ngIf="!loadingAudit" type="button" class="action-btn ghost" (click)="loadAudit()">Refresh</button>
+      @if (!loadingAudit) {
+      <button type="button" class="action-btn ghost" (click)="loadAudit()">Refresh</button>
+      }
     </div>
 
-    <div class="error-message" *ngIf="auditError">{{ auditError }}</div>
-    <div class="muted" *ngIf="loadingAudit">Loading…</div>
+    @if (auditError) {
+    <div class="error-message">{{ auditError }}</div>
+    }
+    @if (loadingAudit) {
+    <div class="muted">Loading…</div>
+    }
 
-    <div *ngIf="!loadingAudit && auditLogs.length === 0" class="muted center empty">
+    @if (!loadingAudit && auditLogs.length === 0) {
+    <div class="muted center empty">
       No loyalty-discount activity in the last 30 days.
     </div>
+    }
 
-    <div class="audit-table-wrap" *ngIf="!loadingAudit && auditLogs.length > 0">
+    @if (!loadingAudit && auditLogs.length > 0) {
+    <div class="audit-table-wrap">
       <table class="audit-table">
         <thead>
           <tr>
@@ -98,7 +119,8 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let log of pagedLogs">
+          @for (log of pagedLogs; track log) {
+          <tr>
             <td>{{ formatWhen(log.createdAt) }}</td>
             <td>#{{ log.entityId }}</td>
             <td>
@@ -109,14 +131,18 @@
             <td>{{ getOldPercentage(log) }} → {{ getNewPercentage(log) }}</td>
             <td>{{ log.changedByEmail || log.changedBy || 'System' }}</td>
           </tr>
+          }
         </tbody>
       </table>
 
-      <div class="pagination" *ngIf="totalPages > 1">
+      @if (totalPages > 1) {
+      <div class="pagination">
         <button class="page-btn" (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1">Prev</button>
         <span class="page-label">Page {{ currentPage }} of {{ totalPages }}</span>
         <button class="page-btn" (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages">Next</button>
       </div>
+      }
     </div>
+    }
   </section>
 </div>

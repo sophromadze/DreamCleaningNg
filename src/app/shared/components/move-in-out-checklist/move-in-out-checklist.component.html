@@ -8,17 +8,19 @@
     <i [appIcon]="icons.faChevronDown" [class.rotated]="expanded" aria-hidden="true"></i>
   </button>
 
+  @if (expanded) {
   <div
-    *ngIf="expanded"
     class="cleaning-type-details-panel move-io-checklist__panel"
     role="region"
     aria-label="Move in/out cleaning checklist">
     <h3 class="move-io-checklist__main-title">Move in/out cleaning checklist</h3>
 
-    <div class="checklist-area-card" *ngFor="let section of sections">
+    @for (section of sections; track section) {
+    <div class="checklist-area-card">
       <h4 class="checklist-area-card__title">{{ section.heading }}</h4>
       <div class="checklist-area-card__grid">
-        <div class="checklist-area-card__cell" *ngFor="let row of section.rows">
+        @for (row of section.rows; track row) {
+        <div class="checklist-area-card__cell">
           <span
             class="checklist-area-row__icon"
             [class.checklist-area-row__icon--yes]="row.included"
@@ -28,26 +30,32 @@
           </span>
           <span class="checklist-area-row__label">{{ row.label }}</span>
         </div>
+        }
       </div>
     </div>
+    }
 
     <div class="move-io-important">
       <h4 class="move-io-important__title">❗ Important requirements</h4>
       <div class="checklist-area-card__grid">
-        <div class="checklist-area-card__cell" *ngFor="let line of importantRequirements">
+        @for (line of importantRequirements; track line) {
+        <div class="checklist-area-card__cell">
           <span class="move-io-important__icon" aria-hidden="true"><i [appIcon]="icons.faExclamation"></i></span>
           <span class="checklist-area-row__label">{{ line }}</span>
         </div>
+        }
       </div>
     </div>
 
     <div class="not-included-footer">
       <h4 class="not-included-footer__title">❌ What's not included</h4>
       <div class="not-included-footer__grid">
-        <div class="not-included-footer__cell" *ngFor="let item of notIncluded">
+        @for (item of notIncluded; track item) {
+        <div class="not-included-footer__cell">
           <span class="not-included-footer__x" aria-hidden="true"><i [appIcon]="icons.faXmark"></i></span>
           <span>{{ item }}</span>
         </div>
+        }
       </div>
     </div>
 
@@ -61,4 +69,5 @@
       </button>
     </div>
   </div>
+  }
 </div>

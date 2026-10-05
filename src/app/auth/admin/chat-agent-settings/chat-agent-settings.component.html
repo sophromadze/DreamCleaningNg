@@ -4,19 +4,25 @@
   [class.chat-agent-btn--open]="isOpen"
   (click)="togglePanel()"
   [attr.aria-expanded]="isOpen">
-  💬 Chat Agent<span class="chat-agent-btn__status" *ngIf="settings"> · {{ widgetStatusLabel }}</span>
+  💬 Chat Agent@if (settings) {
+  <span class="chat-agent-btn__status"> · {{ widgetStatusLabel }}</span>
+  }
 </button>
 
-<div class="chat-agent-panel" *ngIf="isOpen">
+@if (isOpen) {
+<div class="chat-agent-panel">
   <h3 class="chat-agent-panel__title">AI Chat Agent</h3>
 
-  <div class="chat-agent-panel__loading" *ngIf="loading">Loading…</div>
+  @if (loading) {
+  <div class="chat-agent-panel__loading">Loading…</div>
+  }
+  @if (!loading && settings) {
 
-  <ng-container *ngIf="!loading && settings">
     <!-- Visibility -->
     <fieldset class="chat-agent-panel__group" [disabled]="saving">
       <legend>Who can see the chat widget</legend>
-      <label class="chat-agent-option" *ngFor="let option of visibilityOptions">
+      @for (option of visibilityOptions; track option) {
+      <label class="chat-agent-option">
         <input
           type="radio"
           name="chatVisibility"
@@ -28,6 +34,7 @@
           <small>{{ option.description }}</small>
         </span>
       </label>
+      }
     </fieldset>
 
     <!-- Escalation email -->
@@ -46,19 +53,28 @@
       </span>
     </div>
 
-    <div class="chat-agent-panel__message chat-agent-panel__message--success" *ngIf="successMessage">
+    @if (successMessage) {
+    <div class="chat-agent-panel__message chat-agent-panel__message--success">
       {{ successMessage }}
     </div>
-    <div class="chat-agent-panel__message chat-agent-panel__message--error" *ngIf="errorMessage">
+    }
+    @if (errorMessage) {
+    <div class="chat-agent-panel__message chat-agent-panel__message--error">
       {{ errorMessage }}
     </div>
+    }
 
-    <p class="chat-agent-panel__audit" *ngIf="settings.updatedByEmail && updatedAtLocal">
+    @if (settings.updatedByEmail && updatedAtLocal) {
+    <p class="chat-agent-panel__audit">
       Last updated by {{ settings.updatedByEmail }} at {{ updatedAtLocal | date: 'MMM d, y, h:mm a' }}
     </p>
-  </ng-container>
+    }
+  }
 
-  <div class="chat-agent-panel__message chat-agent-panel__message--error" *ngIf="!loading && !settings && errorMessage">
+  @if (!loading && !settings && errorMessage) {
+  <div class="chat-agent-panel__message chat-agent-panel__message--error">
     {{ errorMessage }}
   </div>
+  }
 </div>
+}

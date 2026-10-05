@@ -1,4 +1,5 @@
-<div class="cc-modal-overlay" *ngIf="open" [class.as-panel]="panel" (click)="close()">
+@if (open) {
+<div class="cc-modal-overlay" [class.as-panel]="panel" (click)="close()">
   <div class="cc-modal" (click)="$event.stopPropagation()" role="dialog" aria-modal="true"
        aria-labelledby="cc-modal-title">
 
@@ -12,31 +13,41 @@
     <div class="cc-modal-body">
 
       <!-- Where the details came from, and what they mean for the customer's own account. -->
-      <div class="cc-linked" *ngIf="isEdit && isLinked">
+      @if (isEdit && isLinked) {
+      <div class="cc-linked">
         <strong>{{ linkedAccountName }}</strong>
-        <span *ngIf="linkedAccountEmail"> · {{ linkedAccountEmail }}</span>
+        @if (linkedAccountEmail) {
+        <span> · {{ linkedAccountEmail }}</span>
+        }
         <span class="cc-linked-note">
           Linked customer account. Its login email is separate from the billing email below and is
           not changed here; the phone number is kept in step with the account.
         </span>
       </div>
+      }
 
-      <div class="cc-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+      @if (errorMessage) {
+      <div class="cc-error">{{ errorMessage }}</div>
+      }
 
       <!-- A client seeded from a business-flagged account starts with no legal entity name and no
            entity type on purpose (a company is not its owner), so this is the NORMAL state of a
            freshly linked client rather than an error. Save stays available either way — it is
            validation that names the field, never a dead button. -->
-      <p class="cc-hint cc-warn" *ngIf="isEdit && hasBlankRequiredFields">
+      @if (isEdit && hasBlankRequiredFields) {
+      <p class="cc-hint cc-warn">
         Some required company details are still blank. Fill in the starred fields below to save.
       </p>
+      }
 
       <!-- Said plainly because the opposite is what people assume. -->
-      <p class="cc-hint" *ngIf="isEdit && contractCount">
+      @if (isEdit && contractCount) {
+      <p class="cc-hint">
         This client has {{ contractCount }} contract{{ contractCount === 1 ? '' : 's' }}. Those
         documents keep the details they were signed with — changes here apply to new contracts and
         invoices.
       </p>
+      }
 
       <!-- ── Company ─────────────────────────────────────────────────────────────────── -->
       <section class="cc-section">
@@ -116,10 +127,12 @@
           </div>
         </div>
 
-        <p class="cc-hint" *ngIf="!form.noticeEmail.trim() && !form.contactEmail.trim()">
+        @if (!form.noticeEmail.trim() && !form.contactEmail.trim()) {
+        <p class="cc-hint">
           Without an email address, invoices for this client can be created but not sent. You can
           add one later.
         </p>
+        }
       </section>
 
       <!-- ── Primary billing contact ─────────────────────────────────────────────────── -->
@@ -170,7 +183,7 @@
           Add a premises we clean for this client
         </label>
 
-        <ng-container *ngIf="form.addLocation">
+        @if (form.addLocation) {
           <label class="cc-check">
             <input type="checkbox" [(ngModel)]="form.sameAsCompany" (change)="onFieldInput()"
                    [disabled]="saving">
@@ -192,7 +205,7 @@
                      (input)="onFieldInput()" [disabled]="saving" placeholder="Flatbush Ave.">
             </div>
 
-            <ng-container *ngIf="!form.sameAsCompany">
+            @if (!form.sameAsCompany) {
               <div class="cc-field wide" [class.cc-invalid]="invalidField === 'locationAddress'">
                 <label for="cc-locaddr">Address <span class="req">*</span></label>
                 <input id="cc-locaddr" type="text" [(ngModel)]="form.locationAddress"
@@ -216,15 +229,16 @@
                 <input id="cc-loczip" type="text" [(ngModel)]="form.locationZip"
                        (input)="onFieldInput()" [disabled]="saving">
               </div>
-            </ng-container>
+            }
           </div>
-        </ng-container>
+        }
       </section>
 
       <!-- ── Linked account ─────────────────────────────────────────────────────────────
            CREATE ONLY. An existing client's link is owned by the business flag on the customer's
            account, because it is what opens their view of this company's contracts. -->
-      <section class="cc-section" *ngIf="!isEdit">
+      @if (!isEdit) {
+      <section class="cc-section">
         <h4>Linked business customer <span class="cc-optional">optional</span></h4>
 
         <div class="cc-field wide">
@@ -232,23 +246,30 @@
           <select id="cc-source" [(ngModel)]="form.sourceUserId"
                   (ngModelChange)="onSourceUserSelected()" [disabled]="saving || loadingCustomers">
             <option [ngValue]="null">— Not linked —</option>
-            <option *ngFor="let customer of businessCustomers" [ngValue]="customer.userId">
+            @for (customer of businessCustomers; track customer) {
+            <option [ngValue]="customer.userId">
               {{ customer.fullName }} · {{ customer.email }}
             </option>
+            }
           </select>
         </div>
 
-        <p class="cc-hint" *ngIf="loadingCustomers">Loading business accounts…</p>
-        <p class="cc-hint" *ngIf="!loadingCustomers && !businessCustomers.length">
+        @if (loadingCustomers) {
+        <p class="cc-hint">Loading business accounts…</p>
+        }
+        @if (!loadingCustomers && !businessCustomers.length) {
+        <p class="cc-hint">
           No business-flagged accounts yet. Turn on the business flag on a customer's account to
           offer it here.
         </p>
+        }
         <p class="cc-hint">
           Linking lets that customer see this client's contracts in their own account, and fills in
           any blank details above from their profile. Leave it unlinked if they have no account —
           that is the common case, and it changes nothing about billing.
         </p>
       </section>
+      }
     </div>
 
     <div class="cc-modal-foot">
@@ -261,3 +282,4 @@
     </div>
   </div>
 </div>
+}

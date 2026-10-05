@@ -10,7 +10,7 @@ import {
   ElementRef,
   AfterViewInit,
 } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { filter, take } from 'rxjs/operators';
 import { SocialAuthService } from '@abacritt/angularx-social-login';
@@ -25,9 +25,10 @@ import { ThemeService } from '../../services/theme.service';
 @Component({
   selector: 'app-google-signin-wrapper',
   standalone: true,
-  imports: [CommonModule, GoogleSigninButtonModule],
+  imports: [GoogleSigninButtonModule],
   template: `
-    <div *ngIf="isBrowser" class="google-signin-inner">
+    @if (isBrowser) {
+    <div class="google-signin-inner">
       <button
         type="button"
         class="custom-google-btn"
@@ -46,8 +47,8 @@ import { ThemeService } from '../../services/theme.service';
       </button>
       <!-- Real Google button, off-screen; we trigger it programmatically on our button click -->
       <div #googleBtnContainer class="google-btn-hidden">
+        @if (showGoogleButton) {
         <asl-google-signin-button
-          *ngIf="showGoogleButton"
           type="standard"
           size="large"
           text="signin_with"
@@ -56,8 +57,10 @@ import { ThemeService } from '../../services/theme.service';
           logo_alignment="center"
           [width]="400">
         </asl-google-signin-button>
+        }
       </div>
     </div>
+    }
   `,
   styles: [`
     :host {

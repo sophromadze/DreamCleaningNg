@@ -11,12 +11,16 @@
   <div class="section-header">
     <div class="header-left">
       <h2>Cleaners</h2>
-      <span class="user-count" *ngIf="!loading">{{ accounts.length }} total</span>
+      @if (!loading) {
+      <span class="user-count">{{ accounts.length }} total</span>
+      }
     </div>
     <div class="header-right">
-      <button class="action-btn register-customer" *ngIf="canUpdate" (click)="togglePromotePanel()">
+      @if (canUpdate) {
+      <button class="action-btn register-customer" (click)="togglePromotePanel()">
         {{ showPromotePanel ? 'Close' : '+ Make an account a cleaner' }}
       </button>
+      }
       <button class="action-btn refresh" (click)="load()" [disabled]="loading">
         {{ loading ? 'Loading…' : 'Refresh' }}
       </button>
@@ -24,12 +28,17 @@
   </div>
 
   <div class="messages">
-    <div class="error-message" *ngIf="errorMessage">{{ errorMessage }}</div>
-    <div class="success-message" *ngIf="successMessage">{{ successMessage }}</div>
+    @if (errorMessage) {
+    <div class="error-message">{{ errorMessage }}</div>
+    }
+    @if (successMessage) {
+    <div class="success-message">{{ successMessage }}</div>
+    }
   </div>
 
   <!-- ── Promote an existing customer account ────────────────────────────────────────── -->
-  <section class="ca-panel" *ngIf="canUpdate && showPromotePanel">
+  @if (canUpdate && showPromotePanel) {
+  <section class="ca-panel">
     <h3>Make an account a cleaner account</h3>
     <p class="ca-hint">
       Accounts whose email already matches a cleaner record become cleaner accounts on their own,
@@ -43,15 +52,23 @@
            [ngModel]="promoteSearch"
            (ngModelChange)="onPromoteSearchChanged($event)">
 
-    <p class="ca-hint" *ngIf="promoteSearching">Searching…</p>
-    <p class="ca-hint" *ngIf="!promoteSearching && promoteSearch.length >= 2 && promoteResults.length === 0">
+    @if (promoteSearching) {
+    <p class="ca-hint">Searching…</p>
+    }
+    @if (!promoteSearching && promoteSearch.length >= 2 && promoteResults.length === 0) {
+    <p class="ca-hint">
       No customer accounts match that.
     </p>
+    }
 
-    <ul class="ca-result-list" *ngIf="promoteResults.length > 0">
-      <li class="ca-result" *ngFor="let user of promoteResults; trackBy: trackByUserId">
+    @if (promoteResults.length > 0) {
+    <ul class="ca-result-list">
+      @for (user of promoteResults; track trackByUserId($index, user)) {
+      <li class="ca-result">
         <span class="ca-result-name">{{ user.firstName }} {{ user.lastName }}</span>
-        <span class="ca-result-meta">{{ user.email || 'no email' }}<ng-container *ngIf="user.phone"> · {{ user.phone }}</ng-container></span>
+        <span class="ca-result-meta">{{ user.email || 'no email' }}@if (user.phone) {
+ · {{ user.phone }}
+        }</span>
         <button type="button"
                 class="action-btn small primary"
                 (click)="promote(user)"
@@ -59,8 +76,11 @@
           {{ promotingUserId === user.userId ? 'Moving…' : 'Make cleaner' }}
         </button>
       </li>
+      }
     </ul>
+    }
   </section>
+  }
 
   <div class="filters-section">
     <div class="search-box">
@@ -97,11 +117,13 @@
               <th class="col-email">Email</th>
               <th class="col-cleaner">Linked Cleaner</th>
               <th class="col-jobs">Jobs</th>
-              <th class="col-actions" *ngIf="canUpdate">Actions</th>
+              @if (canUpdate) {
+              <th class="col-actions">Actions</th>
+              }
             </tr>
           </thead>
           <tbody>
-            <ng-container *ngFor="let account of pagedAccounts; trackBy: trackByUserId">
+            @for (account of pagedAccounts; track trackByUserId($index, account)) {
               <!--
                 Clicking the ROW opens the cleaner record, the same way a Customers row opens its
                 detail panel. The action buttons stop the click (see .col-actions below), so
@@ -125,12 +147,16 @@
                     <span class="avatar"
                           [style.background]="getAvatarColor(account.userId)"
                           [attr.title]="account.firstName + ' ' + account.lastName">
-                      <img *ngIf="account.profilePictureUrl" class="avatar-img"
+                      @if (account.profilePictureUrl) {
+                      <img class="avatar-img"
                            [src]="account.profilePictureUrl"
                            [alt]="account.firstName + ' ' + account.lastName"
                            referrerpolicy="no-referrer"
                            (error)="onAvatarError(account)">
-                      <span *ngIf="!account.profilePictureUrl" class="avatar-initials">{{ getInitials(account.firstName, account.lastName) }}</span>
+                      }
+                      @if (!account.profilePictureUrl) {
+                      <span class="avatar-initials">{{ getInitials(account.firstName, account.lastName) }}</span>
+                      }
                     </span>
                     <div class="customer-meta">
                       <span class="customer-name">
@@ -139,7 +165,9 @@
                       </span>
                       <span class="customer-tags">
                         <span class="role-chip">Cleaner</span>
-                        <span *ngIf="!account.isActive" class="tag-chip blocked">Blocked</span>
+                        @if (!account.isActive) {
+                        <span class="tag-chip blocked">Blocked</span>
+                        }
                       </span>
                     </div>
                   </div>
@@ -154,37 +182,53 @@
                   every row was noise in a narrow column.
                 -->
                 <td class="col-phone">
-                  <ng-container *ngIf="resolvePhone(account) as resolved">
-                    <span *ngIf="!resolved.value" class="muted">—</span>
-                    <span *ngIf="resolved.value"
+                  @if (resolvePhone(account); as resolved) {
+                    @if (!resolved.value) {
+                    <span class="muted">—</span>
+                    }
+                    @if (resolved.value) {
+                    <span
                           [attr.title]="resolved.fromCleanerRecord
                             ? 'From the linked cleaner record - this account has no phone of its own'
                             : null">{{ resolved.value }}</span>
-                  </ng-container>
+                    }
+                  }
                 </td>
 
                 <td class="col-email">
-                  <span *ngIf="!account.email" class="tag-chip no-email" title="No sendable address on this account — nothing can be emailed to it">No email</span>
-                  <span *ngIf="account.email" class="ellipsis-text">{{ account.email }}</span>
+                  @if (!account.email) {
+                  <span class="tag-chip no-email" title="No sendable address on this account — nothing can be emailed to it">No email</span>
+                  }
+                  @if (account.email) {
+                  <span class="ellipsis-text">{{ account.email }}</span>
+                  }
                 </td>
 
                 <td class="col-cleaner">
-                  <ng-container *ngIf="account.cleanerId">
+                  @if (account.cleanerId) {
                     <div class="last-cleaning">
                       <span class="last-date">{{ account.cleanerName }}</span>
-                      <span class="tag-chip" *ngIf="!account.cleanerIsActive">Inactive record</span>
+                      @if (!account.cleanerIsActive) {
+                      <span class="tag-chip">Inactive record</span>
+                      }
                     </div>
-                  </ng-container>
+                  }
                   <!--
                     The whole point of this tab. An unlinked cleaner account signs in and correctly
                     sees nothing, and nowhere else in the app would explain why.
                   -->
-                  <span class="tag-chip flag-yellow" *ngIf="!account.cleanerId">Not linked</span>
+                  @if (!account.cleanerId) {
+                  <span class="tag-chip flag-yellow">Not linked</span>
+                  }
                 </td>
 
                 <td class="col-jobs">
-                  <span *ngIf="account.assignedOrdersCount > 0">{{ account.assignedOrdersCount }}</span>
-                  <span *ngIf="!account.assignedOrdersCount" class="muted">—</span>
+                  @if (account.assignedOrdersCount > 0) {
+                  <span>{{ account.assignedOrdersCount }}</span>
+                  }
+                  @if (!account.assignedOrdersCount) {
+                  <span class="muted">—</span>
+                  }
                 </td>
 
                 <!--
@@ -192,20 +236,22 @@
                   button inside the detail panel, where the record being edited is on screen.
                   stopPropagation keeps them from also opening that panel.
                 -->
-                <td class="col-actions" *ngIf="canUpdate" (click)="$event.stopPropagation()">
+                @if (canUpdate) {
+                <td class="col-actions" (click)="$event.stopPropagation()">
                   <div class="row-actions">
                     <button class="icon-btn note"
                             (click)="startLinking(account)"
                             [title]="account.cleanerId ? 'Change linked cleaner' : 'Link a cleaner record'">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                     </button>
+                    @if (account.cleanerId) {
                     <button class="icon-btn warn"
-                            *ngIf="account.cleanerId"
                             (click)="unlink(account)"
                             [disabled]="savingLinkUserId === account.userId"
                             title="Unlink from the cleaner record">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.84 12.25l1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M5.17 11.75l-1.72 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
                     </button>
+                    }
                     <button class="icon-btn danger"
                             (click)="demote(account)"
                             [disabled]="demotingUserId === account.userId"
@@ -214,11 +260,13 @@
                     </button>
                   </div>
                 </td>
+                }
               </tr>
 
               <!-- Link editor, inline under the row it belongs to so it can never be ambiguous
                    which account is being re-pointed. -->
-              <tr class="ca-editor-row" *ngIf="linkingUserId === account.userId">
+              @if (linkingUserId === account.userId) {
+              <tr class="ca-editor-row">
                 <td [attr.colspan]="canUpdate ? 6 : 5">
                   <div class="ca-editor">
                     <label class="ca-editor-label" [attr.for]="'cleaner-search-' + account.userId">
@@ -232,31 +280,45 @@
                            [ngModel]="cleanerSearch"
                            (ngModelChange)="onCleanerSearchChanged($event)">
 
-                    <p class="ca-hint" *ngIf="cleanerSearching">Searching…</p>
-                    <p class="ca-hint" *ngIf="!cleanerSearching && cleanerResults.length === 0">
+                    @if (cleanerSearching) {
+                    <p class="ca-hint">Searching…</p>
+                    }
+                    @if (!cleanerSearching && cleanerResults.length === 0) {
+                    <p class="ca-hint">
                       No cleaner records match that.
                     </p>
+                    }
 
-                    <ul class="ca-cleaner-list" *ngIf="cleanerResults.length > 0">
-                      <li *ngFor="let cleaner of cleanerResults; trackBy: trackByCleanerId"
+                    @if (cleanerResults.length > 0) {
+                    <ul class="ca-cleaner-list">
+                      @for (cleaner of cleanerResults; track trackByCleanerId($index, cleaner)) {
+                      <li
                           class="ca-cleaner"
                           [class.selected]="linkCleanerChoice === cleaner.cleanerId"
                           [class.taken]="isCleanerTaken(cleaner, account.userId)"
                           (click)="chooseCleaner(cleaner, account.userId)">
                         <span class="ca-cleaner-name">
                           {{ cleaner.name }}
-                          <span class="tag-chip" *ngIf="!cleaner.isActive">Inactive</span>
+                          @if (!cleaner.isActive) {
+                          <span class="tag-chip">Inactive</span>
+                          }
                         </span>
                         <span class="ca-cleaner-meta">
-                          {{ cleaner.email || 'no email on record' }}<ng-container *ngIf="cleaner.phone"> · {{ cleaner.phone }}</ng-container>
+                          {{ cleaner.email || 'no email on record' }}@if (cleaner.phone) {
+ · {{ cleaner.phone }}
+                          }
                         </span>
                         <!-- Shown, named, and unpickable: "why is she not in the list" has to be
                              answerable from the list itself. -->
-                        <span class="tag-chip flag-yellow" *ngIf="isCleanerTaken(cleaner, account.userId)">
+                        @if (isCleanerTaken(cleaner, account.userId)) {
+                        <span class="tag-chip flag-yellow">
                           Linked to {{ cleaner.linkedUserEmail || 'another account' }}
                         </span>
+                        }
                       </li>
+                      }
                     </ul>
+                    }
 
                     <p class="ca-hint ca-hint--warn">
                       Linking replaces that cleaner record's email with
@@ -276,37 +338,50 @@
                   </div>
                 </td>
               </tr>
-            </ng-container>
+              }
+            }
 
-            <tr *ngIf="!loading && pagedAccounts.length === 0">
+            @if (!loading && pagedAccounts.length === 0) {
+            <tr>
               <td [attr.colspan]="canUpdate ? 6 : 5" class="empty-row">
-                <ng-container *ngIf="accounts.length === 0">
+                @if (accounts.length === 0) {
                   No cleaner accounts yet. An account becomes one automatically when somebody
                   registers with an email that is already on a cleaner record.
-                </ng-container>
-                <ng-container *ngIf="accounts.length > 0">No cleaner accounts match the current filters.</ng-container>
+                }
+                @if (accounts.length > 0) {
+                No cleaner accounts match the current filters.
+                }
               </td>
             </tr>
+            }
           </tbody>
         </table>
       </div>
     </div>
 
     <!-- Pagination — 20 a page, same pager as the Users tab -->
-    <div class="pagination" *ngIf="totalPages > 1">
+    @if (totalPages > 1) {
+    <div class="pagination">
       <button class="page-btn" (click)="previousPage()" [disabled]="currentPage === 1">‹ Previous</button>
       <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage === 1">1</button>
-      <span *ngIf="totalPages > 5 && currentPage > 3" class="page-ellipsis">…</span>
-      <button *ngFor="let page of getVisiblePages()"
+      @if (totalPages > 5 && currentPage > 3) {
+      <span class="page-ellipsis">…</span>
+      }
+      @for (page of getVisiblePages(); track page) {
+      <button
               class="page-btn"
               (click)="goToPage(page)"
               [class.active]="currentPage === page">{{ page }}</button>
-      <span *ngIf="totalPages > 5 && currentPage < totalPages - 2" class="page-ellipsis">…</span>
+      }
+      @if (totalPages > 5 && currentPage < totalPages - 2) {
+      <span class="page-ellipsis">…</span>
+      }
       <button class="page-btn"
               (click)="goToPage(totalPages)"
               [class.active]="currentPage === totalPages">{{ totalPages }}</button>
       <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages">Next ›</button>
     </div>
+    }
   </div>
 </div>
 
@@ -325,15 +400,17 @@
   transformed ancestor becomes its containing block - which would trap a 760px modal inside a
   720px drawer. The slide-in animates `right` instead.
 -->
-<div class="ca-record-backdrop" *ngIf="recordCleanerId" (click)="closeCleanerRecord()"></div>
+@if (recordCleanerId) {
+<div class="ca-record-backdrop" (click)="closeCleanerRecord()"></div>
+}
 
 <!--
   No header of our own: the panel brings the dashboard's, which carries the cleaner's name, photo,
   ranking, phone, document AND its Edit / Delete / close buttons. A second title bar above it would
   print the name twice and offer a second close.
 -->
+@if (recordCleanerId) {
 <div class="ca-record-panel"
-       *ngIf="recordCleanerId"
        role="dialog"
        aria-modal="true"
        [attr.aria-label]="recordCleanerName + ' — cleaner record'">
@@ -344,3 +421,4 @@
                             (changed)="onCleanerRecordChanged()"></app-cleaners-dashboard>
   </div>
 </div>
+}

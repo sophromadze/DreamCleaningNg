@@ -80,7 +80,11 @@
       </ul>
   
       <h3>4.3 Service Areas</h3>
-      <p>We currently provide services in {{ state }}, specifically serving <span *ngFor="let city of serviceCities; let last = last">{{ city }}<span *ngIf="!last">, </span></span>.</p>
+      <p>We currently provide services in {{ state }}, specifically serving @for (city of serviceCities; track city; let last = $last) {
+      <span>{{ city }}@if (!last) {
+      <span>, </span>
+      }</span>
+      }.</p>
     </section>
   
     <section>

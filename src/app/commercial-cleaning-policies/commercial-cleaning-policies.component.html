@@ -14,10 +14,14 @@
   </header>
 
   <section class="policy-intro" aria-label="Introduction">
-    <ng-container *ngFor="let item of introItems">
-      <p *ngIf="item.kind === 'paragraph'">{{ item.text }}</p>
-      <p *ngIf="item.kind === 'note'" class="policy-note">{{ item.text }}</p>
-    </ng-container>
+    @for (item of introItems; track item) {
+      @if (item.kind === 'paragraph') {
+      <p>{{ item.text }}</p>
+      }
+      @if (item.kind === 'note') {
+      <p class="policy-note">{{ item.text }}</p>
+      }
+    }
   </section>
 
   <!-- Downloads sit above the contents rather than at the foot of eleven sections: somebody who
@@ -52,16 +56,19 @@
     <h2 id="contents-heading">Contents</h2>
     <ol>
       <!-- Not a bare href="#…": with <base href="/"> that resolves to the home page. -->
-      <li *ngFor="let section of policy.sections; trackBy: trackBySection">
+      @for (section of policy.sections; track trackBySection($index, section)) {
+      <li>
         <a routerLink="/commercial-cleaning-policies" [fragment]="section.anchor">
           <span class="contents-number">{{ section.number }}.</span>
           <span class="contents-title">{{ section.title }}</span>
         </a>
       </li>
+      }
     </ol>
   </nav>
 
-  <section *ngFor="let section of policy.sections; trackBy: trackBySection"
+  @for (section of policy.sections; track trackBySection($index, section)) {
+  <section
            class="policy-section"
            [id]="section.anchor"
            [attr.aria-labelledby]="section.anchor + '-heading'">
@@ -69,14 +76,23 @@
       <span class="section-number">{{ section.number }}.</span> {{ section.title }}
     </h2>
 
-    <ng-container *ngFor="let item of itemsFor(section)">
-      <p *ngIf="item.kind === 'paragraph'">{{ item.text }}</p>
-      <p *ngIf="item.kind === 'note'" class="policy-note">{{ item.text }}</p>
-      <ul *ngIf="item.kind === 'list'" class="policy-bullets">
-        <li *ngFor="let bullet of item.items">{{ bullet }}</li>
+    @for (item of itemsFor(section); track item) {
+      @if (item.kind === 'paragraph') {
+      <p>{{ item.text }}</p>
+      }
+      @if (item.kind === 'note') {
+      <p class="policy-note">{{ item.text }}</p>
+      }
+      @if (item.kind === 'list') {
+      <ul class="policy-bullets">
+        @for (bullet of item.items; track bullet) {
+        <li>{{ bullet }}</li>
+        }
       </ul>
-    </ng-container>
+      }
+    }
   </section>
+  }
 
   <footer class="policy-footer">
     <p>

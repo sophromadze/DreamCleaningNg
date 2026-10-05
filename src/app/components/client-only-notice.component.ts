@@ -1,19 +1,21 @@
 import { Component, Inject, PLATFORM_ID } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-client-only-notice',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   template: `
-    <div class="client-only-notice" *ngIf="!isBrowser">
+    @if (!isBrowser) {
+    <div class="client-only-notice">
       <div class="notice-content">
         <h2>Client-Only Content</h2>
         <p>This content is only available in the browser environment.</p>
         <button (click)="goHome()" class="btn-primary">Go to Home</button>
       </div>
     </div>
+    }
   `,
   styles: [`
     .client-only-notice {

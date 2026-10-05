@@ -1,12 +1,11 @@
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { MaintenanceModeService, MaintenanceModeStatus } from '../services/maintenance-mode.service';
 import { formatNyDateTime } from '../shared/ny-time.util';
 
 @Component({
   selector: 'app-maintenance-mode',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   template: `
     <div class="maintenance-container">
       <div class="maintenance-content">
@@ -20,9 +19,11 @@ import { formatNyDateTime } from '../shared/ny-time.util';
         <p class="maintenance-info">
           We apologize for any inconvenience. Please check back soon!
         </p>
-        <div class="maintenance-details" *ngIf="status && status.startedAt">
+        @if (status && status.startedAt) {
+        <div class="maintenance-details">
           <p><strong>Maintenance Started:</strong> {{ formatDate(status.startedAt) }}</p>
         </div>
+        }
         <div class="contact-info">
           <p>If you have an urgent matter, please contact us:</p>
           <p><strong>Email:</strong> <a href="mailto:hello@dreamcleaningnyc.com">hello&#64;dreamcleaningnyc.com</a></p>

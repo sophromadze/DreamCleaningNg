@@ -1,5 +1,4 @@
 import { Component, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule, NgModel } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { finalize } from 'rxjs/operators';
@@ -30,7 +29,7 @@ import { faCircleExclamation } from '../../shared/icons/glyphs/faCircleExclamati
 @Component({
   selector: 'app-change-password',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, IconComponent],
+  imports: [FormsModule, RouterModule, IconComponent],
   templateUrl: './change-password.component.html',
   styleUrls: ['../account-form.scss']
 })

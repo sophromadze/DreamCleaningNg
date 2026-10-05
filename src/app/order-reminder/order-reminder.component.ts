@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { OrderReminderService, OrderReminder } from '../services/order-reminder.service';
 import { AuthService } from '../services/auth.service';
@@ -12,7 +12,7 @@ import { faCircleStop } from '../shared/icons/glyphs/faCircleStop';
 @Component({
   selector: 'app-order-reminder',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [IconComponent],
   templateUrl: './order-reminder.component.html',
   styleUrls: ['./order-reminder.component.scss']
 })

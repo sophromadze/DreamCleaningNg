@@ -1,4 +1,4 @@
-<ng-container *ngIf="visible">
+@if (visible) {
   <!-- Floating chat button -->
   <button
     type="button"
@@ -10,17 +10,19 @@
     [attr.aria-expanded]="isOpen">
     <i [appIcon]="isOpen ? icons.faXmark : icons.faComments" aria-hidden="true"></i>
     <!-- Unread replies badge (closed panel only) -->
-    <span class="chat-fab__badge" *ngIf="unreadCount > 0 && !isOpen" aria-label="Unread messages">
+    @if (unreadCount > 0 && !isOpen) {
+    <span class="chat-fab__badge" aria-label="Unread messages">
       {{ unreadCount > 9 ? '9+' : unreadCount }}
     </span>
+    }
   </button>
 
   <!-- Slide-up panel. Panel-level click/keydown feed the idle-timeout keep-alive so an
        actively-used chat never pauses (events bubble up from inner controls + input). -->
+  @if (isOpen) {
   <section
     class="chat-panel"
     [class.no-sticky-cta]="!stickyCtaVisible"
-    *ngIf="isOpen"
     aria-label="Chat with Dream Cleaning"
     (click)="registerActivity()"
     (keydown)="registerActivity()">
@@ -33,15 +35,16 @@
         </div>
       </div>
       <div class="chat-panel__header-actions">
+        @if (messages.length > 0 && !conversationEnded) {
         <button
           type="button"
           class="chat-panel__close"
-          *ngIf="messages.length > 0 && !conversationEnded"
           (click)="endChat()"
           title="End chat"
           aria-label="End chat">
           <i [appIcon]="icons.faPowerOff" aria-hidden="true"></i>
         </button>
+        }
         <button type="button" class="chat-panel__close" (click)="toggleOpen()" aria-label="Close chat">
           <i [appIcon]="icons.faXmark" aria-hidden="true"></i>
         </button>
@@ -49,7 +52,8 @@
     </header>
 
     <div class="chat-panel__messages" #messageList>
-      <div class="chat-msg chat-msg--assistant" *ngIf="messages.length === 0 && !sending">
+      @if (messages.length === 0 && !sending) {
+      <div class="chat-msg chat-msg--assistant">
         <div class="chat-msg__bubble">
           Hi! 👋 I can help with our cleaning services, price estimates, what's included, and discounts. What can I do for you?
         </div>
@@ -57,94 +61,120 @@
              and it gets it wrong from free text — one tap here settles it before the first
              sentence. Typing instead is untouched; these are a shortcut, not a gate. -->
         <div class="chat-quick-replies chat-quick-replies--openers">
+          @for (opener of openers; track opener) {
           <button
             type="button"
             class="chat-quick-reply"
-            *ngFor="let opener of openers"
             [disabled]="sending"
             (click)="sendOpener(opener)">
             <i [appIcon]="opener.icon" aria-hidden="true"></i> {{ opener.label }}
           </button>
+          }
         </div>
       </div>
+      }
 
+      @for (m of messages; track m) {
       <div
-        *ngFor="let m of messages"
         class="chat-msg"
         [class.chat-msg--user]="m.role === 'user'"
         [class.chat-msg--assistant]="m.role === 'assistant'"
         [class.chat-msg--team]="m.role === 'humanAgent'">
-        <div class="chat-msg__label" *ngIf="m.role === 'humanAgent'">
+        @if (m.role === 'humanAgent') {
+        <div class="chat-msg__label">
           <i [appIcon]="icons.faHeadset" aria-hidden="true"></i> {{ m.agentName || 'Team' }}
         </div>
+        }
         <div class="chat-msg__bubble">
-          <img *ngIf="m.imagePath" [src]="m.imagePath" alt="Attached photo" class="chat-msg__image" loading="lazy" />
+          @if (m.imagePath) {
+          <img [src]="m.imagePath" alt="Attached photo" class="chat-msg__image" loading="lazy" />
+          }
           <!-- Assistant/team messages render lightweight markdown (links, accent emphasis);
                the visitor's own text stays plain interpolation. -->
-          <span *ngIf="m.content && m.role === 'user'" class="chat-msg__text">{{ m.content }}</span>
-          <span *ngIf="m.content && m.role !== 'user'" class="chat-msg__text" [innerHTML]="m.content | chatMarkdown"></span>
+          @if (m.content && m.role === 'user') {
+          <span class="chat-msg__text">{{ m.content }}</span>
+          }
+          @if (m.content && m.role !== 'user') {
+          <span class="chat-msg__text" [innerHTML]="m.content | chatMarkdown"></span>
+          }
         </div>
         <!-- Quick-reply chips (present_choices) — newest message only, single-use -->
-        <div class="chat-quick-replies" *ngIf="m.quickReplies && !m.quickRepliesUsed && isLastMessage(m)">
+        @if (m.quickReplies && !m.quickRepliesUsed && isLastMessage(m)) {
+        <div class="chat-quick-replies">
+          @for (option of m.quickReplies; track option) {
           <button
             type="button"
             class="chat-quick-reply"
-            *ngFor="let option of m.quickReplies"
             [disabled]="sending"
             (click)="onQuickReply(option)">
             {{ option }}
           </button>
+          }
         </div>
+        }
       </div>
+      }
 
       <!-- Typing indicator while waiting for a reply -->
-      <div class="chat-msg chat-msg--assistant" *ngIf="sending">
+      @if (sending) {
+      <div class="chat-msg chat-msg--assistant">
         <div class="chat-msg__bubble chat-msg__bubble--typing" aria-label="Assistant is typing">
           <span></span><span></span><span></span>
         </div>
       </div>
+      }
     </div>
 
-    <div class="chat-panel__error" *ngIf="error" role="alert">
+    @if (error) {
+    <div class="chat-panel__error" role="alert">
       <i [appIcon]="icons.faCircleExclamation" aria-hidden="true"></i> {{ error }}
     </div>
+    }
 
     <!-- Pending image preview (attached, not yet sent) -->
-    <div class="chat-panel__attachment" *ngIf="pendingImage">
+    @if (pendingImage) {
+    <div class="chat-panel__attachment">
       <img [src]="pendingImage.previewUrl" alt="Image ready to send" />
       <span>Image attached</span>
       <button type="button" (click)="clearPendingImage()" aria-label="Remove attached image">
         <i [appIcon]="icons.faXmark" aria-hidden="true"></i>
       </button>
     </div>
+    }
 
     <!-- Ended state — replaces the input row once the session is Resolved -->
-    <footer class="chat-panel__ended" *ngIf="conversationEnded">
+    @if (conversationEnded) {
+    <footer class="chat-panel__ended">
       <p>This conversation has ended.</p>
       <button type="button" (click)="startNewChat()">Start new chat</button>
     </footer>
+    }
 
     <!-- Idle-pause banner — polling was suspended after inactivity. The input stays
          usable below, so a plain send resumes too; Continue is the explicit path. -->
-    <div class="chat-panel__paused" *ngIf="paused && !conversationEnded" role="status">
+    @if (paused && !conversationEnded) {
+    <div class="chat-panel__paused" role="status">
       <span><i [appIcon]="icons.faCirclePause" aria-hidden="true"></i> Paused due to inactivity</span>
       <button type="button" class="chat-panel__continue" (click)="continueChat()">Continue chat</button>
     </div>
+    }
 
     <!-- Talk to a real person. Always one tap away while the AI still has the conversation,
          so a visitor it is misreading never has to argue their way to a human. Two-step so a
          stray tap doesn't page the team. -->
-    <div class="chat-panel__handoff" *ngIf="showHumanHandoff">
+    @if (showHumanHandoff) {
+    <div class="chat-panel__handoff">
+      @if (!confirmingHumanRequest) {
       <button
         type="button"
         class="chat-panel__handoff-btn"
-        *ngIf="!confirmingHumanRequest"
         [disabled]="requestingHuman"
         (click)="askForHuman()">
         <i [appIcon]="icons.faHeadset" aria-hidden="true"></i> Talk to a real person
       </button>
+      }
+      @if (confirmingHumanRequest) {
 
-      <ng-container *ngIf="confirmingHumanRequest">
         <span class="chat-panel__handoff-ask">Connect you with our team?</span>
         <button
           type="button"
@@ -160,13 +190,15 @@
           (click)="cancelHumanRequest()">
           Not now
         </button>
-      </ng-container>
+      }
     </div>
+    }
 
     <!-- Optional guest contact email. It used to disappear the instant the first message was
          sent — before anyone had a chance to fill it in — so it now stays put until the
          visitor either submits an address (✓) or dismisses the row (✕). -->
-    <div class="chat-panel__email" *ngIf="showEmailField">
+    @if (showEmailField) {
+    <div class="chat-panel__email">
       <div class="chat-panel__email-row">
         <input
           type="email"
@@ -201,15 +233,21 @@
           <i [appIcon]="icons.faXmark" aria-hidden="true"></i>
         </button>
       </div>
-      <small class="chat-panel__email-error" *ngIf="guestEmailError" role="alert">{{ guestEmailError }}</small>
+      @if (guestEmailError) {
+      <small class="chat-panel__email-error" role="alert">{{ guestEmailError }}</small>
+      }
     </div>
+    }
 
     <!-- Short confirmation in place of the field, so it doesn't just silently vanish. -->
-    <div class="chat-panel__email-note" *ngIf="guestEmailNoteVisible" role="status">
+    @if (guestEmailNoteVisible) {
+    <div class="chat-panel__email-note" role="status">
       <i [appIcon]="icons.faCircleCheck" aria-hidden="true"></i> Thanks — we'll use that if we need to reach you.
     </div>
+    }
 
-    <footer class="chat-panel__input" *ngIf="!conversationEnded">
+    @if (!conversationEnded) {
+    <footer class="chat-panel__input">
       <label class="chat-panel__attach" [class.chat-panel__attach--busy]="uploadingImage">
         <i [appIcon]="uploadingImage ? icons.faSpinner : icons.faPaperclip" [class.fa-spin]="uploadingImage" aria-hidden="true"></i>
         <input
@@ -232,5 +270,7 @@
         <i [appIcon]="icons.faPaperPlane" aria-hidden="true"></i>
       </button>
     </footer>
+    }
   </section>
-</ng-container>
+  }
+}

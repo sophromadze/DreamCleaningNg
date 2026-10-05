@@ -1,9 +1,9 @@
 <!-- Drawn whole from the first frame, on the server too (2026-10): frame, bubbles, "POINTS" and the
      progress track. Only the number fills in once the summary loads, into a reserved slot, so the
      badge never changes size. See BubbleBadgeComponent.placeholder. -->
-<ng-container *ngIf="(summary ?? placeholder) as shown">
+@if ((summary ?? placeholder); as shown) {
+  @if (shown.pointsSystemEnabled) {
   <button
-    *ngIf="shown.pointsSystemEnabled"
     class="bubble-badge"
     (click)="goToRewards()"
     (mouseenter)="showTooltip = true"
@@ -30,11 +30,18 @@
     </div>
 
     <!-- Tooltip (desktop only) -->
-    <div class="bubble-badge__tooltip" *ngIf="showTooltip && summary">
+    @if (showTooltip && summary) {
+    <div class="bubble-badge__tooltip">
       <div class="tooltip-tier">{{ shown.tier === 'UltraBubble' ? 'Ultra Bubble' : shown.tier === 'SuperBubble' ? 'Super Bubble' : 'Bubble' }}</div>
-      <div class="tooltip-progress" *ngIf="shown.nextTierName">{{ shown.tierProgressPercent }}% to {{ shown.nextTierName }}</div>
-      <div class="tooltip-credits" *ngIf="shown.credits > 0">${{ shown.credits | number:'1.2-2' }} credit</div>
+      @if (shown.nextTierName) {
+      <div class="tooltip-progress">{{ shown.tierProgressPercent }}% to {{ shown.nextTierName }}</div>
+      }
+      @if (shown.credits > 0) {
+      <div class="tooltip-credits">${{ shown.credits | number:'1.2-2' }} credit</div>
+      }
       <div class="tooltip-link">View Rewards →</div>
     </div>
+    }
   </button>
-</ng-container>
+  }
+}

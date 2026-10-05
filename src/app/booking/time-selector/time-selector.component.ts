@@ -1,11 +1,10 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, HostListener } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { getAllServiceTimeSlots } from '../../shared/booking/service-time-slots';
 @Component({
   selector: 'app-time-selector',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './time-selector.component.html',
   styleUrls: ['./time-selector.component.scss'],
 })

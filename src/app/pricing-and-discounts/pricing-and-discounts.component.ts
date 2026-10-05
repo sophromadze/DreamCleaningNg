@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, computed, inject } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { MarketingPricingService } from '../shared/pricing/marketing-pricing.service';
@@ -30,7 +30,7 @@ interface RecurringPlan {
 @Component({
   selector: 'app-pricing-and-discounts',
   standalone: true,
-  imports: [CommonModule, RouterModule, IconComponent],
+  imports: [RouterModule, IconComponent],
   templateUrl: './pricing-and-discounts.component.html',
   styleUrl: './pricing-and-discounts.component.scss'
 })

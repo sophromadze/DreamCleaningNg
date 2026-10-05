@@ -1,4 +1,5 @@
-<div class="contract-detail" *ngIf="!loading && detail">
+@if (!loading && detail) {
+<div class="contract-detail">
 
   <div class="detail-header">
     <div>
@@ -7,23 +8,33 @@
       <p class="muted">
         {{ (detail.currentSnapshot ?? detail.draft).client.legalEntityName }}
         · Version {{ detail.currentVersionNumber }}
-        <span *ngIf="detail.createdByAdminName"> · Created by {{ detail.createdByAdminName }}</span>
+        @if (detail.createdByAdminName) {
+        <span> · Created by {{ detail.createdByAdminName }}</span>
+        }
       </p>
     </div>
     <span class="status-pill" [attr.data-status]="detail.status">{{ detail.statusLabel }}</span>
   </div>
 
-  <div class="alert error" *ngIf="errorMessage">{{ errorMessage }}</div>
-  <div class="alert success" *ngIf="successMessage">{{ successMessage }}</div>
+  @if (errorMessage) {
+  <div class="alert error">{{ errorMessage }}</div>
+  }
+  @if (successMessage) {
+  <div class="alert success">{{ successMessage }}</div>
+  }
   <!-- Archived contracts stay fully readable; the banner explains what state it is in. -->
   <!-- Deleted contracts stay fully readable; the banner explains what state it is in. -->
-  <div class="alert warn" *ngIf="detail.isHidden">
+  @if (detail.isHidden) {
+  <div class="alert warn">
     This contract is archived. It is hidden from the default list and its signing links have been
     revoked. Everything else — every version, signature, PDF and audit entry — is preserved, and
     you can restore it at any time.
   </div>
+  }
 
-  <div class="alert warn" *ngIf="detail.voidReason">Voided: {{ detail.voidReason }}</div>
+  @if (detail.voidReason) {
+  <div class="alert warn">Voided: {{ detail.voidReason }}</div>
+  }
 
   <!-- Only what THIS document prints and nobody supplied. The server already drops anything the
        contract's configuration hides (Exhibit A detail under Simplified/Omitted scope, commitment
@@ -31,60 +42,89 @@
        while this list is non-empty — so the buttons below are disabled to match. -->
   <!-- Consistency warnings (e.g. visits per week vs. named service days). They never block a
        send: the admin decides which value is right; nothing is changed for them. -->
-  <div class="alert warn" *ngFor="let warning of detail.scheduleWarnings ?? []">{{ warning }}</div>
+  @for (warning of detail.scheduleWarnings ?? []; track warning) {
+  <div class="alert warn">{{ warning }}</div>
+  }
 
-  <div class="alert warn" *ngIf="missingFields.length">
+  @if (missingFields.length) {
+  <div class="alert warn">
     <strong>Missing required information:</strong>
     {{ missingFields.join('; ') }}. Fill these in and generate a new preview before sending it to
     the client.
   </div>
+  }
 
   <!-- Actions. Every button is gated on the contract's state AND the server's permission matrix;
        the API re-checks both, so a hidden button is a courtesy, not the control. -->
   <div class="action-bar">
-    <button type="button" class="btn-ghost" *ngIf="showEdit"
+    @if (showEdit) {
+    <button type="button" class="btn-ghost"
             (click)="edit.emit(detail.id)" [disabled]="busy">Back to edit</button>
+    }
 
-    <button type="button" class="btn-primary" *ngIf="showSendForReview"
+    @if (showSendForReview) {
+    <button type="button" class="btn-primary"
             (click)="sendForReview()" [disabled]="busy || missingFields.length > 0">Approve &amp; send for client review</button>
+    }
 
-    <button type="button" class="btn-primary" *ngIf="showSendForSignature"
+    @if (showSendForSignature) {
+    <button type="button" class="btn-primary"
             (click)="sendForSignature()" [disabled]="busy || missingFields.length > 0">Send for signature</button>
+    }
 
-    <button type="button" class="btn-primary" *ngIf="canSignAsContractor && !signingOpen"
+    @if (canSignAsContractor && !signingOpen) {
+    <button type="button" class="btn-primary"
             (click)="openSigning()" [disabled]="busy">Sign as Contractor</button>
+    }
 
     <!-- Produces a DRAFT invoice and emails nobody. Named for what it does: the admin reviews the
          dates and the figures, then presses Send on the invoice itself. -->
-    <button type="button" class="btn-primary" *ngIf="canCreateNextInvoice"
+    @if (canCreateNextInvoice) {
+    <button type="button" class="btn-primary"
             (click)="createNextInvoice()" [disabled]="busy">Create next invoice</button>
+    }
 
-    <button type="button" class="btn-ghost" *ngIf="canRevise"
+    @if (canRevise) {
+    <button type="button" class="btn-ghost"
             (click)="revise()" [disabled]="busy">Create revision</button>
+    }
 
-    <button type="button" class="btn-ghost" *ngIf="canRegenerateExecuted"
+    @if (canRegenerateExecuted) {
+    <button type="button" class="btn-ghost"
             (click)="regenerateExecuted()" [disabled]="busy">Regenerate executed PDF</button>
+    }
 
-    <button type="button" class="btn-ghost" *ngIf="canResendExecuted"
+    @if (canResendExecuted) {
+    <button type="button" class="btn-ghost"
             (click)="resendExecuted()" [disabled]="busy">Re-send executed copy</button>
+    }
 
-    <button type="button" class="btn-ghost" *ngIf="canAmend"
+    @if (canAmend) {
+    <button type="button" class="btn-ghost"
             (click)="duplicate(true)" [disabled]="busy">Create amendment</button>
-    <button type="button" class="btn-ghost" *ngIf="canDuplicate"
+    }
+    @if (canDuplicate) {
+    <button type="button" class="btn-ghost"
             (click)="duplicate(false)" [disabled]="busy">Duplicate as new contract</button>
+    }
 
-    <button type="button" class="btn-ghost" *ngIf="showRestore"
+    @if (showRestore) {
+    <button type="button" class="btn-ghost"
             (click)="restoreContract()" [disabled]="busy">Unarchive</button>
+    }
 
-    <button type="button" class="btn-danger" *ngIf="showDelete"
+    @if (showDelete) {
+    <button type="button" class="btn-danger"
             (click)="openDeleteDialog()" [disabled]="busy">Delete</button>
+    }
   </div>
 
   <!-- WHY AN ACTION IS MISSING (2026-09-16). Back to edit, Create revision, Create amendment and
        Delete belong to a CEO or CTO; an untitled account — SuperAdmin included — is a Manager
        here and does not get them. Nothing seeds a title, so on a fresh database every admin sees
        this. It used to be silent, which is indistinguishable from a broken deployment. -->
-  <div class="alert info officer-note" *ngIf="authorityLimitsActions">
+  @if (authorityLimitsActions) {
+  <div class="alert info officer-note">
     <strong>Some actions need an officer title.</strong>
     {{ actionsNeedingOfficerTitle.join(', ') }}
     {{ actionsNeedingOfficerTitle.length === 1 ? 'is' : 'are' }}
@@ -93,10 +133,12 @@
     <strong>Admin → Users → the account → Details → Officer title</strong>; while nobody holds CTO,
     any SuperAdmin can grant it.
   </div>
+  }
 
   <!-- In-app contractor signing: the same capture UI the emailed link uses, inside the panel.
        The mailed link keeps working in parallel and is not disturbed by this. -->
-  <section class="signing-panel" *ngIf="signingOpen">
+  @if (signingOpen) {
+  <section class="signing-panel">
     <div class="signing-head">
       <h3>Sign as Contractor</h3>
       <button type="button" class="btn-ghost small" (click)="cancelSigning()">Cancel</button>
@@ -117,23 +159,31 @@
       [errorMessage]="signingError"
       (signed)="onSignedAsContractor($event)"></app-signature-capture>
   </section>
+  }
 
   <div class="detail-grid">
     <div class="detail-main">
 
-      <div class="version-strip" *ngIf="detail.versions.length > 1">
+      @if (detail.versions.length > 1) {
+      <div class="version-strip">
         <span class="strip-label">Versions</span>
+        @for (v of detail.versions; track v) {
         <button type="button" class="version-chip"
-                *ngFor="let v of detail.versions"
                 [class.active]="(viewingVersionId ?? detail.currentVersionId) === v.id"
                 (click)="viewVersion(v.id)">
-          v{{ v.versionNumber }}<span *ngIf="v.isCurrent"> · current</span>
+          v{{ v.versionNumber }}@if (v.isCurrent) {
+          <span> · current</span>
+          }
         </button>
+        }
       </div>
+      }
 
-      <div class="alert warn" *ngIf="viewingVersionId">
+      @if (viewingVersionId) {
+      <div class="alert warn">
         You are viewing a superseded version. Signatures on it were voided when it was replaced.
       </div>
+      }
 
       <!-- The FULL document: master agreement, signature block, Exhibit A and Exhibit B -->
       <app-contract-document [documentHtml]="viewingHtml"
@@ -142,15 +192,19 @@
 
     <aside class="detail-side">
 
-      <section class="side-card" *ngIf="detail.clientReviewUrl">
+      @if (detail.clientReviewUrl) {
+      <section class="side-card">
         <h3>Client review link</h3>
         <p class="link-text">{{ detail.clientReviewUrl }}</p>
         <button type="button" class="btn-ghost small" (click)="copyReviewLink()">Copy link</button>
       </section>
+      }
 
-      <section class="side-card" *ngIf="detail.signers.length">
+      @if (detail.signers.length) {
+      <section class="side-card">
         <h3>Signers</h3>
-        <div class="signer" *ngFor="let signer of detail.signers">
+        @for (signer of detail.signers; track signer) {
+        <div class="signer">
           <div class="signer-head">
             <strong>{{ signerRoleLabel(signer.role) }}</strong>
             <span class="signer-status" [attr.data-status]="signer.status">
@@ -159,27 +213,38 @@
             </span>
           </div>
           <div class="signer-name">{{ signer.invitedName }}</div>
-          <div class="signer-meta" *ngIf="signer.invitedTitle">{{ signer.invitedTitle }}</div>
+          @if (signer.invitedTitle) {
+          <div class="signer-meta">{{ signer.invitedTitle }}</div>
+          }
           <div class="signer-meta">{{ signer.invitedEmail || 'No email on file' }}</div>
-          <div class="signer-meta" *ngIf="signer.signedAt">
+          @if (signer.signedAt) {
+          <div class="signer-meta">
             Signed {{ signer.signedAt | date: 'medium' }}
           </div>
-          <div class="signer-meta" *ngIf="!signer.signedAt && signer.status === ContractSignerStatus.Pending">
+          }
+          @if (!signer.signedAt && signer.status === ContractSignerStatus.Pending) {
+          <div class="signer-meta">
             Link expires {{ signer.tokenExpiresAt | date: 'mediumDate' }}
           </div>
-          <div class="signer-actions" *ngIf="signer.status === ContractSignerStatus.Pending">
+          }
+          @if (signer.status === ContractSignerStatus.Pending) {
+          <div class="signer-actions">
             <button type="button" class="btn-ghost small"
                     (click)="resendInvite(signer.id)">Re-send</button>
             <button type="button" class="btn-ghost small"
                     (click)="copySigningLink(signer.signingUrl)">Copy link</button>
           </div>
+          }
         </div>
+        }
       </section>
+      }
 
       <section class="side-card">
         <h3>Documents</h3>
-        <ng-container *ngFor="let version of detail.versions">
-          <div class="file-row" *ngFor="let file of version.files">
+        @for (version of detail.versions; track version) {
+          @for (file of version.files; track file) {
+          <div class="file-row">
             <div>
               <div class="file-name">{{ fileLabel(file.fileType) }}</div>
               <div class="file-meta">v{{ version.versionNumber }} ·
@@ -188,8 +253,11 @@
             <button type="button" class="btn-ghost small"
                     (click)="downloadFile(file.id, file.fileName)">Download</button>
           </div>
-        </ng-container>
-        <p class="muted" *ngIf="!detail.versions.length">No documents generated yet.</p>
+          }
+        }
+        @if (!detail.versions.length) {
+        <p class="muted">No documents generated yet.</p>
+        }
       </section>
 
       <section class="side-card">
@@ -202,17 +270,23 @@
       <section class="side-card">
         <h3>Activity</h3>
         <ol class="timeline">
-          <li *ngFor="let entry of detail.auditLog">
+          @for (entry of detail.auditLog; track entry) {
+          <li>
             <div class="timeline-text">{{ entry.eventDescription }}</div>
             <!-- The description already names the version where it matters ("Version 2
                  generated"); the row id would read as a version number and mislead. -->
             <div class="timeline-meta">
               {{ entry.timestamp | date: 'short' }}
-              <span *ngIf="entry.actorIdentifier"> · {{ entry.actorIdentifier }}</span>
+              @if (entry.actorIdentifier) {
+              <span> · {{ entry.actorIdentifier }}</span>
+              }
             </div>
           </li>
+          }
         </ol>
-        <p class="muted" *ngIf="!detail.auditLog.length">Nothing recorded yet.</p>
+        @if (!detail.auditLog.length) {
+        <p class="muted">Nothing recorded yet.</p>
+        }
       </section>
     </aside>
   </div>
@@ -220,7 +294,8 @@
   <!-- DELETE OR ARCHIVE. Two genuinely different outcomes used to share one word: "Delete"
        archived the contract, which is not what the word promises, and there was no way at all to
        clear a test contract out. Full delete is deliberately the harder of the two to reach. -->
-  <div class="modal-backdrop" *ngIf="deleteDialogOpen" (click)="closeDeleteDialog()">
+  @if (deleteDialogOpen) {
+  <div class="modal-backdrop" (click)="closeDeleteDialog()">
     <div class="modal delete-choice" (click)="$event.stopPropagation()">
       <h3>Delete or archive contract?</h3>
       <p class="modal-sub">
@@ -251,7 +326,7 @@
           <span class="choice-tag destructive">Permanent</span>
         </div>
 
-        <ng-container *ngIf="canHardDelete; else hardDeleteBlocked">
+        @if (canHardDelete) {
           <p>
             Permanently destroys this contract, every version, signature, file and audit entry
             under it, and its PDFs on disk. <strong>This cannot be undone.</strong>
@@ -268,11 +343,10 @@
                   [disabled]="busy || !hardDeleteConfirmed">
             Permanently delete
           </button>
-        </ng-container>
+        } @else {
 
-        <ng-template #hardDeleteBlocked>
           <p class="blocked-reason">{{ hardDeleteBlockedReason }}</p>
-        </ng-template>
+        }
       </div>
 
       <div class="modal-actions">
@@ -280,6 +354,10 @@
       </div>
     </div>
   </div>
+  }
 </div>
+}
 
-<div class="contract-detail loading-state" *ngIf="loading">Loading contract…</div>
+@if (loading) {
+<div class="contract-detail loading-state">Loading contract…</div>
+}

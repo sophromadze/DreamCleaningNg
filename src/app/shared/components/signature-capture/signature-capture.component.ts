@@ -1,7 +1,6 @@
 import {
   AfterViewInit, Component, ElementRef, EventEmitter, Input, OnDestroy, Output, ViewChild, inject
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { ContractSignatureMethod } from '../../../services/contract.service';
@@ -32,7 +31,7 @@ export interface CapturedSignature {
 @Component({
   selector: 'app-signature-capture',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './signature-capture.component.html',
   styleUrls: ['./signature-capture.component.scss']
 })

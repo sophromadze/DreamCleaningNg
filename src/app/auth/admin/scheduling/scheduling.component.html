@@ -1,9 +1,11 @@
 <div class="scheduling-section">
   <div class="section-header">
     <h2>Scheduling - Block Dates &amp; Hours</h2>
-    <button class="btn btn-primary" (click)="openAddForm()" *ngIf="!showForm">
+    @if (!showForm) {
+    <button class="btn btn-primary" (click)="openAddForm()">
       + Block Date / Hours
     </button>
+    }
   </div>
 
   <p class="section-description">
@@ -12,11 +14,16 @@
   </p>
 
   <!-- Messages -->
-  <div class="error-message" *ngIf="errorMessage">{{ errorMessage }}</div>
-  <div class="success-message" *ngIf="successMessage">{{ successMessage }}</div>
+  @if (errorMessage) {
+  <div class="error-message">{{ errorMessage }}</div>
+  }
+  @if (successMessage) {
+  <div class="success-message">{{ successMessage }}</div>
+  }
 
   <!-- Add/Edit Form -->
-  <div class="form-section" *ngIf="showForm">
+  @if (showForm) {
+  <div class="form-section">
     <h3>{{ editingSlot ? 'Edit Block' : 'New Block' }}</h3>
 
     <div class="form-group">
@@ -31,15 +38,16 @@
       </label>
     </div>
 
-    <div class="hours-selection" *ngIf="!formIsFullDay">
+    @if (!formIsFullDay) {
+    <div class="hours-selection">
       <label>Select hours to block:</label>
       <div class="hours-actions">
         <button class="btn btn-sm" (click)="selectAllHours()">Select All</button>
         <button class="btn btn-sm" (click)="clearAllHours()">Clear All</button>
       </div>
       <div class="hours-grid">
+        @for (hour of allTimeSlots; track hour) {
         <label
-          *ngFor="let hour of allTimeSlots"
           class="hour-chip"
           [class.selected]="formSelectedHours.has(hour)">
           <input
@@ -49,8 +57,10 @@
             hidden />
           {{ formatTime(hour) }}
         </label>
+        }
       </div>
     </div>
+    }
 
     <div class="form-group">
       <label>Reason (optional, shown to customers)</label>
@@ -67,12 +77,16 @@
       <button class="btn btn-secondary" (click)="cancelForm()">Cancel</button>
     </div>
   </div>
+  }
 
   <!-- Loading -->
-  <div class="loading" *ngIf="isLoading">Loading...</div>
+  @if (isLoading) {
+  <div class="loading">Loading...</div>
+  }
 
   <!-- Blocked Slots Table -->
-  <div class="table-wrapper" *ngIf="!isLoading && blockedSlots.length > 0">
+  @if (!isLoading && blockedSlots.length > 0) {
+  <div class="table-wrapper">
     <table class="data-table">
       <thead>
         <tr>
@@ -85,7 +99,8 @@
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let slot of blockedSlots" [class.past]="isPastDate(slot.date)">
+        @for (slot of blockedSlots; track slot) {
+        <tr [class.past]="isPastDate(slot.date)">
           <td>{{ formatDate(slot.date) }}</td>
           <td>
             <span class="badge" [class.badge-danger]="slot.isFullDay" [class.badge-warning]="!slot.isFullDay">
@@ -102,12 +117,16 @@
             </div>
           </td>
         </tr>
+        }
       </tbody>
     </table>
   </div>
+  }
 
   <!-- Empty State -->
-  <div class="empty-state" *ngIf="!isLoading && blockedSlots.length === 0">
+  @if (!isLoading && blockedSlots.length === 0) {
+  <div class="empty-state">
     <p>No blocked dates or hours configured. All time slots are available for booking.</p>
   </div>
+  }
 </div>

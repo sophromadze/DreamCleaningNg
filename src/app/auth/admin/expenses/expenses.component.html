@@ -11,14 +11,18 @@
       </p>
     </div>
 
-    <div class="header-actions" *ngIf="canEdit">
+    @if (canEdit) {
+    <div class="header-actions">
       <button class="btn btn-quote" type="button" (click)="openCategoryManager()">
         <i class="fas fa-tags"></i> Categories
       </button>
-      <button class="btn btn-primary" type="button" (click)="openAddForm()" *ngIf="!showForm">
+      @if (!showForm) {
+      <button class="btn btn-primary" type="button" (click)="openAddForm()">
         <i class="fas fa-plus"></i> Add expense
       </button>
+      }
     </div>
+    }
   </div>
 
   <!-- Month selector + month total -->
@@ -31,9 +35,11 @@
       <button class="icon-btn" type="button" (click)="nextMonth()" title="Next month">
         <i class="fas fa-chevron-right"></i>
       </button>
-      <button class="btn-link" type="button" (click)="goToCurrentMonth()" *ngIf="!isCurrentMonth">
+      @if (!isCurrentMonth) {
+      <button class="btn-link" type="button" (click)="goToCurrentMonth()">
         Today
       </button>
+      }
     </div>
     <div class="month-total">
       <span class="month-total-label">This month</span>
@@ -41,15 +47,20 @@
     </div>
   </div>
 
-  <div class="message success" *ngIf="successMessage">
+  @if (successMessage) {
+  <div class="message success">
     <i class="fas fa-check-circle"></i> {{ successMessage }}
   </div>
-  <div class="message error" *ngIf="error">
+  }
+  @if (error) {
+  <div class="message error">
     <i class="fas fa-exclamation-circle"></i> {{ error }}
   </div>
+  }
 
   <!-- Add / edit form ─────────────────────────────────────────────────────── -->
-  <div class="expense-form-card" *ngIf="showForm">
+  @if (showForm) {
+  <div class="expense-form-card">
     <div class="form-header">
       <h2>{{ editingId == null ? 'Add new expense' : 'Edit expense #' + editingId }}</h2>
       <button type="button" class="icon-btn" (click)="closeForm()" title="Close"><i class="fas fa-times"></i></button>
@@ -60,45 +71,65 @@
       <label class="form-field">
         <span>Category</span>
         <select [(ngModel)]="form.categoryId" (ngModelChange)="onCategoryChange()">
-          <option *ngFor="let c of categories" [ngValue]="c.id">{{ c.name }}</option>
+          @for (c of categories; track c) {
+          <option [ngValue]="c.id">{{ c.name }}</option>
+          }
         </select>
       </label>
 
       <!-- Salaries are paid to a person, so they are picked rather than typed. -->
-      <label class="form-field" *ngIf="isSalaryForm">
+      @if (isSalaryForm) {
+      <label class="form-field">
         <span>Paid to</span>
         <!-- Every option binds [ngValue]: mixing it with plain `value` in one select makes
              Angular match the placeholder by string and the rest by identity. -->
         <select [(ngModel)]="staffChoice">
           <option [ngValue]="''" disabled>Select a staff member…</option>
-          <optgroup label="Staff" *ngIf="currentStaff.length">
-            <option *ngFor="let s of currentStaff" [ngValue]="s.id">{{ staffOptionLabel(s) }}</option>
+          @if (currentStaff.length) {
+          <optgroup label="Staff">
+            @for (s of currentStaff; track s) {
+            <option [ngValue]="s.id">{{ staffOptionLabel(s) }}</option>
+            }
           </optgroup>
-          <optgroup label="No longer staff" *ngIf="formerStaff.length">
-            <option *ngFor="let s of formerStaff" [ngValue]="s.id">{{ staffOptionLabel(s) }}</option>
+          }
+          @if (formerStaff.length) {
+          <optgroup label="No longer staff">
+            @for (s of formerStaff; track s) {
+            <option [ngValue]="s.id">{{ staffOptionLabel(s) }}</option>
+            }
           </optgroup>
+          }
           <option [ngValue]="'custom'">Someone else (type a name)</option>
         </select>
       </label>
+      }
 
-      <label class="form-field span-2" *ngIf="showsNameField">
+      @if (showsNameField) {
+      <label class="form-field span-2">
         <span>Name</span>
         <input type="text" [(ngModel)]="form.name"
                [placeholder]="isSalaryForm ? 'Who this salary is for' : 'e.g. Claude AI subscription'">
       </label>
+      }
 
       <!-- Named by the account, so the row keeps naming them after that account is deleted. -->
-      <div class="form-field span-2 staff-note" *ngIf="selectedStaff as staff">
+      @if (selectedStaff; as staff) {
+      <div class="form-field span-2 staff-note">
         <span>Name</span>
         <div class="staff-chip">
           <i class="fas fa-user"></i>
           <strong>{{ staff.fullName }}</strong>
-          <small *ngIf="staff.email">{{ staff.email }}</small>
-          <small class="staff-warning" *ngIf="staff.isFormer">
+          @if (staff.email) {
+          <small>{{ staff.email }}</small>
+          }
+          @if (staff.isFormer) {
+          <small class="staff-warning">
             No longer staff — their past salaries stay on file under this name.
           </small>
+          }
         </div>
       </div>
+      }
 
       <label class="form-field">
         <span>Amount ({{ symbolFor(formCurrency) }}) <small>negative = credit/refund</small></span>
@@ -106,7 +137,8 @@
       </label>
 
       <!-- Salaries only: the admins are paid in lari, everything else is billed in dollars. -->
-      <div class="form-field" *ngIf="canChooseCurrency">
+      @if (canChooseCurrency) {
+      <div class="form-field">
         <span>Currency</span>
         <div class="toggle-group">
           <button type="button" class="toggle"
@@ -117,15 +149,18 @@
                   (click)="setCurrency('GEL')">₾ GEL</button>
         </div>
       </div>
+      }
 
       <!-- Amounts stay in the currency they were entered in; only reporting converts. -->
-      <div class="form-field span-2 currency-note" *ngIf="canChooseCurrency && formCurrency === 'GEL'">
+      @if (canChooseCurrency && formCurrency === 'GEL') {
+      <div class="form-field span-2 currency-note">
         <i class="fas fa-info-circle"></i>
         <span>
           Stored in lari. Statistics and Finances convert it to USD at each month's exchange rate —
           the same rate the staff bonuses use.
         </span>
       </div>
+      }
 
       <label class="form-field">
         <span>Start date</span>
@@ -144,7 +179,7 @@
         </div>
       </div>
 
-      <ng-container *ngIf="form.isRecurring">
+      @if (form.isRecurring) {
         <label class="form-field">
           <span>Frequency (months)</span>
           <input type="number" min="1" step="1" [(ngModel)]="form.frequencyMonths">
@@ -153,13 +188,14 @@
         <div class="form-field span-2">
           <span>Quick pick</span>
           <div class="preset-row">
+            @for (p of frequencyPresets; track p) {
             <button type="button"
-                    *ngFor="let p of frequencyPresets"
                     class="preset-chip"
                     [class.active]="form.frequencyMonths === p.months"
                     (click)="pickFrequency(p.months)">
               {{ p.label }}
             </button>
+            }
           </div>
         </div>
 
@@ -169,7 +205,8 @@
         </label>
 
         <!-- Proration: only for monthly cadence (daily-billed services like ads). -->
-        <div class="form-field span-2 prorate-field" *ngIf="canProrate">
+        @if (canProrate) {
+        <div class="form-field span-2 prorate-field">
           <label class="checkbox-line">
             <input type="checkbox" [(ngModel)]="form.prorateByDay">
             <span>
@@ -179,7 +216,8 @@
             </span>
           </label>
         </div>
-      </ng-container>
+        }
+      }
 
       <label class="form-field span-2">
         <span>Notes <small>(optional)</small></span>
@@ -197,9 +235,11 @@
       </button>
     </div>
   </div>
+  }
 
   <!-- Category manager ───────────────────────────────────────────────────── -->
-  <div class="category-manager-card" *ngIf="showCategoryManager">
+  @if (showCategoryManager) {
+  <div class="category-manager-card">
     <div class="form-header">
       <h2><i class="fas fa-tags"></i> Manage categories</h2>
       <button type="button" class="icon-btn" (click)="closeCategoryManager()" title="Close"><i class="fas fa-times"></i></button>
@@ -214,14 +254,18 @@
     </div>
 
     <ul class="category-list">
-      <li *ngFor="let cat of categories">
-        <ng-container *ngIf="editingCategoryId !== cat.id">
+      @for (cat of categories; track cat) {
+      <li>
+        @if (editingCategoryId !== cat.id) {
           <span class="cat-name">{{ cat.name }}</span>
           <span class="cat-meta">
-            <span class="cat-badge" *ngIf="cat.isSystem">built-in</span>
+            @if (cat.isSystem) {
+            <span class="cat-badge">built-in</span>
+            }
             <span class="cat-count">{{ cat.expenseCount }} {{ cat.expenseCount === 1 ? 'expense' : 'expenses' }}</span>
           </span>
-          <span class="cat-actions" *ngIf="pendingDeleteCategoryId !== cat.id">
+          @if (pendingDeleteCategoryId !== cat.id) {
+          <span class="cat-actions">
             <button class="icon-btn" type="button" (click)="startEditCategory(cat)" title="Rename">
               <i class="fas fa-pen"></i>
             </button>
@@ -232,65 +276,85 @@
               <i class="fas fa-trash"></i>
             </button>
           </span>
-          <span class="cat-actions confirm" *ngIf="pendingDeleteCategoryId === cat.id">
+          }
+          @if (pendingDeleteCategoryId === cat.id) {
+          <span class="cat-actions confirm">
             <span class="confirm-text">Delete?</span>
             <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelDeleteCategory()" [disabled]="categorySaving">No</button>
             <button class="btn btn-danger btn-sm" type="button" (click)="confirmDeleteCategory()" [disabled]="categorySaving">Yes</button>
           </span>
-        </ng-container>
+          }
+        }
+        @if (editingCategoryId === cat.id) {
 
-        <ng-container *ngIf="editingCategoryId === cat.id">
           <input aria-label="Category name" class="cat-edit-input" type="text" [(ngModel)]="editingCategoryName" (keyup.enter)="saveCategoryName()">
           <span class="cat-actions">
             <button class="btn btn-secondary btn-cancel btn-sm" type="button" (click)="cancelEditCategory()" [disabled]="categorySaving">Cancel</button>
             <button class="btn btn-primary btn-sm" type="button" (click)="saveCategoryName()" [disabled]="categorySaving">Save</button>
           </span>
-        </ng-container>
+        }
       </li>
+      }
     </ul>
   </div>
+  }
 
   <!-- Grouped list ──────────────────────────────────────────────────────── -->
-  <div class="grouped-list" *ngIf="!loading && grouped">
-    <div class="empty-state" *ngIf="grouped.monthTotal === 0 && grouped.categories.length === 0">
+  @if (!loading && grouped) {
+  <div class="grouped-list">
+    @if (grouped.monthTotal === 0 && grouped.categories.length === 0) {
+    <div class="empty-state">
       <i class="fas fa-receipt"></i>
       <p>No expenses recorded yet. Add your first one above.</p>
     </div>
+    }
+    @for (cat of grouped.categories; track cat) {
 
-    <ng-container *ngFor="let cat of grouped.categories">
       <!-- A category only shows if it has names (any month/all-time activity). -->
-      <div class="category-block" *ngIf="cat.names.length > 0">
+      @if (cat.names.length > 0) {
+      <div class="category-block">
         <div class="category-head" (click)="toggleCategory(cat.categoryId)">
           <span class="chevron"><i class="fas" [class.fa-chevron-right]="!isCategoryOpen(cat.categoryId)" [class.fa-chevron-down]="isCategoryOpen(cat.categoryId)"></i></span>
           <span class="category-name">{{ cat.categoryName }}</span>
           <span class="category-count">{{ cat.names.length }}</span>
           <span class="category-total">$ {{ cat.monthTotal | number:'1.2-2' }}</span>
+          @if (canEdit) {
           <button class="icon-btn add-in-cat" type="button" title="Add expense to this category"
-                  *ngIf="canEdit"
                   (click)="$event.stopPropagation(); openAddForm(cat.categoryId)">
             <i class="fas fa-plus"></i>
           </button>
+          }
         </div>
 
         <!-- Names within the category -->
-        <div class="name-list" *ngIf="isCategoryOpen(cat.categoryId)">
-          <div class="name-block" *ngFor="let n of cat.names">
+        @if (isCategoryOpen(cat.categoryId)) {
+        <div class="name-list">
+          @for (n of cat.names; track n) {
+          <div class="name-block">
             <div class="name-head" (click)="toggleName(cat.categoryId, n.name)">
               <span class="chevron"><i class="fas" [class.fa-chevron-right]="!isNameOpen(cat.categoryId, n.name)" [class.fa-chevron-down]="isNameOpen(cat.categoryId, n.name)"></i></span>
-              <span class="name-icon" *ngIf="n.staffUserId"><i class="fas fa-user"></i></span>
+              @if (n.staffUserId) {
+              <span class="name-icon"><i class="fas fa-user"></i></span>
+              }
               <span class="name-name">{{ n.name }}</span>
               <!-- The account is gone; the row still names them from the snapshot it was saved with. -->
-              <span class="name-former-tag" *ngIf="n.staffUserRemoved"
+              @if (n.staffUserRemoved) {
+              <span class="name-former-tag"
                     title="This person is no longer in Users. Their salaries stay on file under the name they were paid as.">
                 former
               </span>
-              <span class="name-entries-tag" *ngIf="n.entries.length > 1">{{ n.entries.length }} entries</span>
+              }
+              @if (n.entries.length > 1) {
+              <span class="name-entries-tag">{{ n.entries.length }} entries</span>
+              }
               <!-- A foreign-currency line leads with what was actually paid; the USD figure that
                    reaches the books follows it, because that is the one the totals add up. -->
               <span class="name-total">
-                <span class="native-amount" *ngIf="n.monthTotalInCurrency != null">
+                @if (n.monthTotalInCurrency != null) {
+                <span class="native-amount">
                   {{ symbolFor(n.currency) }} {{ n.monthTotalInCurrency | number:'1.2-2' }}
                 </span>
+                }
                 <span [class.converted-amount]="n.monthTotalInCurrency != null">
                   $ {{ n.monthTotal | number:'1.2-2' }}
                 </span>
@@ -298,13 +362,16 @@
             </div>
 
             <!-- Individual entries for this name -->
-            <div class="entry-list" *ngIf="isNameOpen(cat.categoryId, n.name)">
+            @if (isNameOpen(cat.categoryId, n.name)) {
+            <div class="entry-list">
               <div class="entry-alltime">
                 <i class="fas fa-coins"></i>
                 Total to date across all entries:
-                <strong *ngIf="n.allTimeTotalInCurrency != null">
+                @if (n.allTimeTotalInCurrency != null) {
+                <strong>
                   {{ symbolFor(n.currency) }} {{ n.allTimeTotalInCurrency | number:'1.2-2' }}
                 </strong>
+                }
                 <strong [class.converted-amount]="n.allTimeTotalInCurrency != null">
                   $ {{ n.allTimeTotal | number:'1.2-2' }}
                 </strong>
@@ -317,11 +384,13 @@
                     <th>Type</th>
                     <th>Start</th>
                     <th>Status</th>
-                    <th class="actions-col" *ngIf="canEdit">Actions</th>
+                    @if (canEdit) {
+                    <th class="actions-col">Actions</th>
+                    }
                   </tr>
                 </thead>
                 <tbody>
-                  <ng-container *ngFor="let row of n.entries">
+                  @for (row of n.entries; track row) {
                     <tr [class.is-deleting]="pendingDeleteId === row.id">
                       <!-- The entry shows exactly what was typed; conversion is a reporting
                            concern and belongs on the totals, not on the record of the amount. -->
@@ -329,26 +398,37 @@
                       <td>{{ recurrenceLabel(row) }}</td>
                       <td>{{ formatDate(row.startDate) }}</td>
                       <td>
-                        <span class="status-text" *ngIf="row.isRecurring">{{ cadenceStatus(row) }}</span>
-                        <span class="status-text muted" *ngIf="!row.isRecurring">—</span>
+                        @if (row.isRecurring) {
+                        <span class="status-text">{{ cadenceStatus(row) }}</span>
+                        }
+                        @if (!row.isRecurring) {
+                        <span class="status-text muted">—</span>
+                        }
                       </td>
-                      <td class="actions-col" *ngIf="canEdit">
+                      @if (canEdit) {
+                      <td class="actions-col">
                         <button class="icon-btn" type="button" (click)="openEditForm(row)" title="Edit">
                           <i class="fas fa-pen"></i>
                         </button>
-                        <button class="icon-btn" type="button" *ngIf="canAdjustAmount(row)"
+                        @if (canAdjustAmount(row)) {
+                        <button class="icon-btn" type="button"
                                 (click)="openAdjustAmount(row)" title="Raise or reduce amount from a date">
                           <i class="fas fa-arrow-trend-up"></i>
                         </button>
+                        }
                         <button class="icon-btn danger" type="button" (click)="askDelete(row.id)" title="Delete">
                           <i class="fas fa-trash"></i>
                         </button>
                       </td>
+                      }
                     </tr>
-                    <tr class="notes-row" *ngIf="row.notes">
+                    @if (row.notes) {
+                    <tr class="notes-row">
                       <td colspan="5"><i class="fas fa-sticky-note"></i> {{ row.notes }}</td>
                     </tr>
-                    <tr *ngIf="adjustingId === row.id" class="adjust-row">
+                    }
+                    @if (adjustingId === row.id) {
+                    <tr class="adjust-row">
                       <td colspan="5">
                         <div class="adjust-bar">
                           <label class="form-field">
@@ -379,7 +459,9 @@
                         </div>
                       </td>
                     </tr>
-                    <tr *ngIf="pendingDeleteId === row.id" class="confirm-row">
+                    }
+                    @if (pendingDeleteId === row.id) {
+                    <tr class="confirm-row">
                       <td colspan="5">
                         <div class="confirm-bar">
                           <span><i class="fas fa-exclamation-triangle"></i> Delete this entry? This removes all of its past and future occurrences from statistics.</span>
@@ -393,17 +475,25 @@
                         </div>
                       </td>
                     </tr>
-                  </ng-container>
+                    }
+                  }
                 </tbody>
               </table>
             </div>
+            }
           </div>
+          }
         </div>
+        }
       </div>
-    </ng-container>
+      }
+    }
   </div>
+  }
 
-  <div class="loading-state" *ngIf="loading">
+  @if (loading) {
+  <div class="loading-state">
     <i class="fas fa-spinner fa-spin"></i> Loading expenses…
   </div>
+  }
 </div>

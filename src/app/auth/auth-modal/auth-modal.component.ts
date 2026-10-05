@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, HostListener } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -16,12 +16,11 @@ type LoginStep = 'email' | 'password' | 'otp';
   selector: 'app-auth-modal',
   standalone: true,
   imports: [
-    CommonModule,
     FormsModule,
     ReactiveFormsModule,
     GoogleSigninWrapperComponent,
     AppleSigninButtonComponent
-  ],
+],
   templateUrl: './auth-modal.component.html',
   styleUrl: './auth-modal.component.scss'
 })

@@ -9,14 +9,18 @@
 
 <div class="gift-cards-container">
   <!-- Success Message -->
-  <div class="alert alert-success" *ngIf="successMessage">
+  @if (successMessage) {
+  <div class="alert alert-success">
     {{ successMessage }}
   </div>
+  }
 
   <!-- Error Message -->
-  <div class="alert alert-error" *ngIf="errorMessage">
+  @if (errorMessage) {
+  <div class="alert alert-error">
     {{ errorMessage }}
   </div>
+  }
 
   <!-- Main Content -->
   <div class="gift-cards-content">
@@ -33,9 +37,11 @@
                 formControlName="amount" 
                 class="amount-select">
                 <option value="">Select amount</option>
-                <option *ngFor="let amount of predefinedAmounts" [value]="amount">
+                @for (amount of predefinedAmounts; track amount) {
+                <option [value]="amount">
                   ${{ amount }}
                 </option>
+                }
               </select>
               <div class="custom-amount">
                 <span class="currency-symbol">$</span>
@@ -48,11 +54,19 @@
                   max="10000">
               </div>
             </div>
-            <div class="error-message" *ngIf="amount?.invalid && amount?.touched">
-              <span *ngIf="amount?.errors?.['required']">Amount is required</span>
-              <span *ngIf="amount?.errors?.['min']">Minimum amount is $50</span>
-              <span *ngIf="amount?.errors?.['max']">Maximum amount is $10,000</span>
+            @if (amount?.invalid && amount?.touched) {
+            <div class="error-message">
+              @if (amount?.errors?.['required']) {
+              <span>Amount is required</span>
+              }
+              @if (amount?.errors?.['min']) {
+              <span>Minimum amount is $50</span>
+              }
+              @if (amount?.errors?.['max']) {
+              <span>Maximum amount is $10,000</span>
+              }
             </div>
+            }
           </div>
 
           <!-- Delivery choice -->
@@ -83,21 +97,26 @@
           </div>
 
           <!-- Send later: needs an account -->
-          <div class="send-later-notice" *ngIf="isSendLater && !currentUser">
+          @if (isSendLater && !currentUser) {
+          <div class="send-later-notice">
             <p>To buy a gift card for yourself and send it later, please log in or create an account. Your amount stays selected.</p>
             <div class="send-later-notice-actions">
               <button type="button" class="btn-outline" (click)="promptLoginForSendLater('login')">Log in</button>
               <button type="button" class="btn-outline" (click)="promptLoginForSendLater('register')">Create account</button>
             </div>
           </div>
+          }
 
-          <div class="send-later-notice" *ngIf="isSendLater && currentUser">
+          @if (isSendLater && currentUser) {
+          <div class="send-later-notice">
             <p>The gift card will be saved in your profile under <strong>Gift Cards</strong>. Nothing is sent to anyone until you press <strong>Send to someone</strong> there.</p>
             <p class="send-later-notice-account">Receipt goes to: <strong>{{ currentUser.email }}</strong></p>
           </div>
+          }
 
           <!-- Recipient Information -->
-          <div class="form-section" *ngIf="!isSendLater">
+          @if (!isSendLater) {
+          <div class="form-section">
             <h2>Recipient Information</h2>
             
             <div class="form-group">
@@ -109,10 +128,16 @@
                 placeholder="Enter recipient's full name"
                 maxlength="15"
                 class="text-wrap">
-              <div class="error-message" *ngIf="recipientName?.invalid && recipientName?.touched">
-                <span *ngIf="recipientName?.errors?.['required']">Recipient name is required</span>
-                <span *ngIf="recipientName?.errors?.['maxlength']">Name cannot exceed 15 characters</span>
+              @if (recipientName?.invalid && recipientName?.touched) {
+              <div class="error-message">
+                @if (recipientName?.errors?.['required']) {
+                <span>Recipient name is required</span>
+                }
+                @if (recipientName?.errors?.['maxlength']) {
+                <span>Name cannot exceed 15 characters</span>
+                }
               </div>
+              }
             </div>
 
             <div class="form-group">
@@ -122,15 +147,23 @@
                 id="recipientEmail" 
                 formControlName="recipientEmail" 
                 placeholder="Enter recipient's email address">
-              <div class="error-message" *ngIf="recipientEmail?.invalid && recipientEmail?.touched">
-                <span *ngIf="recipientEmail?.errors?.['required']">Recipient email is required</span>
-                <span *ngIf="recipientEmail?.errors?.['email']">Please enter a valid email address</span>
+              @if (recipientEmail?.invalid && recipientEmail?.touched) {
+              <div class="error-message">
+                @if (recipientEmail?.errors?.['required']) {
+                <span>Recipient email is required</span>
+                }
+                @if (recipientEmail?.errors?.['email']) {
+                <span>Please enter a valid email address</span>
+                }
               </div>
+              }
             </div>
           </div>
+          }
 
           <!-- Sender Information (send later: taken from the signed-in profile) -->
-          <div class="form-section" *ngIf="!isSendLater">
+          @if (!isSendLater) {
+          <div class="form-section">
             <h2>Your Information</h2>
             
             <div class="form-group">
@@ -140,10 +173,16 @@
                 id="senderName" 
                 formControlName="senderName" 
                 placeholder="Enter your full name">
-              <div class="error-message" *ngIf="senderName?.invalid && senderName?.touched">
-                <span *ngIf="senderName?.errors?.['required']">Your name is required</span>
-                <span *ngIf="senderName?.errors?.['maxlength']">Name cannot exceed 100 characters</span>
+              @if (senderName?.invalid && senderName?.touched) {
+              <div class="error-message">
+                @if (senderName?.errors?.['required']) {
+                <span>Your name is required</span>
+                }
+                @if (senderName?.errors?.['maxlength']) {
+                <span>Name cannot exceed 100 characters</span>
+                }
               </div>
+              }
             </div>
 
             <div class="form-group">
@@ -153,15 +192,23 @@
                 id="senderEmail" 
                 formControlName="senderEmail" 
                 placeholder="Enter your email address">
-              <div class="error-message" *ngIf="senderEmail?.invalid && senderEmail?.touched">
-                <span *ngIf="senderEmail?.errors?.['required']">Your email is required</span>
-                <span *ngIf="senderEmail?.errors?.['email']">Please enter a valid email address</span>
+              @if (senderEmail?.invalid && senderEmail?.touched) {
+              <div class="error-message">
+                @if (senderEmail?.errors?.['required']) {
+                <span>Your email is required</span>
+                }
+                @if (senderEmail?.errors?.['email']) {
+                <span>Please enter a valid email address</span>
+                }
               </div>
+              }
             </div>
           </div>
+          }
 
           <!-- Message -->
-          <div class="form-group" *ngIf="!isSendLater">
+          @if (!isSendLater) {
+          <div class="form-group">
             <label for="message">Personal Message *</label>
             <textarea 
               id="message" 
@@ -173,11 +220,18 @@
             <div class="char-count">
               {{ message?.value?.length || 0 }}/70
             </div>
-            <div class="error-message" *ngIf="message?.invalid && message?.touched">
-              <span *ngIf="message?.errors?.['required']">Personal message is required</span>
-              <span *ngIf="message?.errors?.['maxlength']">Message cannot exceed 70 characters</span>
+            @if (message?.invalid && message?.touched) {
+            <div class="error-message">
+              @if (message?.errors?.['required']) {
+              <span>Personal message is required</span>
+              }
+              @if (message?.errors?.['maxlength']) {
+              <span>Message cannot exceed 70 characters</span>
+              }
             </div>
+            }
           </div>
+          }
 
           <!-- Form Actions -->
           <div class="form-actions">
@@ -194,7 +248,9 @@
                 [class.loading]="isLoadingBackground">
             
             <!-- Optional: Show loading overlay -->
-            <div class="loading-overlay" *ngIf="isLoadingBackground"></div>
+            @if (isLoadingBackground) {
+            <div class="loading-overlay"></div>
+            }
             
             <!-- Your existing gift card content -->
             <div class="gift-card-header">
@@ -205,20 +261,30 @@
             <div class="gift-card-body">
               <div class="left-section"></div>
               <div class="right-section">
-                <div class="recipient-info" *ngIf="!isSendLater">
+                @if (!isSendLater) {
+                <div class="recipient-info">
                   <p class="dear">Dear {{ previewGiftCard?.recipientName || 'Recipient Name' }},</p>
-                  <div class="message" *ngIf="previewGiftCard?.message">
+                  @if (previewGiftCard?.message) {
+                  <div class="message">
                     <p>{{ previewGiftCard.message }}</p>
                   </div>
+                  }
                 </div>
-                <div class="recipient-info" *ngIf="isSendLater">
+                }
+                @if (isSendLater) {
+                <div class="recipient-info">
                   <p class="dear">Dear Recipient Name,</p>
                   <div class="message">
                     <p>You'll add the recipient and your message when you send it</p>
                   </div>
                 </div>
-                <div class="gift-card-note" *ngIf="!isSendLater">Gift card code will be sent to recipient's and your email</div>
-                <div class="gift-card-note" *ngIf="isSendLater">Gift card code will be saved in your profile and sent to your email</div>
+                }
+                @if (!isSendLater) {
+                <div class="gift-card-note">Gift card code will be sent to recipient's and your email</div>
+                }
+                @if (isSendLater) {
+                <div class="gift-card-note">Gift card code will be saved in your profile and sent to your email</div>
+                }
               </div>
             </div>
           </div>

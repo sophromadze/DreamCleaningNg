@@ -13,7 +13,8 @@
     </div>
     
     <!-- Custom Calendar Dropdown -->
-    <div class="calendar-dropdown" *ngIf="isDropdownOpen">
+    @if (isDropdownOpen) {
+    <div class="calendar-dropdown">
       <div class="calendar-header">
         <button class="nav-button" (click)="previousMonth(); $event.stopPropagation()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -39,8 +40,8 @@
       </div>
       
       <div class="calendar-days">
+        @for (day of calendarDays; track day) {
         <div
-          *ngFor="let day of calendarDays"
           class="calendar-day"
           [class.current-month]="day.isCurrentMonth"
           [class.selected]="day.isSelected"
@@ -51,7 +52,9 @@
           (click)="selectDate(day.date); $event.stopPropagation()">
           {{ day.date.getDate() }}
         </div>
+        }
       </div>
     </div>
+    }
   </div>
 </div> 

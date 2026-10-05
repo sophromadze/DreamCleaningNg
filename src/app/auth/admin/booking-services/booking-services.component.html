@@ -3,23 +3,30 @@
   <div class="section">
     <div class="section-header">
       <h2>Service Types</h2>
-      <button *ngIf="userPermissions.permissions.canCreate" 
+      @if (userPermissions.permissions.canCreate) {
+      <button 
               class="action-btn add" 
               (click)="startAddingServiceType()">
         Add Service Type
       </button>
+      }
     </div>
 
     <!-- Service Types Messages -->
-    <div *ngIf="serviceTypeMessage.error" class="alert alert-danger">
+    @if (serviceTypeMessage.error) {
+    <div class="alert alert-danger">
       {{serviceTypeMessage.error}}
     </div>
-    <div *ngIf="serviceTypeMessage.success" class="alert alert-success">
+    }
+    @if (serviceTypeMessage.success) {
+    <div class="alert alert-success">
       {{serviceTypeMessage.success}}
     </div>
+    }
 
     <!-- Add Service Type Form -->
-    <div *ngIf="isAddingServiceType" class="form-section">
+    @if (isAddingServiceType) {
+    <div class="form-section">
       <h3>Add New Service Type</h3>
       <form (ngSubmit)="addServiceType()">
         <div class="form-group">
@@ -69,7 +76,9 @@
                  placeholder="none">
           <select aria-label="Display price unit" [(ngModel)]="newServiceType.displayPriceUnit" name="displayPriceUnit">
             <option [ngValue]="null">no unit</option>
-            <option *ngFor="let unit of displayPriceUnits" [ngValue]="unit.value">{{ unit.label }}</option>
+            @for (unit of displayPriceUnits; track unit) {
+            <option [ngValue]="unit.value">{{ unit.label }}</option>
+            }
           </select>
           <small class="form-note">
             Optional, website text only - never used for booking prices. Only for types the booking
@@ -145,6 +154,7 @@
         </div>
       </form>
     </div>
+    }
 
     <!-- Service Types List -->
     <div class="data-table service-types-table">
@@ -164,67 +174,90 @@
             <th>Description</th>
             <th>Order</th>
             <th>Status</th>
-            <th *ngIf="userRole !== 'Moderator'">Actions</th>
+            @if (userRole !== 'Moderator') {
+            <th>Actions</th>
+            }
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let type of serviceTypes" 
+          @for (type of serviceTypes; track type) {
+          <tr 
               [class.selected]="selectedServiceType?.id === type.id"
               [class.editing]="isEditingServiceType && selectedServiceType?.id === type.id"
               (click)="selectServiceType(type)">
             <td>{{type.id}}</td>
             <td>
-              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
+              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
                 {{type.name}}
-              </ng-container>
-              <input aria-label="Name" *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
+              }
+              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              <input aria-label="Name" 
                      type="text" 
                      [(ngModel)]="type.name"
                      class="edit-input">
+              }
             </td>
             <td>
-              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
-                <code *ngIf="type.serviceKey">{{type.serviceKey}}</code>
-                <span *ngIf="!type.serviceKey" class="muted-cell">none</span>
-              </ng-container>
+              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
+                @if (type.serviceKey) {
+                <code>{{type.serviceKey}}</code>
+                }
+                @if (!type.serviceKey) {
+                <span class="muted-cell">none</span>
+                }
+              }
               <!-- Blank saves as "no key". Format and uniqueness are checked by the server,
                    which answers with the exact problem (shown in the message bar above). -->
-              <input aria-label="Key" *ngIf="isEditingServiceType && selectedServiceType?.id === type.id"
+              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              <input aria-label="Key"
                      type="text"
                      [(ngModel)]="type.serviceKey"
                      placeholder="e.g. residential"
                      maxlength="50"
                      autocomplete="off"
                      class="edit-input">
+              }
             </td>
             <td>
-              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
+              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
                 {{type.basePrice | currency}}
-              </ng-container>
-              <input aria-label="Price" *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
+              }
+              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              <input aria-label="Price" 
                      type="number" 
                      [(ngModel)]="type.basePrice"
                      class="edit-input">
+              }
             </td>
             <td>
-              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
-                <span *ngIf="type.minimumPrice">{{type.minimumPrice | currency}}</span>
-                <span *ngIf="!type.minimumPrice" class="muted-cell">none</span>
-              </ng-container>
-              <input aria-label="Min price" *ngIf="isEditingServiceType && selectedServiceType?.id === type.id"
+              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
+                @if (type.minimumPrice) {
+                <span>{{type.minimumPrice | currency}}</span>
+                }
+                @if (!type.minimumPrice) {
+                <span class="muted-cell">none</span>
+                }
+              }
+              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              <input aria-label="Min price"
                      type="number"
                      step="0.01"
                      min="0"
                      [(ngModel)]="type.minimumPrice"
                      class="edit-input">
+              }
             </td>
             <td>
               <!-- Marketing text only (never a quote): the website shows it for types it can't price. -->
-              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
-                <span *ngIf="type.displayPrice">{{type.displayPrice | currency}} {{ displayPriceUnitLabel(type.displayPriceUnit) }}</span>
-                <span *ngIf="!type.displayPrice" class="muted-cell">none</span>
-              </ng-container>
-              <ng-container *ngIf="isEditingServiceType && selectedServiceType?.id === type.id">
+              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
+                @if (type.displayPrice) {
+                <span>{{type.displayPrice | currency}} {{ displayPriceUnitLabel(type.displayPriceUnit) }}</span>
+                }
+                @if (!type.displayPrice) {
+                <span class="muted-cell">none</span>
+                }
+              }
+              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
                 <input type="number"
                        step="0.01"
                        min="0"
@@ -233,26 +266,37 @@
                        class="edit-input">
                 <select aria-label="Display price unit" [(ngModel)]="type.displayPriceUnit" class="edit-input">
                   <option [ngValue]="null">no unit</option>
-                  <option *ngFor="let unit of displayPriceUnits" [ngValue]="unit.value">{{ unit.label }}</option>
+                  @for (unit of displayPriceUnits; track unit) {
+                  <option [ngValue]="unit.value">{{ unit.label }}</option>
+                  }
                 </select>
-              </ng-container>
+              }
             </td>
             <td>
-              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
+              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
                 {{type.timeDuration}} min
-              </ng-container>
-              <input aria-label="Time (minutes)" *ngIf="isEditingServiceType && selectedServiceType?.id === type.id"
+              }
+              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              <input aria-label="Time (minutes)"
                      type="number"
                      [(ngModel)]="type.timeDuration"
                      class="edit-input">
+              }
             </td>
             <td>
-              <ng-container *ngIf="!isEditingServiceType || !selectedServiceType || selectedServiceType.id !== type.id">
-                <span *ngIf="type.isCustom" class="badge badge-warning">Custom</span>
-                <span *ngIf="type.hasPoll && !type.isCustom" class="badge badge-info">Poll</span>
-                <span *ngIf="!type.hasPoll && !type.isCustom" class="badge badge-secondary">Regular</span>
-              </ng-container>
-              <div *ngIf="isEditingServiceType && selectedServiceType && selectedServiceType.id === type.id" class="service-type-options">
+              @if (!isEditingServiceType || !selectedServiceType || selectedServiceType.id !== type.id) {
+                @if (type.isCustom) {
+                <span class="badge badge-warning">Custom</span>
+                }
+                @if (type.hasPoll && !type.isCustom) {
+                <span class="badge badge-info">Poll</span>
+                }
+                @if (!type.hasPoll && !type.isCustom) {
+                <span class="badge badge-secondary">Regular</span>
+                }
+              }
+              @if (isEditingServiceType && selectedServiceType && selectedServiceType.id === type.id) {
+              <div class="service-type-options">
                 <label>
                   <input type="radio" 
                          name="serviceTypeMode"
@@ -284,59 +328,75 @@
                   Ask apartment / house
                 </label>
               </div>
+              }
             </td>
             <td>
-              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
+              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
                 {{type.description}}
-              </ng-container>
-              <textarea aria-label="Description" *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
+              }
+              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              <textarea aria-label="Description" 
                         [(ngModel)]="type.description"
                         class="edit-textarea"></textarea>
+              }
             </td>
             <td>
-              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
+              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
                 {{type.displayOrder || 0}}
-              </ng-container>
-              <input aria-label="Order" *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
+              }
+              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
+              <input aria-label="Order" 
                      type="number" 
                      [(ngModel)]="type.displayOrder"
                      class="edit-input"
                      min="1">
+              }
             </td>
             <td>
               <span class="status-badge" [class.active]="type.isActive" [class.inactive]="!type.isActive">
                 {{type.isActive ? 'Active' : 'Inactive'}}
               </span>
             </td>
-            <td class="actions" *ngIf="userRole !== 'Moderator'">
-              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
-                <button *ngIf="userPermissions.permissions.canUpdate" 
+            @if (userRole !== 'Moderator') {
+            <td class="actions">
+              @if (!isEditingServiceType || selectedServiceType?.id !== type.id) {
+                @if (userPermissions.permissions.canUpdate) {
+                <button 
                         class="action-btn edit" 
                         (click)="editServiceType(); selectServiceType(type); $event.stopPropagation()">
                   Edit
                 </button>
-                <button *ngIf="userPermissions.permissions.canActivate && !type.isActive" 
+                }
+                @if (userPermissions.permissions.canActivate && !type.isActive) {
+                <button 
                         class="action-btn activate" 
                         (click)="activateServiceType(type); $event.stopPropagation()">
                   Enable
                 </button>
-                <button *ngIf="userPermissions.permissions.canDeactivate && type.isActive" 
+                }
+                @if (userPermissions.permissions.canDeactivate && type.isActive) {
+                <button 
                         class="action-btn deactivate" 
                         (click)="deactivateServiceType(type); $event.stopPropagation()">
                   Disable
                 </button>
-                <button *ngIf="userPermissions.permissions.canDelete" 
+                }
+                @if (userPermissions.permissions.canDelete) {
+                <button 
                         class="action-btn delete" 
                         (click)="deleteServiceType(type); $event.stopPropagation()">
                   Delete
                 </button>
-              </ng-container>
-              <ng-container *ngIf="isEditingServiceType && selectedServiceType?.id === type.id">
+                }
+              }
+              @if (isEditingServiceType && selectedServiceType?.id === type.id) {
                 <button class="action-btn save" (click)="saveServiceType(); $event.stopPropagation()">Save</button>
                 <button class="action-btn cancel" (click)="cancelEditServiceType(); $event.stopPropagation()">Cancel</button>
-              </ng-container>
+              }
             </td>
+            }
           </tr>
+          }
         </tbody>
           </table>
         </div>
@@ -345,30 +405,39 @@
   </div>
 
   <!-- Service Details Section -->
-  <div *ngIf="selectedServiceType" class="section">
+  @if (selectedServiceType) {
+  <div class="section">
     
     <!-- Show Poll Questions if service type has poll -->
-    <div *ngIf="selectedServiceType.hasPoll" class="poll-questions-section">
+    @if (selectedServiceType.hasPoll) {
+    <div class="poll-questions-section">
       <div class="subsection">
         <div class="subsection-header">
           <h3>Poll Questions for {{ selectedServiceType.name }}</h3>
-          <button *ngIf="userPermissions.permissions.canCreate" 
+          @if (userPermissions.permissions.canCreate) {
+          <button 
                   class="action-btn add" 
                   (click)="startAddingPollQuestion()">
             Add Question
           </button>
+          }
         </div>
 
         <!-- Poll Questions Messages -->
-        <div *ngIf="pollQuestionMessage.error" class="alert alert-danger">
+        @if (pollQuestionMessage.error) {
+        <div class="alert alert-danger">
           {{ pollQuestionMessage.error }}
         </div>
-        <div *ngIf="pollQuestionMessage.success" class="alert alert-success">
+        }
+        @if (pollQuestionMessage.success) {
+        <div class="alert alert-success">
           {{ pollQuestionMessage.success }}
         </div>
+        }
 
         <!-- Add Poll Question Form -->
-        <div class="service-form" *ngIf="isAddingPollQuestion">
+        @if (isAddingPollQuestion) {
+        <div class="service-form">
           <h4>Add New Poll Question</h4>
           
           <div class="form-grid">
@@ -380,9 +449,11 @@
             <div class="form-group">
               <label>Question Type</label>
               <select aria-label="Question Type" [(ngModel)]="newPollQuestion.questionType">
-                <option *ngFor="let type of questionTypes" [value]="type.value">
+                @for (type of questionTypes; track type) {
+                <option [value]="type.value">
                   {{ type.label }}
                 </option>
+                }
               </select>
             </div>
             
@@ -391,11 +462,13 @@
               <input aria-label="Display Order" type="number" [(ngModel)]="newPollQuestion.displayOrder" min="1">
             </div>
             
-            <div class="form-group full-width" *ngIf="newPollQuestion.questionType === 'dropdown' || newPollQuestion.questionType === 'radio' || newPollQuestion.questionType === 'checkbox'">
+            @if (newPollQuestion.questionType === 'dropdown' || newPollQuestion.questionType === 'radio' || newPollQuestion.questionType === 'checkbox') {
+            <div class="form-group full-width">
               <label>Options (comma-separated)</label>
               <input type="text" [(ngModel)]="newPollQuestion.options" placeholder="Option 1, Option 2, Option 3">
               <small class="form-note">Enter options separated by commas</small>
             </div>
+            }
             
             <div class="form-group checkbox-group">
               <label>
@@ -410,10 +483,12 @@
             <button class="cancel-btn" (click)="cancelAddPollQuestion()">Cancel</button>
           </div>
         </div>
+        }
 
         <!-- Poll Questions List -->
         <div class="poll-questions-list">
-          <div class="data-table" *ngIf="pollQuestions.length > 0">
+          @if (pollQuestions.length > 0) {
+          <div class="data-table">
             <div class="table-container">
               <div class="table-wrapper" #pollTableWrapper>
                 <table>
@@ -425,49 +500,77 @@
                 <th>Options</th>
                 <th>Required</th>
                 <th>Status</th>
-                <th *ngIf="userRole !== 'Moderator'">Actions</th>
+                @if (userRole !== 'Moderator') {
+                <th>Actions</th>
+                }
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let question of pollQuestions">
+              @for (question of pollQuestions; track question) {
+              <tr>
                 <!-- Display Mode -->
-                <td *ngIf="editingPollQuestionId !== question.id">{{ getPollQuestionDisplayPosition(question) }}</td>
-                <td *ngIf="editingPollQuestionId !== question.id">{{ question.question }}</td>
-                <td *ngIf="editingPollQuestionId !== question.id">
+                @if (editingPollQuestionId !== question.id) {
+                <td>{{ getPollQuestionDisplayPosition(question) }}</td>
+                }
+                @if (editingPollQuestionId !== question.id) {
+                <td>{{ question.question }}</td>
+                }
+                @if (editingPollQuestionId !== question.id) {
+                <td>
                   <span class="question-type-badge" [class]="'type-' + question.questionType">
                     {{ getQuestionTypeLabel(question.questionType) }}
                   </span>
                 </td>
-                <td *ngIf="editingPollQuestionId !== question.id">
-                  <span *ngIf="question.options" class="options-preview">{{ question.options }}</span>
-                  <span *ngIf="!question.options" class="no-options">-</span>
+                }
+                @if (editingPollQuestionId !== question.id) {
+                <td>
+                  @if (question.options) {
+                  <span class="options-preview">{{ question.options }}</span>
+                  }
+                  @if (!question.options) {
+                  <span class="no-options">-</span>
+                  }
                 </td>
-                <td *ngIf="editingPollQuestionId !== question.id">
+                }
+                @if (editingPollQuestionId !== question.id) {
+                <td>
                   <span class="required-badge" [class.required]="question.isRequired" [class.optional]="!question.isRequired">
                     {{ question.isRequired ? 'Required' : 'Optional' }}
                   </span>
                 </td>
-                <td *ngIf="editingPollQuestionId !== question.id">
+                }
+                @if (editingPollQuestionId !== question.id) {
+                <td>
                   <span class="status-badge" [class.active]="question.isActive" [class.inactive]="!question.isActive">
                     {{ question.isActive ? 'Active' : 'Inactive' }}
                   </span>
                 </td>
+                }
 
                 <!-- Edit Mode -->
-                <td *ngIf="editingPollQuestionId === question.id">
+                @if (editingPollQuestionId === question.id) {
+                <td>
                   {{ getPollQuestionDisplayPosition(question) }}
                 </td>
-                <td *ngIf="editingPollQuestionId === question.id">
+                }
+                @if (editingPollQuestionId === question.id) {
+                <td>
                   <input aria-label="Question" type="text" [(ngModel)]="question.question" class="edit-input">
                 </td>
-                <td *ngIf="editingPollQuestionId === question.id">
+                }
+                @if (editingPollQuestionId === question.id) {
+                <td>
                   <select aria-label="Question type" [(ngModel)]="question.questionType" class="edit-select">
-                    <option *ngFor="let type of questionTypes" [value]="type.value">
+                    @for (type of questionTypes; track type) {
+                    <option [value]="type.value">
                       {{ type.label }}
                     </option>
+                    }
                   </select>
                 </td>
-                <td *ngIf="editingPollQuestionId === question.id">
+                }
+                @if (editingPollQuestionId === question.id) {
+                <td>
                   <input aria-label="Options" type="text" 
                          [(ngModel)]="question.options" 
                          class="edit-input"
@@ -475,55 +578,76 @@
                          title="Options required for dropdown, radio, and checkbox"
                          placeholder="Option 1, Option 2, Option 3">
                 </td>
-                <td *ngIf="editingPollQuestionId === question.id">
+                }
+                @if (editingPollQuestionId === question.id) {
+                <td>
                   <label class="checkbox-label">
                     <input type="checkbox" [(ngModel)]="question.isRequired">
                     Required
                   </label>
                 </td>
-                <td *ngIf="editingPollQuestionId === question.id">
+                }
+                @if (editingPollQuestionId === question.id) {
+                <td>
                   <label class="checkbox-label">
                     <input type="checkbox" [(ngModel)]="question.isActive">
                     Active
                   </label>
                 </td>
+                }
 
                 <!-- Actions -->
-                <td *ngIf="userRole !== 'Moderator'">
-                  <div class="action-buttons" *ngIf="editingPollQuestionId !== question.id">
-                    <button *ngIf="userPermissions.permissions.canUpdate" 
+                @if (userRole !== 'Moderator') {
+                <td>
+                  @if (editingPollQuestionId !== question.id) {
+                  <div class="action-buttons">
+                    @if (userPermissions.permissions.canUpdate) {
+                    <button 
                             class="action-btn edit" 
                             (click)="editPollQuestion(question)">
                       Edit
                     </button>
-                    <button *ngIf="userPermissions.permissions.canDelete" 
+                    }
+                    @if (userPermissions.permissions.canDelete) {
+                    <button 
                             class="action-btn delete" 
                             (click)="deletePollQuestion(question.id)">
                       Delete
                     </button>
+                    }
                   </div>
+                  }
                   
-                  <div class="action-buttons" *ngIf="editingPollQuestionId === question.id">
+                  @if (editingPollQuestionId === question.id) {
+                  <div class="action-buttons">
                     <button class="action-btn save" (click)="savePollQuestion(question)">Save</button>
                     <button class="action-btn cancel" (click)="cancelEditPollQuestion()">Cancel</button>
                   </div>
+                  }
                 </td>
+                }
               </tr>
+              }
             </tbody>
                   </table>
                 </div>
               </div>
             </div>
+          }
 
-          <div *ngIf="pollQuestions.length === 0" class="no-questions">
+          @if (pollQuestions.length === 0) {
+          <div class="no-questions">
             <p>No poll questions added yet. Click "Add Question" to create your first question.</p>
           </div>
+          }
         </div>
       </div>
     </div>
+    }
 
      <!-- Show Custom Service Type Message if service type is custom -->
-    <div *ngIf="selectedServiceType.isCustom" class="custom-service-message">
+    @if (selectedServiceType.isCustom) {
+    <div class="custom-service-message">
       <div class="subsection">
         <div class="subsection-header">
           <h3>Custom Service Type</h3>
@@ -534,9 +658,11 @@
         </div>
       </div>
     </div>
+    }
 
     <!-- Show Services and Extra Services if service type doesn't have poll -->
-    <div *ngIf="!selectedServiceType.hasPoll && !selectedServiceType.isCustom">
+    @if (!selectedServiceType.hasPoll && !selectedServiceType.isCustom) {
+    <div>
       <!-- Services Subsection -->
       <div class="subsection">
         <div class="subsection-header">
@@ -547,23 +673,30 @@
             Services
             <span class="subsection-context">— {{ selectedServiceType.name }}</span>
           </h3>
-          <button *ngIf="userPermissions.permissions.canCreate"
+          @if (userPermissions.permissions.canCreate) {
+          <button
                   class="action-btn add"
                   (click)="startAddingService()">
             Add Service
           </button>
+          }
         </div>
 
         <!-- Services Messages -->
-        <div *ngIf="serviceMessage.error" class="alert alert-danger">
+        @if (serviceMessage.error) {
+        <div class="alert alert-danger">
           {{serviceMessage.error}}
         </div>
-        <div *ngIf="serviceMessage.success" class="alert alert-success">
+        }
+        @if (serviceMessage.success) {
+        <div class="alert alert-success">
           {{serviceMessage.success}}
         </div>
+        }
 
         <!-- Add Service Form -->
-        <div class="service-form" *ngIf="isAddingService">
+        @if (isAddingService) {
+        <div class="service-form">
           <h4>Add New Service</h4>
           
           <!-- Option to copy existing service -->
@@ -573,20 +706,25 @@
               Copy from existing service
             </label>
             
-            <div *ngIf="showExistingServices" class="existing-services-select">
+            @if (showExistingServices) {
+            <div class="existing-services-select">
               <select aria-label="Copy from existing service" [(ngModel)]="selectedExistingServiceId" (change)="onServiceSelectionChange($event)">
                 <option value="">Select a service to copy</option>
-                <option *ngFor="let service of allServices" [value]="service.id">
+                @for (service of allServices; track service) {
+                <option [value]="service.id">
                   {{ service.name }} ({{ getServiceTypeNameById(service.serviceTypeId) }})
                 </option>
+                }
               </select>
               <button class="copy-btn" (click)="copyExistingService()" [disabled]="!selectedExistingServiceId">
                 Copy Service
               </button>
             </div>
+            }
           </div>
           
-          <div *ngIf="!showExistingServices" class="form-grid">
+          @if (!showExistingServices) {
+          <div class="form-grid">
             <div class="form-group">
               <label>Name</label>
               <input type="text" [(ngModel)]="newService.name" placeholder="e.g., Bedrooms">
@@ -662,11 +800,15 @@
               <input type="number" step="0.01" [(ngModel)]="newService.zeroQuantityDuration" placeholder="leave blank">
             </div>
           </div>
+          }
           <div class="form-actions">
-            <button class="save-btn" (click)="addService()" *ngIf="!showExistingServices">Create</button>
+            @if (!showExistingServices) {
+            <button class="save-btn" (click)="addService()">Create</button>
+            }
             <button class="cancel-btn" (click)="cancelAddService()">Cancel</button>
           </div>
         </div>
+        }
 
         <!-- Services List -->
         <div class="services-list">
@@ -685,42 +827,75 @@
                 <th>Type</th>
                 <th>Order</th>
                 <th>Status</th>
-                <th *ngIf="userRole !== 'Moderator'">Actions</th>
+                @if (userRole !== 'Moderator') {
+                <th>Actions</th>
+                }
               </tr>
             </thead>
             <tbody>
-              <ng-container *ngFor="let service of selectedServiceType.services">
+              @for (service of selectedServiceType.services; track service) {
               <tr>
-                <td *ngIf="editingServiceId !== service.id">{{ service.id }}</td>
-                <td *ngIf="editingServiceId !== service.id">{{ service.name }}</td>
-                <td *ngIf="editingServiceId !== service.id">{{ service.serviceKey }}</td>
-                <td *ngIf="editingServiceId !== service.id" class="service-type-cell">
+                @if (editingServiceId !== service.id) {
+                <td>{{ service.id }}</td>
+                }
+                @if (editingServiceId !== service.id) {
+                <td>{{ service.name }}</td>
+                }
+                @if (editingServiceId !== service.id) {
+                <td>{{ service.serviceKey }}</td>
+                }
+                @if (editingServiceId !== service.id) {
+                <td class="service-type-cell">
                   {{ getServiceTypeNameById(service.serviceTypeId) }}
                 </td>
-                <td *ngIf="editingServiceId !== service.id">${{ service.cost }}</td>
-                <td *ngIf="editingServiceId !== service.id">{{ service.timeDuration }}min</td>
-                <td *ngIf="editingServiceId !== service.id">{{ service.inputType }}</td>
-                <td *ngIf="editingServiceId !== service.id">{{ service.displayOrder || 0 }}</td>
-                <td *ngIf="editingServiceId !== service.id">
+                }
+                @if (editingServiceId !== service.id) {
+                <td>${{ service.cost }}</td>
+                }
+                @if (editingServiceId !== service.id) {
+                <td>{{ service.timeDuration }}min</td>
+                }
+                @if (editingServiceId !== service.id) {
+                <td>{{ service.inputType }}</td>
+                }
+                @if (editingServiceId !== service.id) {
+                <td>{{ service.displayOrder || 0 }}</td>
+                }
+                @if (editingServiceId !== service.id) {
+                <td>
                   <span class="status-badge" [class.active]="service.isActive" [class.inactive]="!service.isActive">
                     {{ service.isActive ? 'Active' : 'Inactive' }}
                   </span>
                 </td>
-                <td *ngIf="editingServiceId !== service.id && userRole !== 'Moderator'">
+                }
+                @if (editingServiceId !== service.id && userRole !== 'Moderator') {
+                <td>
                   <button class="action-btn pricing"
                           [class.expanded]="expandedPricingServiceId === service.id"
                           (click)="togglePricingRow(service); $event.stopPropagation()">
                     {{ expandedPricingServiceId === service.id ? 'Hide pricing' : 'Pricing' }}
-                    <span class="pricing-warning-dot" *ngIf="hasThresholdWarning(service)" title="Charges above an included amount, but none are configured">!</span>
+                    @if (hasThresholdWarning(service)) {
+                    <span class="pricing-warning-dot" title="Charges above an included amount, but none are configured">!</span>
+                    }
                   </button>
-                  <button class="action-btn edit" *ngIf="userPermissions.permissions.canUpdate" (click)="editService(service); $event.stopPropagation()">Edit</button>
-                  <button class="action-btn activate" *ngIf="userPermissions.permissions.canActivate && !service.isActive" (click)="activateService(service); $event.stopPropagation()">Enable</button>
-                  <button class="action-btn deactivate" *ngIf="userPermissions.permissions.canDeactivate && service.isActive" (click)="deactivateService(service); $event.stopPropagation()">Disable</button>
-                  <button class="action-btn delete" *ngIf="userPermissions.permissions.canDelete" (click)="deleteService(service); $event.stopPropagation()">Delete</button>
+                  @if (userPermissions.permissions.canUpdate) {
+                  <button class="action-btn edit" (click)="editService(service); $event.stopPropagation()">Edit</button>
+                  }
+                  @if (userPermissions.permissions.canActivate && !service.isActive) {
+                  <button class="action-btn activate" (click)="activateService(service); $event.stopPropagation()">Enable</button>
+                  }
+                  @if (userPermissions.permissions.canDeactivate && service.isActive) {
+                  <button class="action-btn deactivate" (click)="deactivateService(service); $event.stopPropagation()">Disable</button>
+                  }
+                  @if (userPermissions.permissions.canDelete) {
+                  <button class="action-btn delete" (click)="deleteService(service); $event.stopPropagation()">Delete</button>
+                  }
                 </td>
+                }
 
                 <!-- Edit mode -->
-                <td class="edit-mode-td" colspan="10" *ngIf="editingServiceId === service.id">
+                @if (editingServiceId === service.id) {
+                <td class="edit-mode-td" colspan="10">
                   <div class="inline-edit-form">
                     <div class="form-row">
                       <div class="form-group">
@@ -814,27 +989,36 @@
                     </div>
                   </div>
                 </td>
+                }
               </tr>
 
               <!-- Included amounts + rate tiers, expanded per service -->
-              <tr class="pricing-config-row" *ngIf="expandedPricingServiceId === service.id">
+              @if (expandedPricingServiceId === service.id) {
+              <tr class="pricing-config-row">
                 <td [attr.colspan]="userRole !== 'Moderator' ? 10 : 9">
                   <div class="pricing-config">
 
-                    <div class="alert alert-danger" *ngIf="pricingRowMessage.error">{{ pricingRowMessage.error }}</div>
-                    <div class="alert alert-success" *ngIf="pricingRowMessage.success">{{ pricingRowMessage.success }}</div>
-                    <div class="alert alert-warning" *ngIf="hasThresholdWarning(service)">
+                    @if (pricingRowMessage.error) {
+                    <div class="alert alert-danger">{{ pricingRowMessage.error }}</div>
+                    }
+                    @if (pricingRowMessage.success) {
+                    <div class="alert alert-success">{{ pricingRowMessage.success }}</div>
+                    }
+                    @if (hasThresholdWarning(service)) {
+                    <div class="alert alert-warning">
                       This service is set to charge only above an included amount, but no included
                       amounts are configured — it will bill from zero.
                     </div>
+                    }
 
                     <!-- ===== Included amounts ===== -->
                     <div class="pricing-block">
                       <div class="pricing-block-header">
                         <h4>Included amounts</h4>
+                        @if (userPermissions.permissions.canCreate && !isAddingThreshold) {
                         <button class="action-btn add"
-                                *ngIf="userPermissions.permissions.canCreate && !isAddingThreshold"
                                 (click)="startAddingThreshold(service)">Add</button>
+                        }
                       </div>
                       <p class="pricing-hint">
                         How much of <strong>{{ service.name }}</strong> is included at no charge, based on
@@ -847,30 +1031,43 @@
                             <th>Based on</th>
                             <th>When quantity is</th>
                             <th>Included amount</th>
-                            <th *ngIf="userRole !== 'Moderator'">Actions</th>
+                            @if (userRole !== 'Moderator') {
+                            <th>Actions</th>
+                            }
                           </tr>
                         </thead>
                         <tbody>
-                          <tr *ngIf="getSortedThresholds(service).length === 0 && !isAddingThreshold">
+                          @if (getSortedThresholds(service).length === 0 && !isAddingThreshold) {
+                          <tr>
                             <td colspan="4" class="empty-row">No included amounts — this service bills from the first unit.</td>
                           </tr>
+                          }
+                          @for (row of getSortedThresholds(service); track row) {
+                          <tr>
+                            @if (editingThresholdId !== row.id) {
 
-                          <tr *ngFor="let row of getSortedThresholds(service)">
-                            <ng-container *ngIf="editingThresholdId !== row.id">
                               <td>{{ row.sourceServiceName || row.sourceServiceKey }}</td>
                               <td>{{ row.sourceQuantity }}</td>
                               <td>{{ row.includedQuantity }}</td>
-                              <td *ngIf="userRole !== 'Moderator'">
-                                <button class="action-btn edit" *ngIf="userPermissions.permissions.canUpdate" (click)="startEditingThreshold(row)">Edit</button>
-                                <button class="action-btn delete" *ngIf="userPermissions.permissions.canDelete" (click)="deleteThreshold(service, row)">Delete</button>
+                              @if (userRole !== 'Moderator') {
+                              <td>
+                                @if (userPermissions.permissions.canUpdate) {
+                                <button class="action-btn edit" (click)="startEditingThreshold(row)">Edit</button>
+                                }
+                                @if (userPermissions.permissions.canDelete) {
+                                <button class="action-btn delete" (click)="deleteThreshold(service, row)">Delete</button>
+                                }
                               </td>
-                            </ng-container>
-                            <ng-container *ngIf="editingThresholdId === row.id">
+                              }
+                            }
+                            @if (editingThresholdId === row.id) {
                               <td>
                                 <select aria-label="Based on" [(ngModel)]="row.sourceServiceId">
-                                  <option *ngFor="let candidate of getThresholdSourceCandidates(service)" [ngValue]="candidate.id">
+                                  @for (candidate of getThresholdSourceCandidates(service); track candidate) {
+                                  <option [ngValue]="candidate.id">
                                     {{ candidate.name }}
                                   </option>
+                                  }
                                 </select>
                               </td>
                               <td><input aria-label="When quantity is" type="number" [(ngModel)]="row.sourceQuantity" min="0"></td>
@@ -879,16 +1076,20 @@
                                 <button class="save-btn" (click)="saveThreshold(service, row)">Save</button>
                                 <button class="cancel-btn" (click)="cancelEditingThreshold(service)">Cancel</button>
                               </td>
-                            </ng-container>
+                            }
                           </tr>
+                          }
 
-                          <tr *ngIf="isAddingThreshold" class="new-row">
+                          @if (isAddingThreshold) {
+                          <tr class="new-row">
                             <td>
                               <select aria-label="Based on" [(ngModel)]="newThreshold.sourceServiceId">
                                 <option [ngValue]="0" disabled>Choose a service…</option>
-                                <option *ngFor="let candidate of getThresholdSourceCandidates(service)" [ngValue]="candidate.id">
+                                @for (candidate of getThresholdSourceCandidates(service); track candidate) {
+                                <option [ngValue]="candidate.id">
                                   {{ candidate.name }}
                                 </option>
+                                }
                               </select>
                             </td>
                             <td><input aria-label="When quantity is" type="number" [(ngModel)]="newThreshold.sourceQuantity" min="0"></td>
@@ -898,6 +1099,7 @@
                               <button class="cancel-btn" (click)="cancelAddingThreshold()">Cancel</button>
                             </td>
                           </tr>
+                          }
                         </tbody>
                       </table>
                     </div>
@@ -906,18 +1108,21 @@
                     <div class="pricing-block">
                       <div class="pricing-block-header">
                         <h4>Rate tiers</h4>
+                        @if (userPermissions.permissions.canCreate && !isAddingRateTier) {
                         <button class="action-btn add"
-                                *ngIf="userPermissions.permissions.canCreate && !isAddingRateTier"
                                 (click)="startAddingRateTier(service)">Add</button>
+                        }
                       </div>
                       <p class="pricing-hint">
                         <strong>Tiers measure the amount ABOVE the included allowance, not the total.</strong>
                         A rate only applies to the slice of the excess that falls inside its own band.
                         With no tiers at all, the service simply uses its own Cost and Duration for every unit.
                       </p>
-                      <p class="pricing-hint pricing-example" *ngIf="getTierExample(service)">
+                      @if (getTierExample(service)) {
+                      <p class="pricing-hint pricing-example">
                         {{ getTierExample(service) }}
                       </p>
+                      }
 
                       <table class="nested-table">
                         <thead>
@@ -926,28 +1131,39 @@
                             <th>Applies to</th>
                             <th>Cost per unit</th>
                             <th>Minutes per unit</th>
-                            <th *ngIf="userRole !== 'Moderator'">Actions</th>
+                            @if (userRole !== 'Moderator') {
+                            <th>Actions</th>
+                            }
                           </tr>
                         </thead>
                         <tbody>
-                          <tr *ngIf="getSortedRateTiers(service).length === 0 && !isAddingRateTier">
+                          @if (getSortedRateTiers(service).length === 0 && !isAddingRateTier) {
+                          <tr>
                             <td colspan="5" class="empty-row">
                               No tiers — this service charges {{ service.cost }} and {{ service.timeDuration }} minutes per unit.
                             </td>
                           </tr>
+                          }
+                          @for (tier of getSortedRateTiers(service); track tier) {
+                          <tr>
+                            @if (editingRateTierId !== tier.id) {
 
-                          <tr *ngFor="let tier of getSortedRateTiers(service)">
-                            <ng-container *ngIf="editingRateTierId !== tier.id">
                               <td>{{ tier.fromQuantity }}</td>
                               <td class="applies-to">{{ getRateTierAppliesTo(service, tier) }}</td>
                               <td>${{ tier.cost }}</td>
                               <td>{{ tier.timeDuration }}</td>
-                              <td *ngIf="userRole !== 'Moderator'">
-                                <button class="action-btn edit" *ngIf="userPermissions.permissions.canUpdate" (click)="startEditingRateTier(tier)">Edit</button>
-                                <button class="action-btn delete" *ngIf="userPermissions.permissions.canDelete" (click)="deleteRateTier(service, tier)">Delete</button>
+                              @if (userRole !== 'Moderator') {
+                              <td>
+                                @if (userPermissions.permissions.canUpdate) {
+                                <button class="action-btn edit" (click)="startEditingRateTier(tier)">Edit</button>
+                                }
+                                @if (userPermissions.permissions.canDelete) {
+                                <button class="action-btn delete" (click)="deleteRateTier(service, tier)">Delete</button>
+                                }
                               </td>
-                            </ng-container>
-                            <ng-container *ngIf="editingRateTierId === tier.id">
+                              }
+                            }
+                            @if (editingRateTierId === tier.id) {
                               <td><input aria-label="Starts at (above included)" type="number" [(ngModel)]="tier.fromQuantity" min="0" step="0.01"></td>
                               <td class="applies-to">{{ getRateTierAppliesTo(service, tier) }}</td>
                               <td><input aria-label="Cost per unit" type="number" [(ngModel)]="tier.cost" min="0" step="0.0001"></td>
@@ -956,10 +1172,12 @@
                                 <button class="save-btn" (click)="saveRateTier(service, tier)">Save</button>
                                 <button class="cancel-btn" (click)="cancelEditingRateTier(service)">Cancel</button>
                               </td>
-                            </ng-container>
+                            }
                           </tr>
+                          }
 
-                          <tr *ngIf="isAddingRateTier" class="new-row">
+                          @if (isAddingRateTier) {
+                          <tr class="new-row">
                             <td><input aria-label="Starts at (above included)" type="number" [(ngModel)]="newRateTier.fromQuantity" min="0" step="0.01"></td>
                             <td class="applies-to">—</td>
                             <td><input aria-label="Cost per unit" type="number" [(ngModel)]="newRateTier.cost" min="0" step="0.0001"></td>
@@ -969,6 +1187,7 @@
                               <button class="cancel-btn" (click)="cancelAddingRateTier()">Cancel</button>
                             </td>
                           </tr>
+                          }
                         </tbody>
                       </table>
                     </div>
@@ -976,7 +1195,8 @@
                   </div>
                 </td>
               </tr>
-              </ng-container>
+              }
+              }
             </tbody>
                   </table>
                 </div>
@@ -994,15 +1214,20 @@
           </button>
         </div>
 
-        <div class="pricing-config-panel" *ngIf="showPricingConfigPanel">
+        @if (showPricingConfigPanel) {
+        <div class="pricing-config-panel">
           <p class="pricing-hint">
             Move a pricing setup between environments. Services are matched by
             <strong>service type name and service key</strong>, never by ID — so an export taken here
             applies correctly even though the IDs differ elsewhere.
           </p>
 
-          <div class="alert alert-danger" *ngIf="pricingConfigMessage.error">{{ pricingConfigMessage.error }}</div>
-          <div class="alert alert-success" *ngIf="pricingConfigMessage.success">{{ pricingConfigMessage.success }}</div>
+          @if (pricingConfigMessage.error) {
+          <div class="alert alert-danger">{{ pricingConfigMessage.error }}</div>
+          }
+          @if (pricingConfigMessage.success) {
+          <div class="alert alert-success">{{ pricingConfigMessage.success }}</div>
+          }
 
           <div class="pricing-config-actions">
             <!-- selectedServiceType is non-null here: this whole panel sits inside the
@@ -1030,7 +1255,8 @@
                     placeholder="Paste an exported configuration here, or use Export above."
                     [(ngModel)]="pricingConfigJson"></textarea>
 
-          <div class="pricing-config-actions" *ngIf="isSuperAdmin">
+          @if (isSuperAdmin) {
+          <div class="pricing-config-actions">
             <button class="action-btn" [disabled]="pricingConfigBusy || !pricingConfigJson"
                     (click)="previewPricingConfiguration()">
               Preview changes
@@ -1041,103 +1267,152 @@
               Apply
             </button>
           </div>
-          <p class="pricing-hint" *ngIf="!isSuperAdmin">
+          }
+          @if (!isSuperAdmin) {
+          <p class="pricing-hint">
             Importing a configuration is restricted to SuperAdmin. You can still export.
           </p>
+          }
 
           <!-- ===== Diff preview ===== -->
-          <div class="pricing-diff" *ngIf="pricingConfigDiff">
-            <div class="alert alert-danger" *ngIf="pricingConfigDiff.errors.length">
+          @if (pricingConfigDiff) {
+          <div class="pricing-diff">
+            @if (pricingConfigDiff.errors.length) {
+            <div class="alert alert-danger">
               <strong>This configuration cannot be applied:</strong>
               <ul>
-                <li *ngFor="let error of pricingConfigDiff.errors">{{ error }}</li>
+                @for (error of pricingConfigDiff.errors; track error) {
+                <li>{{ error }}</li>
+                }
               </ul>
             </div>
-            <div class="alert alert-warning" *ngIf="pricingConfigDiff.warnings.length">
+            }
+            @if (pricingConfigDiff.warnings.length) {
+            <div class="alert alert-warning">
               <ul>
-                <li *ngFor="let warning of pricingConfigDiff.warnings">{{ warning }}</li>
+                @for (warning of pricingConfigDiff.warnings; track warning) {
+                <li>{{ warning }}</li>
+                }
               </ul>
             </div>
-            <div class="alert alert-success" *ngIf="pricingConfigDiff.isNoOp">
+            }
+            @if (pricingConfigDiff.isNoOp) {
+            <div class="alert alert-success">
               Nothing would change — this matches the current configuration exactly.
             </div>
+            }
 
-            <div class="diff-type" *ngFor="let typeDiff of pricingConfigDiff.serviceTypes">
+            @for (typeDiff of pricingConfigDiff.serviceTypes; track typeDiff) {
+            <div class="diff-type">
               <h4>
                 {{ typeDiff.serviceTypeName }}
-                <span class="diff-target" *ngIf="typeDiff.resolvedServiceTypeId">
+                @if (typeDiff.resolvedServiceTypeId) {
+                <span class="diff-target">
                   → matched service type #{{ typeDiff.resolvedServiceTypeId }}
                 </span>
-                <span class="diff-unmatched" *ngIf="!typeDiff.resolvedServiceTypeId">not matched</span>
+                }
+                @if (!typeDiff.resolvedServiceTypeId) {
+                <span class="diff-unmatched">not matched</span>
+                }
               </h4>
 
-              <table class="nested-table" *ngIf="getChangedFields(typeDiff.changes).length">
+              @if (getChangedFields(typeDiff.changes).length) {
+              <table class="nested-table">
                 <thead><tr><th>Field</th><th>Current</th><th>New</th></tr></thead>
                 <tbody>
-                  <tr *ngFor="let change of getChangedFields(typeDiff.changes)">
+                  @for (change of getChangedFields(typeDiff.changes); track change) {
+                  <tr>
                     <td>{{ change.field }}</td>
                     <td class="diff-old">{{ change.oldValue }}</td>
                     <td class="diff-new">{{ change.newValue }}</td>
                   </tr>
+                  }
                 </tbody>
               </table>
+              }
+              @for (serviceDiff of typeDiff.services; track serviceDiff) {
+              <div class="diff-service">
+                @if (serviceDiffHasChanges(serviceDiff)) {
 
-              <div class="diff-service" *ngFor="let serviceDiff of typeDiff.services">
-                <ng-container *ngIf="serviceDiffHasChanges(serviceDiff)">
                   <h5>
                     {{ serviceDiff.name || serviceDiff.serviceKey }}
-                    <span class="diff-target" *ngIf="serviceDiff.resolvedServiceId">
+                    @if (serviceDiff.resolvedServiceId) {
+                    <span class="diff-target">
                       → matched service #{{ serviceDiff.resolvedServiceId }}
                     </span>
+                    }
                   </h5>
 
-                  <table class="nested-table" *ngIf="getChangedFields(serviceDiff.changes).length">
+                  @if (getChangedFields(serviceDiff.changes).length) {
+                  <table class="nested-table">
                     <thead><tr><th>Field</th><th>Current</th><th>New</th></tr></thead>
                     <tbody>
-                      <tr *ngFor="let change of getChangedFields(serviceDiff.changes)">
+                      @for (change of getChangedFields(serviceDiff.changes); track change) {
+                      <tr>
                         <td>{{ change.field }}</td>
                         <td class="diff-old">{{ change.oldValue }}</td>
                         <td class="diff-new">{{ change.newValue }}</td>
                       </tr>
+                      }
                     </tbody>
                   </table>
+                  }
 
-                  <div class="diff-rows" *ngIf="serviceDiff.thresholdChanges.length">
+                  @if (serviceDiff.thresholdChanges.length) {
+                  <div class="diff-rows">
                     <strong>Included amounts</strong>
-                    <ul><li *ngFor="let line of serviceDiff.thresholdChanges">{{ line }}</li></ul>
+                    <ul>@for (line of serviceDiff.thresholdChanges; track line) {
+                    <li>{{ line }}</li>
+                    }</ul>
                   </div>
-                  <div class="diff-rows" *ngIf="serviceDiff.rateTierChanges.length">
+                  }
+                  @if (serviceDiff.rateTierChanges.length) {
+                  <div class="diff-rows">
                     <strong>Rate tiers</strong>
-                    <ul><li *ngFor="let line of serviceDiff.rateTierChanges">{{ line }}</li></ul>
+                    <ul>@for (line of serviceDiff.rateTierChanges; track line) {
+                    <li>{{ line }}</li>
+                    }</ul>
                   </div>
-                </ng-container>
+                  }
+                }
               </div>
+              }
             </div>
+            }
           </div>
+          }
         </div>
+        }
       </div>
 
       <!-- Extra Services Subsection -->
       <div class="subsection">
         <div class="subsection-header">
           <h3>Extra Services</h3>
-          <button *ngIf="userPermissions.permissions.canCreate" 
+          @if (userPermissions.permissions.canCreate) {
+          <button 
                   class="action-btn add" 
                   (click)="startAddingExtraService()">
             Add Extra Service
           </button>
+          }
         </div>
 
         <!-- Extra Services Messages -->
-        <div *ngIf="extraServiceMessage.error" class="alert alert-danger">
+        @if (extraServiceMessage.error) {
+        <div class="alert alert-danger">
           {{extraServiceMessage.error}}
         </div>
-        <div *ngIf="extraServiceMessage.success" class="alert alert-success">
+        }
+        @if (extraServiceMessage.success) {
+        <div class="alert alert-success">
           {{extraServiceMessage.success}}
         </div>
+        }
 
         <!-- Add Extra Service Form -->
-        <div class="service-form" *ngIf="isAddingExtraService">
+        @if (isAddingExtraService) {
+        <div class="service-form">
           <h4>Add New Extra Service</h4>
           
           <!-- Option to copy existing extra service -->
@@ -1147,20 +1422,25 @@
               Copy from existing extra service
             </label>
             
-            <div *ngIf="showExistingExtraServices" class="existing-services-select">
+            @if (showExistingExtraServices) {
+            <div class="existing-services-select">
               <select aria-label="Copy from existing extra service" [(ngModel)]="selectedExistingExtraServiceId" (change)="onExtraServiceSelectionChange($event)">
                 <option value="">Select an extra service to copy</option>
-                <option *ngFor="let extra of getAvailableExtraServicesForCopy()" [value]="extra.id">
+                @for (extra of getAvailableExtraServicesForCopy(); track extra) {
+                <option [value]="extra.id">
                   {{ extra.name }} ({{ extra.isAvailableForAll ? 'Universal' : 'Service-specific' }})
                 </option>
+                }
               </select>
               <button class="copy-btn" (click)="copyExistingExtraService()" [disabled]="!selectedExistingExtraServiceId">
                 Copy Extra Service
               </button>
             </div>
+            }
           </div>
           
-          <div *ngIf="!showExistingExtraServices" class="form-grid">
+          @if (!showExistingExtraServices) {
+          <div class="form-grid">
             <div class="form-group">
               <label>Name</label>
               <input aria-label="Name" type="text" [(ngModel)]="newExtraService.name">
@@ -1200,6 +1480,7 @@
               <input aria-label="Icon" type="text" [(ngModel)]="newExtraService.icon">
             </div>
           </div>
+          }
           <div class="form-group full-width">
             <label>Options</label>
             <div class="checkbox-group">
@@ -1228,15 +1509,20 @@
                 Available for All Service Types
               </label>
             </div>
-            <p class="form-note" *ngIf="newExtraService.isAvailableForAll">
+            @if (newExtraService.isAvailableForAll) {
+            <p class="form-note">
               <strong>Note:</strong> When checked, this extra service will be available for all service types.
             </p>
+            }
           </div>
           <div class="form-actions">
-            <button class="save-btn" (click)="addExtraService()" *ngIf="!showExistingExtraServices">Create</button>
+            @if (!showExistingExtraServices) {
+            <button class="save-btn" (click)="addExtraService()">Create</button>
+            }
             <button class="cancel-btn" (click)="cancelAddExtraService()">Cancel</button>
           </div>
         </div>
+        }
 
         <!-- Extra Services List -->
         <div class="extra-services-list">
@@ -1255,39 +1541,79 @@
                 <th>Type</th>
                 <th>Order</th>
                 <th>Status</th>
-                <th *ngIf="userRole !== 'Moderator'">Actions</th>
+                @if (userRole !== 'Moderator') {
+                <th>Actions</th>
+                }
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let extra of selectedServiceType.extraServices">
-                <td *ngIf="editingExtraServiceId !== extra.id">{{ extra.id }}</td>
-                <td *ngIf="editingExtraServiceId !== extra.id">{{ extra.name }}</td>
-                <td *ngIf="editingExtraServiceId !== extra.id">
-                  <code *ngIf="extra.extraServiceKey">{{ extra.extraServiceKey }}</code>
-                  <span *ngIf="!extra.extraServiceKey" class="muted-cell">none</span>
+              @for (extra of selectedServiceType.extraServices; track extra) {
+              <tr>
+                @if (editingExtraServiceId !== extra.id) {
+                <td>{{ extra.id }}</td>
+                }
+                @if (editingExtraServiceId !== extra.id) {
+                <td>{{ extra.name }}</td>
+                }
+                @if (editingExtraServiceId !== extra.id) {
+                <td>
+                  @if (extra.extraServiceKey) {
+                  <code>{{ extra.extraServiceKey }}</code>
+                  }
+                  @if (!extra.extraServiceKey) {
+                  <span class="muted-cell">none</span>
+                  }
                 </td>
-                <td *ngIf="editingExtraServiceId !== extra.id">{{ extra.description || 'No description' }}</td>
-                <td *ngIf="editingExtraServiceId !== extra.id">${{ extra.price }}</td>
-                <td *ngIf="editingExtraServiceId !== extra.id">{{ extra.duration }}min</td>
-                <td *ngIf="editingExtraServiceId !== extra.id">
-                  <span class="universal-badge" *ngIf="extra.isAvailableForAll">Universal</span>
-                  <span class="service-specific-badge" *ngIf="!extra.isAvailableForAll">Specific</span>
+                }
+                @if (editingExtraServiceId !== extra.id) {
+                <td>{{ extra.description || 'No description' }}</td>
+                }
+                @if (editingExtraServiceId !== extra.id) {
+                <td>${{ extra.price }}</td>
+                }
+                @if (editingExtraServiceId !== extra.id) {
+                <td>{{ extra.duration }}min</td>
+                }
+                @if (editingExtraServiceId !== extra.id) {
+                <td>
+                  @if (extra.isAvailableForAll) {
+                  <span class="universal-badge">Universal</span>
+                  }
+                  @if (!extra.isAvailableForAll) {
+                  <span class="service-specific-badge">Specific</span>
+                  }
                 </td>
-                <td *ngIf="editingExtraServiceId !== extra.id">{{ extra.displayOrder || 0 }}</td>
-                <td *ngIf="editingExtraServiceId !== extra.id">
+                }
+                @if (editingExtraServiceId !== extra.id) {
+                <td>{{ extra.displayOrder || 0 }}</td>
+                }
+                @if (editingExtraServiceId !== extra.id) {
+                <td>
                   <span class="status-badge" [class.active]="extra.isActive" [class.inactive]="!extra.isActive">
                     {{ extra.isActive ? 'Active' : 'Inactive' }}
                   </span>
                 </td>
-                <td *ngIf="editingExtraServiceId !== extra.id && userRole !== 'Moderator'">
-                  <button class="action-btn edit" *ngIf="userPermissions.permissions.canUpdate" (click)="editExtraService(extra); $event.stopPropagation()">Edit</button>
-                  <button class="action-btn activate" *ngIf="userPermissions.permissions.canActivate && !extra.isActive" (click)="activateExtraService(extra); $event.stopPropagation()">Enable</button>
-                  <button class="action-btn deactivate" *ngIf="userPermissions.permissions.canDeactivate && extra.isActive" (click)="deactivateExtraService(extra); $event.stopPropagation()">Disable</button>
-                  <button class="action-btn delete" *ngIf="userPermissions.permissions.canDelete" (click)="deleteExtraService(extra); $event.stopPropagation()">Delete</button>
+                }
+                @if (editingExtraServiceId !== extra.id && userRole !== 'Moderator') {
+                <td>
+                  @if (userPermissions.permissions.canUpdate) {
+                  <button class="action-btn edit" (click)="editExtraService(extra); $event.stopPropagation()">Edit</button>
+                  }
+                  @if (userPermissions.permissions.canActivate && !extra.isActive) {
+                  <button class="action-btn activate" (click)="activateExtraService(extra); $event.stopPropagation()">Enable</button>
+                  }
+                  @if (userPermissions.permissions.canDeactivate && extra.isActive) {
+                  <button class="action-btn deactivate" (click)="deactivateExtraService(extra); $event.stopPropagation()">Disable</button>
+                  }
+                  @if (userPermissions.permissions.canDelete) {
+                  <button class="action-btn delete" (click)="deleteExtraService(extra); $event.stopPropagation()">Delete</button>
+                  }
                 </td>
+                }
                 
                 <!-- Edit mode -->
-                <td class="edit-mode-td" colspan="10" *ngIf="editingExtraServiceId === extra.id">
+                @if (editingExtraServiceId === extra.id) {
+                <td class="edit-mode-td" colspan="10">
                   <div class="inline-edit-form">
                     <div class="form-row">
                       <div class="form-group">
@@ -1356,9 +1682,11 @@
                           Available for All Service Types
                         </label>
                       </div>
-                      <p class="form-note" *ngIf="extra.isAvailableForAll">
+                      @if (extra.isAvailableForAll) {
+                      <p class="form-note">
                         <strong>Note:</strong> When checked, this extra service will be available for all service types.
                       </p>
+                      }
                     </div>
                     <div class="form-actions">
                       <button class="save-btn" (click)="saveExtraService(extra)">Save</button>
@@ -1366,7 +1694,9 @@
                     </div>
                   </div>
                 </td>
+                }
               </tr>
+              }
             </tbody>
                   </table>
                 </div>
@@ -1375,5 +1705,7 @@
         </div>
       </div>
     </div>
+    }
   </div>
+  }
 </div>

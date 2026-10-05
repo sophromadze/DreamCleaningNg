@@ -16,14 +16,18 @@
       <h2>Outgoing Payments</h2>
       <!-- Per tab: the two describe genuinely different work, and one sentence covering both
            ended up describing neither. -->
-      <p class="page-subtitle" *ngIf="activeTab === 'cleaners'">
+      @if (activeTab === 'cleaners') {
+      <p class="page-subtitle">
         What we owe cleaners for finished jobs. Every figure is worked out from the order itself —
         the hours, the rate and the tip split — so there is nothing to add up by hand.
       </p>
-      <p class="page-subtitle" *ngIf="activeTab === 'employees'">
+      }
+      @if (activeTab === 'employees') {
+      <p class="page-subtitle">
         Monthly salaries for office staff, taken from the Salaries category on the Expenses page
         and halved into the two payments a month they are paid in.
       </p>
+      }
     </div>
 
     <div class="header-actions">
@@ -49,9 +53,11 @@
             [attr.aria-selected]="activeTab === 'cleaners'"
             (click)="setTab('cleaners')">
       Cleaner wages
-      <span class="tab-owing" *ngIf="unpaidForTab.cleaners > 0">
+      @if (unpaidForTab.cleaners > 0) {
+      <span class="tab-owing">
         $ {{ unpaidForTab.cleaners | number:'1.0-0' }}
       </span>
+      }
     </button>
 
     <button type="button" role="tab" class="payee-tab"
@@ -59,9 +65,11 @@
             [attr.aria-selected]="activeTab === 'employees'"
             (click)="setTab('employees')">
       Employees
-      <span class="tab-owing" *ngIf="unpaidForTab.employees > 0">
+      @if (unpaidForTab.employees > 0) {
+      <span class="tab-owing">
         $ {{ unpaidForTab.employees | number:'1.0-0' }}
       </span>
+      }
     </button>
   </div>
 
@@ -73,79 +81,106 @@
       <button class="month-arrow" type="button" (click)="prevMonth()" title="Previous month">‹</button>
       <span class="month-label">{{ monthLabel }}</span>
       <button class="month-arrow" type="button" (click)="nextMonth()" title="Next month">›</button>
-      <button class="btn-link" type="button" (click)="goToCurrentMonth()" *ngIf="!isCurrentMonth">This month</button>
+      @if (!isCurrentMonth) {
+      <button class="btn-link" type="button" (click)="goToCurrentMonth()">This month</button>
+      }
     </div>
 
-    <div class="month-total" *ngIf="data || salaries">
+    @if (data || salaries) {
+    <div class="month-total">
       <span class="month-total-label">Still to pay</span>
       <span class="month-total-value">$ {{ activeTabUnpaid | number:'1.2-2' }}</span>
     </div>
+    }
   </div>
 
   <!-- Shared by both tabs: a write on either reports through the same two lines. -->
-  <div class="message success" *ngIf="successMessage">{{ successMessage }}</div>
-  <div class="message error" *ngIf="error">{{ error }}</div>
+  @if (successMessage) {
+  <div class="message success">{{ successMessage }}</div>
+  }
+  @if (error) {
+  <div class="message error">{{ error }}</div>
+  }
 
   <!-- ══ Employees tab ══════════════════════════════════════════════════════ -->
-  <ng-container *ngIf="activeTab === 'employees'">
+  @if (activeTab === 'employees') {
 
-  <div class="salary-loading" *ngIf="salariesLoading && !salaries">Loading salaries…</div>
+  @if (salariesLoading && !salaries) {
+  <div class="salary-loading">Loading salaries…</div>
+  }
 
   <!-- Nothing on salary this month is a normal state, not an error — so it says where salaries
        come from rather than just reporting an absence. -->
-  <div class="empty-state" *ngIf="!salariesLoading && salaries && salaries.payees.length === 0">
+  @if (!salariesLoading && salaries && salaries.payees.length === 0) {
+  <div class="empty-state">
     No employee salaries for {{ monthLabel }}.
     Add them on the Expenses page under the Salaries category, and they appear here.
   </div>
+  }
 
-  <div class="salary-block" *ngIf="salaries && salaries.payees.length">
+  @if (salaries && salaries.payees.length) {
+  <div class="salary-block">
     <div class="salary-head">
       <h3>{{ salaries.payees.length }} on salary</h3>
 
       <span class="salary-head-totals">
-        <span class="salary-outstanding" *ngIf="salaries.unpaidUsd > 0">
+        @if (salaries.unpaidUsd > 0) {
+        <span class="salary-outstanding">
           $ {{ salaries.unpaidUsd | number:'1.2-2' }} still to pay
         </span>
-        <span class="salary-settled" *ngIf="salaries.unpaidUsd <= 0 && salaries.totalUsd > 0">
+        }
+        @if (salaries.unpaidUsd <= 0 && salaries.totalUsd > 0) {
+        <span class="salary-settled">
           All paid
         </span>
+        }
         <span class="salary-month-total">$ {{ salaries.totalUsd | number:'1.2-2' }}</span>
       </span>
     </div>
 
     <div class="salary-list">
-      <div class="salary-payee" *ngFor="let payee of salaries.payees">
+      @for (payee of salaries.payees; track payee) {
+      <div class="salary-payee">
         <div class="salary-payee-head">
           <span class="salary-name">{{ payee.name }}</span>
-          <span class="salary-role" *ngIf="payee.role">{{ payee.role === 'SuperAdmin' ? 'Super Admin' : payee.role }}</span>
+          @if (payee.role) {
+          <span class="salary-role">{{ payee.role === 'SuperAdmin' ? 'Super Admin' : payee.role }}</span>
+          }
           <!-- Their salary history stays here after they leave; the tag says so plainly. -->
-          <span class="salary-former" *ngIf="payee.isFormerStaff"
+          @if (payee.isFormerStaff) {
+          <span class="salary-former"
                 title="No longer staff. What they were paid stays on file.">former</span>
+          }
 
           <span class="status-badge" [ngClass]="salaryStatusClass(payee)">{{ salaryStatusLabel(payee) }}</span>
 
           <!-- Bonuses are part of what this person is owed, so they are part of the month total.
                The chip beside it says how much of it is bonus. -->
-          <span class="salary-bonus-tag" *ngIf="payee.bonusTotal"
+          @if (payee.bonusTotal) {
+          <span class="salary-bonus-tag"
                 title="Staff bonuses earned this month, paid with the second payment.">
             +{{ salarySymbol(payee.currency) }}{{ payee.bonusTotal | number:'1.2-2' }} bonus
           </span>
+          }
 
           <span class="salary-month-figure">
             <span class="salary-native">
               {{ salarySymbol(payee.currency) }} {{ payee.monthTotal | number:'1.2-2' }}
             </span>
-            <span class="salary-usd" *ngIf="isConverted(payee.currency)">
+            @if (isConverted(payee.currency)) {
+            <span class="salary-usd">
               ≈ $ {{ payee.monthTotalUsd | number:'1.2-2' }}
             </span>
+            }
           </span>
         </div>
 
         <!-- Where the money goes. The reason anyone opens this tab is to send somebody money, so
              the destination sits directly under their name — monospaced, because digits get
              checked against a bank app, and copyable on its own. -->
-        <div class="salary-destination" *ngIf="!isEditingDetails(payee)">
-          <ng-container *ngIf="payee.paymentDetails; else noDetails">
+        @if (!isEditingDetails(payee)) {
+        <div class="salary-destination">
+          @if (payee.paymentDetails) {
             <code class="dest-value">{{ payee.paymentDetails }}</code>
             <!-- Copies the destination ALONE: anything in front of an account number makes the
                  paste useless in a banking app. -->
@@ -155,16 +190,17 @@
             </button>
             <button type="button" class="icon-btn" title="Edit payment details"
                     (click)="startEditDetails(payee)">✎</button>
-          </ng-container>
+          } @else {
 
-          <ng-template #noDetails>
             <button type="button" class="dest-add" (click)="startEditDetails(payee)">
               + Add IBAN or ID number
             </button>
-          </ng-template>
+          }
         </div>
+        }
 
-        <div class="salary-destination editing" *ngIf="isEditingDetails(payee)">
+        @if (isEditingDetails(payee)) {
+        <div class="salary-destination editing">
           <input type="text" class="dest-input"
                  placeholder="IBAN, card or ID number"
                  [(ngModel)]="detailsInput"
@@ -179,50 +215,69 @@
           <!-- Says what an empty box does, because "clear it" and "leave it" look identical. -->
           <span class="dest-hint">Leave empty to remove.</span>
         </div>
+        }
 
-        <div class="salary-warning" *ngFor="let w of payee.warnings">⚠ {{ w }}</div>
+        @for (w of payee.warnings; track w) {
+        <div class="salary-warning">⚠ {{ w }}</div>
+        }
 
         <div class="salary-instalments">
-          <div class="salary-instalment" *ngFor="let inst of payee.instalments" [class.paid]="inst.isPaid">
+          @for (inst of payee.instalments; track inst) {
+          <div class="salary-instalment" [class.paid]="inst.isPaid">
             <span class="inst-label">{{ inst.label }}</span>
 
             <span class="inst-amount">
               <span class="salary-native">
                 {{ salarySymbol(inst.currency) }} {{ inst.amount | number:'1.2-2' }}
               </span>
-              <span class="salary-usd" *ngIf="isConverted(inst.currency)">
+              @if (isConverted(inst.currency)) {
+              <span class="salary-usd">
                 ≈ $ {{ inst.amountUsd | number:'1.2-2' }}
               </span>
+              }
             </span>
 
             <!-- Shows the sum being made, so a second payment larger than half the salary reads
                  as a month with bonuses in it rather than an error. -->
-            <span class="inst-breakdown" *ngIf="inst.bonusAmount">
+            @if (inst.bonusAmount) {
+            <span class="inst-breakdown">
               {{ salarySymbol(inst.currency) }}{{ inst.salaryAmount | number:'1.2-2' }} salary
               + {{ salarySymbol(inst.currency) }}{{ inst.bonusAmount | number:'1.2-2' }} bonus
             </span>
+            }
 
             <!-- Paid: what was handed over, when, and by whom. Frozen — editing the salary later
                  changes what is owed next month, not what already left. -->
-            <span class="inst-paid-meta" *ngIf="inst.isPaid">
+            @if (inst.isPaid) {
+            <span class="inst-paid-meta">
               <span class="inst-paid-tick">✓ Paid</span>
               <span class="inst-paid-when">{{ inst.paidAt | date:'MMM d' }}</span>
-              <span class="inst-paid-by" *ngIf="inst.paidByName">by {{ inst.paidByName }}</span>
-              <span class="inst-paid-note" *ngIf="inst.paymentNote">“{{ inst.paymentNote }}”</span>
+              @if (inst.paidByName) {
+              <span class="inst-paid-by">by {{ inst.paidByName }}</span>
+              }
+              @if (inst.paymentNote) {
+              <span class="inst-paid-note">“{{ inst.paymentNote }}”</span>
+              }
             </span>
+            }
 
-            <span class="inst-actions" *ngIf="!isPayingInstalment(payee, inst)">
+            @if (!isPayingInstalment(payee, inst)) {
+            <span class="inst-actions">
+              @if (!inst.isPaid) {
               <button type="button" class="action-btn small pay"
-                      *ngIf="!inst.isPaid"
                       [disabled]="salarySaving"
                       (click)="startPayInstalment(payee, inst)">Mark paid</button>
+              }
+              @if (inst.isPaid) {
               <button type="button" class="action-btn small"
-                      *ngIf="inst.isPaid"
                       [disabled]="salarySaving"
                       (click)="undoInstalment(payee, inst)">Undo</button>
+              }
             </span>
+            }
 
-            <span class="inst-confirm" *ngIf="isPayingInstalment(payee, inst)">
+            @if (isPayingInstalment(payee, inst)) {
+            <span class="inst-confirm">
               <input type="text" class="inst-note" placeholder="Note (optional)"
                      [(ngModel)]="salaryPaymentNote" (keyup.enter)="confirmPayInstalment(payee, inst)">
               <button type="button" class="action-btn small" [disabled]="salarySaving"
@@ -232,16 +287,20 @@
                 {{ salarySaving ? 'Saving…' : 'Confirm' }}
               </button>
             </span>
+            }
           </div>
+          }
         </div>
       </div>
+      }
     </div>
   </div>
+  }
 
-  </ng-container>
+  }
 
   <!-- ══ Cleaner wages tab ══════════════════════════════════════════════════ -->
-  <ng-container *ngIf="activeTab === 'cleaners'">
+  @if (activeTab === 'cleaners') {
 
   <!-- Filters -->
   <div class="filter-bar">
@@ -253,7 +312,9 @@
 
     <button type="button" class="chip-toggle" [class.active]="warningsOnly" (click)="toggleWarningsOnly()">
       ⚠ Needs a look
-      <span class="chip-count" *ngIf="data?.summary?.ordersWithWarnings">{{ data?.summary?.ordersWithWarnings }}</span>
+      @if (data?.summary?.ordersWithWarnings) {
+      <span class="chip-count">{{ data?.summary?.ordersWithWarnings }}</span>
+      }
     </button>
 
     <input class="search-input"
@@ -264,7 +325,8 @@
   </div>
 
   <!-- Totals across the whole filtered range, not just this page -->
-  <div class="summary-cards" *ngIf="data">
+  @if (data) {
+  <div class="summary-cards">
     <div class="summary-card">
       <span class="summary-label">Finished jobs</span>
       <span class="summary-value">{{ data.summary.orderCount }}</span>
@@ -287,24 +349,32 @@
       <span class="summary-sub">{{ data.summary.unpaidCleanerCount }} cleaner(s)</span>
       <!-- Named separately because it is money owed on jobs that already LOOK settled — the part
            of the figure nobody would go looking for. -->
-      <span class="summary-sub summary-topup" *ngIf="data.summary.topUpPayout > 0">
+      @if (data.summary.topUpPayout > 0) {
+      <span class="summary-sub summary-topup">
         incl. $ {{ data.summary.topUpPayout | number:'1.2-2' }} on orders that changed after payment
       </span>
+      }
     </div>
     <div class="summary-card is-paid">
       <span class="summary-label">Already paid</span>
       <span class="summary-value">$ {{ data.summary.paidPayout | number:'1.2-2' }}</span>
     </div>
   </div>
+  }
 
-  <div class="loading-state" *ngIf="loading">Loading…</div>
+  @if (loading) {
+  <div class="loading-state">Loading…</div>
+  }
 
-  <div class="empty-state" *ngIf="!loading && data && data.orders.length === 0">
+  @if (!loading && data && data.orders.length === 0) {
+  <div class="empty-state">
     No finished jobs match this filter for {{ monthLabel }}.
   </div>
+  }
 
   <!-- Compact list. One row per finished order; everything else lives in the panel. -->
-  <div class="orders-list" *ngIf="!loading && data && data.orders.length > 0">
+  @if (!loading && data && data.orders.length > 0) {
+  <div class="orders-list">
     <div class="table-container">
       <div class="table-wrapper">
         <table class="data-table">
@@ -322,7 +392,8 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let order of data.orders; trackBy: trackByOrder"
+            @for (order of data.orders; track trackByOrder($index, order)) {
+            <tr
                 [class.expanded]="selectedOrderId === order.orderId"
                 (click)="openPanel(order)"
                 style="cursor: pointer;">
@@ -330,7 +401,9 @@
               <td>
                 <!-- The warning marker rides on the order number so it survives the narrow
                      columns; the full text is in the panel. -->
-                <span class="warn-dot" *ngIf="order.warnings.length > 0" [title]="order.warnings.join(' · ')">⚠</span>
+                @if (order.warnings.length > 0) {
+                <span class="warn-dot" [title]="order.warnings.join(' · ')">⚠</span>
+                }
                 {{ order.orderId }}
               </td>
 
@@ -342,28 +415,37 @@
                 {{ serviceTypeShort(order) }}
                 <!-- How the customer settled, when it was not a card. Just the method — a
                      "Paid by" prefix only ate column width; the tooltip carries the sentence. -->
+                @if (customerPaymentNote(order)) {
                 <span class="cash-tag"
-                      *ngIf="customerPaymentNote(order)"
                       [title]="customerPaymentTitle(order)">{{ customerPaymentNote(order) }}</span>
+                }
               </td>
 
               <td class="cleaners-col">
-                <span *ngIf="order.cleaners.length > 0"
+                @if (order.cleaners.length > 0) {
+                <span
                       class="cleaners-names"
                       [title]="cleanerNamesFull(order)">
                   <!-- "(2 of 3)" when the job was staffed for more people than are on file. -->
                   {{ cleanerCountLabel(order) }} {{ cleanerNamesShort(order) }}
                 </span>
-                <span *ngIf="order.cleaners.length === 0" class="no-cleaners">
-                  Not assigned<span *ngIf="order.splitCount > 1"> ({{ order.splitCount }})</span>
+                }
+                @if (order.cleaners.length === 0) {
+                <span class="no-cleaners">
+                  Not assigned@if (order.splitCount > 1) {
+                  <span> ({{ order.splitCount }})</span>
+                  }
                 </span>
+                }
               </td>
 
               <td class="duration-col">
                 {{ formatTotalDuration(order.totalDuration) }}
                 <!-- Gated on the STAFFED count, not the assignment count: an 18h job staffed for
                      3 is 6h each even when only 2 of them are on file. -->
-                <em *ngIf="order.splitCount > 1">· {{ formatDuration(order.automaticMinutesPerCleaner) }} ea.</em>
+                @if (order.splitCount > 1) {
+                <em>· {{ formatDuration(order.automaticMinutesPerCleaner) }} ea.</em>
+                }
               </td>
 
               <td class="amount">$ {{ order.totalWithoutTips | number:'1.2-2' }}</td>
@@ -373,10 +455,12 @@
                 <!-- The shortfall an order edit left behind, on the row so it is visible without
                      opening the panel — it is the only reason a settled order is back on this
                      list. Never shown for an order nobody has been paid for. -->
-                <em class="row-topup" *ngIf="hasTopUp(order)"
+                @if (hasTopUp(order)) {
+                <em class="row-topup"
                     [title]="topUpSummary(order)">
                   + $ {{ order.topUpPayout | number:'1.2-2' }} still owed
                 </em>
+                }
               </td>
 
               <td>
@@ -398,37 +482,46 @@
                       <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
                     </svg>
                   </a>
+                  @if (!order.isFullyPaid && allPayoutLines(order).length > 0) {
                   <button class="icon-btn ok"
-                          *ngIf="!order.isFullyPaid && allPayoutLines(order).length > 0"
                           (click)="openPayOrder(order)"
                           title="Record every outstanding payout on this order">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <polyline points="20 6 9 17 4 12"/>
                     </svg>
                   </button>
+                  }
                 </div>
               </td>
             </tr>
+            }
           </tbody>
         </table>
       </div>
     </div>
 
-    <div class="pagination" *ngIf="totalPages > 1">
+    @if (totalPages > 1) {
+    <div class="pagination">
       <button class="page-btn" (click)="goToPage(page - 1)" [disabled]="page === 1">‹ Prev</button>
-      <button class="page-btn" *ngFor="let p of pageWindow" (click)="goToPage(p)" [class.active]="p === page">{{ p }}</button>
+      @for (p of pageWindow; track p) {
+      <button class="page-btn" (click)="goToPage(p)" [class.active]="p === page">{{ p }}</button>
+      }
       <button class="page-btn" (click)="goToPage(page + 1)" [disabled]="page === totalPages">Next ›</button>
     </div>
+    }
   </div>
+  }
 
-  </ng-container>
+  }
 </div>
 </div>
 
 <!-- Slide-in payout sheet (mirrors the orders and users tabs) -->
-<div class="detail-overlay" *ngIf="selectedOrder" (click)="closePanel()"></div>
+@if (selectedOrder) {
+<div class="detail-overlay" (click)="closePanel()"></div>
+}
 <aside class="detail-panel order-detail-panel" [class.open]="selectedOrder !== null">
-  <ng-container *ngIf="selectedOrder as order">
+  @if (selectedOrder; as order) {
     <div class="order-panel-header">
       <h3>Order #{{ order.orderId }} — payout</h3>
       <div class="order-panel-header__actions">
@@ -437,11 +530,12 @@
            [queryParams]="{ orderId: order.orderId }"
            target="_blank"
            rel="noopener">View order</a>
+        @if (!order.isFullyPaid && allPayoutLines(order).length > 0) {
         <button class="action-btn small save"
-                *ngIf="!order.isFullyPaid && allPayoutLines(order).length > 0"
                 (click)="openPayOrder(order)">
           {{ hasTopUp(order) ? 'Pay remaining' : 'Mark all paid' }}
         </button>
+        }
         <button class="action-btn small discard" (click)="closePanel()">Close</button>
       </div>
     </div>
@@ -460,15 +554,19 @@
         because it is the reason the order came back into the unpaid list, and without it the
         reader sees a "Paid" stamp beside a bigger payout figure and assumes the page is wrong.
       -->
-      <div class="topup-banner" *ngIf="hasTopUp(order)">
+      @if (hasTopUp(order)) {
+      <div class="topup-banner">
         <strong>$ {{ order.topUpPayout | number:'1.2-2' }} still to pay</strong>
         <span>{{ topUpSummary(order) }}</span>
       </div>
+      }
 
-      <div class="overpaid-banner" *ngIf="hasOverpayment(order)">
+      @if (hasOverpayment(order)) {
+      <div class="overpaid-banner">
         <strong>$ {{ order.overpaidAmount | number:'1.2-2' }} overpaid</strong>
         <span>The hours came down after payment. Nothing has been clawed back.</span>
       </div>
+      }
 
       <!--
         The order's defaults, in ONE editor holding both figures — the same shape as a cleaner's
@@ -486,55 +584,64 @@
         <div class="order-rate-head">
           <span class="field-label">Defaults for this order</span>
 
-          <div class="order-rate-value" *ngIf="!editingOrderDefaults">
+          @if (!editingOrderDefaults) {
+          <div class="order-rate-value">
             <strong>$ {{ order.orderHourlyRate | number:'1.0-2' }}</strong> / hour
+            @if (order.orderHourlyRate !== order.expectedHourlyRate) {
             <span class="pill pill-warn"
-                  *ngIf="order.orderHourlyRate !== order.expectedHourlyRate"
                   [title]="'The default for ' + order.serviceTypeName + ' is $' + (order.expectedHourlyRate | number:'1.0-2') + '/hr'">
               off default
             </span>
-            <ng-container *ngIf="order.cleaners.length > 0">
+            }
+            @if (order.cleaners.length > 0) {
               · <strong>{{ formatDuration(order.automaticMinutesPerCleaner) }}</strong> each
+              @if (cleanersWithOwnHours(order) > 0) {
               <span class="pill pill-edited"
-                    *ngIf="cleanersWithOwnHours(order) > 0"
                     title="Set by hand, not the automatic split">
                 {{ cleanersWithOwnHours(order) }} edited
               </span>
-            </ng-container>
+              }
+            }
             <button class="action-btn small edit" type="button" (click)="startEditOrderDefaults(order)">Change</button>
           </div>
+          }
 
-          <div class="order-rate-edit" *ngIf="editingOrderDefaults">
+          @if (editingOrderDefaults) {
+          <div class="order-rate-edit">
             <label>
               <span>$ / hour</span>
               <input type="number" min="0" step="0.5" [(ngModel)]="orderRateInput" name="orderRateInput" />
             </label>
-            <label *ngIf="order.cleaners.length > 0">
+            @if (order.cleaners.length > 0) {
+            <label>
               <span>Hours each</span>
               <input type="number" min="0" step="0.25" [(ngModel)]="orderHoursInput" name="orderHoursInput" />
             </label>
+            }
             <button class="action-btn small save" type="button" [disabled]="savingOrderDefaults" (click)="saveOrderDefaults(order)">
               {{ savingOrderDefaults ? 'Saving…' : 'Save' }}
             </button>
             <button class="action-btn small discard" type="button" [disabled]="savingOrderDefaults" (click)="cancelOrderDefaultsEdit()">Cancel</button>
+            @if (cleanersWithOwnHours(order) > 0) {
             <button class="btn-link" type="button"
-                    *ngIf="cleanersWithOwnHours(order) > 0"
                     [disabled]="savingOrderDefaults"
                     (click)="resetOrderHoursToAutomatic(order)"
                     title="Drop every manual hours figure and go back to the even split">
               Reset hours to automatic
             </button>
+            }
           </div>
+          }
         </div>
 
         <p class="order-rate-hint">
           The rate applies to all {{ order.cleaners.length }} cleaner(s) on this order — including
           any set by hand — and is saved onto the order itself. A cleaner already paid keeps the
           rate they were paid at.
-          <ng-container *ngIf="order.unassignedCleaners.length > 0">
+          @if (order.unassignedCleaners.length > 0) {
             {{ order.unassignedCleaners.length }} unstaffed slot(s) stay on the automatic split —
             there is no cleaner record to set hours on.
-          </ng-container>
+          }
           The order's own duration is not changed: this is what the cleaners are paid for, not what
           the customer was quoted.
         </p>
@@ -544,8 +651,8 @@
         <h4>Cleaners</h4>
 
         <ul class="cleaner-list">
+          @for (cleaner of order.cleaners; track trackByCleaner($index, cleaner)) {
           <li class="cleaner-row"
-              *ngFor="let cleaner of order.cleaners; trackBy: trackByCleaner"
               [class.is-paid]="cleaner.isPaid"
               [class.needs-topup]="cleaner.isTopUp">
 
@@ -556,10 +663,13 @@
                    quiet chip; the number itself is monospaced so digits are easy to check, and
                    the copy button copies the NUMBER ALONE — "Zelle · " in front of it would make
                    the paste useless in a banking app. -->
-              <span class="cleaner-destination" *ngIf="payoutDetails(cleaner)">
-                <span class="destination-method" *ngIf="methodLabel(cleaner.paymentMethod)">
+              @if (payoutDetails(cleaner)) {
+              <span class="cleaner-destination">
+                @if (methodLabel(cleaner.paymentMethod)) {
+                <span class="destination-method">
                   {{ methodLabel(cleaner.paymentMethod) }}
                 </span>
+                }
                 <span class="destination-value">{{ payoutDetails(cleaner) }}</span>
                 <button type="button"
                         class="copy-btn"
@@ -567,33 +677,45 @@
                         (click)="copyPaymentDetails(cleaner)"
                         [attr.aria-label]="'Copy ' + cleanerName(cleaner) + '\'s payment details'"
                         [title]="isCopied(cleaner) ? 'Copied' : 'Copy'">
-                  <svg *ngIf="!isCopied(cleaner)" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  @if (!isCopied(cleaner)) {
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
                     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                   </svg>
-                  <svg *ngIf="isCopied(cleaner)" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  }
+                  @if (isCopied(cleaner)) {
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <polyline points="20 6 9 17 4 12"/>
                   </svg>
+                  }
                 </button>
               </span>
+              }
 
               <!-- A method with no destination recorded still tells the reader how to pay. -->
-              <span class="cleaner-destination" *ngIf="!payoutDetails(cleaner) && methodLabel(cleaner.paymentMethod)">
+              @if (!payoutDetails(cleaner) && methodLabel(cleaner.paymentMethod)) {
+              <span class="cleaner-destination">
                 <span class="destination-method">{{ methodLabel(cleaner.paymentMethod) }}</span>
               </span>
+              }
 
-              <span class="cleaner-destination muted" *ngIf="!payoutDestination(cleaner)">No payment method on file</span>
+              @if (!payoutDestination(cleaner)) {
+              <span class="cleaner-destination muted">No payment method on file</span>
+              }
             </div>
 
             <!-- Read mode: the "$21 × 4.50 = $94.50" working, plus tips -->
-            <div class="cleaner-figures" *ngIf="!isEditing(order, cleaner)">
+            @if (!isEditing(order, cleaner)) {
+            <div class="cleaner-figures">
               <div class="figure">
                 <span class="figure-label">Hours</span>
                 <span class="figure-value">
                   {{ formatDuration(cleaner.billableMinutes) }}
-                  <span class="pill pill-edited" *ngIf="cleaner.hoursOverridden" title="Set by hand, not the automatic split">edited</span>
+                  @if (cleaner.hoursOverridden) {
+                  <span class="pill pill-edited" title="Set by hand, not the automatic split">edited</span>
+                  }
                 </span>
               </div>
               <div class="figure">
@@ -601,30 +723,36 @@
                 <span class="figure-value">
                   {{ salaryWorking(cleaner) }}
                   <!-- This line carries its own rate, so the order-level rate control skips it. -->
+                  @if (cleaner.rateOverridden) {
                   <span class="pill pill-edited"
-                        *ngIf="cleaner.rateOverridden"
                         title="Own rate, set by hand — the order's rate does not move this line">
                     own rate
                   </span>
+                  }
+                  @if (cleaner.rateDiffersFromDefault) {
                   <span class="pill pill-warn"
-                        *ngIf="cleaner.rateDiffersFromDefault"
                         [title]="'The default for ' + order.serviceTypeName + ' is $' + (order.expectedHourlyRate | number:'1.0-2') + '/hr'">
                     off default
                   </span>
+                  }
                 </span>
               </div>
-              <div class="figure" *ngIf="cleaner.tips > 0">
+              @if (cleaner.tips > 0) {
+              <div class="figure">
                 <span class="figure-label">Tips</span>
                 <span class="figure-value">$ {{ cleaner.tips | number:'1.2-2' }}</span>
               </div>
+              }
               <div class="figure figure-total">
                 <span class="figure-label">Payout</span>
                 <span class="figure-value">$ {{ cleaner.payout | number:'1.2-2' }}</span>
               </div>
             </div>
+            }
 
             <!-- Edit mode: hours are entered in decimal hours to match the working above. -->
-            <div class="cleaner-edit" *ngIf="isEditing(order, cleaner)">
+            @if (isEditing(order, cleaner)) {
+            <div class="cleaner-edit">
               <label>
                 <span>$ / hour</span>
                 <input type="number" min="0" step="0.5" [(ngModel)]="editRate" name="editRate" />
@@ -638,15 +766,17 @@
                   {{ savingEdit ? 'Saving…' : 'Save' }}
                 </button>
                 <button class="action-btn small discard" type="button" [disabled]="savingEdit" (click)="cancelEdit()">Cancel</button>
+                @if (cleaner.rateOverridden || cleaner.hoursOverridden) {
                 <button class="btn-link" type="button"
-                        *ngIf="cleaner.rateOverridden || cleaner.hoursOverridden"
                         [disabled]="savingEdit"
                         (click)="resetToAutomatic(order, cleaner)"
                         title="Drop the manual values and follow the order again">
                   Reset to automatic
                 </button>
+                }
               </div>
             </div>
+            }
 
             <!--
               The shortfall left by an order edit made AFTER this cleaner was paid. It says all
@@ -654,7 +784,8 @@
               "$10.50 still to pay" on its own is a number nobody can check. Only ever rendered
               on a line that has actually been paid (isTopUp); an unpaid line is just unpaid.
             -->
-            <div class="cleaner-topup" *ngIf="cleaner.isTopUp">
+            @if (cleaner.isTopUp) {
+            <div class="cleaner-topup">
               <span class="topup-lead">This order changed after {{ cleanerName(cleaner) }} was paid.</span>
               <span class="topup-working">
                 Paid $ {{ cleaner.paidAmount | number:'1.2-2' }} ·
@@ -662,42 +793,56 @@
                 <strong>$ {{ cleaner.outstandingPayout | number:'1.2-2' }} still to pay</strong>
               </span>
             </div>
+            }
 
             <!-- The mirror case: the hours came DOWN after payment. Nothing is clawed back
                  automatically — it is reported so a person can decide what to do. -->
-            <div class="cleaner-overpaid" *ngIf="cleaner.overpaidAmount > 0">
+            @if (cleaner.overpaidAmount > 0) {
+            <div class="cleaner-overpaid">
               Paid $ {{ cleaner.paidAmount | number:'1.2-2' }}, but the work is now worth
               $ {{ cleaner.payout | number:'1.2-2' }} —
               <strong>$ {{ cleaner.overpaidAmount | number:'1.2-2' }} overpaid</strong>.
             </div>
+            }
 
             <div class="cleaner-actions">
               <!-- Rate / hours stay editable after payment: raising them shows the difference as
                    still to pay rather than rewriting what was handed over. -->
+              @if (!isEditing(order, cleaner)) {
               <button class="action-btn small edit" type="button"
-                      *ngIf="!isEditing(order, cleaner)"
                       (click)="startEdit(order, cleaner)">
                 Rate / hours
               </button>
+              }
 
+              @if (!cleaner.isSettled) {
               <button class="action-btn small save" type="button"
-                      *ngIf="!cleaner.isSettled"
                       (click)="openPayCleaner(order, cleaner)">
                 {{ cleaner.isTopUp ? 'Pay remaining $ ' + (cleaner.outstandingPayout | number:'1.2-2') : 'Mark paid' }}
               </button>
+              }
+              @if (cleaner.isPaid) {
 
-              <ng-container *ngIf="cleaner.isPaid">
                 <span class="paid-stamp">
                   ✓ Paid $ {{ (cleaner.paidAmount ?? cleaner.payout) | number:'1.2-2' }}
-                  <span *ngIf="methodLabel(cleaner.paidVia)"> via {{ methodLabel(cleaner.paidVia) }}</span>
-                  <em *ngIf="cleaner.paidAt"> · {{ cleaner.paidAt | date:'MM/dd/yy' }}</em>
-                  <em *ngIf="cleaner.paidByName"> · by {{ cleaner.paidByName }}</em>
+                  @if (methodLabel(cleaner.paidVia)) {
+                  <span> via {{ methodLabel(cleaner.paidVia) }}</span>
+                  }
+                  @if (cleaner.paidAt) {
+                  <em> · {{ cleaner.paidAt | date:'MM/dd/yy' }}</em>
+                  }
+                  @if (cleaner.paidByName) {
+                  <em> · by {{ cleaner.paidByName }}</em>
+                  }
                 </span>
-                <span class="paid-note" *ngIf="cleaner.paymentNote">“{{ cleaner.paymentNote }}”</span>
+                @if (cleaner.paymentNote) {
+                <span class="paid-note">“{{ cleaner.paymentNote }}”</span>
+                }
                 <button class="btn-link danger" type="button" (click)="undoPayment(order, cleaner)">Undo</button>
-              </ng-container>
+              }
             </div>
           </li>
+          }
         </ul>
 
         <!--
@@ -706,9 +851,10 @@
           totals. They cannot be paid from here: there is no person on file to pay, and inventing
           a payout record against nobody would be a lie in the audit trail.
         -->
-        <ul class="cleaner-list unassigned-list" *ngIf="hasUnassignedSlots(order)">
+        @if (hasUnassignedSlots(order)) {
+        <ul class="cleaner-list unassigned-list">
+          @for (slot of order.unassignedCleaners; track trackBySlot($index, slot)) {
           <li class="cleaner-row is-unassigned"
-              *ngFor="let slot of order.unassignedCleaners; trackBy: trackBySlot"
               [class.is-paid]="slot.isPaid"
               [class.needs-topup]="slot.isTopUp">
             <div class="cleaner-identity">
@@ -725,10 +871,12 @@
                 <span class="figure-label">Wages</span>
                 <span class="figure-value">{{ salaryWorking(slot) }}</span>
               </div>
-              <div class="figure" *ngIf="slot.tips > 0">
+              @if (slot.tips > 0) {
+              <div class="figure">
                 <span class="figure-label">Tips</span>
                 <span class="figure-value">$ {{ slot.tips | number:'1.2-2' }}</span>
               </div>
+              }
               <div class="figure figure-total">
                 <span class="figure-label">Payout</span>
                 <span class="figure-value">$ {{ slot.payout | number:'1.2-2' }}</span>
@@ -738,7 +886,8 @@
             <!-- Same pay/undo controls as a named cleaner. Rate and hours are NOT editable here:
                  there is no per-cleaner record to hang an override on, and the order-level rate
                  above already moves this line. -->
-            <div class="cleaner-topup" *ngIf="slot.isTopUp">
+            @if (slot.isTopUp) {
+            <div class="cleaner-topup">
               <span class="topup-lead">This order changed after this slot was paid.</span>
               <span class="topup-working">
                 Paid $ {{ slot.paidAmount | number:'1.2-2' }} ·
@@ -746,31 +895,46 @@
                 <strong>$ {{ slot.outstandingPayout | number:'1.2-2' }} still to pay</strong>
               </span>
             </div>
+            }
 
-            <div class="cleaner-overpaid" *ngIf="slot.overpaidAmount > 0">
+            @if (slot.overpaidAmount > 0) {
+            <div class="cleaner-overpaid">
               Paid $ {{ slot.paidAmount | number:'1.2-2' }}, but the work is now worth
               $ {{ slot.payout | number:'1.2-2' }} —
               <strong>$ {{ slot.overpaidAmount | number:'1.2-2' }} overpaid</strong>.
             </div>
+            }
 
             <div class="cleaner-actions">
-              <button class="action-btn small save" type="button" *ngIf="!slot.isSettled" (click)="openPayCleaner(order, slot)">
+              @if (!slot.isSettled) {
+              <button class="action-btn small save" type="button" (click)="openPayCleaner(order, slot)">
                 {{ slot.isTopUp ? 'Pay remaining $ ' + (slot.outstandingPayout | number:'1.2-2') : 'Mark paid' }}
               </button>
+              }
+              @if (slot.isPaid) {
 
-              <ng-container *ngIf="slot.isPaid">
                 <span class="paid-stamp">
                   ✓ Paid $ {{ (slot.paidAmount ?? slot.payout) | number:'1.2-2' }}
-                  <span *ngIf="methodLabel(slot.paidVia)"> via {{ methodLabel(slot.paidVia) }}</span>
-                  <em *ngIf="slot.paidAt"> · {{ slot.paidAt | date:'MM/dd/yy' }}</em>
-                  <em *ngIf="slot.paidByName"> · by {{ slot.paidByName }}</em>
+                  @if (methodLabel(slot.paidVia)) {
+                  <span> via {{ methodLabel(slot.paidVia) }}</span>
+                  }
+                  @if (slot.paidAt) {
+                  <em> · {{ slot.paidAt | date:'MM/dd/yy' }}</em>
+                  }
+                  @if (slot.paidByName) {
+                  <em> · by {{ slot.paidByName }}</em>
+                  }
                 </span>
-                <span class="paid-note" *ngIf="slot.paymentNote">“{{ slot.paymentNote }}”</span>
+                @if (slot.paymentNote) {
+                <span class="paid-note">“{{ slot.paymentNote }}”</span>
+                }
                 <button class="btn-link danger" type="button" (click)="undoPayment(order, slot)">Undo</button>
-              </ng-container>
+              }
             </div>
           </li>
+          }
         </ul>
+        }
 
         <div class="panel-foot">
           <span class="foot-label">Order payout</span>
@@ -780,9 +944,13 @@
       </section>
 
       <!-- Warnings never block a payout; the job happened and the cleaner is owed either way. -->
-      <section class="panel-block order-warnings" *ngIf="order.warnings.length > 0">
-        <div class="warning-row" *ngFor="let warning of order.warnings">⚠ {{ warning }}</div>
+      @if (order.warnings.length > 0) {
+      <section class="panel-block order-warnings">
+        @for (warning of order.warnings; track warning) {
+        <div class="warning-row">⚠ {{ warning }}</div>
+        }
       </section>
+      }
 
       <!-- The WhatsApp message, rebuilt: service type, date, duration. -->
       <section class="panel-block">
@@ -792,15 +960,23 @@
           <div><label>Service date</label><span>{{ order.serviceDate | date:'MM/dd/yy' }} · {{ order.serviceTime }}</span></div>
           <div><label>Status</label><span>{{ statusLabel(order) }}</span></div>
           <div><label>Customer</label><span>{{ order.customerName }}</span></div>
-          <div *ngIf="order.serviceAddress"><label>Address</label><span>{{ order.serviceAddress }}<span *ngIf="order.city">, {{ order.city }}</span></span></div>
+          @if (order.serviceAddress) {
+          <div><label>Address</label><span>{{ order.serviceAddress }}@if (order.city) {
+          <span>, {{ order.city }}</span>
+          }</span></div>
+          }
           <div>
             <label>Duration</label>
             <span>
               {{ formatTotalDuration(order.totalDuration) }} total
-              <em *ngIf="order.splitCount > 1">· {{ formatDuration(order.automaticMinutesPerCleaner) }} each cleaner</em>
+              @if (order.splitCount > 1) {
+              <em>· {{ formatDuration(order.automaticMinutesPerCleaner) }} each cleaner</em>
+              }
             </span>
           </div>
-          <div *ngIf="customerPaymentNote(order)"><label>Customer paid</label><span>{{ customerPaymentNote(order) }}</span></div>
+          @if (customerPaymentNote(order)) {
+          <div><label>Customer paid</label><span>{{ customerPaymentNote(order) }}</span></div>
+          }
         </div>
       </section>
 
@@ -814,30 +990,41 @@
         </div>
       </section>
     </div>
-  </ng-container>
+  }
 </aside>
 
 <!-- Pay confirmation: names what is being recorded before it is recorded -->
-<div class="modal-backdrop" *ngIf="payOrder" (click)="closePayModal()">
+@if (payOrder) {
+<div class="modal-backdrop" (click)="closePayModal()">
   <div class="modal" (click)="$event.stopPropagation()">
-    <h2 *ngIf="payCleaner">
+    @if (payCleaner) {
+    <h2>
       {{ payCleaner.isTopUp ? 'Pay ' + cleanerName(payCleaner) + ' the difference' : 'Mark ' + cleanerName(payCleaner) + ' as paid' }}
     </h2>
-    <h2 *ngIf="!payCleaner">Mark everyone on order #{{ payOrder.orderId }} as paid</h2>
+    }
+    @if (!payCleaner) {
+    <h2>Mark everyone on order #{{ payOrder.orderId }} as paid</h2>
+    }
 
     <!-- A top-up is money going out on top of money that already went out, so the modal says so
          before the button is pressed rather than quietly showing a smaller total than the line. -->
-    <p class="modal-topup" *ngIf="payModalIsTopUp">
+    @if (payModalIsTopUp) {
+    <p class="modal-topup">
       This settles what is still owed after the order changed — the earlier payment stays on
       record and this amount is added to it.
     </p>
+    }
 
-    <p class="modal-lead" *ngIf="payCleaner">
+    @if (payCleaner) {
+    <p class="modal-lead">
       Order #{{ payOrder.orderId }} · {{ payOrder.serviceTypeName }} · {{ payOrder.serviceDate | date:'MM/dd/yy' }}
     </p>
+    }
 
-    <ul class="modal-lines" *ngIf="!payCleaner">
-      <li *ngFor="let c of unpaidInPayOrder">
+    @if (!payCleaner) {
+    <ul class="modal-lines">
+      @for (c of unpaidInPayOrder; track c) {
+      <li>
         <span>{{ cleanerName(c) }}</span>
         <span class="modal-line-method">
           {{ c.isUnassigned ? 'not in the system' : (methodLabel(c.paymentMethod) || 'no method on file') }}
@@ -846,26 +1033,36 @@
              $10.50, and listing the full payout would ask for $73.50 of it a second time. -->
         <span class="modal-line-amount">
           $ {{ c.outstandingPayout | number:'1.2-2' }}
-          <em class="modal-line-topup" *ngIf="c.isTopUp">still owed</em>
+          @if (c.isTopUp) {
+          <em class="modal-line-topup">still owed</em>
+          }
         </span>
       </li>
+      }
     </ul>
+    }
 
     <div class="modal-total">
       <span>Total</span>
       <strong>$ {{ payModalTotal | number:'1.2-2' }}</strong>
     </div>
 
-    <label class="modal-field" *ngIf="payCleaner">
+    @if (payCleaner) {
+    <label class="modal-field">
       <span>Sent via</span>
       <select [(ngModel)]="payVia" name="payVia">
-        <option *ngFor="let opt of paymentMethodOptions" [value]="opt.value">{{ opt.label }}</option>
+        @for (opt of paymentMethodOptions; track opt) {
+        <option [value]="opt.value">{{ opt.label }}</option>
+        }
       </select>
     </label>
+    }
 
-    <p class="modal-hint" *ngIf="!payCleaner">
+    @if (!payCleaner) {
+    <p class="modal-hint">
       Each cleaner is recorded against their own saved payment method.
     </p>
+    }
 
     <label class="modal-field">
       <span>Note (optional)</span>
@@ -880,3 +1077,4 @@
     </div>
   </div>
 </div>
+}

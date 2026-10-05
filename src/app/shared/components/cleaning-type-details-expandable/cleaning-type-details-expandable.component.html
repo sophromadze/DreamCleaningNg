@@ -8,17 +8,19 @@
     <i [appIcon]="icons.faChevronDown" [class.rotated]="expanded" aria-hidden="true"></i>
   </button>
 
+  @if (expanded) {
   <div
-    *ngIf="expanded"
     class="cleaning-type-details-panel"
     role="region"
     [attr.aria-label]="cleaningType === 'deep' ? 'Deep cleaning checklist' : 'Regular cleaning checklist'">
     <h3 class="checklist-block-title">{{ panelTitle }}</h3>
 
-    <div class="checklist-area-card" *ngFor="let section of activeChecklist">
+    @for (section of activeChecklist; track section) {
+    <div class="checklist-area-card">
       <h4 class="checklist-area-card__title">{{ section.heading }}</h4>
       <div class="checklist-area-card__grid">
-        <div class="checklist-area-card__cell" *ngFor="let row of section.rows">
+        @for (row of section.rows; track row) {
+        <div class="checklist-area-card__cell">
           <span
             class="checklist-area-row__icon"
             [class.checklist-area-row__icon--yes]="row.included"
@@ -28,16 +30,20 @@
           </span>
           <span class="checklist-area-row__label">{{ row.label }}</span>
         </div>
+        }
       </div>
     </div>
+    }
 
     <div class="not-included-footer">
       <h4 class="not-included-footer__title">{{ notIncludedFooterTitle }}</h4>
       <div class="not-included-footer__grid">
-        <div class="not-included-footer__cell" *ngFor="let item of activeNotIncludedFooter">
+        @for (item of activeNotIncludedFooter; track item) {
+        <div class="not-included-footer__cell">
           <span class="not-included-footer__x" aria-hidden="true"><i [appIcon]="icons.faXmark"></i></span>
           <span>{{ item }}</span>
         </div>
+        }
       </div>
     </div>
 
@@ -51,4 +57,5 @@
       </button>
     </div>
   </div>
+  }
 </div>

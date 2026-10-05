@@ -13,15 +13,18 @@
               <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
-          <div class="selector-options" *ngIf="isHoursDropdownOpen">
+          @if (isHoursDropdownOpen) {
+          <div class="selector-options">
+            @for (hour of hours; track hour) {
             <div 
-              *ngFor="let hour of hours" 
               class="selector-option"
               [class.selected]="hour === selectedHours"
               (click)="selectHours(hour, $event)">
               {{ formatHours(hour) }}
             </div>
+            }
           </div>
+          }
         </div>
       </div>
     </div>
@@ -39,15 +42,18 @@
               <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
-          <div class="selector-options" *ngIf="isMinutesDropdownOpen">
+          @if (isMinutesDropdownOpen) {
+          <div class="selector-options">
+            @for (minute of minutes; track minute) {
             <div 
-              *ngFor="let minute of minutes" 
               class="selector-option"
               [class.selected]="minute === selectedMinutes"
               (click)="selectMinutes(minute, $event)">
               {{ formatMinutes(minute) }}
             </div>
+            }
           </div>
+          }
         </div>
       </div>
     </div>

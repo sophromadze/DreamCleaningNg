@@ -1,7 +1,6 @@
 import {
   AfterViewChecked, Component, ElementRef, EventEmitter, Input, Output, ViewChild
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { IconComponent } from '../../icons/icon.component';
 import { faCircleNotch } from '../../icons/glyphs/faCircleNotch';
 import { faLock } from '../../icons/glyphs/faLock';
@@ -26,7 +25,7 @@ import { faLock } from '../../icons/glyphs/faLock';
 @Component({
   selector: 'app-save-card-modal',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [IconComponent],
   templateUrl: './save-card-modal.component.html',
   styleUrls: ['./save-card-modal.component.scss']
 })

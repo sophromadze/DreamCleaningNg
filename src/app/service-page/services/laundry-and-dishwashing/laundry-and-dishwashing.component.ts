@@ -1,12 +1,11 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { StructuredDataService } from '../../../services/structured-data.service';
 
 @Component({
   selector: 'app-laundry-and-dishwashing',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterModule],
   templateUrl: './laundry-and-dishwashing.component.html',
   styleUrl: './laundry-and-dishwashing.component.scss'
 })

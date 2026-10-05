@@ -2,7 +2,7 @@
   <div class="success-card">
 
     <!-- Step 1: Booking confirmation + supplies list -->
-    <ng-container *ngIf="step === 'success'">
+    @if (step === 'success') {
       <div class="success-icon">
         <i [appIcon]="icons.faCircleCheck"></i>
       </div>
@@ -11,44 +11,52 @@
         Your booking has been confirmed. Order #{{ orderId }}
       </p>
 
-      <div *ngIf="bubblePointsEnabled && estimatedPoints > 0" class="bubble-reward-card">
+      @if (bubblePointsEnabled && estimatedPoints > 0) {
+      <div class="bubble-reward-card">
         <p class="bubble-reward-message">
           Congrats! You'll earn <strong>{{ estimatedPoints | number }}</strong> Bubble points once your cleaning is complete &mdash; ready to use on a future booking.
         </p>
         <a class="bubble-reward-info-btn" routerLink="/rewards">More info</a>
       </div>
+      }
 
       <!-- One list, built by the shared checklist so this page can never name different
            products from the confirmation email and SMS. It can legitimately come back empty
            (Cleaning Supplies + Cleaning Essentials + Vacuum Cleaner all bought), which reads as
            good news rather than as an empty box. -->
-      <ng-container *ngIf="suppliesLoaded">
-        <p class="redirect-info" *ngIf="supplyChecklistItems.length === 0">
+      @if (suppliesLoaded) {
+        @if (supplyChecklistItems.length === 0) {
+        <p class="redirect-info">
           Nothing to prepare &mdash; we bring all the supplies for this cleaning.
         </p>
-        <ng-container *ngIf="supplyChecklistItems.length > 0">
+        }
+        @if (supplyChecklistItems.length > 0) {
           <p class="redirect-info">
             {{ hasCleaningSupplies || isCustomServiceType
                 ? 'Please provide the following items:'
                 : 'Please have all the following items ready for our team:' }}
           </p>
           <ul class="supplies-list">
-            <li *ngFor="let item of supplyChecklistItems">{{ item }}</li>
+            @for (item of supplyChecklistItems; track item) {
+            <li>{{ item }}</li>
+            }
           </ul>
-        </ng-container>
-      </ng-container>
+        }
+      }
 
       
 
-      <div *ngIf="otpError" class="otp-error">{{ otpError }}</div>
+      @if (otpError) {
+      <div class="otp-error">{{ otpError }}</div>
+      }
 
       <button class="view-order-btn" (click)="viewOrderNow()" [disabled]="sendingOtp">
         {{ sendingOtp ? 'Sending code...' : 'View Your Order Now' }}
       </button>
-    </ng-container>
+    }
 
     <!-- Step 2: OTP verification -->
-    <ng-container *ngIf="step === 'verify-otp'">
+    @if (step === 'verify-otp') {
       <div class="success-icon">
         <i [appIcon]="icons.faEnvelopeOpenText"></i>
       </div>
@@ -71,7 +79,9 @@
           (keydown.enter)="submitOtp()"
         />
 
-        <div *ngIf="otpError" class="otp-error">{{ otpError }}</div>
+        @if (otpError) {
+        <div class="otp-error">{{ otpError }}</div>
+        }
 
         <button
           class="view-order-btn"
@@ -90,7 +100,7 @@
           {{ resendCooldown > 0 ? 'Resend in ' + resendCooldown + 's' : 'Resend code' }}
         </button>
       </div>
-    </ng-container>
+    }
 
   </div>
 

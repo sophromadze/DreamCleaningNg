@@ -19,7 +19,9 @@
       <input type="date" [(ngModel)]="filterTo" (change)="applyFilters()" />
     </label>
     <button type="button" class="chat-sessions__clear" (click)="clearFilters()">Clear</button>
-    <span class="chat-sessions__count" *ngIf="!loading">{{ totalCount }} session{{ totalCount === 1 ? '' : 's' }}</span>
+    @if (!loading) {
+    <span class="chat-sessions__count">{{ totalCount }} session{{ totalCount === 1 ? '' : 's' }}</span>
+    }
     <button type="button" class="chat-sessions__agent-names-toggle" (click)="toggleAgentNames()">
       <i class="fas fa-id-badge" aria-hidden="true"></i>
       Agent names
@@ -30,23 +32,30 @@
   <!-- Agent display names: Telegram account → visitor-facing first name. Names are
        resolved when transcripts are read, so edits retroactively rename past replies;
        senders without a mapping show as "Team". -->
-  <div class="agent-names" *ngIf="showAgentNames">
+  @if (showAgentNames) {
+  <div class="agent-names">
     <p class="agent-names__hint">
       Names shown to visitors for team replies from Telegram. Unnamed senders appear as “Team”.
       Adding or changing a name also updates that person's past messages.
     </p>
 
-    <div class="agent-names__error" *ngIf="agentNamesError">{{ agentNamesError }}</div>
-    <div class="agent-names__loading" *ngIf="agentNamesLoading">Loading…</div>
+    @if (agentNamesError) {
+    <div class="agent-names__error">{{ agentNamesError }}</div>
+    }
+    @if (agentNamesLoading) {
+    <div class="agent-names__loading">Loading…</div>
+    }
+    @if (!agentNamesLoading) {
 
-    <ng-container *ngIf="!agentNamesLoading">
       <!-- Existing mappings -->
-      <table class="agent-names__table" *ngIf="agentNames.length > 0">
+      @if (agentNames.length > 0) {
+      <table class="agent-names__table">
         <thead>
           <tr><th>Telegram user ID</th><th>Display name</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr>
         </thead>
         <tbody>
-          <tr *ngFor="let m of agentNames">
+          @for (m of agentNames; track m) {
+          <tr>
             <td class="col-id">{{ m.telegramUserId }}</td>
             <td>
               <input type="text" maxlength="50" [(ngModel)]="nameEdits[m.telegramUserId]" placeholder="e.g. Tamar" />
@@ -58,18 +67,22 @@
               </button>
             </td>
           </tr>
+          }
         </tbody>
       </table>
+      }
 
       <!-- Senders seen in chats with no name yet -->
-      <div class="agent-names__unmapped" *ngIf="unmappedSenders.length > 0">
+      @if (unmappedSenders.length > 0) {
+      <div class="agent-names__unmapped">
         <h6>Seen in chats, not named yet</h6>
         <table class="agent-names__table">
           <thead>
             <tr><th>Telegram user ID</th><th>Last reply</th><th>Name</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr>
           </thead>
           <tbody>
-            <tr *ngFor="let s of unmappedSenders">
+            @for (s of unmappedSenders; track s) {
+            <tr>
               <td class="col-id">{{ s.telegramUserId }}</td>
               <td>{{ asLocalDate(s.lastSeenAt) | date: 'MMM d, h:mm a' }} ({{ s.messageCount }} msg{{ s.messageCount === 1 ? '' : 's' }})</td>
               <td>
@@ -79,9 +92,11 @@
                 <button type="button" class="agent-names__save" [disabled]="!(nameEdits[s.telegramUserId] || '').trim()" (click)="saveAgentName(s.telegramUserId)">Save</button>
               </td>
             </tr>
+            }
           </tbody>
         </table>
       </div>
+      }
 
       <!-- Manual add for a not-yet-seen Telegram user -->
       <div class="agent-names__add">
@@ -90,18 +105,28 @@
         <button type="button" class="agent-names__save" (click)="addAgentName()">Add</button>
       </div>
 
-      <p class="agent-names__empty" *ngIf="agentNames.length === 0 && unmappedSenders.length === 0">
+      @if (agentNames.length === 0 && unmappedSenders.length === 0) {
+      <p class="agent-names__empty">
         No names configured and no Telegram replies seen yet. Add a mapping manually with the fields above.
       </p>
-    </ng-container>
+      }
+    }
   </div>
+  }
 
-  <div class="chat-sessions__error" *ngIf="error">{{ error }}</div>
-  <div class="chat-sessions__success" *ngIf="successMessage">{{ successMessage }}</div>
-  <div class="chat-sessions__loading" *ngIf="loading">Loading…</div>
+  @if (error) {
+  <div class="chat-sessions__error">{{ error }}</div>
+  }
+  @if (successMessage) {
+  <div class="chat-sessions__success">{{ successMessage }}</div>
+  }
+  @if (loading) {
+  <div class="chat-sessions__loading">Loading…</div>
+  }
 
   <!-- Sessions table -->
-  <div class="chat-sessions__table-wrap" *ngIf="!loading && sessions.length > 0">
+  @if (!loading && sessions.length > 0) {
+  <div class="chat-sessions__table-wrap">
     <table class="chat-sessions__table">
       <thead>
         <tr>
@@ -110,17 +135,21 @@
           <th>Status</th>
           <th class="col-num">Msgs</th>
           <th>Last activity</th>
-          <th class="col-actions" *ngIf="isSuperAdmin"><span class="sr-only">Actions</span></th>
+          @if (isSuperAdmin) {
+          <th class="col-actions"><span class="sr-only">Actions</span></th>
+          }
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let s of sessions" (click)="openSession(s)" [class.row--active]="selectedSession?.id === s.id">
+        @for (s of sessions; track s) {
+        <tr (click)="openSession(s)" [class.row--active]="selectedSession?.id === s.id">
           <td>{{ asLocalDate(s.createdAt) | date: 'MMM d, h:mm a' }}</td>
           <td class="col-identity">{{ identityLabel(s) }}</td>
           <td><span class="badge" [ngClass]="statusClass(s.status)">{{ statusLabel(s.status) }}</span></td>
           <td class="col-num">{{ s.messageCount }}</td>
           <td>{{ asLocalDate(s.lastMessageAt) | date: 'MMM d, h:mm a' }}</td>
-          <td class="col-actions" *ngIf="isSuperAdmin">
+          @if (isSuperAdmin) {
+          <td class="col-actions">
             <button
               type="button"
               class="chat-sessions__delete"
@@ -130,95 +159,129 @@
               <i class="fas fa-trash" aria-hidden="true"></i>
             </button>
           </td>
+          }
         </tr>
+        }
       </tbody>
     </table>
   </div>
+  }
 
-  <div class="chat-sessions__empty" *ngIf="!loading && sessions.length === 0 && !error">
+  @if (!loading && sessions.length === 0 && !error) {
+  <div class="chat-sessions__empty">
     No chat sessions match these filters.
   </div>
+  }
 
   <!-- Pagination -->
-  <div class="chat-sessions__pagination" *ngIf="totalPages > 1">
+  @if (totalPages > 1) {
+  <div class="chat-sessions__pagination">
     <button type="button" (click)="goToPage(page - 1)" [disabled]="page <= 1">‹ Prev</button>
     <span>Page {{ page }} of {{ totalPages }}</span>
     <button type="button" (click)="goToPage(page + 1)" [disabled]="page >= totalPages">Next ›</button>
   </div>
+  }
 </div>
 
 <!-- Right slide-in transcript panel -->
-<div class="chat-transcript-backdrop" *ngIf="selectedSession" (click)="closePanel()"></div>
-<aside class="chat-transcript" *ngIf="selectedSession" aria-label="Chat transcript">
+@if (selectedSession) {
+<div class="chat-transcript-backdrop" (click)="closePanel()"></div>
+}
+@if (selectedSession) {
+<aside class="chat-transcript" aria-label="Chat transcript">
   <header class="chat-transcript__header">
     <div>
       <strong>{{ identityLabel(selectedSession) }}</strong>
       <small>
         Started {{ asLocalDate(selectedSession.createdAt) | date: 'MMM d, y, h:mm a' }}
         · <span class="badge" [ngClass]="statusClass(selectedSession.status)">{{ statusLabel(selectedSession.status) }}</span>
-        <ng-container *ngIf="selectedSession.telegramTopicId"> · Topic #{{ selectedSession.telegramTopicId }}</ng-container>
+        @if (selectedSession.telegramTopicId) {
+ · Topic #{{ selectedSession.telegramTopicId }}
+        }
       </small>
     </div>
     <div class="chat-transcript__actions">
+      @if (selectedSession.status !== 'Resolved') {
       <button
         type="button"
-        *ngIf="selectedSession.status !== 'Resolved'"
         (click)="resolveSelectedSession()"
         title="Mark resolved — ends the conversation for the customer too">
         <i class="fas fa-flag-checkered" aria-hidden="true"></i>
       </button>
+      }
       <button type="button" (click)="loadTranscript()" [disabled]="transcriptLoading" title="Refresh transcript">
         <i class="fas fa-rotate-right" aria-hidden="true"></i>
       </button>
+      @if (isSuperAdmin) {
       <button
         type="button"
-        *ngIf="isSuperAdmin"
         class="chat-transcript__delete"
         (click)="deleteSession(selectedSession)"
         title="Delete conversation (permanent)"
         aria-label="Delete conversation">
         <i class="fas fa-trash" aria-hidden="true"></i>
       </button>
+      }
       <button type="button" (click)="closePanel()" aria-label="Close">
         <i class="fas fa-xmark" aria-hidden="true"></i>
       </button>
     </div>
   </header>
 
-  <div class="chat-transcript__error" *ngIf="transcriptError">{{ transcriptError }}</div>
-  <div class="chat-transcript__loading" *ngIf="transcriptLoading && !transcript">Loading…</div>
+  @if (transcriptError) {
+  <div class="chat-transcript__error">{{ transcriptError }}</div>
+  }
+  @if (transcriptLoading && !transcript) {
+  <div class="chat-transcript__loading">Loading…</div>
+  }
+  @if (transcript) {
+  <div class="chat-transcript__messages">
+    @for (m of transcript.messages; track m) {
 
-  <div class="chat-transcript__messages" *ngIf="transcript">
-    <ng-container *ngFor="let m of transcript.messages">
       <!-- Admin-only System audit notes (escalation reasons) -->
-      <div class="tr-note" *ngIf="m.role === 'system'">
+      @if (m.role === 'system') {
+      <div class="tr-note">
         {{ m.content }}
         <time>{{ asLocalDate(m.createdAt) | date: 'MMM d, h:mm a' }}</time>
       </div>
+      }
 
+      @if (m.role !== 'system') {
       <div
         class="tr-msg"
-        *ngIf="m.role !== 'system'"
         [class.tr-msg--user]="m.role === 'user'"
         [class.tr-msg--assistant]="m.role === 'assistant'"
         [class.tr-msg--team]="m.role === 'humanAgent'">
-        <div class="tr-msg__label" *ngIf="m.role === 'humanAgent'">
+        @if (m.role === 'humanAgent') {
+        <div class="tr-msg__label">
           <i class="fas fa-headset" aria-hidden="true"></i> {{ m.agentName || 'Team' }}
         </div>
+        }
         <div class="tr-msg__bubble">
-          <a *ngIf="m.imagePath" [href]="m.imagePath" target="_blank" rel="noopener">
+          @if (m.imagePath) {
+          <a [href]="m.imagePath" target="_blank" rel="noopener">
             <img [src]="m.imagePath" alt="Attached photo" loading="lazy" />
           </a>
+          }
           <!-- Assistant/team messages render the same lightweight markdown as the widget -->
-          <span *ngIf="m.content && m.role === 'user'">{{ m.content }}</span>
-          <span *ngIf="m.content && m.role !== 'user'" [innerHTML]="m.content | chatMarkdown"></span>
+          @if (m.content && m.role === 'user') {
+          <span>{{ m.content }}</span>
+          }
+          @if (m.content && m.role !== 'user') {
+          <span [innerHTML]="m.content | chatMarkdown"></span>
+          }
         </div>
         <time>{{ asLocalDate(m.createdAt) | date: 'MMM d, h:mm a' }}</time>
       </div>
-    </ng-container>
+      }
+    }
 
-    <div class="chat-transcript__empty" *ngIf="transcript.messages.length === 0">
+    @if (transcript.messages.length === 0) {
+    <div class="chat-transcript__empty">
       No messages in this session.
     </div>
+    }
   </div>
+  }
 </aside>
+}

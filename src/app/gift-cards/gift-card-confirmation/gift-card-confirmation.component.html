@@ -1,13 +1,18 @@
 <div class="gift-card-confirmation-container">
-  <div class="confirmation-content" *ngIf="!paymentCompleted">
+  @if (!paymentCompleted) {
+  <div class="confirmation-content">
     <h1>Complete Your Gift Card Purchase</h1>
     
     <div class="purchase-summary">
       <h3>Purchase Summary</h3>
       <div class="summary-item">
         <span>Recipient:</span>
-        <span *ngIf="!giftCardData?.sendLater">{{ giftCardData?.recipientName }}</span>
-        <span *ngIf="giftCardData?.sendLater">For myself - send later</span>
+        @if (!giftCardData?.sendLater) {
+        <span>{{ giftCardData?.recipientName }}</span>
+        }
+        @if (giftCardData?.sendLater) {
+        <span>For myself - send later</span>
+        }
       </div>
       <div class="summary-item">
         <span>Amount:</span>
@@ -20,7 +25,9 @@
       <h3>Payment Information</h3>
       
       <!-- Apple Pay / Google Pay button -->
-      <div id="payment-request-button" class="applepay-button-container" *ngIf="showApplePay"></div>
+      @if (showApplePay) {
+      <div id="payment-request-button" class="applepay-button-container"></div>
+      }
 
       <!-- Card Element Container -->
       <div id="card-element" class="card-element-container">
@@ -28,14 +35,18 @@
       </div>
       
       <!-- Card Error Message -->
-      <div class="card-error" *ngIf="cardError">
+      @if (cardError) {
+      <div class="card-error">
         {{ cardError }}
       </div>
+      }
       
       <!-- Error Message -->
-      <div class="error-message" *ngIf="errorMessage">
+      @if (errorMessage) {
+      <div class="error-message">
         {{ errorMessage }}
       </div>
+      }
       
       <!-- Action Buttons -->
       <div class="payment-actions">
@@ -43,8 +54,12 @@
           class="pay-btn" 
           (click)="processPayment()"
           [disabled]="isProcessing || !!cardError">
-          <span *ngIf="!isProcessing">Pay ${{ giftCardAmount | number:'1.2-2' }}</span>
-          <span *ngIf="isProcessing">Processing...</span>
+          @if (!isProcessing) {
+          <span>Pay ${{ giftCardAmount | number:'1.2-2' }}</span>
+          }
+          @if (isProcessing) {
+          <span>Processing...</span>
+          }
         </button>
         
         <button 
@@ -56,9 +71,11 @@
       </div>
     </div>
   </div>
+  }
   
   <!-- Success Content -->
-  <div class="success-content" *ngIf="paymentCompleted && giftCardData?.sendLater">
+  @if (paymentCompleted && giftCardData?.sendLater) {
+  <div class="success-content">
     <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
     <h1>Payment Successful!</h1>
     <p>Your gift card has been created and saved in your profile. Nothing has been sent to anyone yet.</p>
@@ -68,8 +85,10 @@
       <p class="recipient-info">When you're ready, send it from <a routerLink="/profile" [queryParams]="{ tab: 'gift-cards' }"><strong>Profile &rarr; Gift Cards</strong></a>.</p>
     </div>
   </div>
+  }
 
-  <div class="success-content" *ngIf="paymentCompleted && !giftCardData?.sendLater">
+  @if (paymentCompleted && !giftCardData?.sendLater) {
+  <div class="success-content">
     <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
     <h1>Payment Successful!</h1>
     <p>Your gift card has been created and sent to the recipient.</p>
@@ -79,4 +98,5 @@
       <p class="recipient-info">The gift card has been sent to: <strong>{{ giftCardData?.recipientEmail }}</strong></p>
     </div>
   </div>
+  }
 </div>

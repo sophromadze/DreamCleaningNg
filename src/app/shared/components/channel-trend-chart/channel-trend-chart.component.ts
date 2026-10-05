@@ -1,7 +1,7 @@
 import {
   Component, ElementRef, Input, OnChanges, OnDestroy, PLATFORM_ID, ViewChild, inject
 } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import Chart from 'chart.js/auto';
 
 /** One plotted series (a channel), tied to a design-token CSS variable for its color. */
@@ -44,7 +44,7 @@ export function channelColorVar(channel: string): string {
 @Component({
   selector: 'app-channel-trend-chart',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './channel-trend-chart.component.html',
   styleUrls: ['./channel-trend-chart.component.scss']
 })

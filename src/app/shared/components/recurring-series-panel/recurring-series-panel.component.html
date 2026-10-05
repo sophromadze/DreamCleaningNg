@@ -1,21 +1,29 @@
 <div class="rsp">
   <h5>Recurrence</h5>
 
-  <div class="rsp-loading" *ngIf="loading">Loading schedule…</div>
+  @if (loading) {
+  <div class="rsp-loading">Loading schedule…</div>
+  }
 
-  <div class="rsp-alert rsp-alert--error" *ngIf="errorMessage">{{ errorMessage }}</div>
-  <div class="rsp-alert rsp-alert--notice" *ngIf="noticeMessage">{{ noticeMessage }}</div>
+  @if (errorMessage) {
+  <div class="rsp-alert rsp-alert--error">{{ errorMessage }}</div>
+  }
+  @if (noticeMessage) {
+  <div class="rsp-alert rsp-alert--notice">{{ noticeMessage }}</div>
+  }
 
   <!-- ── Not recurring yet ────────────────────────────────────────────────────────────── -->
-  <ng-container *ngIf="!loading && !series && !editing">
+  @if (!loading && !series && !editing) {
     <p class="rsp-muted">This is a one-off cleaning.</p>
-    <button *ngIf="canCreate" type="button" class="rsp-btn rsp-btn--primary" (click)="startSetup()">
+    @if (canCreate) {
+    <button type="button" class="rsp-btn rsp-btn--primary" (click)="startSetup()">
       Make it recurring
     </button>
-  </ng-container>
+    }
+  }
 
   <!-- ── Existing schedule ────────────────────────────────────────────────────────────── -->
-  <ng-container *ngIf="!loading && series && !editing">
+  @if (!loading && series && !editing) {
     <p class="rsp-summary">
       <strong>{{ series.intervalLabel }}</strong>
       <span class="rsp-chip" [class.rsp-chip--off]="!series.isActive">
@@ -24,19 +32,29 @@
     </p>
 
     <p class="rsp-line"><strong>Recurrence start date:</strong> {{ series.anchorDate | date:'mediumDate' }}</p>
-    <p class="rsp-line" *ngIf="series.endDate"><strong>Ends:</strong> {{ series.endDate | date:'mediumDate' }}</p>
+    @if (series.endDate) {
+    <p class="rsp-line"><strong>Ends:</strong> {{ series.endDate | date:'mediumDate' }}</p>
+    }
     <p class="rsp-line">
       <strong>Upcoming cleanings:</strong>
-      <ng-container *ngIf="series.upcomingOccurrenceTarget != null">
+      @if (series.upcomingOccurrenceTarget != null) {
         keeps {{ series.upcomingOccurrenceTarget }} generated ({{ series.upcomingCount ?? 0 }} now).
-      </ng-container>
-      <ng-container *ngIf="series.upcomingOccurrenceTarget == null">the next 30 days are generated.</ng-container>
+      }
+      @if (series.upcomingOccurrenceTarget == null) {
+      the next 30 days are generated.
+      }
     </p>
-    <p class="rsp-line" *ngIf="series.contract">
+    @if (series.contract) {
+    <p class="rsp-line">
       <strong>Contract:</strong> {{ series.contract.contractNumber }}
-      <span *ngIf="series.contract.serviceAddress"> · {{ series.contract.serviceAddress }}</span>
+      @if (series.contract.serviceAddress) {
+      <span> · {{ series.contract.serviceAddress }}</span>
+      }
     </p>
-    <p class="rsp-line" *ngIf="series.notes"><strong>Note:</strong> {{ series.notes }}</p>
+    }
+    @if (series.notes) {
+    <p class="rsp-line"><strong>Note:</strong> {{ series.notes }}</p>
+    }
 
     <!--
       THE TWO THINGS THAT ARE EASY TO ASSUME WRONGLY, said out loud rather than left to be
@@ -45,100 +63,134 @@
     -->
     <p class="rsp-line rsp-line--fact">
       <strong>Cleaners:</strong>
-      <ng-container *ngIf="series.copyCleanerAssignments">
+      @if (series.copyCleanerAssignments) {
         copied onto each cleaning — <em>no email or SMS is sent</em>. Use the Send email button on
         each order.
-      </ng-container>
-      <ng-container *ngIf="!series.copyCleanerAssignments">assigned by hand on each cleaning.</ng-container>
+      }
+      @if (!series.copyCleanerAssignments) {
+      assigned by hand on each cleaning.
+      }
     </p>
 
     <p class="rsp-line rsp-line--fact">
       <strong>Payment:</strong>
-      <ng-container *ngIf="series.stoppedAt">no automatic payment requests are sent for this stopped plan.</ng-container>
-      <ng-container *ngIf="!series.stoppedAt && series.billingControlledByContract">
+      @if (series.stoppedAt) {
+      no automatic payment requests are sent for this stopped plan.
+      }
+      @if (!series.stoppedAt && series.billingControlledByContract) {
         billed by {{ series.contract?.contractNumber }}'s weekly invoice. These cleanings are operational
         records — no per-cleaning payment requests are sent.
-      </ng-container>
-      <ng-container *ngIf="!series.stoppedAt && !series.billingControlledByContract && series.autoRequestPayment">
+      }
+      @if (!series.stoppedAt && !series.billingControlledByContract && series.autoRequestPayment) {
         requested automatically, never sooner than 24 hours after the previous cleaning.
-      </ng-container>
-      <ng-container *ngIf="!series.stoppedAt && !series.billingControlledByContract && !series.autoRequestPayment">
+      }
+      @if (!series.stoppedAt && !series.billingControlledByContract && !series.autoRequestPayment) {
         the customer can pay whenever they like; nothing is sent automatically.
-      </ng-container>
+      }
     </p>
 
     <!-- The standing discount, stated in the form it was agreed in rather than converted. -->
     <p class="rsp-line rsp-line--fact">
       <strong>Standing discount:</strong>
-      <ng-container *ngIf="series.recurringLoyaltyDiscountAmount != null">
+      @if (series.recurringLoyaltyDiscountAmount != null) {
         {{ series.recurringLoyaltyDiscountAmount | currency:'USD' }} off every cleaning.
-      </ng-container>
-      <ng-container *ngIf="series.recurringLoyaltyDiscountAmount == null && series.recurringLoyaltyDiscountPercent">
+      }
+      @if (series.recurringLoyaltyDiscountAmount == null && series.recurringLoyaltyDiscountPercent) {
         {{ series.recurringLoyaltyDiscountPercent }}% off every cleaning.
-      </ng-container>
-      <ng-container *ngIf="series.recurringLoyaltyDiscountAmount == null && !series.recurringLoyaltyDiscountPercent">
+      }
+      @if (series.recurringLoyaltyDiscountAmount == null && !series.recurringLoyaltyDiscountPercent) {
         none — each cleaning is priced at the customer's ordinary rate.
-      </ng-container>
+      }
     </p>
 
-    <p class="rsp-warn" *ngIf="unnotifiedOccurrenceCount > 0">
+    @if (unnotifiedOccurrenceCount > 0) {
+    <p class="rsp-warn">
       ⚠ {{ unnotifiedOccurrenceCount }} upcoming cleaning(s) have auto-assigned cleaners who have
       not been notified.
     </p>
+    }
 
     <h6 class="rsp-subhead">Upcoming cleanings</h6>
     <ul class="rsp-list">
-      <li *ngFor="let o of futureOccurrences" class="rsp-occurrence">
+      @for (o of futureOccurrences; track o) {
+      <li class="rsp-occurrence">
         <span class="rsp-occ-date">{{ o.serviceDate | date:'EEE d MMM' }}</span>
-        <span class="rsp-occ-total" *ngIf="!series.billingControlledByContract">{{ o.total | currency:'USD' }}</span>
+        @if (!series.billingControlledByContract) {
+        <span class="rsp-occ-total">{{ o.total | currency:'USD' }}</span>
+        }
         <span class="rsp-occ-status" [class.rsp-occ-status--paid]="o.isPaid">
           {{ o.isSkipped ? 'Skipped' : (o.isPaid ? 'Paid' : o.status) }}
         </span>
-        <span class="rsp-occ-tag" *ngIf="o.isTemplate">source</span>
-        <button *ngIf="canUpdate && o.wasGenerated && !o.isPaid && o.status === 'Pending'"
+        @if (o.isTemplate) {
+        <span class="rsp-occ-tag">source</span>
+        }
+        @if (canUpdate && o.wasGenerated && !o.isPaid && o.status === 'Pending') {
+        <button
                 type="button" class="rsp-btn rsp-btn--tiny" (click)="pendingAction = {kind: 'skip', orderId: o.orderId}">Skip this cleaning</button>
-        <span class="rsp-occ-warn" *ngIf="o.autoAssignedNotNotifiedCount > 0"
+        }
+        @if (o.autoAssignedNotNotifiedCount > 0) {
+        <span class="rsp-occ-warn"
               title="Auto-assigned from this series — the cleaner has not been notified">
           not notified
         </span>
+        }
       </li>
-      <li *ngIf="futureOccurrences.length === 0" class="rsp-muted">
+      }
+      @if (futureOccurrences.length === 0) {
+      <li class="rsp-muted">
         {{ series.upcomingOccurrenceTarget != null ? 'No upcoming cleanings.' : 'Nothing scheduled in the next 30 days.' }}
       </li>
+      }
     </ul>
 
-    <p class="rsp-muted rsp-tiny" *ngIf="series.pendingDates.length > 0">
+    @if (series.pendingDates.length > 0) {
+    <p class="rsp-muted rsp-tiny">
       {{ series.pendingDates.length }} date(s) {{ series.upcomingOccurrenceTarget != null ? 'are still needed to reach the target' : 'in the next 30 days have no cleaning yet' }} —
       they are created by the daily pass, or press Generate now.
     </p>
+    }
 
     <div class="rsp-actions">
-      <button *ngIf="canCreate && series.stoppedAt && series.templateOrderId === orderId" type="button"
+      @if (canCreate && series.stoppedAt && series.templateOrderId === orderId) {
+      <button type="button"
               class="rsp-btn rsp-btn--primary" (click)="startSetup(true)">Start new recurring plan</button>
-      <button *ngIf="canUpdate && !series.stoppedAt" type="button" class="rsp-btn" (click)="startSetup()">Edit schedule</button>
-      <button *ngIf="canUpdate && !series.stoppedAt" type="button" class="rsp-btn"
+      }
+      @if (canUpdate && !series.stoppedAt) {
+      <button type="button" class="rsp-btn" (click)="startSetup()">Edit schedule</button>
+      }
+      @if (canUpdate && !series.stoppedAt) {
+      <button type="button" class="rsp-btn"
               (click)="pendingAction = {kind: series.isActive ? 'pause' : 'resume'}">{{ series.isActive ? 'Pause recurrence' : 'Resume recurrence' }}</button>
-      <button *ngIf="canUpdate && !series.stoppedAt" type="button" class="rsp-btn" (click)="pendingAction = {kind: 'stop'}">Stop recurrence</button>
-      <button *ngIf="canUpdate && series.isActive && !series.stoppedAt" type="button" class="rsp-btn" (click)="generateNow()" [disabled]="generating">
+      }
+      @if (canUpdate && !series.stoppedAt) {
+      <button type="button" class="rsp-btn" (click)="pendingAction = {kind: 'stop'}">Stop recurrence</button>
+      }
+      @if (canUpdate && series.isActive && !series.stoppedAt) {
+      <button type="button" class="rsp-btn" (click)="generateNow()" [disabled]="generating">
         {{ generating ? 'Generating…' : 'Generate now' }}
       </button>
+      }
     </div>
-  </ng-container>
+  }
 
-  <div *ngIf="pendingAction" class="rsp-alert rsp-alert--notice">
+  @if (pendingAction) {
+  <div class="rsp-alert rsp-alert--notice">
     <p>{{ pendingAction.kind === 'stop' ? 'Permanently stop this recurrence? Existing orders will stay.' : pendingAction.kind === 'skip' ? 'Skip this cleaning only? The anchor and later dates will stay.' : pendingAction.kind === 'pause' ? 'Pause new generation? Already-generated orders will stay.' : 'Resume generation from the existing recurrence rule?' }}</p>
     <div class="rsp-actions">
       <button type="button" class="rsp-btn rsp-btn--primary" [disabled]="saving" (click)="confirmAction()">Confirm</button>
       <button type="button" class="rsp-btn" [disabled]="saving" (click)="pendingAction = null">Cancel</button>
     </div>
   </div>
+  }
 
   <!-- ── Setup / edit form ──────────────────────────────────────────────────────────────
        Grouped into the three questions the form actually asks — when it repeats, what it
        costs, and how it behaves — because a flat run of labels made the discount field look
        like part of the schedule and the estimate look like part of the discount.            -->
-  <ng-container *ngIf="editing">
-    <p *ngIf="startingNew" class="rsp-muted">Set up a new plan from this order. The previous plan stays stopped and its history is kept.</p>
+  @if (editing) {
+    @if (startingNew) {
+    <p class="rsp-muted">Set up a new plan from this order. The previous plan stays stopped and its history is kept.</p>
+    }
 
     <!-- ── When it repeats ── -->
     <section class="rsp-group">
@@ -151,7 +203,9 @@
             <input type="number" min="1" class="rsp-input rsp-input--count" [(ngModel)]="intervalValue"
                    (ngModelChange)="refreshSuggestedFirstCleaning()" aria-label="Interval">
             <select class="rsp-input" [(ngModel)]="intervalUnit" (ngModelChange)="onIntervalUnitChange()" aria-label="Interval unit">
-              <option *ngFor="let u of units" [ngValue]="u.value">{{ u.label }}</option>
+              @for (u of units; track u) {
+              <option [ngValue]="u.value">{{ u.label }}</option>
+              }
             </select>
           </div>
         </div>
@@ -164,44 +218,62 @@
 
       <!-- Said at the moment of choosing, not after Save. The server refuses it as well; this is
            the courtesy, that is the control. -->
-      <p class="rsp-warn" *ngIf="dailyNotSupported">
+      @if (dailyNotSupported) {
+      <p class="rsp-warn">
         Daily cleaning is not supported yet. Choose 2 days or more, or use weeks or months.
       </p>
+      }
 
       <!-- Any combination of weekdays — nothing is excluded for anyone. -->
-      <div class="rsp-field" *ngIf="intervalUnit === Units.Weeks">
+      @if (intervalUnit === Units.Weeks) {
+      <div class="rsp-field">
         <span class="rsp-label">Service days</span>
         <div class="rsp-days" role="group" aria-label="Service days">
-          <button type="button" *ngFor="let d of weekdayChips" class="rsp-day"
+          @for (d of weekdayChips; track d) {
+          <button type="button" class="rsp-day"
                   [class.rsp-day--on]="serviceDaysOfWeek.includes(d.value)"
                   [attr.aria-pressed]="serviceDaysOfWeek.includes(d.value)"
                   (click)="toggleWeekday(d.value)">{{ d.label }}</button>
+          }
         </div>
-        <small class="rsp-hint" *ngIf="isLegacyPattern">
+        @if (isLegacyPattern) {
+        <small class="rsp-hint">
           This plan repeats on its first cleaning's weekday. Choose days to change that.
         </small>
-        <small class="rsp-hint" *ngIf="!isLegacyPattern">
+        }
+        @if (!isLegacyPattern) {
+        <small class="rsp-hint">
           One cleaning on each selected day of every applicable week, all at the service time below.
         </small>
+        }
       </div>
+      }
 
       <!-- Days of the month. A day a month does not have (the 31st in April) is skipped that
            month, never moved to another date. -->
-      <div class="rsp-field" *ngIf="intervalUnit === Units.Months">
+      @if (intervalUnit === Units.Months) {
+      <div class="rsp-field">
         <span class="rsp-label">Days of month</span>
         <div class="rsp-days rsp-days--month" role="group" aria-label="Days of month">
-          <button type="button" *ngFor="let d of monthDayChoices" class="rsp-day"
+          @for (d of monthDayChoices; track d) {
+          <button type="button" class="rsp-day"
                   [class.rsp-day--on]="serviceDaysOfMonth.includes(d)"
                   [attr.aria-pressed]="serviceDaysOfMonth.includes(d)"
                   (click)="toggleMonthDay(d)">{{ d }}</button>
+          }
         </div>
-        <small class="rsp-hint" *ngIf="isLegacyPattern">
+        @if (isLegacyPattern) {
+        <small class="rsp-hint">
           This plan repeats on its first cleaning's day of the month. Choose days to change that.
         </small>
-        <small class="rsp-hint" *ngIf="!isLegacyPattern">
+        }
+        @if (!isLegacyPattern) {
+        <small class="rsp-hint">
           A day a month does not have (e.g. the 31st in April) is skipped that month.
         </small>
+        }
       </div>
+      }
 
       <div class="rsp-row">
         <label class="rsp-field">
@@ -226,28 +298,37 @@
                [(ngModel)]="upcomingOccurrenceTarget" aria-label="Generate upcoming cleanings">
         <small class="rsp-hint">
           Keep this many future cleaning orders ready.
-          <ng-container *ngIf="allowsLegacyWindow"> Leave blank to keep this plan's 30-day window.</ng-container>
+          @if (allowsLegacyWindow) {
+ Leave blank to keep this plan's 30-day window.
+          }
         </small>
       </label>
 
-      <label class="rsp-field" *ngIf="contractOptions.length || contractId">
+      @if (contractOptions.length || contractId) {
+      <label class="rsp-field">
         <span class="rsp-label">Commercial contract <span class="rsp-optional">optional</span></span>
         <select class="rsp-input" [(ngModel)]="contractId" (ngModelChange)="refreshSuggestedFirstCleaning()"
                 aria-label="Commercial contract">
           <option [ngValue]="null">No contract</option>
-          <option *ngFor="let c of contractOptions" [ngValue]="c.id">
+          @for (c of contractOptions; track c) {
+          <option [ngValue]="c.id">
             {{ c.contractNumber }} — {{ c.isWeeklyFlatFee ? 'weekly flat fee' : 'per visit' }}
           </option>
+          }
         </select>
-        <small class="rsp-hint" *ngIf="selectedContract?.serviceAddress">{{ selectedContract?.serviceAddress }}</small>
+        @if (selectedContract?.serviceAddress) {
+        <small class="rsp-hint">{{ selectedContract?.serviceAddress }}</small>
+        }
       </label>
+      }
     </section>
 
     <!-- ── What it costs ── -->
     <section class="rsp-group">
       <h6 class="rsp-group-title">Pricing</h6>
 
-      <div class="rsp-note" *ngIf="billingControlledByContract">
+      @if (billingControlledByContract) {
+      <div class="rsp-note">
         <p class="rsp-note-title">Billing is controlled by the linked commercial contract.</p>
         <p class="rsp-note-body">
           Individual cleaning orders are operational service records and do not represent separate
@@ -256,23 +337,32 @@
           ({{ selectedContract?.visitsPerWeek }} scheduled visits) on its weekly invoice.
         </p>
       </div>
+      }
 
-      <ng-container *ngIf="!billingControlledByContract">
-      <div class="rsp-note" *ngIf="pricePreview">
+      @if (!billingControlledByContract) {
+      @if (pricePreview) {
+      <div class="rsp-note">
         <p class="rsp-note-title">Discounts on the source order</p>
         <p class="rsp-note-body">
           These were used once on the original cleaning and do <strong>not</strong> carry over.
         </p>
         <ul class="rsp-source-list">
-          <li *ngFor="let discount of pricePreview.sourceDiscounts">
-            <span class="rsp-source-label">{{ discount.label }}<span *ngIf="discount.percent"> ({{ discount.percent }}%)</span></span>
+          @for (discount of pricePreview.sourceDiscounts; track discount) {
+          <li>
+            <span class="rsp-source-label">{{ discount.label }}@if (discount.percent) {
+            <span> ({{ discount.percent }}%)</span>
+            }</span>
             <span class="rsp-source-amount">−{{ discount.amount | currency:'USD' }}</span>
           </li>
-          <li *ngIf="!pricePreview.sourceDiscounts.length" class="rsp-muted rsp-tiny">
+          }
+          @if (!pricePreview.sourceDiscounts.length) {
+          <li class="rsp-muted rsp-tiny">
             No discounts or credits on the source order.
           </li>
+          }
         </ul>
       </div>
+      }
 
       <!-- ONE agreement, written either way. The selector is what makes that legible: the old
            bare number box never said whether 15 meant fifteen percent or fifteen dollars. -->
@@ -288,36 +378,45 @@
                   (click)="setLoyaltyDiscountMode('fixed')">Fixed amount</button>
         </div>
 
-        <div class="rsp-adorned" *ngIf="loyaltyDiscountMode === 'percent'">
+        @if (loyaltyDiscountMode === 'percent') {
+        <div class="rsp-adorned">
           <input type="number" min="0" max="100" step="0.01" class="rsp-input" placeholder="0"
                  aria-label="Recurring discount percentage"
                  [(ngModel)]="recurringLoyaltyDiscountPercent" (ngModelChange)="refreshPricePreview()">
           <span class="rsp-adorn">%</span>
         </div>
+        }
 
-        <div class="rsp-adorned" *ngIf="loyaltyDiscountMode === 'fixed'">
+        @if (loyaltyDiscountMode === 'fixed') {
+        <div class="rsp-adorned">
           <span class="rsp-adorn">$</span>
           <input type="number" min="0" step="0.01" class="rsp-input" placeholder="0.00"
                  aria-label="Recurring discount amount in dollars"
                  [(ngModel)]="recurringLoyaltyDiscountAmount" (ngModelChange)="refreshPricePreview()">
         </div>
+        }
 
         <small class="rsp-hint">
-          <ng-container *ngIf="loyaltyDiscountMode === 'percent'">
+          @if (loyaltyDiscountMode === 'percent') {
             Taken off every cleaning in this plan, as a share of what that cleaning is priced at.
-          </ng-container>
-          <ng-container *ngIf="loyaltyDiscountMode === 'fixed'">
+          }
+          @if (loyaltyDiscountMode === 'fixed') {
             The same dollar amount comes off every cleaning, whatever it is priced at.
-          </ng-container>
+          }
           Leave blank for no standing discount. One-time promo codes, Bubble Points and automatic
           inactivity loyalty discounts are never carried over.
         </small>
       </div>
 
-      <p class="rsp-muted rsp-tiny" *ngIf="previewLoading">Calculating recurring estimate…</p>
-      <p class="rsp-warn" *ngIf="previewError">{{ previewError }}</p>
+      @if (previewLoading) {
+      <p class="rsp-muted rsp-tiny">Calculating recurring estimate…</p>
+      }
+      @if (previewError) {
+      <p class="rsp-warn">{{ previewError }}</p>
+      }
 
-      <div class="rsp-estimate" *ngIf="pricePreview as preview">
+      @if (pricePreview; as preview) {
+      <div class="rsp-estimate">
         <p class="rsp-estimate-title">Estimated recurring cleaning</p>
         <dl class="rsp-estimate-rows">
           <div class="rsp-estimate-row">
@@ -327,48 +426,65 @@
           <div class="rsp-estimate-row">
             <dt>
               Applied loyalty
-              <span class="rsp-estimate-note" *ngIf="preview.loyaltyPercent">
-                {{ preview.loyaltySource }}<ng-container *ngIf="preview.loyaltyIsFixedAmount"> · fixed</ng-container>
-                <ng-container *ngIf="!preview.loyaltyIsFixedAmount"> · {{ preview.loyaltyPercent }}%</ng-container>
+              @if (preview.loyaltyPercent) {
+              <span class="rsp-estimate-note">
+                {{ preview.loyaltySource }}@if (preview.loyaltyIsFixedAmount) {
+ · fixed
+                }
+                @if (!preview.loyaltyIsFixedAmount) {
+ · {{ preview.loyaltyPercent }}%
+                }
               </span>
+              }
             </dt>
             <dd>
-              <ng-container *ngIf="preview.loyaltyPercent; else noLoyalty">−{{ preview.loyaltyAmount | currency:'USD' }}</ng-container>
-              <ng-template #noLoyalty>None</ng-template>
+              @if (preview.loyaltyPercent) {
+              −{{ preview.loyaltyAmount | currency:'USD' }}
+              } @else {
+              None
+              }
             </dd>
           </div>
           <div class="rsp-estimate-row">
             <dt>Sales tax</dt>
             <dd>{{ preview.tax | currency:'USD' }}</dd>
           </div>
-          <div class="rsp-estimate-row" *ngIf="preview.tips">
+          @if (preview.tips) {
+          <div class="rsp-estimate-row">
             <dt>Tips</dt>
             <dd>{{ preview.tips | currency:'USD' }}</dd>
           </div>
+          }
           <div class="rsp-estimate-row rsp-estimate-row--total">
             <dt>Estimated total</dt>
             <dd>{{ preview.total | currency:'USD' }}</dd>
           </div>
         </dl>
-        <small class="rsp-hint" *ngIf="preview.commercialLoyaltyExcluded">
+        @if (preview.commercialLoyaltyExcluded) {
+        <small class="rsp-hint">
           Residential loyalty does not apply to commercial or invoice-backed cleanings.
         </small>
+        }
         <small class="rsp-hint">
           Uses current service pricing. Lifetime and series discounts never stack — whichever is
           worth more on the cleaning applies.
         </small>
       </div>
-      </ng-container>
+      }
+      }
     </section>
 
-    <div *ngIf="needsFutureOrdersChoice" class="rsp-alert rsp-alert--notice">
+    @if (needsFutureOrdersChoice) {
+    <div class="rsp-alert rsp-alert--notice">
       <p class="rsp-note-title">Future generated orders already exist. Choose how this edit should apply.</p>
       <p class="rsp-note-body">
         {{ retainedFutureOccurrences.length }} future cleaning(s) are already generated, through
         {{ lastRetainedFutureDate | date:'mediumDate' }}.
-        Future generation will use: every {{ intervalValue }} {{ intervalUnit === Units.Weeks ? 'week(s)' : intervalUnit === Units.Months ? 'month(s)' : 'day(s)' }}<ng-container
-          *ngIf="intervalUnit === Units.Weeks && serviceDaysOfWeek.length"> on {{ describeDays(serviceDaysOfWeek, Units.Weeks) }}</ng-container><ng-container
-          *ngIf="intervalUnit === Units.Months && serviceDaysOfMonth.length"> on the {{ describeDays(serviceDaysOfMonth, Units.Months) }}</ng-container>.
+        Future generation will use: every {{ intervalValue }} {{ intervalUnit === Units.Weeks ? 'week(s)' : intervalUnit === Units.Months ? 'month(s)' : 'day(s)' }}@if (intervalUnit === Units.Weeks && serviceDaysOfWeek.length) {
+ on {{ describeDays(serviceDaysOfWeek, Units.Weeks) }}
+        }@if (intervalUnit === Units.Months && serviceDaysOfMonth.length) {
+ on the {{ describeDays(serviceDaysOfMonth, Units.Months) }}
+        }.
         Nothing already created is moved or deleted automatically.
       </p>
       <label class="rsp-check">
@@ -389,6 +505,7 @@
         </span>
       </label>
     </div>
+    }
 
     <!-- ── How it behaves ── -->
     <section class="rsp-group">
@@ -405,7 +522,8 @@
         </span>
       </label>
 
-      <label class="rsp-check" *ngIf="!billingControlledByContract">
+      @if (!billingControlledByContract) {
+      <label class="rsp-check">
         <input type="checkbox" [(ngModel)]="autoRequestPayment">
         <span>
           Request payment automatically
@@ -415,9 +533,12 @@
           </small>
         </span>
       </label>
-      <p class="rsp-muted rsp-tiny" *ngIf="billingControlledByContract">
+      }
+      @if (billingControlledByContract) {
+      <p class="rsp-muted rsp-tiny">
         Automatic payment requests are off: this contract is billed weekly by invoice, not per cleaning.
       </p>
+      }
 
       <label class="rsp-check">
         <input type="checkbox" [(ngModel)]="isActive">
@@ -441,5 +562,5 @@
       </button>
       <button type="button" class="rsp-btn" (click)="cancelEdit()" [disabled]="saving">Cancel</button>
     </div>
-  </ng-container>
+  }
 </div>

@@ -1,6 +1,7 @@
 <div class="crm-ads">
   <!-- Totals strip — sticky, stays pinned at the top while the table scrolls. Ad-only KPIs. -->
-  <div class="stats-section" *ngIf="totals">
+  @if (totals) {
+  <div class="stats-section">
     <div class="stats-strip">
       <div class="stat">
         <span class="stat-value">{{ totals.adSpend | currency }}</span>
@@ -16,7 +17,9 @@
       </div>
       <div class="stat stat--booked">
         <span class="stat-value">{{ totals.bookedOrders }}</span>
-        <span class="stat-label">Booked orders<span class="from-ad" *ngIf="totals.adBookedOrders > 0"> · {{ totals.adBookedOrders }} from ad</span></span>
+        <span class="stat-label">Booked orders@if (totals.adBookedOrders > 0) {
+        <span class="from-ad"> · {{ totals.adBookedOrders }} from ad</span>
+        }</span>
       </div>
       <div class="stat">
         <span class="stat-value">{{ costPerClick | currency }}</span>
@@ -32,6 +35,7 @@
       </div>
     </div>
   </div>
+  }
 
   <!-- Toolbar -->
   <div class="ads-toolbar">
@@ -44,8 +48,10 @@
         <span class="caret" aria-hidden="true">▾</span>
       </button>
 
-      <ul class="dropdown-menu" *ngIf="dropdownOpen" role="listbox">
-        <li *ngFor="let p of presets"
+      @if (dropdownOpen) {
+      <ul class="dropdown-menu" role="listbox">
+        @for (p of presets; track p) {
+        <li
             class="dropdown-item"
             [class.active]="period === p.key"
             role="option"
@@ -53,7 +59,9 @@
             (click)="selectPreset(p.key)">
           {{ p.label }}
         </li>
+        }
       </ul>
+      }
     </div>
 
     <div class="custom-range">
@@ -75,10 +83,13 @@
     </button>
   </div>
 
-  <div class="error-banner" *ngIf="errorMessage">{{ errorMessage }}</div>
+  @if (errorMessage) {
+  <div class="error-banner">{{ errorMessage }}</div>
+  }
 
   <!-- Daily detail (primary content) — Google Ads performance vs real booked orders, day by day -->
-  <div class="daily-section" *ngIf="!loading && rows.length > 0">
+  @if (!loading && rows.length > 0) {
+  <div class="daily-section">
     <div class="daily-head">
       <h2>Daily detail</h2>
       <span class="daily-sub">{{ totalCount }} day{{ totalCount === 1 ? '' : 's' }} · Google Ads vs real booked orders</span>
@@ -96,42 +107,57 @@
           </tr>
         </thead>
         <tbody>
-          <tr *ngFor="let row of rows; trackBy: trackByDate">
+          @for (row of rows; track trackByDate($index, row)) {
+          <tr>
             <td>{{ row.date | date: 'EEE, MMM d, y' }}</td>
             <td>{{ row.adSpend | currency }}</td>
             <td>{{ row.clicks }}</td>
             <td>
               <span class="conv-google">{{ row.googleConversions }}</span>
-              <span class="conv-rate muted" *ngIf="row.clicks > 0">{{ row.googleConversionRate }}% of clicks</span>
+              @if (row.clicks > 0) {
+              <span class="conv-rate muted">{{ row.googleConversionRate }}% of clicks</span>
+              }
             </td>
             <td>
               <div class="booked-cell">
                 <span class="conv-booked">{{ row.bookedOrders }}</span>
                 <!-- Booking times of the orders that came straight from an ad (Paid Search). -->
-                <span class="ad-times" *ngIf="row.adBookedTimes.length > 0"
+                @if (row.adBookedTimes.length > 0) {
+                <span class="ad-times"
                       [title]="row.adBookedTimes.length + ' order(s) booked directly from an ad'">
                   <span class="ad-times-label">from ad:</span>
-                  <span class="ad-time" *ngFor="let t of row.adBookedTimes">{{ t }}</span>
+                  @for (t of row.adBookedTimes; track t) {
+                  <span class="ad-time">{{ t }}</span>
+                  }
                 </span>
+                }
               </div>
             </td>
           </tr>
+          }
         </tbody>
       </table>
 
       <!-- Paging -->
-      <div class="paging" *ngIf="totalPages > 1">
+      @if (totalPages > 1) {
+      <div class="paging">
         <button class="btn-light" (click)="prevPage()" [disabled]="page <= 1">← Prev</button>
         <span class="page-info">Page {{ page }} of {{ totalPages }} · {{ totalCount }} days</span>
         <button class="btn-light" (click)="nextPage()" [disabled]="page >= totalPages">Next →</button>
       </div>
+      }
     </div>
   </div>
+  }
 
-  <div class="state-msg" *ngIf="loading">Loading…</div>
-  <div class="state-msg" *ngIf="!loading && rows.length === 0 && !errorMessage">
+  @if (loading) {
+  <div class="state-msg">Loading…</div>
+  }
+  @if (!loading && rows.length === 0 && !errorMessage) {
+  <div class="state-msg">
     No ad activity in this range.
   </div>
+  }
 
   <!-- ახსნა-განმარტება ადმინებისთვის (ქართულად) -->
   <section class="ads-help">

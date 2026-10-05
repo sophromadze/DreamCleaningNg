@@ -2,7 +2,8 @@
   <!-- bookingData is null on a refresh/deep-link (BookingDataService is in-memory only).
        ngOnInit redirects in that case, but router.navigate is async, so this block would
        still render once and crash on bookingData.serviceDate below. -->
-  <div class="confirmation-content" *ngIf="!paymentCompleted && bookingData">
+  @if (!paymentCompleted && bookingData) {
+  <div class="confirmation-content">
     <h1>Complete Your Booking</h1>
     
     <!-- Booking Summary Section -->
@@ -20,27 +21,37 @@
       <h2>Payment Information</h2>
 
       <!-- Fully covered by gift card / credits: no charge required -->
-      <div class="fully-covered-notice" *ngIf="fullyCovered">
+      @if (fullyCovered) {
+      <div class="fully-covered-notice">
         <i [appIcon]="icons.faGift"></i>
         <p>Your gift card covers the full amount. No payment is required — just confirm your booking.</p>
       </div>
+      }
 
       <!-- Saved cards vs. a new card (signed-in customer only; selecting never charges — Pay does) -->
-      <div class="saved-card-choice" *ngIf="savedCards.length > 0 && !fullyCovered" role="radiogroup" aria-label="Payment method">
-        <label class="pay-option" *ngFor="let card of savedCards" [class.selected]="selectedCardId === card.id">
+      @if (savedCards.length > 0 && !fullyCovered) {
+      <div class="saved-card-choice" role="radiogroup" aria-label="Payment method">
+        @for (card of savedCards; track card) {
+        <label class="pay-option" [class.selected]="selectedCardId === card.id">
           <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId === card.id"
                  (change)="selectPaymentMethod(card.id)" [disabled]="isProcessing">
-          <span>Pay with {{ cardLabel(card) }}<span class="pay-option-badge" *ngIf="card.isPrimary"> · Primary</span></span>
+          <span>Pay with {{ cardLabel(card) }}@if (card.isPrimary) {
+          <span class="pay-option-badge"> · Primary</span>
+          }</span>
         </label>
+        }
         <label class="pay-option" [class.selected]="selectedCardId === null">
           <input type="radio" name="paymentMethodChoice" [checked]="selectedCardId === null"
                  (change)="selectPaymentMethod(null)" [disabled]="isProcessing">
           <span>Enter a new card</span>
         </label>
       </div>
+      }
 
       <!-- Apple Pay / Google Pay button -->
-      <div id="payment-request-button" class="applepay-button-container" *ngIf="showApplePay && !fullyCovered && !usingSavedCard"></div>
+      @if (showApplePay && !fullyCovered && !usingSavedCard) {
+      <div id="payment-request-button" class="applepay-button-container"></div>
+      }
 
       <!-- Card Element Container (kept in the DOM for Stripe even while hidden, so it can be
            revealed if the gift card no longer covers the full amount or the saved card is
@@ -50,12 +61,15 @@
       </div>
 
       <!-- Card Error Message -->
-      <div class="card-error" *ngIf="cardError && !fullyCovered && !usingSavedCard">
+      @if (cardError && !fullyCovered && !usingSavedCard) {
+      <div class="card-error">
         {{ cardError }}
       </div>
+      }
       
       <!-- The card WAS charged; only our confirmation is late. Never phrased as a failure. -->
-      <div class="finalizing-notice" *ngIf="finalizingPayment" role="status" aria-live="polite">
+      @if (finalizingPayment) {
+      <div class="finalizing-notice" role="status" aria-live="polite">
         <i [appIcon]="icons.faCircleNotch" class="fa-spin" aria-hidden="true"></i>
         <div>
           <strong>Your payment went through — we're finalising your booking.</strong>
@@ -63,28 +77,35 @@
             refresh the page in a minute or check your email for the confirmation.</p>
         </div>
       </div>
+      }
 
       <!-- Money-sensitive notice (auto-refund / contact us) — stays until the customer dismisses it -->
+      @if (stickyNotice) {
       <div class="support-notice"
            [class.support-notice--critical]="stickyNotice.severity === 'critical'"
-           *ngIf="stickyNotice">
+          >
         <p>{{ stickyNotice.message }}</p>
         <button type="button" class="dismiss-btn" (click)="dismissStickyNotice()">Dismiss</button>
       </div>
+      }
 
       <!-- Error Message -->
-      <div class="error-message" *ngIf="errorMessage">
+      @if (errorMessage) {
+      <div class="error-message">
         {{ errorMessage }}
       </div>
+      }
 
       <!-- Re-entering this page while a charge started earlier is still settling. Says so
            plainly instead of offering a Pay button that would take a second payment. -->
-      <div class="support-notice" *ngIf="resumedInFlight">
+      @if (resumedInFlight) {
+      <div class="support-notice">
         <p>
           Your payment is still being processed. Please don't close this page or pay again —
           we'll take you to your confirmation as soon as it's finished.
         </p>
       </div>
+      }
 
       <!-- Action Buttons -->
       <div class="payment-actions">
@@ -92,9 +113,15 @@
           class="pay-btn"
           (click)="onPayClicked()"
           [disabled]="isProcessing || (!fullyCovered && !usingSavedCard && !!cardError)">
-          <span *ngIf="!isProcessing && fullyCovered">Complete Booking</span>
-          <span *ngIf="!isProcessing && !fullyCovered">Pay ${{ orderTotal | number:'1.2-2' }}</span>
-          <span *ngIf="isProcessing">Processing...</span>
+          @if (!isProcessing && fullyCovered) {
+          <span>Complete Booking</span>
+          }
+          @if (!isProcessing && !fullyCovered) {
+          <span>Pay ${{ orderTotal | number:'1.2-2' }}</span>
+          }
+          @if (isProcessing) {
+          <span>Processing...</span>
+          }
         </button>
         
         <button 
@@ -106,9 +133,11 @@
       </div>
     </div>
   </div>
+  }
   
   <!-- Success Content -->
-  <div class="success-content" *ngIf="paymentCompleted">
+  @if (paymentCompleted) {
+  <div class="success-content">
     <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
     <h1>Payment Successful!</h1>
     <p>Your booking has been confirmed.</p>
@@ -116,6 +145,7 @@
     
     <a [routerLink]="['/order', orderId]" class="view-order-btn">View Order Now</a>
   </div>
+  }
 </div>
 
 <!-- Asked between the Pay click and the charge; it starts nothing by itself. -->

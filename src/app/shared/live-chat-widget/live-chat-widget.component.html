@@ -1,24 +1,32 @@
 <!-- Chat Bubble Button — hidden when admin disables chat -->
+@if (chatEnabled) {
 <button
-  *ngIf="chatEnabled"
   class="chat-bubble"
   [class.has-unread]="unreadCount > 0"
   (click)="toggleChat()"
   aria-label="Open live chat"
 >
-  <span *ngIf="unreadCount > 0" class="unread-badge">{{ unreadCount }}</span>
+  @if (unreadCount > 0) {
+  <span class="unread-badge">{{ unreadCount }}</span>
+  }
   <!-- Chat icon (open state: show X) -->
-  <svg *ngIf="!isOpen" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="28" height="28">
+  @if (!isOpen) {
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="28" height="28">
     <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/>
     <path d="M7 9h10v2H7zm0-3h10v2H7zm0 6h7v2H7z"/>
   </svg>
-  <svg *ngIf="isOpen" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="24" height="24">
+  }
+  @if (isOpen) {
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="24" height="24">
     <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
   </svg>
+  }
 </button>
+}
 
 <!-- Chat Window -->
-<div *ngIf="chatEnabled" class="chat-window" [class.chat-window--open]="isOpen">
+@if (chatEnabled) {
+<div class="chat-window" [class.chat-window--open]="isOpen">
 
   <!-- Header -->
   <div class="chat-header">
@@ -35,7 +43,9 @@
       </div>
     </div>
     <div class="chat-header__actions">
-      <button *ngIf="isChatStarted" class="btn-end-chat" (click)="endChat()">End Chat</button>
+      @if (isChatStarted) {
+      <button class="btn-end-chat" (click)="endChat()">End Chat</button>
+      }
       <button class="btn-close" (click)="toggleChat()" aria-label="Close chat">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white" width="20" height="20">
           <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
@@ -45,7 +55,8 @@
   </div>
 
   <!-- Pre-chat form -->
-  <div *ngIf="!isChatStarted" class="pre-chat-form">
+  @if (!isChatStarted) {
+  <div class="pre-chat-form">
     <div class="pre-chat-form__greeting">Hi there! 👋</div>
     <div class="pre-chat-form__subtitle">How can we help you today?</div>
     <input
@@ -62,9 +73,10 @@
     <button class="btn-start-chat" (click)="startChat()">Start Chat</button>
     <p class="pre-chat-form__note">We typically reply within minutes</p>
   </div>
+  }
 
   <!-- Active chat -->
-  <ng-container *ngIf="isChatStarted">
+  @if (isChatStarted) {
 
     <!-- Messages area -->
     <div
@@ -75,10 +87,13 @@
       (drop)="onDrop($event)"
     >
       <!-- Error toast -->
-      <div *ngIf="errorMessage" class="error-toast">{{ errorMessage }}</div>
+      @if (errorMessage) {
+      <div class="error-toast">{{ errorMessage }}</div>
+      }
 
       <!-- Drag-drop overlay -->
-      <div *ngIf="isDraggingFile" class="drag-overlay">
+      @if (isDraggingFile) {
+      <div class="drag-overlay">
         <div class="drag-overlay__content">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="40" height="40">
             <path d="M19 7v2.99s-1.99.01-2 0V7h-3s.01-1.99 0-2h3V2h2v3h3v2h-3zm-3 4V8h-3V5H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-8h-3zM5 19l3-4 2 3 3-4 4 5H5z"/>
@@ -86,44 +101,57 @@
           <span>Drop image here</span>
         </div>
       </div>
+      }
 
       <!-- Connecting spinner -->
-      <div *ngIf="status === 'connecting'" class="connecting-state">
+      @if (status === 'connecting') {
+      <div class="connecting-state">
         <div class="spinner"></div>
         <span>Connecting...</span>
       </div>
+      }
 
       <!-- Empty state -->
-      <div *ngIf="status === 'connected' && messages.length === 0" class="empty-state">
+      @if (status === 'connected' && messages.length === 0) {
+      <div class="empty-state">
         Send us a message and we'll reply right away!
       </div>
+      }
 
       <!-- Messages -->
-      <div *ngFor="let msg of messages" class="message-wrapper" [class.message-wrapper--visitor]="msg.isFromVisitor">
-        <div *ngIf="!msg.isFromVisitor" class="message-sender-label">{{ msg.agentName || 'Dream Cleaning' }}</div>
+      @for (msg of messages; track msg) {
+      <div class="message-wrapper" [class.message-wrapper--visitor]="msg.isFromVisitor">
+        @if (!msg.isFromVisitor) {
+        <div class="message-sender-label">{{ msg.agentName || 'Dream Cleaning' }}</div>
+        }
         <div class="message-bubble"
           [class.message-bubble--visitor]="msg.isFromVisitor"
           [class.message-bubble--admin]="!msg.isFromVisitor"
           [class.message-bubble--image]="!!msg.imageBase64">
 
           <!-- Image message -->
-          <ng-container *ngIf="msg.imageBase64">
+          @if (msg.imageBase64) {
             <img
               [src]="getImageSrc(msg)"
               class="message-image"
               alt="Image"
               (click)="openImageInTab(getImageSrc(msg))"
             />
-            <div *ngIf="msg.content" class="message-caption">{{ msg.content }}</div>
-          </ng-container>
+            @if (msg.content) {
+            <div class="message-caption">{{ msg.content }}</div>
+            }
+          }
 
           <!-- Text message -->
-          <span *ngIf="!msg.imageBase64 && msg.content">{{ msg.content }}</span>
+          @if (!msg.imageBase64 && msg.content) {
+          <span>{{ msg.content }}</span>
+          }
         </div>
         <div class="message-time" [class.message-time--visitor]="msg.isFromVisitor">
           {{ msg.timestamp | date:'h:mm a' }}
         </div>
       </div>
+      }
     </div>
 
     <!-- Input area -->
@@ -164,5 +192,6 @@
       </button>
     </div>
 
-  </ng-container>
+  }
 </div>
+}

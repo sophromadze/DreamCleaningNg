@@ -1,20 +1,26 @@
 <!-- The list, and everything that drives it. Panel-only mode (see `embeddedUserId`) draws none of
      it: the host has its own list, and this instance is there for the detail panel alone. -->
+@if (!isEmbedded) {
 <div class="user-management-section"
-     *ngIf="!isEmbedded"
      [class.detail-open]="viewingUserId !== null">
   <div class="section-header">
     <div class="header-left">
       <h2>User Management</h2>
-      <span class="user-count" *ngIf="!loadingUsers">{{ users.length }} total</span>
+      @if (!loadingUsers) {
+      <span class="user-count">{{ users.length }} total</span>
+      }
     </div>
     <div class="header-right">
-      <button class="action-btn register-customer" *ngIf="canCreate" (click)="openRegisterModal()">
+      @if (canCreate) {
+      <button class="action-btn register-customer" (click)="openRegisterModal()">
         + Register Customer
       </button>
-      <button class="action-btn export-users" *ngIf="isSuperAdmin" (click)="openExportModal()">
+      }
+      @if (isSuperAdmin) {
+      <button class="action-btn export-users" (click)="openExportModal()">
         Export
       </button>
+      }
       <button class="action-btn refresh"
               (click)="loadUsers()"
               [disabled]="loadingUsers">
@@ -24,8 +30,12 @@
   </div>
 
   <div class="messages">
-    <div class="error-message" *ngIf="errorMessage">{{ errorMessage }}</div>
-    <div class="success-message" *ngIf="successMessage">{{ successMessage }}</div>
+    @if (errorMessage) {
+    <div class="error-message">{{ errorMessage }}</div>
+    }
+    @if (successMessage) {
+    <div class="success-message">{{ successMessage }}</div>
+    }
   </div>
 
   <div class="filters-section">
@@ -44,20 +54,24 @@
       <!-- Only the roles this tab can actually contain. Offering "Customer" on the Staff tab
            (or the three admin roles on Customers) would be a filter that always returns nothing,
            which reads as a broken list rather than an empty one. -->
-      <select aria-label="Filter by role" [(ngModel)]="roleFilter" class="filter-select" *ngIf="scope === 'staff'">
+      @if (scope === 'staff') {
+      <select aria-label="Filter by role" [(ngModel)]="roleFilter" class="filter-select">
         <option value="all">All Roles</option>
         <option value="SuperAdmin">SAdmin</option>
         <option value="Admin">Admin</option>
         <option value="Moderator">Moderator</option>
       </select>
+      }
       <!-- Customer type by non-cancelled order count: new = 1, returning = 2+.
            Meaningless for staff, who are not booking cleanings. -->
-      <select aria-label="Filter by customer type" [(ngModel)]="customerTypeFilter" class="filter-select" *ngIf="scope === 'customers'">
+      @if (scope === 'customers') {
+      <select aria-label="Filter by customer type" [(ngModel)]="customerTypeFilter" class="filter-select">
         <option value="all">All Customers</option>
         <option value="new">New (1 order)</option>
         <option value="returning">Returning (2+)</option>
         <option value="none">No Orders</option>
       </select>
+      }
     </div>
   </div>
 
@@ -72,11 +86,14 @@
               <th class="col-phone">Phone</th>
               <th class="col-email">Email</th>
               <th class="col-last">Last Cleaning</th>
-              <th class="col-actions" *ngIf="userRole !== 'Moderator'">Actions</th>
+              @if (userRole !== 'Moderator') {
+              <th class="col-actions">Actions</th>
+              }
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let user of filteredUsers"
+            @for (user of filteredUsers; track user) {
+            <tr
                 class="user-row"
                 [class.row-selected]="viewingUserId === user.id"
                 [class.row-blocked]="!user.isActive"
@@ -92,15 +109,21 @@
                         [attr.title]="user.firstName + ' ' + user.lastName">
                     <!-- Social-login/uploaded photo when we have one (same source the header
                          user-menu avatar uses); initials are the fallback. -->
-                    <img *ngIf="user.profilePictureUrl" class="avatar-img"
+                    @if (user.profilePictureUrl) {
+                    <img class="avatar-img"
                          [src]="user.profilePictureUrl"
                          [alt]="user.firstName + ' ' + user.lastName"
                          referrerpolicy="no-referrer"
                          (error)="onAvatarError(user)">
-                    <span *ngIf="!user.profilePictureUrl" class="avatar-initials">{{ getInitials(user.firstName, user.lastName) }}</span>
+                    }
+                    @if (!user.profilePictureUrl) {
+                    <span class="avatar-initials">{{ getInitials(user.firstName, user.lastName) }}</span>
+                    }
                     <!-- Only rendered while the user is actually online — an "offline" grey dot
                          was indistinguishable from the online one at this size. -->
-                    <span *ngIf="user.isOnline" class="online-dot" title="Online"></span>
+                    @if (user.isOnline) {
+                    <span class="online-dot" title="Online"></span>
+                    }
                   </span>
                   <div class="customer-meta">
                     <span class="customer-name">
@@ -108,19 +131,29 @@
                       {{ user.firstName }} {{ user.lastName }}
                     </span>
                     <span class="customer-tags">
-                      <span *ngIf="isStaffRole(user.role)"
+                      @if (isStaffRole(user.role)) {
+                      <span
                             class="role-chip"
                             [class.superadmin]="user.role === 'SuperAdmin'"
                             [class.admin]="user.role === 'Admin'"
                             [class.moderator]="user.role === 'Moderator'">
                         {{ displayRole(user.role) }}
                       </span>
-                      <span *ngIf="user.firstTimeOrder" class="tag-chip first-time">First-time</span>
-                      <span *ngIf="!user.isActive" class="tag-chip blocked">Blocked</span>
-                      <span *ngIf="user.isActive && user.flag === 'Red'" class="tag-chip flag-red"
+                      }
+                      @if (user.firstTimeOrder) {
+                      <span class="tag-chip first-time">First-time</span>
+                      }
+                      @if (!user.isActive) {
+                      <span class="tag-chip blocked">Blocked</span>
+                      }
+                      @if (user.isActive && user.flag === 'Red') {
+                      <span class="tag-chip flag-red"
                             [title]="user.flagReason || 'Flagged (red)'">⚑ Red</span>
-                      <span *ngIf="user.isActive && user.flag === 'Yellow'" class="tag-chip flag-yellow"
+                      }
+                      @if (user.isActive && user.flag === 'Yellow') {
+                      <span class="tag-chip flag-yellow"
                             [title]="user.flagReason || 'Flagged (yellow)'">⚑ Yellow</span>
+                      }
                     </span>
                   </div>
                 </div>
@@ -128,24 +161,32 @@
 
               <td class="col-phone">{{ user.phone || '—' }}</td>
               <td class="col-email">
-                <span *ngIf="user.isNoEmailUser" class="tag-chip no-email" title="Customer without email — admin-managed account (pays cash, Zelle, etc.)">No email</span>
-                <span *ngIf="!user.isNoEmailUser" class="ellipsis-text">{{ user.email }}</span>
+                @if (user.isNoEmailUser) {
+                <span class="tag-chip no-email" title="Customer without email — admin-managed account (pays cash, Zelle, etc.)">No email</span>
+                }
+                @if (!user.isNoEmailUser) {
+                <span class="ellipsis-text">{{ user.email }}</span>
+                }
               </td>
 
               <!-- Last cleaning: date + service type chip -->
               <td class="col-last">
-                <ng-container *ngIf="$any(user).lastCleaningDate; else noLast">
+                @if ($any(user).lastCleaningDate) {
                   <div class="last-cleaning">
                     <span class="last-date">{{ formatShortDate($any(user).lastCleaningDate) }}</span>
-                    <span class="last-type-chip" *ngIf="$any(user).lastCleaningServiceType">
+                    @if ($any(user).lastCleaningServiceType) {
+                    <span class="last-type-chip">
                       {{ getCompactServiceType($any(user).lastCleaningServiceType, user) }}
                     </span>
+                    }
                   </div>
-                </ng-container>
-                <ng-template #noLast><span class="muted">No cleanings yet</span></ng-template>
+                } @else {
+                <span class="muted">No cleanings yet</span>
+                }
               </td>
 
-              <td class="col-actions" *ngIf="userRole !== 'Moderator'" (click)="$event.stopPropagation()">
+              @if (userRole !== 'Moderator') {
+              <td class="col-actions" (click)="$event.stopPropagation()">
                 <div class="row-actions">
                   <button class="icon-btn note"
                           (click)="openUserDetailsTab(user, 'notes', $event)"
@@ -163,62 +204,81 @@
                           title="Call user">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.08 4.18 2 2 0 0 1 4.06 2h3a2 2 0 0 1 2 1.72c.12.91.33 1.8.63 2.66a2 2 0 0 1-.45 2.11L8 9.73a16 16 0 0 0 6.27 6.27l1.24-1.24a2 2 0 0 1 2.11-.45c.86.3 1.75.51 2.66.63A2 2 0 0 1 22 16.92z"/></svg>
                   </button>
+                  @if (canBanUser(user)) {
                   <button class="icon-btn warn"
-                          *ngIf="canBanUser(user)"
                           (click)="updateUserStatus(user, false)"
                           title="Block user">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
                   </button>
+                  }
+                  @if (canUnbanUser(user)) {
                   <button class="icon-btn ok"
-                          *ngIf="canUnbanUser(user)"
                           (click)="updateUserStatus(user, true)"
                           title="Unblock user">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
                   </button>
+                  }
+                  @if (isSuperAdmin) {
                   <button class="icon-btn danger"
-                          *ngIf="isSuperAdmin"
                           (click)="deleteUser(user, $event)"
                           title="Delete user">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
                   </button>
+                  }
                 </div>
               </td>
+              }
             </tr>
+            }
 
-            <tr *ngIf="!loadingUsers && filteredUsers.length === 0">
+            @if (!loadingUsers && filteredUsers.length === 0) {
+            <tr>
               <td colspan="5" class="empty-row">No users match the current filters.</td>
             </tr>
+            }
           </tbody>
         </table>
       </div>
     </div>
 
     <!-- Pagination -->
-    <div class="pagination" *ngIf="totalPages > 1">
+    @if (totalPages > 1) {
+    <div class="pagination">
       <button class="page-btn" (click)="previousPage()" [disabled]="currentPage === 1">‹ Previous</button>
       <button class="page-btn" (click)="goToPage(1)" [class.active]="currentPage === 1">1</button>
-      <span *ngIf="totalPages > 5 && currentPage > 3" class="page-ellipsis">…</span>
-      <button *ngFor="let page of getVisiblePages()"
+      @if (totalPages > 5 && currentPage > 3) {
+      <span class="page-ellipsis">…</span>
+      }
+      @for (page of getVisiblePages(); track page) {
+      <button
               class="page-btn"
               (click)="goToPage(page)"
               [class.active]="currentPage === page">{{ page }}</button>
-      <span *ngIf="totalPages > 5 && currentPage < totalPages - 2" class="page-ellipsis">…</span>
-      <button *ngIf="totalPages > 1"
+      }
+      @if (totalPages > 5 && currentPage < totalPages - 2) {
+      <span class="page-ellipsis">…</span>
+      }
+      @if (totalPages > 1) {
+      <button
               class="page-btn"
               (click)="goToPage(totalPages)"
               [class.active]="currentPage === totalPages">{{ totalPages }}</button>
+      }
       <button class="page-btn" (click)="nextPage()" [disabled]="currentPage === totalPages">Next ›</button>
     </div>
+    }
   </div>
 </div>
+}
 
 <!-- ──────────────  SLIDE-IN DETAIL PANEL  ────────────── -->
 <!-- The click-away overlay belongs to whoever owns the panel's place on screen. In panel-only
      mode that is the host, which already has one up for its own panel — a second would sit on
      top of the first and swallow the click. -->
+@if (viewingUserId !== null && !isEmbedded) {
 <div class="detail-overlay"
-     *ngIf="viewingUserId !== null && !isEmbedded"
      (click)="dismissDetailPanel()"></div>
+}
 
 <!-- Held open from the first frame when embedded: the host has just swapped its own panel out for
      this one, and waiting on the list load would blank the slot they were both standing in. -->
@@ -230,70 +290,91 @@
 
   <!-- The list's own error slot lives inside the section, which panel-only mode does not draw —
        so a load that fails here would otherwise sit on "Loading…" with the reason off screen. -->
-  <div *ngIf="isEmbedded && !selectedUser" class="detail-loading">
+  @if (isEmbedded && !selectedUser) {
+  <div class="detail-loading">
     {{ errorMessage || 'Loading customer record…' }}
   </div>
+  }
+  @if (selectedUser) {
 
-  <ng-container *ngIf="selectedUser">
     <!-- Header -->
     <div class="detail-header">
       <div class="detail-header__main">
         <div class="detail-avatar"
              [style.background]="getAvatarColor(selectedUser.id)">
-          <img *ngIf="selectedUser.profilePictureUrl" class="avatar-img"
+          @if (selectedUser.profilePictureUrl) {
+          <img class="avatar-img"
                [src]="selectedUser.profilePictureUrl"
                [alt]="selectedUser.firstName + ' ' + selectedUser.lastName"
                referrerpolicy="no-referrer"
                (error)="onAvatarError(selectedUser)">
-          <span *ngIf="!selectedUser.profilePictureUrl" class="avatar-initials">{{ getInitials(selectedUser.firstName, selectedUser.lastName) }}</span>
-          <span *ngIf="selectedUser.isOnline" class="online-dot" title="Online"></span>
+          }
+          @if (!selectedUser.profilePictureUrl) {
+          <span class="avatar-initials">{{ getInitials(selectedUser.firstName, selectedUser.lastName) }}</span>
+          }
+          @if (selectedUser.isOnline) {
+          <span class="online-dot" title="Online"></span>
+          }
         </div>
         <div class="detail-identity">
           <h3 class="detail-name">
             {{ selectedUser.firstName }} {{ selectedUser.lastName }}
-            <span *ngIf="isStaffRole(selectedUser.role)"
+            @if (isStaffRole(selectedUser.role)) {
+            <span
                   class="role-chip"
                   [class.superadmin]="selectedUser.role === 'SuperAdmin'"
                   [class.admin]="selectedUser.role === 'Admin'"
                   [class.moderator]="selectedUser.role === 'Moderator'">
               {{ displayRole(selectedUser.role) }}
             </span>
+            }
           </h3>
           <div class="detail-contact">
             <span title="Phone">📞 {{ selectedUser.phone || '—' }}</span>
-            <span title="Email" *ngIf="!selectedUser.isNoEmailUser">✉ {{ selectedUser.email }}</span>
-            <span *ngIf="selectedUser.isNoEmailUser" class="tag-chip no-email" title="Customer without email — admin-managed account (pays cash, Zelle, etc.)">No email</span>
+            @if (!selectedUser.isNoEmailUser) {
+            <span title="Email">✉ {{ selectedUser.email }}</span>
+            }
+            @if (selectedUser.isNoEmailUser) {
+            <span class="tag-chip no-email" title="Customer without email — admin-managed account (pays cash, Zelle, etc.)">No email</span>
+            }
           </div>
           <div class="detail-address-line">📍 {{ getPrimaryAddressLine(selectedUser) }}</div>
         </div>
       </div>
       <div class="detail-header__actions">
         <div class="actions-row">
-          <button class="action-btn small" *ngIf="canEditUserDetails(selectedUser) && !editingUser" (click)="startEditUser()">Edit</button>
+          @if (canEditUserDetails(selectedUser) && !editingUser) {
+          <button class="action-btn small" (click)="startEditUser()">Edit</button>
+          }
           <button class="action-btn small ghost" (click)="dismissDetailPanel()" aria-label="Close">✕</button>
         </div>
+        @if (canEditUserDetails(selectedUser) && !editingUser && selectedUser.role === 'Customer') {
         <button class="action-btn small"
-                *ngIf="canEditUserDetails(selectedUser) && !editingUser && selectedUser.role === 'Customer'"
                 (click)="sendReminderToUser()"
                 [disabled]="sendingReminder"
                 title="Send a reminder — &quot;we miss you&quot; for past customers, &quot;book your first cleaning&quot; for users who never ordered">
           {{ sendingReminder ? 'Sending…' : 'Send Reminder' }}
         </button>
+        }
+        @if (isSuperAdmin && !editingUser && isStaffRole(selectedUser.role)) {
         <button class="action-btn small warning"
-                *ngIf="isSuperAdmin && !editingUser && isStaffRole(selectedUser.role)"
                 (click)="resetStaffPin(selectedUser)"
                 [disabled]="resettingPin"
                 title="Unlock this staff account and clear their login PIN. They'll set a brand-new PIN on their next login.">
           {{ resettingPin ? 'Resetting…' : 'Reset Login PIN' }}
         </button>
+        }
       </div>
     </div>
 
     <!-- Loading state -->
-    <div *ngIf="loadingUserDetails" class="detail-loading">Loading customer profile…</div>
+    @if (loadingUserDetails) {
+    <div class="detail-loading">Loading customer profile…</div>
+    }
 
     <!-- Stats row -->
-    <div class="stats-row" *ngIf="!loadingUserDetails && !editingUser">
+    @if (!loadingUserDetails && !editingUser) {
+    <div class="stats-row">
       <div class="stat">
         <span class="stat-label">Registered</span>
         <span class="stat-value">{{ formatUtcShortDate(selectedUser.createdAt) }}</span>
@@ -310,25 +391,30 @@
         <span class="stat-label">Last Cleaning</span>
         <span class="stat-value">{{ $any(selectedUser).lastCleaningDate ? formatShortDate($any(selectedUser).lastCleaningDate) : '—' }}</span>
       </div>
-      <div class="stat" *ngIf="userRewardsSummary?.pointsSystemEnabled">
+      @if (userRewardsSummary?.pointsSystemEnabled) {
+      <div class="stat">
         <span class="stat-label">Bubble Points</span>
         <span class="stat-value bubble">{{ (userRewardsSummary?.currentPoints ?? 0) | number }}</span>
       </div>
+      }
 
       <!-- Staff bonus stats. Only shown when the viewed user has the Admin role — how many
            paying orders they earn on, and what that comes to this calendar month. The rate
            shown is theirs (their own override if they have one), new / returning customer. -->
-      <ng-container *ngIf="selectedUser.role === 'Admin' && adminBonusAllTime">
+      @if (selectedUser.role === 'Admin' && adminBonusAllTime) {
         <div class="stat">
           <span class="stat-label">Paying Orders</span>
           <span class="stat-value">
             {{ adminBonusAllTime.assignedCount }}
-            <small *ngIf="adminBonusAllTime.eligibleCount !== adminBonusAllTime.assignedCount" class="muted">
+            @if (adminBonusAllTime.eligibleCount !== adminBonusAllTime.assignedCount) {
+            <small class="muted">
               ({{ adminBonusAllTime.eligibleCount }} paying)
             </small>
+            }
           </span>
         </div>
-        <div class="stat" *ngIf="adminBonusThisMonth">
+        @if (adminBonusThisMonth) {
+        <div class="stat">
           <span class="stat-label">This Month Bonus</span>
           <span class="stat-value">
             {{ adminBonusThisMonth.bonusAmount }} {{ adminBonusThisMonth.currency }}
@@ -339,11 +425,14 @@
             </small>
           </span>
         </div>
-      </ng-container>
+        }
+      }
     </div>
+    }
 
     <!-- Edit form (Admin / SuperAdmin) -->
-    <div *ngIf="editingUser && canEditUserDetails(selectedUser)" class="edit-form-wrap">
+    @if (editingUser && canEditUserDetails(selectedUser)) {
+    <div class="edit-form-wrap">
       <h4>Edit User <span class="hint">— all changes are recorded in Audit logs</span></h4>
       <div class="edit-grid">
         <label><span>First Name</span><input type="text" [(ngModel)]="editUserForm.firstName"></label>
@@ -361,68 +450,91 @@
         <button class="action-btn ghost" (click)="cancelEditUser()" [disabled]="savingUser">Cancel</button>
       </div>
 
-      <div class="info-card" *ngIf="userRewardsSummary?.pointsSystemEnabled">
+      @if (userRewardsSummary?.pointsSystemEnabled) {
+      <div class="info-card">
         <h4>Bubble Rewards</h4>
         <div class="info-grid">
           <div><span>Tier</span><strong>{{ getTierLabel(userRewardsSummary.tier) }}</strong></div>
           <div><span>Earned</span><strong>{{ userRewardsSummary.totalEarned | number }}</strong></div>
           <div><span>Redeemed</span><strong>{{ userRewardsSummary.totalRedeemed | number }}</strong></div>
           <div><span>Current</span><strong>{{ userRewardsSummary.currentPoints | number }}</strong></div>
-          <div *ngIf="userRewardsSummary.bubbleCredits > 0"><span>Reward Balance</span><strong>${{ userRewardsSummary.bubbleCredits | number:'1.2-2' }}</strong></div>
-          <div *ngIf="userRewardsSummary.streakCount > 1"><span>Streak</span><strong>{{ userRewardsSummary.streakCount }}</strong></div>
+          @if (userRewardsSummary.bubbleCredits > 0) {
+          <div><span>Reward Balance</span><strong>${{ userRewardsSummary.bubbleCredits | number:'1.2-2' }}</strong></div>
+          }
+          @if (userRewardsSummary.streakCount > 1) {
+          <div><span>Streak</span><strong>{{ userRewardsSummary.streakCount }}</strong></div>
+          }
         </div>
-        <div *ngIf="isSuperAdmin" class="rewards-adjust">
+        @if (isSuperAdmin) {
+        <div class="rewards-adjust">
           <input type="number" [(ngModel)]="adjustPointsAmount" min="0" placeholder="New total" class="small-input">
           <input type="text" [(ngModel)]="adjustPointsDesc" placeholder="Reason (optional)" class="small-input flex">
           <button class="action-btn primary small" (click)="savePointsAdjustment()" [disabled]="savingPoints">{{ savingPoints ? '…' : 'Adjust' }}</button>
         </div>
-        <div *ngIf="pointsSaveMessage" class="muted">{{ pointsSaveMessage }}</div>
+        }
+        @if (pointsSaveMessage) {
+        <div class="muted">{{ pointsSaveMessage }}</div>
+        }
 
         <!-- Refund/cancellation reversals with their full record (order, reason, amount, date, who
              or what applied it). The customer sees these only as "Balance adjustment". -->
-        <div class="referral-block" *ngIf="pointsReversals.length > 0">
+        @if (pointsReversals.length > 0) {
+        <div class="referral-block">
           <div class="referral-block__label">Points taken back ({{ pointsReversals.length }})</div>
           <ul class="referral-list">
-            <li *ngFor="let h of pointsReversals">
+            @for (h of pointsReversals; track h) {
+            <li>
               <div class="referral-list__main">
                 <strong>{{ h.points | number }}</strong>
                 <span class="muted"> — {{ h.createdAt | date:'MMM d, y' }}</span>
                 <div class="muted">{{ h.description }}</div>
               </div>
             </li>
+            }
           </ul>
         </div>
+        }
       </div>
+      }
 
-      <div class="info-card referrals-card" *ngIf="userRewardsSummary?.pointsSystemEnabled">
+      @if (userRewardsSummary?.pointsSystemEnabled) {
+      <div class="info-card referrals-card">
         <h4>Referrals</h4>
 
         <div class="referral-block">
           <div class="referral-block__label">Referred by</div>
-          <div class="referral-block__value" *ngIf="userRewardsSummary?.referredByName; else noReferrer">
+          @if (userRewardsSummary?.referredByName) {
+          <div class="referral-block__value">
             <strong>{{ userRewardsSummary.referredByName }}</strong>
-            <button *ngIf="isSuperAdmin"
+            @if (isSuperAdmin) {
+            <button
                     class="action-btn small ghost inline"
                     [disabled]="removingReferredBy"
                     (click)="removeReferredBy()"
                     title="Remove referrer">×</button>
+            }
           </div>
-          <ng-template #noReferrer>
+          } @else {
             <div class="referral-block__value muted">No referrer set.</div>
-          </ng-template>
+          }
 
-          <div *ngIf="isSuperAdmin" class="referral-form">
+          @if (isSuperAdmin) {
+          <div class="referral-form">
             <div class="referral-search">
               <input type="email"
                      [(ngModel)]="newReferrerEmail"
                      (ngModelChange)="searchReferrers($event)"
                      placeholder="{{ userRewardsSummary?.referredByName ? 'Change referrer (email)' : 'Set referrer (email)' }}"
                      class="small-input flex">
-              <ul *ngIf="newReferrerSearchResults.length > 0" class="suggest-list">
-                <li *ngFor="let s of newReferrerSearchResults" (click)="selectReferrerSuggestion(s.email)">
+              @if (newReferrerSearchResults.length > 0) {
+              <ul class="suggest-list">
+                @for (s of newReferrerSearchResults; track s) {
+                <li (click)="selectReferrerSuggestion(s.email)">
                   <strong>{{ s.email }}</strong> <span class="muted">— {{ s.name }}</span>
                 </li>
+                }
               </ul>
+              }
             </div>
             <button class="action-btn primary small"
                     (click)="setReferredBy()"
@@ -430,39 +542,53 @@
               {{ settingReferredBy ? '…' : (userRewardsSummary?.referredByName ? 'Change' : 'Set') }}
             </button>
           </div>
+          }
         </div>
 
         <div class="referral-block">
           <div class="referral-block__label">
             Referrals ({{ userRewardsSummary?.referrals?.length || 0 }})
           </div>
-          <ul class="referral-list" *ngIf="userRewardsSummary?.referrals?.length > 0">
-            <li *ngFor="let r of userRewardsSummary.referrals">
+          @if (userRewardsSummary?.referrals?.length > 0) {
+          <ul class="referral-list">
+            @for (r of userRewardsSummary.referrals; track r) {
+            <li>
               <div class="referral-list__main">
                 <strong>{{ r.referredUserEmail }}</strong>
                 <span class="muted"> — {{ r.referredUserName }}</span>
               </div>
-              <button *ngIf="isSuperAdmin"
+              @if (isSuperAdmin) {
+              <button
                       class="action-btn small ghost inline"
                       [disabled]="removingReferralId === r.id"
                       (click)="removeReferredUser(r.id)"
                       title="Remove this referral">×</button>
+              }
             </li>
+            }
           </ul>
-          <div *ngIf="!userRewardsSummary?.referrals?.length" class="muted">No referrals yet.</div>
+          }
+          @if (!userRewardsSummary?.referrals?.length) {
+          <div class="muted">No referrals yet.</div>
+          }
 
-          <div *ngIf="isSuperAdmin" class="referral-form">
+          @if (isSuperAdmin) {
+          <div class="referral-form">
             <div class="referral-search">
               <input type="email"
                      [(ngModel)]="newReferralEmail"
                      (ngModelChange)="searchReferrals($event)"
                      placeholder="Add referred user (email)"
                      class="small-input flex">
-              <ul *ngIf="newReferralSearchResults.length > 0" class="suggest-list">
-                <li *ngFor="let s of newReferralSearchResults" (click)="selectReferralSuggestion(s.email)">
+              @if (newReferralSearchResults.length > 0) {
+              <ul class="suggest-list">
+                @for (s of newReferralSearchResults; track s) {
+                <li (click)="selectReferralSuggestion(s.email)">
                   <strong>{{ s.email }}</strong> <span class="muted">— {{ s.name }}</span>
                 </li>
+                }
               </ul>
+              }
             </div>
             <button class="action-btn primary small"
                     (click)="addReferredUser()"
@@ -470,37 +596,53 @@
               {{ addingReferral ? '…' : 'Add' }}
             </button>
           </div>
+          }
         </div>
 
-        <div *ngIf="referralActionMessage" class="muted">{{ referralActionMessage }}</div>
+        @if (referralActionMessage) {
+        <div class="muted">{{ referralActionMessage }}</div>
+        }
       </div>
+      }
     </div>
+    }
 
     <!-- Tabs -->
-    <nav class="detail-tabs" *ngIf="!editingUser" aria-label="User record sections">
+    @if (!editingUser) {
+    <nav class="detail-tabs" aria-label="User record sections">
       <button class="tab" [class.active]="detailTab === 'details'" (click)="setDetailTab('details')">Details</button>
       <button class="tab" [class.active]="detailTab === 'notes'" (click)="setDetailTab('notes')">Notes
-        <span class="badge" *ngIf="generalNotes.length > 0">{{ generalNotes.length }}</span>
+        @if (generalNotes.length > 0) {
+        <span class="badge">{{ generalNotes.length }}</span>
+        }
       </button>
       <button class="tab" [class.active]="detailTab === 'history'" (click)="setDetailTab('history')">History
         <!-- Real orders only (not cancelled, not refunded); the list below still shows every order. -->
-        <span class="badge" *ngIf="historyRealOrderCount > 0">{{ historyRealOrderCount }}</span>
+        @if (historyRealOrderCount > 0) {
+        <span class="badge">{{ historyRealOrderCount }}</span>
+        }
       </button>
       <button class="tab" [class.active]="detailTab === 'photos'" (click)="setDetailTab('photos')">Photos</button>
       <!-- Shown only when there is something in it. An empty Invoices tab on every customer in
            the business is a tab nobody would ever click twice. -->
-      <button class="tab" *ngIf="hasInvoices"
+      @if (hasInvoices) {
+      <button class="tab"
               [class.active]="detailTab === 'invoices'" (click)="setDetailTab('invoices')">Invoices
         <span class="badge">{{ userInvoices.length }}</span>
       </button>
+      }
       <!-- Saved cards, AutoPay, balances and payment attempts — read-only. Admin + SuperAdmin
            only (the endpoint refuses Moderators too). -->
-      <button class="tab" *ngIf="currentUserRole === 'Admin' || currentUserRole === 'SuperAdmin'"
+      @if (currentUserRole === 'Admin' || currentUserRole === 'SuperAdmin') {
+      <button class="tab"
               [class.active]="detailTab === 'billing'" (click)="setDetailTab('billing')">Billing</button>
+      }
     </nav>
+    }
 
     <!-- Tab body scrolls -->
-    <div class="detail-body" *ngIf="!editingUser">
+    @if (!editingUser) {
+    <div class="detail-body">
 
       <!-- ─── INVOICES ─────────────────────────────────────────────────────────────────────
            Every invoice that belongs to this customer, from BOTH directions: the ones addressed
@@ -511,13 +653,17 @@
            Read-only. Sending, editing and recording payment all live in Commercial → Invoices,
            so there is exactly one place each of those can happen. -->
       <!-- Billing: mounted only while open, so its request fires only when an admin asks. -->
-      <section *ngIf="detailTab === 'billing' && selectedUser" class="tab-pane">
+      @if (detailTab === 'billing' && selectedUser) {
+      <section class="tab-pane">
         <app-admin-user-billing [userId]="selectedUser.id"></app-admin-user-billing>
       </section>
+      }
 
-      <section *ngIf="detailTab === 'invoices'" class="tab-pane">
+      @if (detailTab === 'invoices') {
+      <section class="tab-pane">
         <div class="um-invoice-list">
-          <a class="um-invoice-row" *ngFor="let inv of userInvoices"
+          @for (inv of userInvoices; track inv) {
+          <a class="um-invoice-row"
              [href]="'/admin/commercial/invoices/' + inv.id" target="_blank" rel="noopener">
             <div class="um-invoice-main">
               <span class="um-invoice-number">{{ inv.invoiceNumber }}</span>
@@ -526,21 +672,30 @@
             <div class="um-invoice-meta">
               <span>{{ inv.clientName }}</span>
               <span>· {{ inv.invoiceDate | date:'MMM d, y' }}</span>
-              <span *ngIf="inv.coveredOrderCount > 0">· {{ inv.coveredOrderCount }} cleaning(s)</span>
+              @if (inv.coveredOrderCount > 0) {
+              <span>· {{ inv.coveredOrderCount }} cleaning(s)</span>
+              }
             </div>
             <div class="um-invoice-amounts">
               <strong>{{ inv.total | currency:'USD' }}</strong>
-              <span *ngIf="inv.balanceDue > 0" class="text-danger">
+              @if (inv.balanceDue > 0) {
+              <span class="text-danger">
                 {{ inv.balanceDue | currency:'USD' }} due
               </span>
-              <span *ngIf="inv.balanceDue <= 0" class="text-ok">Paid</span>
+              }
+              @if (inv.balanceDue <= 0) {
+              <span class="text-ok">Paid</span>
+              }
             </div>
           </a>
+          }
         </div>
       </section>
+      }
 
       <!-- ─── DETAILS ─── -->
-      <section *ngIf="detailTab === 'details'" class="tab-pane">
+      @if (detailTab === 'details') {
+      <section class="tab-pane">
         <div class="overview-details">
           <!-- ONE PANEL, BOTH HALVES — the commercial record of a business customer, beside their
                account rather than on another tab. The mirror of the "Customer account" card on
@@ -548,7 +703,8 @@
 
                The two are NOT merged. A legal entity name is not a person's name and a notice
                email is not a login, so where they differ the panel shows both. -->
-          <div class="info-card um-business-card" *ngIf="businessClient as bc">
+          @if (businessClient; as bc) {
+          <div class="info-card um-business-card">
             <h4>Business client</h4>
             <div class="info-grid">
               <div class="um-span-2"><span>Legal entity</span><strong>{{ bc.legalEntityName }}</strong></div>
@@ -569,18 +725,25 @@
 
             <!-- Said here because it is the reason an invoice for this client cannot be sent, and
                  an admin finding that out at the send is finding out too late. -->
-            <p class="hint-line um-warn" *ngIf="!bc.billingEmail">
+            @if (!bc.billingEmail) {
+            <p class="hint-line um-warn">
               No billing email — invoices for this client cannot be emailed until one is added.
             </p>
-            <p class="hint-line" *ngIf="!bc.isActive">
+            }
+            @if (!bc.isActive) {
+            <p class="hint-line">
               This client is removed from the Business Clients list. Its contracts and invoices are
               unaffected; turning the Business flag back on lists it again.
             </p>
+            }
           </div>
-          <div class="info-card" *ngIf="loadingBusinessClient && !businessClient">
+          }
+          @if (loadingBusinessClient && !businessClient) {
+          <div class="info-card">
             <h4>Business client</h4>
             <p class="muted">Loading the commercial record…</p>
           </div>
+          }
 
           <div class="info-card">
             <h4>Account</h4>
@@ -600,7 +763,8 @@
             <div class="comm-prefs">
               <span class="pref-row">
                 <span class="pref-label">Emails</span>
-                <span class="yes-no-toggle" *ngIf="canUpdate">
+                @if (canUpdate) {
+                <span class="yes-no-toggle">
                   <span class="yn-btn" [class.active]="userCanReceiveEmails(selectedUser)"
                         (click)="toggleUserEmailsPreference(selectedUser, true, $event)"
                         [class.disabled]="togglingCommsUserId === selectedUser.id">Yes</span>
@@ -608,11 +772,15 @@
                         (click)="toggleUserEmailsPreference(selectedUser, false, $event)"
                         [class.disabled]="togglingCommsUserId === selectedUser.id">No</span>
                 </span>
-                <span *ngIf="!canUpdate">{{ userCanReceiveEmails(selectedUser) ? 'Yes' : 'No' }}</span>
+                }
+                @if (!canUpdate) {
+                <span>{{ userCanReceiveEmails(selectedUser) ? 'Yes' : 'No' }}</span>
+                }
               </span>
               <span class="pref-row">
                 <span class="pref-label">Messages</span>
-                <span class="yes-no-toggle" *ngIf="canUpdate">
+                @if (canUpdate) {
+                <span class="yes-no-toggle">
                   <span class="yn-btn" [class.active]="userCanReceiveMessages(selectedUser)"
                         (click)="toggleUserMessagesPreference(selectedUser, true, $event)"
                         [class.disabled]="togglingCommsUserId === selectedUser.id">Yes</span>
@@ -620,12 +788,16 @@
                         (click)="toggleUserMessagesPreference(selectedUser, false, $event)"
                         [class.disabled]="togglingCommsUserId === selectedUser.id">No</span>
                 </span>
-                <span *ngIf="!canUpdate">{{ userCanReceiveMessages(selectedUser) ? 'Yes' : 'No' }}</span>
+                }
+                @if (!canUpdate) {
+                <span>{{ userCanReceiveMessages(selectedUser) ? 'Yes' : 'No' }}</span>
+                }
               </span>
 
               <!-- Admin-only problem flag. Single source of truth (User.Flag): every order of
                    this customer picks up the same tint. Internal — the customer never sees it. -->
-              <span class="pref-row flag-row" *ngIf="canUpdate">
+              @if (canUpdate) {
+              <span class="pref-row flag-row">
                 <span class="pref-label">Flag</span>
                 <span class="flag-toggle">
                   <span class="flag-btn none" [class.active]="(selectedUser.flag || 'None') === 'None'"
@@ -639,7 +811,9 @@
                         (click)="setUserFlag(selectedUser, 'Red', $event)">⚑ Red</span>
                 </span>
               </span>
-              <span class="pref-row flag-reason-row" *ngIf="canUpdate && selectedUser.flag && selectedUser.flag !== 'None'">
+              }
+              @if (canUpdate && selectedUser.flag && selectedUser.flag !== 'None') {
+              <span class="pref-row flag-reason-row">
                 <span class="pref-label">Reason</span>
                 <input class="flag-reason-input" type="text" maxlength="500"
                        placeholder="Why flagged? (optional)"
@@ -647,8 +821,10 @@
                        (blur)="saveUserFlagReason(selectedUser, $event)"
                        (click)="$event.stopPropagation()">
               </span>
+              }
 
-              <span class="pref-row" *ngIf="canModifyUserRole(selectedUser)">
+              @if (canModifyUserRole(selectedUser)) {
+              <span class="pref-row">
                 <span class="pref-label">Role</span>
                 <select aria-label="Role" class="role-select"
                         [ngModel]="selectedUser.role"
@@ -656,22 +832,27 @@
                   <option value="Customer">Customer</option>
                   <option value="Moderator">Moderator</option>
                   <option value="Admin">Admin</option>
-                  <option value="SuperAdmin" *ngIf="currentUserRole === 'SuperAdmin'">SAdmin</option>
+                  @if (currentUserRole === 'SuperAdmin') {
+                  <option value="SuperAdmin">SAdmin</option>
+                  }
                   <!-- Choosing this moves the account OUT of this tab and into the Cleaners tab,
                        where it is linked to a cleaner record. Offered here as well so the change
                        is available from the row you are already looking at. -->
                   <option value="Cleaner">Cleaner</option>
                 </select>
               </span>
-              <span class="pref-row" *ngIf="canModifyUserRole(selectedUser)">
+              }
+              @if (canModifyUserRole(selectedUser)) {
+              <span class="pref-row">
                 <span class="pref-label"></span>
                 <span class="pref-hint">Cleaner moves this account to the Cleaners tab.</span>
               </span>
+              }
 
               <!-- The CTO's SuperAdmin role is locked for everyone, so the dropdown above is gone.
                    Shown read-only with the reason rather than simply vanishing: an admin who finds
                    no Role control at all reads it as a broken panel. Same refusal the API gives. -->
-              <ng-container *ngIf="isCtoRoleLocked(selectedUser)">
+              @if (isCtoRoleLocked(selectedUser)) {
                 <span class="pref-row">
                   <span class="pref-label">Role</span>
                   <strong>🔒 {{ displayRole(selectedUser.role) }}</strong>
@@ -680,12 +861,12 @@
                   <span class="pref-label"></span>
                   <span class="pref-hint">{{ ctoRoleLockReason }}</span>
                 </span>
-              </ng-container>
+              }
 
               <!-- Position: Manager or Administrator. NOT a permission — it decides which side of
                    the per-order bonus this person earns, and who reports to whom. Only orders
                    assigned AFTER a change are affected; money already earned never moves. -->
-              <ng-container *ngIf="canManageAdminPosition(selectedUser)">
+              @if (canManageAdminPosition(selectedUser)) {
                 <span class="pref-row page-access-head">
                   <span class="pref-label">Position</span>
                   <span class="pref-hint">Decides the bonus rate — not what they can access</span>
@@ -702,7 +883,8 @@
                 </span>
                 <!-- Only an administrator reports to somebody. A manager's row hides this rather
                      than showing a disabled control for a choice that does not exist. -->
-                <span class="pref-row" *ngIf="!isManagerPosition(selectedUser)">
+                @if (!isManagerPosition(selectedUser)) {
+                <span class="pref-row">
                   <span class="pref-label pref-label-sub">Reports to</span>
                   <!-- ngValue, not value: the ids are numbers, and a plain [value] would render
                        them as strings and never match the bound managerId. -->
@@ -711,55 +893,66 @@
                           [disabled]="savingAdminPositionUserId === selectedUser.id"
                           (ngModelChange)="updateUserManager(selectedUser, $event)">
                     <option [ngValue]="null">No manager</option>
-                    <option *ngFor="let m of managerOptionsFor(selectedUser)" [ngValue]="m.id">
+                    @for (m of managerOptionsFor(selectedUser); track m) {
+                    <option [ngValue]="m.id">
                       {{ m.firstName }} {{ m.lastName }}
                     </option>
+                    }
                   </select>
                 </span>
-              </ng-container>
+                }
+              }
 
               <!-- Officer title. Moved here from the Contracts tab (2026-09) so it sits with the
                    other facts about who this person is, beside Role and Position.
                    Shown on staff accounts only, and deliberately wider than the Position section
                    above: a SuperAdmin can hold a title too, which is who the officers actually are.
                    Its authority is NOT the role hierarchy — see the caption when it is locked. -->
-              <ng-container *ngIf="isOfficerTitleApplicable(selectedUser)">
+              @if (isOfficerTitleApplicable(selectedUser)) {
                 <span class="pref-row page-access-head">
                   <span class="pref-label">Officer title</span>
                   <span class="pref-hint">Grants full contract access (CEO), plus Void and title assignment (CTO)</span>
                 </span>
                 <span class="pref-row">
                   <span class="pref-label pref-label-sub">Title</span>
+                  @if (canAssignOrgTitle) {
                   <select aria-label="Title" class="role-select"
-                          *ngIf="canAssignOrgTitle"
                           [ngModel]="selectedUser.orgTitle || 'None'"
                           [disabled]="savingOrgTitleUserId === selectedUser.id"
                           (ngModelChange)="updateOrgTitle(selectedUser, $event)">
-                    <option *ngFor="let option of orgTitleOptions" [value]="option.value">
+                    @for (option of orgTitleOptions; track option) {
+                    <option [value]="option.value">
                       {{ option.label }}
                     </option>
+                    }
                   </select>
+                  }
                   <!-- Read-only for anyone the bootstrap/locked rule does not authorise, with the
                        same explanation the old Contracts panel gave. -->
-                  <strong *ngIf="!canAssignOrgTitle">{{ selectedUser.orgTitle || 'None' }}</strong>
+                  @if (!canAssignOrgTitle) {
+                  <strong>{{ selectedUser.orgTitle || 'None' }}</strong>
+                  }
                 </span>
-                <span class="pref-row" *ngIf="!canAssignOrgTitle">
+                @if (!canAssignOrgTitle) {
+                <span class="pref-row">
                   <span class="pref-label pref-label-sub"></span>
                   <span class="pref-hint">{{ orgTitleLockReason }}</span>
                 </span>
-              </ng-container>
+                }
+              }
 
               <!-- Business flag. Also moved here from the Contracts tab (2026-09). Customer
                    accounts only, and gated by the CONTRACTS permission matrix rather than the
                    role hierarchy, which is why the answer comes from the server. -->
-              <ng-container *ngIf="isBusinessFlagApplicable(selectedUser)">
+              @if (isBusinessFlagApplicable(selectedUser)) {
                 <span class="pref-row page-access-head">
                   <span class="pref-label">Business account</span>
                   <span class="pref-hint">Required before this customer can be given a commercial contract</span>
                 </span>
                 <span class="pref-row">
                   <span class="pref-label pref-label-sub">Is a business</span>
-                  <span class="yes-no-toggle" *ngIf="canToggleBusinessFlag">
+                  @if (canToggleBusinessFlag) {
+                  <span class="yes-no-toggle">
                     <span class="yn-btn" [class.active]="selectedUser.isBusiness"
                           (click)="toggleBusinessFlag(selectedUser, true, $event)"
                           [class.disabled]="togglingBusinessUserId === selectedUser.id">Yes</span>
@@ -767,18 +960,22 @@
                           (click)="toggleBusinessFlag(selectedUser, false, $event)"
                           [class.disabled]="togglingBusinessUserId === selectedUser.id">No</span>
                   </span>
-                  <strong *ngIf="!canToggleBusinessFlag">{{ selectedUser.isBusiness ? 'Yes' : 'No' }}</strong>
+                  }
+                  @if (!canToggleBusinessFlag) {
+                  <strong>{{ selectedUser.isBusiness ? 'Yes' : 'No' }}</strong>
+                  }
                 </span>
-              </ng-container>
+              }
 
               <!-- Page access: SuperAdmin grants a regular Admin read-only access to
                    restricted pages (Statistics / Expenses / Bubble Rewards). -->
-              <ng-container *ngIf="canManagePageAccess(selectedUser)">
+              @if (canManagePageAccess(selectedUser)) {
                 <span class="pref-row page-access-head">
                   <span class="pref-label">Page access</span>
                   <span class="pref-hint">View-only access to restricted pages</span>
                 </span>
-                <span class="pref-row" *ngFor="let page of viewablePageOptions">
+                @for (page of viewablePageOptions; track page) {
+                <span class="pref-row">
                   <span class="pref-label pref-label-sub">{{ page.label }}</span>
                   <span class="yes-no-toggle">
                     <span class="yn-btn" [class.active]="isPageGranted(selectedUser, page.key)"
@@ -789,12 +986,13 @@
                           [class.disabled]="togglingPageAccessUserId === selectedUser.id">No</span>
                   </span>
                 </span>
-              </ng-container>
+                }
+              }
 
               <!-- Order edits: SuperAdmin lets a regular Admin apply order changes themselves
                    instead of sending each one for approval. They still review the change list
                    before it is applied - the same table a SuperAdmin approves from. -->
-              <ng-container *ngIf="canManageOrderEditAccess(selectedUser)">
+              @if (canManageOrderEditAccess(selectedUser)) {
                 <span class="pref-row page-access-head">
                   <span class="pref-label">Order edits</span>
                   <span class="pref-hint">Save order changes without SAdmin approval</span>
@@ -810,7 +1008,7 @@
                           [class.disabled]="togglingOrderEditAccessUserId === selectedUser.id">No</span>
                   </span>
                 </span>
-              </ng-container>
+              }
             </div>
           </div>
 
@@ -820,51 +1018,81 @@
           <div class="info-card">
             <h4>Loyalty Discount</h4>
 
-            <div class="muted" *ngIf="loadingLoyalty">Loading…</div>
+            @if (loadingLoyalty) {
+            <div class="muted">Loading…</div>
+            }
 
-            <div *ngIf="!loadingLoyalty && !editingLoyalty">
+            @if (!loadingLoyalty && !editingLoyalty) {
+            <div>
               <div class="info-grid">
                 <div>
                   <span>Discount</span>
-                  <strong *ngIf="loyaltyDiscount && loyaltyDiscount.percentage > 0">{{ loyaltyDiscount.percentage }}%</strong>
-                  <strong *ngIf="!loyaltyDiscount || loyaltyDiscount.percentage === 0">None</strong>
+                  @if (loyaltyDiscount && loyaltyDiscount.percentage > 0) {
+                  <strong>{{ loyaltyDiscount.percentage }}%</strong>
+                  }
+                  @if (!loyaltyDiscount || loyaltyDiscount.percentage === 0) {
+                  <strong>None</strong>
+                  }
                 </div>
-                <div *ngIf="loyaltyDiscount">
+                @if (loyaltyDiscount) {
+                <div>
                   <span>Status</span>
-                  <strong [ngSwitch]="loyaltyDiscount.status">
-                    <span *ngSwitchCase="'Auto'">Auto</span>
-                    <span *ngSwitchCase="'Manual'">Manual (admin set, one-time)</span>
+                  <strong>
+                @switch (loyaltyDiscount.status) {
+                    @case ('Auto') {
+                    <span>Auto</span>
+                    }
+                    @case ('Manual') {
+                    <span>Manual (admin set, one-time)</span>
+                    }
                     <!-- Lifetime outranks Manual: both are admin-set, but only one survives being
                          used, and that is the fact somebody reading this needs. -->
-                    <span *ngSwitchCase="'Lifetime'">Lifetime (admin set)</span>
-                    <span *ngSwitchCase="'Used'">Recently used</span>
-                    <span *ngSwitchDefault>None</span>
-                  </strong>
+                    @case ('Lifetime') {
+                    <span>Lifetime (admin set)</span>
+                    }
+                    @case ('Used') {
+                    <span>Recently used</span>
+                    }
+                    @default {
+                    <span>None</span>
+                    }
+                }
+                </strong>
                 </div>
-                <div *ngIf="loyaltyDiscount?.activatedAt">
+                }
+                @if (loyaltyDiscount?.activatedAt) {
+                <div>
                   <span>Activated</span>
                   <strong>{{ formatUtcShortDate(loyaltyDiscount!.activatedAt) }}</strong>
                 </div>
-                <div *ngIf="loyaltyDiscount?.lastUsedAt">
+                }
+                @if (loyaltyDiscount?.lastUsedAt) {
+                <div>
                   <span>Last used</span>
                   <strong>{{ formatUtcShortDate(loyaltyDiscount!.lastUsedAt) }}</strong>
                 </div>
+                }
               </div>
 
-              <div class="loyalty-actions" *ngIf="canEditUserDetails(selectedUser)">
+              @if (canEditUserDetails(selectedUser)) {
+              <div class="loyalty-actions">
                 <button class="action-btn small primary" (click)="startEditLoyaltyDiscount()">
                   {{ loyaltyDiscount && loyaltyDiscount.percentage > 0 ? 'Edit' : 'Set' }}
                 </button>
+                @if (loyaltyDiscount && loyaltyDiscount.percentage > 0) {
                 <button class="action-btn small ghost"
-                        *ngIf="loyaltyDiscount && loyaltyDiscount.percentage > 0"
                         (click)="clearLoyaltyDiscount()"
                         [disabled]="savingLoyalty">
                   Clear
                 </button>
+                }
               </div>
+              }
             </div>
+            }
 
-            <div *ngIf="!loadingLoyalty && editingLoyalty">
+            @if (!loadingLoyalty && editingLoyalty) {
+            <div>
               <div class="loyalty-edit">
                 <label>
                   Percentage
@@ -908,39 +1136,59 @@
                 to the automatic 60/90-day rules.
               </p>
             </div>
-
-            <div class="error-message" *ngIf="loyaltyError">{{ loyaltyError }}</div>
-            <div class="success-message" *ngIf="loyaltySuccess">{{ loyaltySuccess }}</div>
+            }
+            @if (loyaltyError) {
+            <div class="error-message">{{ loyaltyError }}</div>
+            }
+            @if (loyaltySuccess) {
+            <div class="success-message">{{ loyaltySuccess }}</div>
+            }
           </div>
 
-          <div class="info-card" *ngIf="$any(selectedUser).lastCleaningDate">
+          @if ($any(selectedUser).lastCleaningDate) {
+          <div class="info-card">
             <h4>Last service snapshot</h4>
             <div class="info-grid">
               <div><span>Date</span><strong>{{ formatShortDate($any(selectedUser).lastCleaningDate) }}</strong></div>
               <div><span>Type</span><strong>{{ $any(selectedUser).lastCleaningServiceType || '—' }}</strong></div>
               <!-- Bedrooms = 0 is a Studio, not "no bedrooms" (same label the booking and orders panels use). -->
-              <div *ngIf="$any(selectedUser).lastBedrooms != null"><span>Bedrooms</span><strong>{{ $any(selectedUser).lastBedrooms === 0 ? 'Studio' : $any(selectedUser).lastBedrooms }}</strong></div>
-              <div *ngIf="$any(selectedUser).lastBathrooms != null"><span>Bathrooms</span><strong>{{ $any(selectedUser).lastBathrooms }}</strong></div>
+              @if ($any(selectedUser).lastBedrooms != null) {
+              <div><span>Bedrooms</span><strong>{{ $any(selectedUser).lastBedrooms === 0 ? 'Studio' : $any(selectedUser).lastBedrooms }}</strong></div>
+              }
+              @if ($any(selectedUser).lastBathrooms != null) {
+              <div><span>Bathrooms</span><strong>{{ $any(selectedUser).lastBathrooms }}</strong></div>
+              }
             </div>
             <p class="muted hint-line">House size shown above is from the last order — future bookings may differ.</p>
           </div>
+          }
 
           <div class="info-card">
             <h4>Saved Addresses ({{ selectedUser.apartments?.length || 0 }})</h4>
             <div class="addresses">
-              <div *ngFor="let apt of selectedUser.apartments" class="address-item">
-                <div *ngIf="editingAddressId !== apt.id" class="address-display">
+              @for (apt of selectedUser.apartments; track apt) {
+              <div class="address-item">
+                @if (editingAddressId !== apt.id) {
+                <div class="address-display">
                   <div>
-                    <strong>{{ apt.name }}</strong> — {{ apt.address }}<span *ngIf="apt.aptSuite">, {{ apt.aptSuite }}</span><br>
+                    <strong>{{ apt.name }}</strong> — {{ apt.address }}@if (apt.aptSuite) {
+                    <span>, {{ apt.aptSuite }}</span>
+                    }<br>
                     {{ apt.city }}, {{ apt.state }} {{ apt.postalCode }}
-                    <span *ngIf="apt.specialInstructions"><br><em>{{ apt.specialInstructions }}</em></span>
+                    @if (apt.specialInstructions) {
+                    <span><br><em>{{ apt.specialInstructions }}</em></span>
+                    }
                   </div>
-                  <div class="row-actions" *ngIf="canEditUserDetails(selectedUser)">
+                  @if (canEditUserDetails(selectedUser)) {
+                  <div class="row-actions">
                     <button class="action-btn small ghost" (click)="startEditAddress(apt)" [disabled]="savingAddress">Edit</button>
                     <button class="action-btn small danger" (click)="deleteAddress(apt, $event)" [disabled]="savingAddress">Delete</button>
                   </div>
+                  }
                 </div>
-                <div *ngIf="editingAddressId === apt.id && editAddressDraft" class="address-edit">
+                }
+                @if (editingAddressId === apt.id && editAddressDraft) {
+                <div class="address-edit">
                   <div class="edit-grid compact">
                     <label><span>Name</span><input type="text" [(ngModel)]="editAddressDraft.name"></label>
                     <label><span>Address</span><input type="text" [(ngModel)]="editAddressDraft.address"></label>
@@ -955,13 +1203,20 @@
                     <button class="action-btn small ghost" (click)="cancelEditAddress()" [disabled]="savingAddress">Cancel</button>
                   </div>
                 </div>
+                }
               </div>
-              <p *ngIf="!selectedUser.apartments?.length" class="muted">No saved addresses.</p>
+              }
+              @if (!selectedUser.apartments?.length) {
+              <p class="muted">No saved addresses.</p>
+              }
             </div>
-            <button *ngIf="canEditUserDetails(selectedUser) && !showAddAddress"
+            @if (canEditUserDetails(selectedUser) && !showAddAddress) {
+            <button
                     class="action-btn small ghost add-row"
                     (click)="openAddAddress()">+ Add address</button>
-            <div *ngIf="showAddAddress" class="address-edit">
+            }
+            @if (showAddAddress) {
+            <div class="address-edit">
               <div class="edit-grid compact">
                 <label><span>Name</span><input type="text" [(ngModel)]="newAddress.name"></label>
                 <label><span>Address</span><input type="text" [(ngModel)]="newAddress.address"></label>
@@ -976,18 +1231,25 @@
                 <button class="action-btn small ghost" (click)="cancelAddAddress()" [disabled]="savingAddress">Cancel</button>
               </div>
             </div>
+            }
           </div>
 
         </div>
       </section>
+      }
 
       <!-- ─── HISTORY ─── -->
-      <section *ngIf="detailTab === 'history'" class="tab-pane">
-        <div class="info-card" *ngIf="(selectedUser.orders?.length || 0) > 0; else noOrders">
+      @if (detailTab === 'history') {
+      <section class="tab-pane">
+        @if ((selectedUser.orders?.length || 0) > 0) {
+        <div class="info-card">
           <h4>Cleaning History</h4>
-          <div class="success-message inline" *ngIf="recreateSuccessMessage">{{ recreateSuccessMessage }}</div>
+          @if (recreateSuccessMessage) {
+          <div class="success-message inline">{{ recreateSuccessMessage }}</div>
+          }
           <div class="history-list">
-            <div *ngFor="let order of selectedUser.orders"
+            @for (order of selectedUser.orders; track order) {
+            <div
                  class="history-row"
                  [class.cancelled]="isCancelledOrRefunded(order)"
                  (click)="openOrderInAdmin(order.id)">
@@ -1003,61 +1265,81 @@
                 <span class="muted">#{{ order.id }}</span>
                 <!-- Opens the recreate flow instead of the row's own navigation — see
                      startRecreateOrder, which stops the click from reaching the row. -->
-                <button *ngIf="canCreate"
+                @if (canCreate) {
+                <button
                         type="button"
                         class="action-btn small ghost history-recreate"
                         (click)="startRecreateOrder(order.id, $event)"
                         title="Create a new order just like this one">
                   Recreate
                 </button>
+                }
               </div>
             </div>
+            }
           </div>
         </div>
-        <ng-template #noOrders>
+        } @else {
           <p class="muted center">No orders yet.</p>
-        </ng-template>
+        }
       </section>
+      }
 
       <!-- ─── PHOTOS ─── -->
-      <section *ngIf="detailTab === 'photos'" class="tab-pane">
+      @if (detailTab === 'photos') {
+      <section class="tab-pane">
         <div class="info-card">
           <h4>Cleaning Photos
             <span class="hint">— last 2 cleanings only (older are auto-pruned)</span>
           </h4>
 
-          <div *ngIf="loadingPhotos" class="muted center">Loading photos…</div>
+          @if (loadingPhotos) {
+          <div class="muted center">Loading photos…</div>
+          }
 
-          <div *ngIf="!loadingPhotos && cleaningPhotoGroups.length === 0" class="muted center">
+          @if (!loadingPhotos && cleaningPhotoGroups.length === 0) {
+          <div class="muted center">
             No photos yet. Upload from below.
           </div>
+          }
 
-          <div *ngFor="let group of cleaningPhotoGroups" class="photo-group">
+          @for (group of cleaningPhotoGroups; track group) {
+          <div class="photo-group">
             <div class="photo-group__header">
               <strong>
                 {{ group.orderId ? '#' + group.orderId : 'Unassigned' }}
-                <span class="muted" *ngIf="group.orderServiceDate"> • {{ formatShortDate(group.orderServiceDate) }}</span>
-                <span class="muted" *ngIf="group.orderServiceTypeName"> • {{ group.orderServiceTypeName }}</span>
+                @if (group.orderServiceDate) {
+                <span class="muted"> • {{ formatShortDate(group.orderServiceDate) }}</span>
+                }
+                @if (group.orderServiceTypeName) {
+                <span class="muted"> • {{ group.orderServiceTypeName }}</span>
+                }
               </strong>
             </div>
             <div class="photo-grid">
-              <div *ngFor="let p of group.photos" class="photo-thumb">
+              @for (p of group.photos; track p) {
+              <div class="photo-thumb">
                 <img [src]="resolvePhotoUrl(p)"
                      [alt]="p.caption || 'Cleaning photo'"
                      (click)="openLightbox(p)">
                 <button class="thumb-remove" (click)="removePhoto(p)" title="Remove">×</button>
               </div>
+              }
             </div>
           </div>
+          }
 
-          <div class="photo-upload-row" *ngIf="canUpdate">
+          @if (canUpdate) {
+          <div class="photo-upload-row">
             <label class="upload-target">
               <span>Attach to order:</span>
               <select [ngModel]="photoUploadOrderId" (ngModelChange)="setPhotoOrderId($event)">
                 <option [ngValue]="null">— Select an order —</option>
-                <option *ngFor="let o of selectedUser.orders" [ngValue]="o.id">
+                @for (o of selectedUser.orders; track o) {
+                <option [ngValue]="o.id">
                   #{{ o.id }} • {{ formatShortDate(o.serviceDate) }} • {{ o.serviceTypeName }}
                 </option>
+                }
               </select>
             </label>
             <label class="file-button" [class.disabled]="uploadingPhoto || photoUploadOrderId == null">
@@ -1065,15 +1347,25 @@
               {{ uploadingPhoto ? (photoUploadProgress || 'Uploading…') : '+ Upload photos' }}
             </label>
           </div>
-          <p class="muted small" *ngIf="canUpdate && photoUploadOrderId == null">Select an order before uploading — photos must belong to a specific order.</p>
-          <div class="error-message inline" *ngIf="photoUploadError">{{ photoUploadError }}</div>
-          <div class="success-message inline" *ngIf="photoUploadSuccess">{{ photoUploadSuccess }}</div>
+          }
+          @if (canUpdate && photoUploadOrderId == null) {
+          <p class="muted small">Select an order before uploading — photos must belong to a specific order.</p>
+          }
+          @if (photoUploadError) {
+          <div class="error-message inline">{{ photoUploadError }}</div>
+          }
+          @if (photoUploadSuccess) {
+          <div class="success-message inline">{{ photoUploadSuccess }}</div>
+          }
         </div>
       </section>
+      }
 
       <!-- ─── NOTES (general only) ─── -->
-      <section *ngIf="detailTab === 'notes'" class="tab-pane">
-        <div class="info-card" *ngIf="canUpdate">
+      @if (detailTab === 'notes') {
+      <section class="tab-pane">
+        @if (canUpdate) {
+        <div class="info-card">
           <h4>Add note</h4>
           <div class="note-form">
             <textarea [(ngModel)]="newNoteContent"
@@ -1089,44 +1381,57 @@
             </div>
           </div>
         </div>
+        }
 
         <div class="info-card">
           <h4>General notes <span class="muted">({{ generalNotes.length }})</span></h4>
-          <div *ngIf="loadingNotes" class="muted center">Loading…</div>
-          <div *ngIf="!loadingNotes && generalNotes.length === 0" class="muted center">No general notes yet.</div>
+          @if (loadingNotes) {
+          <div class="muted center">Loading…</div>
+          }
+          @if (!loadingNotes && generalNotes.length === 0) {
+          <div class="muted center">No general notes yet.</div>
+          }
           <div class="note-list">
-            <div *ngFor="let n of generalNotes" class="note-item general">
-              <ng-container *ngIf="editingNoteId !== n.id">
+            @for (n of generalNotes; track n) {
+            <div class="note-item general">
+              @if (editingNoteId !== n.id) {
                 <div class="note-content">{{ n.content }}</div>
                 <div class="note-meta">
                   <span class="muted small">{{ n.createdByAdminName || 'Admin' }} • {{ formatDateTime(n.createdAt) }}</span>
-                  <span class="row-actions" *ngIf="canUpdate">
+                  @if (canUpdate) {
+                  <span class="row-actions">
                     <button class="link-btn" (click)="startEditNote(n)">Edit</button>
                     <button class="link-btn danger" (click)="deleteNote(n)">Delete</button>
                   </span>
+                  }
                 </div>
-              </ng-container>
-              <ng-container *ngIf="editingNoteId === n.id">
+              }
+              @if (editingNoteId === n.id) {
                 <textarea aria-label="Edit note" [(ngModel)]="editNoteContent" rows="2"></textarea>
                 <div class="edit-actions">
                   <button class="action-btn primary small" (click)="saveEditNote(n)">Save</button>
                   <button class="action-btn small ghost" (click)="cancelEditNote()">Cancel</button>
                 </div>
-              </ng-container>
+              }
             </div>
+            }
           </div>
         </div>
       </section>
+      }
 
     </div>
-  </ng-container>
+    }
+  }
 </aside>
 
 <!-- ──────────────  LIGHTBOX  ────────────── -->
-<div class="lightbox" *ngIf="lightboxPhoto" (click)="closeLightbox()">
+@if (lightboxPhoto) {
+<div class="lightbox" (click)="closeLightbox()">
   <img [src]="resolvePhotoUrl(lightboxPhoto)" [alt]="lightboxPhoto.caption || 'Cleaning photo'">
   <button class="lightbox-close" (click)="closeLightbox()">✕</button>
 </div>
+}
 
 <!-- ──────────────  REGISTER CUSTOMER MODAL  ──────────────
      Shared with the booking page: shared/components/register-customer-modal -->
@@ -1147,7 +1452,8 @@
 </app-recreate-order-modal>
 
 <!-- ──────────────  EXPORT USERS MODAL  ────────────── -->
-<div class="register-modal-overlay" *ngIf="showExportModal" (click)="closeExportModal()">
+@if (showExportModal) {
+<div class="register-modal-overlay" (click)="closeExportModal()">
   <div class="register-modal-content export-modal-content" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <h3 class="modal-title">Export Users</h3>
@@ -1155,9 +1461,12 @@
     </div>
     <div class="modal-body">
       <p class="export-modal-hint">Pick which columns to include. All columns are selected by default — uncheck any you don't want.</p>
-      <div class="register-modal-error" *ngIf="exportError">{{ exportError }}</div>
+      @if (exportError) {
+      <div class="register-modal-error">{{ exportError }}</div>
+      }
       <ul class="export-column-list">
-        <li *ngFor="let col of exportColumns">
+        @for (col of exportColumns; track col) {
+        <li>
           <label>
             <input type="checkbox"
                    [checked]="col.selected"
@@ -1166,6 +1475,7 @@
             <span>{{ col.label }}</span>
           </label>
         </li>
+        }
       </ul>
     </div>
     <div class="modal-footer">
@@ -1178,3 +1488,4 @@
     </div>
   </div>
 </div>
+}

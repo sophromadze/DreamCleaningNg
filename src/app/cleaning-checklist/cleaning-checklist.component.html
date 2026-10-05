@@ -7,8 +7,8 @@
       </div>
 
       <div class="room-tabs" role="tablist" aria-label="Cleaning rooms">
+        @for (section of comparisonSections; track trackComparisonSection($index, section)) {
         <button
-          *ngFor="let section of comparisonSections; trackBy: trackComparisonSection"
           type="button"
           role="tab"
           class="room-tab"
@@ -18,6 +18,7 @@
           <i [appIcon]="section.icon" aria-hidden="true"></i>
           {{ section.label }}
         </button>
+        }
       </div>
     </div>
 
@@ -35,9 +36,9 @@
           <!-- ALL room tables are rendered into the DOM (non-active tabs are CSS-hidden)
                so the complete checklist exists in the prerendered HTML — needed for SEO
                and for the chat agent's get_page_content(cleaning_checklist) source. -->
+          @for (section of comparisonSections; track trackComparisonSection($index, section)) {
           <div
             class="comparison-card__table-wrap"
-            *ngFor="let section of comparisonSections; trackBy: trackComparisonSection"
             [class.comparison-card__table-wrap--hidden]="section.key !== activeRoom">
           <table class="comparison-table">
             <thead>
@@ -48,33 +49,37 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let row of section.rows">
+              @for (row of section.rows; track row) {
+              <tr>
                 <td class="cell-task">{{ row.task }}</td>
                 <td class="cell-status" data-label="Standard">
-                  <span class="status-icon status-icon--yes" *ngIf="row.standard; else standardNo">
+                  @if (row.standard) {
+                  <span class="status-icon status-icon--yes">
                     <i [appIcon]="icons.faCheck" aria-hidden="true"></i>
                     <span class="sr-only">Included</span>
                   </span>
-                  <ng-template #standardNo>
+                  } @else {
                     <span class="status-icon status-icon--no">
                       <i [appIcon]="icons.faXmark" aria-hidden="true"></i>
                       <span class="sr-only">Not included</span>
                     </span>
-                  </ng-template>
+                  }
                 </td>
                 <td class="cell-status" data-label="Deep">
-                  <span class="status-icon status-icon--yes" *ngIf="row.deep; else deepNo">
+                  @if (row.deep) {
+                  <span class="status-icon status-icon--yes">
                     <i [appIcon]="icons.faCheck" aria-hidden="true"></i>
                     <span class="sr-only">Included</span>
                   </span>
-                  <ng-template #deepNo>
+                  } @else {
                     <span class="status-icon status-icon--no">
                       <i [appIcon]="icons.faXmark" aria-hidden="true"></i>
                       <span class="sr-only">Not included</span>
                     </span>
-                  </ng-template>
+                  }
                 </td>
               </tr>
+              }
             </tbody>
           </table>
 
@@ -85,9 +90,10 @@
               <span>Deep</span>
             </div>
 
+            @for (row of section.rows; track row) {
             <div
               class="mobile-comparison__row"
-              *ngFor="let row of section.rows">
+             >
               <div class="mobile-comparison__task">{{ row.task }}</div>
               <div class="mobile-comparison__status">
                 <span
@@ -108,8 +114,10 @@
                 </span>
               </div>
             </div>
+            }
             </div>
           </div>
+          }
         </div>
       </div>
       <div class="comparison-hero__side comparison-hero__side--right" aria-hidden="true">
@@ -133,42 +141,52 @@
 
       <div class="move-out-layout">
         <div class="move-out-checklist">
+          @for (section of moveOutSections; track trackMoveOutSection($index, section)) {
           <article
             class="move-out-card"
-            *ngFor="let section of moveOutSections; trackBy: trackMoveOutSection">
+           >
             <h3>{{ section.heading }}</h3>
             <ul>
-              <li *ngFor="let row of section.rows">
+              @for (row of section.rows; track row) {
+              <li>
                 <span class="status-icon status-icon--yes" aria-hidden="true">
                   <i [appIcon]="icons.faCheck"></i>
                 </span>
                 <span>
                   {{ row.task }}
-                  <em *ngIf="row.note">{{ row.note }}</em>
+                  @if (row.note) {
+                  <em>{{ row.note }}</em>
+                  }
                 </span>
               </li>
+              }
             </ul>
           </article>
+          }
         </div>
 
         <aside class="checklist-side-panel" aria-label="Move-in move-out requirements">
           <div class="info-panel info-panel--warning">
             <h3>Important requirements</h3>
             <ul>
-              <li *ngFor="let item of importantRequirements; trackBy: trackByText">
+              @for (item of importantRequirements; track trackByText($index, item)) {
+              <li>
                 <i [appIcon]="icons.faCircleInfo" aria-hidden="true"></i>
                 {{ item }}
               </li>
+              }
             </ul>
           </div>
 
           <div class="info-panel info-panel--danger">
             <h3>What's not included</h3>
             <ul>
-              <li *ngFor="let item of notIncluded; trackBy: trackByText">
+              @for (item of notIncluded; track trackByText($index, item)) {
+              <li>
                 <i [appIcon]="icons.faBan" aria-hidden="true"></i>
                 {{ item }}
               </li>
+              }
             </ul>
           </div>
         </aside>
@@ -180,10 +198,12 @@
           <h3>Available add-ons</h3>
         </div>
         <ul>
-          <li *ngFor="let item of extras; trackBy: trackByText">
+          @for (item of extras; track trackByText($index, item)) {
+          <li>
             <i [appIcon]="icons.faPlus" aria-hidden="true"></i>
             {{ item }}
           </li>
+          }
         </ul>
       </div>
 

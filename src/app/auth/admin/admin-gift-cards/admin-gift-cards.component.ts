@@ -1,6 +1,5 @@
 // admin-gift-cards.component.ts
 import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from '../../../services/admin.service';
 import { formatNyDateTime } from '../../../shared/ny-time.util';
@@ -45,7 +44,7 @@ interface GiftCardUsage {
 @Component({
   selector: 'app-admin-gift-cards',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   templateUrl: './admin-gift-cards.component.html',
   styleUrl: './admin-gift-cards.component.scss'
 })

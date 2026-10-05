@@ -1,5 +1,5 @@
 import { Component, Inject, PLATFORM_ID, OnInit } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -13,7 +13,7 @@ type LoginStep = 'email' | 'password' | 'otp';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterModule, GoogleSigninWrapperComponent, AppleSigninButtonComponent],
+  imports: [FormsModule, ReactiveFormsModule, RouterModule, GoogleSigninWrapperComponent, AppleSigninButtonComponent],
   templateUrl: './login.component.html',
   styleUrl: './login.component.scss'
 })

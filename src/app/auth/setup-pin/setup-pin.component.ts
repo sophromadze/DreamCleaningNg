@@ -1,5 +1,5 @@
 import { Component, Inject, PLATFORM_ID } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TwoFactorService } from '../../services/two-factor.service';
@@ -17,7 +17,7 @@ import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
 @Component({
   selector: 'app-setup-pin',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [FormsModule, IconComponent],
   templateUrl: './setup-pin.component.html',
   styleUrls: ['./setup-pin.component.scss']
 })

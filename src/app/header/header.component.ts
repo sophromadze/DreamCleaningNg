@@ -1,6 +1,6 @@
 import { Component, OnInit, HostListener, ElementRef, Inject, Injector, PLATFORM_ID, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { RouterLink, RouterLinkActive, Router, NavigationEnd, NavigationStart } from '@angular/router';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { BubbleBadgeComponent } from './bubble-badge/bubble-badge.component';
 import { AuthService } from '../services/auth.service';
 import { AuthModalService } from '../services/auth-modal.service';
@@ -36,7 +36,7 @@ interface HeaderAccountServices {
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive, BubbleBadgeComponent, HeaderAccountMenuComponent],
+  imports: [RouterLink, RouterLinkActive, BubbleBadgeComponent, HeaderAccountMenuComponent],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss'
 })
