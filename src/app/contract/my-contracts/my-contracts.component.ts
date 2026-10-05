@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { ContractService, MyContractListItem } from '../../services/contract.service';
@@ -18,6 +18,7 @@ import { extractApiErrorMessage } from '../../utils/http-error.utils';
   templateUrl: './my-contracts.component.html',
   // The review page's stylesheet is the single source for the client-facing chrome; this
   // component's own sheet adds only the list.
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: [
     '../contract-review/contract-review.component.scss',
     './my-contracts.component.scss'

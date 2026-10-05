@@ -110,7 +110,7 @@
 
     <div class="uro-modal-actions">
       <button type="button" class="uro-pay-btn" (click)="confirmPayAll()" [disabled]="payingAll">
-        {{ payingAll ? 'Processing…' : 'Pay ' + (data?.payAllTotal | currency:'USD') }}
+        {{ payingAll ? 'Processing…' : 'Pay ' + ($safeNavigationMigration(data?.payAllTotal) | currency:'USD') }}
       </button>
       <button type="button" class="uro-cancel-btn" (click)="closePayAll()" [disabled]="payingAll">
         Cancel

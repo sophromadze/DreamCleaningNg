@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -20,6 +20,7 @@ import { faEnvelopeOpenText } from '../../shared/icons/glyphs/faEnvelopeOpenText
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, IconComponent],
   templateUrl: './booking-success.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./booking-success.component.scss']
 })
 export class BookingSuccessComponent implements OnInit, OnDestroy {

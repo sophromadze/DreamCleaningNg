@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnInit, PLATFORM_ID, ViewChild, inject } from '@angular/core';
+import { Component, ElementRef, OnInit, PLATFORM_ID, ViewChild, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs/operators';
@@ -31,6 +31,7 @@ import { extractApiErrorMessage } from '../utils/http-error.utils';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './public-invoice.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./public-invoice.component.scss']
 })
 export class PublicInvoiceComponent implements OnInit {

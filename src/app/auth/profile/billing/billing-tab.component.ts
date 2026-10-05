@@ -1,4 +1,4 @@
-import { Component, Inject, OnDestroy, OnInit, PLATFORM_ID } from '@angular/core';
+import { Component, Inject, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -40,6 +40,7 @@ interface TermsDialog {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './billing-tab.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./billing-tab.component.scss']
 })
 export class BillingTabComponent implements OnInit, OnDestroy {

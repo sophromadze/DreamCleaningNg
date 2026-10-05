@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { Router } from '@angular/router';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
 import { MarketingPricingService } from '../shared/pricing/marketing-pricing.service';
@@ -20,6 +20,7 @@ const TEAM_PHOTO_SIZES =
   standalone: true,
   imports: [BubbleFieldComponent],
   templateUrl: './about.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './about.component.scss'
 })
 export class AboutComponent {

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -96,6 +96,7 @@ type CleaningType = 'normal' | 'deep' | 'superdeep';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './recreate-order-modal.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./recreate-order-modal.component.scss']
 })
 export class RecreateOrderModalComponent implements OnChanges {

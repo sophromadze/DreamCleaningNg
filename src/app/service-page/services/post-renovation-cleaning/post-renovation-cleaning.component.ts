@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { PhoneNumberService } from '../../../services/phone-number.service';
 import { CardImageDirective } from '../../../shared/images/card-image.directive';
@@ -9,6 +9,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule, CardImageDirective],
   templateUrl: './post-renovation-cleaning.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './post-renovation-cleaning.component.scss'
 })
 export class PostRenovationCleaningComponent implements OnInit, OnDestroy {

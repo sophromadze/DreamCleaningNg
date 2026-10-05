@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 
 /**
  * Shared +/− stepper (extracted from the booking page; also used by order-edit).
@@ -17,6 +17,7 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
   selector: 'app-quantity-control',
   standalone: true,
   templateUrl: './quantity-control.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./quantity-control.component.scss']
 })
 export class QuantityControlComponent {

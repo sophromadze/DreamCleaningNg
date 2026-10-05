@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { RouterModule } from '@angular/router';
@@ -16,6 +16,7 @@ import { faCircleXmark } from '../shared/icons/glyphs/faCircleXmark';
   standalone: true,
   imports: [ReactiveFormsModule, RouterModule, BubbleFieldComponent, IconComponent],
   templateUrl: './free-quote.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './free-quote.component.scss'
 })
 export class FreeQuoteComponent implements OnInit {

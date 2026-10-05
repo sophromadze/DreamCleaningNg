@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, computed, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, computed, inject, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -32,6 +32,7 @@ interface RecurringPlan {
   standalone: true,
   imports: [RouterModule, IconComponent],
   templateUrl: './pricing-and-discounts.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './pricing-and-discounts.component.scss'
 })
 export class PricingAndDiscountsComponent implements OnInit, OnDestroy {

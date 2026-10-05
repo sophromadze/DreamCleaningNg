@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { finalize } from 'rxjs/operators';
@@ -38,6 +38,7 @@ import { getAdminAvatarColor, getAdminAvatarInitials } from '../../../shared/adm
   standalone: true,
   imports: [FormsModule, CleanersDashboardComponent],
   templateUrl: './cleaner-accounts.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: [
     '../user-management/user-management.component.scss',
     './cleaner-accounts.component.scss'

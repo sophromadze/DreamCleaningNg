@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { TwoFactorService, TrustedDevice } from '../../services/two-factor.service';
 import { AuthService } from '../../services/auth.service';
 import { formatNy } from '../../shared/ny-time.util';
@@ -8,6 +8,7 @@ import { formatNy } from '../../shared/ny-time.util';
   standalone: true,
   imports: [],
   templateUrl: './trusted-devices.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./trusted-devices.component.scss']
 })
 export class TrustedDevicesComponent implements OnInit {

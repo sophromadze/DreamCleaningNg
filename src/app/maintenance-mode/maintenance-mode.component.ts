@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { MaintenanceModeService, MaintenanceModeStatus } from '../services/maintenance-mode.service';
 import { formatNyDateTime } from '../shared/ny-time.util';
 
@@ -32,6 +32,7 @@ import { formatNyDateTime } from '../shared/ny-time.util';
       </div>
     </div>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .maintenance-container {
       min-height: 100vh;

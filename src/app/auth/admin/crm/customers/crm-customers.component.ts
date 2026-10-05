@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, OnInit, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
 import { readableLabelColor } from '../../../../shared/admin/readable-label-color';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -12,6 +12,7 @@ import {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './crm-customers.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./crm-customers.component.scss']
 })
 export class CrmCustomersComponent implements OnInit, OnChanges {

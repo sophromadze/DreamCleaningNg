@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 
 export interface BubbleConfig {
@@ -12,6 +12,7 @@ const MOBILE_BREAKPOINT_PX = 768;
   standalone: true,
   imports: [CommonModule],
   templateUrl: './bubble-field.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './bubble-field.component.scss'
 })
 export class BubbleFieldComponent implements OnInit, OnDestroy {

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 import { AdminService } from '../../../services/admin.service';
@@ -40,6 +40,7 @@ export interface RegisteredCustomer {
   standalone: true,
   imports: [FormsModule],
   templateUrl: './register-customer-modal.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./register-customer-modal.component.scss']
 })
 export class RegisterCustomerModalComponent implements OnChanges {

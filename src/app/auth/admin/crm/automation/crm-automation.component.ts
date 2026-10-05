@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -9,6 +9,7 @@ import { CrmAutomationService, AutomationRule, AutomationAlert } from '../../../
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './crm-automation.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./crm-automation.component.scss']
 })
 export class CrmAutomationComponent implements OnInit {

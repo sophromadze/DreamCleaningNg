@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ContractDocumentComponent } from '../../shared/components/contract-document/contract-document.component';
@@ -26,6 +26,7 @@ import { extractApiErrorMessage } from '../../utils/http-error.utils';
   standalone: true,
   imports: [FormsModule, ContractDocumentComponent, SignatureCaptureComponent],
   templateUrl: './my-contract-detail.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['../contract-review/contract-review.component.scss']
 })
 export class MyContractDetailComponent implements OnInit {

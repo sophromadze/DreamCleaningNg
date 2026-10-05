@@ -1,4 +1,4 @@
-import { Component, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -19,6 +19,7 @@ import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
   standalone: true,
   imports: [FormsModule, IconComponent],
   templateUrl: './setup-pin.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./setup-pin.component.scss']
 })
 export class SetupPinComponent {

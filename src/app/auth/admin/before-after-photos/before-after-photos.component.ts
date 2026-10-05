@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   BeforeAfterPhotoService,
@@ -32,6 +32,7 @@ interface EditState {
   standalone: true,
   imports: [FormsModule],
   templateUrl: './before-after-photos.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './before-after-photos.component.scss'
 })
 export class BeforeAfterPhotosComponent implements OnInit {

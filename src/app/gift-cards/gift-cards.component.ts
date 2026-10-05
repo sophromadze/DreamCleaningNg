@@ -1,4 +1,4 @@
-import { Component, OnInit, Inject, PLATFORM_ID, afterNextRender } from '@angular/core';
+import { Component, OnInit, Inject, PLATFORM_ID, afterNextRender, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -21,6 +21,7 @@ const GIFT_CARD_DRAFT_TTL_MS = 30 * 60 * 1000;
   standalone: true,
   imports: [FormsModule, ReactiveFormsModule, BubbleFieldComponent],
   templateUrl: './gift-cards.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./gift-cards.component.scss']
 })
 export class GiftCardsComponent implements OnInit {

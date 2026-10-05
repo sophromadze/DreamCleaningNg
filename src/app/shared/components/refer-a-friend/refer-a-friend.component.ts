@@ -1,4 +1,4 @@
-import { Component, Inject, Input, PLATFORM_ID } from '@angular/core';
+import { Component, Inject, Input, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 
 /**
@@ -17,6 +17,7 @@ import { isPlatformBrowser } from '@angular/common';
   standalone: true,
   imports: [],
   templateUrl: './refer-a-friend.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './refer-a-friend.component.scss'
 })
 export class ReferAFriendComponent {

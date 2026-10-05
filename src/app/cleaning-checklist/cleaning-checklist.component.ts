@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import {
@@ -23,6 +23,7 @@ import { faXmark } from '../shared/icons/glyphs/faXmark';
   standalone: true,
   imports: [RouterModule, IconComponent],
   templateUrl: './cleaning-checklist.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './cleaning-checklist.component.scss',
 })
 export class CleaningChecklistComponent implements OnInit, OnDestroy {

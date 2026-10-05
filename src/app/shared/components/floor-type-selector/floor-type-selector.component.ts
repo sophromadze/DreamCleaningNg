@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 export interface FloorTypeOption {
@@ -16,6 +16,7 @@ export interface FloorTypeSelection {
   standalone: true,
   imports: [FormsModule],
   templateUrl: './floor-type-selector.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './floor-type-selector.component.scss'
 })
 export class FloorTypeSelectorComponent implements OnInit {

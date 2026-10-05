@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 import { OrderList } from '../../services/order.service';
 import { formatTime12h } from '../../shared/booking/extra-service-display.utils';
 import { IconComponent } from '../../shared/icons/icon.component';
@@ -18,6 +18,7 @@ import { faXmark } from '../../shared/icons/glyphs/faXmark';
   // layout rules (.reorder-section, .booking-form-top .reorder-section) keep applying.
   host: { class: 'reorder-section' },
   templateUrl: './reorder-section.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./reorder-section.component.scss']
 })
 export class ReorderSectionComponent {

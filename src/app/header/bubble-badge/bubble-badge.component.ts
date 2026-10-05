@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, EventEmitter, Output } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, EventEmitter, Output, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { Subject, Subscription } from 'rxjs';
@@ -11,6 +11,7 @@ import { AuthService } from '../../services/auth.service';
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './bubble-badge.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './bubble-badge.component.scss'
 })
 export class BubbleBadgeComponent implements OnInit, OnDestroy {

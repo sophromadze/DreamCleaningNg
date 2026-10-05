@@ -5,7 +5,7 @@
   <div class="booking-container__glow" aria-hidden="true"></div>
   <div class="booking-content">
     <div class="booking-header">
-      <a [routerLink]="['/order', order?.id]" class="back-link">← Back to Order Details</a>
+      <a [routerLink]="['/order', $safeNavigationMigration(order?.id)]" class="back-link">← Back to Order Details</a>
       <h1>Edit Order #{{ order?.id }}</h1>
     </div>
 
@@ -215,7 +215,7 @@
                 <label>Service Date <span class="required">*</span></label>
                 <div class="date-time-field">
                   <app-date-selector
-                    [value]="orderForm.get('serviceDate')?.value"
+                    [value]="$safeNavigationMigration(orderForm.get('serviceDate')?.value)"
                     [minDate]="minDate"
                     [isSameDaySelected]="false"
                     [blockedDates]="getBlockedDates()"
@@ -228,7 +228,7 @@
                 <label>Service Time <span class="required">*</span></label>
                 <div class="date-time-field date-time-field--time">
                   <app-time-selector
-                    [value]="orderForm.get('serviceTime')?.value"
+                    [value]="$safeNavigationMigration(orderForm.get('serviceTime')?.value)"
                     [availableTimeSlots]="getAvailableTimeSlots()"
                     [blockedHours]="getBlockedHoursForSelectedDate()"
                     (valueChange)="onTimeChange($event)">

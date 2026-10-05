@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, forkJoin } from 'rxjs';
@@ -64,6 +64,7 @@ type PanelKey =
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './contract-form.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./contract-form.component.scss']
 })
 export class ContractFormComponent implements OnInit {

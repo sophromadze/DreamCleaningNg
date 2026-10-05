@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener } from '@angular/core';
+import { Component, OnInit, HostListener, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { ShiftService, AdminShift, ShiftAdmin } from '../../services/shift.service';
@@ -17,6 +17,7 @@ const FALLBACK_COLORS = [
   standalone: true,
   imports: [FormsModule],
   templateUrl: './shifts.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./shifts.component.scss']
 })
 export class ShiftsComponent implements OnInit {

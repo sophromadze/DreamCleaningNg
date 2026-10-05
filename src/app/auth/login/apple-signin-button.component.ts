@@ -1,4 +1,4 @@
-import { Component, Inject, PLATFORM_ID, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, Inject, PLATFORM_ID, OnInit, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { environment } from '../../../environments/environment';
 
@@ -21,6 +21,7 @@ declare const AppleID: any;
     </button>
     }
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     :host {
       display: block;

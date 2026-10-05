@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { BlogService, BlogPostListItem } from '../services/blog.service';
 
@@ -12,6 +12,7 @@ import { BlogService, BlogPostListItem } from '../services/blog.service';
   standalone: true,
   imports: [RouterModule],
   templateUrl: './blog.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './blog.component.scss'
 })
 export class BlogComponent implements OnInit {

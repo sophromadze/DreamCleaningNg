@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { CardImageDirective, cardImageSizes } from './card-image.directive';
 import { RESPONSIVE_IMAGES } from './responsive-images.manifest';
@@ -6,6 +6,7 @@ import { RESPONSIVE_IMAGES } from './responsive-images.manifest';
 @Component({
   standalone: true,
   imports: [CardImageDirective],
+  changeDetection: ChangeDetectionStrategy.Eager,
   template: `
     <img id="known" src="/images/heavy-codition-cleaning-service-in-nyc.webp" cardImage="offerCard" alt="" loading="lazy">
     <img id="unknown" src="/images/not-in-the-manifest.webp" cardImage="offerCard" alt="" loading="lazy">

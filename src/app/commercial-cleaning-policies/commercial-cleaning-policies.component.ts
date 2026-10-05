@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
 import { COMMERCIAL_POLICY_CONTENT } from '../shared/commercial-policies/commercial-policy.content';
@@ -47,6 +47,7 @@ export interface PolicyRenderItem {
   standalone: true,
   imports: [RouterLink],
   templateUrl: './commercial-cleaning-policies.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./commercial-cleaning-policies.component.scss']
 })
 export class CommercialCleaningPoliciesComponent {

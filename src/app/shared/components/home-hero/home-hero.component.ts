@@ -11,7 +11,8 @@ import {
   afterNextRender,
   inject,
   makeStateKey,
-  DOCUMENT
+  DOCUMENT,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { NgOptimizedImage, isPlatformBrowser } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
@@ -187,6 +188,7 @@ export function trimServiceTypesForHero(types: ServiceType[] | null | undefined)
   imports: [NgOptimizedImage, RouterLink, FormsModule, ReactiveFormsModule, ShimmerDirective, IconComponent],
   providers: [RESPONSIVE_IMAGE_LOADER_PROVIDER],
   templateUrl: './home-hero.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './home-hero.component.scss'
 })
 export class HomeHeroComponent implements OnInit, OnDestroy {

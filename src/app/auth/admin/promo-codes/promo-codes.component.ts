@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, PromoCode, CreatePromoCode, UpdatePromoCode, UserPermissions } from '../../../services/admin.service';
@@ -8,6 +8,7 @@ import { AdminService, PromoCode, CreatePromoCode, UpdatePromoCode, UserPermissi
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './promo-codes.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./promo-codes.component.scss']
 })
 export class PromoCodesComponent implements OnInit, AfterViewInit, OnDestroy {

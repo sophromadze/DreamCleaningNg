@@ -1,4 +1,4 @@
-import { Component, ElementRef, Inject, NgZone, OnDestroy, OnInit, PLATFORM_ID, ViewChild } from '@angular/core';
+import { Component, ElementRef, Inject, NgZone, OnDestroy, OnInit, PLATFORM_ID, ViewChild, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router } from '@angular/router';
@@ -58,6 +58,7 @@ interface WidgetMessage {
   standalone: true,
   imports: [FormsModule, ChatMarkdownPipe, IconComponent],
   templateUrl: './chat-widget.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './chat-widget.component.scss'
 })
 export class ChatWidgetComponent implements OnInit, OnDestroy {

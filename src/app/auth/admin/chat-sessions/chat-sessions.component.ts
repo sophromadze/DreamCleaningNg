@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -23,6 +23,7 @@ import { ChatMarkdownPipe } from '../../../shared/pipes/chat-markdown.pipe';
   standalone: true,
   imports: [CommonModule, FormsModule, ChatMarkdownPipe],
   templateUrl: './chat-sessions.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './chat-sessions.component.scss'
 })
 export class ChatSessionsComponent implements OnInit {

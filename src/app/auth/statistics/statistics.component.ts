@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, OrderStatistics, DailyStatistics, MonthlyFinancialRate } from '../../services/admin.service';
@@ -60,6 +60,7 @@ interface MonthlyExpenseCategory {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './statistics.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./statistics.component.scss']
 })
 export class StatisticsComponent implements OnInit, OnDestroy {

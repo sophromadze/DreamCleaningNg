@@ -496,7 +496,7 @@
               }
               @if (plan?.activeExpiresAt) {
               <span>
-                Keep your cleanings going to stay on it — it runs until {{ plan?.activeExpiresAt | date: 'MMM d, y' }}.
+                Keep your cleanings going to stay on it — it runs until {{ $safeNavigationMigration(plan?.activeExpiresAt) | date: 'MMM d, y' }}.
               </span>
               }
               @if (plan && !plan.activeSubscriptionId) {

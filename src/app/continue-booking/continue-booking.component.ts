@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, HostListener, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, HostListener, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { FormPersistenceService, BookingFormData } from '../services/form-persistence.service';
@@ -11,6 +11,7 @@ import { Subject, takeUntil, filter } from 'rxjs';
     RouterModule
 ],
   templateUrl: './continue-booking.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './continue-booking.component.scss'
 })
 export class ContinueBookingComponent implements OnInit, OnDestroy {

@@ -1,5 +1,5 @@
 // admin-gift-cards.component.ts
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from '../../../services/admin.service';
 import { formatNyDateTime } from '../../../shared/ny-time.util';
@@ -46,6 +46,7 @@ interface GiftCardUsage {
   standalone: true,
   imports: [FormsModule],
   templateUrl: './admin-gift-cards.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './admin-gift-cards.component.scss'
 })
 export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy {

@@ -1,5 +1,5 @@
 // src/app/poll-success/poll-success.component.ts
-import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AnalyticsService } from '../../services/analytics.service';
@@ -30,6 +30,7 @@ import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
       </div>
     </div>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .poll-success-container {
       min-height: 80vh;

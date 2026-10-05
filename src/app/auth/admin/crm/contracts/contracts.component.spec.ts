@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { Router, provideRouter } from '@angular/router';
 
 import { ContractsComponent } from './contracts.component';
@@ -27,7 +27,7 @@ describe('ContractsComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ContractsComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
     }).compileComponents();
 
     fixture = TestBed.createComponent(ContractsComponent);
@@ -211,7 +211,7 @@ describe('ContractFormComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ContractFormComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
     }).compileComponents();
 
     fixture = TestBed.createComponent(ContractFormComponent);
@@ -1043,7 +1043,7 @@ describe('ContractDetailComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [ContractDetailComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
     }).compileComponents();
 
     fixture = TestBed.createComponent(ContractDetailComponent);

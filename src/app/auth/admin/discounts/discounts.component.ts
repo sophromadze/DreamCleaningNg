@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { PromoCodesComponent } from '../promo-codes/promo-codes.component';
 import { SpecialOffersComponent } from '../special-offers/special-offers.component';
 import { SubscriptionsComponent } from '../subscriptions/subscriptions.component';
@@ -18,6 +18,7 @@ type DiscountSubTab = 'promo-codes' | 'special-offers' | 'subscriptions' | 'gift
     LoyaltyDiscountAdminComponent
 ],
   templateUrl: './discounts.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./discounts.component.scss']
 })
 export class DiscountsComponent {

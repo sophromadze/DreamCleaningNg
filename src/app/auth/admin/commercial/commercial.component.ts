@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
@@ -20,6 +20,7 @@ import { AuthService } from '../../../services/auth.service';
   standalone: true,
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './commercial.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./commercial.component.scss']
 })
 export class CommercialComponent implements OnInit, OnDestroy {

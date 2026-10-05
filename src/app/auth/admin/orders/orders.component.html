@@ -1659,7 +1659,7 @@
                             (click)="chargeSavedCard()"
                             [disabled]="loadingStates.chargingSavedCard"
                             [title]="'Charge the balance due to the customer\'s saved card ending ' + (orderSavedCardInfo?.last4 || '')">
-                      {{ loadingStates.chargingSavedCard ? 'Charging…' : ('Charge $' + (orderSavedCardInfo?.amountDue | number:'1.2-2') + ' to card •••• ' + (orderSavedCardInfo?.last4 || '')) }}
+                      {{ loadingStates.chargingSavedCard ? 'Charging…' : ('Charge $' + ($safeNavigationMigration(orderSavedCardInfo?.amountDue) | number:'1.2-2') + ' to card •••• ' + (orderSavedCardInfo?.last4 || '')) }}
                     </button>
                     }
                     @if (!canChargeSavedCard() && savedCardUnavailableReason(); as reason) {

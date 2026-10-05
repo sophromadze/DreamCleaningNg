@@ -1,5 +1,5 @@
 // src/app/auth/profile/order-edit/order-edit.component.ts
-import { Component, OnDestroy, OnInit, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnDestroy, OnInit, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormArray, FormControl, Validators } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
@@ -80,6 +80,7 @@ interface SelectedExtraService {
   templateUrl: './order-edit.component.html',
   // Booking's stylesheet is the single source of truth for the shared look; the local
   // file only styles order-edit-specific elements (back link, additional amount, modal).
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['../../../booking/booking.component.scss', './order-edit.component.scss']
 })
 export class OrderEditComponent implements OnInit, OnDestroy {

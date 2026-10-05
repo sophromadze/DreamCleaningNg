@@ -1,5 +1,6 @@
 import {
-  AfterViewChecked, Component, ElementRef, EventEmitter, Input, Output, ViewChild
+  AfterViewChecked, Component, ElementRef, EventEmitter, Input, Output, ViewChild,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { IconComponent } from '../../icons/icon.component';
 import { faCircleNotch } from '../../icons/glyphs/faCircleNotch';
@@ -27,6 +28,7 @@ import { faLock } from '../../icons/glyphs/faLock';
   standalone: true,
   imports: [IconComponent],
   templateUrl: './save-card-modal.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./save-card-modal.component.scss']
 })
 export class SaveCardModalComponent implements AfterViewChecked {

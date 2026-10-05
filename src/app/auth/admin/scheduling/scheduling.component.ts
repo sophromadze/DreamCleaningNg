@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from '../../../services/admin.service';
 
@@ -24,6 +24,7 @@ const ALL_TIME_SLOTS = [
   standalone: true,
   imports: [FormsModule],
   templateUrl: './scheduling.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./scheduling.component.scss']
 })
 export class SchedulingComponent implements OnInit {

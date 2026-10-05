@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -20,6 +20,7 @@ import { allowsCurrencyChoice, currencySymbol, isSalaryCategory } from '../../..
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './expenses.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./expenses.component.scss']
 })
 export class ExpensesComponent implements OnInit {

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { ContractsComponent } from '../crm/contracts/contracts.component';
 
@@ -23,6 +23,7 @@ import { ContractsComponent } from '../crm/contracts/contracts.component';
   standalone: true,
   imports: [ContractsComponent],
   templateUrl: './contracts-page.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./contracts-page.component.scss']
 })
 export class ContractsPageComponent implements OnInit {

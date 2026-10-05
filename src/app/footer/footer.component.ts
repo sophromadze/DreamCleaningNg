@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { PhoneNumberService } from '../services/phone-number.service';
 import { IconComponent } from '../shared/icons/icon.component';
@@ -13,6 +13,7 @@ import { faYelp } from '../shared/icons/glyphs/faYelp';
   standalone: true,
   imports: [RouterLink, RouterLinkActive, IconComponent],
   templateUrl: './footer.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './footer.component.scss'
 })
 export class FooterComponent {

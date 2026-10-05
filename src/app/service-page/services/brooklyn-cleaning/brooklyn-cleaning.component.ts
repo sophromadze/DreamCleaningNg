@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import {
   GooglePlacesService,
@@ -21,6 +21,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule, ServiceAreaMapComponent, HomeHeroComponent, CardImageDirective],
   templateUrl: './brooklyn-cleaning.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./brooklyn-cleaning.component.scss']
 })
 export class BrooklynCleaningComponent implements OnInit, OnDestroy {

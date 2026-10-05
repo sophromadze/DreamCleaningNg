@@ -1,6 +1,6 @@
 // src/app/auth/admin/special-offers/special-offers.component.ts
 
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { SpecialOfferService, SpecialOffer, CreateSpecialOffer, UpdateSpecialOffer, OfferType } from '../../../services/special-offer.service';
@@ -13,6 +13,7 @@ import { readableLabelColor } from '../../../shared/admin/readable-label-color';
   standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule],
   templateUrl: './special-offers.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./special-offers.component.scss']
 })
 export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy {

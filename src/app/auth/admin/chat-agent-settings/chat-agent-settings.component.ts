@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, OnDestroy } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   ChatAgentAdminService,
@@ -24,6 +24,7 @@ interface VisibilityOption {
   standalone: true,
   imports: [CommonModule],
   templateUrl: './chat-agent-settings.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './chat-agent-settings.component.scss'
 })
 export class ChatAgentSettingsComponent implements OnDestroy {

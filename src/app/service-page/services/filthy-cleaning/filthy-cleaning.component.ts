@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { MarketingPricingService } from '../../../shared/pricing/marketing-pricing.service';
 import { PhoneNumberService } from '../../../services/phone-number.service';
@@ -10,6 +10,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule, CardImageDirective],
   templateUrl: './filthy-cleaning.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './filthy-cleaning.component.scss'
 })
 export class FilthyCleaningComponent implements OnInit, OnDestroy {

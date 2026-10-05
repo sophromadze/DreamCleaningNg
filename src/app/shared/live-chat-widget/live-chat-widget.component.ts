@@ -1,5 +1,5 @@
 import {
-  Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, HostBinding
+  Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, HostBinding, ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -14,6 +14,7 @@ import { filter } from 'rxjs/operators';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './live-chat-widget.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./live-chat-widget.component.scss']
 })
 export class LiveChatWidgetComponent implements OnInit, OnDestroy {

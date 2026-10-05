@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { StructuredDataService } from '../../../services/structured-data.service';
 
@@ -7,6 +7,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule],
   templateUrl: './laundry-and-dishwashing.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './laundry-and-dishwashing.component.scss'
 })
 export class LaundryAndDishwashingComponent implements OnInit, OnDestroy {

@@ -1,7 +1,7 @@
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { SocialAuthServiceConfig } from '@abacritt/angularx-social-login';
+import { SOCIAL_AUTH_CONFIG, SocialAuthServiceConfig } from '@abacritt/angularx-social-login';
 
 /**
  * Shared TestBed providers for the scaffolded "should create" specs.
@@ -20,11 +20,11 @@ import { SocialAuthServiceConfig } from '@abacritt/angularx-social-login';
  * should override individual providers rather than extending this list.
  */
 export const testProviders = [
-  provideHttpClient(),
+  provideHttpClient(withXhr()),
   provideHttpClientTesting(),
   provideRouter([]),
   {
-    provide: 'SocialAuthServiceConfig',
+    provide: SOCIAL_AUTH_CONFIG,
     useValue: {
       autoLogin: false,
       providers: [],

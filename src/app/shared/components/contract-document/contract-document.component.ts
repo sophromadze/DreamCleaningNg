@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ContractSignatureBlock, ContractSignatureParty } from '../../../services/contract.service';
 
@@ -20,6 +20,7 @@ import { ContractSignatureBlock, ContractSignatureParty } from '../../../service
   standalone: true,
   imports: [CommonModule],
   templateUrl: './contract-document.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./contract-document.component.scss']
 })
 export class ContractDocumentComponent {

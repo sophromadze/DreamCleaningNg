@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -30,6 +30,7 @@ import { extractApiErrorMessage } from '../../utils/http-error.utils';
   templateUrl: './contract-sign.component.html',
   // The review page's stylesheet is the single source for the shared client-page chrome; this
   // component's own sheet adds only what is specific to signing.
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: [
     '../contract-review/contract-review.component.scss',
     './contract-sign.component.scss'

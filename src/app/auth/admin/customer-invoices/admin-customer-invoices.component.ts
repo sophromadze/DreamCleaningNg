@@ -1,4 +1,4 @@
-import { Component, Input, OnDestroy, OnInit } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, takeUntil } from 'rxjs';
@@ -38,6 +38,7 @@ export const MANUAL_PAYMENT_OPTIONS = [
   standalone: true,
   imports: [CommonModule, FormsModule, AdminUserSearchComponent],
   templateUrl: './admin-customer-invoices.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./admin-customer-invoices.component.scss']
 })
 export class AdminCustomerInvoicesComponent implements OnInit, OnDestroy {

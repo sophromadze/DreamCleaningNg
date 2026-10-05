@@ -86,7 +86,7 @@
                [class.role-admin]="header.currentUser?.role === 'Admin'"
                [class.role-moderator]="header.currentUser?.role === 'Moderator'"
                [class.role-customer]="header.currentUser?.role === 'Customer'">
-          {{ header.displayRole(header.currentUser?.role) }}
+          {{ header.displayRole($safeNavigationMigration(header.currentUser?.role)) }}
         </small>
       </div>
       <button type="button" class="theme-toggle theme-toggle--inline" (click)="header.toggleTheme(); $event.stopPropagation()" [attr.aria-label]="header.isDark ? 'Switch to light mode' : 'Switch to dark mode'">

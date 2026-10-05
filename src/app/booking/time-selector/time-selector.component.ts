@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, HostListener } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnChanges, HostListener, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { getAllServiceTimeSlots } from '../../shared/booking/service-time-slots';
 @Component({
@@ -6,6 +6,7 @@ import { getAllServiceTimeSlots } from '../../shared/booking/service-time-slots'
   standalone: true,
   imports: [FormsModule],
   templateUrl: './time-selector.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./time-selector.component.scss'],
 })
 export class TimeSelectorComponent implements OnInit, OnChanges {

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { AdminService, UserAdmin } from '../../services/admin.service';
@@ -52,6 +52,7 @@ export const USER_LIST_SETTLE_MS = 350;
   standalone: true,
   imports: [FormsModule, IconComponent],
   templateUrl: './admin-user-search.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./admin-user-search.component.scss']
 })
 export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {

@@ -1,10 +1,11 @@
-import { Component, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router } from '@angular/router';
 
 @Component({
   selector: 'app-client-only-notice',
   standalone: true,
+  changeDetection: ChangeDetectionStrategy.Eager,
   imports: [],
   template: `
     @if (!isBrowser) {

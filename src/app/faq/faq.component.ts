@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, inject, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
 import { StructuredDataService } from '../services/structured-data.service';
@@ -10,6 +10,7 @@ import { listStartingPrices } from '../shared/pricing/marketing-price-format';
   standalone: true,
   imports: [BubbleFieldComponent],
   templateUrl: './faq.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./faq.component.scss']
 })
 export class FaqComponent implements OnInit, OnDestroy {

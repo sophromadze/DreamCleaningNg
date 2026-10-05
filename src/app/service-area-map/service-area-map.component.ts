@@ -8,6 +8,7 @@ import {
   ChangeDetectorRef,
   ViewChild,
   ElementRef,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
@@ -55,6 +56,7 @@ const TILE_LAYER_OPTIONS = {
   standalone: true,
   imports: [FormsModule],
   templateUrl: './service-area-map.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./service-area-map.component.scss'],
 })
 export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {

@@ -1,4 +1,4 @@
-import { Component, OnInit, Inject, PLATFORM_ID, HostListener } from '@angular/core';
+import { Component, OnInit, Inject, PLATFORM_ID, HostListener, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -17,6 +17,7 @@ import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
   standalone: true,
   imports: [FormsModule, RouterModule, IconComponent],
   templateUrl: './two-factor-challenge.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./two-factor-challenge.component.scss']
 })
 export class TwoFactorChallengeComponent implements OnInit {

@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ElementRef, Inject, Injector, PLATFORM_ID, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, Inject, Injector, PLATFORM_ID, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink, RouterLinkActive, Router, NavigationEnd, NavigationStart } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
 import { BubbleBadgeComponent } from './bubble-badge/bubble-badge.component';
@@ -38,6 +38,7 @@ interface HeaderAccountServices {
   standalone: true,
   imports: [RouterLink, RouterLinkActive, BubbleBadgeComponent, HeaderAccountMenuComponent],
   templateUrl: './header.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './header.component.scss'
 })
 export class HeaderComponent implements OnInit, OnDestroy {

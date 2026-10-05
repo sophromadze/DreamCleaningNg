@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { MarketingPricingService } from '../../../shared/pricing/marketing-pricing.service';
 import { IconComponent } from '../../../shared/icons/icon.component';
@@ -17,6 +17,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule, IconComponent, CardImageDirective],
   templateUrl: './heavy-condition-cleaning.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './heavy-condition-cleaning.component.scss'
 })
 export class HeavyConditionCleaningComponent implements OnInit, OnDestroy {

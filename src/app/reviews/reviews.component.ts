@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { environment } from '../../environments/environment';
@@ -22,6 +22,7 @@ interface DisplayReview extends Review {
   standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './reviews.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './reviews.component.scss'
 })
 export class ReviewsComponent implements OnInit, OnDestroy {

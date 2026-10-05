@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, OnInit, Output, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CrmCustomerService, CrmSegment } from '../../../../services/crm-customer.service';
 
@@ -7,6 +7,7 @@ import { CrmCustomerService, CrmSegment } from '../../../../services/crm-custome
   standalone: true,
   imports: [CommonModule],
   templateUrl: './crm-segments.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./crm-segments.component.scss']
 })
 export class CrmSegmentsComponent implements OnInit {

@@ -1,6 +1,7 @@
 import {
   Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input, Output,
-  EventEmitter
+  EventEmitter,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -57,6 +58,7 @@ type DetailTab = 'details' | 'history' | 'photos' | 'notes' | 'tasks' | 'invoice
   standalone: true,
   imports: [CommonModule, FormsModule, RegisterCustomerModalComponent, RecreateOrderModalComponent, AdminUserBillingComponent],
   templateUrl: './user-management.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./user-management.component.scss']
 })
 export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy {

@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
@@ -16,6 +16,7 @@ import { canViewAdminPage } from '../../../shared/admin-viewable-pages';
   standalone: true,
   imports: [RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './company.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./company.component.scss']
 })
 export class CompanyComponent implements OnInit, OnDestroy {

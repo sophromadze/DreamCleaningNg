@@ -11,7 +11,7 @@
         </div>
         <p>{{ currentNotification?.message }}</p>
         <small class="timestamp">
-          {{ currentNotification?.timestamp | date:'medium' }}
+          {{ $safeNavigationMigration(currentNotification?.timestamp) | date:'medium' }}
         </small>
       </div>
       <div class="modal-footer">

@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
@@ -26,6 +26,7 @@ import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './billing-settings.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./billing-settings.component.scss']
 })
 export class BillingSettingsComponent implements OnInit {

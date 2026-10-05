@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, HostListener, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -22,6 +22,7 @@ type LoginStep = 'email' | 'password' | 'otp';
     AppleSigninButtonComponent
 ],
   templateUrl: './auth-modal.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './auth-modal.component.scss'
 })
 export class AuthModalComponent implements OnInit, OnDestroy {

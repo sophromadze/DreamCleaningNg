@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import { HttpInterceptorFn, provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpInterceptorFn, provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { SocialAuthServiceConfig } from '@abacritt/angularx-social-login';
+import { SOCIAL_AUTH_CONFIG, SocialAuthServiceConfig } from '@abacritt/angularx-social-login';
 
 import { BookingComponent } from './booking.component';
 import { BookingService } from '../services/booking.service';
@@ -34,11 +34,11 @@ describe('BookingComponent — HTTP goes through the app HttpClient', () => {
     await TestBed.configureTestingModule({
       imports: [BookingComponent],
       providers: [
-        provideHttpClient(withInterceptors([recordingInterceptor])),
+        provideHttpClient(withXhr(), withInterceptors([recordingInterceptor])),
         provideHttpClientTesting(),
         provideRouter([]),
         {
-          provide: 'SocialAuthServiceConfig',
+          provide: SOCIAL_AUTH_CONFIG,
           useValue: { autoLogin: false, providers: [], onError: () => {} } as SocialAuthServiceConfig
         }
       ]

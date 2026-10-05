@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -32,6 +32,7 @@ import { isBedroomsLine, isCleanersLine } from '../../../shared/booking/order-se
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule, SaveCardModalComponent, IconComponent],
   templateUrl: './order-payment.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./order-payment.component.scss']
 })
 export class OrderPaymentComponent implements OnInit, OnDestroy {

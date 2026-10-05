@@ -1,4 +1,4 @@
-import { Component, Inject, OnDestroy, OnInit, Optional, inject } from '@angular/core';
+import { Component, Inject, OnDestroy, OnInit, Optional, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { Meta, Title, DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription, take } from 'rxjs';
@@ -21,6 +21,7 @@ const BASE_URL = 'https://dreamcleaningnyc.com';
   standalone: true,
   imports: [RouterModule],
   templateUrl: './blog-post.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './blog-post.component.scss'
 })
 export class BlogPostComponent implements OnInit, OnDestroy {

@@ -8,7 +8,8 @@ import {
   ViewChild,
   ElementRef,
   inject,
-  afterNextRender
+  afterNextRender,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { NavigationStart, Router, RouterLink } from '@angular/router';
@@ -79,6 +80,7 @@ export interface BeforeAfterPhoto {
   standalone: true,
   imports: [RouterLink, HomeHeroComponent, TestimonialSectionComponent, IconComponent, CardImageDirective],
   templateUrl: './main.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './main.component.scss'
 })
 export class MainComponent implements OnInit, OnDestroy {

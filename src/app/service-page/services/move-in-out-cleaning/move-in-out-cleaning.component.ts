@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { MarketingPricingService } from '../../../shared/pricing/marketing-pricing.service';
 import { priceFragment, startingPriceOffer } from '../../../shared/pricing/marketing-price-format';
@@ -15,6 +15,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule, IconComponent, CardImageDirective],
   templateUrl: './move-in-out-cleaning.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './move-in-out-cleaning.component.scss'
 })
 export class MoveInOutCleaningComponent implements OnInit, OnDestroy {

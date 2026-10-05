@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 
@@ -31,6 +31,7 @@ import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
   standalone: true,
   imports: [FormsModule],
   templateUrl: './business-types.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./business-types.component.scss']
 })
 export class BusinessTypesComponent implements OnInit {

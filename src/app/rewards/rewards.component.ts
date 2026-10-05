@@ -1,4 +1,4 @@
-import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { ShimmerDirective } from '../shared/directives/shimmer.directive';
@@ -17,6 +17,7 @@ import {
   standalone: true,
   imports: [CommonModule, RouterModule, ShimmerDirective, NyDatePipe, ReferAFriendComponent],
   templateUrl: './rewards.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './rewards.component.scss'
 })
 export class RewardsComponent implements OnInit {

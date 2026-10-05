@@ -1,4 +1,4 @@
-import { Component, Inject, OnDestroy, OnInit, PLATFORM_ID } from '@angular/core';
+import { Component, Inject, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -24,6 +24,7 @@ import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-ke
   standalone: true,
   imports: [RouterModule, IconComponent],
   templateUrl: './first-time-offer-popup.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './first-time-offer-popup.component.scss'
 })
 export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {

@@ -1,5 +1,5 @@
 import {
-  Component, ElementRef, Input, OnChanges, OnDestroy, PLATFORM_ID, ViewChild, inject
+  Component, ElementRef, Input, OnChanges, OnDestroy, PLATFORM_ID, ViewChild, inject, ChangeDetectionStrategy
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import Chart from 'chart.js/auto';
@@ -46,6 +46,7 @@ export function channelColorVar(channel: string): string {
   standalone: true,
   imports: [],
   templateUrl: './channel-trend-chart.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./channel-trend-chart.component.scss']
 })
 export class ChannelTrendChartComponent implements OnChanges, OnDestroy {

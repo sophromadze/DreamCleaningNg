@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { MarketingPricingService } from '../shared/pricing/marketing-pricing.service';
 import { CardImageDirective } from '../shared/images/card-image.directive';
@@ -8,6 +8,7 @@ import { CardImageDirective } from '../shared/images/card-image.directive';
   standalone: true,
   imports: [RouterModule, CardImageDirective],
   templateUrl: './service-page.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './service-page.component.scss'
 })
 export class ServicePageComponent {

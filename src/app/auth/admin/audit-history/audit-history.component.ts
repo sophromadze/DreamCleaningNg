@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, AuditLog, AuditMetadata, UserPermissions } from '../../../services/admin.service';
@@ -22,6 +22,7 @@ import { ORDER_SERVICE_KEYS, orderServiceIs } from '../../../shared/booking/orde
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './audit-history.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./audit-history.component.scss']
 })
 export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {

@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { finalize } from 'rxjs';
@@ -30,6 +30,7 @@ import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
   standalone: true,
   imports: [CommonModule, RouterModule, IconComponent],
   templateUrl: './customer-invoice-page.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./customer-invoice-page.component.scss']
 })
 export class CustomerInvoicePageComponent implements OnInit, OnDestroy {

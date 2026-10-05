@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, OnInit, Output, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CrmCallService, CallRecord, CallSummary } from '../../../../services/crm-call.service';
@@ -8,6 +8,7 @@ import { CrmCallService, CallRecord, CallSummary } from '../../../../services/cr
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './crm-calls.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./crm-calls.component.scss']
 })
 export class CrmCallsComponent implements OnInit {

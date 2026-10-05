@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { MarketingPricingService } from '../../../shared/pricing/marketing-pricing.service';
@@ -21,6 +21,7 @@ import { findAdvertisedFirstTimeOffer } from '../../../shared/booking/special-of
   standalone: true,
   imports: [RouterModule, TestimonialSectionComponent, IconComponent, CardImageDirective],
   templateUrl: './deep-cleaning.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './deep-cleaning.component.scss'
 })
 export class DeepCleaningComponent implements OnInit, OnDestroy {

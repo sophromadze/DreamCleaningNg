@@ -1,5 +1,6 @@
 import {
-  Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, inject
+  Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges, inject,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -27,6 +28,7 @@ import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
   standalone: true,
   imports: [CommonModule, FormsModule, ContractDocumentComponent, SignatureCaptureComponent],
   templateUrl: './contract-detail.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./contract-detail.component.scss']
 })
 export class ContractDetailComponent implements OnInit, OnChanges {

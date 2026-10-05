@@ -1,4 +1,4 @@
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -28,6 +28,7 @@ type DateRangeKey = 'all' | 'this-month' | 'last-month' | 'custom';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './invoices.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./invoices.component.scss']
 })
 export class CommercialInvoicesComponent implements OnInit {

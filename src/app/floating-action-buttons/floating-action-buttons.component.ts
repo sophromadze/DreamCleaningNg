@@ -1,4 +1,4 @@
-import { Component, HostListener, ElementRef, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, HostListener, ElementRef, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { PhoneClickTrackingService } from '../services/phone-click-tracking.service';
@@ -9,6 +9,7 @@ import { PhoneNumberService } from '../services/phone-number.service';
   standalone: true,
   imports: [RouterModule],
   templateUrl: './floating-action-buttons.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './floating-action-buttons.component.scss'
 })
 export class FloatingActionButtonsComponent {

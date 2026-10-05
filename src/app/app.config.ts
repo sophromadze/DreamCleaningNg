@@ -2,13 +2,14 @@ import { ApplicationConfig, PLATFORM_ID, APP_ID, provideZoneChangeDetection, pro
 import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import { provideHttpClient, withFetch, withInterceptorsFromDi, withInterceptors } from '@angular/common/http';
 import { routes } from './app.routes';
-import { provideClientHydration, withEventReplay, withIncrementalHydration } from '@angular/platform-browser';
+import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
 import { authInterceptor } from './interceptors/auth.interceptor';
 import { importProvidersFrom } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { 
   SocialLoginModule, 
   SocialAuthServiceConfig,
+  SOCIAL_AUTH_CONFIG,
   GoogleLoginProvider,
   GoogleSigninButtonModule
 } from '@abacritt/angularx-social-login';
@@ -63,18 +64,19 @@ export const appConfig: ApplicationConfig = {
     ),
     provideZoneChangeDetection({ eventCoalescing: true }),
     
-    // Client hydration with event replay, plus incremental hydration: `@defer (hydrate on ...)`
-    // blocks (footer, below-the-fold home sections) are server-rendered in full but stay
-    // dehydrated - no JS downloaded, no hydration work - until their trigger fires. Developer
-    // preview in Angular 19. Those blocks also carry `on immediate`: hydration ignores it, but a
-    // CLIENT-side render of the page (navigating to it in the app) needs a regular trigger, or
-    // the block would wait for idle and pop in after the rest of the page.
-    // FALLBACK to full hydration takes BOTH steps: delete withIncrementalHydration() here AND
+    // Client hydration with event replay. Incremental hydration is ON by default since Angular 22
+    // (before that it was `withIncrementalHydration()`): `@defer (hydrate on ...)` blocks (footer,
+    // below-the-fold home sections) are server-rendered in full but stay dehydrated - no JS
+    // downloaded, no hydration work - until their trigger fires. Those blocks also carry
+    // `on immediate`: hydration ignores it, but a CLIENT-side render of the page (navigating to it
+    // in the app) needs a regular trigger, or the block would wait for idle and pop in after the
+    // rest of the page.
+    // FALLBACK to full hydration takes BOTH steps: add withNoIncrementalHydration() here AND
     // unwrap every block tagged [incremental-hydration] (keep the content, drop the
-    // `@defer (on immediate; hydrate ...) {` line and its closing brace). Removing only this
-    // provider is not enough: without it the server renders a @defer block's placeholder instead
-    // of its content, which would take those sections out of the SEO HTML.
-    provideClientHydration(withEventReplay(), withIncrementalHydration()),
+    // `@defer (on immediate; hydrate ...) {` line and its closing brace). The opt-out alone is not
+    // enough: without incremental hydration the server renders a @defer block's placeholder
+    // instead of its content, which would take those sections out of the SEO HTML.
+    provideClientHydration(withEventReplay()),
     
     provideRouter(
       routes,
@@ -89,9 +91,13 @@ export const appConfig: ApplicationConfig = {
       if (isPlatformBrowser(inject(PLATFORM_ID))) inject(ScrollRestoreService).start();
     }),
 
-    // Social auth configuration with platform check
+    // Social auth configuration with platform check. Since angularx-social-login 2.5,
+    // SocialAuthService injects the SOCIAL_AUTH_CONFIG token, not the old 'SocialAuthServiceConfig'
+    // string (still what the library's own SocialLoginModule.initialize() provides, so it can't
+    // be used) - a string-token provider here leaves the service, and the Google button, with no
+    // config at all (NG0201).
     {
-      provide: 'SocialAuthServiceConfig',
+      provide: SOCIAL_AUTH_CONFIG,
       useFactory: (platformId: Object) => getSocialAuthConfig(platformId),
       deps: [PLATFORM_ID]
     },

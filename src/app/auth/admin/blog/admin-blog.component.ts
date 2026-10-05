@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -36,6 +36,7 @@ interface SuggestionRow extends SuggestedTopic {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './admin-blog.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './admin-blog.component.scss'
 })
 export class AdminBlogComponent implements OnInit, OnDestroy {

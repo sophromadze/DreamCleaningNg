@@ -1,5 +1,6 @@
 import {
-  AfterViewInit, Component, ElementRef, EventEmitter, Input, OnDestroy, Output, ViewChild, inject
+  AfterViewInit, Component, ElementRef, EventEmitter, Input, OnDestroy, Output, ViewChild, inject,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
@@ -33,6 +34,7 @@ export interface CapturedSignature {
   standalone: true,
   imports: [FormsModule],
   templateUrl: './signature-capture.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./signature-capture.component.scss']
 })
 export class SignatureCaptureComponent implements AfterViewInit, OnDestroy {

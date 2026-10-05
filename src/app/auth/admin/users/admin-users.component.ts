@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, OnInit, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
 
 import { UserManagementComponent } from '../user-management/user-management.component';
 import { CleanerAccountsComponent } from '../cleaner-accounts/cleaner-accounts.component';
@@ -20,6 +20,7 @@ export type AdminUsersTab = 'customers' | 'cleaners' | 'business-clients' | 'sta
     CommercialClientsComponent
 ],
   templateUrl: './admin-users.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./admin-users.component.scss']
 })
 /**

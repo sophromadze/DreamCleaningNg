@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
-import { SocialAuthServiceConfig } from '@abacritt/angularx-social-login';
+import { SOCIAL_AUTH_CONFIG, SocialAuthServiceConfig } from '@abacritt/angularx-social-login';
 
 import { ExpensesComponent } from './expenses.component';
 import { Expense, ExpenseStaffMember } from '../../../services/expense.service';
@@ -49,11 +49,11 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
     await TestBed.configureTestingModule({
       imports: [ExpensesComponent],
       providers: [
-        provideHttpClient(),
+        provideHttpClient(withXhr()),
         provideHttpClientTesting(),
         provideRouter([]),
         {
-          provide: 'SocialAuthServiceConfig',
+          provide: SOCIAL_AUTH_CONFIG,
           useValue: { autoLogin: false, providers: [], onError: () => {} } as SocialAuthServiceConfig
         }
       ]

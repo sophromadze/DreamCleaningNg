@@ -5,7 +5,8 @@ import {
   Inject,
   PLATFORM_ID,
   inject,
-  DOCUMENT
+  DOCUMENT,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -58,6 +59,7 @@ const SECTOR_PHOTO_SIZES = '(max-width: 580px) calc(100vw - 49px), 365px';
   // as order-edit listing booking.component.scss first. Neither homepage sheet uses :host and
   // the handful of selectors they both define (.badge, .btn-cta-secondary) are byte-identical,
   // so loading both into one component is safe.
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: [
     '../../../shared/components/home-hero/home-hero.component.scss',
     '../../../main/main.component.scss',

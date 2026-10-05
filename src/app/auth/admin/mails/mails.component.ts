@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MailService, ROLES, ScheduledMailDto, CreateScheduledMailDto, UpdateScheduledMailDto, MailUserCountDto, MailStatsDto } from '../../../services/mail.service';
 import { AdminService, UserPermissions } from '../../../services/admin.service';
@@ -13,6 +13,7 @@ const STATUS_SENT = 2;
   standalone: true,
   imports: [FormsModule, NyDatePipe],
   templateUrl: './mails.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./mails.component.scss']
 })
 export class MailsComponent implements OnInit, AfterViewInit, OnDestroy {

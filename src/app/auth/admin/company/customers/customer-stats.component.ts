@@ -1,5 +1,6 @@
 import {
-  Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, ChangeDetectorRef
+  Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, ChangeDetectorRef,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -232,6 +233,7 @@ const VIEW_STORAGE_PREFIX = 'dreamcleaning-customers-view';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './customer-stats.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./customer-stats.component.scss']
 })
 export class CustomerStatsComponent implements OnInit, OnDestroy {

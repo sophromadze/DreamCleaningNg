@@ -1,6 +1,6 @@
 import { MyInvoicesTabComponent } from './invoices/my-invoices-tab.component';
 import { MyGiftCardsTabComponent } from './gift-cards/my-gift-cards-tab.component';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -53,6 +53,7 @@ export const ORDERS_PER_PAGE = 10;
     ReferAFriendComponent, MyInvoicesTabComponent, MyGiftCardsTabComponent
   ],
   templateUrl: './profile.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./profile.component.scss']
 })
 

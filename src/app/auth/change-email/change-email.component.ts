@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -40,6 +40,7 @@ import { faPaperPlane } from '../../shared/icons/glyphs/faPaperPlane';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, IconComponent],
   templateUrl: './change-email.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['../account-form.scss', './change-email.component.scss']
 })
 export class ChangeEmailComponent implements OnInit {

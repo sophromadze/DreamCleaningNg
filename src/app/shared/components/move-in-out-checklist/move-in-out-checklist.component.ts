@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import {
   MOVE_IN_OUT_CHECKLIST_SECTIONS,
   MOVE_IN_OUT_IMPORTANT_REQUIREMENTS,
@@ -17,6 +17,7 @@ import { faXmark } from '../../icons/glyphs/faXmark';
   standalone: true,
   imports: [IconComponent],
   templateUrl: './move-in-out-checklist.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './move-in-out-checklist.component.scss',
 })
 export class MoveInOutChecklistComponent {

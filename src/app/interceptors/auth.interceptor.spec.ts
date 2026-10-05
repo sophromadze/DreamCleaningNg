@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
-import { HttpClient, HttpErrorResponse, HttpHeaders, provideHttpClient, withInterceptors } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse, HttpHeaders, provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
-import { SocialAuthServiceConfig } from '@abacritt/angularx-social-login';
+import { SOCIAL_AUTH_CONFIG, SocialAuthServiceConfig } from '@abacritt/angularx-social-login';
 import { of, throwError, Subject } from 'rxjs';
 
 import { authInterceptor, resetRefreshState, SESSION_REVOKED_HEADER } from './auth.interceptor';
@@ -33,11 +33,11 @@ describe('authInterceptor — revoked sessions', () => {
 
     TestBed.configureTestingModule({
       providers: [
-        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClient(withXhr(), withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
         provideRouter([]),
         {
-          provide: 'SocialAuthServiceConfig',
+          provide: SOCIAL_AUTH_CONFIG,
           useValue: { autoLogin: false, providers: [], onError: () => {} } as SocialAuthServiceConfig,
         },
       ],
@@ -124,11 +124,11 @@ describe('authInterceptor — renewing an expired token', () => {
 
     TestBed.configureTestingModule({
       providers: [
-        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClient(withXhr(), withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
         provideRouter([]),
         {
-          provide: 'SocialAuthServiceConfig',
+          provide: SOCIAL_AUTH_CONFIG,
           useValue: { autoLogin: false, providers: [], onError: () => {} } as SocialAuthServiceConfig,
         },
       ],
@@ -261,11 +261,11 @@ describe('authInterceptor — the intermittent auto-logout', () => {
 
     TestBed.configureTestingModule({
       providers: [
-        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClient(withXhr(), withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
         provideRouter([]),
         {
-          provide: 'SocialAuthServiceConfig',
+          provide: SOCIAL_AUTH_CONFIG,
           useValue: { autoLogin: false, providers: [], onError: () => {} } as SocialAuthServiceConfig,
         },
       ],
@@ -362,11 +362,11 @@ describe('authInterceptor — cookie auth and the transfer cache', () => {
     (environment as { useCookieAuth: boolean }).useCookieAuth = true;
     TestBed.configureTestingModule({
       providers: [
-        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClient(withXhr(), withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
         provideRouter([]),
         {
-          provide: 'SocialAuthServiceConfig',
+          provide: SOCIAL_AUTH_CONFIG,
           useValue: { autoLogin: false, providers: [], onError: () => {} } as SocialAuthServiceConfig,
         },
       ],

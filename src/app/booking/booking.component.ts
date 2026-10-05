@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, Inject, PLATFORM_ID, afterNextRender, Injector, runInInjectionContext, ViewChild, ElementRef, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, Inject, PLATFORM_ID, afterNextRender, Injector, runInInjectionContext, ViewChild, ElementRef, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
@@ -191,6 +191,7 @@ export function adminMethodIsSettled(method: AdminBookingPaymentMethod): boolean
   // with no interceptors, so the service's calls skipped refresh-on-401 and session revocation.
   providers: [BookingService],
   templateUrl: './booking.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './booking.component.scss'
 })
 export class BookingComponent implements OnInit, OnDestroy {

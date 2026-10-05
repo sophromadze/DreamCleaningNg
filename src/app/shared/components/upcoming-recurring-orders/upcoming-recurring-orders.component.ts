@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnDestroy, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, OnDestroy, OnInit, Output, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
@@ -22,6 +22,7 @@ export const PAY_ALL_UNCONFIRMED_MESSAGE =
   standalone: true,
   imports: [CommonModule, SaveCardModalComponent],
   templateUrl: './upcoming-recurring-orders.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./upcoming-recurring-orders.component.scss']
 })
 /**

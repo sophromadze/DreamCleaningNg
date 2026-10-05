@@ -1,4 +1,4 @@
-import { Component, Inject, Input, OnDestroy, OnInit, PLATFORM_ID } from '@angular/core';
+import { Component, Inject, Input, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
@@ -74,6 +74,7 @@ export interface CleanerCalendarCell {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './cleaner-portal.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./cleaner-portal.component.scss']
 })
 export class CleanerPortalComponent implements OnInit, OnDestroy {

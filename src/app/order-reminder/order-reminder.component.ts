@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { OrderReminderService, OrderReminder } from '../services/order-reminder.service';
@@ -14,6 +14,7 @@ import { faCircleStop } from '../shared/icons/glyphs/faCircleStop';
   standalone: true,
   imports: [IconComponent],
   templateUrl: './order-reminder.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./order-reminder.component.scss']
 })
 export class OrderReminderComponent implements OnInit, OnDestroy {

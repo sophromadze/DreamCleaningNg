@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -30,6 +30,7 @@ import { debounceTime, distinctUntilChanged, switchMap, filter } from 'rxjs/oper
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './tasks.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./tasks.component.scss']
 })
 export class TasksComponent implements OnInit, OnDestroy {

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, ParamMap } from '@angular/router';
 import { skip } from 'rxjs/operators';
 import { AdminService, UserPermissions } from '../../services/admin.service';
@@ -35,6 +35,7 @@ import { AdminCustomerInvoicesComponent } from './customer-invoices/admin-custom
     AdminCustomerInvoicesComponent
 ],
   templateUrl: './admin.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./admin.component.scss']
 })
 export class AdminComponent implements OnInit {

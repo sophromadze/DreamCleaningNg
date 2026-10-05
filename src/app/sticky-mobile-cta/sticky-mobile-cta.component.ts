@@ -1,4 +1,4 @@
-import { Component, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { StickyCtaService } from '../services/sticky-cta.service';
@@ -10,6 +10,7 @@ import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-ke
   standalone: true,
   imports: [RouterModule],
   templateUrl: './sticky-mobile-cta.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './sticky-mobile-cta.component.scss'
 })
 export class StickyMobileCtaComponent {

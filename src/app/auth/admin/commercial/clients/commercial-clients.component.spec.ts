@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideRouter, Router } from '@angular/router';
 
 import { CommercialClientsComponent } from './commercial-clients.component';
@@ -72,7 +72,7 @@ describe('CommercialClientsComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [CommercialClientsComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
     }).compileComponents();
 
     fixture = TestBed.createComponent(CommercialClientsComponent);

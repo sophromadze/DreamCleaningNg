@@ -1,4 +1,4 @@
-import { Component, Inject, PLATFORM_ID, OnInit } from '@angular/core';
+import { Component, Inject, PLATFORM_ID, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -12,6 +12,7 @@ type Step = 'email' | 'code' | 'account-found' | 'merge-email' | 'merge-success'
   standalone: true,
   imports: [ReactiveFormsModule],
   templateUrl: './real-email-verify.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./real-email-verify.component.scss']
 })
 export class RealEmailVerifyComponent implements OnInit {

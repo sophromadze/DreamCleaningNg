@@ -135,7 +135,7 @@
           <label class="pay-option" [class.selected]="!payFullBalance">
             <input type="radio" name="partialAmountChoice" [checked]="!payFullBalance"
                    (change)="selectPayFullBalance(false)" [disabled]="isProcessing || isLoading">
-            <span>Pay ${{ partialRequest?.requestedAmount | number:'1.2-2' }} now, as arranged</span>
+            <span>Pay ${{ $safeNavigationMigration(partialRequest?.requestedAmount) | number:'1.2-2' }} now, as arranged</span>
           </label>
           <label class="pay-option" [class.selected]="payFullBalance">
             <input type="radio" name="partialAmountChoice" [checked]="payFullBalance"

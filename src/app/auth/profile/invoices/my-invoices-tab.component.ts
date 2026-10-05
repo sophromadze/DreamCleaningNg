@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { finalize } from 'rxjs';
 import {
@@ -18,6 +18,7 @@ import { extractApiErrorMessage } from '../../../utils/http-error.utils';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './my-invoices-tab.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./my-invoices-tab.component.scss']
 })
 export class MyInvoicesTabComponent implements OnInit {

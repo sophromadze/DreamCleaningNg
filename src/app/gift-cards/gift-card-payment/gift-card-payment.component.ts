@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { GiftCardService } from '../../services/gift-card.service';
@@ -12,6 +12,7 @@ import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
   standalone: true,
   imports: [CommonModule, PaymentComponent, IconComponent],
   templateUrl: './gift-card-payment.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./gift-card-payment.component.scss']
 })
 export class GiftCardPaymentComponent implements OnInit {

@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { HeaderComponent } from '../header.component';
 import { IconComponent } from '../../shared/icons/icon.component';
@@ -17,6 +17,7 @@ import { faUser } from '../../shared/icons/glyphs/faUser';
   standalone: true,
   imports: [RouterLink, IconComponent],
   templateUrl: './header-account-menu.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './header-account-menu.component.scss'
 })
 export class HeaderAccountMenuComponent {

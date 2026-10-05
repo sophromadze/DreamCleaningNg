@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { GiftCardService, CreateGiftCard } from '../../services/gift-card.service';
@@ -13,6 +13,7 @@ import { faEnvelope } from '../../shared/icons/glyphs/faEnvelope';
   standalone: true,
   imports: [CommonModule, RouterModule, IconComponent],
   templateUrl: './gift-card-confirmation.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./gift-card-confirmation.component.scss']
 })
 export class GiftCardConfirmationComponent implements OnInit, OnDestroy {

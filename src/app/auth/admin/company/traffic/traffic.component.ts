@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ElementRef } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -17,6 +17,7 @@ import {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './traffic.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./traffic.component.scss']
 })
 export class TrafficComponent implements OnInit {

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -20,6 +20,7 @@ import { formatNyDateTime } from '../../../shared/ny-time.util';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './loyalty-discount-admin.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./loyalty-discount-admin.component.scss'],
 })
 export class LoyaltyDiscountAdminComponent implements OnInit {

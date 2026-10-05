@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
@@ -20,6 +20,7 @@ import { faGift } from '../../shared/icons/glyphs/faGift';
   standalone: true,
   imports: [CommonModule, RouterModule, SaveCardModalComponent, IconComponent],
   templateUrl: './booking-confirmation.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./booking-confirmation.component.scss']
 })
 export class BookingConfirmationComponent implements OnInit, OnDestroy {

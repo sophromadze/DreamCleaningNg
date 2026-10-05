@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -12,6 +12,7 @@ import { AuthService } from '../../../../services/auth.service';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './leads-pipeline.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./leads-pipeline.component.scss']
 })
 export class LeadsPipelineComponent implements OnInit {

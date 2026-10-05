@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, from, of, Subject } from 'rxjs';
@@ -173,6 +173,7 @@ interface CompareRow {
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './finances.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./finances.component.scss']
 })
 export class FinancesComponent implements OnInit, OnDestroy {

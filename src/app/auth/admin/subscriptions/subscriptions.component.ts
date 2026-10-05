@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminService, CreateSubscription, UpdateSubscription, UserPermissions } from '../../../services/admin.service';
 import { Subscription } from '../../../services/booking.service';
@@ -8,6 +8,7 @@ import { Subscription } from '../../../services/booking.service';
   standalone: true,
   imports: [FormsModule],
   templateUrl: './subscriptions.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./subscriptions.component.scss']
 })
 export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy {

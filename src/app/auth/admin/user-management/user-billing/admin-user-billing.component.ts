@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnDestroy, SimpleChanges } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, takeUntil } from 'rxjs';
 import { AdminUserBilling, BillingService, cardExpiry, cardLabel } from '../../../../services/billing.service';
@@ -18,6 +18,7 @@ import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './admin-user-billing.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./admin-user-billing.component.scss']
 })
 export class AdminUserBillingComponent implements OnChanges, OnDestroy {

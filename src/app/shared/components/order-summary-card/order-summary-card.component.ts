@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 import { ShimmerDirective } from '../../directives/shimmer.directive';
 import { IconComponent } from '../../icons/icon.component';
 import { faReceipt } from '../../icons/glyphs/faReceipt';
@@ -35,6 +35,7 @@ export interface SummaryLine {
   standalone: true,
   imports: [ShimmerDirective, IconComponent],
   templateUrl: './order-summary-card.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./order-summary-card.component.scss']
 })
 export class OrderSummaryCardComponent {

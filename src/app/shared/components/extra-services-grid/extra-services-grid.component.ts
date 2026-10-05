@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, Output } from '@angular/core';
+import { Component, EventEmitter, Input, Output, ChangeDetectionStrategy } from '@angular/core';
 import { ExtraService } from '../../../services/booking.service';
 import { ShimmerDirective } from '../../directives/shimmer.directive';
 import { QuantityControlComponent } from '../quantity-control/quantity-control.component';
@@ -33,6 +33,7 @@ export interface ExtraServiceSelection {
   standalone: true,
   imports: [ShimmerDirective, QuantityControlComponent, IconComponent],
   templateUrl: './extra-services-grid.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./extra-services-grid.component.scss']
 })
 export class ExtraServicesGridComponent {

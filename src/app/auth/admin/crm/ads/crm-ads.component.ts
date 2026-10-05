@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ElementRef } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CrmAdsService, AdsDailyRow, AdsTotals, AdsPeriod, AdsQuery } from '../../../../services/crm-ads.service';
@@ -8,6 +8,7 @@ import { CrmAdsService, AdsDailyRow, AdsTotals, AdsPeriod, AdsQuery } from '../.
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './crm-ads.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./crm-ads.component.scss']
 })
 export class CrmAdsComponent implements OnInit {

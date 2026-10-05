@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { IconComponent } from '../../../../shared/icons/icon.component';
 import { faBan } from '../../../../shared/icons/glyphs/faBan';
@@ -10,6 +10,7 @@ import { StructuredDataService } from '../../../../services/structured-data.serv
   standalone: true,
   imports: [RouterModule, IconComponent],
   templateUrl: './kitchen-cleaning.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './kitchen-cleaning.component.scss'
 })
 export class KitchenCleaningComponent implements OnInit, OnDestroy {

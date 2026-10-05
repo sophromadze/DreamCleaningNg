@@ -333,7 +333,7 @@
         <p class="rsp-note-body">
           Individual cleaning orders are operational service records and do not represent separate
           customer charges. {{ selectedContract?.contractNumber }} bills a flat
-          {{ selectedContract?.preTaxPrice | currency:'USD' }} per service week
+          {{ $safeNavigationMigration(selectedContract?.preTaxPrice) | currency:'USD' }} per service week
           ({{ selectedContract?.visitsPerWeek }} scheduled visits) on its weekly invoice.
         </p>
       </div>

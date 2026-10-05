@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy } from '@angular/core';
 import {
   REGULAR_CLEANING_CHECKLIST,
   DEEP_CLEANING_CHECKLIST,
@@ -17,6 +17,7 @@ import { faXmark } from '../../icons/glyphs/faXmark';
   standalone: true,
   imports: [IconComponent],
   templateUrl: './cleaning-type-details-expandable.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './cleaning-type-details-expandable.component.scss',
 })
 export class CleaningTypeDetailsExpandableComponent {

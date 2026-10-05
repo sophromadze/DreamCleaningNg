@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ElementRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -21,6 +21,7 @@ import { isBedroomsLine, isCleanersLine, KeyedOrderService } from '../../../shar
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule],
   templateUrl: './order-details.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./order-details.component.scss']
 })
 export class OrderDetailsComponent implements OnInit, OnDestroy {

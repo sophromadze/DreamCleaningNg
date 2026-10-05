@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 
 import { OutgoingPaymentsComponent } from './outgoing-payments.component';
@@ -182,7 +182,7 @@ describe('OutgoingPaymentsComponent', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [OutgoingPaymentsComponent],
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])]
+      providers: [provideHttpClient(withXhr()), provideHttpClientTesting(), provideRouter([])]
     }).compileComponents();
 
     fixture = TestBed.createComponent(OutgoingPaymentsComponent);

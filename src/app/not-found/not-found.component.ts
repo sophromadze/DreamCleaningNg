@@ -1,4 +1,4 @@
-import { Component, OnDestroy, inject, DOCUMENT } from '@angular/core';
+import { Component, OnDestroy, inject, DOCUMENT, ChangeDetectionStrategy } from '@angular/core';
 
 import { Meta } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
@@ -77,6 +77,7 @@ interface RemovedHeadElement {
       </div>
     </section>
   `,
+  changeDetection: ChangeDetectionStrategy.Eager,
   styles: [`
     .not-found-page {
       background: var(--page-bg);

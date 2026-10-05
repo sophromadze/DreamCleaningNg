@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, Input, Output, EventEmitter, HostBinding } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, Input, Output, EventEmitter, HostBinding, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -103,6 +103,7 @@ const DAY_LABEL: Record<DayKey, string> = {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, NyDatePipe, CleanerPortalComponent],
   templateUrl: './cleaners-dashboard.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./cleaners-dashboard.component.scss']
 })
 export class CleanersDashboardComponent implements OnInit, OnDestroy {

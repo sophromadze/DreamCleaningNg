@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { LeadsPipelineComponent } from './leads/leads-pipeline.component';
 import { CrmCustomersComponent } from './customers/crm-customers.component';
@@ -15,6 +15,7 @@ type CrmTab = 'leads' | 'calls' | 'customers' | 'segments' | 'automation';
   standalone: true,
   imports: [RouterLink, LeadsPipelineComponent, CrmCustomersComponent, CrmSegmentsComponent, CrmAutomationComponent, CrmCallsComponent],
   templateUrl: './crm.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./crm.component.scss']
 })
 export class CrmComponent {

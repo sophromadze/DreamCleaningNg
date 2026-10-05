@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { SignalRService, UserNotification } from '../services/signalr.service';
@@ -8,6 +8,7 @@ import { SignalRService, UserNotification } from '../services/signalr.service';
   standalone: true,
   imports: [CommonModule],
   templateUrl: './notification-modal.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./notification-modal.component.scss']
 })
 export class NotificationModalComponent implements OnInit, OnDestroy {

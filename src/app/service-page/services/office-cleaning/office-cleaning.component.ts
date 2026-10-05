@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { PhoneNumberService } from '../../../services/phone-number.service';
 import { COMMERCIAL_FIRST_MONTH_DISCOUNT_PERCENT } from '../../../shared/commercial-offer.data';
@@ -9,6 +9,7 @@ import { StructuredDataService } from '../../../services/structured-data.service
   standalone: true,
   imports: [RouterModule],
   templateUrl: './office-cleaning.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './office-cleaning.component.scss'
 })
 export class OfficeCleaningComponent implements OnInit, OnDestroy {

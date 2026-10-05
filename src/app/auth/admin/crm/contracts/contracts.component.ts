@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, SimpleChanges, OnChanges, inject } from '@angular/core';
+import { Component, Input, OnInit, SimpleChanges, OnChanges, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -25,6 +25,7 @@ type ContractsView = 'list' | 'form' | 'detail';
   standalone: true,
   imports: [CommonModule, FormsModule, ContractFormComponent, ContractDetailComponent],
   templateUrl: './contracts.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./contracts.component.scss']
 })
 export class ContractsComponent implements OnInit, OnChanges {

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject, ChangeDetectionStrategy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 
@@ -94,6 +94,7 @@ const CLIENT_FORM_FIELD_IDS: Record<ClientFormField, string> = {
   standalone: true,
   imports: [FormsModule],
   templateUrl: './commercial-client-modal.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./commercial-client-modal.component.scss']
 })
 export class CommercialClientModalComponent implements OnChanges {

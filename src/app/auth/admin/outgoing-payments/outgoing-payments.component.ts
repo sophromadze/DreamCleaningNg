@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -55,6 +55,7 @@ import { resolveServiceTypeShortLabel } from '../../../shared/admin/service-type
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   templateUrl: './outgoing-payments.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['../orders/orders.component.scss', './outgoing-payments.component.scss']
 })
 export class OutgoingPaymentsComponent implements OnInit, OnDestroy {

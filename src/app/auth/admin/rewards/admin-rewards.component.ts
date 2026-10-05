@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -20,6 +20,7 @@ interface CategoryGroup {
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule, NyDatePipe],
   templateUrl: './admin-rewards.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './admin-rewards.component.scss'
 })
 export class AdminRewardsComponent implements OnInit {

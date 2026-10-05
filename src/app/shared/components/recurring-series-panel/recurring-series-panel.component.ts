@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
@@ -81,6 +81,7 @@ import { extractApiErrorMessage } from '../../../utils/http-error.utils';
   standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './recurring-series-panel.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./recurring-series-panel.component.scss']
 })
 /**

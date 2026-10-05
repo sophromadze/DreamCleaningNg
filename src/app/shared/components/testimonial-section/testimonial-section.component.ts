@@ -4,7 +4,8 @@ import {
   OnDestroy,
   Inject,
   PLATFORM_ID,
-  ChangeDetectorRef
+  ChangeDetectorRef,
+  ChangeDetectionStrategy
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
@@ -51,6 +52,7 @@ const FIRST_PAGE_SIZE = 2;
   standalone: true,
   imports: [RouterLink],
   templateUrl: './testimonial-section.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrl: './testimonial-section.component.scss'
 })
 export class TestimonialSectionComponent implements OnInit, OnDestroy {
