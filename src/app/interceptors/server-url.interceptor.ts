@@ -2,6 +2,7 @@ import { HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformServer } from '@angular/common';
 import { of } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 // API calls that SSR should skip (return empty) - browser will load these
 const SSR_SKIP_PATTERNS = [
@@ -28,11 +29,11 @@ export const serverUrlInterceptor: HttpInterceptorFn = (req, next) => {
 
     // Absolute URL (http or https)
     if (/https?:\/\/dreamcleaningnyc\.com\/api/.test(url)) {
-      url = url.replace(/https?:\/\/dreamcleaningnyc\.com\/api/, 'http://localhost:5000/api');
+      url = url.replace(/https?:\/\/dreamcleaningnyc\.com\/api/, `${environment.ssrApiOrigin}/api`);
     }
     // Relative URL
     else if (url.startsWith('/api')) {
-      url = `http://localhost:5000${url}`;
+      url = `${environment.ssrApiOrigin}${url}`;
     }
 
     if (url !== req.url) {

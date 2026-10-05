@@ -9,6 +9,10 @@ export const environment = {
     stripePublishableKey: 'pk_test_51Rj2zA09XH2Z4IpCi9EV0vc5OOx59FLoGW1a9HNy59OrwadL5amuD70JFi6TbH2OwkPSZ27Wvh5DnUJILFHpSmzL00y0ou7fDM',
     // Local dev uses token-based auth (cookie auth typically requires HTTPS due to Secure cookies).
     useCookieAuth: false,
+    // Where SERVER-SIDE renders send API calls (server-url.interceptor.ts, server.ts, the transfer-cache
+    // origin map in app.config.server.ts). ng serve: the local backend - keep it
+    // in step with the /api target in proxy.conf.json.
+    ssrApiOrigin: 'http://localhost:5107',
   appleClientId: 'com.dreamcleaningnearme.service',
   appleRedirectUri: 'http://localhost:5107/api/auth/apple-callback',
   googleMergeCallbackUrl: 'http://localhost:4200/api/auth/google-merge-callback'

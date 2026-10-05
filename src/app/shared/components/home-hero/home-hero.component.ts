@@ -88,6 +88,13 @@ const HERO_IMAGE_SIZES =
  */
 export const SSR_SERVICE_TYPES_TIMEOUT_MS = 1000;
 
+/**
+ * Server renders log "service types unavailable" ONCE per outage, not once per render: the flag is
+ * module state, so it lives as long as the server process, and the next successful server-side
+ * fetch re-arms it. (A backend that is not running locally used to fill the console.)
+ */
+let ssrServiceTypesOutageLogged = false;
+
 /** The hero's own copy of the catalogue in TransferState (see trimServiceTypesForHero). */
 export const HERO_SERVICE_TYPES_KEY = makeStateKey<ServiceType[]>('home-hero.service-types');
 
@@ -423,6 +430,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
             HomeHeroComponent.lastServiceTypes = serviceTypes;
           } else {
             this.transferState.set(HERO_SERVICE_TYPES_KEY, serviceTypes);
+            ssrServiceTypesOutageLogged = false;
           }
           // Already drawn from the same list: nothing to redo.
           if (cached && JSON.stringify(cached) === JSON.stringify(serviceTypes)) return;
@@ -433,7 +441,10 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
         error: (error) => {
           if (!this.isBrowser) {
             // Keep the placeholder; the browser loads the list after hydration.
-            console.warn('SSR: service types unavailable, sending the form placeholder:', error?.name || error);
+            if (!ssrServiceTypesOutageLogged) {
+              ssrServiceTypesOutageLogged = true;
+              console.warn('SSR: service types unavailable, sending the form placeholder:', error?.name || error);
+            }
             return;
           }
           console.error('Error loading service types:', error);

@@ -13,10 +13,12 @@ import { renderLlmsTxt } from './llms-txt';
 import { CATALOGUE_TTL_MS, createCatalogueCache, createPublicOffersCache } from './catalogue-cache';
 import { ALLOWED_HOSTS, rejectedHeader } from './host-guard';
 import { removeNoscriptStylesheet } from './noscript-stylesheet';
+import { environment } from './environments/environment';
 
-// Same loopback convention as server-url.interceptor.ts: SSR-side calls to the
-// backend go through localhost, never the public domain (Cloudflare loopback trap).
-const BACKEND_URL = 'http://localhost:5000';
+// Same backend as server-url.interceptor.ts (environment.ssrApiOrigin - production:
+// http://localhost:5000): SSR-side calls go through localhost, never the public domain
+// (Cloudflare loopback trap).
+const BACKEND_URL = environment.ssrApiOrigin;
 
 // How long a render waits for the catalogue when there is no usable copy at all (cold start).
 // Same cap the home hero used for its own SSR request; afterwards renders never wait.
