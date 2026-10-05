@@ -327,7 +327,7 @@ describe('OrderPaymentComponent — part-payments', () => {
     expect(component.orderTotal).toBe(1000);
     expect(component.remainingAfterPayment).toBe(1743.65);
     expect(component.isFinalPartialPayment).toBeFalse();
-    expect(bookingService.createPartialPaymentIntent).toHaveBeenCalledWith(7, undefined, false);
+    expect(bookingService.createPartialPaymentIntent).toHaveBeenCalledWith(7, undefined, false, null);
     expect(bookingService.createPaymentIntentForOrder).not.toHaveBeenCalled();
   });
 
@@ -360,7 +360,7 @@ describe('OrderPaymentComponent — part-payments', () => {
     expect(component.payFullBalance).toBeTrue();
     // Re-asked rather than re-computed locally: the server decides the amount and cancels the
     // previous client secret before issuing a replacement.
-    expect(bookingService.createPartialPaymentIntent).toHaveBeenCalledWith(7, undefined, true);
+    expect(bookingService.createPartialPaymentIntent).toHaveBeenCalledWith(7, undefined, true, null);
   });
 
   it('adopts the amount the server says it will charge', () => {

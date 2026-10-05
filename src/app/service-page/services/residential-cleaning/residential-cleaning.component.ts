@@ -1,29 +1,35 @@
-import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
-import { CommonModule, DOCUMENT } from '@angular/common';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { SERVICE_PRICING } from '../../../shared/service-pricing.data';
+import { MarketingPricingService } from '../../../shared/pricing/marketing-pricing.service';
+import { priceFragment, startingPriceOffer } from '../../../shared/pricing/marketing-price-format';
+import { IconComponent } from '../../../shared/icons/icon.component';
+import { faBan } from '../../../shared/icons/glyphs/faBan';
+import { faTriangleExclamation } from '../../../shared/icons/glyphs/faTriangleExclamation';
+import { CardImageDirective } from '../../../shared/images/card-image.directive';
+import { StructuredDataService } from '../../../services/structured-data.service';
 
 @Component({
   selector: 'app-residential-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, IconComponent, CardImageDirective],
   templateUrl: './residential-cleaning.component.html',
   styleUrl: './residential-cleaning.component.scss'
 })
 export class ResidentialCleaningComponent implements OnInit, OnDestroy {
-  readonly pricing = SERVICE_PRICING;
-  private schemaElement: HTMLScriptElement | null = null;
+  protected readonly icons = { faBan, faTriangleExclamation };
 
-  constructor(@Inject(DOCUMENT) private document: Document) {}
+  private readonly marketingPricing = inject(MarketingPricingService);
+  /** Prices from the booking catalogue; null = fragment left out (MarketingPricingService). */
+  readonly pricing = this.marketingPricing.text;
+  private readonly structuredData = inject(StructuredDataService);
 
   ngOnInit(): void {
     this.injectSchema();
   }
 
   ngOnDestroy(): void {
-    if (this.schemaElement && this.schemaElement.parentNode) {
-      this.schemaElement.parentNode.removeChild(this.schemaElement);
-    }
+    this.structuredData.remove('ld-residential-cleaning');
   }
 
   private injectSchema(): void {
@@ -31,7 +37,7 @@ export class ResidentialCleaningComponent implements OnInit, OnDestroy {
       '@context': 'https://schema.org',
       '@type': 'Service',
       'name': 'Residential Cleaning Service in NYC',
-      'description': `Dream Cleaning's standard residential cleaning service keeps NYC apartments and homes consistently fresh with weekly, biweekly, or monthly maintenance, starting from $${SERVICE_PRICING.residentialFrom}.`,
+      'description': `Dream Cleaning's standard residential cleaning service keeps NYC apartments and homes consistently fresh with weekly, biweekly, or monthly maintenance${priceFragment(this.pricing().standardFrom, ', starting from ')}.`,
       'dateModified': '2026-03-22',
       'provider': {
         '@type': 'LocalBusiness',
@@ -40,17 +46,9 @@ export class ResidentialCleaningComponent implements OnInit, OnDestroy {
       },
       'areaServed': { '@type': 'City', 'name': 'New York' },
       'serviceType': 'Residential Cleaning',
-      'offers': {
-        '@type': 'AggregateOffer',
-        'lowPrice': String(SERVICE_PRICING.residentialFrom),
-        'highPrice': String(SERVICE_PRICING.residentialHigh),
-        'priceCurrency': 'USD'
-      }
+      ...startingPriceOffer(this.marketingPricing.prices().standardFrom)
     };
 
-    this.schemaElement = this.document.createElement('script');
-    this.schemaElement.type = 'application/ld+json';
-    this.schemaElement.textContent = JSON.stringify(schema);
-    this.document.head.appendChild(this.schemaElement);
+    this.structuredData.set('ld-residential-cleaning', schema);
   }
 }

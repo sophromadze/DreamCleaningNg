@@ -1,7 +1,8 @@
+@use '../../styles/icon-urls' as *;
+
   .booking-container {
     min-height: 100vh;
     padding: 2rem 10px 2rem 10px;
-    font-family: 'Poppins', sans-serif;
     width: 100%;
     box-sizing: border-box;
 
@@ -35,7 +36,6 @@
       color: #007bff;
       margin-bottom: 2rem;
       font-size: 2.5rem;
-      font-family: 'Poppins', sans-serif;
       font-weight: 600;
       word-wrap: break-word;
       overflow-wrap: break-word;
@@ -412,12 +412,11 @@
   
   .error-message {
     background-color: var(--soft-red);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     padding: 1rem;
     border-radius: 8px;
     margin-bottom: 0.5rem;
     text-align: center;
-    font-family: 'Poppins', sans-serif;
     font-weight: 400;
   }
 
@@ -431,7 +430,6 @@
     padding: 0.85rem 1rem;
     border-radius: var(--radius-md);
     margin-bottom: 0.5rem;
-    font-family: 'Poppins', sans-serif;
     font-weight: var(--fw-medium);
     font-size: 0.9rem;
     line-height: 1.4;
@@ -453,7 +451,6 @@
     padding: 0.85rem 1rem;
     border-radius: var(--radius-md);
     margin-bottom: 1rem;
-    font-family: 'Poppins', sans-serif;
     font-weight: var(--fw-medium);
     font-size: 0.9rem;
     line-height: 1.4;
@@ -477,7 +474,6 @@
     padding: 0.7rem 1rem;
     border-radius: var(--radius-md);
     margin-bottom: 1rem;
-    font-family: 'Poppins', sans-serif;
     font-size: 0.9rem;
     line-height: 1.35;
 
@@ -523,7 +519,6 @@
     margin-top: 0.4rem;
     font-size: 0.85rem;
     text-align: center;
-    font-family: 'Poppins', sans-serif;
     font-weight: 500;
   }
   
@@ -679,10 +674,10 @@
 
     /* User's subscription card in dark mode: white text when not selected, black when selected */
     .subscription-card.user-subscription {
-      h4 {
+      h3 {
         color: #fff !important;
       }
-      &.selected h4 {
+      &.selected h3 {
         color: #1a1a1a !important;
       }
     }
@@ -904,7 +899,7 @@
           border-color: var(--fresh-green);
         }
       }
-      .special-offer-card .offer-badge h4,
+      .special-offer-card .offer-badge h3,
       .special-offer-card .offer-content h4 {
         color: #fff !important;
       }
@@ -1091,7 +1086,7 @@
     .sms-consent-section .checkbox-label a,
     .cancellation-consent-section .checkbox-label a,
     .terms-consent-section .checkbox-label a {
-      color: var(--primary-color);
+      color: var(--primary-text-elevated);
     }
 
     /* Booking summary – dark rules for blocks PROJECTED into
@@ -1158,7 +1153,6 @@
       color: #6c757d;
       font-size: 1rem;
       line-height: 1.5;
-      font-family: 'Poppins', sans-serif;
       font-weight: 400;
       
       @media (max-width: 768px) {
@@ -1188,7 +1182,6 @@
       font-weight: 500;
       text-align: left;
       line-height: 1.3;
-      font-family: 'Poppins', sans-serif;
       
       @media (max-width: 768px) {
         margin-bottom: 1.25rem;
@@ -1540,7 +1533,6 @@
   .required {
     color: var(--bright-red);
     font-weight: bold;
-    font-family: 'Poppins', sans-serif;
   }
 
   // Prevent iPhone zoom on input fields
@@ -1556,21 +1548,19 @@
 
   // Error message styling
   .error-message {
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     font-size: 0.875rem;
     margin-top: 0.25rem;
     display: block;
-    font-family: 'Poppins', sans-serif;
     font-weight: 400;
   }
   
   // Poll error message styling
   .poll-error-message {
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     font-size: 0.875rem;
     margin-top: 0.25rem;
     display: block;
-    font-family: 'Poppins', sans-serif;
     font-weight: 400;
   }
   
@@ -1583,7 +1573,6 @@
       margin-bottom: 0.5rem;
       font-weight: 400;
       color: #333;
-      font-family: 'Poppins', sans-serif;
     }
     
     .poll-input,
@@ -1594,7 +1583,6 @@
       border: 1px solid #ddd;
       border-radius: 4px;
       font-size: 1rem;
-      font-family: 'Poppins', sans-serif;
       font-weight: 400;
       
       &:focus {
@@ -1638,7 +1626,6 @@
         label {
           color: #333;
           white-space: nowrap;
-          font-family: 'Poppins', sans-serif;
           font-weight: 400;
         }
       }
@@ -1662,7 +1649,6 @@
         span {
           color: #333;
           white-space: nowrap;
-          font-family: 'Poppins', sans-serif;
           font-weight: 400;
         }
       }
@@ -1678,7 +1664,6 @@
       font-weight: 400;
       color: #333;
       font-size: 1rem;
-      font-family: 'Poppins', sans-serif;
       
       @media (max-width: 768px) {
         font-size: 0.95rem;
@@ -1702,7 +1687,6 @@
       border: none;
       border-radius: 58px;
       font-size: 1rem;
-      font-family: 'Poppins', sans-serif;
       font-weight: 400;
       
       &:focus {
@@ -2068,7 +2052,6 @@
         color: #333;
         font-size: 1.2rem;
         margin-bottom: 0;
-        font-family: 'Poppins', sans-serif;
       }
   
       .service-input {
@@ -2107,7 +2090,6 @@
           height: 40px;
           min-width: 80px;
           justify-content: center;
-          font-family: 'Poppins', sans-serif;
           font-weight: 400;
   
           .duration-icon {
@@ -2129,7 +2111,6 @@
           display: flex;
           align-items: center;
           justify-content: center;
-          font-family: 'Poppins', sans-serif;
         }
 
         .slider-container {
@@ -2158,7 +2139,6 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Poppins', sans-serif;
             flex-shrink: 0;
           }
 
@@ -2729,7 +2709,7 @@
     margin: 0 0 1rem;
     font-size: 0.95rem;
     font-weight: var(--fw-medium);
-    color: var(--fresh-green);
+    color: var(--mint-fresh-text);
 
     i {
       color: var(--fresh-green);
@@ -2753,7 +2733,6 @@
     gap: 0.5rem;
     align-items: center;
     justify-content: center;
-    font-family: 'Poppins', sans-serif;
     font-weight: 400;
     border: 2px solid transparent;
 
@@ -2813,11 +2792,10 @@
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
   
-    h4 {
+    h3 {
       color: #333;
       font-size: 1rem;
       font-weight: 400;
-      font-family: 'Poppins', sans-serif;
       
       @media (max-width: 768px) {
         font-size: 0.95rem;
@@ -2849,7 +2827,6 @@
       align-items: center;
       justify-content: center;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      font-family: 'Poppins', sans-serif;
       
       @media (max-width: 534px) {
         font-size: 0.8rem;
@@ -3003,7 +2980,6 @@
           border-radius: 4px;
           cursor: pointer;
           font-weight: 400;
-          font-family: 'Poppins', sans-serif;
   
           &:hover {
             background-color: #e0a800;
@@ -3123,7 +3099,6 @@
       margin-left: 0.5rem;
       cursor: pointer;
       font-size: 0.9rem;
-      font-family: 'Poppins', sans-serif;
       font-weight: 400;
   
       &:hover {
@@ -3212,7 +3187,6 @@
     margin: 0;
     font-size: 1.05rem; /* 16.8px */
     font-weight: 700;
-    font-family: 'Poppins', sans-serif;
   }
 }
 
@@ -3331,7 +3305,6 @@
   gap: 8px;
   font-weight: 700;
   margin-bottom: 7px;
-  font-family: 'Poppins', sans-serif;
 }
 
 .dc-modal-section-icon {
@@ -3525,7 +3498,6 @@
   border: 1px solid transparent;
   cursor: pointer;
   font-weight: 700;
-  font-family: 'Poppins', sans-serif;
   transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 
   &:active {
@@ -3618,7 +3590,6 @@
   /* padding: 1.25rem 1rem; */
   /* border: 1px solid #e5e7eb; */
   /* box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06); */
-  font-family: "Poppins", sans-serif;
 
   @media (max-width: 768px) {
     margin-bottom: 1.25rem;
@@ -3723,7 +3694,7 @@
       }
     }
 
-    .offer-badge h4,
+    .offer-badge h3,
     .offer-content h4 {
       margin: 0;
       color: #111;
@@ -3793,7 +3764,6 @@
       cursor: pointer;
       font-size: 0.9rem;
       font-weight: 500;
-      font-family: 'Poppins', sans-serif;
       min-width: 7rem;
       transition: background-color 0.2s ease, opacity 0.2s ease;
 
@@ -3824,7 +3794,6 @@
       border-radius: 58px;
       cursor: pointer;
       font-size: 0.875rem;
-      font-family: 'Poppins', sans-serif;
       min-width: 5.5rem;
       transition: background 0.2s ease, box-shadow 0.2s ease;
 
@@ -3898,11 +3867,11 @@
         white-space: nowrap;
         
         &:first-of-type {
-          background-color: #4599F8;
+          background-color: var(--primary-color);
           color: #fff;
           
           &:hover:not(:disabled) {
-            background-color: #3a7bd5;
+            background-color: var(--primary-color-hover);
             transform: translateY(-1px);
           }
         }
@@ -3944,7 +3913,6 @@
       align-items: center;
       gap: 0.5rem;
       font-style: italic;
-      font-family: 'Poppins', sans-serif;
       font-weight: 400;
       
       i {
@@ -3970,7 +3938,6 @@
     p {
       font-size: 1rem;
       margin-bottom: 1rem;
-      font-family: 'Poppins', sans-serif;
       font-weight: 400;
       
       @media (max-width: 768px) {
@@ -4017,7 +3984,6 @@
         font-size: 1rem;
         font-weight: 500;
         min-width: 60px;
-        font-family: 'Poppins', sans-serif;
   
         &:hover {
           border-color: var(--primary-color);
@@ -4058,7 +4024,6 @@
           border: 1px solid #e0e0e0;
           border-radius: 8px;
           font-size: 1rem;
-          font-family: 'Poppins', sans-serif;
           font-weight: normal;
           
           @media (max-width: 768px) {
@@ -4109,7 +4074,6 @@
     cursor: pointer;
     transition: all 0.3s ease;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    font-family: 'Poppins', sans-serif;
     
     &:hover {
       background: var(--btn-danger-hover);
@@ -4134,7 +4098,6 @@
       margin-bottom: 0.5rem;
       font-weight: 400;
       color: #333;
-      font-family: 'Poppins', sans-serif;
     }
   
     input,
@@ -4145,7 +4108,6 @@
       border: none;
       border-radius: 58px;
       font-size: 1rem;
-      font-family: 'Poppins', sans-serif;
       font-weight: 400;
   
       &:focus {
@@ -4256,7 +4218,6 @@
       color: #666;
       line-height: 1.4;
       text-align: left;
-      font-family: 'Poppins', sans-serif;
       font-weight: 400;
       
       @media (max-width: 768px) {
@@ -4417,7 +4378,6 @@
       cursor: pointer;
       margin: 0;
       flex: 1;
-      font-family: 'Poppins', sans-serif;
       font-weight: normal;
     }
 
@@ -4436,7 +4396,7 @@
 
     .error-message {
       display: block;
-      color: var(--bright-red);
+      color: var(--soft-red-text);
       font-size: 13px;
       margin-top: 5px;
       
@@ -4521,7 +4481,6 @@
       cursor: pointer;
       margin: 0;
       flex: 1;
-      font-family: 'Poppins', sans-serif;
       font-weight: normal;
     }
 
@@ -4531,7 +4490,7 @@
 
     .error-message {
       display: block;
-      color: var(--bright-red);
+      color: var(--soft-red-text);
       font-size: 13px;
       margin-top: 5px;
       
@@ -4595,7 +4554,6 @@
       color: var(--soft-yellow-text);
       text-align: left;
       position: relative;
-      font-family: 'Poppins', sans-serif;
       font-weight: 400;
     }
 
@@ -4603,7 +4561,6 @@
       color: var(--soft-yellow-text);
       font-weight: 600;
       position: relative;
-      font-family: 'Poppins', sans-serif;
     }
   }
 
@@ -4632,7 +4589,6 @@
     transition: all 0.3s ease;
     position: relative;
     font-weight: 600;
-    font-family: 'Poppins', sans-serif;
     
     @media (max-width: 768px) {
       width: 100%;
@@ -4811,14 +4767,12 @@
   .pricing-text {
     font-size: 16px;
     color: #333;
-    font-family: 'Poppins', sans-serif;
     font-weight: 400;
   }
 
   .cleaning-type {
     color: #ff0000;
     font-weight: 600;
-    font-family: 'Poppins', sans-serif;
     
     @media (max-width: 534px) {
       font-size: 1.2rem;
@@ -4828,7 +4782,6 @@
   .cleaning-type-red {
     color: #ff0000;
     font-weight: 600;
-    font-family: 'Poppins', sans-serif;
     
     @media (max-width: 534px) {
       font-size: 1.2rem;
@@ -4927,13 +4880,11 @@
     .next-order-title {
       font-weight: 600;
       color: var(--primary-color);
-      font-family: 'Poppins', sans-serif;
     }
     
     .next-total {
       font-weight: 600;
       color: var(--fresh-green);
-      font-family: 'Poppins', sans-serif;
     }
   }
 
@@ -4969,7 +4920,6 @@
     gap: 0.65rem;
     background: #e8f1ff;
     border: 1px solid rgba(37, 99, 235, 0.22);
-    font-family: 'Poppins', sans-serif;
   }
 
   .booking-form .cleaning-type-cta-banner__star {
@@ -5002,7 +4952,6 @@
     margin-bottom: 0.5rem;
     font-weight: 600;
     color: #333;
-    font-family: 'Poppins', sans-serif;
   }
   
   .cleaning-type-selection {
@@ -5072,7 +5021,6 @@
     color: #666;
     font-size: 1rem;
     line-height: 1.5;
-    font-family: 'Poppins', sans-serif;
     font-weight: 400;
   }
   
@@ -5088,7 +5036,6 @@
       margin-bottom: 0.5rem;
       font-weight: 600;
       color: #333;
-      font-family: 'Poppins', sans-serif;
       
       .required {
         color: var(--bright-red);
@@ -5105,7 +5052,6 @@
       border-radius: 4px;
       font-size: 1rem;
       transition: border-color 0.3s;
-      font-family: 'Poppins', sans-serif;
       font-weight: normal;
       
       &:focus {
@@ -5136,7 +5082,6 @@
         label {
           margin: 0;
           cursor: pointer;
-          font-family: 'Poppins', sans-serif;
           font-weight: 400;
           flex: 1;
         }
@@ -5164,7 +5109,6 @@
         span {
           margin: 0;
           cursor: pointer;
-          font-family: 'Poppins', sans-serif;
           font-weight: 400;
         }
       }
@@ -5178,7 +5122,6 @@
   color: #666;
   font-size: 1rem;
   text-align: center;
-  font-family: 'Poppins', sans-serif;
   font-weight: 400;
 }
 
@@ -5271,14 +5214,12 @@
       span {
         font-weight: 600;
         font-size: 0.9rem;
-        font-family: 'Poppins', sans-serif;
       }
       
       small {
         opacity: 0.7;
         font-size: 0.8rem;
         margin-top: 0.25rem;
-        font-family: 'Poppins', sans-serif;
         font-weight: 400;
       }
     }
@@ -5341,7 +5282,6 @@
         text-overflow: ellipsis;
         background: #f8f9fa;
         border-top: 1px solid #e9ecef;
-        font-family: 'Poppins', sans-serif;
         font-weight: 400;
       }
     }
@@ -5357,7 +5297,6 @@
     justify-content: center;
     gap: 0.75rem;
     font-weight: 400;
-    font-family: 'Poppins', sans-serif;
   }
   
   .upload-loading {
@@ -5395,7 +5334,6 @@
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  font-family: 'Poppins', sans-serif;
   font-weight: 400;
   
   .info-icon {
@@ -5432,6 +5370,23 @@
   width: 100%;
 }
 
+.custom-pricing-form .custom-room-counts-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.25rem 0 1rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  cursor: pointer;
+
+  input[type="checkbox"] {
+    margin-top: 0.15rem;
+    accent-color: var(--primary-color);
+    cursor: pointer;
+  }
+}
+
 // Custom pricing input group styles
 .input-group {
   position: relative;
@@ -5445,7 +5400,6 @@
     border-radius: 58px;
     font-size: 1rem;
     background: var(--surface);
-    font-family: 'Poppins', sans-serif;
     font-weight: 400;
     
           &:focus {
@@ -5467,7 +5421,6 @@
     font-size: 1rem;
     pointer-events: none;
     z-index: 1;
-    font-family: 'Poppins', sans-serif;
   }
 }
 
@@ -5531,7 +5484,6 @@
     color: #666;
     line-height: 1.4;
     font-size: 1rem;
-    font-family: 'Poppins', sans-serif;
     font-weight: 400;
     
     @media (max-width: 768px) {
@@ -5789,7 +5741,6 @@
     transition: all 0.3s ease;
     min-width: 120px;
     max-width: 100%; // never overflow form
-    font-family: 'Poppins', sans-serif;
 
     @media (max-width: 768px) {
       width: 100% !important;
@@ -5811,7 +5762,6 @@
     align-items: center;
     gap: 8px;
     justify-content: center;
-    font-family: 'Poppins', sans-serif;
 
     &:hover:not(:disabled) {
       background-color: #e9ecef;
@@ -5838,7 +5788,6 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    font-family: 'Poppins', sans-serif;
     font-size: 1.2rem;
     font-weight: 400;
 
@@ -5872,7 +5821,6 @@
     border: 2px solid var(--btn-primary, #007bff);
     font-size: 1.1rem;
     padding: 14px 28px;
-    font-family: 'Poppins', sans-serif;
     
     @media (max-width: 768px) {
       padding: 16px 28px;
@@ -5900,7 +5848,6 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    font-family: 'Poppins', sans-serif;
     font-size: 1.2rem;
     font-weight: 600;
     width: 500px;
@@ -7029,7 +6976,7 @@
 
   .slider-quantity {
     background: var(--soft-blue);
-    color: var(--primary-color);
+    color: var(--primary-text);
     padding: 0.25rem 0.625rem;
     border-radius: var(--radius-pill);
     font-weight: var(--fw-extrabold);
@@ -7088,12 +7035,12 @@
       var(--surface) 100%) !important;
     box-shadow: 0 8px 22px rgba(37, 99, 235, 0.18);
 
-    h4 {
+    h3 {
       color: var(--text-primary) !important;
     }
   }
 
-  h4 {
+  h3 {
     font-size: 0.95rem !important;
     font-weight: var(--fw-extrabold) !important;
     color: var(--text-primary) !important;
@@ -7109,18 +7056,24 @@
     gap: 0.25rem;
     padding: 0.25rem 0.625rem !important;
     background: var(--mint-fresh) !important;
-    color: var(--fresh-green) !important;
+    color: var(--mint-fresh-text) !important;
     font-size: 0.75rem !important;
     font-weight: var(--fw-black) !important;
     border-radius: var(--radius-pill) !important;
     letter-spacing: 0.01em;
     border: none !important;
 
+    /* fa-tag glyph as a mask, so it paints in the badge's own colour
+       (theme-aware). Box = the webfont glyph's box: 1em tall, glyph-wide. */
     &::before {
-      content: "\f02b"; /* fa-tag */
-      font-family: "Font Awesome 6 Free";
-      font-weight: 900;
+      content: "";
       font-size: 0.7rem;
+      width: icon-ratio("tag") * 1em;
+      height: 1em;
+      flex-shrink: 0;
+      background-color: currentColor;
+      -webkit-mask: icon-url("tag") center / contain no-repeat;
+      mask: icon-url("tag") center / contain no-repeat;
     }
 
     /* The legacy speech-bubble tail (::after) used a purple
@@ -7145,17 +7098,20 @@
     font-weight: var(--fw-black) !important;
     letter-spacing: -0.01em;
 
+    /* fa-star — celebratory accent. The chip's own background is the
+       gradient, so the white glyph is a background layer on top of it,
+       1em (= font-size) tall and centred, where the webfont glyph sat. */
     &::before {
-      content: "\f005"; /* fa-star — celebratory accent */
-      font-family: "Font Awesome 6 Free";
-      font-weight: 900;
+      content: "";
       width: 1.75rem;
       height: 1.75rem;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       border-radius: 50%;
-      background: linear-gradient(135deg, var(--fresh-green) 0%, var(--primary-color) 100%);
+      background:
+        icon-url("star", #fff) center / auto 1em no-repeat,
+        linear-gradient(135deg, var(--fresh-green) 0%, var(--primary-color) 100%);
       color: #fff;
       font-size: 0.8rem;
       box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
@@ -7230,7 +7186,7 @@
       flex-shrink: 0;
     }
 
-    .offer-badge h4,
+    .offer-badge h3,
     .offer-content h4 {
       font-weight: var(--fw-black) !important;
       letter-spacing: 0.02em;
@@ -8225,7 +8181,7 @@
 
 /* Unselected City/State/saved address read as placeholder text, like the inputs' placeholders. */
 .booking-form .compact-dropdown .dropdown-toggle .is-placeholder {
-  color: var(--text-muted);
+  color: var(--text-muted-on-elevated);
   font-weight: var(--fw-medium);
 }
 
@@ -8290,7 +8246,7 @@
     &.selected {
       border-color: var(--primary-color);
       background: var(--soft-blue);
-      color: var(--primary-color);
+      color: var(--primary-text);
     }
 
     &:focus-visible {

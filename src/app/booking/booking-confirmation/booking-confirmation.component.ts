@@ -10,15 +10,21 @@ import { OrderSoundService } from '../../services/order-sound.service';
 import { BillingService, SavedCard, cardLabel } from '../../services/billing.service';
 import { calculateTotals, splitTaxInclusiveAmount } from '../../shared/pricing/order-pricing.calculator';
 import { SaveCardModalComponent } from '../../shared/components/save-card-modal/save-card-modal.component';
+import { IconComponent } from '../../shared/icons/icon.component';
+import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
+import { faCircleNotch } from '../../shared/icons/glyphs/faCircleNotch';
+import { faGift } from '../../shared/icons/glyphs/faGift';
 
 @Component({
   selector: 'app-booking-confirmation',
   standalone: true,
-  imports: [CommonModule, RouterModule, SaveCardModalComponent],
+  imports: [CommonModule, RouterModule, SaveCardModalComponent, IconComponent],
   templateUrl: './booking-confirmation.component.html',
   styleUrls: ['./booking-confirmation.component.scss']
 })
 export class BookingConfirmationComponent implements OnInit, OnDestroy {
+  protected readonly icons = { faCircleCheck, faCircleNotch, faGift };
+
   orderId: number = 0;
   isProcessing = false;
   paymentCompleted = false;

@@ -23,7 +23,7 @@
     margin-bottom: 1.5rem;
   
     h1 {
-      color: var(--primary-color);
+      color: var(--primary-text-elevated);
       margin: 0;
       font-size: 1.5rem;
     }
@@ -167,7 +167,7 @@
 
       h2 {
         margin: 0 0 10px 0;
-        color: var(--primary-color);
+        color: var(--primary-text-elevated);
         font-size: 1.2rem;
       }
   
@@ -234,7 +234,7 @@
           opacity: 0.5;
           cursor: not-allowed;
           background: var(--surface-subtle);
-          color: var(--text-muted);
+          color: var(--text-muted-on-tint);
           box-shadow: none;
           transform: none;
         }
@@ -244,7 +244,7 @@
   
   .info-message {
     background-color: var(--mint-fresh);
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
     padding: 0.75rem;
     border-radius: 4px;
     margin-bottom: 1rem;
@@ -302,7 +302,7 @@
       }
 
       .subscription-active {
-        color: var(--fresh-green);
+        color: var(--mint-fresh-text);
         font-weight: 600;
       }
 
@@ -340,7 +340,7 @@
     line-height: 1;
 
     &.yes-icon {
-      color: var(--fresh-green, #28a745);
+      color: var(--mint-fresh-text);
     }
     &.no-icon {
       color: #dc3545;
@@ -356,7 +356,7 @@
     font-size: 0.8rem;
     cursor: pointer;
     background: #f8f9fa;
-    color: #6c757d;
+    color: var(--text-muted);
     transition: background 0.2s, color 0.2s, border-color 0.2s;
 
     &.active {
@@ -630,7 +630,7 @@
         display: flex;
         gap: 1rem;
         margin: 0.5rem 0;
-        color: var(--primary-color);
+        color: var(--primary-text-elevated);
         font-size: 0.9rem;
   
         span {
@@ -782,7 +782,7 @@
 :host-context([data-theme="dark"]) {
   // .profile-page needs no override: it paints var(--page-bg), which already flips.
   .profile-header h1 {
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
   }
   .loading {
     color: var(--text-secondary);
@@ -792,12 +792,12 @@
   }
   .error-message {
     background-color: var(--surface-elevated);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     border: 1px solid var(--border-color);
   }
   .success-message {
     background-color: var(--surface-elevated);
-    color: var(--fresh-green);
+    color: var(--mint-fresh-text);
     border: 1px solid var(--border-color);
   }
   .section {
@@ -805,12 +805,12 @@
     box-shadow: 0 2px 4px var(--shadow-color);
     border: 1px solid var(--border-color);
     .section-header h2 {
-      color: var(--primary-color);
+      color: var(--primary-color-text);
     }
   }
   .info-message {
     background-color: var(--surface);
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
     border: 1px solid var(--border-color);
   }
   .info-display .info-row {
@@ -895,7 +895,7 @@
       }
       .apartment-details span {
         background-color: var(--surface);
-        color: var(--primary-color);
+        color: var(--primary-text-elevated);
       }
       .special-instructions {
         background-color: var(--surface);
@@ -970,8 +970,8 @@
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 
-  &:hover { color: var(--primary-color); background: var(--surface-subtle); }
-  &.active { color: var(--primary-color); border-bottom-color: var(--primary-color); }
+  &:hover { color: var(--primary-color-text); background: var(--surface-subtle); }
+  &.active { color: var(--primary-color-text); border-bottom-color: var(--primary-color); }
   &:focus-visible { outline: 2px solid var(--primary-color); outline-offset: -2px; }
 
   &__badge {
@@ -1008,7 +1008,7 @@
   margin-bottom: 18px;
   border-radius: var(--radius-md);
   background: var(--soft-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
 
   > div { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 200px; }
 
@@ -1049,7 +1049,7 @@
     cursor: pointer;
     &:hover { border-color: var(--primary-color); }
     &:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
-    strong { color: var(--primary-color); }
+    strong { color: var(--primary-color-text); }
   }
 }
 
@@ -1072,7 +1072,7 @@
   text-decoration: none;
   font-weight: var(--fw-medium);
 
-  &:hover { border-color: var(--primary-color); color: var(--primary-color); }
+  &:hover { border-color: var(--primary-color); color: var(--primary-text-elevated); }
 
   &--primary {
     background: var(--btn-primary);
@@ -1104,7 +1104,7 @@
 
   > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   strong { color: var(--text-primary); }
-  span { color: var(--text-muted); overflow-wrap: anywhere; }
+  span { color: var(--text-muted-on-elevated); overflow-wrap: anywhere; }
 }
 
 // Phones: tighter tabs so more of them fit on each wrapped row.
@@ -1154,7 +1154,7 @@
     background: var(--surface);
     border-color: var(--border-color);
     color: var(--text-primary);
-    &:hover:not(:disabled) { border-color: var(--primary-color); color: var(--primary-color); }
+    &:hover:not(:disabled) { border-color: var(--primary-color); color: var(--primary-text-elevated); }
   }
 
   &--danger {
@@ -1168,7 +1168,7 @@
   &--danger-ghost {
     background: transparent;
     border-color: var(--border-color);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     &:hover:not(:disabled) { background: var(--soft-red); border-color: var(--bright-red); }
   }
 }
@@ -1182,7 +1182,7 @@
     margin-top: 2px;
     font-size: 0.82rem;
     font-weight: var(--fw-medium);
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
 
     i { font-size: 0.72rem; transition: transform 0.15s ease; }
     &--plain { color: var(--text-muted); font-weight: 400; }
@@ -1197,7 +1197,7 @@
 
 .orders-count {
   font-weight: var(--fw-medium);
-  color: var(--text-muted);
+  color: var(--text-muted-on-elevated);
   font-size: 0.9rem;
 }
 
@@ -1299,15 +1299,15 @@
 }
 
 .status-badge {
-  &.status-active { background: var(--soft-blue); color: var(--primary-color); }
-  &.status-done { background: var(--mint-fresh); color: var(--fresh-green); }
-  &.status-cancelled { background: var(--soft-red); color: var(--bright-red); }
+  &.status-active { background: var(--soft-blue); color: var(--primary-text-elevated); }
+  &.status-done { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &.status-cancelled { background: var(--soft-red); color: var(--soft-red-text); }
   &.status-pending { background: var(--soft-yellow); color: var(--soft-yellow-text); }
 }
 
 .payment-badge {
-  &.paid { background: var(--mint-fresh); color: var(--fresh-green); }
-  &.unpaid { background: var(--soft-red); color: var(--bright-red); }
+  &.paid { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &.unpaid { background: var(--soft-red); color: var(--soft-red-text); }
   &.partial { background: var(--soft-yellow); color: var(--soft-yellow-text); }
   &.plan { background: var(--surface-subtle); color: var(--text-secondary); }
 }
@@ -1365,7 +1365,7 @@
     cursor: pointer;
     transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 
-    &:hover:not(:disabled):not(.active) { border-color: var(--primary-color); color: var(--primary-color); }
+    &:hover:not(:disabled):not(.active) { border-color: var(--primary-color); color: var(--primary-text-elevated); }
     &:disabled { opacity: 0.4; cursor: not-allowed; }
     &:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
   }
@@ -1401,8 +1401,8 @@
 
   &--active {
     background: var(--mint-fresh);
-    > i { color: var(--fresh-green); }
-    strong { color: var(--fresh-green); }
+    > i { color: var(--mint-fresh-text); }
+    strong { color: var(--mint-fresh-text); }
   }
 }
 
@@ -1439,7 +1439,7 @@
       justify-content: center;
       border-radius: var(--radius-pill);
       background: var(--soft-blue);
-      color: var(--primary-color);
+      color: var(--primary-text-elevated);
       font-size: 0.7rem;
     }
 
@@ -1475,19 +1475,19 @@
     padding: 2px 9px;
     border-radius: var(--radius-pill);
     background: var(--soft-blue);
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
     font-size: 0.68rem;
     font-weight: var(--fw-semibold);
     white-space: nowrap;
 
-    &--active { background: var(--mint-fresh); color: var(--fresh-green); }
+    &--active { background: var(--mint-fresh); color: var(--mint-fresh-text); }
   }
 
   &__discount {
     margin: 6px 0 0;
     font-size: 0.9rem;
     color: var(--text-secondary);
-    strong { font-size: 1.5rem; color: var(--primary-color); }
+    strong { font-size: 1.5rem; color: var(--primary-color-text); }
   }
 
   &__cadence { margin: 0; font-size: 0.85rem; color: var(--text-muted); }
@@ -1506,7 +1506,7 @@
 .plan-footnote {
   margin: 16px 0 0;
   font-size: 0.82rem;
-  color: var(--text-muted);
+  color: var(--text-muted-on-elevated);
   line-height: 1.5;
 }
 

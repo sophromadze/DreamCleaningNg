@@ -5,6 +5,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { SpecialOfferService, SpecialOffer, CreateSpecialOffer, UpdateSpecialOffer, OfferType } from '../../../services/special-offer.service';
 import { AuthService } from '../../../services/auth.service';
+import { FIRST_TIME_OFFER_KEY, offerKeyOf } from '../../../shared/booking/special-offer-keys';
+import { readableLabelColor } from '../../../shared/admin/readable-label-color';
 
 @Component({
   selector: 'app-special-offers',
@@ -316,6 +318,7 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
       validTo: [null],
       minimumOrderAmount: [null, Validators.min(0)],
       requiresFirstTimeCustomer: [false],
+      offerKey: ['', Validators.maxLength(50)],
       icon: [''],
       badgeColor: ['#28a745']
     });
@@ -347,6 +350,17 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
     this.canCreate = this.userRole === 'Admin' || this.userRole === 'SuperAdmin';
     this.canUpdate = this.userRole === 'Admin' || this.userRole === 'SuperAdmin';
     this.canDelete = this.userRole === 'SuperAdmin'; // Only SuperAdmin can delete
+  }
+
+  /** The offer key is SuperAdmin-only (the API refuses anyone else's change). */
+  get canEditOfferKey(): boolean {
+    return this.userRole === 'SuperAdmin';
+  }
+
+  /** Blank means "no key" - sent as null, which the API stores as NULL. */
+  private normalizedOfferKey(raw: string | null | undefined): string | null {
+    const key = (raw ?? '').trim();
+    return key ? key : null;
   }
 
   loadSpecialOffers() {
@@ -398,6 +412,7 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
       discountValue: 20,
       type: OfferType.Custom,
       requiresFirstTimeCustomer: false,
+      offerKey: '',
       badgeColor: '#28a745'
     });
     
@@ -408,6 +423,9 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   editOffer(offer: SpecialOffer) {
     this.editingOfferId = offer.id;
     this.showCreateForm = false;
+    // The API sends "2026-05-01T00:00:00"; a date input shows only "yyyy-MM-dd".
+    offer.validFrom = this.toDateInputValue(offer.validFrom) as any;
+    offer.validTo = this.toDateInputValue(offer.validTo) as any;
     // Store the numeric type value
     this.editingOfferType[offer.id] = this.getOfferTypeValue(offer.type);
     
@@ -454,12 +472,20 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
           isPercentage: offer.isPercentage,
           discountValue: offer.discountValue,
           type: this.editingOfferType[offer.id],
-          validFrom: offer.validFrom ? new Date(offer.validFrom) : undefined,
-          validTo: offer.validTo ? new Date(offer.validTo) : undefined,
+          // Sent as the "yyyy-MM-dd" the date input holds. Re-parsing it with new Date() read it as
+          // local time and serialized it as UTC, so every save moved the date by the UTC offset.
+          validFrom: (this.toDateInputValue(offer.validFrom) ?? undefined) as any,
+          validTo: (this.toDateInputValue(offer.validTo) ?? undefined) as any,
           icon: offer.icon || '',
           badgeColor: offer.badgeColor || '#28a745',
+          // Not editable inline, but the API stores what it is sent: leaving it out wiped it.
+          minimumOrderAmount: offer.minimumOrderAmount ?? undefined,
           isActive: offer.isActive
         };
+        // Only a SuperAdmin sends the key; leaving it out keeps the stored one.
+        if (this.canEditOfferKey) {
+          updateData.offerKey = this.normalizedOfferKey(offer.offerKey);
+        }
 
         this.specialOfferService.updateSpecialOffer(offer.id, updateData).subscribe({
           next: () => {
@@ -487,7 +513,8 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
       // Create new offer
       const createData: CreateSpecialOffer = {
         ...formValue,
-        type: formValue.type
+        type: formValue.type,
+        offerKey: this.canEditOfferKey ? this.normalizedOfferKey(formValue.offerKey) : null
       };
 
       this.specialOfferService.createSpecialOffer(createData).subscribe({
@@ -505,6 +532,17 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
     }
   }
 
+  /** "yyyy-MM-dd" for a date input from the API's date (or a value the input already holds); null when empty. */
+  private toDateInputValue(value: Date | string | null | undefined): string | null {
+    if (!value) return null;
+    if (value instanceof Date) {
+      const pad = (n: number) => String(n).padStart(2, '0');
+      return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+    }
+    const day = String(value).slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+  }
+
   cancelEdit() {
     this.showCreateForm = false;
     this.editingOfferId = null;
@@ -513,7 +551,7 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   deleteOffer(offer: SpecialOffer) {
-    if (offer.type === 'FirstTime') {
+    if (this.isProtectedFirstTimeOffer(offer)) {
       this.errorMessage = 'Cannot delete the first-time customer discount';
       return;
     }
@@ -554,12 +592,26 @@ export class SpecialOffersComponent implements OnInit, AfterViewInit, OnDestroy 
     });
   }
 
+  /** The admin's badge colour is shown as stored; the label switches to whichever of white or near-black reads on it. */
+  badgeLabelColor(badgeColor: string): string {
+    return readableLabelColor(badgeColor);
+  }
+
   getOfferTypeLabel(type: string): string {
     return this.offerTypes.find(t => t.value === this.getOfferTypeValue(type))?.label || type;
   }
 
   isFirstTimeOffer(offer: SpecialOffer): boolean {
     return offer.type === 'FirstTime';
+  }
+
+  /**
+   * Can't be deleted: the offer keyed "first-time" (what the site treats as the first-time offer,
+   * whatever its type) and, as before keys, any FirstTime-type offer. Mirrors
+   * FirstTimeOfferHelper.IsProtectedFromDeletion.
+   */
+  isProtectedFirstTimeOffer(offer: SpecialOffer): boolean {
+    return offerKeyOf(offer) === FIRST_TIME_OFFER_KEY || this.isFirstTimeOffer(offer);
   }
 
   isEditingFirstTimeOffer(): boolean {

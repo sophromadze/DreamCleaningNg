@@ -25,6 +25,8 @@ export class QuantityControlComponent {
   @Input() decrementDisabled = false;
   @Input() incrementDisabled = false;
   @Input() variant: 'plain' | 'extra' = 'plain';
+  /** What the stepper changes (e.g. 'bedrooms'); names the icon-only buttons "Decrease bedrooms" / "Increase bedrooms". */
+  @Input() label = '';
   /** Emits the click event so call sites can keep e.g. $event.stopPropagation(). */
   @Output() decrement = new EventEmitter<MouseEvent>();
   @Output() increment = new EventEmitter<MouseEvent>();

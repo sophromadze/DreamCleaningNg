@@ -1,31 +1,32 @@
-import { Component, OnInit, OnDestroy, Inject, inject } from '@angular/core';
-import { CommonModule, DOCUMENT } from '@angular/common';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { SERVICE_PRICING } from '../../../shared/service-pricing.data';
+import { MarketingPricingService } from '../../../shared/pricing/marketing-pricing.service';
+import { priceFragment, startingPriceOffer } from '../../../shared/pricing/marketing-price-format';
 import { PhoneNumberService } from '../../../services/phone-number.service';
+import { CardImageDirective } from '../../../shared/images/card-image.directive';
+import { StructuredDataService } from '../../../services/structured-data.service';
 
 @Component({
   selector: 'app-airbnb-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, CardImageDirective],
   templateUrl: './airbnb-cleaning.component.html',
   styleUrl: './airbnb-cleaning.component.scss'
 })
 export class AirbnbCleaningComponent implements OnInit, OnDestroy {
-  readonly pricing = SERVICE_PRICING;
+  private readonly marketingPricing = inject(MarketingPricingService);
+  /** Prices from the booking catalogue; null = fragment left out (MarketingPricingService). */
+  readonly pricing = this.marketingPricing.text;
   protected readonly phoneNumber = inject(PhoneNumberService);
-  private schemaElement: HTMLScriptElement | null = null;
-
-  constructor(@Inject(DOCUMENT) private document: Document) {}
+  private readonly structuredData = inject(StructuredDataService);
 
   ngOnInit(): void {
     this.injectSchema();
   }
 
   ngOnDestroy(): void {
-    if (this.schemaElement && this.schemaElement.parentNode) {
-      this.schemaElement.parentNode.removeChild(this.schemaElement);
-    }
+    this.structuredData.remove('ld-airbnb-cleaning');
   }
 
   private injectSchema(): void {
@@ -33,7 +34,7 @@ export class AirbnbCleaningComponent implements OnInit, OnDestroy {
       '@context': 'https://schema.org',
       '@type': 'Service',
       'name': 'Airbnb Cleaning Service in NYC',
-      'description': `Dream Cleaning's Airbnb and short-term rental turnover cleaning delivers fast, hotel-quality resets between guests across Manhattan, Brooklyn, and Queens, starting from $${SERVICE_PRICING.residentialFrom}. Same-day changeovers, linen changes, restocking, and real-time photo updates for hosts and property managers.`,
+      'description': `Dream Cleaning's Airbnb and short-term rental turnover cleaning delivers fast, hotel-quality resets between guests across Manhattan, Brooklyn, and Queens${priceFragment(this.pricing().standardFrom, ', starting from ')}. Same-day changeovers, linen changes, restocking, and real-time photo updates for hosts and property managers.`,
       'dateModified': '2026-06-06',
       'url': 'https://dreamcleaningnyc.com/services/airbnb-cleaning',
       'provider': {
@@ -43,17 +44,9 @@ export class AirbnbCleaningComponent implements OnInit, OnDestroy {
       },
       'areaServed': { '@type': 'City', 'name': 'New York' },
       'serviceType': 'Airbnb Turnover Cleaning',
-      'offers': {
-        '@type': 'AggregateOffer',
-        'lowPrice': String(SERVICE_PRICING.residentialFrom),
-        'highPrice': String(SERVICE_PRICING.residentialHigh),
-        'priceCurrency': 'USD'
-      }
+      ...startingPriceOffer(this.marketingPricing.prices().standardFrom)
     };
 
-    this.schemaElement = this.document.createElement('script');
-    this.schemaElement.type = 'application/ld+json';
-    this.schemaElement.textContent = JSON.stringify(schema);
-    this.document.head.appendChild(this.schemaElement);
+    this.structuredData.set('ld-airbnb-cleaning', schema);
   }
 }

@@ -22,6 +22,7 @@ export interface RecurringOccurrence {
   isTemplate: boolean;
   wasGenerated: boolean;
   paymentMethod: string;
+  contractId?: number | null;
   /** Cleaners the series assigned that nobody has notified yet. Drives the panel's warning. */
   autoAssignedNotNotifiedCount: number;
   assignedCleanerCount: number;
@@ -40,6 +41,17 @@ export interface RecurringSeries {
   intervalValue: number;
   intervalUnit: RecurrenceIntervalUnit;
   intervalLabel: string;
+  /** Selected weekdays, 0 = Sunday. Empty = the original single-date schedule. */
+  serviceDaysOfWeek?: number[];
+  /** Selected days of the month. Empty = the original anchor-day schedule. */
+  serviceDaysOfMonth?: number[];
+  /** Upcoming cleanings kept generated. Null = a plan saved before the count existed (30-day window). */
+  upcomingOccurrenceTarget?: number | null;
+  /** Upcoming, non-cancelled cleanings the plan holds right now. */
+  upcomingCount?: number;
+  contract?: RecurringContractOption | null;
+  /** Billing belongs to the linked weekly-flat-fee contract; no per-visit charges or requests. */
+  billingControlledByContract?: boolean;
   anchorDate: string;
   serviceTime: string;
   endDate: string | null;
@@ -62,6 +74,10 @@ export interface SaveRecurringSeries {
   futureOrdersAction?: 'Keep' | 'Regenerate' | null;
   intervalValue: number;
   intervalUnit: RecurrenceIntervalUnit;
+  serviceDaysOfWeek?: number[] | null;
+  serviceDaysOfMonth?: number[] | null;
+  upcomingOccurrenceTarget?: number | null;
+  contractId?: number | null;
   anchorDate?: string | null;
   endDate?: string | null;
   copyCleanerAssignments: boolean;
@@ -69,6 +85,31 @@ export interface SaveRecurringSeries {
   isActive: boolean;
   notes?: string | null;
 }
+
+/** A commercial contract a plan may be linked to. */
+export interface RecurringContractOption {
+  id: number;
+  contractNumber: string;
+  status: string;
+  contractClientId: number;
+  serviceAddress?: string | null;
+  pricingBasis: 'PerVisit' | 'WeeklyFlatFee' | string;
+  isWeeklyFlatFee: boolean;
+  visitsPerWeek: number;
+  preTaxPrice: number;
+  salesTaxAmount: number;
+  totalPrice: number;
+  weekDefinition: string;
+}
+
+export interface RecurringContractOptions {
+  contractClientId?: number | null;
+  contracts: RecurringContractOption[];
+  suggestedContractId?: number | null;
+}
+
+/** The most upcoming cleanings a plan may keep generated — mirrors MaxUpcomingOccurrenceTarget. */
+export const MAX_UPCOMING_OCCURRENCE_TARGET = 60;
 
 export interface RecurringGenerationResult {
   seriesId: number;
@@ -82,6 +123,11 @@ export interface RecurringGenerationResult {
 // ── Customer side ────────────────────────────────────────────────────────────────────────────
 
 export interface UpcomingRecurringOrder {
+  /**
+   * "Billed weekly by contract DCC-…" — an operational cleaning under a weekly flat fee contract.
+   * Shown INSTEAD of its $0 price, which would otherwise read as a free cleaning.
+   */
+  billedByContractLabel?: string | null;
   includedInPayAll?: boolean;
   paymentMethod?: string;
   orderId: number;
@@ -152,6 +198,11 @@ export class RecurringOrderService {
   /** The series an order belongs to, or null. Drives the order panel's Recurrence card. */
   forOrder(orderId: number): Observable<RecurringSeries | null> {
     return this.http.get<RecurringSeries | null>(`${this.admin}/for-order/${orderId}`);
+  }
+
+  /** Executed contracts a plan built from this order may be linked to. */
+  contractOptions(orderId: number): Observable<RecurringContractOptions> {
+    return this.http.get<RecurringContractOptions>(`${this.admin}/from-order/${orderId}/contracts`);
   }
 
   createFromOrder(orderId: number, dto: SaveRecurringSeries): Observable<RecurringSeries> {

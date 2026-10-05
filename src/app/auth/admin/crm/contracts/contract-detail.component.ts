@@ -498,6 +498,17 @@ export class ContractDetailComponent implements OnInit, OnChanges {
     return !!this.detail?.canEdit && this.allowed('backToEdit');
   }
 
+  /**
+   * What the current version still prints without a value, as the admin reads it. Empty for a
+   * contract whose hidden or optional fields are blank — only a genuinely required gap is listed,
+   * and the server refuses to send while one remains.
+   */
+  get missingFields(): string[] {
+    const detail = this.detail;
+    if (!detail) return [];
+    return detail.missingFields ?? detail.unresolvedTokens ?? [];
+  }
+
   get showSendForReview(): boolean {
     return !!this.detail?.canSendForReview && this.allowed('sendForReview');
   }

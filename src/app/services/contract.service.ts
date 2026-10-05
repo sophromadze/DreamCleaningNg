@@ -35,6 +35,13 @@ export enum ContractFileType { Preview = 0, FinalExecuted = 1, AuditCertificate 
 /** Tax-inclusive = the typed amount is what the client pays; Pre-tax = tax is added on top. */
 export enum ContractPriceMode { TaxInclusive = 0, PreTax = 1 }
 
+/**
+ * Mirrors ContractPricingBasis — what the agreed price is a price OF. Per visit is every earlier
+ * contract; a weekly flat fee is one fee per calendar week for that week's scheduled visits.
+ * There is no monthly flat fee yet (a month holds four or five of any weekday).
+ */
+export enum ContractPricingBasis { PerVisit = 0, WeeklyFlatFee = 1 }
+
 // ── Scope checklist ──
 
 export interface ScopeItem {
@@ -167,9 +174,6 @@ export interface SiteDetailsSnapshot {
   touchpointLocations?: string | null;
   interiorGlassLocations?: string | null;
 
-  // NO SOAP FIELDS. Hand soap and its dispensers are outside the Services entirely — Contractor
-  // never supplies, replenishes, repairs or replaces them — so there is nothing to record.
-
   /**
    * Blank means NONE, and that is load-bearing: Section 25(e) and A3(d) exclude food-contact
    * sanitizing unless a task is expressly identified here, so an empty box is the agreement
@@ -209,6 +213,14 @@ export interface OperationalContactsSnapshot {
   clientApprovalEmail?: string | null;
 
   /**
+   * Exhibit B4's "Client notice email", as its own field (2026-10-02). Blank falls back on the
+   * server to the client's notice email on file, then the approval email, then the operational
+   * email. Null means a snapshot saved before the field existed, which keeps rendering exactly as
+   * it did — the form always posts a string, so a re-saved draft takes the fallback above.
+   */
+  clientNoticeEmail?: string | null;
+
+  /**
    * RETIRED FROM THE DOCUMENT (2026-09-15) and kept only so an existing draft round-trips.
    *
    * Template v2.2 asks the Client for no mailing address at all: the preamble identifies them by
@@ -238,6 +250,45 @@ export interface InsuranceEndorsementsSnapshot {
   additionalPremium?: string | null;
 }
 
+/**
+ * Mirrors ScopeDetailMode — how much of the Scope of Work the agreement carries. Detailed is the
+ * full Exhibit A; Simplified is a one-paragraph Exhibit A; Omitted leaves Exhibit A out and
+ * Section 1 says the scope was agreed separately.
+ */
+export enum ScopeDetailMode {
+  Detailed = 0,
+  Simplified = 1,
+  Omitted = 2
+}
+
+/** Mirrors SupplyProvider. Shared applies to cleaning supplies and equipment only. */
+export enum SupplyProvider {
+  Contractor = 0,
+  Client = 1,
+  Shared = 2
+}
+
+export interface ConsumableAllocation {
+  item: string;
+  providedBy?: SupplyProvider | null;
+}
+
+/**
+ * Section 6(b) / Exhibit B, B3 — who provides the cleaning supplies and equipment, and who
+ * provides each consumable. There is no company-wide rule: every answer is a term of this one
+ * agreement, and every answer starts UNSET. An unset one prints a ruled blank in B3 and appears in
+ * the preview's missing-information banner, so nothing is silently assigned to either party.
+ */
+export interface SuppliesSnapshot {
+  equipmentProvidedBy?: SupplyProvider | null;
+  /** How a Shared equipment arrangement is divided. Required for Shared, ignored otherwise. */
+  equipmentArrangementNotes?: string | null;
+  trashLinersProvidedBy?: SupplyProvider | null;
+  paperTowelsProvidedBy?: SupplyProvider | null;
+  toiletTissueProvidedBy?: SupplyProvider | null;
+  otherConsumables: ConsumableAllocation[];
+}
+
 /** Mirrors ContractBillingFrequency. "Every N weeks" is Weekly with an interval count. */
 export enum ContractBillingFrequency {
   PerServiceVisit = 0,
@@ -260,6 +311,11 @@ export interface BillingCadenceSnapshot {
 }
 
 export interface TermSnapshot {
+  /**
+   * ZERO means NO MINIMUM COMMITMENT — the default. There is no company-wide commitment; a number
+   * here is one specifically agreed with this client. The Initial Term only exists alongside a
+   * commitment and is raised to at least its length by the server.
+   */
   initialTermMonths: number; minimumCommitmentMonths: number; terminationNoticeDays: number;
 
   /**
@@ -277,6 +333,10 @@ export interface TermSnapshot {
 export interface PricingSnapshot {
   priceMode: ContractPriceMode; priceInput: number; salesTaxRatePercent: number;
   preTaxPrice: number; salesTaxAmount: number; totalPrice: number;
+  /** Absent on snapshots frozen before it existed, which are per visit. */
+  pricingBasis?: ContractPricingBasis;
+  /** Weekly mode: visits one weekly fee covers, and one visit's full-precision share. */
+  scheduledVisitsPerFeePeriod?: number; perVisitAllocation?: number;
 
   /**
    * The cancellation cap is a percentage of the PRE-TAX fee, and the lockout fee IS the pre-tax
@@ -325,7 +385,13 @@ export interface AdvancedTermsSnapshot {
   disputeResponseBusinessDays: number;
   resolutionPaymentBusinessDays: number;
   damageNoticeBusinessDays: number;
+  /** Section 22(a): the standard reporting window after completion — 24 hours. */
   qualityComplaintHours: number;
+  /**
+   * Section 22(a): the outer limit for a deficiency that could not reasonably be found inside the
+   * standard window — 72 hours. A narrow exception, not a second general window.
+   */
+  qualityLatentDeficiencyLimitHours: number;
   qualityCorrectionBusinessDays: number;
   refundBusinessDays: number;
 
@@ -368,6 +434,10 @@ export interface ContractSnapshot {
   siteDetails: SiteDetailsSnapshot;
   contacts: OperationalContactsSnapshot;
   insurance: InsuranceEndorsementsSnapshot;
+  /** Absent from a snapshot frozen before 2026-09-30. */
+  supplies?: SuppliesSnapshot | null;
+  /** Absent from a snapshot frozen before 2026-09-30, where it means Detailed. */
+  scopeDetail?: ScopeDetailMode | null;
   scope: ScopeStructure; premisesType: string;
 }
 
@@ -477,6 +547,10 @@ export interface CreateCommercialClient extends SaveContractClient {
 /** Only these drive the money. Everything else on Exhibit B is derived server-side. */
 export interface ContractPricingInput {
   priceMode: ContractPriceMode; priceInput: number; salesTaxRatePercent: number;
+  /** Per visit, or one flat fee per calendar week (priceInput is then the WEEKLY amount). */
+  pricingBasis: ContractPricingBasis;
+  /** Preview only: the visits per week a weekly fee covers. The saved schedule wins on save. */
+  scheduledVisitsPerWeek?: number;
   cancellationPercent: number;
   invoiceTiming: string; paymentDeadlineHours: number; paymentMethod: string;
   lateChargePercent: number;
@@ -512,11 +586,16 @@ export interface SaveContract {
   siteDetails: SiteDetailsSnapshot;
   contacts: OperationalContactsSnapshot;
   insurance: InsuranceEndorsementsSnapshot;
+  supplies: SuppliesSnapshot;
+  scopeDetail: ScopeDetailMode;
   scope: ScopeStructure;
 }
 
 export interface ContractPricingPreview {
   preTaxPrice: number; salesTaxAmount: number; totalPrice: number;
+  pricingBasis?: ContractPricingBasis;
+  /** Admin-only: one visit's share at full precision. Never the agreed price. */
+  perVisitAllocation?: number; scheduledVisitsPerFeePeriod?: number;
   cancellationAmount: number; remainingBalance: number; lockoutFee: number;
   liabilityCapAmount: number; lateChargeAnnualPercent: number;
 }
@@ -586,6 +665,14 @@ export interface ContractDetail {
   createdByAdminName?: string; voidReason?: string; duplicatedFromContractId?: number;
   currentVersionId?: number; currentVersionNumber: number;
   documentHtml: string; documentHash: string; unresolvedTokens: string[];
+  /** Non-blocking consistency warnings, e.g. visit count vs. named service days. */
+  scheduleWarnings?: string[];
+  /**
+   * The unresolved tokens as an admin reads them. Only values this document actually prints —
+   * a field hidden by the scope mode, the commitment choice or an empty optional row is never
+   * listed — and the server refuses to send for review or signature while any remain.
+   */
+  missingFields?: string[];
   /** Composed server-side; carries the actual marks once a party has signed. */
   signatureBlock: ContractSignatureBlock;
   draft: ContractSnapshot; currentSnapshot?: ContractSnapshot;

@@ -5,6 +5,10 @@ import { Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { SpecialOfferService, PublicSpecialOffer } from '../services/special-offer.service';
 import { AuthService } from '../services/auth.service';
+import { IconComponent } from '../shared/icons/icon.component';
+import { faGift } from '../shared/icons/glyphs/faGift';
+import { faXmark } from '../shared/icons/glyphs/faXmark';
+import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-keys';
 
 /**
  * Desktop-only marketing popup (bottom-left) promoting the first-time customer
@@ -18,11 +22,13 @@ import { AuthService } from '../services/auth.service';
 @Component({
   selector: 'app-first-time-offer-popup',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, IconComponent],
   templateUrl: './first-time-offer-popup.component.html',
   styleUrl: './first-time-offer-popup.component.scss'
 })
 export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
+  protected readonly icons = { faGift, faXmark };
+
   /** Scroll distance (px) past which we reveal the popup. */
   private static readonly SCROLL_THRESHOLD = 600;
 
@@ -118,12 +124,7 @@ export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
   private loadFirstTimeOffer() {
     this.specialOfferService.getPublicSpecialOffers().subscribe({
       next: (offers) => {
-        const offer = offers?.find(o =>
-          o.requiresFirstTimeCustomer ||
-          o.type === 'FirstTime' ||
-          (o.name?.toLowerCase().includes('first time') ?? false) ||
-          (o.name?.toLowerCase().includes('first-time') ?? false)
-        );
+        const offer = findAdvertisedFirstTimeOffer(offers);
         this.firstTimeDiscountLabel = this.buildDiscountLabel(offer);
       },
       error: () => { this.firstTimeDiscountLabel = ''; }
@@ -177,6 +178,8 @@ export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
       // looking for the bank details; a residential first-clean discount over it is noise at
       // best, and at worst it looks like the invoice itself is trying to sell them something.
       '/invoice',
+      // The regular customer invoice — somebody paying a bill, not shopping.
+      '/pay-invoice',
       // The commercial landing page sells to businesses, and this popup's offer is the
       // first-time RESIDENTIAL discount — it links into /booking, which cannot quote a
       // commercial job. A commercial offer of its own is coming; until then the page

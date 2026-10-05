@@ -1,0 +1,588 @@
+// The header's account menus - guest (Log In / Sign Up) and signed-in (avatar + dropdown).
+// Rendered only in the browser once auth is known, so keeping these rules out of the header's own
+// stylesheet keeps them out of every server-rendered page.
+
+// The host only groups the menu: its children lay out in the header's auth slot as before.
+:host {
+  display: contents;
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 50%;
+  background: var(--surface-elevated);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.theme-toggle:hover {
+  background: var(--primary-color);
+  color: #fff;
+  border-color: var(--primary-color);
+}
+.theme-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+}
+.theme-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.theme-icon-sun {
+  display: none;
+}
+:host-context([data-theme="dark"]) .theme-icon-moon {
+  display: none;
+}
+:host-context([data-theme="dark"]) .theme-icon-sun {
+  display: inline-flex;
+}
+
+// Guest: account menu only (theme toggle now lives inside the dropdown)
+.guest-auth-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  min-width: 32px;
+}
+
+// Login button styling
+// Guest auth menu (when not logged in): same look as user avatar + chevron + dropdown
+.guest-auth-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+
+  .login-avatar {
+    width: 32px;
+    height: 32px;
+    color: var(--primary-color);
+    background: var(--surface);
+    border: 1px solid var(--primary-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    // transition: all 0.3s ease;
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.2),
+      0 4px 8px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+
+    i {
+      font-size: 0.875rem;
+    }
+
+    &:hover{
+      background: var(--primary-color);
+      color: white;
+      border: 1px solid var(--primary-color);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2),
+      0 4px 8px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+
+      i {
+        color: white;
+      }
+    }
+  }
+
+  .chevron-down {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    color: var(--primary-color);
+    background: var(--surface);
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--primary-color);
+    transition: transform 0.3s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: var(--surface-elevated);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px var(--shadow-color);
+    border: 1px solid var(--border-color);
+    min-width: 140px;
+    margin-top: 8px;
+    z-index: 1000;
+
+    // Theme toggle row at the top of the guest dropdown
+    .guest-menu-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      border-top-left-radius: 8px;
+      border-top-right-radius: 8px;
+
+      .theme-toggle--inline {
+        flex-shrink: 0;
+        width: 30px;
+        height: 30px;
+      }
+    }
+
+    a {
+      display: block;
+      padding: 12px 16px;
+      color: var(--text-primary);
+      text-decoration: none;
+      cursor: pointer;
+
+      &:hover {
+        background: var(--page-bg);
+        color: var(--primary-color);
+      }
+
+      &:last-child:hover {
+        border-bottom-left-radius: 8px;
+        border-bottom-right-radius: 8px;
+      }
+    }
+
+  }
+}
+
+.user-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+
+  &:hover {
+    .user-avatar {
+      &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 50%;
+      }
+    }
+  }
+
+  &:active {
+    .user-avatar {
+      &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.5);
+        border-radius: 50%;
+      }
+    }
+  }
+
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    position: relative;
+    transition: all 0.5s ease;
+    box-shadow: 
+      0 2px 4px rgba(0, 0, 0, 0.2),
+      0 4px 8px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+
+  .chevron-down {
+    position: absolute;
+    bottom: -4px;
+    right: -4px;
+    color: var(--primary-color);
+    background: var(--surface);
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--primary-color);
+    transition: transform 0.3s ease;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: var(--surface-elevated);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px var(--shadow-color);
+    border: 1px solid var(--border-color);
+    min-width: 200px;
+    margin-top: 8px;
+    z-index: 1000;
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-muted);
+      font-size: 0.9rem;
+
+      &__name {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+    }
+
+    .theme-toggle--inline {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      border: 1px solid var(--border-color);
+      border-radius: 50%;
+      background: var(--surface-elevated);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+      margin-left: 8px;
+
+      &:hover {
+        background: var(--primary-color);
+        color: #fff;
+        border-color: var(--primary-color);
+      }
+    }
+
+    a {
+      display: block;
+      padding: 12px 16px;
+      color: var(--text-primary);
+      text-decoration: none;
+      transition: background 0.3s ease;
+
+      &:hover {
+        background: var(--page-bg);
+        color: var(--primary-color);
+      }
+
+      // Styling for orders menu item with indicator
+      &.orders-menu-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      &:last-child {
+        color: var(--bright-red);
+        border-top: 1px solid var(--border-color);
+        border-bottom-right-radius: 8px;
+        border-bottom-left-radius: 8px;
+
+        &:hover {
+          background: var(--bright-red);
+          color: white;
+          
+        }
+      }
+    }
+
+    // Unpaid orders indicator in dropdown menu (simple red circle, no pulse)
+    .unpaid-orders-menu-indicator {
+      width: 8px;
+      height: 8px;
+      background-color: #ff4444;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-left: 8px;
+    }
+
+    // New order indicator in dropdown menu (next to Admin Panel)
+    .admin-panel-menu-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .new-order-menu-indicator {
+      width: 8px;
+      height: 8px;
+      background-color: #ff4444;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-left: 8px;
+      animation: pulse 2s infinite;
+    }
+
+    // Tasks menu item with indicator
+    .tasks-menu-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .task-menu-indicator {
+      width: 8px;
+      height: 8px;
+      background-color: #f9a825;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-left: 8px;
+      animation: pulse-task 2s infinite;
+    }
+
+    .done-task-menu-indicator {
+      width: 8px;
+      height: 8px;
+      background-color: #4caf50;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-left: 8px;
+      animation: pulse-done-task 2s infinite;
+    }
+
+    // Blog menu item with pending-drafts count badge
+    .blog-menu-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .pending-drafts-badge {
+      min-width: 18px;
+      height: 18px;
+      padding: 0 5px;
+      background-color: var(--warning-orange);
+      color: white;
+      border-radius: var(--radius-pill);
+      font-size: 0.7rem;
+      font-weight: var(--fw-bold);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-left: 8px;
+    }
+
+  }
+}
+
+// Role badge styling - matching user-management component
+.user-role {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 500;
+  margin-top: 4px;
+
+  &.role-superadmin {
+    background: var(--bright-red);
+    color: white;
+  }
+
+  &.role-admin {
+    background: var(--primary-color);
+    color: white;
+  }
+
+  &.role-moderator {
+    background: var(--fresh-green);
+    color: white;
+  }
+
+  &.role-customer {
+    background: #6c757d;
+    color: white;
+  }
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background: var(--primary-color);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  position: relative;
+  transition: all 0.5s ease;
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    0 4px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  // overflow: hidden;
+
+  .user-avatar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+
+  .user-initials {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+  }
+
+  // Unpaid orders notification indicator (red circle)
+  .unpaid-orders-indicator {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 12px;
+    height: 12px;
+    background-color: #ff4444;
+    border: 2px solid var(--surface);
+    border-radius: 50%;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 4px rgba(255, 68, 68, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(255, 68, 68, 0);
+    }
+  }
+
+  // New order indicator on avatar (positioned opposite to unpaid indicator)
+  .new-order-indicator {
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    width: 12px;
+    height: 12px;
+    background-color: #ff4444;
+    border: 2px solid var(--surface);
+    border-radius: 50%;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    animation: pulse 2s infinite;
+  }
+
+  // Pending personal tasks indicator on avatar (top-right)
+  .task-indicator {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    width: 12px;
+    height: 12px;
+    background-color: #f9a825;
+    border: 2px solid var(--surface);
+    border-radius: 50%;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    animation: pulse-task 2s infinite;
+  }
+
+  @keyframes pulse-task {
+    0% {
+      box-shadow: 0 0 0 0 rgba(249, 168, 37, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 4px rgba(249, 168, 37, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(249, 168, 37, 0);
+    }
+  }
+
+  // Unchecked done tasks indicator on avatar (bottom-left, green)
+  .done-task-indicator {
+    position: absolute;
+    bottom: -3px;
+    left: -3px;
+    width: 12px;
+    height: 12px;
+    background-color: #4caf50;
+    border: 2px solid var(--surface);
+    border-radius: 50%;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    animation: pulse-done-task 2s infinite;
+  }
+
+  @keyframes pulse-done-task {
+    0% {
+      box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7);
+    }
+    70% {
+      box-shadow: 0 0 0 4px rgba(76, 175, 80, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+    }
+  }
+}
+
+@media (max-width: 768px), (hover: none) {
+  .user-menu {
+    &:hover {
+      .user-avatar {
+        &::after {
+          background: transparent;
+        }
+      }
+    }
+
+    &:active {
+      .user-avatar {
+        &::after {
+          background: rgba(255, 255, 255, 0.2);
+        }
+      }
+    }
+  }
+}

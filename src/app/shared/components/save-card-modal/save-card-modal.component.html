@@ -17,7 +17,7 @@
     </p>
 
     <p class="scm-fine">
-      <i class="fas fa-lock" aria-hidden="true"></i>
+      <i [appIcon]="icons.faLock" aria-hidden="true"></i>
       <!-- One flex ITEM, not three: the row is icon + text. Left bare, the emphasis and the text
            either side of it became their own flex items and "not" was laid out in its own
            column, which read as a rendering fault in the one line that is about trust. -->
@@ -31,7 +31,7 @@
       <button #primaryBtn type="button" class="scm-btn scm-btn--primary"
               (click)="decide(true)" [disabled]="busy"
               [attr.aria-label]="'Save card and pay' + (amountLabel ? ' ' + amountLabel : '')">
-        <i class="fas fa-circle-notch fa-spin" *ngIf="busy" aria-hidden="true"></i>
+        <i [appIcon]="icons.faCircleNotch" class="fa-spin" *ngIf="busy" aria-hidden="true"></i>
         {{ busy ? 'Paying…' : 'Save Card & Pay' }}
       </button>
 

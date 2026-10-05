@@ -12,12 +12,21 @@
 
 export interface CustomNameServiceType {
   name: string;
+  serviceKey?: string | null;
   isCustom?: boolean;
 }
 
-/** Residential is the one service type that splits into Regular + Deep. Matched by name. */
+/** Residential is the one service type that splits into Regular + Deep. Matched by name - the
+ *  fallback for a type with no serviceKey (see isResidentialCustomNameType). */
 export function isResidentialServiceTypeName(name: string | null | undefined): boolean {
   return (name || '').toLowerCase().includes('residential');
+}
+
+/** Residential by serviceKey ("residential"); only an unkeyed type falls back to the name. */
+export function isResidentialCustomNameType(st: CustomNameServiceType): boolean {
+  const key = (st.serviceKey ?? '').trim();
+  if (key) return key === 'residential';
+  return isResidentialServiceTypeName(st.name);
 }
 
 /**
@@ -48,7 +57,7 @@ export function buildCustomServiceTypeNameOptions(serviceTypes: CustomNameServic
   const options: string[] = [];
   for (const st of serviceTypes || []) {
     if (st.isCustom) continue; // never offer the custom service type itself as a name
-    if (isResidentialServiceTypeName(st.name)) {
+    if (isResidentialCustomNameType(st)) {
       options.push('Regular', 'Deep');
       continue;
     }

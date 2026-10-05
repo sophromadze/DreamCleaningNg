@@ -381,4 +381,27 @@ describe('CleanersDashboardComponent', () => {
       expect(httpMock.match(r => r.url.endsWith('/admin/cleaners')).length).toBe(1);
     });
   });
+
+  /**
+   * EXTERNAL PHOTOS (2026-10): some cleaners' photo is the Google picture they signed in with.
+   * The API returns that https URL as-is (only local uploads go through /api/files), so the card
+   * must render it untouched — no ?v= — and without sending a Referer to googleusercontent.
+   */
+  describe('cleaner photos', () => {
+    const google = 'https://lh3.googleusercontent.com/a/ACg8ocJxyz=s96-c';
+    const local = '/api/files/cleaners/2/photo?v=abc123';
+
+    it('renders an external picture exactly as given, with no referrer, next to a local one', () => {
+      fixture.detectChanges();
+      httpMock.match(r => r.url.endsWith('/admin/cleaners')).forEach(r => r.flush([
+        { id: 1, firstName: 'G', lastName: 'Oogle', isActive: true, ranking: 'Standard', photoUrl: google },
+        { id: 2, firstName: 'L', lastName: 'Ocal', isActive: true, ranking: 'Standard', photoUrl: local },
+      ]));
+      fixture.detectChanges();
+
+      const imgs = Array.from(fixture.nativeElement.querySelectorAll('.cleaner-card .avatar img')) as HTMLImageElement[];
+      expect(imgs.map(i => i.getAttribute('src'))).toEqual(jasmine.arrayWithExactContents([google, local]));
+      imgs.forEach(i => expect(i.getAttribute('referrerpolicy')).toBe('no-referrer'));
+    });
+  });
 });

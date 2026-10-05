@@ -93,7 +93,7 @@
 }
 
 .chat-toggle-btn {
-  background: #28a745;
+  background: var(--fill-success);
   color: white;
   border: none;
   padding: 6px 16px;
@@ -144,15 +144,9 @@
   @media (max-width: 768px) { margin-top: 0.75rem; }
   @media (max-width: 480px) { margin-top: 0.5rem; }
 
-  /* The panel has a dozen tabs, so on a phone the row scrolls sideways instead of stacking
-     into five ragged lines - Commercial has five and wraps comfortably. */
+  /* Wraps onto more lines on a phone, like Company (owner's call, 2026-09) — a sideways-scrolling
+     row hid most of the tabs off screen. Only the padding tightens. */
   @media (max-width: 640px) {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    &::-webkit-scrollbar { display: none; }
-
     .tab-btn { padding: 10px 12px; font-size: 0.86rem; }
   }
 }

@@ -470,7 +470,7 @@
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
         gap: 15px;
 
-        h4 {
+        h3 {
           background: var(--soft-lavender-background);
           color: var(--primary-text);
           padding: 15px;
@@ -478,6 +478,7 @@
           text-align: center;
           margin: 0;
           font-size: 1rem;
+          font-weight: 700; /* bold as the old h4 was; a broader h3 rule sets 600 */
         }
       }
     }

@@ -8,9 +8,12 @@
  * Keyed on the USER ID, not the name — a rename must not repaint somebody, and two people who
  * share a first name must not share a bubble.
  */
+// Every entry carries white initials at >= 4.5:1 (WCAG AA). 2026-10: four were one shade too light
+// (#0891b2, #ea580c, #16a34a, #0284c7) and moved to their 700 shade; order kept so nobody repaints
+// into a different colour family.
 const AVATAR_PALETTE = [
-  '#4f46e5', '#0891b2', '#ea580c', '#9333ea',
-  '#db2777', '#16a34a', '#0284c7', '#dc2626'
+  '#4f46e5', '#0e7490', '#c2410c', '#9333ea',
+  '#db2777', '#15803d', '#0369a1', '#dc2626'
 ];
 
 /** Deterministic avatar background colour for an account id. */

@@ -2,6 +2,9 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { OrderList } from '../../services/order.service';
 import { formatTime12h } from '../../shared/booking/extra-service-display.utils';
+import { IconComponent } from '../../shared/icons/icon.component';
+import { faArrowRotateRight } from '../../shared/icons/glyphs/faArrowRotateRight';
+import { faXmark } from '../../shared/icons/glyphs/faXmark';
 
 /**
  * "Reorder from Previous Orders" button + dropdown modal (extracted from the
@@ -11,7 +14,7 @@ import { formatTime12h } from '../../shared/booking/extra-service-display.utils'
 @Component({
   selector: 'app-reorder-section',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, IconComponent],
   // The host carries the .reorder-section class so the booking page's existing
   // layout rules (.reorder-section, .booking-form-top .reorder-section) keep applying.
   host: { class: 'reorder-section' },
@@ -19,6 +22,8 @@ import { formatTime12h } from '../../shared/booking/extra-service-display.utils'
   styleUrls: ['./reorder-section.component.scss']
 })
 export class ReorderSectionComponent {
+  protected readonly icons = { faArrowRotateRight, faXmark };
+
   @Input() orders: OrderList[] = [];
   @Input() isLoading = false;
   @Input() reorderingOrderId: number | null = null;

@@ -18,19 +18,16 @@
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   
-  <!-- Preconnect for Performance -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  
-  <!-- Preload Critical Resources -->
-  <!-- Fonts are loaded via @import in styles.scss -->
-  
-  <!-- Google Fonts -->
-  <!-- Inter font is loaded via @import in styles.scss -->
+  <!-- Preconnect: only origins the home page actually uses early. GTM is requested by the
+       inline snippet above. Maps / Stripe / Google Sign-In are not needed for first paint,
+       and an unused preconnect costs a connection slot on mobile. -->
   <link rel="preconnect" href="https://www.googletagmanager.com">
-  <link rel="preconnect" href="https://maps.googleapis.com">
-  <link rel="preconnect" href="https://accounts.google.com">
-  <link rel="preconnect" href="https://js.stripe.com">
+
+  <!-- Self-hosted fonts (@font-face in styles.scss). Preload only the two Latin files every
+       page needs above the fold: Inter (all text) and Fraunces (the header wordmark).
+       Must match the @font-face URLs exactly; `crossorigin` is required for font preloads. -->
+  <link rel="preload" href="/fonts/inter-v20-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/fonts/fraunces-v38-latin.woff2" as="font" type="font/woff2" crossorigin>
   
   <!-- Favicons -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -51,10 +48,10 @@
   <!-- Primary SEO Meta Tags -->
   <!--
     Default meta description (fallback). Per-route descriptions in
-    src/app/app.routes.ts override this on SSR via SERVICE_PRICING — keep this
-    one price-free so it can never go stale.
+    src/app/app.routes.ts override this on SSR (priced ones from the live booking
+    catalogue) — keep this one price-free so it can never go stale.
   -->
-  <meta name="description" content="Dream Cleaning is a 5.0-star rated cleaning service in NYC serving Brooklyn, Manhattan & Queens. 100+ Google reviews. Book online in 2 minutes."/>
+  <meta name="description" content="Dream Cleaning is a 5.0-star rated cleaning service in NYC serving Brooklyn, Manhattan & Queens. Book online in 2 minutes."/>
   <meta name="keywords" content="Dream Cleaning NYC, professional cleaning services New York, house cleaning Manhattan, apartment cleaning Brooklyn, office cleaning Queens, eco-friendly cleaning, pet-safe cleaning, move-in cleaning, move-out cleaning, cleaning service near me"/>
   <meta name="author" content="Nika Sophromadze" />
   <meta name="robots" content="index, follow" />
@@ -106,7 +103,7 @@
   <meta name="apple-mobile-web-app-title" content="Dream Cleaning">
   
   <!-- Structured Data: @graph (LocalBusiness + Organization + WebSite) -->
-  <script type="application/ld+json">
+  <script id="site-schema" type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@graph": [
@@ -114,7 +111,7 @@
           "@type": "LocalBusiness",
           "@id": "https://dreamcleaningnyc.com/#business",
           "name": "Dream Cleaning",
-          "description": "Dream Cleaning is a professional residential and commercial cleaning service in New York City, serving 120 ZIP codes across Brooklyn, Manhattan, and Queens. Founded in 2024, we offer standard cleaning, deep cleaning, move in/out cleaning, office cleaning, and specialized services with a 5.0-star Google rating across 100+ reviews.",
+          "description": "Dream Cleaning is a professional residential and commercial cleaning service in New York City, serving 120 ZIP codes across Brooklyn, Manhattan, and Queens. Founded in 2024, we offer standard cleaning, deep cleaning, move in/out cleaning, office cleaning, and specialized services with a 5.0-star Google rating.",
           "url": "https://dreamcleaningnyc.com",
           "telephone": "+1-929-930-1525",
           "email": "hello@dreamcleaningnyc.com",
@@ -157,12 +154,6 @@
               "containedInPlace": { "@type": "City", "name": "New York" }
             }
           ],
-          "aggregateRating": {
-            "@type": "AggregateRating",
-            "ratingValue": "5.0",
-            "reviewCount": "100",
-            "bestRating": "5"
-          },
           "openingHoursSpecification": {
             "@type": "OpeningHoursSpecification",
             "dayOfWeek": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"],
@@ -259,42 +250,12 @@
 
   <!-- Google Maps is loaded dynamically by GoogleMapsLoaderService with the frontend API key -->
 
-  <!-- Meta Pixel Code -->
-  <script>
-  if (typeof window !== 'undefined') {
-    !function(f,b,e,v,n,t,s)
-    {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-    n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-    if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-    n.queue=[];t=b.createElement(e);t.async=!0;
-    t.src=v;s=b.getElementsByTagName(e)[0];
-    s.parentNode.insertBefore(t,s)}(window, document,'script',
-    'https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', '1241620783880848');
-    fbq('track', 'PageView');
-    fbq('track', 'Lead');
-  }
-  </script>
-  <!-- End Meta Pixel Code -->
-  
-  <!-- Microsoft Clarity -->
-  <script type="text/javascript">
-    (function(c,l,a,r,i,t,y){
-        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-    })(window, document, "clarity", "script", "vbpblmxasq");
-  </script>
 </head>
 <body>
   <!-- Google Tag Manager (noscript) -->
   <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-PMSDXVF3"
   height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   <!-- End Google Tag Manager (noscript) -->
-
-  <noscript><img height="1" width="1" style="display:none"
-  src="https://www.facebook.com/tr?id=1241620783880848&ev=PageView&noscript=1"
-  /></noscript>
 
   <app-root></app-root>
   <!-- Tawk.to chat disabled for now - uncomment the script block below when ready to use

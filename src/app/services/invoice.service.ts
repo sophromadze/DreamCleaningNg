@@ -80,6 +80,13 @@ export interface InvoiceEligibleOrder {
   status: string;
   total: number;
   contactName: string;
+  /** The scheduled occurrence a recurring cleaning fills — the date its service WEEK is read from. */
+  occurrenceDate?: string | null;
+  /** The contract a recurring plan scheduled it under, when one did. */
+  contractId?: number | null;
+  contractNumber?: string | null;
+  /** Assigned cleaners, comma-separated; empty when nobody is assigned yet. */
+  assignedCleaners?: string;
   isOnThisInvoice: boolean;
   allocatedAmount?: number | null;
   /** "Already included in DCI-2026-…" — a live invoice already claiming this cleaning. */
@@ -177,6 +184,10 @@ export interface InvoiceOrdersResult {
   invoiceTotal: number;
   allocations: InvoiceOrderAllocation[];
   warnings: string[];
+  /** True when the lines were priced as the contract's weekly flat fee — one fee per service week. */
+  pricedAsWeeklyFlatFee?: boolean;
+  /** Distinct contract service weeks the selection covers (weekly flat fee only). */
+  serviceWeekCount?: number;
 }
 
 /** Returned as a 409 when an unsent draft already covers this period — see the contracts page. */
@@ -367,6 +378,8 @@ export interface InvoiceDetail {
   currentContractUnitPrice?: number | null;
   currentContractTaxType?: InvoiceTaxType | null;
   currentContractTaxRate?: number | null;
+  /** The linked contract charges one flat fee per service week rather than per visit. */
+  currentContractIsWeeklyFlatFee?: boolean;
   cleaningsCovered?: InvoiceOrderAllocation[];
 
   /** The agreed group total an admin negotiated for the CLEANINGS this invoice covers. */
@@ -644,6 +657,8 @@ export interface InvoiceContractOption {
   taxRate?: number;
   taxType?: InvoiceTaxType;
   paymentTerms?: string;
+  /** "PerVisit" or "WeeklyFlatFee" — how linked cleanings are priced. */
+  pricingBasis?: string;
 }
 
 export interface InvoiceClientOption {
@@ -864,10 +879,11 @@ export class InvoiceService {
    */
   eligibleOrders(
     contractClientId: number,
-    opts: { invoiceId?: number; from?: string; to?: string } = {}
+    opts: { invoiceId?: number; from?: string; to?: string; contractId?: number | null } = {}
   ): Observable<InvoiceEligibleOrders> {
     let params = new HttpParams();
     if (opts.invoiceId) params = params.set('invoiceId', opts.invoiceId);
+    if (opts.contractId) params = params.set('contractId', opts.contractId);
     if (opts.from) params = params.set('from', opts.from);
     if (opts.to) params = params.set('to', opts.to);
 

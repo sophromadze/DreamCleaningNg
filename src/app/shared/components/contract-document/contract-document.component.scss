@@ -101,7 +101,7 @@
   font-weight: 700;
   font-size: 0.8rem;
   letter-spacing: 0.06em;
-  color: var(--text-muted);
+  color: var(--text-muted-on-tint);
 }
 
 .dc-signature-entity {
@@ -126,7 +126,8 @@
     font-family: system-ui, sans-serif;
     font-size: 0.75rem;
     font-style: italic;
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
+    :host-context([data-theme="dark"]) & { color: var(--text-muted-on-elevated); }
   }
 }
 
@@ -140,7 +141,8 @@
   font-size: 0.68rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text-muted-on-tint);
+  :host-context([data-theme="dark"]) & { color: var(--text-muted-on-elevated); }
   margin-bottom: 0.6rem;
 }
 

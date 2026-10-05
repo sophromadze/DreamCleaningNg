@@ -152,6 +152,12 @@
     color: #0a1a3a;
     letter-spacing: 0.3px;
     line-height: 1;
+    // The only part that fills in after load: a fixed slot, so "POINTS" below it and the pill
+    // never move when the number arrives (2026-10). 3em holds a five-character balance ("9,999")
+    // and keeps the pill at its 120px minimum.
+    display: block;
+    min-height: 1em;
+    min-width: 3em;
   }
 
   &__tier {

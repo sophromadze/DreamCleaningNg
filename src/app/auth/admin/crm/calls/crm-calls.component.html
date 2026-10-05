@@ -45,15 +45,15 @@
   <div class="calls-toolbar">
     <div class="filter">
       <label>From</label>
-      <input type="date" [(ngModel)]="fromDate" (change)="applyFilters()" />
+      <input aria-label="From" type="date" [(ngModel)]="fromDate" (change)="applyFilters()" />
     </div>
     <div class="filter">
       <label>To</label>
-      <input type="date" [(ngModel)]="toDate" (change)="applyFilters()" />
+      <input aria-label="To" type="date" [(ngModel)]="toDate" (change)="applyFilters()" />
     </div>
     <div class="filter">
       <label>Direction</label>
-      <select [(ngModel)]="directionFilter" (change)="applyFilters()">
+      <select aria-label="Direction" [(ngModel)]="directionFilter" (change)="applyFilters()">
         <option value="">All</option>
         <option value="Inbound">Inbound</option>
         <option value="Outbound">Outbound</option>
@@ -61,7 +61,7 @@
     </div>
     <div class="filter">
       <label>Category</label>
-      <select [(ngModel)]="categoryFilter" (change)="applyFilters()">
+      <select aria-label="Category" [(ngModel)]="categoryFilter" (change)="applyFilters()">
         <option value="">All</option>
         <option value="Customer">Customer</option>
         <option value="Cleaner">Cleaner</option>

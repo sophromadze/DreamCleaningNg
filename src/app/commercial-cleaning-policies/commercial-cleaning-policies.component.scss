@@ -9,7 +9,7 @@
   color: var(--text-secondary);
 
   a {
-    color: var(--primary-color);
+    color: var(--primary-color-text);
     text-decoration: none;
 
     &:hover,
@@ -37,7 +37,7 @@
     letter-spacing: 0.12em;
     font-size: 0.78rem;
     font-weight: 600;
-    color: var(--primary-color);
+    color: var(--primary-color-text);
   }
 
   h1 {
@@ -129,7 +129,7 @@
     letter-spacing: 0.1em;
     font-size: 0.72rem;
     font-weight: 700;
-    color: var(--primary-color);
+    color: var(--primary-color-text);
   }
 
   .download-title {
@@ -241,4 +241,10 @@
     font-size: 0.88rem;
     color: var(--text-muted);
   }
+}
+
+/* Links inside running text are underlined: colour alone is 2:1 against the body text (WCAG 1.4.1).
+   The contents list and the download cards are navigation, not running text. */
+.commercial-policies-container :is(.policy-section, .policy-footer) :is(p, li) a {
+  text-decoration: underline;
 }

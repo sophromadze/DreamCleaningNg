@@ -1,0 +1,145 @@
+<div class="cip-page">
+  <div class="cip-state" *ngIf="loading">Loading your invoice…</div>
+
+  <div class="cip-state" *ngIf="notFound">
+    <h1>Invoice not found</h1>
+    <p>This link is not valid. Please check it, or contact us and we'll send you a new one.</p>
+  </div>
+
+  <article class="cip-invoice" *ngIf="invoice as inv">
+    <header class="cip-head">
+      <div class="cip-company" *ngIf="inv.company as c">
+        <div class="cip-company__name">{{ c.primaryName || c.legalName }}</div>
+        <div class="cip-muted" *ngIf="c.dbaName">{{ c.legalName }}</div>
+        <div class="cip-muted" *ngIf="c.address">{{ c.address }}</div>
+        <div class="cip-muted" *ngIf="c.cityStateZip">{{ c.cityStateZip }}</div>
+        <div class="cip-muted" *ngIf="c.phone || c.email">
+          <span *ngIf="c.phone">{{ c.phone }}</span><span *ngIf="c.phone && c.email"> · </span><span *ngIf="c.email">{{ c.email }}</span>
+        </div>
+      </div>
+      <div class="cip-title">
+        <h1>Invoice</h1>
+        <div class="cip-number">{{ inv.invoiceNumber }}</div>
+        <div class="cip-muted">Issued {{ inv.issuedAt | date:'MMMM d, y' }}</div>
+        <span class="cip-status" [ngClass]="'cip-status--' + (inv.achProcessing && inv.status !== 'Paid' ? 'processing' : inv.status.toLowerCase())">{{ inv.achProcessing && inv.status !== 'Paid' ? 'Payment processing' : statusLabels[inv.status] }}</span>
+      </div>
+    </header>
+
+    <div class="cip-banner cip-banner--paid" *ngIf="inv.status === 'Paid'">
+      <i [appIcon]="icons.faCircleCheck" aria-hidden="true"></i> This invoice is paid. Thank you!
+    </div>
+    <!-- An online bank payment was authorized and Stripe is settling it (a few business days). -->
+    <div class="cip-banner cip-banner--processing" *ngIf="inv.achProcessing && inv.status !== 'Paid'">
+      <i [appIcon]="icons.faHourglassHalf" aria-hidden="true"></i>
+      Thank you — your bank payment is on its way. Bank payments take 3–5 business days to clear;
+      you don't need to pay again. This page will show the invoice as paid once it does.
+    </div>
+    <div class="cip-banner cip-banner--processing" *ngIf="checkingPayment && !inv.achProcessing && inv.status !== 'Paid'">
+      <i [appIcon]="icons.faSpinner" class="fa-spin" aria-hidden="true"></i> Confirming your bank payment with Stripe…
+    </div>
+    <div class="cip-banner cip-banner--void" *ngIf="inv.status === 'Void'">
+      This invoice has been cancelled and can no longer be paid. Please contact us if you have questions.
+    </div>
+    <div class="cip-banner cip-banner--void" *ngIf="inv.status === 'Cancelled'">
+      The cleaning on this invoice was cancelled, so there is nothing to pay.
+    </div>
+
+    <section class="cip-parties">
+      <div>
+        <h2>Billed to</h2>
+        <div><strong>{{ inv.billedToName }}</strong></div>
+        <div class="cip-muted" *ngIf="inv.billedToEmail">{{ inv.billedToEmail }}</div>
+        <div class="cip-muted" *ngIf="inv.billedToPhone">{{ inv.billedToPhone }}</div>
+      </div>
+      <div>
+        <h2>Service</h2>
+        <div><strong>{{ inv.serviceTypeName }}</strong> · Order #{{ inv.orderNumber }}</div>
+        <div class="cip-muted">{{ inv.serviceDate | date:'EEEE, MMMM d, y' }} at {{ formatTime(inv.serviceTime) }}</div>
+        <div class="cip-muted">{{ inv.serviceAddress }}</div>
+      </div>
+    </section>
+
+    <section class="cip-breakdown">
+      <div class="cip-line"><span>Subtotal</span><span>${{ inv.subTotal | number:'1.2-2' }}</span></div>
+      <div class="cip-line" *ngIf="inv.discounts > 0"><span>Discounts</span><span>−${{ inv.discounts | number:'1.2-2' }}</span></div>
+      <div class="cip-line"><span>Sales tax</span><span>${{ inv.tax | number:'1.2-2' }}</span></div>
+      <div class="cip-line" *ngIf="inv.tips > 0"><span>Tips</span><span>${{ inv.tips | number:'1.2-2' }}</span></div>
+      <div class="cip-line" *ngIf="inv.credits > 0"><span>Gift card / credits</span><span>−${{ inv.credits | number:'1.2-2' }}</span></div>
+      <div class="cip-line cip-line--total"><span>Order total</span><span>${{ inv.orderTotal | number:'1.2-2' }}</span></div>
+      <div class="cip-line" *ngIf="inv.orderAmountPaid > 0 && inv.status !== 'Paid'"><span>Already paid</span><span>${{ inv.orderAmountPaid | number:'1.2-2' }}</span></div>
+      <div class="cip-line cip-line--part" *ngIf="isSplit">
+        <span>This invoice (part of your order)</span><span>${{ inv.amount | number:'1.2-2' }}</span>
+      </div>
+      <div class="cip-line cip-line--part" *ngIf="isAdditional">
+        <span>This invoice (added after your order was updated)</span><span>${{ inv.amount | number:'1.2-2' }}</span>
+      </div>
+    </section>
+
+    <p class="cip-note" *ngIf="inv.note">{{ inv.note }}</p>
+
+    <section class="cip-due" *ngIf="isPayable && !inv.achProcessing">
+      <div class="cip-due__label">Amount due</div>
+      <div class="cip-due__amount">${{ inv.amountDue | number:'1.2-2' }}</div>
+
+      <!-- Two ONLINE options side by side, each with its own colour, icon and "how long" badge so
+           they cannot be mistaken for each other; the manual bank transfer spans the full width
+           underneath, because it is instructions rather than a button. -->
+      <div class="cip-pay">
+        <div class="cip-pay__option cip-pay__option--card" *ngIf="inv.cardPaymentPath">
+          <span class="cip-pay__badge">Instant</span>
+          <div class="cip-pay__icon" aria-hidden="true"><i [appIcon]="icons.faCreditCard"></i></div>
+          <h3>Pay by card</h3>
+          <p class="cip-muted">Visa, Mastercard, American Express or Discover. Confirmed immediately.</p>
+          <button type="button" class="cip-btn cip-btn--card" (click)="payByCard()">Pay ${{ inv.amountDue | number:'1.2-2' }} by card</button>
+        </div>
+
+        <!-- Online bank payment (Stripe ACH). No fee on a regular invoice. -->
+        <div class="cip-pay__option cip-pay__option--ach" *ngIf="inv.achAvailable">
+          <span class="cip-pay__badge">3–5 business days</span>
+          <div class="cip-pay__icon" aria-hidden="true"><i [appIcon]="icons.faBuildingColumns"></i></div>
+          <h3>Pay from your bank online</h3>
+          <p class="cip-muted">Pay straight from your US checking or savings account (ACH) on Stripe's secure page. No card needed.</p>
+          <p class="cip-muted" *ngIf="paymentHint === 'cancelled'">Bank payment was cancelled — nothing was charged.</p>
+          <button type="button" class="cip-btn cip-btn--ach" (click)="startAch()" [disabled]="startingAch">
+            {{ startingAch ? 'Opening secure bank payment…' : 'Pay $' + (inv.amountDue | number:'1.2-2') + ' from bank' }}
+          </button>
+          <p class="cip-error" *ngIf="achError">{{ achError }}</p>
+        </div>
+
+        <div class="cip-pay__option cip-pay__option--transfer" *ngIf="inv.bankTransfer as bank">
+          <h3><i [appIcon]="icons.faMoneyBillTransfer" aria-hidden="true"></i> Or pay by bank transfer yourself</h3>
+          <p class="cip-muted">
+            Send <strong>${{ inv.amountDue | number:'1.2-2' }}</strong> from your bank to the account below and use the
+            invoice number as the reference. We'll mark the invoice paid once the transfer arrives.
+          </p>
+          <dl class="cip-bank">
+            <div *ngIf="bank.bankName"><dt>Bank</dt><dd>{{ bank.bankName }}</dd></div>
+            <div *ngIf="bank.accountHolder"><dt>Account holder</dt><dd>{{ bank.accountHolder }}</dd></div>
+            <div *ngIf="bank.routingNumber">
+              <dt>Routing number</dt>
+              <dd>{{ bank.routingNumber }} <button type="button" class="cip-copy" (click)="copy(bank.routingNumber, 'routing')">{{ copied === 'routing' ? 'Copied' : 'Copy' }}</button></dd>
+            </div>
+            <div *ngIf="bank.accountNumber">
+              <dt>Account number</dt>
+              <dd>{{ bank.accountNumber }} <button type="button" class="cip-copy" (click)="copy(bank.accountNumber, 'account')">{{ copied === 'account' ? 'Copied' : 'Copy' }}</button></dd>
+            </div>
+            <div *ngIf="bank.accountType"><dt>Account type</dt><dd>{{ bank.accountType }}</dd></div>
+            <div>
+              <dt>Reference</dt>
+              <dd><strong>{{ bank.paymentReference }}</strong> <button type="button" class="cip-copy" (click)="copy(bank.paymentReference, 'ref')">{{ copied === 'ref' ? 'Copied' : 'Copy' }}</button></dd>
+            </div>
+          </dl>
+          <p class="cip-muted" *ngIf="bank.achInstructions">{{ bank.achInstructions }}</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="cip-foot">
+      <button type="button" class="cip-link" (click)="downloadPdf()" [disabled]="downloading">
+        <i [appIcon]="icons.faFilePdf" aria-hidden="true"></i> {{ downloading ? 'Preparing PDF…' : 'Download invoice (PDF)' }}
+      </button>
+      <p class="cip-muted" *ngIf="downloadError">{{ downloadError }}</p>
+      <p class="cip-muted" *ngIf="inv.company?.footerText">{{ inv.company?.footerText }}</p>
+    </footer>
+  </article>
+</div>

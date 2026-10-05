@@ -1,3 +1,6 @@
+@use '../../../../styles/admin-tab-nav' as *;
+@use '../../../../styles/order-status-badge' as *;
+
 .orders-section {
     background: white;
     border-radius: 8px;
@@ -122,7 +125,7 @@
       background: #f0f4f8;
       border: 1px solid #c5d3e0;
       border-radius: 8px;
-      h4 { margin: 0 0 0.5rem 0; font-size: 1rem; color: #1e3a5f; }
+      h3 { margin: 0 0 0.5rem 0; font-size: 1rem; color: #1e3a5f; }
       .pending-edits-list { display: flex; flex-direction: column; gap: 0.5rem; }
       .pending-edit-row {
         display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;
@@ -147,7 +150,7 @@
       background: #f0f4f8;
       border-radius: 6px;
       border: 1px solid #c5d3e0;
-      h5 { margin: 0 0 0.5rem 0; font-size: 0.95rem; color: #1e3a5f; }
+      h4 { margin: 0 0 0.5rem 0; font-size: 0.95rem; color: #1e3a5f; }
       .pending-item { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
       .pending-by { font-size: 0.9rem; color: #495057; }
       .action-btn.primary { background: #0d6efd; color: #fff; border: none; }
@@ -161,7 +164,7 @@
       margin-bottom: 0.75rem;
       flex-wrap: wrap;
 
-      @media (max-width: 480px) {
+      @media (max-width: 600px) {
         flex-direction: column;
         align-items: stretch;
         gap: 0.5rem;
@@ -171,7 +174,7 @@
         flex: 1;
         min-width: 220px;
 
-        @media (max-width: 480px) {
+        @media (max-width: 600px) {
           min-width: auto;
           width: 100%;
         }
@@ -194,12 +197,21 @@
 
       .filter-controls {
         display: flex;
+        flex-wrap: wrap;
         gap: 0.5rem;
 
-        @media (max-width: 480px) {
+        // Phones: two columns rather than one long stack. Search stays full width above; the
+        // Specific-days From/To land side by side, and the hidden-orders toggle spans both.
+        @media (max-width: 600px) {
           width: 100%;
-          flex-direction: column;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 0.5rem;
+
+          .show-hidden-toggle {
+            grid-column: 1 / -1;
+            justify-content: center;
+          }
         }
 
         .filter-select {
@@ -211,7 +223,7 @@
           color: #475569;
           cursor: pointer;
 
-          @media (max-width: 480px) { width: 100%; }
+          @media (max-width: 600px) { width: 100%; min-width: 0; }
 
           &:focus {
             outline: none;
@@ -227,7 +239,7 @@
           align-self: center;
           color: var(--text-muted);
 
-          @media (max-width: 480px) { display: none; }
+          @media (max-width: 600px) { display: none; }
         }
       }
     }
@@ -407,10 +419,10 @@
 
                     // Theme-aware tints (flip automatically in dark mode); the icon
                     // keeps its colour on hover, just gaining a soft same-hue background.
-                    &.ok { color: var(--fresh-green, #22c55e); }
+                    &.ok { color: var(--mint-fresh-text); }
                     &.warn { color: var(--warning-orange-text, #c2410c); }
                     &.history { color: var(--primary-text, #1d4ed8); }
-                    &.danger { color: var(--bright-red, #ef4444); }
+                    &.danger { color: var(--soft-red-text); }
                     // Refund = money going back. Indigo separates it from the red destructive
                     // delete sitting right next to it, so they can't be confused at a glance.
                     &.refund { color: var(--btn-quote, #4f46e5); }
@@ -517,7 +529,7 @@
                   font-style: italic;
                 }
 
-                .assigned-admin-by  { color: var(--text-muted); font-weight: var(--fw-medium); }
+                .assigned-admin-by  { color: var(--text-muted-on-tint); :host-context([data-theme="dark"]) & { color: var(--text-muted-on-elevated); } font-weight: var(--fw-medium); }
                 .assigned-admin-caret { margin-left: 0.15rem; font-size: 0.7rem; color: var(--text-muted); }
 
                 .assigned-admin-menu {
@@ -551,7 +563,7 @@
 
                   &.is-selected {
                     background: var(--soft-blue);
-                    color: var(--primary-color);
+                    color: var(--primary-text-elevated);
                     font-weight: var(--fw-semibold);
                   }
                 }
@@ -570,7 +582,7 @@
     margin-bottom: 1.5rem;
 
     .detail-section {
-      h5 {
+      h4 {
         margin: 0 0 0.5rem 0;
         color: #495057;
         font-size: 0.9rem;
@@ -608,7 +620,7 @@
       border: 1px solid #e9ecef;
       border-radius: 6px;
 
-      h5 {
+      h4 {
         margin: 0 0 0.75rem 0;
         color: #495057;
         font-size: 1rem;
@@ -695,7 +707,7 @@
                 color: var(--text-secondary);
 
                 &.positive {
-                  color: var(--fresh-green);
+                  color: var(--mint-fresh-text);
                 }
               }
             }
@@ -714,7 +726,7 @@
           color: var(--text-secondary);
 
           .amount {
-            color: var(--fresh-green);
+            color: var(--mint-fresh-text);
             font-size: 0.95rem;
             font-weight: var(--fw-bold);
           }
@@ -769,7 +781,7 @@
 
             &.paid {
               background: var(--mint-fresh);
-              color: var(--fresh-green);
+              color: var(--mint-fresh-text);
             }
             &.unpaid {
               background: var(--soft-yellow);
@@ -856,7 +868,7 @@
     border: 1px solid #e9ecef;
     border-radius: 6px;
 
-    h5 {
+    h4 {
       margin: 0 0 0.75rem 0;
       color: #495057;
       font-size: 1rem;
@@ -894,35 +906,9 @@
       }
     }
   
-    // Status Badges
+    // Status Badges - shared with the Users panel's History tab (styles/_order-status-badge.scss)
     .status-badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 4px;
-      font-size: 0.62rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-
-      &.status-active {
-        background: #dbeafe;
-        color: #1e40af;
-      }
-
-      &.status-pending {
-        background: #fef3c7;
-        color: #92400e;
-      }
-
-      &.status-done {
-        background: #dcfce7;
-        color: #166534;
-      }
-
-      &.status-cancelled {
-        background: #fee2e2;
-        color: #b91c1c;
-      }
+      @include order-status-badge;
     }
 
     // Action Buttons (slim pill style, matches the Users tab)
@@ -1096,7 +1082,7 @@
   .instructions-section {
     margin-bottom: 1rem;
 
-    h5 {
+    h4 {
       margin: 0 0 0.5rem 0;
       color: #495057;
       font-size: 0.9rem;
@@ -1125,7 +1111,7 @@
     }
 
     .action-btn.primary {
-      background-color: #007bff;
+      background-color: var(--primary-color);
       color: white;
       border: none;
       padding: 0.5rem 1.5rem;
@@ -1141,7 +1127,7 @@
     }
 
     .action-btn.assign-cleaners {
-      background-color: #28a745;
+      background-color: var(--fill-success);
       color: white;
       border: none;
       padding: 0.5rem 1.5rem;
@@ -1283,7 +1269,7 @@
     margin-bottom: 0.5rem;
     padding: 0.5rem 0.75rem;
     background: var(--soft-blue);
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
     border-radius: var(--radius-sm);
     font-size: 0.9rem;
   }
@@ -1331,8 +1317,8 @@
     .current-val { color: #6c757d; max-width: 180px; word-break: break-word; }
     .proposed-val { color: #0d6efd; font-weight: 500; max-width: 180px; word-break: break-word; }
     .diff-val { color: var(--text-muted); font-weight: 600; white-space: nowrap; }
-    .diff-val.diff-up { color: var(--fresh-green); }
-    .diff-val.diff-down { color: var(--bright-red); }
+    .diff-val.diff-up { color: var(--mint-fresh-text); }
+    .diff-val.diff-down { color: var(--soft-red-text); }
 
     // The live value, shown inline beside the submit-time one on a drifted row.
     .drift-now {
@@ -1357,7 +1343,7 @@
       .field-name,
       .current-val,
       .proposed-val {
-        color: var(--primary-color);
+        color: var(--primary-text-elevated);
         font-weight: 800;
         font-size: 1.02rem;
       }
@@ -1823,7 +1809,7 @@
   position: absolute;
   top: 0.4rem;
   right: 0.4rem;
-  background: #28a745;
+  background: var(--fill-success);
   color: white;
   border-radius: 50%;
   width: 20px;
@@ -1880,7 +1866,7 @@
   }
   
   .btn-primary {
-    background: #007bff;
+    background: var(--primary-color);
     color: white;
     
     &:hover:not(:disabled) {
@@ -1909,7 +1895,7 @@
   background: #f8f9fa;
   border-radius: 8px;
   
-  h5 {
+  h4 {
     color: #495057;
     margin: 0 0 1rem 0;
     font-size: 1rem;
@@ -2162,7 +2148,7 @@
 }
 
 .no-cleaners {
-  color: #dc3545;
+  color: var(--soft-red-text);
   font-style: italic;
   font-size: 12px;
 }
@@ -2175,7 +2161,7 @@
   border-radius: 8px;
   border-left: 4px solid #ff9800;
 
-  h5 {
+  h4 {
     margin: 0 0 0.75rem 0;
     color: #e65100;
     font-size: 16px;
@@ -2336,7 +2322,7 @@
 }
 
 .btn-success {
-  background: #28a745;
+  background: var(--fill-success);
   color: white;
   border: none;
   padding: 0.6rem 1.5rem;
@@ -2364,7 +2350,7 @@
   border-radius: 6px;
 }
 
-.assigned-cleaners-section h5 {
+.assigned-cleaners-section h4 {
   margin: 0 0 15px 0;
   color: #333;
   font-size: 16px;
@@ -2562,10 +2548,10 @@
   background: #f8f9fa;
   border: 1px solid #dee2e6;
   border-radius: 8px;
-  h5 { margin: 0 0 0.75rem 0; color: #495057; font-size: 1rem; }
+  h4 { margin: 0 0 0.75rem 0; color: #495057; font-size: 1rem; }
   .edit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
   .edit-group {
-    h6 { margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #495057; }
+    h5 { margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #495057; }
     .edit-row { display: flex; flex-direction: column; gap: 0.2rem; margin-bottom: 0.5rem;
       label { font-size: 0.75rem; color: #6c757d; }
       input, select, textarea { padding: 0.3rem 0.5rem; border: 1px solid #ced4da; border-radius: 4px; }
@@ -2586,7 +2572,7 @@
         align-items: center;
         justify-content: space-between;
         label { color: #1a7f42; font-size: 0.75rem; }
-        .pts-preview-val { color: #1a7f42; font-weight: 600; font-size: 0.85rem; }
+        .pts-preview-val { color: var(--mint-fresh-text); font-weight: 600; font-size: 0.85rem; }
       }
     }
   }
@@ -2653,7 +2639,7 @@
       background: var(--surface-elevated) !important;
       color: var(--text-primary);
       .stat-value { color: var(--text-primary) !important; }
-      .stat-label { color: var(--text-muted) !important; }
+      .stat-label { color: var(--text-muted-on-elevated) !important; }
     }
   }
 
@@ -2704,7 +2690,7 @@
   .cancellation-reason-section {
     background: rgba(255, 152, 0, 0.1) !important;
     border-left-color: #ff9800;
-    h5 {
+    h4 {
       color: #ffb74d !important;
     }
     .cancellation-reason-text {
@@ -2732,7 +2718,7 @@
     background: var(--surface-elevated) !important;
     border-color: var(--border-color);
     color: var(--text-primary) !important;
-    h5 {
+    h4 {
       color: var(--text-primary) !important;
       border-color: var(--border-color);
     }
@@ -2788,8 +2774,8 @@
     background: var(--surface-elevated) !important;
     border-color: var(--border-color);
     color: var(--text-primary) !important;
-    h5, h6 { color: var(--text-primary) !important; }
-    .edit-group h6 { color: var(--text-primary) !important; }
+    h4, h5 { color: var(--text-primary) !important; }
+    .edit-group h5 { color: var(--text-primary) !important; }
     .edit-row label {
       color: var(--text-secondary) !important;
     }
@@ -2823,7 +2809,7 @@
     background: var(--surface-elevated) !important;
     border-color: var(--border-color);
     color: var(--text-primary) !important;
-    h3, h4, h5, .label, .detail-label, strong { color: var(--text-primary) !important; }
+    h3, h4, .label, .detail-label, strong { color: var(--text-primary) !important; }
     .value, .detail-value, .muted, p { color: var(--text-secondary) !important; }
     .total-amount { color: var(--text-primary) !important; }
   }
@@ -2862,7 +2848,7 @@
   .services-instructions-row .services-column {
     background: var(--surface-elevated) !important;
     border-color: var(--border-color);
-    h5 { color: var(--text-primary) !important; border-color: var(--border-color); }
+    h4 { color: var(--text-primary) !important; border-color: var(--border-color); }
     .services-content .services-list,
     .services-content .services-list li {
       color: var(--text-primary) !important;
@@ -2891,13 +2877,13 @@
     border-color: var(--border-color);
 
     &:hover:not(:disabled) {
-      background: #007bff !important;
+      background: var(--primary-color) !important;
       color: white !important;
       border-color: #007bff !important;
     }
 
     &.active {
-      background: #007bff !important;
+      background: var(--primary-color) !important;
       color: white !important;
       border-color: #007bff !important;
     }
@@ -2913,7 +2899,7 @@
   .loading-indicator,
   .empty-state {
     background: var(--surface-elevated) !important;
-    color: var(--text-muted) !important;
+    color: var(--text-muted-on-elevated) !important;
   }
 
   .modal-content,
@@ -3071,7 +3057,7 @@
       // Re-assert the Total row: the three rules above are !important, so without this the
       // emphasised row would lose its colour in dark mode and read as an ordinary row.
       tr.change-row-total {
-        .field-name, .current-val, .proposed-val { color: var(--primary-color) !important; }
+        .field-name, .current-val, .proposed-val { color: var(--primary-text-elevated) !important; }
       }
     }
     .btn-approve {
@@ -3094,7 +3080,7 @@
   .pending-edits-global {
     background: var(--surface-elevated, #2d2d2d) !important;
     border-color: var(--border-color) !important;
-    h4 { color: var(--text-primary) !important; }
+    h3 { color: var(--text-primary) !important; }
     .pending-edit-row {
       .pending-summary { color: var(--text-primary) !important; }
       .pending-meta { color: var(--text-secondary) !important; }
@@ -3109,7 +3095,7 @@
   .pending-edits-inline {
     background: var(--surface-elevated, #2d2d2d) !important;
     border-color: var(--border-color) !important;
-    h5 { color: var(--text-primary) !important; }
+    h4 { color: var(--text-primary) !important; }
     .pending-by { color: var(--text-secondary) !important; }
     .action-btn.primary { background: #0d6efd !important; color: #fff !important; }
   }
@@ -3257,6 +3243,9 @@ $order-header-mobile: 60px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  // The header and the Details top row respond to the PANEL's width (@container order-panel),
+  // which is what actually runs out of room — the panel is 850px on a 1200px monitor too.
+  container: order-panel / inline-size;
 
   &.open { transform: translateX(0); }
 
@@ -3308,13 +3297,15 @@ $order-header-mobile: 60px;
           & + .flag-btn { border-left: 1px solid var(--border-color); }
 
           // Each button always shows its own color so the choices are recognisable at rest.
+          // "No flag" is a WHITE flag (it used to be the word "None") — same size as the others.
+          &.none   { background: var(--surface); color: var(--text-secondary); font-size: 0.85rem; }
           &.yellow { background: var(--soft-yellow); color: var(--soft-yellow-text); }
-          &.red    { background: var(--soft-red); color: var(--bright-red); }
+          &.red    { background: var(--soft-red); color: var(--soft-red-text); }
 
           // Dim the unselected buttons; the selected one is full-strength + bold + ringed.
           &:not(.active) { opacity: 0.55; }
           &.active { font-weight: 700; }
-          &.none.active   { background: var(--text-muted); color: #fff; }
+          &.none.active   { box-shadow: inset 0 0 0 2px var(--text-muted); }
           &.yellow.active { box-shadow: inset 0 0 0 2px var(--soft-yellow-text); }
           &.red.active    { box-shadow: inset 0 0 0 2px var(--bright-red); }
 
@@ -3338,7 +3329,7 @@ $order-header-mobile: 60px;
     }
 
     .action-btn.small.discard {
-      color: var(--bright-red, #ef4444);
+      color: var(--soft-red-text);
       border-color: var(--soft-red, #fecaca);
       &:hover:not(:disabled) { background: var(--soft-red, #fee2e2); }
     }
@@ -3370,48 +3361,132 @@ $order-header-mobile: 60px;
       font-size: 1.05rem;
       line-height: 1;
       transition: background 0.15s, color 0.15s;
-      &:hover { background: var(--soft-red, #fee2e2); color: var(--bright-red, #ef4444); }
+      &:hover { background: var(--soft-red, #fee2e2); color: var(--soft-red-text); }
     }
   }
 
-  // Always-visible summary bar (duration / subtotal / total)
-  .order-summary-bar {
-    flex: 0 0 auto;
-    display: flex;
-    gap: 0.5rem;
-    padding: 0.6rem 1.25rem;
-    border-bottom: 1px solid var(--border-color, #e2e8f0);
-    background: var(--surface-subtle, #f8fafc);
+  // Duration / Tips / Total, in the header itself (the separate summary bar is gone, 2026-09).
+  //
+  // A GRID, so the flags / Edit / ✕ are pinned top-right whatever the width: on a wide panel it
+  // is one row (title · figures · actions · ✕); once the panel is narrow the figures drop to a
+  // row of their own underneath instead of wrapping around the buttons. The approval-reason
+  // input, when present, always takes a full-width row at the bottom (implicit row, so no empty
+  // gap is reserved for it when it isn't rendered).
+  .order-panel-header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "title summary actions close";
+    align-items: center;
+    column-gap: 0.75rem;
+    row-gap: 0.65rem;
 
-    .summary-item {
-      flex: 1 1 0;
+    h3 { grid-area: title; white-space: nowrap; }
+
+    .order-panel-header__actions {
+      grid-area: actions;
+      justify-self: end;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+
+    .order-panel-header__close {
+      grid-area: close;
+      justify-self: end;
+      flex-shrink: 0;
+    }
+
+    .order-panel-header__reason {
+      grid-column: 1 / -1;
+      width: 100%;
+      min-width: 0;
+      padding: 0.45rem 0.7rem;
+    }
+  }
+
+  // Centred between the order number and the actions; each figure is its label over its value.
+  .order-panel-header__summary {
+    grid-area: summary;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+
+    .header-figure {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.1rem;
       text-align: center;
+      gap: 0.05rem;
+      white-space: nowrap;
+    }
 
-      .summary-label {
-        font-size: 0.62rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--text-muted, #64748b);
-      }
-      .summary-value {
-        font-size: 0.95rem;
-        font-weight: 700;
-        color: var(--text-primary, #1e293b);
-      }
+    .header-figure__label {
+      font-size: 0.62rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted-on-elevated);
+    }
 
-      // Tips for Cleaners — the only place tips are shown now, so keep the amber
-      // highlight it had in the pricing breakdown.
-      .summary-value.tips-cleaner-value {
-        background: var(--soft-yellow);
-        color: var(--soft-yellow-text);
-        padding: 0 0.4rem;
-        border-radius: var(--radius-sm, 8px);
-      }
+    .header-figure__value {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    // Tips keep the amber highlight they have always had, so they are never read as part of the total.
+    .header-figure__value.tips-cleaner-value {
+      background: var(--soft-yellow);
+      color: var(--soft-yellow-text);
+      padding: 0 0.35rem;
+      border-radius: var(--radius-sm, 8px);
+    }
+  }
+
+  // Stacked header: order # and the buttons share the top row (buttons + ✕ top-right), and the
+  // four figures sit underneath as an even strip. Used whenever the panel itself is narrow
+  // (small monitors, tablets, phones — measured on the PANEL, not the viewport) and always while
+  // editing, where Save / Discard make the top row too wide to also hold the figures.
+  .order-panel-header.is-editing {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "title actions close"
+      "summary summary summary";
+  }
+
+  @container order-panel (max-width: 760px) {
+    .order-panel-header {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      grid-template-areas:
+        "title actions close"
+        "summary summary summary";
+      padding: 0.85rem 1rem;
+    }
+
+    .order-panel-header__summary {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.5rem;
+      padding: 0.5rem 0.6rem;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm, 8px);
+      background: var(--surface);
+
+      // A long payment label ("Invoice", "Zelle"…) wraps inside its cell instead of widening it.
+      .header-figure { min-width: 0; white-space: normal; }
+    }
+  }
+
+  // Phones: the figures go 2 × 2, and the flag buttons tighten so the top row keeps its shape.
+  @container order-panel (max-width: 420px) {
+    .order-panel-header__summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .order-panel-header h3 { font-size: 1rem; }
+    .order-panel-header .order-panel-header__actions {
+      gap: 0.35rem;
+      .flag-toggle .flag-btn { padding: 0.3rem 0.4rem; }
     }
   }
 
@@ -3421,34 +3496,67 @@ $order-header-mobile: 60px;
     padding: 1.25rem;
     // Natural document order: header → top actions → details → pricing → services → …
 
-    h4 { margin: 0 0 1rem; color: var(--text-primary, #1e293b); }
-    h5 { margin: 0 0 0.5rem; color: var(--text-secondary, #475569); font-size: 0.92rem; font-weight: 600; }
-    h6 { margin: 0 0 0.6rem; font-size: 0.85rem; color: var(--text-secondary, #475569); }
+    // Section headings: h4 under the panel's h3 title, h5 for sub-sections (2026-10: were h5/h6).
+    h4 { margin: 0 0 0.5rem; color: var(--text-secondary, #475569); font-size: 0.92rem; font-weight: 600; }
+    h5 { margin: 0 0 0.6rem; font-size: 0.85rem; color: var(--text-secondary, #475569); }
     p { margin: 0.25rem 0; color: var(--text-secondary, #475569); font-size: 0.875rem; strong { color: var(--text-primary, #1e293b); } }
     .muted { color: var(--text-muted, #64748b); }
     .center { text-align: center; }
     .hint { font-weight: 400; font-size: 0.78rem; color: var(--text-muted, #64748b); }
-    .discount { color: var(--bright-red, #ef4444); font-weight: 600; }
+    .discount { color: var(--soft-red-text); font-weight: 600; }
 
+    // One toolbar row: provenance (origin · booked · by) on the left, the "Updated Booking
+    // Confirmation" action on the right. It replaced a pills row plus a separate centred button
+    // row, which on a narrow panel became three ragged lines. Divided from the cards below.
     .order-details-header-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 1rem;
-      margin-bottom: 1rem;
+      gap: 0.75rem 1rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border-color);
       flex-wrap: wrap;
     }
 
-    // Groups the booked-by + assigned-admin pills on the right of the header row.
-    // margin-left:auto rather than space-between: the origin chip beside them is hidden
-    // for an order with no attribution, and without it the pills would slide left.
+    .order-provenance {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
     .order-header-pills {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
       flex-wrap: wrap;
-      flex-shrink: 0;
-      margin-left: auto;
+      min-width: 0;
+    }
+
+    // Pushed right by the row's space-between; margin-left:auto keeps it there on its own line
+    // too (no provenance facts / a wrap), so it never sits orphaned on the left.
+    // (Doubled class: must beat .order-top-actions' own margin-bottom, declared further down.)
+    .order-top-actions.order-details-header-row__action {
+      flex: 0 0 auto;
+      margin: 0 0 0 auto;
+    }
+
+    // Narrow panel: the facts wrap on top, the action becomes a full-width button underneath —
+    // an easy thumb target instead of a stray pill-sized button.
+    @container order-panel (max-width: 560px) {
+      .order-details-header-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .order-top-actions.order-details-header-row__action {
+        margin: 0;
+
+        .action-btn { width: 100%; }
+      }
     }
 
     // Marketing origin chip. Shaped like the sibling booked-by / assigned-admin pills so the
@@ -3480,7 +3588,7 @@ $order-header-mobile: 60px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        color: var(--text-muted, #64748b);
+        color: var(--text-muted-on-tint);
       }
 
       .origin-first {
@@ -3565,7 +3673,7 @@ $order-header-mobile: 60px;
             font-size: 0.78rem;
             font-weight: 700;
             color: var(--text-secondary, #475569);
-            &.positive { color: var(--fresh-green, #22c55e); }
+            &.positive { color: var(--mint-fresh-text); }
           }
         }
       }
@@ -3586,7 +3694,7 @@ $order-header-mobile: 60px;
         line-height: 1.5;
         text-transform: uppercase;
         letter-spacing: 0.03em;
-        &.paid { background: var(--mint-fresh, #dcfce7); color: var(--fresh-green, #16a34a); }
+        &.paid { background: var(--mint-fresh, #dcfce7); color: var(--mint-fresh-text); }
         &.unpaid { background: var(--soft-yellow, #fef3c7); color: var(--soft-yellow-text, #92400e); }
       }
       .record-pay-btn {
@@ -3649,7 +3757,7 @@ $order-header-mobile: 60px;
       font-size: 0.75rem;
       font-weight: 600;
       color: var(--text-secondary, #475569);
-      .amount { font-size: 0.9rem; font-weight: 700; color: var(--fresh-green, #22c55e); }
+      .amount { font-size: 0.9rem; font-weight: 700; color: var(--mint-fresh-text); }
     }
 
     .remind-unpaid-row {
@@ -3669,7 +3777,7 @@ $order-header-mobile: 60px;
       padding: 0.85rem 1rem;
       border-radius: 10px;
       background: var(--soft-red, #fee2e2);
-      .cancellation-reason-text { color: var(--bright-red, #b91c1c); }
+      .cancellation-reason-text { color: var(--soft-red-text); }
       .late-fee-badge {
         display: inline-block;
         margin-top: 0.5rem;
@@ -3689,7 +3797,7 @@ $order-header-mobile: 60px;
       border: 1px solid var(--border-color, #e2e8f0);
       border-radius: 10px;
       background: var(--surface-subtle, #f8fafc);
-      h5 { color: var(--text-secondary, #475569); }
+      h4 { color: var(--text-secondary, #475569); }
       .cleaners-list { display: flex; flex-direction: column; gap: 0.5rem; }
       .cleaner-item {
         display: flex;
@@ -3718,7 +3826,7 @@ $order-header-mobile: 60px;
         &:hover:not(:disabled) { background: var(--surface-subtle, #f1f5f9); }
         &:disabled { opacity: 0.6; cursor: not-allowed; }
       }
-      .remove-cleaner-btn { color: var(--bright-red, #ef4444); }
+      .remove-cleaner-btn { color: var(--soft-red-text); }
       .no-cleaners-message {
         color: var(--text-muted, #64748b);
         background: var(--surface, #fff);
@@ -3742,7 +3850,7 @@ $order-header-mobile: 60px;
       align-items: flex-start;
       gap: 0.85rem;
 
-      h5 { color: var(--text-secondary, #475569); order: 0; flex: 1 1 100%; margin: 0; }
+      h4 { color: var(--text-secondary, #475569); order: 0; flex: 1 1 100%; margin: 0; }
       .edit-group--pricing  { order: 1; flex: 1 1 100%; }
       .edit-group--service  { order: 2; flex: 1 1 100%; }
       .edit-group--services { order: 3; flex: 1 1 300px; }
@@ -3761,7 +3869,7 @@ $order-header-mobile: 60px;
         gap: 0.35rem 0.85rem;
         align-content: start;
 
-        h6 { color: var(--text-secondary, #475569); grid-column: 1 / -1; margin: 0 0 0.25rem; }
+        h5 { color: var(--text-secondary, #475569); grid-column: 1 / -1; margin: 0 0 0.25rem; }
         // Wide content spans all columns
         .edit-row--full,
         .edit-row--floortype,
@@ -3909,7 +4017,7 @@ $order-header-mobile: 60px;
           border: 1px solid var(--soft-red, #fecaca);
           border-radius: 6px;
           background: var(--surface, #fff);
-          color: var(--bright-red, #ef4444);
+          color: var(--soft-red-text);
           font-size: 0.72rem;
           white-space: nowrap;
           cursor: pointer;
@@ -3975,6 +4083,7 @@ $order-header-mobile: 60px;
       gap: 0.75rem;
       margin-bottom: 1.25rem;
       justify-content: space-between;
+      &.order-top-actions--center { justify-content: center; }
 
       .action-btn {
         padding: 0.5rem 0.95rem;
@@ -4086,7 +4195,7 @@ $order-header-mobile: 60px;
         padding: 0.2rem 0.4rem 0.2rem 0.6rem;
         border-radius: 9999px;
         background: var(--soft-blue, #dbeafe);
-        color: var(--primary-color, #1e40af);
+        color: var(--primary-text-elevated);
         font-size: 0.75rem;
         font-weight: 600;
 
@@ -4120,8 +4229,8 @@ $order-header-mobile: 60px;
     }
 
     .order-detail-message { margin-top: 1rem; }
-    .error-message.inline { margin-top: 0.6rem; color: var(--bright-red, #ef4444); font-size: 0.82rem; }
-    .success-message.inline { margin-top: 0.6rem; color: var(--fresh-green, #22c55e); font-size: 0.82rem; }
+    .error-message.inline { margin-top: 0.6rem; color: var(--soft-red-text); font-size: 0.82rem; }
+    .success-message.inline { margin-top: 0.6rem; color: var(--mint-fresh-text); font-size: 0.82rem; }
 
     // Internal per-order note, directly above Assigned Cleaners. Tokens only, so it
     // follows the day/night toggle without a dark-mode override of its own.
@@ -4313,7 +4422,7 @@ $order-header-mobile: 60px;
         background: var(--surface-subtle, #f1f5f9);
         font-size: 0.78rem;
         cursor: pointer;
-        .assigned-admin-by { color: var(--text-muted, #64748b); }
+        .assigned-admin-by { color: var(--text-muted-on-tint); :host-context([data-theme="dark"]) & { color: var(--text-muted-on-elevated); } }
         .assigned-admin-name { font-weight: 600; color: var(--text-primary, #1e293b); }
       }
       .assigned-admin-menu {
@@ -4341,7 +4450,7 @@ $order-header-mobile: 60px;
           font-size: 0.82rem;
           color: var(--text-primary, #1e293b);
           &:hover { background: var(--surface-subtle, #f1f5f9); }
-          &.is-selected { background: var(--soft-blue, #dbeafe); color: var(--primary-color, #2563eb); font-weight: 600; }
+          &.is-selected { background: var(--soft-blue, #dbeafe); color: var(--primary-text-elevated); font-weight: 600; }
         }
       }
     }
@@ -4480,7 +4589,8 @@ $order-header-mobile: 60px;
     font-size: 0.68rem;
     font-weight: var(--fw-semibold);
     background: var(--surface-subtle);
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
+    :host-context([data-theme="dark"]) & { color: var(--text-muted-on-elevated); }
 
     &.no-email { background: var(--soft-yellow); color: var(--soft-yellow-text); }
   }
@@ -4542,7 +4652,7 @@ $order-header-mobile: 60px;
 
   .transfer-error {
     background: var(--soft-red);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     padding: 0.4rem 0.6rem;
     border-radius: var(--radius-sm);
     font-size: 0.85rem;
@@ -4612,7 +4722,7 @@ $order-header-mobile: 60px;
   .transfer-history {
     margin-top: 0.75rem;
 
-    h6 {
+    h5 {
       margin: 0 0 0.4rem;
       font-size: 0.8rem;
       color: var(--text-secondary);
@@ -4656,7 +4766,7 @@ $order-header-mobile: 60px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   background: var(--surface-subtle);
-  color: var(--primary-text);
+  color: var(--primary-text-elevated);
   cursor: pointer;
   transition: background 0.2s;
 
@@ -4681,7 +4791,7 @@ $order-header-mobile: 60px;
   margin-top: 0.5rem;
   font-size: inherit;
   font-weight: var(--fw-medium);
-  color: var(--primary-color);
+  color: var(--primary-color-text);
   text-decoration: none;
 
   &,
@@ -4690,7 +4800,7 @@ $order-header-mobile: 60px;
   &:hover,
   &:active,
   &:focus {
-    color: var(--primary-color);
+    color: var(--primary-color-text);
     text-decoration: none;
   }
 
@@ -4808,7 +4918,7 @@ $order-header-mobile: 60px;
     padding: 0.5rem 0.75rem;
     border-radius: var(--radius-sm);
     background: var(--soft-red);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     font-size: 0.82rem;
   }
 
@@ -4917,7 +5027,8 @@ $order-header-mobile: 60px;
 
   .cp-hours,
   .cp-rate {
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
+    :host-context([data-theme="dark"]) & { color: var(--text-muted-on-elevated); }
   }
 
   .cp-salary {
@@ -4930,7 +5041,7 @@ $order-header-mobile: 60px;
   // paperwork-pending state, not an error.
   &.unassigned .cp-name {
     font-style: italic;
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
   }
 }
 
@@ -4944,7 +5055,7 @@ $order-header-mobile: 60px;
 }
 
 .cp-pill--rate {
-  color: var(--primary-color);
+  color: var(--primary-text-elevated);
   background: var(--soft-blue);
 }
 
@@ -4984,7 +5095,7 @@ $order-header-mobile: 60px;
     }
 
     &.danger {
-      color: var(--bright-red);
+      color: var(--soft-red-text);
 
       &:hover:not(:disabled) { background: var(--soft-red); border-color: var(--bright-red); }
     }
@@ -5002,13 +5113,13 @@ $order-header-mobile: 60px;
   .balance-figure {
     white-space: nowrap;
 
-    &.paid { color: var(--fresh-green); }
+    &.paid { color: var(--mint-fresh-text); }
     &.due { color: var(--warning-orange-text); }
   }
 
   .payments-warning {
     background: var(--soft-red);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     border-radius: var(--radius-sm);
     padding: 0.5rem 0.7rem;
     margin-bottom: 0.75rem;
@@ -5194,13 +5305,13 @@ $order-header-mobile: 60px;
 
   .payments-message {
     margin-top: 0.6rem;
-    color: var(--fresh-green);
+    color: var(--mint-fresh-text);
     font-size: 0.85rem;
   }
 
   .payments-error {
     margin-top: 0.6rem;
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     font-size: 0.85rem;
   }
 
@@ -5211,7 +5322,7 @@ $order-header-mobile: 60px;
     padding-top: 0.75rem;
     border-top: 1px solid var(--border-color);
 
-    h6 {
+    h5 {
       margin: 0 0 0.5rem;
       font-size: 0.85rem;
       text-transform: uppercase;
@@ -5244,9 +5355,9 @@ $order-header-mobile: 60px;
     padding: 0.1rem 0.4rem;
     border-radius: var(--radius-sm);
 
-    &.status-paid { background: var(--mint-fresh); color: var(--fresh-green); }
+    &.status-paid { background: var(--mint-fresh); color: var(--mint-fresh-text); }
     &.status-pending { background: var(--warning-orange-bg); color: var(--warning-orange-text); }
-    &.status-cancelled { background: var(--soft-red); color: var(--bright-red); }
+    &.status-cancelled { background: var(--soft-red); color: var(--soft-red-text); }
   }
 
   .history-when,
@@ -5280,6 +5391,15 @@ $order-header-mobile: 60px;
 .cleaners-wages-card {
   .cleaners-count-row {
     margin: 0 0 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+
+    .maids-count-input {
+      width: 4.5rem;
+      padding: 0.25rem 0.4rem;
+    }
   }
 
   // The money half, separated from the staffing half by a rule rather than a heading: a second
@@ -5381,7 +5501,7 @@ $order-header-mobile: 60px;
   margin: 0.35rem 0 0;
   padding: 0.3rem 0.5rem;
   font-size: 0.82rem;
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   background: var(--soft-red);
   border-radius: var(--radius-sm);
 }
@@ -5443,7 +5563,7 @@ $order-header-mobile: 60px;
   .conflict-ack-title {
     font-weight: 700;
     font-size: 0.82rem;
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     margin-bottom: 0.25rem;
   }
 
@@ -5499,7 +5619,7 @@ $order-header-mobile: 60px;
     gap: 0.75rem;
     flex-wrap: wrap;
 
-    h5 {
+    h4 {
       margin: 0;
       color: var(--text-primary);
     }
@@ -5507,7 +5627,7 @@ $order-header-mobile: 60px;
 
   .refund-btn {
     background: var(--soft-red);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     border: 1px solid var(--bright-red);
     border-radius: var(--radius-pill);
     padding: 0.25rem 0.85rem;
@@ -5534,7 +5654,7 @@ $order-header-mobile: 60px;
   .refund-history {
     margin-top: 0.85rem;
 
-    h6 {
+    h5 {
       margin: 0 0 0.4rem;
       font-size: 0.8rem;
       color: var(--text-secondary);
@@ -5560,22 +5680,22 @@ $order-header-mobile: 60px;
 
     .refund-tag {
       background: var(--mint-fresh);
-      color: var(--fresh-green);
+      color: var(--mint-fresh-text);
       padding: 0.05rem 0.45rem;
       border-radius: var(--radius-pill);
       font-size: 0.72rem;
       font-weight: var(--fw-semibold);
       text-transform: capitalize;
 
-      &.failed { background: var(--soft-red); color: var(--bright-red); }
-      &.email { background: var(--soft-blue); color: var(--primary-color); }
-      &.muted { background: var(--surface-subtle); color: var(--text-muted); }
+      &.failed { background: var(--soft-red); color: var(--soft-red-text); }
+      &.email { background: var(--soft-blue); color: var(--primary-text-elevated); }
+      &.muted { background: var(--surface-subtle); color: var(--text-muted-on-tint); }
     }
 
     .refund-failure {
       flex-basis: 100%;
       font-size: 0.76rem;
-      color: var(--bright-red);
+      color: var(--soft-red-text);
     }
   }
 }
@@ -5689,7 +5809,7 @@ $order-header-mobile: 60px;
     margin: 0.9rem 0 0;
     padding: 0.55rem 0.7rem;
     background: var(--soft-red);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     border-radius: var(--radius-sm);
     font-size: 0.85rem;
   }
@@ -5701,25 +5821,8 @@ $order-header-mobile: 60px;
   }
 }
 
-// ── Refunded status + soft-hidden rows (admin orders table) ──
-
-// REFUNDED reuses the cancelled pill's colours (see getStatusClass, which emits both classes):
-// both statuses mean "this order brought in no money". Letter-spacing only, so the longer word
-// stays readable at the pill's size.
-.status-badge.status-refunded {
-  letter-spacing: 0.02em;
-}
-
-// REFUNDH — partially refunded, e.g. cancelled with the fee retained. Deliberately NOT the
-// cancelled red: unlike a cancellation or a full refund, this order kept some money, so it is
-// still income on the header cards. Amber is the paired warning token rather than a third red,
-// and it is theme-aware, so the pill follows the day/night toggle (the older pills above still
-// hardcode hex — new rules use tokens, per the design system).
-.status-badge.status-refund-partial {
-  background: var(--warning-orange-bg);
-  color: var(--warning-orange-text);
-  letter-spacing: 0.02em;
-}
+// ── Soft-hidden rows (admin orders table) ──
+// (The Refunded / RefundH pills moved into styles/_order-status-badge.scss with the rest.)
 
 // Soft-hidden rows only ever render with "Show hidden orders" ticked. Dimmed so they can never
 // be mistaken for live orders, but still fully readable and clickable.
@@ -5736,7 +5839,7 @@ tr.row-hidden-order {
   font-size: 0.62rem;
   font-weight: var(--fw-bold);
   letter-spacing: 0.06em;
-  color: var(--text-muted);
+  color: var(--text-muted-on-tint);
   background: var(--surface-subtle);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-pill);
@@ -5958,7 +6061,7 @@ tr.row-hidden-order {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 0.9rem;
     font-weight: var(--weight-semibold, 600);
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
     text-decoration: none;
 
     &:hover { text-decoration: underline; }
@@ -5994,4 +6097,420 @@ tr.row-hidden-order {
     font-size: 0.78rem;
     color: var(--text-muted);
   }
+}
+
+/* ── Regular (DCR) invoice form in the Send Invoice modal ────────────────────────────────────
+   Same modal shell as the commercial one (.send-invoice-modal); these are only the form rows. */
+.send-invoice-modal {
+  .ci-mode,
+  .ci-channels {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.25rem;
+    margin: 0 0 0.75rem;
+    font-size: 0.875rem;
+    color: var(--text-primary);
+
+    label { display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }
+  }
+
+  .ci-split {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .ci-split-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+
+    input {
+      width: 120px;
+      padding: 4px 8px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-primary);
+    }
+  }
+
+  .order-invoice-hint.warn { color: var(--soft-red-text); }
+
+  .ci-note {
+    width: 100%;
+    margin-bottom: 0.75rem;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    box-sizing: border-box;
+
+    &::placeholder { color: var(--text-muted); }
+  }
+
+  .payments-message { margin: 0.5rem 0; color: var(--mint-fresh-text); font-size: 0.85rem; }
+  .payments-error { margin: 0.5rem 0; color: var(--soft-red-text); font-size: 0.85rem; }
+}
+
+/* ── Order panel tabs (2026-09): Details / Payments / Cleaners / Changes ─────────────────────
+   The shared admin tab strip (text tabs, primary underline), sticky under the panel header so
+   the switch is always one tap away however far a tab has been scrolled. */
+.order-panel-tabs {
+  @include admin-tab-nav('button');
+  position: sticky;
+  top: -1.25rem;
+  z-index: 3;
+  margin: -0.25rem 0 1rem;
+  background: var(--surface);
+  // Wraps like every other admin tab strip (Company, Admin, Users, Discounts).
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 10px 12px;
+  }
+
+  .tab-badge {
+    font-size: 0.68rem;
+    font-weight: var(--fw-semibold);
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    background: var(--surface-subtle);
+    color: var(--text-secondary);
+
+    &.owed { background: var(--warning-orange-bg); color: var(--warning-orange-text); }
+  }
+}
+
+/* ── Payments card: one money line, the add-on charge, one line per invoice ── */
+.order-payments-card {
+  .payments-summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .payments-summary__cell {
+    display: flex;
+    flex-direction: column;
+    min-width: 88px;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+
+    &.paid .payments-summary__value { color: var(--mint-fresh-text); }
+    &.due {
+      border-color: var(--warning-orange-border);
+      background: var(--warning-orange-bg);
+      .payments-summary__value { color: var(--warning-orange-text); }
+    }
+  }
+
+  .payments-summary__label {
+    font-size: 0.66rem;
+    font-weight: var(--fw-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    // Sits on the orange "due" tint as well as the plain surface (AA on both, 2026-10).
+    color: var(--text-muted-on-tint);
+    :host-context([data-theme="dark"]) & { color: var(--text-muted-on-elevated); }
+  }
+
+  .payments-summary__value {
+    font-size: 1.05rem;
+    font-weight: var(--fw-bold, 700);
+    color: var(--text-primary);
+  }
+
+  .payments-added {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+  }
+
+  .payments-added__open { color: var(--text-muted); font-size: 0.8rem; }
+
+  .payments-invoices {
+    margin-top: 0.5rem;
+
+    h5 {
+      margin: 0 0 0.35rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+    }
+  }
+
+  .payments-invoice-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.85rem;
+
+    &.is-void { opacity: 0.6; }
+  }
+
+  .payments-invoice-number {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-weight: var(--fw-semibold);
+    color: var(--primary-text-elevated);
+    text-decoration: none;
+
+    &:hover { text-decoration: underline; }
+  }
+
+  .payments-invoice-kind {
+    font-size: 0.72rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: var(--radius-sm);
+    background: var(--soft-blue);
+    color: var(--primary-text-elevated);
+  }
+
+  .payments-invoice-amount { font-weight: var(--fw-semibold); color: var(--text-primary); margin-left: auto; }
+  .payments-invoice-when { color: var(--text-secondary); font-size: 0.8rem; }
+}
+
+/* ── Cleaners tab: assignment actions on each wage row ── */
+.cleaner-roster-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.cleaner-roster {
+  margin-top: 0.5rem;
+}
+
+.cleaner-roster-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0;
+  border-top: 1px solid var(--border-color);
+
+  .cp-name { font-weight: var(--fw-semibold); color: var(--text-primary); }
+}
+
+/* ── Changes tab ── */
+.order-changes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.order-change {
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--border-color);
+
+  &:first-child { border-top: none; }
+  &.undone { opacity: 0.6; }
+}
+
+.order-change-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+
+.order-change-title { font-weight: var(--fw-semibold); color: var(--text-primary); font-size: 0.88rem; }
+.order-change-meta { margin-left: auto; color: var(--text-muted-on-tint); font-size: 0.75rem; }
+
+.order-change-undone {
+  font-size: 0.7rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: var(--radius-sm);
+  background: var(--soft-red);
+  color: var(--soft-red-text);
+}
+
+.order-change-lines {
+  margin: 0.3rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+
+  li { margin: 0.1rem 0; overflow-wrap: anywhere; }
+}
+
+.order-change-more { list-style: none; margin-left: -1.1rem; color: var(--text-muted); font-style: italic; }
+
+/* ── The single Payments list (booking payment, invoices, part payments, edit amounts) ── */
+.payment-timeline {
+  list-style: none;
+  margin: 0.25rem 0 0.75rem;
+  padding: 0;
+}
+
+.payment-row {
+  padding: 0.55rem 0 0.55rem 0.7rem;
+  border-top: 1px solid var(--border-color);
+  border-left: 3px solid transparent;
+
+  &:first-child { border-top: none; }
+
+  // The left rule says the state at a glance; the text beside it says it in words.
+  &.is-paid { border-left-color: var(--fresh-green); }
+  &.is-due  { border-left-color: var(--warning-orange-text); }
+  &.is-info { border-left-color: var(--border-color); }
+  &.is-void { border-left-color: var(--border-color); opacity: 0.6; .payment-row__amount { text-decoration: line-through; } }
+
+  .record-pay-btn { margin-top: 0.4rem; }
+  .manual-pay-form { margin-top: 0.5rem; }
+}
+
+.payment-row__main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.payment-row__label { font-weight: var(--fw-semibold); color: var(--text-primary); font-size: 0.88rem; }
+.payment-row__amount { font-weight: var(--fw-bold, 700); color: var(--text-primary); white-space: nowrap; }
+
+.payment-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.15rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.payment-row.is-paid .payment-row__status { color: var(--mint-fresh-text); }
+.payment-row.is-due .payment-row__status { color: var(--warning-orange-text); }
+.payment-row__when { color: var(--text-muted-on-tint); }
+
+.payment-row__invoice {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--primary-text-elevated);
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+}
+
+/* ── Header "Payment" figure: the ⋮ that opens the payment-method editor ── */
+.order-panel-header__summary .header-figure__more {
+  margin-left: 0.2rem;
+  padding: 0 0.3rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+
+  &:hover { background: var(--surface-subtle); color: var(--text-primary); }
+}
+
+.pm-editor-card {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+/* ── One action bar for an amount added after payment: invoice / link / manual ── */
+.order-payments-card {
+  .payments-added {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .payments-added__text { margin: 0; }
+}
+
+.payments-action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pay-action {
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-sm, 8px);
+  font-size: 0.82rem;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  border: 1px solid transparent;
+  color: #fff;
+
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  // Three answers to one question, told apart by colour: the card link is the primary action,
+  // a new invoice the quote-indigo secondary, and a manual record a muted deep green (the plain
+  // fresh-green read as too bright beside the other two).
+  &--link    { background: var(--primary-color); &:hover:not(:disabled) { background: var(--primary-color-hover); } }
+  &--invoice { background: var(--btn-quote); &:hover:not(:disabled) { background: var(--btn-quote-hover); } }
+  &--manual  { background: var(--fill-success); &:hover:not(:disabled) { filter: brightness(1.08); } }
+}
+
+.payment-row__edit {
+  margin-top: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+
+  &:hover { color: var(--text-primary); border-color: var(--text-muted); }
+}
+
+// "Send Receipt" on a row paid online — sits before any other row button.
+.payment-row__receipt {
+  margin-right: 0.35rem;
+}
+
+// "Mark paid" on an open invoice row — the positive action, so it reads in the brand colour
+// rather than the muted grey of "Edit".
+.payment-row__mark-paid {
+  margin-right: 0.35rem;
+  color: var(--primary-text-elevated);
+  border-color: color-mix(in srgb, var(--primary-color) 45%, transparent);
+
+  &:hover { color: var(--primary-color-hover); border-color: var(--primary-color); }
+}
+
+// Weekly-flat-fee operational cleanings: who bills them, in place of a $0.00 price (2026-10).
+.billed-by-contract {
+  font-size: 0.85em;
+  font-weight: var(--fw-medium);
+  color: var(--text-secondary);
+}
+
+.billed-by-contract-note {
+  margin: 12px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--soft-blue);
+  color: var(--text-primary);
+  font-size: 0.9rem;
 }

@@ -33,7 +33,7 @@
 
 .error-message {
   background: var(--soft-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   padding: 8px 12px;
   border-radius: 4px;
   margin-bottom: 10px;
@@ -41,7 +41,7 @@
 
 .success-message {
   background: var(--mint-fresh);
-  color: var(--fresh-green);
+  color: var(--mint-fresh-text);
   border: 1px solid var(--mint-fresh-border);
   padding: 8px 12px;
   border-radius: 4px;
@@ -159,11 +159,11 @@
   display: inline-block;
 
   // Match the existing audit-history palette so admins recognise the colors.
-  &.action-create   { background: var(--mint-fresh); color: var(--fresh-green); }
-  &.action-update   { background: var(--soft-blue);  color: var(--primary-color); }
-  &.action-cleared  { background: var(--surface-subtle); color: var(--text-muted); }
+  &.action-create   { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &.action-update   { background: var(--soft-blue);  color: var(--primary-text-elevated); }
+  &.action-cleared  { background: var(--surface-subtle); color: var(--text-muted-on-tint); }
   &.action-used     { background: var(--warning-orange-bg); color: var(--warning-orange-text); }
-  &.action-reversed { background: var(--soft-red);   color: var(--bright-red); }
+  &.action-reversed { background: var(--soft-red);   color: var(--soft-red-text); }
 }
 
 .pagination {

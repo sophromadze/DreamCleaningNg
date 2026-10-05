@@ -1,4 +1,4 @@
-<main class="home-main commercial-page">
+<div class="home-main commercial-page">
 
   <!-- =========================================================
        HERO — mirrors the homepage hero (same .hero-* classes from
@@ -312,7 +312,7 @@
             </svg>
           </div>
           <h3>100% Satisfaction Guarantee</h3>
-          <p>If anything is missed, tell us within 24 hours and we come back and make it right at no cost. On every visit for as long as you are with us, not just the first one.</p>
+          <p>Report any issue within 24 hours and we'll work to make it right - on every visit, not just the first one. Full terms are in our <a routerLink="/commercial-cleaning-policies">Commercial Cleaning Policies</a>.</p>
         </article>
       </div>
     </div>
@@ -361,7 +361,7 @@
 
         <article class="offer-card">
           <div class="offer-card__media">
-            <img src="/images/retail-showrooms.webp" alt="Retail and showroom cleaning service in NYC" loading="lazy">
+            <img [srcset]="sectorPhotos.retail.srcset" [sizes]="sectorPhotos.retail.sizes" [src]="sectorPhotos.retail.src" alt="Retail and showroom cleaning service in NYC" loading="lazy">
           </div>
           <div class="offer-card__body">
             <h4 class="offer-card__title">Retail &amp; Showrooms</h4>
@@ -374,7 +374,7 @@
 
         <article class="offer-card">
           <div class="offer-card__media">
-            <img src="/images/medical-dental.webp" alt="Medical and dental office cleaning service in NYC" loading="lazy">
+            <img [srcset]="sectorPhotos.medical.srcset" [sizes]="sectorPhotos.medical.sizes" [src]="sectorPhotos.medical.src" alt="Medical and dental office cleaning service in NYC" loading="lazy">
           </div>
           <div class="offer-card__body">
             <h4 class="offer-card__title">Medical &amp; Dental</h4>
@@ -387,7 +387,7 @@
 
         <article class="offer-card">
           <div class="offer-card__media">
-            <img src="/images/restaurants-cafes.webp" alt="Restaurant and cafe cleaning service in NYC" loading="lazy">
+            <img [srcset]="sectorPhotos.restaurants.srcset" [sizes]="sectorPhotos.restaurants.sizes" [src]="sectorPhotos.restaurants.src" alt="Restaurant and cafe cleaning service in NYC" loading="lazy">
           </div>
           <div class="offer-card__body">
             <h4 class="offer-card__title">Restaurants &amp; Cafés</h4>
@@ -400,7 +400,7 @@
 
         <article class="offer-card">
           <div class="offer-card__media">
-            <img src="/images/gyms-studios.webp" alt="Gym and fitness studio cleaning service in NYC" loading="lazy">
+            <img [srcset]="sectorPhotos.gyms.srcset" [sizes]="sectorPhotos.gyms.sizes" [src]="sectorPhotos.gyms.src" alt="Gym and fitness studio cleaning service in NYC" loading="lazy">
           </div>
           <div class="offer-card__body">
             <h4 class="offer-card__title">Gyms &amp; Studios</h4>
@@ -413,7 +413,7 @@
 
         <article class="offer-card">
           <div class="offer-card__media">
-            <img src="/images/building-common-areas.webp" alt="Building common area cleaning service in NYC" loading="lazy">
+            <img [srcset]="sectorPhotos.commonAreas.srcset" [sizes]="sectorPhotos.commonAreas.sizes" [src]="sectorPhotos.commonAreas.src" alt="Building common area cleaning service in NYC" loading="lazy">
           </div>
           <div class="offer-card__body">
             <h4 class="offer-card__title">Building Common Areas</h4>
@@ -635,7 +635,7 @@
         <li class="step-card">
           <span class="step-card__num">4</span>
           <h3>We start - and stay consistent</h3>
-          <p>The same crew, on the same schedule. Adjust the scope any month; there is nothing to cancel out of.</p>
+          <p>The same crew, on the same schedule. Adjust the scope as your needs change, and end ongoing service with 30 days' written notice.</p>
         </li>
       </ol>
     </div>
@@ -741,4 +741,4 @@
     </div>
   </section>
 
-</main>
+</div>

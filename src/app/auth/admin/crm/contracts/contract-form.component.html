@@ -204,7 +204,7 @@
            of data entry. They stay two entities underneath, which is what lets the
            same person sign for a second location later. -->
       <div class="subsection" *ngIf="model.newClientSigner">
-        <h4>Who signs for them</h4>
+        <h3>Who signs for them</h3>
 
         <div class="field">
           <label for="clientSignerPicker">Existing contact</label>
@@ -252,7 +252,7 @@
            practice is almost always the signer's. Default to reusing them and only
            ask for a separate address when the admin says the two genuinely differ. -->
       <div class="subsection" *ngIf="model.newClient">
-        <h4>Contract notices</h4>
+        <h3>Contract notices</h3>
 
         <label class="check">
           <input type="checkbox" name="useSignerContact"
@@ -377,6 +377,7 @@
             they are not permanently fixed, so an incomplete list is fine.
           </small>
           <small class="warn" *ngIf="serviceDayCountWarning">{{ serviceDayCountWarning }}</small>
+          <small class="warn" *ngIf="visitCountWarning">{{ visitCountWarning }}</small>
         </div>
 
         <!--
@@ -410,7 +411,7 @@
           <label for="completionTime">Required completion time</label>
           <input id="completionTime" name="completionTime" type="text"
                  [(ngModel)]="model.schedule.completionTime" placeholder="e.g. by 11:00 AM" />
-          <small class="hint">Leave blank if none was agreed — Exhibit A will say “None”.</small>
+          <small class="hint">Leave blank if none was agreed — the contract then does not mention a completion time at all.</small>
         </div>
         <div class="field">
           <label for="weekDefinition">A service period runs</label>
@@ -499,16 +500,38 @@
                  [(ngModel)]="model.term.serviceCommencementDate" />
           <small class="hint">{{ termDatesHint }}</small>
         </div>
-        <div class="field">
-          <label for="initialTermMonths">Initial term (months)</label>
-          <input id="initialTermMonths" name="initialTermMonths" type="number" min="1"
-                 [(ngModel)]="model.term.initialTermMonths" />
+        <!-- NO STANDARD MINIMUM COMMITMENT (2026-09-30). One exists only when it was specifically
+             agreed with this client; the number of months is whatever was agreed, not a preset. -->
+        <div class="field wide">
+          <span class="field-label">Minimum service commitment</span>
+          <div class="choice-row" role="radiogroup" aria-label="Minimum service commitment">
+            <label class="check">
+              <input type="radio" name="commitmentMode" [checked]="!hasCustomCommitment"
+                     (change)="setCommitmentMode('none')" />
+              <span>No minimum commitment</span>
+            </label>
+            <label class="check">
+              <input type="radio" name="commitmentMode" [checked]="hasCustomCommitment"
+                     (change)="setCommitmentMode('custom')" />
+              <span>Custom minimum commitment</span>
+            </label>
+          </div>
         </div>
-        <div class="field">
-          <label for="minimumCommitmentMonths">Minimum commitment (months)</label>
-          <input id="minimumCommitmentMonths" name="minimumCommitmentMonths" type="number" min="0"
-                 [(ngModel)]="model.term.minimumCommitmentMonths" />
-        </div>
+        <ng-container *ngIf="hasCustomCommitment">
+          <div class="field">
+            <label for="minimumCommitmentMonths">Agreed commitment (months)</label>
+            <input id="minimumCommitmentMonths" name="minimumCommitmentMonths" type="number" min="1"
+                   [(ngModel)]="model.term.minimumCommitmentMonths"
+                   (ngModelChange)="onCommitmentMonthsChanged()" />
+          </div>
+          <div class="field">
+            <label for="initialTermMonths">Initial term (months)</label>
+            <input id="initialTermMonths" name="initialTermMonths" type="number"
+                   [min]="model.term.minimumCommitmentMonths"
+                   [(ngModel)]="model.term.initialTermMonths" />
+            <small class="hint">At least the commitment. Month-to-month afterwards.</small>
+          </div>
+        </ng-container>
         <div class="field">
           <label for="terminationNoticeDays">Termination notice (days)</label>
           <input id="terminationNoticeDays" name="terminationNoticeDays" type="number" min="0"
@@ -530,17 +553,18 @@
         </div>
       </div>
 
-      <!-- "Month-to-month" is the phrase most likely to be read as "cancel any time", which is
-           exactly what the minimum commitment above says it is not. Spelling the sequence out here
-           is cheaper than an admin explaining it wrongly on a phone call. -->
-      <p class="hint">
-        The client is committed for the initial term of
-        <strong>{{ model.term.initialTermMonths }} month{{ model.term.initialTermMonths === 1 ? '' : 's' }}</strong>.
-        After it expires the agreement continues <strong>{{ model.term.renewalType }}</strong> until
-        terminated with <strong>{{ model.term.terminationNoticeDays }} days</strong> written notice.
-        A termination-for-convenience notice may be given during the minimum commitment period, but
-        the termination cannot take effect before the minimum commitment end date. Termination for
-        cause, safety and force majeure are unaffected.
+      <p class="hint" *ngIf="!hasCustomCommitment">
+        No minimum commitment: the agreement runs <strong>{{ model.term.renewalType }}</strong> from the
+        first service date until either party ends it with
+        <strong>{{ model.term.terminationNoticeDays }} days</strong> written notice.
+      </p>
+      <p class="hint" *ngIf="hasCustomCommitment">
+        The client is committed for
+        <strong>{{ model.term.minimumCommitmentMonths }} month{{ model.term.minimumCommitmentMonths === 1 ? '' : 's' }}</strong>.
+        Notice may be given during the commitment, but a termination for convenience takes effect no
+        earlier than its end; after the initial term the agreement continues
+        <strong>{{ model.term.renewalType }}</strong> on <strong>{{ model.term.terminationNoticeDays }} days</strong>
+        written notice. Termination for cause, safety and force majeure are unaffected.
       </p>
     </div>
   </section>
@@ -553,6 +577,29 @@
     </button>
     <div class="panel-body" *ngIf="isOpen('pricing')">
       <div class="grid">
+        <!-- WHAT the price is a price OF. A weekly flat fee is the agreed price for the WEEK; the
+             agreement never presents a per-visit share of it as a price. -->
+        <div class="field wide">
+          <span class="field-label">Pricing basis</span>
+          <div class="choice-row" role="radiogroup" aria-label="Pricing basis">
+            <label class="check">
+              <input type="radio" name="pricingBasis" [value]="ContractPricingBasis.PerVisit"
+                     [(ngModel)]="model.pricing.pricingBasis" (ngModelChange)="onPricingBasisChanged()" />
+              <span>Per visit</span>
+            </label>
+            <label class="check">
+              <input type="radio" name="pricingBasis" [value]="ContractPricingBasis.WeeklyFlatFee"
+                     [(ngModel)]="model.pricing.pricingBasis" (ngModelChange)="onPricingBasisChanged()" />
+              <span>Weekly flat fee</span>
+            </label>
+          </div>
+          <small class="hint" *ngIf="isWeeklyFlatFee">
+            One fee per calendar week covers that week's {{ model.schedule.visitsPerPeriod }} scheduled
+            visit{{ model.schedule.visitsPerPeriod === 1 ? '' : 's' }}. The visit count stays in the
+            Service schedule; invoices must be weekly.
+          </small>
+          <small class="warn" *ngIf="weeklyFlatFeeProblem">{{ weeklyFlatFeeProblem }}</small>
+        </div>
         <div class="field">
           <label for="priceMode">Price mode</label>
           <select id="priceMode" name="priceMode" [(ngModel)]="model.pricing.priceMode"
@@ -562,7 +609,7 @@
           </select>
         </div>
         <div class="field">
-          <label for="priceInput">Price per visit</label>
+          <label for="priceInput">{{ isWeeklyFlatFee ? 'Weekly fee' : 'Price per visit' }}</label>
           <input id="priceInput" name="priceInput" type="number" step="0.01" min="0"
                  [(ngModel)]="model.pricing.priceInput" (ngModelChange)="onPricingChanged()" />
         </div>
@@ -598,7 +645,7 @@
           </small>
         </div>
         <div class="field">
-          <label for="liabilityCapMultiple">Liability cap (× pre-tax visit fee)</label>
+          <label for="liabilityCapMultiple">Liability cap (× {{ isWeeklyFlatFee ? 'one visit\'s share of the weekly fee' : 'pre-tax visit fee' }})</label>
           <input id="liabilityCapMultiple" name="liabilityCapMultiple" type="number" step="1" min="0"
                  [(ngModel)]="model.pricing.liabilityCapMultiple" (ngModelChange)="onPricingChanged()" />
           <small class="hint">
@@ -611,19 +658,26 @@
       <!-- Every figure below is computed by the server from the four inputs above. Labels stay
            visible while values resolve, per the project's shimmer convention. -->
       <div class="derived" *ngIf="pricingPreview">
-        <h4>Computed for Exhibit B</h4>
+        <h3>{{ isWeeklyFlatFee ? 'Weekly pricing' : 'Computed for Exhibit B' }}</h3>
         <div class="derived-grid">
-          <div><span>Pre-tax fee</span><strong>{{ pricingPreview.preTaxPrice | currency }}</strong></div>
+          <div><span>{{ isWeeklyFlatFee ? 'Pre-tax weekly fee' : 'Pre-tax fee' }}</span><strong>{{ pricingPreview.preTaxPrice | currency }}</strong></div>
           <div><span>Sales tax</span><strong>{{ pricingPreview.salesTaxAmount | currency }}</strong></div>
-          <div><span>Total per visit</span><strong>{{ pricingPreview.totalPrice | currency }}</strong></div>
+          <div><span>{{ isWeeklyFlatFee ? 'Weekly total' : 'Total per visit' }}</span><strong>{{ pricingPreview.totalPrice | currency }}</strong></div>
+          <div *ngIf="isWeeklyFlatFee"><span>Scheduled visits per week</span><strong>{{ pricingPreview.scheduledVisitsPerFeePeriod }}</strong></div>
           <div><span>Cancellation cap</span><strong>{{ pricingPreview.cancellationAmount | currency }}</strong></div>
-          <div><span>Remaining balance</span><strong>{{ pricingPreview.remainingBalance | currency }}</strong></div>
+          <div *ngIf="!isWeeklyFlatFee"><span>Remaining balance</span><strong>{{ pricingPreview.remainingBalance | currency }}</strong></div>
           <div><span>Failed-access cap</span><strong>{{ pricingPreview.lockoutFee | currency }}</strong></div>
           <div><span>Liability cap</span><strong>{{ pricingPreview.liabilityCapAmount | currency }}</strong></div>
         </div>
         <!-- Says out loud which basis these are on, because the same percentage of the
              tax-inclusive total is a visibly different number and an admin comparing the two
              should not have to work out which one the document quotes. -->
+        <small class="hint" *ngIf="isWeeklyFlatFee && pricingPreview.perVisitAllocation != null">
+          Admin only — not shown to the client as a price: the caps use one visit's share of the
+          weekly fee, {{ pricingPreview.perVisitAllocation | number:'1.2-6' }}
+          ({{ pricingPreview.preTaxPrice | currency }} ÷ {{ pricingPreview.scheduledVisitsPerFeePeriod }}),
+          kept at full precision and rounded only in each cap.
+        </small>
         <small class="hint">
           The cancellation, failed-access and liability figures are all built on the pre-tax fee.
           Tax attaches to a completed visit, so a charge for one that did not happen carries only
@@ -666,6 +720,61 @@
     </div>
   </section>
 
+  <!-- 5.9b Supplies, equipment and consumables (Section 6, Exhibit B3) -->
+  <!-- NO COMPANY-WIDE RULE: every answer starts unset, and an unset one is listed in the
+       preview's warning banner rather than being assumed to be the client's job. -->
+  <section class="panel">
+    <button type="button" class="panel-head" (click)="togglePanel('supplies')">
+      <span>Supplies &amp; consumables (Exhibit B3)</span>
+      <span class="chevron" [class.open]="isOpen('supplies')">▾</span>
+    </button>
+    <div class="panel-body" *ngIf="isOpen('supplies')">
+      <div class="grid">
+        <div class="field wide">
+          <label for="equipmentProvidedBy">Cleaning supplies &amp; equipment provided by</label>
+          <select id="equipmentProvidedBy" name="equipmentProvidedBy"
+                  [(ngModel)]="model.supplies.equipmentProvidedBy">
+            <option [ngValue]="null">— Choose —</option>
+            <option [ngValue]="SupplyProvider.Contractor">{{ contractorShortName }}</option>
+            <option [ngValue]="SupplyProvider.Client">Client</option>
+            <option [ngValue]="SupplyProvider.Shared">Divided between both</option>
+          </select>
+        </div>
+        <div class="field wide" *ngIf="model.supplies.equipmentProvidedBy === SupplyProvider.Shared">
+          <label for="equipmentArrangementNotes">How it is divided</label>
+          <input id="equipmentArrangementNotes" name="equipmentArrangementNotes" type="text"
+                 [(ngModel)]="model.supplies.equipmentArrangementNotes"
+                 placeholder="e.g. we provide vacuums and tools; client provides chemicals" />
+        </div>
+        <div class="field" *ngFor="let row of standardConsumables">
+          <label [for]="row.key">{{ row.label }}</label>
+          <select [id]="row.key" [name]="row.key" [(ngModel)]="model.supplies[row.key]">
+            <option [ngValue]="null">— Choose —</option>
+            <option [ngValue]="SupplyProvider.Contractor">{{ contractorShortName }}</option>
+            <option [ngValue]="SupplyProvider.Client">Client</option>
+          </select>
+        </div>
+      </div>
+
+      <h3 class="subhead">Other consumables</h3>
+      <div class="grid" *ngFor="let item of model.supplies.otherConsumables; let i = index">
+        <div class="field">
+          <input type="text" [name]="'otherConsumable-' + i" [(ngModel)]="item.item"
+                 placeholder="Item, e.g. seat covers" aria-label="Consumable" />
+        </div>
+        <div class="field">
+          <select [name]="'otherConsumableBy-' + i" [(ngModel)]="item.providedBy" aria-label="Provided by">
+            <option [ngValue]="null">— Choose —</option>
+            <option [ngValue]="SupplyProvider.Contractor">{{ contractorShortName }}</option>
+            <option [ngValue]="SupplyProvider.Client">Client</option>
+          </select>
+        </div>
+        <button type="button" class="row-remove" (click)="removeOtherConsumable(i)" title="Remove">×</button>
+      </div>
+      <button type="button" class="btn-ghost" (click)="addOtherConsumable()">Add a consumable</button>
+    </div>
+  </section>
+
   <!-- 5.10 Scope of work -->
   <section class="panel">
     <button type="button" class="panel-head" (click)="togglePanel('scope')">
@@ -673,12 +782,34 @@
       <span class="chevron" [class.open]="isOpen('scope')">▾</span>
     </button>
     <div class="panel-body" *ngIf="isOpen('scope')">
+      <div class="field wide">
+        <span class="field-label">Scope of Work detail</span>
+        <div class="choice-row" role="radiogroup" aria-label="Scope of Work detail">
+          <label class="check" *ngFor="let option of scopeDetailOptions">
+            <input type="radio" name="scopeDetail" [value]="option.value"
+                   [(ngModel)]="model.scopeDetail" />
+            <span>{{ option.label }}</span>
+          </label>
+        </div>
+      </div>
+
+      <p class="muted" *ngIf="model.scopeDetail === ScopeDetailMode.Simplified">
+        Exhibit A will be three short sentences: the scope was agreed separately (discussions,
+        walkthrough, written instructions or specifications), we perform the agreed services on the
+        agreed schedule, and material extra work needs separate approval under Section 9.
+      </p>
+      <p class="muted" *ngIf="model.scopeDetail === ScopeDetailMode.Omitted">
+        No Exhibit A. Section 1 will say we provide the cleaning services the parties agreed, and no
+        clause refers to an Exhibit A; work outside the agreed scope still needs approval.
+      </p>
+
+      <ng-container *ngIf="model.scopeDetail === ScopeDetailMode.Detailed">
       <p class="muted">Untick anything this contract does not cover. Only ticked items are written
         into Exhibit A.</p>
 
       <div class="scope-group" *ngFor="let group of model.scope.groups; let gi = index">
         <div class="scope-head">
-          <h4>{{ group.title }}</h4>
+          <h3>{{ group.title }}</h3>
           <span class="scope-count">{{ selectedCount(gi) }} of {{ group.items.length }}</span>
           <!-- Removes the whole category from THIS draft. The master business type is a deep copy
                away and is not touched — retiring one there is a separate, deliberate act on the
@@ -700,7 +831,7 @@
               <button type="button" class="row-remove" *ngIf="item.isCustom"
                       (click)="removeScopeRow(gi, ii)" title="Remove">×</button>
             </label>
-            <textarea rows="3" [(ngModel)]="item.detail" [name]="'scopeDetail-' + gi + '-' + ii"
+            <textarea aria-label="Detail for this site" rows="3" [(ngModel)]="item.detail" [name]="'scopeDetail-' + gi + '-' + ii"
                       [disabled]="!item.selected"
                       placeholder="Tasks and limits at each visit for this area…"></textarea>
           </div>
@@ -735,30 +866,20 @@
         <button type="button" class="btn-ghost"
                 (click)="addScopeGroup(newGroup.value, newGroup)">Add category</button>
       </div>
+      </ng-container>
     </div>
   </section>
 
-  <!-- 5.10b Exhibit A site details -->
-  <!--
-    THE "[COUNTS]" AND "[LOCATIONS]" BLANKS OF THE AGREEMENT. Every one of these is something
-    somebody walks the building and writes down, which is why none of them is seeded with a
-    plausible default: a guessed restroom count printed in an executed agreement reads as though
-    it had been verified.
-
-    Leaving one blank is allowed and visible — it renders as a ruled blank in Exhibit A and is
-    listed in the preview's unresolved warning, rather than as "None", which would assert the
-    premises does not have the thing nobody counted.
-  -->
-  <section class="panel">
+  <!-- 5.10b Exhibit A site details — Detailed scope only. Every field is optional: a blank one
+       is left out of the agreement entirely (no blank line, no "None"). Nothing is seeded,
+       because a guessed count printed in an executed agreement reads as verified. -->
+  <section class="panel" *ngIf="model.scopeDetail === ScopeDetailMode.Detailed">
     <button type="button" class="panel-head" (click)="togglePanel('siteDetails')">
       <span>Site details (Exhibit A)</span>
       <span class="chevron" [class.open]="isOpen('siteDetails')">▾</span>
     </button>
     <div class="panel-body" *ngIf="isOpen('siteDetails')">
-      <p class="muted">
-        Recorded with the client before the first visit. Anything left blank prints as a blank line
-        in Exhibit A, so you can generate a preview now and fill these in after the walkthrough.
-      </p>
+      <p class="muted">Fill in only what applies. Blank fields are left out of the agreement.</p>
       <div class="grid">
         <div class="field">
           <label for="squareFootage">Approximate serviced square footage</label>
@@ -778,15 +899,10 @@
                  [(ngModel)]="model.siteDetails.employeeRestroomCounts" />
         </div>
         <div class="field wide">
-          <label for="floorMaterials">Floor and surface materials (optional)</label>
+          <label for="floorMaterials">Floor and surface materials</label>
           <input id="floorMaterials" name="floorMaterials" type="text"
                  [(ngModel)]="model.siteDetails.floorMaterials"
                  placeholder="e.g. quarry tile in the kitchen, sealed concrete in the dining area" />
-          <small class="hint">
-            Useful site information, not a precondition. A4 has us use commercially reasonable,
-            surface-appropriate products either way — left blank, the line is simply left out of
-            Exhibit A.
-          </small>
         </div>
         <div class="field wide">
           <label for="kitchenEquipmentSurfaces">Included kitchen equipment and exterior surfaces</label>
@@ -803,27 +919,20 @@
           <textarea id="interiorGlassLocations" name="interiorGlassLocations" rows="2"
                     [(ngModel)]="model.siteDetails.interiorGlassLocations"></textarea>
         </div>
-        <!-- BLANK MEANS NONE HERE, and that is a term rather than a gap: Section 25(e) and A3(d)
-             exclude food-contact sanitizing unless a task is named in Exhibit A, so an empty box
-             is the agreement saying the client keeps that responsibility. -->
+        <!-- Blank leaves the line out, and that is safe: A3(d) and Section 25(e) exclude
+             food-contact sanitizing unless a task is named here. -->
         <div class="field wide">
           <label for="foodContactSanitizing">Included food-contact sanitizing task</label>
           <textarea id="foodContactSanitizing" name="foodContactSanitizing" rows="2"
                     [(ngModel)]="model.siteDetails.foodContactSanitizing"
                     placeholder="Surface, frequency, and the required wash / rinse / sanitize procedure"></textarea>
-          <small class="hint">
-            Leave blank unless we have specifically agreed to sanitize a food-contact surface —
-            blank prints “None”, and everything not named here stays the client’s responsibility.
-          </small>
+          <small class="hint">Only if we agreed to sanitize a food-contact surface.</small>
         </div>
         <div class="field wide">
           <label for="accessMethodReference">Access method and closeout procedure reference</label>
           <input id="accessMethodReference" name="accessMethodReference" type="text"
                  [(ngModel)]="model.siteDetails.accessMethodReference" />
-          <small class="hint">
-            A reference only. Never put actual keys, codes or passwords in the agreement — it is
-            circulated by email and stored as a PDF.
-          </small>
+          <small class="hint">Never put actual keys, codes or passwords here.</small>
         </div>
         <div class="field wide">
           <label for="equipmentRestrictions">Equipment that must remain operating, and manufacturer restrictions</label>
@@ -837,20 +946,15 @@
                     [(ngModel)]="model.siteDetails.wasteReceptacleLocations"></textarea>
         </div>
         <div class="field">
-          <label for="foodPermitHolder">Food-service permit holder (optional)</label>
+          <label for="foodPermitHolder">Food-service permit holder</label>
           <input id="foodPermitHolder" name="foodPermitHolder" type="text"
                  [(ngModel)]="model.siteDetails.foodServicePermitHolder" />
-          <small class="hint">
-            Legal name, and not necessarily the client. Optional: the client stays responsible for
-            its own permits and sanitation under Section 26(b) whether or not it is recorded, and
-            a blank leaves the line out of Exhibit A.
-          </small>
+          <small class="hint">Legal name — not necessarily the client.</small>
         </div>
         <div class="field">
           <label for="siteRequirements">Site, landlord or brand requirements</label>
           <input id="siteRequirements" name="siteRequirements" type="text"
                  [(ngModel)]="model.siteDetails.siteRequirements" />
-          <small class="hint">Blank prints “None”.</small>
         </div>
         <div class="field">
           <label for="baselineWalkthrough">Baseline walkthrough date and record</label>
@@ -861,7 +965,7 @@
           <label for="initialWorkChangeOrder">Initial-work Change Order</label>
           <input id="initialWorkChangeOrder" name="initialWorkChangeOrder" type="text"
                  [(ngModel)]="model.siteDetails.initialWorkChangeOrder" />
-          <small class="hint">Reference for any agreed initial deep clean. Blank prints “None”.</small>
+          <small class="hint">Reference for any agreed initial deep clean.</small>
         </div>
       </div>
     </div>
@@ -886,13 +990,13 @@
         Order.
       </p>
 
-      <h4 class="subhead">Contractor</h4>
+      <h3 class="subhead">Contractor</h3>
       <div class="grid">
         <div class="field">
           <label for="contractorApprovalEmail">Approval email (optional)</label>
           <input id="contractorApprovalEmail" name="contractorApprovalEmail" type="email"
                  [(ngModel)]="model.contacts.contractorApprovalEmail" />
-          <small class="hint">Blank prints “None” — approvals then come from the notice address.</small>
+          <small class="hint">Leave blank to approve from the notice address.</small>
         </div>
         <div class="field">
           <label for="contractorOperationalEmail">Operational email</label>
@@ -915,14 +1019,11 @@
           <input id="contractorBackupContact" name="contractorBackupContact" type="text"
                  [(ngModel)]="model.contacts.contractorBackupContact"
                  placeholder="Name and telephone" />
-          <small class="hint">
-            A second person to try, not a requirement. Left blank, the row is simply left out of
-            Exhibit B4 — it will not be chased in the preview's warning banner.
-          </small>
+          <small class="hint">Leave blank if there is none.</small>
         </div>
       </div>
 
-      <h4 class="subhead">Client</h4>
+      <h3 class="subhead">Client</h3>
       <div class="grid">
         <div class="field">
           <label for="clientApprovalEmail">Approval email (optional)</label>
@@ -935,6 +1036,12 @@
              reaches no part of the document is worse than no box — an admin would chase the
              client for an address nobody is going to print. `contacts.clientNoticeMailingAddress`
              survives on the model so a draft written before this round-trips unchanged. -->
+        <div class="field">
+          <label for="contactsClientNoticeEmail">Client notice email</label>
+          <input id="contactsClientNoticeEmail" name="contactsClientNoticeEmail" type="email"
+                 [(ngModel)]="model.contacts.clientNoticeEmail" />
+          <small class="hint">Leave blank to use the client’s notice email on file.</small>
+        </div>
         <div class="field">
           <label for="clientOperationalEmail">Operational email</label>
           <input id="clientOperationalEmail" name="clientOperationalEmail" type="email"
@@ -955,25 +1062,22 @@
           <input id="clientBackupContact" name="clientBackupContact" type="text"
                  [(ngModel)]="model.contacts.clientBackupContact"
                  placeholder="Name and telephone" />
-          <small class="hint">
-            Section 16(c) asks the client for a primary contact and says a backup is one it may
-            designate if available. Left blank, the row is left out of Exhibit B4.
-          </small>
+          <small class="hint">Leave blank if there is none.</small>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- 5.10d Exhibit B3 insurance endorsements -->
+  <!-- 5.10d Exhibit B5 insurance endorsements — the subsection prints only when one is filled -->
   <section class="panel">
     <button type="button" class="panel-head" (click)="togglePanel('insurance')">
-      <span>Insurance endorsements (Exhibit B3)</span>
+      <span>Additional insurance endorsements (Exhibit B5)</span>
       <span class="chevron" [class.open]="isOpen('insurance')">▾</span>
     </button>
     <div class="panel-body" *ngIf="isOpen('insurance')">
       <p class="muted">
-        Only for coverage agreed <em>beyond</em> the baseline limits in the Advanced panel. Leave
-        all three blank on an ordinary contract.
+        Only for coverage agreed <em>beyond</em> the baseline limits in the Advanced panel. Leave all
+        three blank on an ordinary contract and Exhibit B5 is left out.
       </p>
       <div class="grid">
         <div class="field wide">
@@ -981,7 +1085,6 @@
           <input id="agreedEndorsements" name="agreedEndorsements" type="text"
                  [(ngModel)]="model.insurance.agreedEndorsements"
                  placeholder="e.g. additional insured, waiver of subrogation" />
-          <small class="hint">Blank prints “None”.</small>
         </div>
         <!-- THREE FIELDS, NOT ONE NOTE. Section 20(c) says a certificate alone does not amend a
              policy, so naming the endorsement, identifying the insurer and form that issues it,
@@ -991,16 +1094,12 @@
           <label for="endorsementDetails">Insurer, policy, form and edition, protected entity, applicable work</label>
           <textarea id="endorsementDetails" name="endorsementDetails" rows="3"
                     [(ngModel)]="model.insurance.endorsementDetails"></textarea>
-          <small class="hint">Blank prints “Not applicable”.</small>
         </div>
         <div class="field wide">
           <label for="additionalPremium">Agreed additional premium or price adjustment</label>
           <input id="additionalPremium" name="additionalPremium" type="text"
                  [(ngModel)]="model.insurance.additionalPremium" />
-          <small class="hint">
-            Blank prints “None”. Listing an endorsement here does not obtain it — it still has to
-            be issued before the work it covers.
-          </small>
+          <small class="hint">Listing an endorsement does not obtain it — it must be issued before the work.</small>
         </div>
       </div>
     </div>
@@ -1117,9 +1216,15 @@
                  [(ngModel)]="model.advanced.damageNoticeBusinessDays" />
         </div>
         <div class="field">
-          <label for="qualityComplaintHours">Quality complaint window (hours) — §22(a)</label>
+          <label for="qualityComplaintHours">Quality report window after completion (hours) — §22(a)</label>
           <input id="qualityComplaintHours" name="qualityComplaintHours" type="number" min="0"
                  [(ngModel)]="model.advanced.qualityComplaintHours" />
+        </div>
+        <div class="field">
+          <label for="qualityLatentDeficiencyLimitHours">Hidden-issue outer limit (hours) — §22(a)</label>
+          <input id="qualityLatentDeficiencyLimitHours" name="qualityLatentDeficiencyLimitHours" type="number" min="0"
+                 [(ngModel)]="model.advanced.qualityLatentDeficiencyLimitHours" />
+          <small class="hint">Only for issues that could not reasonably be found sooner.</small>
         </div>
         <div class="field">
           <label for="qualityCorrectionBusinessDays">Re-performance window (business days) — §22(b)</label>

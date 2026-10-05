@@ -6,7 +6,7 @@
       <h1>Premium Condo Cleaning Services NYC</h1>
       <p class="subtitle">Professional Residential Cleaning for Luxury Condominiums in Manhattan, Brooklyn, and Queens</p>
       <p class="hero-description">
-        Specialized, top-tier condo cleaning that protects premium finishes and respects high-rise building rules — condo cleaning rates start from ${{ pricing.residentialFrom }}.
+        Specialized, top-tier condo cleaning that protects premium finishes and respects high-rise building rules@if (pricing().standardFrom; as p) { — condo cleaning rates start from {{ p }}}.
       </p>
       <button class="btn btn-danger book-now-btn" routerLink="/booking">Book Now</button>
     </div>
@@ -24,11 +24,11 @@
           Whether you live in a high-tech high-rise or a boutique brick loft, condo living comes with unique structural and logistical needs. Our trained, fully insured local cleaners are experienced with high-rise building regulations, service elevator scheduling, and doorman key permissions. We treat your private sanctuary with the utmost respect, delivering a detailed, reliable clean that fits seamlessly into your busy lifestyle.
         </p>
         <p>
-          Our NYC condo cleaning rates start at ${{ pricing.residentialFrom }}, offering transparent pricing based on your exact floor plan. We adapt our methods to your home's precise needs across our specialized service levels. We use non-abrasive, high-quality products to safeguard your engineered hardwood, natural stone countertops, and custom glass — making us the preferred choice for discerning NYC condominium owners.
+          Our NYC condo cleaning rates @if (pricing().standardFrom; as p) {start at {{ p }}, offering} @else {offer} transparent pricing based on your exact floor plan. We adapt our methods to your home's precise needs across our specialized service levels. We use non-abrasive, high-quality products to safeguard your engineered hardwood, natural stone countertops, and custom glass — making us the preferred choice for discerning NYC condominium owners.
         </p>
       </div>
       <div class="image-placeholder">
-        <img src="/images/apartment-cleaning-service-nyc.webp" alt="Premium condo cleaning service for luxury NYC condominiums in Manhattan, Brooklyn & Queens" loading="lazy">
+        <img src="/images/apartment-cleaning-service-nyc.webp" cardImage="contentImage" alt="Premium condo cleaning service for luxury NYC condominiums in Manhattan, Brooklyn & Queens" loading="lazy">
       </div>
     </section>
 
@@ -84,7 +84,7 @@
           </ul>
         </div>
         <div class="image-placeholder">
-          <img src="/images/residential-cleaning.webp" alt="Condo living area and bedroom cleaning in NYC — dusting, floor care and bed making" loading="lazy">
+          <img src="/images/residential-cleaning.webp" cardImage="contentImage" alt="Condo living area and bedroom cleaning in NYC — dusting, floor care and bed making" loading="lazy">
         </div>
       </div>
 
@@ -102,7 +102,7 @@
           </ul>
         </div>
         <div class="image-placeholder">
-          <img src="/images/kitchen-cleaning-in-nyc.webp" alt="Condo kitchen deep-wipe in NYC — countertops, appliances and cabinet faces cleaned" loading="lazy">
+          <img src="/images/kitchen-cleaning-in-nyc.webp" cardImage="contentImage" alt="Condo kitchen deep-wipe in NYC — countertops, appliances and cabinet faces cleaned" loading="lazy">
         </div>
       </div>
 
@@ -140,28 +140,28 @@
         <div class="benefit-item">
           <div class="checkmark">&#10003;</div>
           <div class="benefit-content">
-            <h4>Luxury Finish Experts</h4>
+            <h3>Luxury Finish Experts</h3>
             <p>We know exactly which chemicals to avoid on delicate materials like marble, brass, or engineered wood.</p>
           </div>
         </div>
         <div class="benefit-item">
           <div class="checkmark">&#10003;</div>
           <div class="benefit-content">
-            <h4>High-Rise Logistical Experience</h4>
+            <h3>High-Rise Logistical Experience</h3>
             <p>No delays regarding doorman permissions, freight elevators, or strict building check-in times.</p>
           </div>
         </div>
         <div class="benefit-item">
           <div class="checkmark">&#10003;</div>
           <div class="benefit-content">
-            <h4>Reliable Recurring Schedules</h4>
+            <h3>Reliable Recurring Schedules</h3>
             <p>Lock in your preferred weekly or bi-weekly slot with the same trusted cleaner.</p>
           </div>
         </div>
         <div class="benefit-item">
           <div class="checkmark">&#10003;</div>
           <div class="benefit-content">
-            <h4>Fully Bonded and Insured</h4>
+            <h3>Fully Bonded and Insured</h3>
             <p>Complete peace of mind protecting your high-value property and assets.</p>
           </div>
         </div>
@@ -172,7 +172,7 @@
     <section class="cta-section">
       <h2>Book Premium Condo Cleaning in NYC</h2>
       <p>
-        Contact Dream Cleaning NYC today to schedule your premium condo cleaning and experience a pristine Manhattan-grade home environment. Condo cleaning rates start from ${{ pricing.residentialFrom }}, with the final price based on your exact floor plan and the condition of your unit.
+        Contact Dream Cleaning NYC today to schedule your premium condo cleaning and experience a pristine Manhattan-grade home environment. Condo cleaning rates @if (pricing().standardFrom; as p) {start from {{ p }}, with the final price based on} @else {are based on} your exact floor plan and the condition of your unit.
       </p>
       <div class="cta-buttons">
         <a routerLink="/booking" class="btn btn-primary">Book Condo Cleaning</a>

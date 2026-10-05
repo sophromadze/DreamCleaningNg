@@ -292,7 +292,7 @@
           <div>
             {{ selectedJob.address || '-' }}
             <a *ngIf="selectedJob.address"
-               [href]="mapsUrl(selectedJob.address)"
+               [href]="mapsUrl(selectedJob.mapsAddress || selectedJob.address)"
                target="_blank"
                rel="noopener">{{ t.openInMaps }}</a>
           </div>

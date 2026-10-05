@@ -4,10 +4,49 @@
  * mobile tooltip show/auto-hide machinery — change here, applies to both.
  */
 
-/** Icon path for an extra service card (name-based mapping, _disabled suffix when unselected). */
-export function getExtraServiceImage(extraService: { name: string }, isSelected: boolean): string {
-  const serviceName = extraService.name.toLowerCase();
+import { EXTRA_SERVICE_KEYS, extraIs, extraServiceKeyOf } from './extra-service-keys';
+
+/**
+ * Icon file stem per extraServiceKey (the keys the AddExtraServiceKey migration gives the
+ * production extras). A keyed extra found here keeps its icon whatever it is renamed to; any other
+ * extra - unkeyed, or keyed with a key not listed - still gets the name-based icon below.
+ */
+const EXTRA_ICON_BY_KEY: Readonly<Record<string, string>> = {
+  'same-day': 'same_day',
+  'extra-cleaners': 'extra_cleaners',
+  'extra-minutes': 'extra_minutes',
+  'cleaning-essentials': 'cleaning_essentials',
+  'cleaning-supplies': 'cleaning_supplies',
+  'vacuum-cleaner': 'vacuum_cleaner',
+  'pets': 'pets',
+  'fridge': 'fridge',
+  'oven': 'oven',
+  'kitchen-cabinets': 'kitchen_cabinets',
+  'closets': 'closets',
+  'dishes': 'dishes',
+  'baseboards': 'baseboards',
+  'windows': 'windows',
+  'walls': 'walls',
+  'stairs': 'stairs',
+  'folding-organizing': 'folding',
+  'laundry': 'laundry',
+  'balcony': 'balcony',
+  'home-office': 'office',
+  'couches': 'couches',
+  'chandelier': 'chandelier',
+  'ceiling-fan': 'ceiling_fan'
+};
+
+/** Icon path for an extra service card (key first, then the name mapping; _disabled suffix when unselected). */
+export function getExtraServiceImage(
+  extraService: { name: string; extraServiceKey?: string | null },
+  isSelected: boolean
+): string {
   const suffix = isSelected ? '' : '_disabled';
+  const byKey = EXTRA_ICON_BY_KEY[extraServiceKeyOf(extraService)];
+  if (byKey) return `/images/${byKey}${suffix}.png`;
+
+  const serviceName = extraService.name.toLowerCase();
 
   if (serviceName.includes('same day')) return `/images/same_day${suffix}.png`;
   if (serviceName.includes('extra cleaners')) return `/images/extra_cleaners${suffix}.png`;
@@ -44,9 +83,11 @@ export function getExtraServiceImage(extraService: { name: string }, isSelected:
 }
 
 /** Tooltip text for an extra service card. */
-export function getExtraServiceTooltip(extra: { name: string; description?: string | null }): string {
+export function getExtraServiceTooltip(
+  extra: { name: string; description?: string | null; extraServiceKey?: string | null }
+): string {
   let tooltip = extra.description || '';
-  if (extra.name === 'Extra Cleaners') {
+  if (extraIs(extra, EXTRA_SERVICE_KEYS.extraCleaners, (_lower, name) => name === 'Extra Cleaners')) {
     tooltip += '\n\nEach extra cleaner reduces service duration.';
   }
   return tooltip;

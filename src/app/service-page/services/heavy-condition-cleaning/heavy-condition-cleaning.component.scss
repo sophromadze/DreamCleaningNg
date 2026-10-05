@@ -328,7 +328,7 @@
             margin-bottom: 12px;
           }
           
-          h4 {
+          h3 {
             color: var(--primary-text);
             font-size: 1.1rem;
             margin-bottom: 8px;
@@ -366,7 +366,7 @@
 
       .tagline {
         background: var(--mint-fresh);
-        color: var(--fresh-green);
+        color: var(--mint-fresh-text);
         border: 1px solid var(--fresh-green);
         padding: 15px;
         border-radius: 6px;
@@ -381,7 +381,7 @@
       
       .services-summary {
         font-size: 0.9rem;
-        color: var(--text-muted);
+        color: var(--text-muted-on-tint);
         margin-bottom: 15px;
       }
       

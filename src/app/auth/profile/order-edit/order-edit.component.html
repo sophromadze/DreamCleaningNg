@@ -135,7 +135,7 @@
 
                 <!-- Quantity Control Input -->
                 <div class="service-input" *ngIf="selected.service.inputType === 'dropdown'">
-                  <app-quantity-control class="quantity-control"
+                  <app-quantity-control class="quantity-control" [label]="selected.service.name"
                     [value]="selected.service.serviceKey === 'bedrooms' && getServiceControl(i).value === 0 ? 'Studio' : getServiceControl(i).value"
                     [decrementDisabled]="getServiceControl(i).value <= (selected.service.minValue || 0)"
                     [incrementDisabled]="getServiceControl(i).value >= (selected.service.maxValue || 10)"
@@ -149,7 +149,7 @@
                   <div class="slider-container">
                     <span class="slider-quantity">{{ getServiceControl(i).value }}</span>
                     <!-- Index-based, same as the booking page (see getSquareFeetOptions). -->
-                    <input type="range"
+                    <input aria-label="Square feet" type="range"
                           min="0"
                           step="1"
                           [max]="getSquareFeetSliderMaxIndex(selected.service)"
@@ -314,7 +314,7 @@
           <section class="booking-section">
             <h2>Special Instructions (Optional)</h2>
             <div class="form-group">
-              <textarea formControlName="specialInstructions"
+              <textarea aria-label="Special instructions" formControlName="specialInstructions"
                         rows="4"
                         [maxlength]="specialInstructionsMaxLength"
                         placeholder="Any special instructions or requests regarding your cleaning..."
@@ -353,7 +353,7 @@
                 </div>
               </div>
               <div class="form-group">
-                <input type="tel" inputmode="numeric" formControlName="contactPhone" (input)="onPhoneInput($event)" placeholder="Phone *">
+                <input aria-label="Phone" type="tel" inputmode="numeric" formControlName="contactPhone" (input)="onPhoneInput($event)" placeholder="Phone *">
                 <div class="error-message" *ngIf="orderForm.get('contactPhone')?.invalid && orderForm.get('contactPhone')?.touched">
                   <div *ngIf="orderForm.get('contactPhone')?.errors?.['required']">Phone number is required</div>
                 </div>
@@ -377,13 +377,13 @@
                 </div>
               </div>
               <div class="form-group">
-                <select formControlName="city">
+                <select aria-label="City" formControlName="city">
                   <option value="">City *</option>
                   <option *ngFor="let city of cities" [value]="city">{{ city }}</option>
                 </select>
               </div>
               <div class="form-group">
-                <select formControlName="state" (change)="onStateChange($any($event.target).value)">
+                <select aria-label="State" formControlName="state" (change)="onStateChange($any($event.target).value)">
                   <option value="">State *</option>
                   <option *ngFor="let state of states" [value]="state">{{ state }}</option>
                 </select>

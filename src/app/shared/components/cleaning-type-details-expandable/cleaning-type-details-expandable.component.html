@@ -5,7 +5,7 @@
     (click)="toggle()"
     [attr.aria-expanded]="expanded">
     <span>{{ toggleButtonLabel }}</span>
-    <i class="fas fa-chevron-down" [class.rotated]="expanded" aria-hidden="true"></i>
+    <i [appIcon]="icons.faChevronDown" [class.rotated]="expanded" aria-hidden="true"></i>
   </button>
 
   <div
@@ -24,7 +24,7 @@
             [class.checklist-area-row__icon--yes]="row.included"
             [class.checklist-area-row__icon--no]="!row.included"
             aria-hidden="true">
-            <i class="fas" [ngClass]="row.included ? 'fa-check' : 'fa-times'"></i>
+            <i [appIcon]="row.included ? icons.faCheck : icons.faXmark"></i>
           </span>
           <span class="checklist-area-row__label">{{ row.label }}</span>
         </div>
@@ -35,7 +35,7 @@
       <h4 class="not-included-footer__title">{{ notIncludedFooterTitle }}</h4>
       <div class="not-included-footer__grid">
         <div class="not-included-footer__cell" *ngFor="let item of activeNotIncludedFooter">
-          <span class="not-included-footer__x" aria-hidden="true"><i class="fas fa-times"></i></span>
+          <span class="not-included-footer__x" aria-hidden="true"><i [appIcon]="icons.faXmark"></i></span>
           <span>{{ item }}</span>
         </div>
       </div>
@@ -47,7 +47,7 @@
         class="cleaning-type-details-close"
         (click)="toggle()"
         aria-label="Close details">
-        <i class="fas fa-chevron-up" aria-hidden="true"></i>
+        <i [appIcon]="icons.faChevronUp" aria-hidden="true"></i>
       </button>
     </div>
   </div>

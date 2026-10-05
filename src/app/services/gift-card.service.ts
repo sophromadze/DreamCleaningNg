@@ -6,11 +6,44 @@ import { AuthService } from './auth.service';
 
 export interface CreateGiftCard {
   amount: number;
-  recipientName: string;
-  recipientEmail: string;
+  /** Omitted in "send later" mode - the recipient is chosen later from the profile. */
+  recipientName?: string;
+  recipientEmail?: string;
   senderName: string;
   senderEmail: string;
   message?: string;
+  /** "Buy for myself - send later" (requires a signed-in buyer). */
+  sendLater?: boolean;
+}
+
+/** Profile -> Gift Cards: a card the signed-in user purchased. */
+export interface MyGiftCard {
+  id: number;
+  /** Full code while unsent; masked to the last 4 characters once sent. */
+  code: string;
+  isCodeMasked: boolean;
+  originalAmount: number;
+  currentBalance: number;
+  amountUsed: number;
+  purchasedAt: string;
+  status: 'NotSent' | 'Sent' | 'FullyUsed';
+  isPendingSend: boolean;
+  isActive: boolean;
+  recipientName?: string | null;
+  recipientEmail?: string | null;
+  sentAt?: string | null;
+  senderName: string;
+  message?: string | null;
+  canSend: boolean;
+  canResend: boolean;
+  usages: { usedAt: string; amountUsed: number }[];
+}
+
+export interface SendMyGiftCard {
+  recipientName: string;
+  recipientEmail: string;
+  senderName: string;
+  message: string;
 }
 
 export interface GiftCard {
@@ -98,6 +131,29 @@ export class GiftCardService {
   getUserGiftCards(): Observable<GiftCard[]> {
     return this.http.get<GiftCard[]>(
       `${this.apiUrl}/giftcard`,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  getMyGiftCards(): Observable<MyGiftCard[]> {
+    return this.http.get<MyGiftCard[]>(
+      `${this.apiUrl}/giftcard/mine`,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  sendMyGiftCard(id: number, dto: SendMyGiftCard): Observable<MyGiftCard> {
+    return this.http.post<MyGiftCard>(
+      `${this.apiUrl}/giftcard/mine/${id}/send`,
+      dto,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  resendMyGiftCard(id: number): Observable<MyGiftCard> {
+    return this.http.post<MyGiftCard>(
+      `${this.apiUrl}/giftcard/mine/${id}/resend`,
+      {},
       { headers: this.getAuthHeaders() }
     );
   }

@@ -37,7 +37,9 @@ describe('InvoiceDetailComponent — void, archive or delete', () => {
     dueDate: '2026-09-16',
     subTotal: 500, discountAmount: 0, taxAmount: 0, total: 500,
     amountPaid: 0, balanceDue: 500,
-    items: [], payments: [], emails: [], activity: [], paymentAttempts: [],
+    // `emailHistory`, not `emails`: the template reads `inv.emailHistory.length`, and the API
+    // always sends the list (InvoiceDetailDto initialises it), so the double must too.
+    items: [], payments: [], emailHistory: [], activity: [], paymentAttempts: [],
     coveredOrders: [],
     hasPaymentInProgress: false,
     canEdit: true, canEditMonetaryValues: true, editRequiresWarning: false,

@@ -1,12 +1,24 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
-import { CommonModule, DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, computed, inject } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { SERVICE_PRICING } from '../shared/service-pricing.data';
+import { MarketingPricingService } from '../shared/pricing/marketing-pricing.service';
+import { formatMarketingMoney, joinWithAnd, listStartingPrices } from '../shared/pricing/marketing-price-format';
 import { SpecialOfferService, PublicSpecialOffer } from '../services/special-offer.service';
 import { BookingService } from '../services/booking.service';
 import { AuthService } from '../services/auth.service';
 import { AuthModalService } from '../services/auth-modal.service';
+import { IconComponent } from '../shared/icons/icon.component';
+import { faCalendarCheck } from '../shared/icons/glyphs/faCalendarCheck';
+import { faCheck } from '../shared/icons/glyphs/faCheck';
+import { faCreditCard } from '../shared/icons/glyphs/faCreditCard';
+import { faGift } from '../shared/icons/glyphs/faGift';
+import { faStar } from '../shared/icons/glyphs/faStar';
+import { faTags } from '../shared/icons/glyphs/faTags';
+import { faUnlockKeyhole } from '../shared/icons/glyphs/faUnlockKeyhole';
+import { faUserGroup } from '../shared/icons/glyphs/faUserGroup';
+import { StructuredDataService } from '../services/structured-data.service';
+import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-keys';
 
 interface RecurringPlan {
   name: string;
@@ -18,13 +30,22 @@ interface RecurringPlan {
 @Component({
   selector: 'app-pricing-and-discounts',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, IconComponent],
   templateUrl: './pricing-and-discounts.component.html',
   styleUrl: './pricing-and-discounts.component.scss'
 })
 export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
-  /** Centralized marketing prices (single source of truth). */
-  readonly pricing = SERVICE_PRICING;
+  protected readonly icons = { faCalendarCheck, faCheck, faCreditCard, faGift, faStar, faTags, faUnlockKeyhole, faUserGroup };
+
+  /** Prices from the booking catalogue (MarketingPricingService); null = left out / neutral wording. */
+  private readonly marketingPricing = inject(MarketingPricingService);
+  readonly pricing = this.marketingPricing.text;
+  /** Filthy Cleaning's admin-entered display price, split for the price card's amount/unit markup. */
+  readonly filthyUnit = computed(() => this.marketingPricing.prices().filthy?.unit ?? null);
+  readonly filthyAmount = computed(() => {
+    const filthy = this.marketingPricing.prices().filthy;
+    return filthy ? formatMarketingMoney(filthy.amount) : '';
+  });
 
   /** First-time discount label, e.g. "10%" or "$20". Loaded from the DB — never hardcoded. */
   firstTimeLabel = '';
@@ -37,7 +58,7 @@ export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
   isLoggedIn = false;
 
   private isBrowser: boolean;
-  private schemaElement: HTMLScriptElement | null = null;
+  private readonly structuredData = inject(StructuredDataService);
   private authSub?: Subscription;
 
   constructor(
@@ -45,14 +66,39 @@ export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
     private bookingService: BookingService,
     private authService: AuthService,
     private authModalService: AuthModalService,
-    @Inject(PLATFORM_ID) private platformId: Object,
-    @Inject(DOCUMENT) private document: Document
+    @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 
+  /**
+   * The cost answer, shared word for word by the visible FAQ item and its JSON-LD. Unresolved
+   * prices are left out of the lists; filthy cleaning without a display price reads "priced after
+   * assessment".
+   */
+  get costAnswer(): string {
+    const t = this.pricing();
+    const flat = listStartingPrices([
+      ['Standard cleaning', t.standardFrom],
+      ['deep cleaning', t.deepFrom],
+      ['move in/out cleaning', t.moveInOutFrom]
+    ]);
+    const hourly = [
+      t.customPerHour && `custom cleaning at ${t.customPerHour}/hour per cleaner`,
+      t.heavyPerHour && `heavy condition cleaning at ${t.heavyPerHour}/hour per cleaner`,
+      t.filthyShort ? `filthy cleaning at ${t.filthyShort}` : 'filthy cleaning priced after assessment'
+    ].filter((x): x is string => !!x);
+    const flatSentence = flat ? `${flat.charAt(0).toUpperCase()}${flat.slice(1)}. ` : '';
+    return `${flatSentence}Hourly services include ${joinWithAnd(hourly)}.`;
+  }
+
+  /** Whether the note may say filthy cleaning is billed per hour per cleaner (its display unit). */
+  get filthyBilledPerCleanerHour(): boolean {
+    return this.filthyUnit() === 'per-hour-per-cleaner';
+  }
+
   ngOnInit(): void {
-    // Schema uses static SERVICE_PRICING values, so inject on SSR too (good for SEO).
+    // Prices are resolved on the server too, so the schema is complete in the SSR HTML.
     this.injectSchema();
 
     // Live discount figures are admin-configurable; fetch them in the browser.
@@ -66,9 +112,7 @@ export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.schemaElement && this.schemaElement.parentNode) {
-      this.schemaElement.parentNode.removeChild(this.schemaElement);
-    }
+    this.structuredData.remove('ld-pricing-and-discounts');
     this.authSub?.unsubscribe();
   }
 
@@ -86,12 +130,7 @@ export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
     this.specialOfferService.getPublicSpecialOffers().subscribe({
       next: (offers) => {
         const list = offers || [];
-        const firstTime = list.find(o =>
-          o.requiresFirstTimeCustomer ||
-          o.type === 'FirstTime' ||
-          (o.name?.toLowerCase().includes('first time') ?? false) ||
-          (o.name?.toLowerCase().includes('first-time') ?? false)
-        );
+        const firstTime = findAdvertisedFirstTimeOffer(list);
         this.firstTimeLabel = firstTime ? this.offerLabel(firstTime) : '';
         // Everything that isn't the first-time offer is a seasonal/holiday/event special.
         this.seasonalOffers = list.filter(o =>
@@ -123,7 +162,31 @@ export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
   /** Injects Service (with priced offers) + FAQPage structured data for SEO/GEO. */
   private injectSchema(): void {
     const base = 'https://dreamcleaningnyc.com';
-    const p = SERVICE_PRICING;
+    const p = this.marketingPricing.prices();
+    const flatFrom = listStartingPrices([
+      ['standard cleaning', this.pricing().standardFrom],
+      ['deep cleaning', this.pricing().deepFrom],
+      ['move in/out', this.pricing().moveInOutFrom]
+    ], 'from');
+    type OfferSpec = [name: string, price: number | null, description: string, hourly: boolean];
+    const offers = ([
+      ['Standard Cleaning', p.standardFrom, 'Flat-rate standard residential cleaning, starting price.', false],
+      ['Deep Cleaning', p.deepFrom, 'Flat-rate deep cleaning, starting price.', false],
+      ['Move In / Move Out Cleaning', p.moveInOutFrom, 'Flat-rate move in/out cleaning, starting price.', false],
+      ['Custom Cleaning', p.customPerHour, 'Custom hourly cleaning, per hour per cleaner.', true],
+      ['Heavy Condition Cleaning', p.heavyPerHour, 'Heavy condition cleaning, per hour per cleaner.', true],
+      ['Filthy Cleaning', p.filthy?.amount ?? null,
+        p.filthy?.unit === 'from' ? 'Filthy / extreme cleaning, starting price.'
+          : p.filthy?.unit === 'per-hour' ? 'Filthy / extreme cleaning, per hour.'
+          : 'Filthy / extreme cleaning, per hour per cleaner.',
+        p.filthy?.unit !== 'from']
+    ] as OfferSpec[])
+      // An offer without a resolved price is left out rather than published with a guess.
+      .filter(([, price]) => price !== null)
+      .map(([name, price, description, hourly]) => ({
+        '@type': 'Offer', 'name': name, 'priceCurrency': 'USD', 'price': price, 'description': description,
+        ...(hourly ? { 'unitText': 'HUR' } : {})
+      }));
 
     const serviceSchema = {
       '@type': 'Service',
@@ -131,22 +194,15 @@ export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
       'serviceType': 'House Cleaning Service',
       'description':
         `Transparent, flat-rate and hourly cleaning prices from Dream Cleaning in Brooklyn, Manhattan and Queens. ` +
-        `Standard cleaning from $${p.residentialFrom}, deep cleaning from $${p.deepFrom}, move in/out from $${p.moveInOutFrom}, ` +
-        `plus first-time, recurring, loyalty (Bubble Rewards), referral and seasonal discounts.`,
+        (flatFrom ? `${flatFrom.charAt(0).toUpperCase()}${flatFrom.slice(1)}, plus ` : 'Plus ') +
+        `first-time, recurring, loyalty (Bubble Rewards), referral and seasonal discounts.`,
       'provider': { '@type': 'LocalBusiness', 'name': 'Dream Cleaning', '@id': `${base}/#business` },
       'areaServed': [
         { '@type': 'City', 'name': 'Brooklyn' },
         { '@type': 'City', 'name': 'Manhattan' },
         { '@type': 'City', 'name': 'Queens' }
       ],
-      'offers': [
-        { '@type': 'Offer', 'name': 'Standard Cleaning', 'priceCurrency': 'USD', 'price': p.residentialFrom, 'description': 'Flat-rate standard residential cleaning, starting price.' },
-        { '@type': 'Offer', 'name': 'Deep Cleaning', 'priceCurrency': 'USD', 'price': p.deepFrom, 'description': 'Flat-rate deep cleaning, starting price.' },
-        { '@type': 'Offer', 'name': 'Move In / Move Out Cleaning', 'priceCurrency': 'USD', 'price': p.moveInOutFrom, 'description': 'Flat-rate move in/out cleaning, starting price.' },
-        { '@type': 'Offer', 'name': 'Custom Cleaning', 'priceCurrency': 'USD', 'price': p.customPerHour, 'description': 'Custom hourly cleaning, per hour.', 'unitText': 'HUR' },
-        { '@type': 'Offer', 'name': 'Heavy Condition Cleaning', 'priceCurrency': 'USD', 'price': p.heavyConditionPerHour, 'description': 'Heavy condition cleaning, per hour per cleaner.', 'unitText': 'HUR' },
-        { '@type': 'Offer', 'name': 'Filthy Cleaning', 'priceCurrency': 'USD', 'price': p.filthyPerHour, 'description': 'Filthy / extreme cleaning, per hour per cleaner.', 'unitText': 'HUR' }
-      ]
+      ...(offers.length ? { 'offers': offers } : {})
     };
 
     const faqSchema = {
@@ -157,7 +213,7 @@ export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
           'name': 'How much does house cleaning cost in NYC?',
           'acceptedAnswer': {
             '@type': 'Answer',
-            'text': `Dream Cleaning offers flat-rate pricing starting from $${p.residentialFrom} for standard cleaning, $${p.deepFrom} for deep cleaning, and $${p.moveInOutFrom} for move in/out cleaning in Brooklyn, Manhattan and Queens. Hourly options include custom cleaning at $${p.customPerHour}/hour, heavy condition cleaning at $${p.heavyConditionPerHour}/hour per cleaner, and filthy cleaning at $${p.filthyPerHour}/hour per cleaner.`
+            'text': this.costAnswer
           }
         },
         {
@@ -192,9 +248,6 @@ export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
       '@graph': [serviceSchema, faqSchema]
     };
 
-    this.schemaElement = this.document.createElement('script');
-    this.schemaElement.type = 'application/ld+json';
-    this.schemaElement.textContent = JSON.stringify(schema);
-    this.document.head.appendChild(this.schemaElement);
+    this.structuredData.set('ld-pricing-and-discounts', schema);
   }
 }

@@ -12,9 +12,9 @@
     <div class="content-section">
       <div class="intro-text">
         <p>Dream Cleaning's move-in/move-out cleaning service prepares your NYC apartment, condo, brownstone, or family home for a smooth, stress-free transition. Whether you're settling into a new place in Manhattan, leaving a rental in Brooklyn, or handing over keys in Queens, our experienced local cleaners deliver detail-focused results that satisfy landlords, real estate agents, and new tenants alike.</p>
-        <p><strong>Starting from ${{ pricing.moveInOutFrom }}</strong></p>
+        @if (pricing().moveInOutFrom; as p) {<p><strong>Starting from {{ p }}</strong></p>}
         <p>This is a detailed, top-to-bottom NYC cleaning service designed for empty or nearly empty spaces, built to meet strict move-in and move-out standards. We deep clean kitchens, bathrooms, bedrooms, living areas, baseboards, cabinets, and floors so the property is fresh, hygienic, and inspection-ready from the moment we leave.</p>
-        <h3 class="section-title">What Makes This Service Different:</h3>
+        <h2 class="section-title">What Makes This Service Different:</h2>
         <p>General Cleaning Services for Move In/Out in Manhattan, Brooklyn & Queens</p>
         <ul>
           <li>Prepare the home for the next occupant</li>
@@ -40,7 +40,7 @@
               <li>Floor cleaning</li>
             </ul>
             <div class="image-placeholder right">
-              <img src="/images/kitchen-cleaning-2.webp" alt="Kitchen Deep Cleaning for Move In/Out in Manhattan, Brooklyn & Queens" loading="lazy">
+              <img src="/images/kitchen-cleaning-2.webp" cardImage="serviceCategory" alt="Kitchen Deep Cleaning for Move In/Out in Manhattan, Brooklyn & Queens" loading="lazy">
             </div>
           </div>
         </div>
@@ -76,7 +76,7 @@
               <li>Trash removal (up to 1-2 bags)</li>
             </ul>
             <div class="image-placeholder right">
-              <img src="/images/residential-cleaning.webp" alt="Bedroom and living area cleaning for move-in and move-out services in NYC" loading="lazy">
+              <img src="/images/residential-cleaning.webp" cardImage="serviceCategory" alt="Bedroom and living area cleaning for move-in and move-out services in NYC" loading="lazy">
             </div>
           </div>
         </div>
@@ -97,25 +97,25 @@
         <div class="limitations-grid">
           <div class="limitation-item">
             <div class="limitation-icon">
-              <i class="fas fa-info-circle"></i>
+              <i [appIcon]="icons.faCircleInfo"></i>
             </div>
             <span>The property must be empty or nearly empty</span>
           </div>
           <div class="limitation-item">
             <div class="limitation-icon">
-              <i class="fas fa-info-circle"></i>
+              <i [appIcon]="icons.faCircleInfo"></i>
             </div>
             <span>Cabinets, closets, and appliances must be accessible</span>
           </div>
           <div class="limitation-item">
             <div class="limitation-icon">
-              <i class="fas fa-info-circle"></i>
+              <i [appIcon]="icons.faCircleInfo"></i>
             </div>
             <span>We do not move heavy furniture</span>
           </div>
           <div class="limitation-item">
             <div class="limitation-icon">
-              <i class="fas fa-info-circle"></i>
+              <i [appIcon]="icons.faCircleInfo"></i>
             </div>
             <span>We do not provide ladders or high-reach equipment</span>
           </div>
@@ -128,29 +128,29 @@
       </div>
 
       <div class="what-we-cannot">
-        <h2><i class="fas fa-exclamation-triangle"></i> Services NOT Included:</h2>
+        <h2><i [appIcon]="icons.faTriangleExclamation"></i> Services NOT Included:</h2>
         <div class="limitations-grid">
           <div class="limitation-item">
             <div class="limitation-icon">
-              <i class="fas fa-ban"></i>
+              <i [appIcon]="icons.faBan"></i>
             </div>
             <span>Moving heavy furniture and appliances</span>
           </div>
           <div class="limitation-item">
             <div class="limitation-icon">
-              <i class="fas fa-ban"></i>
+              <i [appIcon]="icons.faBan"></i>
             </div>
             <span>High bulbs and ceiling fans</span>
           </div>
           <div class="limitation-item">
             <div class="limitation-icon">
-              <i class="fas fa-ban"></i>
+              <i [appIcon]="icons.faBan"></i>
             </div>
             <span>Window exteriors</span>
           </div>
           <div class="limitation-item">
             <div class="limitation-icon">
-              <i class="fas fa-ban"></i>
+              <i [appIcon]="icons.faBan"></i>
             </div>
             <span>Pet waste cleanup</span>
           </div>
@@ -164,7 +164,7 @@
 
       <div class="cta-section">
         <h2>Book Your NYC Move In/Out Cleaning Today</h2>
-        <p>Dream Cleaning NYC offers transparent flat-rate pricing based on your property's size, layout, and current condition. Starting from ${{ pricing.moveInOutFrom }}, our professional NYC cleaners are ready to make your move smoother in Brooklyn, Manhattan, and Queens — with flexible scheduling, fast availability, and detailed cleaning that helps you protect your deposit and impress new occupants.</p>
+        <p>Dream Cleaning NYC offers transparent flat-rate pricing based on your property's size, layout, and current condition. @if (pricing().moveInOutFrom; as p) {Starting from {{ p }}, our} @else {Our} professional NYC cleaners are ready to make your move smoother in Brooklyn, Manhattan, and Queens — with flexible scheduling, fast availability, and detailed cleaning that helps you protect your deposit and impress new occupants.</p>
         
         <div class="contact-info">
           <h3>Contact us today for a free estimate:</h3>

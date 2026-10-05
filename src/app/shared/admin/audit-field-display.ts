@@ -135,6 +135,10 @@ export const AUDIT_FIELD_LABELS: { [field: string]: string } = {
   PaymentReference: 'Payment Reference',
   StatusReactivated: 'Order Reactivated',
   CardLast4: 'Card (last 4)',
+  PaymentRow: 'Payment',
+  ChargeAmount: 'Amount Paid',
+  SentTo: 'Sent To',
+  ChargeId: 'Charge Reference',
 
   // ── Change requests ─────────────────────────────────────────────────────────
   RequestId: 'Request',
@@ -397,7 +401,7 @@ const ENUM_LABELS: { [field: string]: { [value: number]: string } } = {
   // Models/UserRole.cs
   Role: { 0: 'Customer', 1: 'SuperAdmin', 2: 'Admin', 3: 'Moderator' },
   // Models/PaymentMethod.cs — Normal means the Stripe card flow.
-  PaymentMethod: { 0: 'Card (Stripe)', 1: 'Cash', 2: 'Zelle', 3: 'Check', 4: 'Other', 5: 'Invoice' },
+  PaymentMethod: { 0: 'Card (Stripe)', 1: 'Cash', 2: 'Zelle', 3: 'Check', 4: 'Other', 5: 'Invoice', 6: 'Bank transfer' },
   // Models/CleanerPaymentMethod.cs — 1-based.
   PaidVia: { 1: 'Zelle', 2: 'Cash', 3: 'Check', 4: 'Other' },
   // Models/CleanerRanking.cs
@@ -561,6 +565,7 @@ export const AUDIT_ENTITY_LABELS: { [entityType: string]: string } = {
   Apartment: 'Address',
   CleanerPayrollOverride: 'Payroll Override',
   OrderCleanerHourlyRate: 'Order Hourly Rate',
+  OrderCleanerCount: 'Order Cleaner Count',
   CleanerPayout: 'Cleaner Payout',
   OrderRefundAction: 'Refund',
   OrderAdminNote: 'Order Note',

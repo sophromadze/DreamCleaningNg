@@ -41,7 +41,7 @@ describe('CommercialCleaningPoliciesComponent', () => {
     const sections = el().querySelectorAll('section.policy-section');
 
     expect(sections.length).toBe(COMMERCIAL_POLICY_CONTENT.complete.sections.length);
-    expect(sections.length).toBe(18);
+    expect(sections.length).toBe(11);
 
     COMMERCIAL_POLICY_CONTENT.complete.sections.forEach(section => {
       const rendered = el().querySelector(`#${section.anchor}`);
@@ -82,7 +82,7 @@ describe('CommercialCleaningPoliciesComponent', () => {
   // Consecutive bullets are one list. Four `<ul>`s in a row is what a screen reader announces,
   // and it is wrong about the structure of the document.
   it('groups consecutive bullets into a single list', () => {
-    const contact = el().querySelector('#contact')!;
+    const contact = el().querySelector('#general-provisions')!;
     const lists = contact.querySelectorAll('ul.policy-bullets');
 
     expect(lists.length).toBe(1);
@@ -129,7 +129,7 @@ describe('CommercialCleaningPoliciesComponent', () => {
     const header = el().querySelector('.policy-header')!.textContent ?? '';
 
     expect(header).toContain(`Version ${COMMERCIAL_POLICY_CONTENT.complete.version}`);
-    expect(header).toContain('Effective September 16, 2026');
+    expect(header).toContain('Effective September 30, 2026');
   });
 
   // Parsed as parts rather than `new Date(iso)`: a bare ISO date is parsed as UTC midnight and

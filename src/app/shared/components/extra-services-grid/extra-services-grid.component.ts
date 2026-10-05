@@ -8,6 +8,8 @@ import {
   getExtraServiceTooltip,
   MobileTooltipManager
 } from '../../booking/extra-service-display.utils';
+import { IconComponent } from '../../icons/icon.component';
+import { faChevronDown } from '../../icons/glyphs/faChevronDown';
 
 /** Shape of the parents' selectedExtraServices entries (structurally typed). */
 export interface ExtraServiceSelection {
@@ -30,11 +32,13 @@ export interface ExtraServiceSelection {
 @Component({
   selector: 'app-extra-services-grid',
   standalone: true,
-  imports: [CommonModule, ShimmerDirective, QuantityControlComponent],
+  imports: [CommonModule, ShimmerDirective, QuantityControlComponent, IconComponent],
   templateUrl: './extra-services-grid.component.html',
   styleUrls: ['./extra-services-grid.component.scss']
 })
 export class ExtraServicesGridComponent {
+  protected readonly icons = { faChevronDown };
+
   @Input() extras: ExtraService[] = [];
   @Input() selections: ExtraServiceSelection[] = [];
   @Input() tooltips: MobileTooltipManager | null = null;

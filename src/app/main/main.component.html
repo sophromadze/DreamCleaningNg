@@ -1,4 +1,4 @@
-<main class="home-main">
+<div class="home-main">
 
   <!-- Shared hero + booking form (also used on borough service pages). -->
   <app-home-hero></app-home-hero>
@@ -8,7 +8,16 @@
        Shared component (also used on service pages). Owns its own
        Google reviews slider + social-proof stats.
   ========================================================== -->
-  <app-testimonial-section></app-testimonial-section>
+  <!-- [incremental-hydration] Server-rendered (first reviews page included), hydrated when it
+       scrolls into view; its code is split out of the home bundle. -->
+  <!-- Every @placeholder below shows only for a moment when the page is opened again in this tab
+       (never in the server render): it holds the section's remembered height, so a scroll position
+       restored by Back lands on the same content. Empty on a first visit - see HomeLayoutMemoryService. -->
+  @defer (on immediate; hydrate on viewport) {
+    <app-testimonial-section [style.contain-intrinsic-size]="rememberedIntrinsicSize('app-testimonial-section')"></app-testimonial-section>
+  } @placeholder {
+    <div [style.height.px]="rememberedHeights.box['app-testimonial-section']"></div>
+  }
 
   <!-- =========================================================
        REWARDS & SAVINGS — referrals, bubble points & discounts.
@@ -17,7 +26,7 @@
        static so it prerenders for SEO; the first-time % fills in
        from the API after hydration when available.
   ========================================================== -->
-  <section class="rewards-savings-section">
+  <section class="rewards-savings-section" [style.contain-intrinsic-size]="rememberedIntrinsicSize('rewards-savings-section')">
     <div class="container-narrow">
       <div class="section-header section-header--center">
         <h2 class="section-title-h2">Cleaning Discounts, Bubble Rewards &amp; Referrals in NYC</h2>
@@ -26,7 +35,7 @@
 
       <div class="rewards-grid">
         <article class="rewards-card rewards-card--discounts">
-          <div class="rewards-card__icon" aria-hidden="true"><i class="fas fa-tags"></i></div>
+          <div class="rewards-card__icon" aria-hidden="true"><i [appIcon]="icons.faTags"></i></div>
           <h3 class="rewards-card__title">First-Time &amp; Recurring Discounts</h3>
           <p class="rewards-card__desc">
             New customers save{{ firstTimeDiscountLabel ? ' ' + firstTimeDiscountLabel : '' }} on their very first cleaning. Choose a weekly, bi-weekly, or monthly plan and an automatic discount applies to every visit — the more often we clean, the more you save.
@@ -34,7 +43,7 @@
         </article>
 
         <article class="rewards-card rewards-card--rewards">
-          <div class="rewards-card__icon" aria-hidden="true"><i class="fas fa-star"></i></div>
+          <div class="rewards-card__icon" aria-hidden="true"><i [appIcon]="icons.faStar"></i></div>
           <h3 class="rewards-card__title">Bubble Rewards</h3>
           <p class="rewards-card__desc">
             Earn bubble points on every dollar you spend and redeem them for real money off future cleanings. Climb tiers — Bubble, Super Bubble, Ultra Bubble — to multiply your points, plus bonuses for sign-up, booking streaks, and reviews.
@@ -42,7 +51,7 @@
         </article>
 
         <article class="rewards-card rewards-card--referral">
-          <div class="rewards-card__icon" aria-hidden="true"><i class="fas fa-user-group"></i></div>
+          <div class="rewards-card__icon" aria-hidden="true"><i [appIcon]="icons.faUserGroup"></i></div>
           <h3 class="rewards-card__title">Refer a Friend</h3>
           <p class="rewards-card__desc">
             Share your personal link and you both win — your friend gets bonus points when they sign up, and you earn a reward balance once they complete their first cleaning. There's no limit to how many friends you can refer.
@@ -51,14 +60,14 @@
       </div>
 
       <p class="rewards-login-note" *ngIf="isBrowser && !isLoggedIn">
-        <i class="fas fa-circle-info" aria-hidden="true"></i>
+        <i [appIcon]="icons.faCircleInfo" aria-hidden="true"></i>
         <span>
           <button type="button" class="rewards-login-link" (click)="openRewardsLogin()">Log in or create an account</button>
           to track your bubble points, redeem rewards, and get your personal referral link — it's free to join.
         </span>
       </p>
       <p class="rewards-login-note" *ngIf="isBrowser && isLoggedIn">
-        <i class="fas fa-circle-info" aria-hidden="true"></i>
+        <i [appIcon]="icons.faCircleInfo" aria-hidden="true"></i>
         <span><a routerLink="/rewards" class="rewards-login-link">View your Bubble Rewards</a> to check your points, redeem them, and share your referral link.</span>
       </p>
 
@@ -75,7 +84,14 @@
        (BeforeAfterPhotosController). Section hides itself entirely
        if no photos have been published yet.
   ========================================================== -->
-  <section class="before-after-section" *ngIf="beforeAfterPhotos.length > 0">
+  <!-- Coming back with Back, the gallery keeps exactly the height it had until its carousel has
+       measured itself (see HomeLayoutMemoryService), so the restored scroll position lands where the
+       reader was. Exactly, not at least: before measuring, the cards are laid out at a default width
+       and are taller, and the (hidden) track would push everything below down for a frame. -->
+  <section class="before-after-section" *ngIf="beforeAfterPhotos.length > 0"
+           [style.contain-intrinsic-size]="rememberedIntrinsicSize('before-after-section')"
+           [style.height.px]="beforeAfterStepPx > 0 ? null : rememberedHeights.box['before-after-section']"
+           [style.overflow]="beforeAfterStepPx > 0 || !rememberedHeights.box['before-after-section'] ? null : 'clip'">
     <div class="container-narrow">
       <div class="section-header section-header--center">
         <h2 class="section-title-h2">See the difference</h2>
@@ -94,15 +110,21 @@
                  [style.transform]="'translate3d(' + (-beforeAfterTranslatePx) + 'px,0,0)'">
               <div class="before-after-carousel__slide"
                    *ngFor="let p of beforeAfterCarouselSlides; let i = index; trackBy: trackBeforeAfterSlideIndex">
-                <article class="before-after-card">
+                <article class="before-after-card" *ngIf="isBeforeAfterSlideRendered(i)">
                   <div class="before-after-card__surface">
                     <div class="before-after-card__media">
                       <img class="before-after-card__half before-after-card__half--before"
+                           [attr.srcset]="p.beforeSrcset"
+                           [attr.sizes]="p.beforeSrcset ? beforeAfterHalfSizes : null"
                            [src]="p.beforePhotoUrl"
+                           (error)="onBeforeAfterImageError(p, 'before')"
                            [alt]="p.title + ' — before'"
                            loading="lazy">
                       <img class="before-after-card__half before-after-card__half--after"
+                           [attr.srcset]="p.afterSrcset"
+                           [attr.sizes]="p.afterSrcset ? beforeAfterHalfSizes : null"
                            [src]="p.afterPhotoUrl"
+                           (error)="onBeforeAfterImageError(p, 'after')"
                            [alt]="p.title + ' — after'"
                            loading="lazy">
                     </div>
@@ -143,11 +165,13 @@
   <!-- =========================================================
        ABOUT SECTION
   ========================================================== -->
-  <section class="about-section">
+  <!-- [incremental-hydration] server-rendered for SEO, hydrated when scrolled into view. -->
+  @defer (on immediate; hydrate on viewport) {
+  <section class="about-section" [style.contain-intrinsic-size]="rememberedIntrinsicSize('about-section')">
     <div class="container-narrow">
       <div class="about-content">
         <div class="about-image-wrap">
-          <img src="/images/dream-cleaning-maids-in-nyc.webp" alt="Dream Cleaning Team" loading="lazy" />
+          <img [srcset]="aboutPhoto.srcset" [sizes]="aboutPhoto.sizes" [src]="aboutPhoto.src" alt="Dream Cleaning Team" loading="lazy" />
         </div>
         <div class="about-text">
           <h2 class="section-title-h2 section-title-h2--left">About Us</h2>
@@ -158,11 +182,16 @@
       </div>
     </div>
   </section>
+  } @placeholder {
+    <div [style.height.px]="rememberedHeights.box['about-section']"></div>
+  }
 
   <!-- =========================================================
        CHOOSE THE RIGHT CLEANING — 3 service cards
   ========================================================== -->
-  <section class="services-pick-section">
+  <!-- [incremental-hydration] server-rendered for SEO, hydrated when scrolled into view. -->
+  @defer (on immediate; hydrate on viewport) {
+  <section class="services-pick-section" [style.contain-intrinsic-size]="rememberedIntrinsicSize('services-pick-section')">
     <div class="container-narrow">
       <div class="section-header section-header--center">
         <h2 class="section-title-h2">Choose the right cleaning</h2>
@@ -178,7 +207,7 @@
           <h3>Regular Cleaning</h3>
           <p>Best for weekly, biweekly, or monthly maintenance. Dusting, vacuuming, kitchen and bathroom sanitization.</p>
           <div class="service-pick-card__footer">
-            <span class="service-pick-card__price">from ${{ pricing.residentialFrom }}</span>
+            <span class="service-pick-card__price">@if (pricing().standardFrom; as p) {from {{ p }}}</span>
             <a routerLink="/cleaning-checklist" fragment="regular" class="link-pill">View checklist</a>
           </div>
         </article>
@@ -191,7 +220,7 @@
           <h3>Deep Cleaning</h3>
           <p>Detailed top-to-bottom clean: baseboards, buildup, inside appliances, hidden dust, hard-to-reach areas.</p>
           <div class="service-pick-card__footer">
-            <span class="service-pick-card__price">from ${{ pricing.deepFrom }}</span>
+            <span class="service-pick-card__price">@if (pricing().deepFrom; as p) {from {{ p }}}</span>
             <a routerLink="/cleaning-checklist" fragment="deep" class="link-pill">View checklist</a>
           </div>
         </article>
@@ -204,18 +233,23 @@
           <h3>Move-In / Move-Out</h3>
           <p>For empty or nearly empty apartments before moving in or out. Cabinets, appliances, walls.</p>
           <div class="service-pick-card__footer">
-            <span class="service-pick-card__price">from ${{ pricing.moveInOutFrom }}</span>
+            <span class="service-pick-card__price">@if (pricing().moveInOutFrom; as p) {from {{ p }}}</span>
             <a routerLink="/cleaning-checklist" fragment="move-in-out" class="link-pill">View checklist</a>
           </div>
         </article>
       </div>
     </div>
   </section>
+  } @placeholder {
+    <div [style.height.px]="rememberedHeights.box['services-pick-section']"></div>
+  }
 
   <!-- =========================================================
        WHY CHOOSE US — 6 feature cards (restyled)
   ========================================================== -->
-  <section class="why-choose-section">
+  <!-- [incremental-hydration] static text only - no links, buttons or data - so it never needs hydrating. -->
+  @defer (on immediate; hydrate never) {
+  <section class="why-choose-section" [style.contain-intrinsic-size]="rememberedIntrinsicSize('why-choose-section')">
     <div class="container-narrow">
       <div class="section-header section-header--center">
         <h2 class="section-title-h2">Why Choose Dream Cleaning?</h2>
@@ -289,15 +323,20 @@
       </div>
     </div>
   </section>
+  } @placeholder {
+    <div [style.height.px]="rememberedHeights.box['why-choose-section']"></div>
+  }
 
   <!-- =========================================================
        SERVICES OVERVIEW (long detailed list, SEO-rich)
   ========================================================== -->
-  <section class="services-overview-section">
+  <!-- [incremental-hydration] server-rendered for SEO, hydrated when scrolled into view. -->
+  @defer (on immediate; hydrate on viewport) {
+  <section class="services-overview-section" [style.contain-intrinsic-size]="rememberedIntrinsicSize('services-overview-section')">
     <div class="container-narrow">
       <div class="section-header section-header--center">
         <h2 class="section-title-h2">Our Cleaning Services</h2>
-        <p class="section-subtitle">Dream Cleaning offers a full range of professional cleaning services across Manhattan, Brooklyn, and Queens — from standard weekly maintenance (from ${{ pricing.residentialFrom }}) to deep cleaning (from ${{ pricing.deepFrom }}), move in/out cleaning (from ${{ pricing.moveInOutFrom }}), and specialized services. All services include background-checked cleaners, professional equipment, and a 100% satisfaction guarantee.</p>
+        <p class="section-subtitle">Dream Cleaning offers a full range of professional cleaning services across Manhattan, Brooklyn, and Queens — from standard weekly maintenance@if (pricing().standardFrom; as p) { (from {{ p }})} to deep cleaning@if (pricing().deepFrom; as p) { (from {{ p }})}, move in/out cleaning@if (pricing().moveInOutFrom; as p) { (from {{ p }})}, and specialized services. All services include background-checked cleaners, professional equipment, and a 100% satisfaction guarantee.</p>
       </div>
 
       <h3 class="offer-heading">
@@ -310,11 +349,11 @@
       <div class="offer-grid">
         <article class="offer-card">
           <div class="offer-card__media">
-            <img src="/images/residential-cleaning.webp" alt="Residential cleaning service in NYC" loading="lazy">
+            <img src="/images/residential-cleaning.webp" cardImage="offerCard" alt="Residential cleaning service in NYC" loading="lazy">
           </div>
           <div class="offer-card__body">
             <h4 class="offer-card__title">Residential Cleaning</h4>
-            <p class="offer-card__desc">Weekly, biweekly, or monthly upkeep to keep your home consistently fresh — from ${{ pricing.residentialFrom }}.</p>
+            <p class="offer-card__desc">Weekly, biweekly, or monthly upkeep to keep your home consistently fresh@if (pricing().standardFrom; as p) { — from {{ p }}}.</p>
             <a routerLink="/services/residential-cleaning" class="offer-card__cta">View residential cleaning
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </a>
@@ -323,11 +362,11 @@
 
         <article class="offer-card">
           <div class="offer-card__media">
-            <img src="/images/deep-cleaning.webp" alt="Deep cleaning service in NYC" loading="lazy">
+            <img src="/images/deep-cleaning.webp" cardImage="offerCard" alt="Deep cleaning service in NYC" loading="lazy">
           </div>
           <div class="offer-card__body">
             <h4 class="offer-card__title">Deep Cleaning</h4>
-            <p class="offer-card__desc">Detailed top-to-bottom clean targeting buildup, grease, baseboards, and hidden dust — from ${{ pricing.deepFrom }}.</p>
+            <p class="offer-card__desc">Detailed top-to-bottom clean targeting buildup, grease, baseboards, and hidden dust@if (pricing().deepFrom; as p) { — from {{ p }}}.</p>
             <a routerLink="/services/deep-cleaning" class="offer-card__cta">View deep cleaning
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </a>
@@ -336,11 +375,11 @@
 
         <article class="offer-card">
           <div class="offer-card__media">
-            <img src="/images/move-in-out-cleaning.webp" alt="Move in/out cleaning service in NYC" loading="lazy">
+            <img src="/images/move-in-out-cleaning.webp" cardImage="offerCard" alt="Move in/out cleaning service in NYC" loading="lazy">
           </div>
           <div class="offer-card__body">
             <h4 class="offer-card__title">Move In/Out Cleaning</h4>
-            <p class="offer-card__desc">Transition clean covering cabinet interiors, appliances, and wall spots — from ${{ pricing.moveInOutFrom }}.</p>
+            <p class="offer-card__desc">Transition clean covering cabinet interiors, appliances, and wall spots@if (pricing().moveInOutFrom; as p) { — from {{ p }}}.</p>
             <a routerLink="/services/move-in-out-cleaning" class="offer-card__cta">View move in/out cleaning
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </a>
@@ -362,11 +401,11 @@
 
         <article class="offer-card">
           <div class="offer-card__media">
-            <img src="/images/heavy-codition-cleaning-service-in-nyc.webp" alt="Heavy condition cleaning service in NYC" loading="lazy">
+            <img src="/images/heavy-codition-cleaning-service-in-nyc.webp" cardImage="offerCard" alt="Heavy condition cleaning service in NYC" loading="lazy">
           </div>
           <div class="offer-card__body">
             <h4 class="offer-card__title">Heavy Condition Cleaning</h4>
-            <p class="offer-card__desc">Intensive restoration for homes not cleaned in 6+ months — ${{ pricing.heavyConditionPerHour }}/hour per cleaner.</p>
+            <p class="offer-card__desc">Intensive restoration for homes not cleaned in 6+ months@if (pricing().heavyPerHour; as p) { — {{ p }}/hour per cleaner}.</p>
             <a routerLink="/services/heavy-condition-cleaning" class="offer-card__cta">View heavy condition cleaning
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </a>
@@ -375,11 +414,11 @@
 
         <article class="offer-card">
           <div class="offer-card__media">
-            <img src="/images/filthy-cleaning.webp" alt="Filthy cleaning service in NYC" loading="lazy">
+            <img src="/images/filthy-cleaning.webp" cardImage="offerCard" alt="Filthy cleaning service in NYC" loading="lazy">
           </div>
           <div class="offer-card__body">
             <h4 class="offer-card__title">Filthy Cleaning</h4>
-            <p class="offer-card__desc">Our most intensive service for extreme situations — ${{ pricing.filthyPerHour }}/hour per cleaner.</p>
+            <p class="offer-card__desc">Our most intensive service for extreme situations @if (pricing().filthyShort; as p) {— {{ p }}} @else {— priced after assessment}.</p>
             <a routerLink="/services/filthy-cleaning" class="offer-card__cta">View filthy cleaning
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
             </a>
@@ -388,7 +427,7 @@
 
         <article class="offer-card">
           <div class="offer-card__media">
-            <img src="/images/post-construction-cleaning.webp" alt="Post construction cleaning service in NYC" loading="lazy">
+            <img src="/images/post-construction-cleaning.webp" cardImage="offerCard" alt="Post construction cleaning service in NYC" loading="lazy">
           </div>
           <div class="offer-card__body">
             <h4 class="offer-card__title">Post Construction</h4>
@@ -401,7 +440,7 @@
 
         <article class="offer-card">
           <div class="offer-card__media">
-            <img src="/images/laundry-service-nyc.webp" alt="Laundry and dishwashing service in NYC" loading="lazy">
+            <img src="/images/laundry-service-nyc.webp" cardImage="offerCard" alt="Laundry and dishwashing service in NYC" loading="lazy">
           </div>
           <div class="offer-card__body">
             <h4 class="offer-card__title">Laundry &amp; Dishwashing</h4>
@@ -435,11 +474,16 @@
       </div>
     </div>
   </section>
+  } @placeholder {
+    <div [style.height.px]="rememberedHeights.box['services-overview-section']"></div>
+  }
 
   <!-- =========================================================
        SERVICE AREAS — borough cards
   ========================================================== -->
-  <section class="service-areas-section">
+  <!-- [incremental-hydration] server-rendered for SEO, hydrated when scrolled into view. -->
+  @defer (on immediate; hydrate on viewport) {
+  <section class="service-areas-section" [style.contain-intrinsic-size]="rememberedIntrinsicSize('service-areas-section')">
     <div class="container-narrow">
       <div class="section-header section-header--center">
         <h2 class="section-title-h2">Where We Clean in NYC</h2>
@@ -473,11 +517,16 @@
       </div>
     </div>
   </section>
+  } @placeholder {
+    <div [style.height.px]="rememberedHeights.box['service-areas-section']"></div>
+  }
 
   <!-- =========================================================
        FINAL CTA SECTION
   ========================================================== -->
-  <section class="final-cta-section">
+  <!-- [incremental-hydration] server-rendered for SEO, hydrated when scrolled into view. -->
+  @defer (on immediate; hydrate on viewport) {
+  <section class="final-cta-section" [style.contain-intrinsic-size]="rememberedIntrinsicSize('final-cta-section')">
     <div class="container-narrow">
       <div class="final-cta-card">
         <div class="final-cta-card__main">
@@ -506,5 +555,8 @@
       </div>
     </div>
   </section>
+  } @placeholder {
+    <div [style.height.px]="rememberedHeights.box['final-cta-section']"></div>
+  }
 
-</main>
+</div>

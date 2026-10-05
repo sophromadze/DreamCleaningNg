@@ -146,7 +146,7 @@
         p {
           font-size: 1rem;
           line-height: 1.6;
-          color: var(--text-muted);
+          color: var(--text-muted-on-tint);
           margin-bottom: 10px;
         }
 
@@ -157,7 +157,7 @@
           li {
             font-size: 1rem;
             line-height: 1.6;
-            color: var(--text-muted);
+            color: var(--text-muted-on-tint);
             margin-bottom: 5px;
           }
         }
@@ -186,7 +186,7 @@
     h2 {
       font-size: 1.5rem;
       font-weight: 600;
-      color: var(--bright-red);
+      color: var(--soft-red-text);
       margin-bottom: 20px;
       display: flex;
       align-items: center;
@@ -262,14 +262,14 @@
     p {
       font-size: 1rem;
       line-height: 1.6;
-      color: var(--text-muted);
+      color: var(--text-muted-on-tint);
       margin-bottom: 15px;
       margin-left: auto;
       margin-right: auto;
 
       &.services-summary {
         font-size: 0.95rem;
-        color: #888;
+        color: var(--text-muted-on-tint);
         font-style: italic;
         margin-bottom: 20px;
       }

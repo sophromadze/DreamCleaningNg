@@ -7,6 +7,8 @@ import {
   PricingConfiguration, PricingConfigurationDiff
 } from '../../../services/admin.service';
 import { ServiceType, Service, ExtraService, ServiceThreshold, ServiceRateTier } from '../../../services/booking.service';
+import { extractApiErrorMessage } from '../../../utils/http-error.utils';
+import { DISPLAY_PRICE_UNITS, DisplayPriceUnit } from '../../../shared/pricing/display-price';
 
 export interface PollQuestion {
   id: number;
@@ -65,6 +67,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
   selectedServiceType: ServiceType | null = null;
   isEditingServiceType = false;
   isAddingServiceType = false;
+  readonly displayPriceUnits = DISPLAY_PRICE_UNITS;
   newServiceType = {
     name: '',
     basePrice: 0,
@@ -76,7 +79,10 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     // Defaults true, matching the NOT NULL column default: a new type asks apartment vs house
     // unless an admin turns it off.
     collectsPropertyType: true,
-    minimumPrice: 0
+    minimumPrice: 0,
+    serviceKey: '',
+    displayPrice: null as number | null,
+    displayPriceUnit: null as DisplayPriceUnit | null
   };
 
   // Services
@@ -141,7 +147,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
     priceMultiplier: 1.0,
     serviceTypeId: undefined,
     isAvailableForAll: true,
-    displayOrder: 1
+    displayOrder: 1,
+    extraServiceKey: ''
   };
   selectedExistingExtraServiceId: number | null = null;
   showExistingExtraServices = false;
@@ -598,7 +605,10 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       hasPoll: false,
       isCustom: false,
       collectsPropertyType: true,
-      minimumPrice: 0
+      minimumPrice: 0,
+      serviceKey: '',
+      displayPrice: null,
+      displayPriceUnit: null
     };
   }
 
@@ -613,7 +623,10 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       hasPoll: false,
       isCustom: false,
       collectsPropertyType: true,
-      minimumPrice: 0
+      minimumPrice: 0,
+      serviceKey: '',
+      displayPrice: null,
+      displayPriceUnit: null
     };
   }
 
@@ -631,15 +644,23 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
           hasPoll: false,
           isCustom: false,
           collectsPropertyType: true,
-          minimumPrice: 0
+          minimumPrice: 0,
+          serviceKey: '',
+          displayPrice: null,
+          displayPriceUnit: null
         };
         this.serviceTypeMessage.success = 'Service type added successfully.';
       },
       error: (error) => {
         console.error('Error creating service type:', error);
-        this.serviceTypeMessage.error = 'Failed to create service type. Please try again.';
+        // Names the actual problem (e.g. a duplicate or badly formatted service key).
+        this.serviceTypeMessage.error = extractApiErrorMessage(error, 'Failed to create service type. Please try again.');
       }
     });
+  }
+
+  displayPriceUnitLabel(unit: string | null | undefined): string {
+    return DISPLAY_PRICE_UNITS.find(u => u.value === unit)?.label ?? '';
   }
 
   editServiceType() {
@@ -691,7 +712,17 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
         timeDuration: this.selectedServiceType.timeDuration,
         hasPoll: this.selectedServiceType.hasPoll,
         isCustom: this.selectedServiceType.isCustom,
-        minimumPrice: this.selectedServiceType.minimumPrice ?? 0
+        // Must be sent: the update DTO defaults it to true, so leaving it out re-ticked
+        // "Ask apartment / house" on every save. Absent on the row still means true.
+        collectsPropertyType: this.selectedServiceType.collectsPropertyType !== false,
+        minimumPrice: this.selectedServiceType.minimumPrice ?? 0,
+        // Always sent: the endpoint treats the value as the full intended key, so leaving it
+        // out of an ordinary name/price edit would clear it.
+        serviceKey: this.selectedServiceType.serviceKey ?? null,
+        // Same "full intended value" contract as the key. An emptied number input binds as null
+        // (or '' on some browsers), both meaning "no display price".
+        displayPrice: typeof this.selectedServiceType.displayPrice === 'number' ? this.selectedServiceType.displayPrice : null,
+        displayPriceUnit: this.selectedServiceType.displayPriceUnit ?? null
       };
       this.adminService.updateServiceType(this.selectedServiceType.id, updateData).subscribe({
         next: (response) => {
@@ -705,7 +736,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
         },
         error: (error) => {
           console.error('Error updating service type:', error);
-          this.serviceTypeMessage.error = 'Failed to update service type. Please try again.';
+          this.serviceTypeMessage.error = extractApiErrorMessage(error, 'Failed to update service type. Please try again.');
         }
       });
     }
@@ -1395,7 +1426,8 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       priceMultiplier: 1.0,
       serviceTypeId: this.selectedServiceType.id,
       isAvailableForAll: true,
-      displayOrder: this.selectedServiceType.extraServices.length + 1
+      displayOrder: this.selectedServiceType.extraServices.length + 1,
+      extraServiceKey: ''
     };
   }
 
@@ -1417,11 +1449,13 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       return [];
     }
 
-    // Get the names of extra services that are already in the selected service type
-    const existingServiceNames = this.selectedServiceType.extraServices.map(service => service.name);
-
-    // Filter out extra services that already exist in the selected service type
-    return this.allExtraServices.filter(service => !existingServiceNames.includes(service.name));
+    // Offer only extras the selected type does not already have: matched on the KEY when the
+    // candidate carries one (a renamed copy is still the same extra), otherwise on the name as before.
+    const existing = this.selectedServiceType.extraServices;
+    const existingKeys = new Set(existing.map(s => s.extraServiceKey).filter((k): k is string => !!k));
+    const existingNames = new Set(existing.map(s => s.name));
+    return this.allExtraServices.filter(service =>
+      service.extraServiceKey ? !existingKeys.has(service.extraServiceKey) : !existingNames.has(service.name));
   }
 
   copyExistingExtraService() {
@@ -1500,13 +1534,14 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
           priceMultiplier: 1.0,
           serviceTypeId: undefined,
           isAvailableForAll: true,
-          displayOrder: 1
+          displayOrder: 1,
+          extraServiceKey: ''
         };
         this.extraServiceMessage.success = 'Extra service added successfully.';
       },
       error: (error) => {
         console.error('Error creating extra service:', error);
-        this.extraServiceMessage.error = 'Failed to create extra service. Please try again.';
+        this.extraServiceMessage.error = extractApiErrorMessage(error, 'Failed to create extra service. Please try again.');
       }
     });
   }
@@ -1544,7 +1579,9 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       priceMultiplier: extraService.priceMultiplier,
       serviceTypeId: extraService.isAvailableForAll ? undefined : this.selectedServiceType?.id,
       isAvailableForAll: extraService.isAvailableForAll,
-      displayOrder: extraService.displayOrder || 1
+      displayOrder: extraService.displayOrder || 1,
+      // Blank saves as "no key"; format and uniqueness come back from the server as the message.
+      extraServiceKey: extraService.extraServiceKey ?? null
     };
     this.adminService.updateExtraService(extraService.id, updateData).subscribe({
       next: (response) => {
@@ -1560,7 +1597,7 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
       },
       error: (error) => {
         console.error('Error updating extra service:', error);
-        this.extraServiceMessage.error = 'Failed to update extra service. Please try again.';
+        this.extraServiceMessage.error = extractApiErrorMessage(error, 'Failed to update extra service. Please try again.');
       }
     });
   }

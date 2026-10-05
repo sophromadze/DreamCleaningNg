@@ -54,7 +54,7 @@
 
   &.alert-error {
     background: var(--soft-red);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
   }
 
   &.alert-warning {
@@ -64,7 +64,7 @@
 
   &.alert-info {
     background: var(--soft-blue);
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
   }
 }
 
@@ -94,7 +94,7 @@
 .hint {
   display: block;
   font-size: 0.78rem;
-  color: var(--text-muted);
+  color: var(--text-muted-on-tint);
   margin-top: 5px;
 }
 
@@ -129,7 +129,7 @@
 
     &:disabled, &.readonly {
       background: var(--surface-subtle);
-      color: var(--text-muted);
+      color: var(--text-muted-on-tint);
       cursor: not-allowed;
     }
   }
@@ -226,7 +226,7 @@
     width: 100%;
 
     &:focus { outline: none; border-color: var(--primary-color); }
-    &:disabled { background: var(--surface-subtle); color: var(--text-muted); }
+    &:disabled { background: var(--surface-subtle); color: var(--text-muted-on-tint); }
   }
 
   .line-amount {
@@ -251,7 +251,7 @@
   padding: 4px 7px;
 
   &:hover:not(:disabled) {
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     background: var(--soft-red);
   }
   &:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -318,7 +318,7 @@
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--fresh-green);
+    color: var(--mint-fresh-text);
     margin-left: 4px;
   }
 }
@@ -353,7 +353,7 @@
 .btn-secondary {
   background: var(--surface);
   border-color: var(--primary-color);
-  color: var(--primary-color);
+  color: var(--primary-text-elevated);
   &:hover:not(:disabled) { background: var(--soft-blue); }
 }
 
@@ -409,7 +409,7 @@
   line-height: 1;
   cursor: pointer;
 
-  &:hover { color: var(--bright-red); }
+  &:hover { color: var(--soft-red-text); }
 }
 
 .date-add {
@@ -453,7 +453,7 @@
   border: none;
   background: none;
   padding: 0;
-  color: var(--primary-color);
+  color: var(--primary-color-text);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -509,6 +509,7 @@
 
 .covered-date { font-weight: var(--fw-medium); color: var(--text-primary); }
 .covered-type { color: var(--text-secondary); }
+.covered-meta { color: var(--text-muted); font-size: 0.82em; }
 .covered-total { color: var(--text-primary); text-align: right; }
 
 .covered-blocked {

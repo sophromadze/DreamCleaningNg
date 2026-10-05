@@ -12,6 +12,9 @@ import {
   buildSupplyChecklistItems,
   resolveSupplyChecklistFactsForExtras
 } from '../../../shared/booking/supply-checklist.utils';
+import { isDeepOrSuperDeepExtra, isSuperDeepExtra } from '../../../shared/booking/extra-service-keys';
+import { OrderExtraService } from '../../../services/order.service';
+import { isBedroomsLine, isCleanersLine, KeyedOrderService } from '../../../shared/booking/order-service-keys';
 
 @Component({
   selector: 'app-order-details',
@@ -116,9 +119,7 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
     if (!this.order) return 0;
 
     // Check for Cleaners service
-    const cleanersService = this.order.services.find(s =>
-      s.serviceName.toLowerCase().includes('cleaner')
-    );
+    const cleanersService = this.order.services.find(s => isCleanersLine(s));
 
     if (cleanersService) {
       return cleanersService.duration; // This is already in minutes
@@ -140,11 +141,13 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
   shouldShowCleanersCount(): boolean {
     if (!this.order) return false;
     if (this.isCustomServiceType()) return true;
-    return this.order.services.some(s => s.serviceName.toLowerCase().includes('cleaner'));
+    return this.order.services.some(s => isCleanersLine(s));
   }
 
   isCustomServiceType(): boolean {
     if (!this.order) return false;
+    // The server says so directly; the service-line heuristic below covers an older payload.
+    if (this.order.isCustomServiceType) return true;
     
     // Check if this order has a service with ServiceId = 0 (custom service marker)
     // OR check if all services arrays are empty (another indicator of custom pricing)
@@ -153,6 +156,12 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
       (this.order.services.length === 1 && this.order.services[0].serviceId === 0);
     
     return hasCustomServiceMarker || hasNoRegularServices;
+  }
+
+  /** Custom orders: the admin ticked "show bedrooms & bathrooms" and at least one count exists. */
+  showCustomRoomCounts(): boolean {
+    return !!this.order?.showRoomCountsToCustomer
+      && (this.order.bedroomsQuantity != null || this.order.bathroomsQuantity != null);
   }
 
   openCancelModal() {
@@ -269,6 +278,13 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
    *  settled outside Stripe — Cash/Zelle/Check/Other, i.e. paymentMethod !== 'Normal'.
    *  Manual-paid orders keep isPaid=false by backend design, so we treat them as paid
    *  here to suppress the Pay button. */
+  /** The unpaid block (Pay Now + its own Cancel Order) is on screen. The general Cancel Order
+   *  button is hidden while it is, so the page never shows two. */
+  showsUnpaidActions(): boolean {
+    return !!this.order && !this.order.recurringSeriesId && !this.isEffectivelyPaid()
+      && this.order.status !== 'Cancelled';
+  }
+
   isEffectivelyPaid(): boolean {
     return !!this.order && (!!this.order.isPaid || (!!this.order.paymentMethod && this.order.paymentMethod !== 'Normal'));
   }
@@ -371,14 +387,9 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
   getCleaningTypeText(): string {
     if (!this.order) return 'Normal Cleaning';
     
-    const deepCleaning = this.order.extraServices.find(s => 
-      s.extraServiceName.toLowerCase().includes('deep cleaning') && 
-      !s.extraServiceName.toLowerCase().includes('super')
-    );
-    
-    const superDeepCleaning = this.order.extraServices.find(s => 
-      s.extraServiceName.toLowerCase().includes('super deep cleaning')
-    );
+    // The Deep / Super Deep flags decide; an unkeyed, un-flagged line by its name as before.
+    const superDeepCleaning = this.order.extraServices.find(s => isSuperDeepExtra(s));
+    const deepCleaning = this.order.extraServices.find(s => isDeepOrSuperDeepExtra(s) && !isSuperDeepExtra(s));
     
     if (superDeepCleaning) {
       return 'Super Deep Cleaning';
@@ -389,19 +400,27 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
   }
 
   /** Deep/super-deep cleaning is shown under Cleaning Type, not as a line item. */
-  private isCleaningTypeExtra(extraServiceName: string): boolean {
-    const name = extraServiceName.toLowerCase();
-    return name.includes('deep cleaning');
+  private isCleaningTypeExtra(extra: OrderExtraService): boolean {
+    return isDeepOrSuperDeepExtra(extra);
   }
 
   getDisplayExtraServices() {
     if (!this.order) return [];
-    return this.order.extraServices.filter(e => !this.isCleaningTypeExtra(e.extraServiceName));
+    return this.order.extraServices.filter(e => !this.isCleaningTypeExtra(e));
   }
 
   hasCleanerService(): boolean {
     if (!this.order) return false;
-    return this.order.services.some(s => s.serviceName.toLowerCase().includes('cleaner'));
+    return this.order.services.some(s => isCleanersLine(s));
+  }
+
+  /** Service-line checks for the template: by serviceKey, the name only for an unkeyed line. */
+  isBedroomsServiceLine(line: KeyedOrderService): boolean {
+    return isBedroomsLine(line);
+  }
+
+  isCleanersServiceLine(line: KeyedOrderService): boolean {
+    return isCleanersLine(line);
   }
 
   cancelUnpaidOrder() {

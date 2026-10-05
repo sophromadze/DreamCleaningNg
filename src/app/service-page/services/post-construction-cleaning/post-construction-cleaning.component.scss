@@ -65,7 +65,7 @@
       .tagline {
         margin: 20px 0;
         
-        h3 {
+        h2 {
           color: var(--primary-text);
           font-size: 1.4rem;
           font-weight: 600;
@@ -260,7 +260,7 @@
           }
     
           .benefit-content {
-            h4 {
+            h3 {
               color: var(--text-primary);
               font-size: 1.2rem;
               margin-bottom: 8px;
@@ -490,7 +490,7 @@
         
         .benefit-item {
           .benefit-content {
-            h4 {
+            h3 {
               font-size: 1.1rem;
             }
             
@@ -632,7 +632,7 @@
       .why-choose .benefits-grid {
         .benefit-item {
           .benefit-content {
-            h4 {
+            h3 {
               font-size: 1rem;
             }
             
@@ -752,7 +752,7 @@
       .why-choose .benefits-grid {
         .benefit-item {
           .benefit-content {
-            h4 {
+            h3 {
               font-size: 0.9rem;
             }
             
@@ -794,3 +794,8 @@
     }
   }
 } 
+
+/* Inline link in the closing paragraph (on the --soft-blue CTA box) had no colour (UA #0000ee is 1.6:1 on the night surface). */
+.post-construction-cleaning-container .content-section .cta-section > p a {
+  color: var(--primary-text);
+}

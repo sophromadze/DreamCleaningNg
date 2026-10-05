@@ -28,7 +28,7 @@
   border-radius: var(--radius-sm);
   font-size: 0.86rem;
 
-  &.alert-error { background: var(--soft-red); color: var(--bright-red); }
+  &.alert-error { background: var(--soft-red); color: var(--soft-red-text); }
   &.alert-success { background: var(--mint-fresh); color: var(--mint-fresh-text); }
   &.alert-warning { background: var(--warning-orange-bg); color: var(--warning-orange-text); }
 }
@@ -68,8 +68,8 @@
   letter-spacing: 0.03em;
   text-transform: uppercase;
 
-  &.status-draft { background: var(--surface-subtle); color: var(--text-muted); }
-  &.status-sent { background: var(--soft-blue); color: var(--primary-color); }
+  &.status-draft { background: var(--surface-subtle); color: var(--text-muted-on-tint); }
+  &.status-sent { background: var(--soft-blue); color: var(--primary-text-elevated); }
   &.status-viewed {
     background: var(--soft-blue);
     color: var(--primary-color-hover);
@@ -77,10 +77,10 @@
   }
   &.status-partial { background: var(--soft-yellow); color: var(--soft-yellow-text); }
   &.status-paid { background: var(--mint-fresh); color: var(--mint-fresh-text); }
-  &.status-overdue { background: var(--soft-red); color: var(--bright-red); }
+  &.status-overdue { background: var(--soft-red); color: var(--soft-red-text); }
   &.status-void {
     background: var(--surface-subtle);
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
     text-decoration: line-through;
   }
 }
@@ -114,7 +114,7 @@
 .btn-secondary {
   background: var(--surface);
   border-color: var(--primary-color);
-  color: var(--primary-color);
+  color: var(--primary-text-elevated);
   &:hover:not(:disabled) { background: var(--soft-blue); }
 }
 
@@ -128,7 +128,7 @@
 .btn-danger {
   background: var(--surface);
   border-color: var(--bright-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   &:hover:not(:disabled) { background: var(--soft-red); }
 }
 
@@ -136,7 +136,7 @@
   background: none;
   border: none;
   padding: 0;
-  color: var(--primary-color);
+  color: var(--primary-text-elevated);
   font-size: 0.8rem;
   cursor: pointer;
   &:hover { text-decoration: underline; }
@@ -196,11 +196,11 @@
     font-size: 0.83rem;
     color: var(--text-secondary);
 
-    &.paid-note { color: var(--fresh-green); font-weight: var(--fw-medium); }
+    &.paid-note { color: var(--mint-fresh-text); font-weight: var(--fw-medium); }
     &.warn { color: var(--warning-orange-text); font-weight: var(--fw-medium); }
   }
 
-  &.paid .total-value { color: var(--fresh-green); }
+  &.paid .total-value { color: var(--mint-fresh-text); }
 }
 
 /* ── Facts ───────────────────────────────────────────────────────────────────────────────── */
@@ -220,7 +220,7 @@
   color: var(--text-primary);
   min-width: 0;
 
-  a { color: var(--primary-color); text-decoration: none; &:hover { text-decoration: underline; } }
+  a { color: var(--primary-color-text); text-decoration: none; &:hover { text-decoration: underline; } }
 }
 
 .fact-list {
@@ -333,7 +333,7 @@
   .attempt-failure {
     margin-top: 3px;
     font-size: 0.78rem;
-    color: var(--bright-red);
+    color: var(--soft-red-text);
   }
 }
 
@@ -348,8 +348,8 @@
 
   &.attempt-succeeded { background: var(--mint-fresh); color: var(--mint-fresh-text); }
   &.attempt-processing { background: var(--warning-orange-bg); color: var(--warning-orange-text); }
-  &.attempt-failed { background: var(--soft-red); color: var(--bright-red); }
-  &.attempt-inactive { background: var(--surface-subtle); color: var(--text-muted); }
+  &.attempt-failed { background: var(--soft-red); color: var(--soft-red-text); }
+  &.attempt-inactive { background: var(--surface-subtle); color: var(--text-muted-on-tint); }
 }
 
 /* ── Totals ──────────────────────────────────────────────────────────────────────────────── */
@@ -439,7 +439,7 @@
 
     em {
       font-style: normal;
-      color: var(--bright-red);
+      color: var(--soft-red-text);
       font-size: 0.72rem;
       text-transform: uppercase;
       margin-left: 5px;
@@ -453,7 +453,7 @@
 
   .event-error {
     font-size: 0.74rem;
-    color: var(--bright-red);
+    color: var(--soft-red-text);
   }
 }
 
@@ -587,10 +587,10 @@
     padding: 0.12rem 0.45rem;
     border-radius: var(--radius-sm);
     background: var(--soft-blue);
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
 
     &.safe { background: var(--mint-fresh); color: var(--mint-fresh-text); }
-    &.destructive { background: var(--soft-red); color: var(--bright-red); }
+    &.destructive { background: var(--soft-red); color: var(--soft-red-text); }
   }
 
   .confirm-label {
@@ -623,6 +623,6 @@
     margin: 0.4rem 0 0;
     font-size: 0.85rem;
     line-height: 1.5;
-    color: var(--bright-red);
+    color: var(--soft-red-text);
   }
 }

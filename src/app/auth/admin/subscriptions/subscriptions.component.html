@@ -37,6 +37,13 @@
         <input type="number" id="displayOrder" [(ngModel)]="newSubscription.displayOrder" name="displayOrder" required min="0">
       </div>
 
+      <div class="form-group">
+        <label>
+          <input type="checkbox" [(ngModel)]="newSubscription.isMostPopular" name="isMostPopular">
+          "Most popular" badge on the booking page (moves it off any other plan)
+        </label>
+      </div>
+
       <div class="form-actions">
         <button type="submit" class="action-btn save">Save</button>
         <button type="button" class="action-btn cancel" (click)="cancelAddSubscription()">Cancel</button>
@@ -63,21 +70,27 @@
         <tr *ngFor="let subscription of subscriptions"
             [class.editing]="editingSubscriptionId === subscription.id">
           <td>
-            <div *ngIf="editingSubscriptionId !== subscription.id">{{subscription.name}}</div>
-            <input *ngIf="editingSubscriptionId === subscription.id" 
+            <div *ngIf="editingSubscriptionId !== subscription.id">
+              {{subscription.name}}
+              <span *ngIf="subscription.isMostPopular" class="status-badge active">Most popular</span>
+            </div>
+            <input aria-label="Name" *ngIf="editingSubscriptionId === subscription.id" 
                    type="text" 
                    [(ngModel)]="subscription.name"
                    class="edit-input">
+            <label *ngIf="editingSubscriptionId === subscription.id">
+              <input type="checkbox" [(ngModel)]="subscription.isMostPopular"> Most popular
+            </label>
           </td>
           <td>
             <div *ngIf="editingSubscriptionId !== subscription.id">{{subscription.description}}</div>
-            <textarea *ngIf="editingSubscriptionId === subscription.id" 
+            <textarea aria-label="Description" *ngIf="editingSubscriptionId === subscription.id" 
                       [(ngModel)]="subscription.description"
                       class="edit-textarea"></textarea>
           </td>
           <td>
             <div *ngIf="editingSubscriptionId !== subscription.id">{{subscription.discountPercentage}}%</div>
-            <input *ngIf="editingSubscriptionId === subscription.id" 
+            <input aria-label="Discount (%)" *ngIf="editingSubscriptionId === subscription.id" 
                    type="number" 
                    [(ngModel)]="subscription.discountPercentage" 
                    min="0" 
@@ -89,7 +102,7 @@
               <span *ngIf="subscription.subscriptionDays === 0">One Time</span>
               <span *ngIf="subscription.subscriptionDays > 0">{{subscription.subscriptionDays}} days</span>
             </div>
-            <input *ngIf="editingSubscriptionId === subscription.id" 
+            <input aria-label="Duration (days)" *ngIf="editingSubscriptionId === subscription.id" 
                    type="number" 
                    [(ngModel)]="subscription.subscriptionDays" 
                    min="0"
@@ -99,7 +112,7 @@
             <div *ngIf="editingSubscriptionId !== subscription.id">
               {{ subscription.displayOrder || 0 }}
             </div>
-            <input *ngIf="editingSubscriptionId === subscription.id" 
+            <input aria-label="Order" *ngIf="editingSubscriptionId === subscription.id" 
                    type="number" 
                    [(ngModel)]="subscription.displayOrder" 
                    class="edit-input"

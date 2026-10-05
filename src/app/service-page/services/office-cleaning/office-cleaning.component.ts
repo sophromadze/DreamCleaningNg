@@ -1,8 +1,9 @@
-import { Component, OnInit, OnDestroy, Inject, inject } from '@angular/core';
-import { CommonModule, DOCUMENT } from '@angular/common';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { PhoneNumberService } from '../../../services/phone-number.service';
 import { COMMERCIAL_FIRST_MONTH_DISCOUNT_PERCENT } from '../../../shared/commercial-offer.data';
+import { StructuredDataService } from '../../../services/structured-data.service';
 
 @Component({
   selector: 'app-office-cleaning',
@@ -14,18 +15,14 @@ import { COMMERCIAL_FIRST_MONTH_DISCOUNT_PERCENT } from '../../../shared/commerc
 export class OfficeCleaningComponent implements OnInit, OnDestroy {
   readonly firstMonthDiscountPercent = COMMERCIAL_FIRST_MONTH_DISCOUNT_PERCENT;
   protected readonly phoneNumber = inject(PhoneNumberService);
-  private schemaElement: HTMLScriptElement | null = null;
-
-  constructor(@Inject(DOCUMENT) private document: Document) {}
+  private readonly structuredData = inject(StructuredDataService);
 
   ngOnInit(): void {
     this.injectSchema();
   }
 
   ngOnDestroy(): void {
-    if (this.schemaElement && this.schemaElement.parentNode) {
-      this.schemaElement.parentNode.removeChild(this.schemaElement);
-    }
+    this.structuredData.remove('ld-office-cleaning');
   }
 
   private injectSchema(): void {
@@ -47,9 +44,6 @@ export class OfficeCleaningComponent implements OnInit, OnDestroy {
       'serviceType': 'Office Cleaning'
     };
 
-    this.schemaElement = this.document.createElement('script');
-    this.schemaElement.type = 'application/ld+json';
-    this.schemaElement.textContent = JSON.stringify(schema);
-    this.document.head.appendChild(this.schemaElement);
+    this.structuredData.set('ld-office-cleaning', schema);
   }
 }

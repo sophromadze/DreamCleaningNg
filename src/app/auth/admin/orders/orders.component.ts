@@ -10,22 +10,33 @@ import { DurationUtils } from '../../../utils/duration.utils';
 import { OrderReminderService } from '../../../services/order-reminder.service';
 import { FloorTypeSelection } from '../../../shared/components/floor-type-selector/floor-type-selector.component';
 import {
-  PAYMENT_METHOD_OPTIONS, PaymentMethodValue, isSettledOnRecord
+  PAYMENT_METHOD_OPTIONS, PaymentMethodValue, isSettledOnRecord, paymentMethodLabel
 } from '../../../shared/payment-method';
+
+/** The payment-method editor's choices: the stored methods plus the regular-invoice shortcut. */
+type PaymentMethodEditChoice = PaymentMethodValue | 'RegularInvoice';
 import { InvoiceService, InvoiceClientOption, OrderInvoices, LinkedInvoiceSummary } from '../../../services/invoice.service';
+import { CustomerInvoiceService, CustomerInvoice, CUSTOMER_INVOICE_STATUS_LABELS } from '../../../services/customer-invoice.service';
+import { OrderChangeEntry, buildOrderChangeEntries } from './order-changes.util';
 import { NewOrderNotificationService } from '../../../services/new-order-notification.service';
 import { BubbleRewardsService } from '../../../services/bubble-rewards.service';
 import { forkJoin, of, Observable, concat } from 'rxjs';
 import { catchError, finalize, last } from 'rxjs/operators';
-import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
+import { matchesPhoneSearch, normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
 import { extractApiErrorMessage } from '../../../utils/http-error.utils';
 import { ShiftService, ShiftAdmin } from '../../../services/shift.service';
 import { BillingService, AdminOrderSavedCardInfo } from '../../../services/billing.service';
-import { formatNy, formatNyDateTime } from '../../../shared/ny-time.util';
+import { formatNy, formatNyDateTime, parseUtcDate } from '../../../shared/ny-time.util';
 import {
   formatAdminServiceTypeLabel,
-  isResidentialServiceTypeName
+  isResidentialServiceTypeOrKey
 } from '../../../shared/admin/service-type-short-label';
+import {
+  isPartiallyRefundedOrder,
+  orderStatusBadgeClass,
+  orderStatusBadgeLabel,
+  orderStatusBadgeTitle,
+} from '../../../shared/admin/order-status-badge';
 import {
   calculateQuote,
   calculateTotals,
@@ -36,7 +47,7 @@ import {
   getServiceDisplayDuration,
   getSquareFeetForBedrooms,
   resolveSquareFeetForBedroomChange,
-  rescaleDiscountToSubTotal,
+  isExtraCleaners,
   resolveGiftCardAmountToUse,
   round2,
   QuoteResult,
@@ -44,13 +55,15 @@ import {
   SALES_TAX_RATE,
   STUDIO_PRICE
 } from '../../../shared/pricing/order-pricing.calculator';
+import { isDeepOrSuperDeepExtra, isSuperDeepExtra } from '../../../shared/booking/extra-service-keys';
 import { buildAdminEditQuoteInput } from '../../../shared/pricing/admin-order-edit.pricing';
-import { solveSubTotalForTypedTotal } from '../../../shared/pricing/admin-total-solve';
+import { discountsForSubTotal, EditDiscountSnapshot, solveSubTotalForTypedTotal } from '../../../shared/pricing/admin-total-solve';
 import {
   PROPERTY_TYPE_APARTMENT,
   PROPERTY_TYPE_HOUSE,
   isHouse,
   isLevelsService,
+  findLevelsService,
   LEVEL_OPTIONS,
   MIN_LEVELS,
   levelsToDisplay,
@@ -64,6 +77,7 @@ import { canSaveOrderEditsDirectly as canSaveOrderEditsDirectlyFor } from '../..
 import {
   RecurringSeriesPanelComponent
 } from '../../../shared/components/recurring-series-panel/recurring-series-panel.component';
+import { isBedroomsLine, isCleanersLine, isHoursLine, KeyedOrderService, orderServiceKeyOf } from '../../../shared/booking/order-service-keys';
 
 /** One row of an order-edit review table (approval modal and save-confirmation modal). */
 export interface OrderEditChange {
@@ -97,6 +111,8 @@ export interface AdminOrderList extends OrderList {
   contactEmail: string;
   contactFirstName: string;
   contactLastName: string;
+  /** Stored as bare digits. Lets the orders search match a phone number. */
+  contactPhone?: string;
   totalDuration: number;
   /** Staffing-review badge inputs: per-cleaner load > 6h warns (regular types only). */
   maidsCount?: number;
@@ -115,6 +131,23 @@ export interface AdminOrderList extends OrderList {
   totalRefundedAmount?: number;
   /** Soft-hidden from the default list view. Only populated when includeHidden was requested. */
   isHidden?: boolean;
+}
+
+/** One row of the order panel's single Payments list (see `paymentTimeline`). */
+export interface PaymentTimelineRow {
+  key: string;
+  when: string | Date | null;
+  label: string;
+  amount: number;
+  sign: '' | '+' | '−';
+  status: 'paid' | 'due' | 'void' | 'info';
+  statusText: string;
+  paidAt?: string | Date | null;
+  invoice: CustomerInvoice | null;
+  /** Set on an order-edit row, so the row can carry "Record manual payment". */
+  update?: OrderUpdateHistory;
+  /** Set on a part-payment row, so a manually recorded one can be corrected. */
+  slice?: OrderPartialPayment;
 }
 
 @Component({
@@ -420,6 +453,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    * resolveStoredTaxOverride) so merely opening the editor cannot move what the customer pays.
    */
   editOrderTaxOverride: { tax: number; base: number } | null = null;
+  /**
+   * True once the admin TYPES a price (SubTotal or Total) in this editing session, and false again
+   * the moment the lines re-price it. Sent as priceTypedByAdmin: without it the server prices the
+   * order from its lines and ignores the posted subtotal (2026-10).
+   */
+  editOrderPriceTyped = false;
 
   // SuperAdmin full order edit
   editingOrder = false;
@@ -572,7 +611,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private shiftService: ShiftService,
     // Only used by the Invoice payment method's commercial-client picker.
-    private invoiceService: InvoiceService
+    private invoiceService: InvoiceService,
+    // Regular (non-commercial) customer invoices: the Payments card and the Send Invoice modal.
+    private customerInvoiceService: CustomerInvoiceService
   ) {}
 
   ngOnInit() {
@@ -742,6 +783,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           setTimeout(() => { this.successMessage = ''; }, result.hasDispute ? 15000 : 8000);
           // An import can flip the order to Refunded and move the revenue totals.
           if (result.refundsImported > 0) this.loadOrders();
+          if (result.refundsImported > 0 && this.selectedOrder?.id === orderId) this.refreshOrderAfterSave();
         } else {
           this.refundError = result.message;
         }
@@ -972,6 +1014,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           // A full refund flips the order to Refunded and changes the revenue totals, so the
           // list and its header cards have to come back from the server.
           this.loadOrders();
+          if (this.selectedOrder?.id === orderId) this.refreshOrderAfterSave();
         } else {
           // Covers the partial case too: some money may already have moved, so the modal stays
           // open showing exactly what happened instead of inviting a blind full retry.
@@ -1132,6 +1175,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           this.errorMessage = res.message;
         }
         this.refreshSelectedOrderAfterTransfer(order.id);
+        this.refreshOrderAfterSave();
       },
       error: (err) => {
         this.loadingStates.chargingSavedCard = false;
@@ -1728,6 +1772,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         || (this.orderInvoices?.invoices?.length ?? 0) > 0;
   }
 
+  /**
+   * True when the order was paid in person — Cash, Zelle, Check or Other. Recording one of those
+   * methods MEANS the money has arrived (PaymentMethodRules.IsSettledOnRecord), so the order owes
+   * nothing on its own total and must never be offered a payment link or an invoice for it. An
+   * admin who switches the method back to card (Normal) or Invoice brings those offers back.
+   * Invoice is deliberately NOT in this list: it is outside Stripe but still unpaid.
+   */
+  get isSettledOffline(): boolean {
+    const m = this.selectedOrder?.paymentMethod;
+    return m === 'Cash' || m === 'Zelle' || m === 'Check' || m === 'BankTransfer' || m === 'Other';
+  }
+
   /** The invoices covering the open order, newest first. */
   get coveringInvoices(): LinkedInvoiceSummary[] {
     return this.orderInvoices?.invoices ?? [];
@@ -1978,7 +2034,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Preload Deep/Regular variant for residential rows from order details API. */
   private preloadResidentialVariants() {
-    const residentialOrders = this.orders.filter(order => this.isResidentialServiceType(order.serviceTypeName));
+    const residentialOrders = this.orders.filter(order => this.isResidentialServiceType(order));
     if (residentialOrders.length === 0) return;
 
     const batchSize = 10;
@@ -2135,6 +2191,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   private loadPartialPayments(orderId: number): void {
     this.resetPartialPaymentState();
     this.loadingPartialBalance = true;
+    // Invoice statuses are derived from the same balance, so they are refreshed with it.
+    this.loadCustomerInvoices(orderId);
+    this.receiptPaymentKeys = new Set();
+    this.receiptDefaultEmail = '';
+    this.sendingReceiptKey = null;
+    this.loadReceiptPayments(orderId);
 
     this.adminService.getOrderPartialPayments(orderId)
       .pipe(finalize(() => this.loadingPartialBalance = false))
@@ -2158,9 +2220,667 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.selectedOrder || !this.partialBalance) return false;
     // Money has been taken in slices, or slices can still be asked for. A settled order with no
     // part-payment history has nothing here that the existing payment rows don't already say.
+    // Also shown when an edit added money AFTER payment, and whenever the order has a regular
+    // invoice. (amountPaid is reported for a fully paid order too since 2026-09, so it only
+    // counts here while the order is unpaid — otherwise every settled order would grow a card.)
     return this.partialBalance.history.length > 0
       || this.partialBalance.canRequestPartialPayment
-      || this.partialBalance.amountPaid > 0;
+      || (this.partialBalance.amountPaid > 0 && !this.selectedOrder.isPaid)
+      || this.additionalAmountDue > 0
+      || this.orderCustomerInvoices.length > 0;
+  }
+
+  /** Owed on top of a PAID order because an edit raised its price afterwards. */
+  get additionalAmountDue(): number {
+    return this.partialBalance?.additionalAmountDue ?? 0;
+  }
+
+  // ── Regular customer invoices from the order panel (2026-09) ──────────────────────────
+  //
+  // The same invoices Admin → Invoices issues (DCR-…), reachable where the admin is already
+  // looking: an order booked with a Stripe pay link can be switched to an invoice, split into
+  // several invoices on request, and an amount added after payment can be billed by its own
+  // invoice. Every rule (what may be billed, split or combined) is the server's.
+
+  orderCustomerInvoices: CustomerInvoice[] = [];
+  readonly customerInvoiceStatusLabels = CUSTOMER_INVOICE_STATUS_LABELS;
+  showCustomerInvoiceModal = false;
+  customerInvoiceSplitMode = false;
+  customerInvoiceSplitAmounts: (number | null)[] = [null, null];
+  customerInvoiceNote = '';
+  customerInvoiceChannels = { email: true, sms: true };
+  customerInvoiceBusy = false;
+  customerInvoiceActionId: number | null = null;
+  customerInvoiceMessage = '';
+  customerInvoiceError = '';
+  customerInvoiceCopiedId: number | null = null;
+
+  /** Re-reads the balance and invoices WITHOUT resetting the Payments card's form or messages —
+   *  the refresh every action ends with, as against loadPartialPayments on opening an order. */
+  private refreshPartialBalanceQuietly(orderId: number): void {
+    this.loadCustomerInvoices(orderId);
+    this.loadReceiptPayments(orderId);
+    this.adminService.getOrderPartialPayments(orderId).subscribe({
+      next: balance => { if (this.viewingOrderId === orderId) this.partialBalance = balance; },
+      error: () => { /* keep what is on screen */ }
+    });
+  }
+
+  /** Paid, positive top-ups already invoiced by an OPEN Additional invoice — none means the
+   *  extra charge still needs one, which is what puts "Create new invoice" on the card. */
+  get openAdditionalInvoice(): CustomerInvoice | undefined {
+    return this.openCustomerInvoices.find(i => i.kind === 'Additional');
+  }
+
+  get canCreateAdditionalInvoice(): boolean {
+    return this.canOfferCustomerInvoice && this.additionalAmountDue >= 0.5 && !this.openAdditionalInvoice;
+  }
+
+  /**
+   * One click: bill the amount an edit added after payment, and send it (email with PDF + SMS).
+   * The server decides the amount — it is the outstanding top-up — so nothing is typed here.
+   */
+  createAdditionalInvoiceNow(): void {
+    const order = this.selectedOrder;
+    if (!order || this.customerInvoiceBusy || !this.canCreateAdditionalInvoice) return;
+    const amount = this.additionalAmountDue;
+    if (!confirm(`Create and send an invoice for $${amount.toFixed(2)} (the amount added after payment)?`)) return;
+
+    this.customerInvoiceBusy = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.customerInvoiceService.create({ orderId: order.id, sendEmail: true, sendSms: true })
+      .pipe(finalize(() => this.customerInvoiceBusy = false))
+      .subscribe({
+        next: res => {
+          this.successMessage = res.message;
+          this.clearMessagesAfterDelay();
+          this.refreshOrderAfterSave();
+        },
+        error: err => {
+          this.errorMessage = extractApiErrorMessage(err, 'The invoice could not be created.');
+          this.clearMessagesAfterDelay();
+        }
+      });
+  }
+
+  /** The assigned cleaner behind a wage row, so the row can carry Send email / Remove. */
+  getAssignedCleanerForLine(line: OrderCleanerPayrollLine): AssignedCleanerAdmin | undefined {
+    if (line.isUnassignedSlot || !this.selectedOrder) return undefined;
+    return this.getAssignedCleanersWithIds(this.selectedOrder.id).find(c => c.id === line.cleanerId);
+  }
+
+  /** Assigned cleaners with no wage row on screen (breakdown hidden, not loaded, or not yet
+   *  refreshed after an assignment) — listed separately so each keeps their actions. */
+  get cleanersWithoutPayrollRow(): AssignedCleanerAdmin[] {
+    if (!this.selectedOrder) return [];
+    const assigned = this.getAssignedCleanersWithIds(this.selectedOrder.id);
+    if (!this.canViewCleanerPayroll || !this.selectedOrderPayroll) return assigned;
+    const onRows = new Set(this.getOrderPayrollLines().filter(l => !l.isUnassignedSlot).map(l => l.cleanerId));
+    return assigned.filter(c => !onRows.has(c.id));
+  }
+
+  /**
+   * THE ONE PAYMENTS LIST (2026-09). The panel used to show the same money in two places — an
+   * "Invoices" list on the Payments card and an "Update History" column under pricing — with
+   * some payments in both and some in neither. Every money event on the order is now one row,
+   * oldest first:
+   *  - the booking payment (or, when it was collected in slices, each slice — naming the invoice
+   *    that collected it, if any), and a live invoice/request still waiting;
+   *  - every order edit that moved the price: an increase with whether it is paid, how, and by
+   *    which invoice; a decrease as information only;
+   *  - voided invoices, struck through.
+   * Actions (record a manual payment, send the updated-payment link) sit on the row they act on.
+   */
+  get paymentTimeline(): PaymentTimelineRow[] {
+    const order = this.selectedOrder;
+    if (!order) return [];
+    const invoices = this.orderCustomerInvoices;
+    const slices = this.partialBalance?.history ?? [];
+    const invoiceFor = (requestId: number) => invoices.find(i => i.partialPaymentId === requestId) ?? null;
+    const paidBy = (method?: string | null, reference?: string | null) =>
+      `Paid by ${!method || method === 'Normal' ? 'card' : method}${reference ? ` · ${reference}` : ''}`;
+    const rows: PaymentTimelineRow[] = [];
+
+    // ── The order's own total ──
+    for (const p of slices) {
+      const invoice = invoiceFor(p.id);
+      const label = invoice ? `Invoice ${invoice.invoiceNumber}` : 'Part payment';
+      if (p.status === 'Paid') {
+        rows.push({ key: `p${p.id}`, when: p.paidAt ?? p.createdAt, label, amount: p.paidAmount ?? p.requestedAmount,
+          sign: '', status: 'paid', statusText: paidBy(p.paymentMethod, p.paymentReference), invoice, slice: p });
+      } else if (p.status === 'Pending') {
+        // A plain request has its own block with its actions below the list; only an invoice's
+        // request is listed here, so nothing appears twice.
+        if (!invoice) continue;
+        rows.push({ key: `p${p.id}`, when: p.createdAt, label, amount: p.requestedAmount, sign: '', status: 'due',
+          statusText: invoice.lastSentAt ? 'Sent — awaiting payment' : 'Not sent yet', invoice });
+      } else {
+        rows.push({ key: `p${p.id}`, when: p.createdAt, label, amount: p.requestedAmount, sign: '', status: 'void',
+          statusText: invoice ? 'Voided' : 'Withdrawn', invoice });
+      }
+    }
+
+    if (!slices.some(p => p.status === 'Paid' || p.status === 'Pending')) {
+      const base = order.initialTotal > 0
+        ? order.initialTotal
+        : (this.orderUpdateHistory?.[0]?.originalTotal ?? order.total);
+      const method = order.paymentMethod || 'Normal';
+      const settledOutside = method !== 'Normal' && method !== 'Invoice';
+      if (order.isPaid || settledOutside || !!order.invoicePaidAt) {
+        rows.push({ key: 'booking', when: (order.paidAt as any) ?? order.invoicePaidAt ?? null, label: 'Booking payment',
+          amount: base, sign: '', status: 'paid',
+          statusText: method === 'Invoice' ? 'Paid by invoice' : paidBy(method, order.paymentReference), invoice: null });
+      } else if (order.status !== 'Cancelled') {
+        rows.push({ key: 'booking', when: null, label: 'Booking payment', amount: this.partialBalance?.amountDue ?? order.total,
+          sign: '', status: 'due', statusText: 'Not paid yet', invoice: null });
+      }
+    }
+
+    // ── Order edits that moved the price ──
+    const ms = (v: any) => parseUtcDate(v)?.getTime() ?? 0;
+    const sameMoment = (a: any, b: any) => !!a && !!b && Math.abs(ms(a) - ms(b)) < 1000;
+    for (const u of this.visibleOrderUpdateHistory) {
+      const delta = this.getUpdateRowDelta(u);
+      if (delta < 0) {
+        rows.push({ key: `u${u.id}`, when: u.updatedAt, label: 'Price lowered by an edit', amount: -delta, sign: '−',
+          status: 'info', statusText: 'Nothing to pay', invoice: null });
+        continue;
+      }
+      const owed = u.additionalAmount > 0.01 ? u.additionalAmount : delta;
+      const invoice = u.isPaid
+        ? invoices.find(i => i.kind === 'Additional' && i.status === 'Paid' && sameMoment(i.paidAt, u.paidAt)) ?? null
+        : this.openAdditionalInvoice ?? null;
+      rows.push({
+        key: `u${u.id}`, when: u.updatedAt, label: 'Added by an edit', amount: owed, sign: '+',
+        status: u.isPaid ? 'paid' : 'due',
+        statusText: u.isPaid
+          ? paidBy(u.paymentMethod, u.paymentReference)
+          : invoice ? `Invoice ${invoice.invoiceNumber} sent — awaiting payment`
+          : u.updatedPaymentNotificationSentAt ? 'Payment link sent — unpaid' : 'Unpaid',
+        paidAt: u.isPaid ? u.paidAt : null,
+        invoice, update: u
+      });
+    }
+
+    // ── Voided invoices for an added amount (a whole/split one shows as its withdrawn request) ──
+    for (const i of invoices.filter(x => x.kind === 'Additional' && (x.status === 'Void' || x.status === 'Cancelled'))) {
+      rows.push({ key: `i${i.id}`, when: i.voidedAt ?? i.createdAt, label: `Invoice ${i.invoiceNumber}`, amount: i.amount,
+        sign: '', status: 'void', statusText: 'Voided', invoice: i });
+    }
+
+    return rows.sort((a, b) => ms(a.when) - ms(b.when));
+  }
+
+  trackPaymentRow(_: number, row: PaymentTimelineRow): string {
+    return row.key;
+  }
+
+  /**
+   * How the order is paid, in one word, for the header: Invoice, Zelle, Cash, Check, Other or
+   * Card. An ordinary (website) order billed through a regular invoice reads "Invoice" — paid by
+   * one, or waiting on one while the order is unpaid.
+   */
+  get headerPaymentLabel(): string {
+    const order = this.selectedOrder;
+    if (!order) return '';
+    const method = order.paymentMethod || 'Normal';
+    if (method === 'Invoice') return 'Invoice';
+    if (method !== 'Normal') return paymentMethodLabel(method);
+    if (this.paidCustomerInvoices.length > 0) return 'Invoice';
+    if (!order.isPaid && this.openCustomerInvoices.some(i => i.kind !== 'Additional')) return 'Invoice';
+    return 'Card';
+  }
+
+  /** Edit amounts still unpaid that an admin may record as paid outside Stripe. */
+  get unpaidEditRows(): OrderUpdateHistory[] {
+    return this.visibleOrderUpdateHistory.filter(u => this.canRecordManualPayment(u));
+  }
+
+  // ── Send Receipt on an online payment row (2026-09) ──
+  // The server decides which rows qualify (paid online, not a manual method, not a combined
+  // "Pay all upcoming" charge) — the row's method label cannot tell a website bank payment from
+  // one an admin typed in. The send itself re-checks the payment live.
+
+  receiptPaymentKeys = new Set<string>();
+  receiptDefaultEmail = '';
+  sendingReceiptKey: string | null = null;
+  receiptEmailInput = '';
+  savingReceipt = false;
+
+  private loadReceiptPayments(orderId: number): void {
+    this.adminService.getReceiptPayments(orderId).subscribe({
+      next: res => {
+        if (this.viewingOrderId !== orderId) return;
+        this.receiptPaymentKeys = new Set(res.paymentKeys ?? []);
+        this.receiptDefaultEmail = res.defaultEmail ?? '';
+      },
+      // Non-fatal: without it the rows simply carry no Send Receipt button.
+      error: () => { if (this.viewingOrderId === orderId) this.receiptPaymentKeys = new Set(); }
+    });
+  }
+
+  canSendReceipt(row: PaymentTimelineRow): boolean {
+    const canUpdate = this.isSuperAdmin || !!this.userPermissions?.permissions?.canUpdate;
+    return canUpdate && row.status === 'paid' && this.receiptPaymentKeys.has(row.key);
+  }
+
+  startSendReceipt(row: PaymentTimelineRow): void {
+    this.sendingReceiptKey = row.key;
+    this.receiptEmailInput = this.receiptDefaultEmail;
+  }
+
+  confirmSendReceipt(row: PaymentTimelineRow): void {
+    const order = this.selectedOrder;
+    const email = this.receiptEmailInput.trim();
+    if (!order || this.savingReceipt || !email) return;
+    this.savingReceipt = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.adminService.sendPaymentReceipt(order.id, row.key, email)
+      .pipe(finalize(() => this.savingReceipt = false))
+      .subscribe({
+        next: res => {
+          this.sendingReceiptKey = null;
+          this.successMessage = res?.message || `Receipt sent to ${email}.`;
+          this.clearMessagesAfterDelay();
+        },
+        error: err => {
+          this.errorMessage = extractApiErrorMessage(err, 'The receipt could not be sent.');
+          this.clearMessagesAfterDelay();
+        }
+      });
+  }
+
+  // ── Correcting a manually recorded payment (a stray Confirm had no way back, 2026-09) ──
+
+  editingManualPaymentKey: string | null = null;
+  manualEditMethod = 'Zelle';
+  manualEditReference = '';
+  manualEditNotes = '';
+  savingManualEdit = false;
+
+  // ── Marking an open regular invoice paid outside the website (2026-09-29) ──
+  markingInvoicePaidKey: string | null = null;
+  markInvoicePaidMethod = 'BankTransfer';
+  markInvoicePaidReference = '';
+  markInvoicePaidNotes = '';
+  savingMarkInvoicePaid = false;
+
+  /** An unpaid Full/Split invoice row (it has its own part-payment request to settle). */
+  canMarkInvoicePaid(row: PaymentTimelineRow): boolean {
+    const canUpdate = this.isSuperAdmin || !!this.userPermissions?.permissions?.canUpdate;
+    return canUpdate && row.status === 'due' && !row.update
+      && !!row.invoice && row.invoice.partialPaymentId != null && row.invoice.kind !== 'Additional';
+  }
+
+  startMarkInvoicePaid(row: PaymentTimelineRow): void {
+    this.markingInvoicePaidKey = row.key;
+    this.markInvoicePaidMethod = 'BankTransfer';
+    this.markInvoicePaidReference = '';
+    this.markInvoicePaidNotes = '';
+  }
+
+  /** Records it against the invoice's own request — the endpoint that completes the order
+   *  (Active, confirmation) when this was the last amount owed. */
+  confirmMarkInvoicePaid(row: PaymentTimelineRow): void {
+    const order = this.selectedOrder;
+    if (!order || !row.invoice || this.savingMarkInvoicePaid) return;
+    this.savingMarkInvoicePaid = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.customerInvoiceService.recordPayment(row.invoice, this.markInvoicePaidMethod,
+        this.markInvoicePaidReference.trim() || null, this.markInvoicePaidNotes.trim() || null)
+      .pipe(finalize(() => this.savingMarkInvoicePaid = false))
+      .subscribe({
+        next: res => {
+          this.markingInvoicePaidKey = null;
+          this.successMessage = res?.message || `Invoice ${row.invoice!.invoiceNumber} marked paid.`;
+          this.clearMessagesAfterDelay();
+          this.refreshOrderAfterSave();
+          this.refreshPartialBalanceQuietly(order.id);
+        },
+        error: err => {
+          this.errorMessage = extractApiErrorMessage(err, 'The payment could not be recorded.');
+          this.clearMessagesAfterDelay();
+        }
+      });
+  }
+
+  canEditManualPayment(row: PaymentTimelineRow): boolean {
+    const canUpdate = this.isSuperAdmin || !!this.userPermissions?.permissions?.canUpdate;
+    if (!canUpdate || row.status !== 'paid') return false;
+    if (row.update) return !!row.update.manualPaymentRecordedAt;
+    return !!row.slice && !!row.slice.paymentMethod && row.slice.paymentMethod !== 'Normal';
+  }
+
+  startEditManualPayment(row: PaymentTimelineRow): void {
+    const source = row.update ?? row.slice;
+    this.editingManualPaymentKey = row.key;
+    this.manualEditMethod = this.manualPaymentMethods.includes(source?.paymentMethod ?? '') ? source!.paymentMethod! : 'Zelle';
+    this.manualEditReference = source?.paymentReference ?? '';
+    this.manualEditNotes = source?.paymentNotes ?? '';
+  }
+
+  cancelManualPaymentEdit(): void {
+    this.editingManualPaymentKey = null;
+  }
+
+  saveManualPaymentEdit(row: PaymentTimelineRow): void {
+    const order = this.selectedOrder;
+    if (!order || this.savingManualEdit) return;
+    const reference = this.manualEditReference.trim() || null;
+    const notes = this.manualEditNotes.trim() || null;
+    const request = row.update
+      ? this.adminService.editManualAdditionalPayment(order.id, row.update.id, this.manualEditMethod, reference, notes)
+      : row.slice
+        ? this.adminService.editPartialManualPayment(order.id, row.slice.id, this.manualEditMethod, reference, notes)
+        : null;
+    if (!request) return;
+    this.runManualEdit(request, 'The payment could not be updated.');
+  }
+
+  /** Only an edit (top-up) payment can be taken back — a part payment completes the order. */
+  revertManualPayment(row: PaymentTimelineRow): void {
+    const order = this.selectedOrder;
+    if (!order || !row.update || this.savingManualEdit) return;
+    if (!confirm(`Mark $${this.formatCurrency(row.amount)} as NOT paid? It will be owed again.`)) return;
+    this.runManualEdit(this.adminService.revertManualAdditionalPayment(order.id, row.update.id),
+      'The payment could not be marked unpaid.');
+  }
+
+  private runManualEdit(request: Observable<{ message: string }>, fallback: string): void {
+    this.savingManualEdit = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+    request.pipe(finalize(() => this.savingManualEdit = false)).subscribe({
+      next: res => {
+        this.successMessage = res?.message || 'Payment updated.';
+        this.clearMessagesAfterDelay();
+        this.editingManualPaymentKey = null;
+        this.refreshOrderAfterSave();
+      },
+      error: err => {
+        this.errorMessage = extractApiErrorMessage(err, fallback);
+        this.clearMessagesAfterDelay();
+      }
+    });
+  }
+
+  /** Everything still owed on the order: its own balance plus anything added after payment. */
+  get panelAmountOwed(): number {
+    // A cash / Zelle order was paid in person: only an amount an edit added afterwards is owed.
+    if (this.isSettledOffline) return this.additionalAmountDue;
+    return Math.round(((this.partialBalance?.amountDue ?? 0) + this.additionalAmountDue) * 100) / 100;
+  }
+
+  /** The live part-payment request, unless it is the one behind an invoice (listed there). */
+  get pendingRequestNotInvoiced(): OrderPartialPayment | null {
+    const pending = this.partialBalance?.pendingRequest ?? null;
+    if (!pending) return null;
+    return this.orderCustomerInvoices.some(i => i.partialPaymentId === pending.id) ? null : pending;
+  }
+
+  /**
+   * Why no further amount can be requested — only when it tells the admin something the card
+   * does not already show. "A request is waiting" is obvious when that request is an invoice
+   * listed right above, and "already paid" is the Paid figure itself.
+   */
+  get paymentsRefusal(): string | null {
+    const b = this.partialBalance;
+    if (!b || b.canRequestPartialPayment || !b.cannotRequestReason) return null;
+    if (this.selectedOrder?.isPaid) return null;
+    if (b.pendingRequest && !this.pendingRequestNotInvoiced) return null;
+    return b.cannotRequestReason;
+  }
+
+  /** Partial-payment history rows that are NOT the request behind an invoice — those are
+   *  already listed under Invoices, and showing them twice was the duplicate on the card. */
+  get partialPaymentHistoryWithoutInvoices(): OrderPartialPayment[] {
+    const invoiced = new Set(this.orderCustomerInvoices.map(i => i.partialPaymentId).filter(id => id != null));
+    return this.partialPaymentHistory.filter(p => !invoiced.has(p.id));
+  }
+
+  // ── Panel tabs (2026-09): Details / Payments / Cleaners / Changes ─────────────────────────
+
+  orderPanelTab: 'details' | 'payments' | 'cleaners' | 'changes' = 'details';
+
+  setOrderPanelTab(tab: 'details' | 'payments' | 'cleaners' | 'changes'): void {
+    this.orderPanelTab = tab;
+    if (tab === 'changes' && this.selectedOrder && this.orderChangesLoadedFor !== this.selectedOrder.id)
+      this.loadOrderChanges(this.selectedOrder.id);
+  }
+
+  // ── Changes tab: what changed on this order after it was created ──
+
+  orderChanges: OrderChangeEntry[] = [];
+  loadingOrderChanges = false;
+  orderChangesLoadedFor: number | null = null;
+
+  loadOrderChanges(orderId: number): void {
+    this.loadingOrderChanges = true;
+    this.orderChangesLoadedFor = orderId;
+    this.adminService.getOrderChanges(orderId)
+      .pipe(finalize(() => this.loadingOrderChanges = false))
+      .subscribe({
+        next: rows => {
+          if (this.viewingOrderId !== orderId) return;
+          this.orderChanges = buildOrderChangeEntries(rows);
+        },
+        error: () => { if (this.viewingOrderId === orderId) this.orderChanges = []; }
+      });
+  }
+
+  /** An action that is audited but moves nothing else on the panel still belongs in Changes. */
+  private refreshChangesIfLoaded(orderId: number): void {
+    if (this.orderChangesLoadedFor === orderId) this.loadOrderChanges(orderId);
+  }
+
+  trackChange(_: number, entry: OrderChangeEntry): number {
+    return entry.id;
+  }
+
+  /** Update-history rows that actually moved the price — a $0.00 row is noise (owner's call). */
+  get visibleOrderUpdateHistory(): OrderUpdateHistory[] {
+    return (this.orderUpdateHistory ?? []).filter(u => Math.abs(this.getUpdateRowDelta(u)) >= 0.01);
+  }
+
+  trackUpdate(_: number, update: OrderUpdateHistory): number {
+    return update.id;
+  }
+
+  private customerInvoicesOrderId: number | null = null;
+
+  private loadCustomerInvoices(orderId: number): void {
+    // Cleared only when the panel moved to another order — a refresh of the same order keeps
+    // the list on screen instead of blinking the Payments card away and back.
+    if (this.customerInvoicesOrderId !== orderId) {
+      this.orderCustomerInvoices = [];
+      this.customerInvoicesOrderId = orderId;
+    }
+    this.customerInvoiceService.list({ orderId }).subscribe({
+      next: invoices => {
+        if (this.viewingOrderId !== orderId) return;
+        this.orderCustomerInvoices = invoices;
+      },
+      // Non-fatal: Moderators are refused (Admin+SuperAdmin endpoint) and simply see no invoices.
+      error: () => { if (this.viewingOrderId === orderId) this.orderCustomerInvoices = []; }
+    });
+  }
+
+  /** Regular invoices still waiting for money. */
+  get openCustomerInvoices(): CustomerInvoice[] {
+    return this.orderCustomerInvoices.filter(i => i.status === 'Sent' || i.status === 'NotSent');
+  }
+
+  /** Paid invoices for the order's OWN total — what makes the pricing line read "Paid by Invoice".
+   *  An Additional invoice (extra added after payment) doesn't change how the booking was paid. */
+  get paidCustomerInvoices(): CustomerInvoice[] {
+    // paidVia is set only when THIS invoice's own request took the money — an invoice that reads
+    // Paid because the order was settled some other way must not claim the payment.
+    return this.orderCustomerInvoices.filter(i => i.status === 'Paid' && i.kind !== 'Additional' && !!i.paidVia);
+  }
+
+  /**
+   * Offered for every ordinary (non-commercial) order that isn't cancelled — whether it can
+   * actually be billed right now is answered inside the modal, from the server's figures.
+   */
+  get canOfferCustomerInvoice(): boolean {
+    const o = this.selectedOrder;
+    if (!o || this.isInvoiceBilledOrder || this.invoiceClientForOrder || this.isSettledOffline) return false;
+    if (o.status === 'Cancelled' || o.status === 'Refunded') return false;
+    return this.isSuperAdmin || this.userRole === 'Admin';
+  }
+
+  /** What a new invoice would bill: the extra added after payment, the unpaid balance, or nothing. */
+  get customerInvoiceBillingMode(): 'additional' | 'balance' | 'none' {
+    if (this.additionalAmountDue >= 0.5) return 'additional';
+    const b = this.partialBalance;
+    if (b && !this.selectedOrder?.isPaid && b.amountDue >= 0.5 && this.customerInvoiceAvailable >= 0.5) return 'balance';
+    return 'none';
+  }
+
+  /** Owed on the order's own total and not already on an open request or invoice. */
+  get customerInvoiceAvailable(): number {
+    const b = this.partialBalance;
+    if (!b) return 0;
+    const open = (b.history ?? []).filter(p => p.status === 'Pending').reduce((s, p) => s + p.requestedAmount, 0);
+    return Math.max(0, Math.round((b.amountDue - open) * 100) / 100);
+  }
+
+  /** A whole-balance invoice cannot sit beside split ones, so an order already split stays split. */
+  get customerInvoiceMustSplit(): boolean {
+    return this.openCustomerInvoices.some(i => i.kind === 'Split');
+  }
+
+  get customerInvoiceSplitTotal(): number {
+    return Math.round(this.customerInvoiceSplitAmounts.reduce<number>((s, a) => s + (Number(a) || 0), 0) * 100) / 100;
+  }
+
+  openCustomerInvoiceModal(): void {
+    this.customerInvoiceSplitMode = this.customerInvoiceMustSplit;
+    this.customerInvoiceSplitAmounts = [null, null];
+    this.customerInvoiceNote = '';
+    this.customerInvoiceChannels = { email: true, sms: true };
+    this.customerInvoiceMessage = '';
+    this.customerInvoiceError = '';
+    this.showCustomerInvoiceModal = true;
+  }
+
+  closeCustomerInvoiceModal(): void {
+    if (this.customerInvoiceBusy) return;
+    this.showCustomerInvoiceModal = false;
+  }
+
+  addCustomerInvoiceSplitRow(): void {
+    if (this.customerInvoiceSplitAmounts.length < 12) this.customerInvoiceSplitAmounts.push(null);
+  }
+
+  removeCustomerInvoiceSplitRow(index: number): void {
+    if (this.customerInvoiceSplitAmounts.length > 1) this.customerInvoiceSplitAmounts.splice(index, 1);
+  }
+
+  trackByIndex(index: number): number {
+    return index;
+  }
+
+  createCustomerInvoice(): void {
+    const order = this.selectedOrder;
+    if (!order || this.customerInvoiceBusy) return;
+    const mode = this.customerInvoiceBillingMode;
+    if (mode === 'none') return;
+
+    const split = mode === 'balance' && (this.customerInvoiceSplitMode || this.customerInvoiceMustSplit);
+    const amounts = split ? this.customerInvoiceSplitAmounts.map(a => Number(a) || 0) : undefined;
+    if (amounts && (amounts.length === 0 || amounts.some(a => a < 0.5))) {
+      this.customerInvoiceError = 'Every split invoice needs an amount of at least $0.50.';
+      return;
+    }
+
+    this.customerInvoiceBusy = true;
+    this.customerInvoiceError = '';
+    this.customerInvoiceMessage = '';
+    const orderId = order.id;
+    this.customerInvoiceService.create({
+      orderId,
+      splitAmounts: amounts,
+      note: this.customerInvoiceNote.trim() || null,
+      sendEmail: this.customerInvoiceChannels.email,
+      sendSms: this.customerInvoiceChannels.sms
+    }).pipe(finalize(() => this.customerInvoiceBusy = false))
+      .subscribe({
+        next: res => {
+          this.customerInvoiceMessage = res.message;
+          this.customerInvoiceSplitAmounts = [null, null];
+          this.customerInvoiceNote = '';
+          this.refreshOrderAfterSave();
+        },
+        error: err => this.customerInvoiceError = extractApiErrorMessage(err, 'The invoice could not be created.')
+      });
+  }
+
+  /** The Payments card's "Send Invoice Reminder": the invoice for the added amount, sent again by
+   *  email and text — the same send endpoint, so the invoice stamps another send. */
+  sendingInvoiceReminder = false;
+  sendAdditionalInvoiceReminder(invoice: CustomerInvoice): void {
+    if (this.sendingInvoiceReminder) return;
+    this.sendingInvoiceReminder = true;
+    this.errorMessage = '';
+    this.successMessage = '';
+    this.customerInvoiceService.send(invoice.id, true, true)
+      .pipe(finalize(() => this.sendingInvoiceReminder = false))
+      .subscribe({
+        next: res => {
+          this.successMessage = res.message || `Invoice ${invoice.invoiceNumber} sent again.`;
+          this.clearMessagesAfterDelay();
+          if (this.selectedOrder) this.refreshPartialBalanceQuietly(this.selectedOrder.id);
+        },
+        error: err => {
+          this.errorMessage = extractApiErrorMessage(err, 'The invoice reminder could not be sent.');
+          this.clearMessagesAfterDelay();
+        }
+      });
+  }
+
+  resendCustomerInvoice(invoice: CustomerInvoice): void {
+    if (this.customerInvoiceActionId !== null) return;
+    this.customerInvoiceActionId = invoice.id;
+    this.customerInvoiceError = '';
+    this.customerInvoiceMessage = '';
+    this.customerInvoiceService.send(invoice.id, this.customerInvoiceChannels.email, this.customerInvoiceChannels.sms)
+      .pipe(finalize(() => this.customerInvoiceActionId = null))
+      .subscribe({
+        next: res => {
+          this.customerInvoiceMessage = res.message;
+          this.refreshOrderAfterSave();
+        },
+        error: err => this.customerInvoiceError = extractApiErrorMessage(err, 'The invoice could not be sent.')
+      });
+  }
+
+  voidCustomerInvoice(invoice: CustomerInvoice): void {
+    if (this.customerInvoiceActionId !== null) return;
+    if (!confirm(`Void invoice ${invoice.invoiceNumber}? The customer will no longer be able to pay it.`)) return;
+    this.customerInvoiceActionId = invoice.id;
+    this.customerInvoiceError = '';
+    this.customerInvoiceMessage = '';
+    this.customerInvoiceService.void(invoice.id, null)
+      .pipe(finalize(() => this.customerInvoiceActionId = null))
+      .subscribe({
+        next: res => {
+          this.customerInvoiceMessage = res.message;
+          this.refreshOrderAfterSave();
+        },
+        error: err => this.customerInvoiceError = extractApiErrorMessage(err, 'The invoice could not be voided.')
+      });
+  }
+
+  copyCustomerInvoiceLink(invoice: CustomerInvoice): void {
+    if (typeof navigator === 'undefined' || !navigator.clipboard) return;
+    navigator.clipboard.writeText(invoice.publicUrl).then(() => {
+      this.customerInvoiceCopiedId = invoice.id;
+      setTimeout(() => { if (this.customerInvoiceCopiedId === invoice.id) this.customerInvoiceCopiedId = null; }, 2000);
+    });
   }
 
   /**
@@ -2202,6 +2922,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         next: res => {
           if (this.viewingOrderId !== orderId) return;
           this.partialBalance = res.balance;
+          // The order itself may have moved (Pending → Active on the last slice), so re-read it.
+          this.refreshOrderAfterSave();
           this.partialAmountInput = null;
           this.partialNoteInput = '';
           this.partialPaymentMessage = res.message;
@@ -2253,6 +2975,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         next: res => {
           if (this.viewingOrderId !== orderId) return;
           this.partialBalance = res.balance;
+          // The order itself may have moved (Pending → Active on the last slice), so re-read it.
+          this.refreshOrderAfterSave();
           this.partialPaymentMessage = res.message;
         },
         error: err => {
@@ -2271,7 +2995,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   partialManualPaymentReference = '';
   partialManualPaymentNotes = '';
   savingPartialManualPayment = false;
-  readonly partialManualPaymentMethods = ['Zelle', 'Cash', 'Check', 'Invoice', 'Other'];
+  readonly partialManualPaymentMethods = ['Zelle', 'Cash', 'Check', 'BankTransfer', 'Invoice', 'Other'];
 
   /** Admins with update rights (and SuperAdmin) — same gate as the order-edit manual payment. */
   canRecordPartialManualPayment(): boolean {
@@ -2308,6 +3032,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         next: res => {
           if (this.viewingOrderId !== orderId) return;
           this.partialBalance = res.balance;
+          // The order itself may have moved (Pending → Active on the last slice), so re-read it.
+          this.refreshOrderAfterSave();
           this.partialPaymentMessage = res.message;
           this.recordingManualPartialPaymentForId = null;
           // Settling the last slice flips the order Pending -> Active and marks it paid;
@@ -2352,6 +3078,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.viewingOrderId = orderId;
+    // Every order opens on Details, with its own (not yet loaded) Changes feed.
+    this.orderPanelTab = 'details';
+    this.orderChanges = [];
+    this.orderChangesLoadedFor = null;
     this.editingOrder = false;
     this.editingPaymentMethod = false;
     this.loadingStates.orderDetails = true;
@@ -2643,8 +3373,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   closeOrderLightbox(): void { this.lightboxOrderPhoto = null; }
 
   resolvePhotoUrl(photo: UserCleaningPhoto | null | undefined): string {
-    if (photo && photo.id) {
-      return `${environment.apiUrl}/admin/user-care/cleaning-photos/${photo.id}/raw`;
+    // An empty photoUrl means the server would not expose this row (not a local upload).
+    if (photo && photo.id && photo.photoUrl) {
+      return `${environment.apiUrl}/files/cleaning-photos/${photo.id}`;
     }
     return '';
   }
@@ -2697,7 +3428,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   manualPaymentReference = '';
   manualPaymentNotes = '';
   savingManualPayment = false;
-  readonly manualPaymentMethods = ['Zelle', 'Cash', 'Check', 'Other'];
+  readonly manualPaymentMethods = ['Zelle', 'Cash', 'Check', 'BankTransfer', 'Other'];
+  /** Display label for a method wire value — "BankTransfer" reads "Bank transfer". */
+  readonly methodLabel = paymentMethodLabel;
 
   /** Admins with update rights (and SuperAdmin), for an unpaid row that has money to collect. */
   canRecordManualPayment(update: OrderUpdateHistory): boolean {
@@ -2742,10 +3475,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           const listOrder = this.orders.find(o => o.id === orderId);
           if (listOrder) listOrder.status = res.status;
         }
-        // Refresh history so the row flips to "paid via <method>" and unpaid totals update.
-        this.adminService.getOrderUpdateHistory(orderId).subscribe({
-          next: (history) => { this.orderUpdateHistory = history; }
-        });
+        // Refresh the whole panel: the row flips to "paid via <method>", unpaid totals, the
+        // Payments card, invoices and status all update without a reload.
+        this.refreshOrderAfterSave();
       },
       error: (err) => {
         this.errorMessage = err.error?.message || 'Failed to record manual payment.';
@@ -2761,7 +3493,19 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // (tracking fields, Pending/Active status, Stripe-fee accounting) — SuperAdmin-only.
   editingPaymentMethod = false;
   savingPaymentMethod = false;
-  paymentMethodEdit: PaymentMethodValue = 'Normal';
+  paymentMethodEdit: PaymentMethodEditChoice = 'Normal';
+
+  /**
+   * The editor's choices. "Invoice" is the REGULAR customer invoice (DCR-…) — the same
+   * booking-page-only choice the booking form offers: not a stored method, the order is an
+   * ordinary card order billed by an invoice the customer pays by card or bank. The commercial
+   * method keeps its own, clearly named entry.
+   */
+  readonly paymentMethodEditOptions: { value: PaymentMethodEditChoice; label: string }[] = [
+    ...PAYMENT_METHOD_OPTIONS.filter(o => o.value !== 'Invoice'),
+    { value: 'RegularInvoice', label: 'Invoice' },
+    { value: 'Invoice', label: 'Invoice (commercial)' },
+  ];
   paymentMethodEditReference = '';
   paymentMethodEditNotes = '';
 
@@ -2778,13 +3522,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Does choosing this method mean the money has ALREADY arrived? Mirrors the backend's
    *  PaymentMethodRules — Invoice is the one outside-Stripe method where it is false. */
-  isSettledPaymentMethod(method: PaymentMethodValue): boolean {
-    return isSettledOnRecord(method);
+  isSettledPaymentMethod(method: PaymentMethodEditChoice): boolean {
+    return method !== 'RegularInvoice' && isSettledOnRecord(method);
   }
 
   startEditPaymentMethod(): void {
     if (!this.selectedOrder) return;
     this.paymentMethodEdit = ((this.selectedOrder.paymentMethod as PaymentMethodValue) || 'Normal');
+    // A card order already billed by a regular invoice reads "Invoice" in the header — open on it.
+    if (this.paymentMethodEdit === 'Normal' && this.headerPaymentLabel === 'Invoice') this.paymentMethodEdit = 'RegularInvoice';
     this.paymentMethodEditReference = this.selectedOrder.paymentReference || '';
     this.paymentMethodEditNotes = this.selectedOrder.paymentNotes || '';
     this.paymentMethodEditClientId = this.selectedOrder.contractClientId ?? null;
@@ -2805,6 +3551,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
   }
 
+  /** Set while a switch to the regular "Invoice" choice is saving — the invoice modal opens after. */
+  private pendingOpenInvoiceAfterMethodSave = false;
+
   cancelEditPaymentMethod(): void {
     this.editingPaymentMethod = false;
   }
@@ -2812,7 +3561,19 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   savePaymentMethod(): void {
     if (!this.selectedOrder || this.savingPaymentMethod) return;
     const orderId = this.selectedOrder.id;
-    const method = this.paymentMethodEdit;
+    const choice = this.paymentMethodEdit;
+
+    // Regular invoice: the order goes (back) to the card flow, and the invoice modal opens so the
+    // admin creates and sends it — whole or split. Nothing is billed or sent without that step.
+    if (choice === 'RegularInvoice') {
+      if ((this.selectedOrder.paymentMethod || 'Normal') === 'Normal') {
+        this.editingPaymentMethod = false;
+        this.openCustomerInvoiceModal();
+        return;
+      }
+      this.pendingOpenInvoiceAfterMethodSave = true;
+    }
+    const method: PaymentMethodValue = choice === 'RegularInvoice' ? 'Normal' : choice;
 
     if (method === 'Invoice' && !this.paymentMethodEditClientId) {
       this.errorMessage = 'Choose the commercial client this order is billed to.';
@@ -2849,8 +3610,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         }
         this.successMessage = res?.message || 'Payment method updated.';
         this.clearMessagesAfterDelay();
+        this.refreshOrderAfterSave();
+        if (this.pendingOpenInvoiceAfterMethodSave && this.selectedOrder?.id === orderId) this.openCustomerInvoiceModal();
+        this.pendingOpenInvoiceAfterMethodSave = false;
       },
       error: (err) => {
+        this.pendingOpenInvoiceAfterMethodSave = false;
         this.savingPaymentMethod = false;
         console.error('Error updating payment method:', err);
         this.errorMessage = err?.error?.message || 'Failed to update payment method.';
@@ -2944,6 +3709,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       next: (res) => {
         this.successMessage = res?.message || 'Reminder sent successfully.';
         setTimeout(() => { this.successMessage = ''; }, 5000);
+        this.refreshOrderAfterSave();
       },
       error: (err) => {
         this.errorMessage = err.error?.message || 'Failed to send reminder.';
@@ -2974,10 +3740,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       next: (res) => {
         this.successMessage = res?.message || 'Updated-payment notification sent.';
         setTimeout(() => { this.successMessage = ''; }, 5000);
-        // Refresh history so the button switches to "Send Payment Reminder".
-        this.adminService.getOrderUpdateHistory(orderId).subscribe({
-          next: (history) => { this.orderUpdateHistory = history; }
-        });
+        // Refresh so the button switches to "Send Payment Reminder" (and everything else updates).
+        this.refreshOrderAfterSave();
       },
       error: (err) => {
         this.errorMessage = err.error?.message || 'Failed to send updated-payment notification.';
@@ -3209,10 +3973,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const details = this.selectedOrder?.id === orderId ? this.selectedOrder : null;
     const listed = this.orders.find(o => o.id === orderId);
 
-    // Residential deep cleaning is signalled by the extra service (but not "super deep").
+    // Residential deep cleaning is signalled by the extra service (but not "super deep"): its
+    // flags decide, an unkeyed, un-flagged line by its name as before.
     const hasDeepCleaning = !!details?.extraServices?.some(
-      es => es.extraServiceName?.toLowerCase().includes('deep cleaning') &&
-            !es.extraServiceName?.toLowerCase().includes('super')
+      es => isDeepOrSuperDeepExtra(es) && !isSuperDeepExtra(es)
     );
 
     // Custom ("Pre-Arranged") orders match on their per-order label, like every other
@@ -3222,7 +3986,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       ?? '';
 
     // The calculator takes the deep-cleaning FEE; here we only know whether it applies.
-    return getDefaultCleanerHourlyRate(hasDeepCleaning ? 1 : 0, serviceTypeName);
+    // A keyed, non-custom type is rated by its key (details only - the list row carries no key).
+    return getDefaultCleanerHourlyRate(hasDeepCleaning ? 1 : 0, serviceTypeName, details?.serviceTypeKey ?? null);
   }
 
   /** The "(3h 30m × 2 × $21)" working shown under Est. Total in the assign-cleaners modal.
@@ -3429,6 +4194,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return this.canEditOrder;
   }
 
+  /**
+   * Promo/special and subscription discounts are SuperAdmin-only in Edit Order (owner's rule,
+   * 2026-09). Everyone else sees them read-only — they still re-scale with the subtotal — and the
+   * server refuses a typed change from anyone else (Helpers/OrderDiscountEditPolicy).
+   */
+  get canEditOrderDiscounts(): boolean {
+    return this.isSuperAdmin;
+  }
+
   /** True when at least one line carries a manual hours figure — i.e. there is something to reset. */
   payrollHasHoursOverrides(): boolean {
     return (this.selectedOrderPayroll?.lines ?? []).some(l => l.hoursOverridden);
@@ -3539,6 +4313,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   startEditPayrollForAll(): void {
     if (!this.canEditCleanerPayroll) return;
     this.cancelEditPayrollLine();
+    this.cancelEditMaidsCount();
     this.editingPayrollForAll = true;
     this.payrollAllHoursInput = this.payrollHoursOf(
       this.selectedOrderPayroll?.automaticMinutesPerCleaner);
@@ -3607,6 +4382,54 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.writePayroll(concat(...writes).pipe(last()), 'Could not save that change.');
   }
 
+  // ── Cleaners Count, on the Wages card ───────────────────────────────────────────────────
+  // It used to be a box in Edit Order, which sent a pure staffing / wages figure through the
+  // order-edit approval queue. It lives here now, beside the rate and hours it drives.
+  editingMaidsCount = false;
+  maidsCountInput: number | null = null;
+
+  /**
+   * A cleaner+hours order is the exception: its count is the customer's PRICED Cleaners line
+   * (cleaners × hours), edited through that service row in Edit Order, and the server refuses
+   * a standalone write for it.
+   */
+  canEditMaidsCountFromWages(): boolean {
+    return this.canEditCleanerPayroll && !!this.selectedOrder && !this.selectedOrder.hasCleanersService;
+  }
+
+  startEditMaidsCount(): void {
+    if (!this.canEditMaidsCountFromWages()) return;
+    this.cancelEditPayrollLine();
+    this.cancelEditPayrollForAll();
+    this.maidsCountInput = Number(this.selectedOrder?.maidsCount) || 1;
+    this.editingMaidsCount = true;
+    this.payrollError = '';
+  }
+
+  cancelEditMaidsCount(): void {
+    this.editingMaidsCount = false;
+    this.maidsCountInput = null;
+  }
+
+  saveMaidsCount(): void {
+    if (!this.editingMaidsCount || this.savingPayroll) return;
+    const orderId = this.selectedOrder?.id;
+    if (orderId == null) return;
+
+    const count = Number(this.maidsCountInput);
+    if (!Number.isInteger(count) || count < 1) {
+      this.payrollError = 'Cleaners count must be a whole number, 1 or more.';
+      return;
+    }
+    // Unchanged is a cancel, not a write — it would only add an audit row saying nothing moved.
+    if (count === (Number(this.selectedOrder?.maidsCount) || 1)) {
+      this.cancelEditMaidsCount();
+      return;
+    }
+
+    this.writePayroll(this.adminService.updateOrderMaidsCount(orderId, count), 'Could not save the cleaners count.');
+  }
+
   /** Clears every per-cleaner hours override at once, putting the order back on the even split. */
   resetPayrollHoursForAll(): void {
     if (!this.canEditCleanerPayroll || this.savingPayroll) return;
@@ -3630,6 +4453,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private cancelPayrollOrderEditors(): void {
     this.cancelEditPayrollForAll();
+    this.cancelEditMaidsCount();
   }
 
   /**
@@ -3661,6 +4485,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         // The staffing warnings include "the rate is not the default for this service type", so
         // a rate change can clear or raise one.
         this.preloadStaffingWarnings([orderId]);
+        this.refreshChangesIfLoaded(orderId);
       },
       error: (err) => {
         this.payrollError = extractApiErrorMessage(err, fallbackMessage);
@@ -3674,11 +4499,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (this.selectedOrder?.id === orderId) {
       this.selectedOrder.cleanerTotalSalary = payroll.storedTotalSalary;
       this.selectedOrder.cleanerHourlyRate = payroll.orderHourlyRate;
+      if (payroll.maidsCount != null) this.selectedOrder.maidsCount = payroll.maidsCount;
     }
     const row: any = this.orders.find(o => o.id === orderId);
     if (row) {
       if ('cleanerTotalSalary' in row) row.cleanerTotalSalary = payroll.storedTotalSalary;
       if ('cleanerHourlyRate' in row) row.cleanerHourlyRate = payroll.orderHourlyRate;
+      // The list row's staffing-review ⚠ reads maidsCount (same reason refreshOrderAfterSave copies it).
+      if (payroll.maidsCount != null && 'maidsCount' in row) row.maidsCount = payroll.maidsCount;
     }
   }
 
@@ -3944,6 +4772,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.adminService.resendConfirmation(order.id).subscribe({
       next: (res) => {
         this.successMessage = res?.message || 'Updated confirmation sent.';
+        if (this.selectedOrder) this.refreshChangesIfLoaded(this.selectedOrder.id);
         this.clearMessagesAfterDelay();
       },
       error: (err) => {
@@ -3961,7 +4790,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // paths resolve their address differently, so the panel states each one honestly
   // rather than showing a single blanket warning:
   //   • Send Payment Link          → the ACCOUNT email only (backend refuses without one)
-  //   • Send Updated Confirmation  → skips email for a no-email account, texts anyway
+  //   • Updated Booking Confirmation → skips email for a no-email account, texts anyway
   //   • Payment reminder / updated payment → the order's contactEmail, falling back to
   //     the account email, so it still emails when the order carries an address.
 
@@ -4013,6 +4842,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.adminService.sendPaymentLink(this.selectedOrder.id, email, sms).subscribe({
       next: (result) => {
         this.successMessage = result.message || 'Payment link sent.';
+        if (this.selectedOrder) this.refreshChangesIfLoaded(this.selectedOrder.id);
         this.showSendPaymentLinkModal = false;
         this.clearMessagesAfterDelay();
       },
@@ -4290,11 +5120,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     let filtered = this.orders;
 
     // Search filter
-    if (this.searchTerm) {
-      const search = this.searchTerm.toLowerCase();
-      filtered = filtered.filter(order => 
+    const search = this.searchTerm.trim().toLowerCase();
+    if (search) {
+      filtered = filtered.filter(order =>
         order.id.toString().includes(search) ||
-        (order.contactEmail && order.contactEmail.toLowerCase().includes(search))
+        (order.contactEmail && order.contactEmail.toLowerCase().includes(search)) ||
+        matchesPhoneSearch(order.contactPhone, search)
       );
     }
 
@@ -4473,7 +5304,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     const orderAny = order as any;
     const cleaningTypeRaw = normalize(orderAny?.cleaningType);
 
-    const isResidential = this.isResidentialServiceType(order.serviceTypeName);
+    const isResidential = this.isResidentialServiceType(order);
     if (isResidential) {
       const cachedVariant = this.residentialVariantCache.get(order.id);
       if (cachedVariant) return cachedVariant;
@@ -4519,9 +5350,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       if (label.includes('heavy')) return 'heavy';
       return 'custom';
     }
-    if (this.isResidentialServiceType(order.serviceTypeName)) {
+    if (this.isResidentialServiceType(order)) {
       return this.getServiceTypeDisplay(order) === 'Deep' ? 'deep' : 'regular';
     }
+    // By ServiceType.serviceKey; only an unkeyed type falls back to its name below. A keyed type
+    // with no category here (post-construction, or a new key) is 'other', as its name was before.
+    const serviceKey = (order.serviceTypeKey ?? '').trim();
+    if (serviceKey) return OrdersComponent.FILTER_KEY_BY_SERVICE_KEY[serviceKey] ?? 'other';
     const key = (order.serviceTypeName || '').toLowerCase();
     if (key.includes('move')) return 'move-in-out';
     if (key.includes('office')) return 'office';
@@ -4542,9 +5377,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return formatAdminServiceTypeLabel(serviceTypeName);
   }
 
-  private isResidentialServiceType(serviceTypeName: string | null | undefined): boolean {
-    return isResidentialServiceTypeName(serviceTypeName);
+  private isResidentialServiceType(order: { serviceTypeName?: string | null; serviceTypeKey?: string | null }): boolean {
+    return isResidentialServiceTypeOrKey(order.serviceTypeName, order.serviceTypeKey);
   }
+
+  /** Orders-filter category per ServiceType.serviceKey (residential is split into deep/regular above). */
+  private static readonly FILTER_KEY_BY_SERVICE_KEY: Record<string, string> = {
+    'move-in-out': 'move-in-out',
+    'office': 'office',
+    'custom': 'custom',
+    'filthy': 'filthy',
+    'heavy-condition': 'heavy'
+  };
 
   private resolveIsDeepResidential(orderLike: any, detailsLike?: any): boolean {
     const normalize = (value: string | null | undefined): string =>
@@ -4560,14 +5404,15 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       .concat(Array.isArray(orderLike?.services) ? orderLike.services : [])
       .concat(Array.isArray(detailsLike?.services) ? detailsLike.services : []);
 
-    const hasDeepFromExtras = extras.some((extra: any) => {
-      const name = normalize(extra?.extraServiceName || extra?.name);
-      return name.includes('deep-cleaning') && !name.includes('super-deep');
-    });
+    // The extra's isDeepCleaning / isSuperDeepCleaning flags and its extraServiceKey decide; only an
+    // unkeyed extra with neither flag is read by name (extra-service-keys.ts).
+    const hasDeepFromExtras = extras.some((extra: any) => isDeepOrSuperDeepExtra(extra) && !isSuperDeepExtra(extra));
 
     if (hasDeepFromExtras) return true;
 
+    // A service line is never the deep option once keyed; an unkeyed (legacy) one by its name.
     return services.some((service: any) => {
+      if (orderServiceKeyOf(service)) return false;
       const name = normalize(service?.serviceName || service?.name);
       return name.includes('deep-cleaning') && !name.includes('super-deep');
     });
@@ -4636,13 +5481,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   /**
-   * The address is already on screen; this just saves retyping it into a map app. Parts are joined
-   * in the same order as CleanerJobView.BuildFullAddress / the cleaner portal, so an admin and the
-   * cleaner working the job open the same pin.
+   * The address is already on screen; this just saves retyping it into a map app. Apt/suite is left
+   * out because geocoders misread it and drop the pin elsewhere. Parts match
+   * CleanerJobView.BuildMapsAddress / the cleaner portal, so an admin and the cleaner open the same pin.
    */
   serviceAddressMapsUrl(order: Order | null): string {
     if (!order) return '';
-    const parts = [order.serviceAddress, order.aptSuite, order.city, order.state, order.zipCode]
+    const parts = [order.serviceAddress, order.city, order.state, order.zipCode]
       .map(part => (part ?? '').trim())
       .filter(part => part.length > 0);
     if (parts.length === 0) return '';
@@ -4731,89 +5576,22 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return Math.round(originalSub * rate * 100) / 100;
   }
 
-  /**
-   * True when money came back on this order but NOT all of it — the retained-cancellation-fee
-   * case (e.g. order #264: $250.91 returned of $320.91 charged, the $70 fee kept).
-   *
-   * Partial vs full is decided by the STATUS, never by comparing amounts here. The backend flips
-   * Status to "Refunded" in exactly one place (OrderRefundService.ApplyRefundTotals) and exactly
-   * when the refunded total clears everything actually charged — so "refunded > 0 but status is
-   * not Refunded" IS the backend's own definition of partial. Re-deriving it from `total` would
-   * be wrong on both sides: tips ride outside the charged amount, and an admin edit can move
-   * `total` after the charge settled.
-   */
+  // The status pill (class, label, tooltip) is shared with the Users panel's History tab -
+  // see shared/admin/order-status-badge.ts for the rules (RefundH, DoneM, Cancel/Refund).
   isPartiallyRefunded(order: AdminOrderList): boolean {
-    return (Number(order.totalRefundedAmount) || 0) > 0
-      && (order.status || '').toLowerCase() !== 'refunded';
+    return isPartiallyRefundedOrder(order);
   }
 
   getStatusClass(order: AdminOrderList): string {
-    // A partial refund keeps its stored status but earns its own pill: the money was neither
-    // fully kept nor fully returned, so neither the done/active nor the cancelled colour is
-    // honest. Amber is the paired warning token, not a third red.
-    if (this.isPartiallyRefunded(order)) return 'status-refund-partial';
-
-    switch ((order.status || '').toLowerCase()) {
-      case 'active':
-        return 'status-active';
-      case 'pending':
-        return 'status-pending';
-      case 'done':
-        return 'status-done';
-      case 'cancelled':
-        return 'status-cancelled';
-      case 'refunded':
-        // Deliberately shares the cancelled treatment: both mean "this order brought in no money".
-        return 'status-cancelled status-refunded';
-      default:
-        return '';
-    }
+    return orderStatusBadgeClass(order);
   }
 
-  /**
-   * Storage → status-column label. Present-tense verbs are a deliberate display choice; the
-   * stored Order.Status values stay "Cancelled"/"Refunded" and MUST NOT be renamed — roughly
-   * thirty comparison sites plus OrderStatuses, OrderBookedFilter and the statistics grouping
-   * key off the stored spelling.
-   */
-  private static readonly STATUS_LABELS: Record<string, string> = {
-    pending: 'Pending',
-    active: 'Active',
-    done: 'Done',
-    cancelled: 'Cancel',
-    refunded: 'Refund',
-  };
-
-  /**
-   * Status column text. Two labels are DERIVED rather than stored, on the same principle:
-   *  - `DoneM`   — Done, paid by a non-Stripe method (Phase 1), so manual payments are scannable.
-   *  - `RefundH` — partially refunded (see isPartiallyRefunded). Deriving it is what lets a
-   *    cancelled-then-part-refunded order keep "Cancelled" in the database, leaving every
-   *    reporting predicate that reads Status (IsRealBooking, CanBeHidden, WasPerformed) exactly
-   *    as it was. RefundH outranks the underlying status in the pill, so that status is carried
-   *    in the tooltip instead — see getStatusTitle.
-   */
   getStatusDisplayLabel(order: AdminOrderList): string {
-    if (this.isPartiallyRefunded(order)) return 'RefundH';
-
-    const key = (order.status || '').toLowerCase();
-    if (key === 'done' && order.paymentMethod && order.paymentMethod !== 'Normal') {
-      return 'DoneM';
-    }
-    return OrdersComponent.STATUS_LABELS[key] ?? order.status;
+    return orderStatusBadgeLabel(order);
   }
 
-  /**
-   * Hover text for the status pill. Only RefundH needs one: it replaces the real status on
-   * screen, so the status it replaced — and how much actually came back — has to stay reachable
-   * without opening the order. The plain statuses explain themselves and get no tooltip.
-   */
   getStatusTitle(order: AdminOrderList): string {
-    if (this.isPartiallyRefunded(order)) {
-      const refunded = this.formatCurrency(Number(order.totalRefundedAmount) || 0);
-      return `Partially refunded — ${refunded} returned to the customer. Order status: ${order.status}.`;
-    }
-    return '';
+    return orderStatusBadgeTitle(order);
   }
 
   clearMessages() {
@@ -4834,7 +5612,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     // TotalDuration as TOTAL across all maids (matching non-custom convention), so the perMaid
     // template branch handles its display correctly via TotalDuration / MaidsCount.
     if (this.selectedOrder.hasCleanersService) return true;
-    return this.selectedOrder.services?.some(s => s.serviceName && s.serviceName.toLowerCase().includes('cleaner')) ?? false;
+    return this.selectedOrder.services?.some(s => isCleanersLine(s)) ?? false;
+  }
+
+  /** Service-line checks for the template: by serviceKey, the name only for an unkeyed line. */
+  isBedroomsServiceLine(line: KeyedOrderService): boolean {
+    return isBedroomsLine(line);
+  }
+
+  isCleanersServiceLine(line: KeyedOrderService): boolean {
+    return isCleanersLine(line);
   }
 
   getServiceName(order: Order | null, i: number, fallback: number): string {
@@ -4846,6 +5633,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   getEditServiceDisplayName(s: { quantity: number }, i: number): string {
     const def = this.getEditServiceDefinition(i);
     if (def?.serviceKey === 'bedrooms' && (Number(s.quantity) || 0) === 0) return 'Studio';
+    if (!this.selectedOrder?.services?.[i] && def) return def.name;
     return this.getServiceName(this.selectedOrder, i, 0);
   }
 
@@ -4859,6 +5647,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     return e?.extraServiceName ?? '#' + orderId;
   }
 
+  /** A catalogue service by id within a service type (for rows the order does not have yet). */
+  private findCatalogueService(serviceTypeId: number | null | undefined, serviceId: number): Service | null {
+    const st = this.serviceTypesCache.find(t => t.id === serviceTypeId);
+    return st?.services?.find(sv => sv.id === serviceId) ?? null;
+  }
+
   getEditOrderServiceType(): ServiceType | null {
     const stId = this.selectedOrder?.serviceTypeId;
     if (stId == null) return null;
@@ -4866,10 +5660,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   getEditServiceDefinition(index: number): Service | null {
-    const orderService = this.selectedOrder?.services?.[index];
-    if (!orderService) return null;
     const st = this.getEditOrderServiceType();
-    return st?.services?.find(s => s.id === orderService.serviceId) ?? null;
+    const orderService = this.selectedOrder?.services?.[index];
+    if (orderService) return st?.services?.find(s => s.id === orderService.serviceId) ?? null;
+    // A row the editor ADDED (orderServiceId 0) sits after the order's own rows, so it has no
+    // order line at this index; it names its catalogue service itself. See ensureEditLevelsRow.
+    const added = this.editOrderForm?.services?.[index];
+    if (added && !added.orderServiceId && added.serviceId != null) {
+      return st?.services?.find(s => s.id === added.serviceId) ?? null;
+    }
+    return null;
   }
 
   /**
@@ -5002,7 +5802,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** When user changes hours for a cleaner/hours row: update totalDuration, cost, and hours row quantity. */
   onEditServiceHoursChange(index: number, value: number): void {
-    const hours = Math.max(0.5, Math.min(24, Number(value) || 0));
+    const hours = this.clampEditHours(Number(value) || 0);
     const services = this.editOrderForm?.services ?? [];
     const st = this.getEditOrderServiceType();
     const def = this.getEditServiceDefinition(index);
@@ -5284,6 +6084,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     // cent all on its own — see resolveStoredTaxOverride.
     this.editOrderTaxOverride = this.resolveStoredTaxOverride();
     this.editOrderTotalInput = null;
+    this.editOrderPriceTyped = false;
     const parsed = this.parseFloorTypesForEdit(this.selectedOrder.floorTypes, this.selectedOrder.floorTypeOther);
     this.editFloorTypes = parsed.types;
     this.editFloorTypeOther = parsed.otherText;
@@ -5519,19 +6320,16 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (typed <= 0) {
       // Cleared or zeroed: nothing to hold on to, so hand pricing back to the subtotal.
       this.editOrderTaxOverride = null;
+      this.editOrderPriceTyped = false;
       this.editOrderForm.subTotal = 0;
       this.recalculateEditPricing();
       return;
     }
 
+    this.editOrderPriceTyped = true;
     const solved = solveSubTotalForTypedTotal(
       round2(typed + this.editCreditsHeldOffTheTotal()),
-      {
-        originalSubTotal: this.editOrderFormOriginalSubTotal,
-        originalDiscount: this.editOrderFormOriginalDiscount,
-        originalSubscriptionDiscount: this.editOrderFormOriginalSubscriptionDiscount,
-        loyaltyPercentage: this.editOrderFormOriginalLoyaltyPercentage
-      },
+      this.editDiscountSnapshot(),
       {
         discountAmount: Number(this.editOrderForm.discountAmount ?? 0) || 0,
         subscriptionDiscountAmount: Number(this.editOrderForm.subscriptionDiscountAmount ?? 0) || 0,
@@ -5604,7 +6402,26 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   /** SubTotal input: typing a subtotal is the opposite intent, so it drops a typed Total. */
   onEditSubTotalChange(): void {
     this.clearEditTotalOverride();
+    this.editOrderPriceTyped = true;
     this.recalculateEditPricing(true);
+  }
+
+  /**
+   * The order's discounts as opened, with the booking rule behind each (OrderDto). Everything that
+   * re-derives a discount in this editor reads it, and the server re-derives from the same rules
+   * (OrderPricingCalculator.ResolveEditedDiscounts), so the saved total is the one previewed.
+   */
+  private editDiscountSnapshot(): EditDiscountSnapshot {
+    return {
+      originalSubTotal: this.editOrderFormOriginalSubTotal,
+      originalDiscount: this.editOrderFormOriginalDiscount,
+      originalSubscriptionDiscount: this.editOrderFormOriginalSubscriptionDiscount,
+      loyaltyPercentage: this.editOrderFormOriginalLoyaltyPercentage,
+      loyaltyDiscountAmount: this.editOrderFormOriginalLoyaltyDiscount,
+      discountPercent: this.selectedOrder?.discountPercent,
+      discountFixedAmount: this.selectedOrder?.discountFixedAmount,
+      subscriptionDiscountPercent: this.selectedOrder?.subscriptionDiscountPercent
+    };
   }
 
   /** Discount inputs: they move the amount being taxed, so a typed Total no longer holds. */
@@ -5623,15 +6440,13 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
     if (this.editOrderFormOriginalSubTotal > 0 && rederiveDiscountsFromSubTotal) {
       // Derived from the ORIGINAL snapshot every time, never from the current value — that is
-      // what makes a round trip land back on the exact starting numbers.
-      discountAmount = rescaleDiscountToSubTotal(
-        this.editOrderFormOriginalDiscount, this.editOrderFormOriginalSubTotal, subTotal);
-      subscriptionDiscountAmount = rescaleDiscountToSubTotal(
-        this.editOrderFormOriginalSubscriptionDiscount, this.editOrderFormOriginalSubTotal, subTotal);
-      if (this.editOrderFormOriginalLoyaltyPercentage > 0) {
-        // Loyalty locks a PERCENTAGE at booking time, so it scales off that, not off a ratio.
-        loyaltyDiscountAmount = round2(subTotal * (this.editOrderFormOriginalLoyaltyPercentage / 100));
-      }
+      // what makes a round trip land back on the exact starting numbers. Booking's rules
+      // (2026-10): a percentage stays that percentage, a fixed promo stays fixed (capped), and
+      // loyalty follows its locked percentage; an order with no recorded rule re-scales by ratio.
+      const derived = discountsForSubTotal(this.editDiscountSnapshot(), subTotal);
+      discountAmount = derived.discountAmount;
+      subscriptionDiscountAmount = derived.subscriptionDiscountAmount;
+      loyaltyDiscountAmount = derived.loyaltyDiscountAmount;
       this.editOrderForm.discountAmount = discountAmount;
       this.editOrderForm.subscriptionDiscountAmount = subscriptionDiscountAmount;
       this.editOrderForm.loyaltyDiscountAmount = loyaltyDiscountAmount;
@@ -5737,6 +6552,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     // extra onto a $300.00 job silently re-derive the tax and charge $300.01.
     if (!this.isCustomModeOrder()) {
       this.clearEditTotalOverride();
+      // The lines price the order again, so a price typed earlier in this session no longer stands.
+      this.editOrderPriceTyped = false;
     }
     const built = this.buildEditQuote();
 
@@ -5750,7 +6567,11 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         const rowIndex = built.serviceRowIndices[i];
         if (rowIndex == null) return;
         const row = this.editOrderForm.services?.[rowIndex];
-        if (row) row.cost = round2(line.cost);
+        if (row) {
+          row.cost = round2(line.cost);
+          // An added row has no stored minutes yet; the server takes them from here.
+          if (!row.orderServiceId) row.duration = line.duration;
+        }
       });
       built.quote.extraServiceLines.forEach((line, i) => {
         const row = this.editOrderForm.extraServices?.[built.extraRowIndices[i]];
@@ -5791,8 +6612,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     for (let i = 0; i < orderServices.length; i++) {
       const def = st?.services?.find(s => s.id === orderServices[i].serviceId);
       if (def?.serviceRelationType === 'cleaner' || def?.serviceKey === 'cleaners') return i;
-      const name = (orderServices[i].serviceName || '').toLowerCase();
-      if (name.includes('cleaner')) return i;
+      if (isCleanersLine(orderServices[i])) return i;
     }
     return -1;
   }
@@ -5804,8 +6624,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     for (let i = 0; i < orderServices.length; i++) {
       const def = st?.services?.find(s => s.id === orderServices[i].serviceId);
       if (def?.serviceRelationType === 'hours' || def?.serviceKey === 'hours') return i;
-      const name = (orderServices[i].serviceName || '').toLowerCase();
-      if (name.includes('hour')) return i;
+      if (isHoursLine(orderServices[i])) return i;
     }
     return -1;
   }
@@ -5888,6 +6707,18 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
     const max = Math.max(...LEVEL_OPTIONS);
     this.editOrderForm.levelsQuantity = Math.min(Math.max(Math.round(parsed), MIN_LEVELS), max);
+
+    // On a service type that prices levels, a count is never informational: it becomes the
+    // priced Levels row (seeded from this value) and reprices, exactly like switching to House.
+    if (this.editLevelsArePriced()) {
+      this.ensureEditLevelsRow();
+      this.recalcSubtotalFromServicesAndExtras();
+    }
+  }
+
+  /** True when this order's service type charges for levels (has a priced Levels service). */
+  editLevelsArePriced(): boolean {
+    return !this.isCustomModeOrder() && findLevelsService(this.getEditOrderServiceType()) != null;
   }
 
   showEditInformationalLevels(): boolean {
@@ -5898,19 +6729,122 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onEditPropertyTypeChange(): void {
     if (isHouse(this.editOrderForm?.propertyType)) {
+      // Same two rules the booking page and the customer order edit apply on picking House:
+      // the type's priced Levels line joins the quote, and a studio becomes 1 bedroom.
+      this.ensureEditLevelsRow();
+      this.raiseEditBedroomsToHouseMinimum();
       this.recalcSubtotalFromServicesAndExtras();
       this.recalculateEditPricing();
       return;
     }
 
-    // Apartment (or cleared): the stair charge must go with it. Forcing the row to the included
-    // level prices it at exactly $0 rather than deleting a row the backend still expects.
+    // Apartment (or cleared): the stair charge must go with it. A Levels row this editor added
+    // is simply taken away again - nothing was saved, so there is nothing to keep. A row the
+    // order already had is forced to the included level, which prices it at exactly $0, rather
+    // than deleting a row the backend still expects.
+    this.removeAddedEditLevelsRow();
     (this.editOrderForm.services ?? []).forEach((row: any, index: number) => {
       if (isLevelsService(this.getEditServiceDefinition(index) ?? undefined)) row.quantity = 1;
     });
 
     this.recalcSubtotalFromServicesAndExtras();
     this.recalculateEditPricing();
+  }
+
+  /**
+   * Gives a house the priced Levels row its service type charges for (2026-10).
+   *
+   * Booking only creates a levels line when a house's level chip is clicked, so an order booked
+   * as an apartment has none. Switching it to House here used to leave only the unpriced
+   * "Levels (informational)" box, and the level count never reached the price - unlike booking,
+   * where 3 levels on Residential or Move In/Out costs two levels' worth more. The row is
+   * appended AFTER the order's own rows, so every index-aligned lookup on those rows is
+   * unchanged, and it is priced by the shared calculator like any other row. The server adds it
+   * on save (OrderService.AddAdminLevelsLineAsync).
+   *
+   * No-op for a service type with no priced levels service (Office, Pre-Arranged...), where the
+   * informational box remains the right control, and when the order already has the row.
+   * Seeded at the informational count the order may already carry, else the included level.
+   */
+  private ensureEditLevelsRow(): void {
+    if (this.isCustomModeOrder()) return;
+    const levelsService = findLevelsService(this.getEditOrderServiceType());
+    if (!levelsService) return;
+    const rows = this.editOrderForm.services ?? (this.editOrderForm.services = []);
+    if (rows.some((_row, index) => isLevelsService(this.getEditServiceDefinition(index) ?? undefined))) return;
+
+    const seeded = Number(this.editOrderForm.levelsQuantity) || MIN_LEVELS;
+    const quantity = this.clampEditLevels(seeded, levelsService);
+    rows.push({ orderServiceId: 0, serviceId: levelsService.id, quantity, cost: 0 });
+    this.editOrderFormPrevServiceQuantities.push(quantity);
+  }
+
+  /** Undoes ensureEditLevelsRow: only an unsaved row is ever removed. */
+  private removeAddedEditLevelsRow(): void {
+    const rows = this.editOrderForm.services ?? [];
+    for (let i = rows.length - 1; i >= 0; i--) {
+      if (!rows[i].orderServiceId && isLevelsService(this.getEditServiceDefinition(i) ?? undefined)) {
+        rows.splice(i, 1);
+        this.editOrderFormPrevServiceQuantities.splice(i, 1);
+      }
+    }
+  }
+
+  /**
+   * A house has at least one bedroom: the booking page and the customer order edit both turn a
+   * studio (bedrooms = 0) into 1 bedroom on picking House, and the server applies the same floor
+   * on those paths (OrderPricingInputBuilder). Routed through the ordinary quantity handler so
+   * the Sq.ft linkage follows exactly as if the admin had pressed +.
+   */
+  private raiseEditBedroomsToHouseMinimum(): void {
+    const index = this.findEditServiceIndexByKey('bedrooms');
+    if (index < 0) return;
+    const row = this.editOrderForm.services![index];
+    if ((Number(row.quantity) || 0) >= 1) return;
+    row.quantity = 1;
+    this.onEditServiceQuantityChange(row, index);
+  }
+
+  /**
+   * The range the booking page's stepper allows for a service (2026-10): from its minValue (a
+   * house has at least one bedroom) to its maxValue, with booking's defaults when unset - 10, or
+   * 5000 for sq.ft. Mirrors BookingComponent.getServiceMinValue / incrementServiceQuantity. The
+   * Sq.ft floor for the bedroom count is applied on top by onEditServiceQuantityChange.
+   */
+  private clampEditServiceQuantity(value: number, def: Service): number {
+    let min = def.minValue || 0;
+    if (def.serviceKey === 'bedrooms' && isHouse(this.editOrderForm?.propertyType)) min = Math.max(min, 1);
+    const max = def.maxValue || (def.serviceKey === 'sqft' ? 5000 : 10);
+    return Math.min(Math.max(value, min), max);
+  }
+
+  /**
+   * Booking's hours range (2026-10): the hours service's minValue (at least 2.5h with Extra
+   * Cleaners, like booking) to its maxValue (booking's default 10). A service type with no hours
+   * service keeps the editor's old 0.5-24 range. Half-hour steps are the editor's own and stay.
+   */
+  private clampEditHours(value: number): number {
+    const hoursDef = this.getEditOrderServiceType()?.services?.find(
+      s => s.serviceRelationType === 'hours' || s.serviceKey === 'hours');
+    if (!hoursDef) return Math.max(0.5, Math.min(24, value));
+    let min = hoursDef.minValue || 0.5;
+    if (this.editHasExtraCleaners()) min = Math.max(min, 2.5);
+    const max = hoursDef.maxValue || 10;
+    return Math.max(min, Math.min(max, value));
+  }
+
+  private editHasExtraCleaners(): boolean {
+    return (this.editOrderForm?.extraServices ?? []).some((e, index) => {
+      const def = this.getEditExtraDefinition(e, index);
+      return !!def && isExtraCleaners(def);
+    });
+  }
+
+  /** The level range the booking page offers: the service's configured min/max, else 1-4. */
+  private clampEditLevels(value: number, definition: Service | null | undefined): number {
+    const min = definition?.minValue ?? MIN_LEVELS;
+    const max = definition?.maxValue ?? Math.max(...LEVEL_OPTIONS);
+    return Math.min(Math.max(Math.round(Number(value) || 0), min), max);
   }
 
   /** Read-only detail panel: null renders nothing at all, never an empty row. */
@@ -6095,7 +7029,17 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   onEditServiceQuantityChange(s: { quantity: number; cost: number }, index: number): void {
     let q = Number(s.quantity) || 0;
     const def = this.getEditServiceDefinition(index);
+    // Levels stay inside the range booking offers (1-4 as seeded): 0 levels or 9 levels is not a
+    // house anybody can book, and the stepper used to accept both.
     const isHoursRow = def?.serviceRelationType === 'hours' || def?.serviceKey === 'hours';
+    if (isLevelsService(def ?? undefined)) {
+      q = this.clampEditLevels(q, def);
+      s.quantity = q;
+    } else if (def && !isHoursRow) {
+      // Every other service stays inside the range the booking page's stepper allows (2026-10).
+      q = this.clampEditServiceQuantity(q, def);
+      s.quantity = q;
+    }
     if (isHoursRow) {
       this.onEditServiceHoursChange(index, q);
       return;
@@ -6283,7 +7227,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   stepEditServiceHours(index: number, delta: number): void {
-    const next = Math.max(0.5, Math.min(24, (this.getEditServiceHours(index) || 0) + delta));
+    const next = this.clampEditHours((this.getEditServiceHours(index) || 0) + delta);
     this.onEditServiceHoursChange(index, next);
   }
 
@@ -6636,6 +7580,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       const proposedLevelsRow = (prop.services ?? [])
         .find((s: any) => s.orderServiceId === currentLevelsLine.id);
       push('Levels', currentLevelsLine.quantity, proposedLevelsRow?.quantity ?? currentLevelsLine.quantity);
+    } else {
+      // A Levels row added by this edit (apartment order turned house): the order had no line,
+      // so "before" is whatever informational count it carried, if any.
+      const addedLevelsRow = (prop.services ?? []).find((s: any) => !s.orderServiceId && s.serviceId != null
+        && this.findCatalogueService(cur.serviceTypeId, s.serviceId)?.serviceKey === 'levels');
+      if (addedLevelsRow) push('Levels', levelsToDisplay(cur.propertyType, cur.levelsQuantity), addedLevelsRow.quantity);
     }
     push('Entry', cur.entryMethod, prop.entryMethod);
     const instructionsFieldLabel = this.isCustomServiceType(cur) ? 'Description' : 'Instructions';
@@ -6685,6 +7635,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         if (cq !== pq || cc !== pc) {
           changes.push({ field: `${name} (qty/cost)`, current: `(${cq}/${cc})`, proposed: `(${pq}/${pc})`, difference: fmtDiff(cc, pc) });
         }
+      } else if (!osId && ps.serviceId != null) {
+        // A row this edit adds (the priced Levels line) - same "(new)" shape as an added extra.
+        const addedName = this.findCatalogueService(cur.serviceTypeId, ps.serviceId)?.name ?? `Service #${ps.serviceId}`;
+        const pq = Number(ps.quantity);
+        const pc = Number(ps.cost);
+        changes.push({ field: `${addedName} (new) (qty/cost)`, current: '—', proposed: `(${pq}/${pc})`, difference: fmtDiff(0, pc) });
       }
     }
     // Extra services: label with (qty/cost) or (hours/cost) depending on extra type; show removed
@@ -6774,7 +7730,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       zipCode: this.editOrderForm.zipCode ?? undefined,
       serviceDate: this.editOrderForm.serviceDate ?? undefined,
       serviceTime: this.editOrderForm.serviceTime ?? undefined,
-      maidsCount: this.editOrderForm.maidsCount ?? undefined,
+      // Set on the Wages card now, so the form only sends a count its own Cleaners service line
+      // (cleaner+hours types) moved — never the value it was opened with, which could overwrite
+      // a count changed on the Wages card in the meantime.
+      maidsCount: this.editOrderForm.maidsCount != null && this.editOrderForm.maidsCount !== this.selectedOrder?.maidsCount
+        ? this.editOrderForm.maidsCount
+        : undefined,
       totalDuration: persistedTotalDuration ?? undefined,
       bedroomsQuantity: this.editOrderForm.bedroomsQuantity ?? undefined,
       bathroomsQuantity: this.editOrderForm.bathroomsQuantity ?? undefined,
@@ -6796,12 +7757,17 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       // subtotal this order's discounts leave behind before honouring the tax.
       taxOverride: this.editOrderTaxOverride?.tax ?? undefined,
       taxOverrideBase: this.editOrderTaxOverride?.base ?? undefined,
+      // Only when the admin typed the price; otherwise the server prices the lines itself.
+      priceTypedByAdmin: this.editOrderPriceTyped ? true : undefined,
       discountAmount: this.editOrderForm.discountAmount ?? undefined,
       subscriptionDiscountAmount: this.editOrderForm.subscriptionDiscountAmount ?? undefined,
       // Loyalty Discount: persist the rescaled $ amount. Backend leaves the original
       // LoyaltyDiscountPercentage untouched per SuperAdminFullUpdateOrder comment.
       loyaltyDiscountAmount: this.editOrderForm.loyaltyDiscountAmount ?? undefined,
-      cleanerHourlyRate: this.editOrderForm.cleanerHourlyRate ?? undefined,
+      // Not part of an order edit any more: the rate is set on the Wages card
+      // (updateOrderCleanerHourlyRate), and resending the value seeded when the form opened could
+      // overwrite a rate changed there in the meantime.
+      cleanerHourlyRate: undefined,
       // Omitted entirely once cleaners are assigned: the per-cleaner rows own the figure and the
       // server refuses a submitted one (OrderService.SuperAdminFullUpdateOrder). Sending it
       // anyway put a "Cleaners Total Salary" row in the save-confirmation modal describing a
@@ -6815,7 +7781,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       customServiceDisplayName: this.selectedOrderIsCustomServiceType
         ? (this.editOrderForm.customServiceDisplayName ?? '')
         : undefined,
-      services: this.editOrderForm.services ?? undefined,
+      // Existing rows as they are; an added row also names its service and carries its minutes.
+      services: (this.editOrderForm.services ?? undefined)?.map(row => row.orderServiceId
+        ? { orderServiceId: row.orderServiceId, quantity: row.quantity, cost: row.cost }
+        : { orderServiceId: 0, serviceId: row.serviceId, quantity: row.quantity, cost: row.cost, duration: row.duration ?? 0 }),
       // Send extra services: existing rows with orderExtraServiceId; new rows with orderExtraServiceId: 0 and extraServiceId (backend may expect 0 for "create")
       extraServices: (this.editOrderForm.extraServices ?? undefined)?.map(e => {
         const orderExtraServiceId = Number((e as any).orderExtraServiceId ?? 0) || 0;
@@ -6925,8 +7894,21 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
+  /**
+   * Re-reads EVERYTHING the order panel shows after any action on it — the order itself, its
+   * update history, balance, invoices, card info, refunds, cleaners and the Changes feed — so a
+   * payment, invoice, edit or staffing change is visible at once, never after a page reload.
+   * Called from every action handler; each read is independent, so one failing hides nothing else.
+   */
   private refreshOrderAfterSave(): void {
     if (!this.selectedOrder) return;
+    const orderId = this.selectedOrder.id;
+    this.loadUpdateHistory(orderId);
+    this.refreshPartialBalanceQuietly(orderId);
+    this.loadOrderSavedCardInfo(orderId);
+    this.loadSingleOrderCleaners(orderId);
+    if (this.isSuperAdmin) this.loadOrderRefunds(orderId);
+    if (this.orderChangesLoadedFor === orderId) this.loadOrderChanges(orderId);
     // The salary can move on any save (services, duration, maids, rate), so the breakdown is
     // refetched with the order rather than left showing the pre-save split.
     if (this.canViewCleanerPayroll) this.loadOrderCleanerPayroll(this.selectedOrder.id);

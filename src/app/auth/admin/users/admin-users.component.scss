@@ -13,11 +13,4 @@
     padding: 8px 14px;
   }
 
-  /* Four labels always fit; on a narrow phone they scroll rather than wrap onto two lines. */
-  @media (max-width: 480px) {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    &::-webkit-scrollbar { display: none; }
-  }
 }

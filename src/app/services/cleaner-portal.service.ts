@@ -61,6 +61,8 @@ export interface CleanerPortalJob {
   /** First name only, matching the assignment email. */
   customerName: string;
   address: string;
+  /** Address without apt/suite, for the map link. Absent on responses from an older API. */
+  mapsAddress?: string;
   /**
    * Whether the cleaner has to bring cleaning solutions and supplies. Derived server-side from
    * whether the customer bought the Cleaning Supplies extra - the same source the assignment

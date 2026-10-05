@@ -1,3 +1,9 @@
+// Field-group headings were h4 until 2026-10 (now h3, under the tab's h2). Rules below that do not
+// set a size inherited the h4 browser default (1em); this keeps exactly that.
+h3 {
+  font-size: 1em;
+}
+
 .audit-history-section {
   background: white;
   border-radius: 8px;
@@ -117,6 +123,7 @@
 
     .filter-controls {
       display: flex;
+      flex-wrap: wrap;
       gap: 5px;
 
       @media (max-width: 480px) {
@@ -250,7 +257,7 @@
 
           td {
             padding: 5px;
-            color: #6c757d;
+            color: var(--text-muted-on-tint);
             font-size: 0.875rem;
             border-bottom: 1px solid #e9ecef;
             border-right: 1px solid #e9ecef;
@@ -357,12 +364,12 @@
         }
 
         .old-value {
-          color: #dc3545;
+          color: var(--soft-red-text);
           text-decoration: line-through;
         }
 
         .new-value {
-          color: #28a745;
+          color: var(--mint-fresh-text);
         }
 
         .arrow {
@@ -571,7 +578,7 @@
     .result-count {
       margin-left: auto;
       font-size: 0.8rem;
-      color: var(--text-muted);
+      color: var(--text-muted-on-elevated);
       white-space: nowrap;
     }
 
@@ -591,7 +598,7 @@
 
   .success-message {
     background: var(--mint-fresh);
-    color: var(--fresh-green);
+    color: var(--mint-fresh-text);
     border: 1px solid var(--mint-fresh-border);
     padding: 8px 12px;
     border-radius: 4px;
@@ -616,7 +623,7 @@
       border-radius: 4px;
 
       &:hover:not(:disabled) {
-        background: #007bff;
+        background: var(--primary-color);
         color: white;
         border-color: #007bff;
       }
@@ -628,7 +635,7 @@
       }
 
       &.active {
-        background: #007bff;
+        background: var(--primary-color);
         color: white;
         border-color: #007bff;
       }
@@ -646,7 +653,7 @@
 .service-update-details {
   padding: 5px;
   
-  h4 {
+  h3 {
     font-size: 1rem;
     font-weight: 600;
     margin: 0 0 10px 0;
@@ -685,7 +692,7 @@
   padding: 10px;
   flex: 1;
   
-  h4 {
+  h3 {
     border-bottom: 1px solid #ddd;
     padding-bottom: 5px;
   }
@@ -706,7 +713,7 @@
 .combined-update-details {
   padding: 5px;
   
-  h4 {
+  h3 {
     font-size: 1rem;
     font-weight: 600;
     margin: 0 0 10px 0;
@@ -813,7 +820,7 @@
   display: block;
   margin: 15px auto 0;
   padding: 8px 16px;
-  background: #007bff;
+  background: var(--primary-color);
   color: white;
   border: none;
   border-radius: 4px;
@@ -898,13 +905,13 @@
     border-color: var(--border-color);
 
     &:hover:not(:disabled) {
-      background: #007bff !important;
+      background: var(--primary-color) !important;
       color: white !important;
       border-color: #007bff !important;
     }
 
     &.active {
-      background: #007bff !important;
+      background: var(--primary-color) !important;
       color: white !important;
       border-color: #007bff !important;
     }
@@ -919,10 +926,10 @@
     color: var(--text-muted) !important;
   }
 
-  .service-update-details h4,
+  .service-update-details h3,
   .service-update-details h5,
   .service-update-details h6,
-  .combined-update-details h4,
+  .combined-update-details h3,
   .combined-update-details h5,
   .combined-update-details h6 {
     color: var(--text-primary) !important;
@@ -932,7 +939,7 @@
   .services-section,
   .extra-services-section {
     border-color: var(--border-color);
-    h4 {
+    h3 {
       border-color: var(--border-color);
       color: var(--text-primary) !important;
     }

@@ -354,8 +354,8 @@
       background: var(--cd-surface-subtle);
       color: var(--cd-text-muted);
     }
-    .tag-active { background: var(--cd-success-soft); color: var(--cd-success); }
-    .tag-reserve { background: var(--cd-warn-soft); color: var(--cd-warn); }
+    .tag-active { background: var(--cd-success-soft); color: var(--mint-fresh-text); }
+    .tag-reserve { background: var(--cd-warn-soft); color: var(--warning-orange-text); }
     .tag-beginner { background: var(--cd-surface-subtle); color: var(--cd-text-muted); }
   }
 
@@ -380,8 +380,8 @@
   color: var(--cd-text-muted);
   white-space: nowrap;
 
-  &.ranking-top { background: var(--cd-success-soft); color: var(--cd-success); }
-  &.ranking-standard { background: var(--cd-warn-soft); color: var(--cd-warn); }
+  &.ranking-top { background: var(--cd-success-soft); color: var(--mint-fresh-text); }
+  &.ranking-standard { background: var(--cd-warn-soft); color: var(--warning-orange-text); }
   &.ranking-beginner { background: var(--cd-surface-subtle); color: var(--cd-text-muted); }
   &.ranking-restricted { background: var(--cd-danger-soft); color: var(--cd-danger); }
   &.ranking-noexp { background: var(--cd-surface-subtle); color: var(--cd-text-muted); }
@@ -1204,7 +1204,7 @@
       padding: 2px 8px;
       border-radius: 999px;
       background: var(--cd-accent-soft);
-      color: var(--cd-accent);
+      color: var(--primary-text-elevated);
       font-size: 11px;
     }
 
@@ -1552,7 +1552,7 @@
     }
 
     &.active {
-      background: var(--cd-input-focus, var(--primary-color));
+      background: var(--primary-color);
       border-color: var(--cd-input-focus, var(--primary-color));
       color: #fff;
     }
@@ -1640,7 +1640,7 @@
     cursor: pointer;
     padding: 0 4px;
 
-    &:hover { color: var(--bright-red); }
+    &:hover { color: var(--soft-red-text); }
   }
 }
 
@@ -2139,7 +2139,7 @@
   background: var(--cd-accent-soft);
 
   > .field-label {
-    color: var(--cd-accent);
+    color: var(--primary-text-elevated);
     font-weight: 600;
   }
 

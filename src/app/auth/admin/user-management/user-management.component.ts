@@ -27,7 +27,7 @@ import {
 import { extractApiErrorMessage } from '../../../utils/http-error.utils';
 import { AdminBonusService, AdminBonusSummary } from '../../../services/admin-bonus.service';
 import { environment } from '../../../../environments/environment';
-import { normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
+import { matchesPhoneSearch, normalizePhone10, sanitizePhoneInput } from '../../../utils/phone.utils';
 import { ADMIN_VIEWABLE_PAGES } from '../../../shared/admin-viewable-pages';
 import { getAdminAvatarColor, getAdminAvatarInitials } from '../../../shared/admin/admin-avatar.utils';
 import {
@@ -35,11 +35,20 @@ import {
   RegisteredCustomer
 } from '../../../shared/components/register-customer-modal/register-customer-modal.component';
 import { RecreateOrderModalComponent } from '../../../shared/components/recreate-order-modal/recreate-order-modal.component';
-import { finalize } from 'rxjs/operators';
+import { forkJoin, of } from 'rxjs';
+import { catchError, finalize } from 'rxjs/operators';
 import { AdminUserBillingComponent } from './user-billing/admin-user-billing.component';
 import {
   InvoiceService, InvoiceClientOption, LinkedInvoiceSummary
 } from '../../../services/invoice.service';
+import { isDeepOrSuperDeepExtra, isSuperDeepExtra } from '../../../shared/booking/extra-service-keys';
+import { orderServiceKeyOf } from '../../../shared/booking/order-service-keys';
+import {
+  isCancelledOrRefundedStatus,
+  orderStatusBadgeClass,
+  orderStatusBadgeLabel,
+  orderStatusBadgeTitle,
+} from '../../../shared/admin/order-status-badge';
 
 type DetailTab = 'details' | 'history' | 'photos' | 'notes' | 'tasks' | 'invoices' | 'billing';
 
@@ -755,17 +764,27 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   // ── Detail data loaders ──
 
+  /**
+   * The History list shows EVERY order (cancelled and refunded ones with their status badge), but
+   * Total Jobs and Total Spent count only real business (owner's rule, 2026-10): no cancelled or
+   * fully refunded order, and what was refunded off a partly refunded order was not spent. Both
+   * figures come from the server (GET users/{id}/profile — OrderPaymentFilter.RealizedAmount), the
+   * one place the paid / refunded rule lives; the panel used to re-add every non-cancelled order's
+   * total here, refunds and unpaid bookings included.
+   */
   private loadUserOrders(userId: number) {
-    this.adminService.getUserOrders(userId).subscribe({
-      next: (orders: OrderList[]) => {
+    forkJoin({
+      orders: this.adminService.getUserOrders(userId),
+      // A failed statistics read must not blank the History list.
+      profile: this.adminService.getUserProfile(userId).pipe(catchError(() => of(null)))
+    }).subscribe({
+      next: ({ orders, profile }) => {
         if (this.selectedUser && this.selectedUser.id === userId) {
-          const validOrders = orders.filter(order =>
-            order.status && order.status.toLowerCase() !== 'cancelled'
-          );
+          const validOrders = orders.filter(order => !isCancelledOrRefundedStatus(order.status));
 
           this.selectedUser.orders = orders;
-          this.selectedUser.totalOrders = validOrders.length;
-          this.selectedUser.totalSpent = validOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+          this.selectedUser.totalOrders = profile?.totalOrders ?? validOrders.length;
+          this.selectedUser.totalSpent = profile?.totalSpent ?? 0;
           this.selectedUser.registrationDate = new Date(this.selectedUser.createdAt);
 
           if (validOrders.length > 0) {
@@ -1112,10 +1131,11 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   resolvePhotoUrl(photoOrUrl: UserCleaningPhoto | string | number | undefined | null): string {
     if (!photoOrUrl) return '';
     if (typeof photoOrUrl === 'number') {
-      return `${environment.apiUrl}/admin/user-care/cleaning-photos/${photoOrUrl}/raw`;
+      return `${environment.apiUrl}/files/cleaning-photos/${photoOrUrl}`;
     }
     if (typeof photoOrUrl === 'object' && 'id' in photoOrUrl && photoOrUrl.id) {
-      return `${environment.apiUrl}/admin/user-care/cleaning-photos/${photoOrUrl.id}/raw`;
+      // An empty photoUrl means the server would not expose this row (not a local upload).
+      return photoOrUrl.photoUrl ? `${environment.apiUrl}/files/cleaning-photos/${photoOrUrl.id}` : '';
     }
     return typeof photoOrUrl === 'string' ? photoOrUrl : '';
   }
@@ -1737,13 +1757,13 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     // The SCOPE comes first and the filters narrow within it, so no filter can ever surface a
     // staff account on the Customers tab (or the reverse).
     let filtered = this.scopedUsers;
-    if (this.searchTerm) {
-      const search = this.searchTerm.toLowerCase();
+    const search = this.searchTerm.trim().toLowerCase();
+    if (search) {
       filtered = filtered.filter(user =>
         user.id.toString().includes(search) ||
         (user.email && user.email.toLowerCase().includes(search)) ||
         ((user.firstName || '') + ' ' + (user.lastName || '')).toLowerCase().includes(search) ||
-        (user.phone && user.phone.toLowerCase().includes(search))
+        matchesPhoneSearch(user.phone, search)
       );
     }
     if (this.statusFilter !== 'all') {
@@ -1756,7 +1776,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       filtered = filtered.filter(user => user.role && user.role.toLowerCase() === this.roleFilter.toLowerCase());
     }
     if (this.customerTypeFilter !== 'all') {
-      // totalOrdersCount counts non-cancelled orders (from the users-list endpoint).
+      // totalOrdersCount counts REAL orders - not cancelled, not fully refunded (users-list endpoint).
       filtered = filtered.filter(user => {
         const count = user.totalOrdersCount ?? 0;
         switch (this.customerTypeFilter) {
@@ -1813,13 +1833,40 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     return `$${amount.toFixed(2)}`;
   }
 
-  getStatusClass(status: string): string {
-    switch ((status || '').toLowerCase()) {
-      case 'active': return 'status-active';
-      case 'done': return 'status-done';
-      case 'cancelled': return 'status-cancelled';
-      default: return 'status-pending';
-    }
+  // History pill: the Orders tab's own class/label/tooltip (shared/admin/order-status-badge.ts).
+  getStatusClass(order: OrderList): string {
+    return orderStatusBadgeClass(order);
+  }
+
+  getStatusLabel(order: OrderList): string {
+    return orderStatusBadgeLabel(order);
+  }
+
+  getStatusTitle(order: OrderList): string {
+    return orderStatusBadgeTitle(order);
+  }
+
+  isCancelledOrRefunded(order: OrderList): boolean {
+    return isCancelledOrRefundedStatus(order.status);
+  }
+
+  /**
+   * The History tab's count: REAL orders only — not cancelled, not fully refunded (owner's rule,
+   * 2026-10; it replaced "N (2 cancelled, 1 refunded)"). The list itself still shows every order,
+   * the cancelled and refunded ones with their status badge. A partly refunded order keeps its own
+   * status, so it still counts here.
+   */
+  /**
+   * Bubble points taken back for a refund or cancellation (2026-10): the admin view of the history
+   * carries the full record, which the customer never sees.
+   */
+  get pointsReversals(): { points: number; description?: string | null; createdAt: string }[] {
+    const reversalTypes = ['RefundReversal', 'RefundCorrection', 'CancellationCorrection'];
+    return ((this.userRewardsSummary?.pointsHistory ?? []) as any[]).filter(h => reversalTypes.includes(h.type));
+  }
+
+  get historyRealOrderCount(): number {
+    return (this.selectedUser?.orders ?? []).filter((o: OrderList) => !isCancelledOrRefundedStatus(o.status)).length;
   }
 
   get isSuperAdmin(): boolean {
@@ -2510,13 +2557,14 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       .concat(Array.isArray(orderLike?.services) ? orderLike.services : [])
       .concat(Array.isArray(detailsLike?.services) ? detailsLike.services : []);
 
-    const hasDeepFromExtras = extras.some((extra: any) => {
-      const name = normalize(extra?.extraServiceName || extra?.name);
-      return name.includes('deep-cleaning') && !name.includes('super-deep');
-    });
+    // The extra's isDeepCleaning / isSuperDeepCleaning flags and its extraServiceKey decide; only an
+    // unkeyed extra with neither flag is read by name (extra-service-keys.ts).
+    const hasDeepFromExtras = extras.some((extra: any) => isDeepOrSuperDeepExtra(extra) && !isSuperDeepExtra(extra));
     if (hasDeepFromExtras) return true;
 
+    // A service line is never the deep option once keyed; an unkeyed (legacy) one by its name.
     return services.some((service: any) => {
+      if (orderServiceKeyOf(service)) return false;
       const name = normalize(service?.serviceName || service?.name);
       return name.includes('deep-cleaning') && !name.includes('super-deep');
     });
@@ -2524,6 +2572,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
 
   private resolveUserLastCleaningVariants(users: UserAdmin[]): void {
     const residentialUsers = users.filter((u: any) => {
+      // By the type's serviceKey; only an unkeyed (or custom) type falls back to its name.
+      const typeKey = String(u?.lastCleaningServiceTypeKey ?? '').trim();
+      if (typeKey) return typeKey === 'residential';
       const st = String(u?.lastCleaningServiceType || '').toLowerCase();
       return st.includes('residential');
     });
@@ -2551,22 +2602,33 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     });
   }
 
+  /** Short labels per ServiceType.serviceKey; a keyed type not listed here shows its name, trimmed. */
+  private static readonly COMPACT_LABEL_BY_SERVICE_KEY: Record<string, string> = {
+    'move-in-out': 'Move In/Out',
+    'office': 'Office',
+    'heavy-condition': 'Heavy',
+    'post-construction': 'Construction'
+  };
+
   getCompactServiceType(serviceTypeName: string | undefined | null, order?: any): string {
     const raw = (serviceTypeName || '').trim();
     if (!raw) return 'Service';
     const s = raw.toLowerCase();
+
+    // By the type's serviceKey (sent for non-custom types); only an unkeyed type is read by name below.
+    const typeKey = String(order?.lastCleaningServiceTypeKey ?? '').trim();
+    if (typeKey) {
+      if (typeKey === 'residential') return this.compactResidentialLabel(s, order);
+      return UserManagementComponent.COMPACT_LABEL_BY_SERVICE_KEY[typeKey]
+        ?? (raw.replace(/cleaning/gi, '').replace(/\s+/g, ' ').trim() || 'Service');
+    }
 
     if (s.includes('move') && (s.includes('in') || s.includes('out'))) return 'Move In/Out';
     if (s.includes('office')) return 'Office';
     if (s.includes('arranged') || s.includes('pre-arranged') || s.includes('pre arranged')) return 'Arranged';
     if (s.includes('heavy')) return 'Heavy';
 
-    if (s.includes('residential')) {
-      if (order?.lastCleaningServiceType !== undefined && order?.id && this.userLastCleaningVariantCache.has(order.id)) {
-        return this.userLastCleaningVariantCache.get(order.id) || 'Regular';
-      }
-      return this.resolveIsDeepResidential(order as any) || s.includes('deep') ? 'Deep' : 'Regular';
-    }
+    if (s.includes('residential')) return this.compactResidentialLabel(s, order);
     if (s.includes('deep')) return 'Deep';
     if (s.includes('regular') || s.includes('standard')) return 'Regular';
     if (s.includes('post')) return 'Construction';
@@ -2575,5 +2637,13 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
       .replace(/cleaning/gi, '')
       .replace(/\s+/g, ' ')
       .trim() || 'Service';
+  }
+
+  /** Residential splits into Deep / Regular (cached per user once their last order is resolved). */
+  private compactResidentialLabel(lowerName: string, order?: any): string {
+    if (order?.lastCleaningServiceType !== undefined && order?.id && this.userLastCleaningVariantCache.has(order.id)) {
+      return this.userLastCleaningVariantCache.get(order.id) || 'Regular';
+    }
+    return this.resolveIsDeepResidential(order as any) || lowerName.includes('deep') ? 'Deep' : 'Regular';
   }
 }

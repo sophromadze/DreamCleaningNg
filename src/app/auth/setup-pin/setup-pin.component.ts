@@ -4,15 +4,26 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TwoFactorService } from '../../services/two-factor.service';
 import { AuthService } from '../../services/auth.service';
+import { IconComponent } from '../../shared/icons/icon.component';
+import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
+import { faCircleExclamation } from '../../shared/icons/glyphs/faCircleExclamation';
+import { faCircleInfo } from '../../shared/icons/glyphs/faCircleInfo';
+import { faEye } from '../../shared/icons/glyphs/faEye';
+import { faEyeSlash } from '../../shared/icons/glyphs/faEyeSlash';
+import { faLock } from '../../shared/icons/glyphs/faLock';
+import { faShieldHalved } from '../../shared/icons/glyphs/faShieldHalved';
+import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
 
 @Component({
   selector: 'app-setup-pin',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, IconComponent],
   templateUrl: './setup-pin.component.html',
   styleUrls: ['./setup-pin.component.scss']
 })
 export class SetupPinComponent {
+  protected readonly icons = { faCircleCheck, faCircleExclamation, faCircleInfo, faEye, faEyeSlash, faLock, faShieldHalved, faSpinner };
+
   // Backend rule: 4–12 digits, digits-only.
   pin = '';
   confirmPin = '';

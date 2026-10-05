@@ -1,10 +1,14 @@
-<ng-container *ngIf="summary && summary.pointsSystemEnabled">
+<!-- Drawn whole from the first frame, on the server too (2026-10): frame, bubbles, "POINTS" and the
+     progress track. Only the number fills in once the summary loads, into a reserved slot, so the
+     badge never changes size. See BubbleBadgeComponent.placeholder. -->
+<ng-container *ngIf="(summary ?? placeholder) as shown">
   <button
+    *ngIf="shown.pointsSystemEnabled"
     class="bubble-badge"
     (click)="goToRewards()"
     (mouseenter)="showTooltip = true"
     (mouseleave)="showTooltip = false"
-    [attr.aria-label]="'Bubble Rewards: ' + summary.points + ' points'"
+    [attr.aria-label]="summary ? 'Bubble Rewards: ' + summary.points + ' points' : 'Bubble Rewards'"
   >
     <div class="bubble-badge__inner">
       <!-- CSS realistic bubble cluster -->
@@ -15,21 +19,21 @@
       </div>
 
       <div class="bubble-badge__info">
-        <span class="bubble-badge__points">{{ summary.points | number }}</span>
+        <span class="bubble-badge__points">{{ summary ? (summary.points | number) : '' }}</span>
         <span class="bubble-badge__tier">Points</span>
       </div>
     </div>
 
     <!-- Glowing progress bar -->
     <div class="bubble-badge__bar">
-      <div class="bubble-badge__bar-fill" [style.width.%]="summary.tierProgressPercent"></div>
+      <div class="bubble-badge__bar-fill" [style.width.%]="shown.tierProgressPercent"></div>
     </div>
 
     <!-- Tooltip (desktop only) -->
-    <div class="bubble-badge__tooltip" *ngIf="showTooltip">
-      <div class="tooltip-tier">{{ summary.tier === 'UltraBubble' ? 'Ultra Bubble' : summary.tier === 'SuperBubble' ? 'Super Bubble' : 'Bubble' }}</div>
-      <div class="tooltip-progress" *ngIf="summary.nextTierName">{{ summary.tierProgressPercent }}% to {{ summary.nextTierName }}</div>
-      <div class="tooltip-credits" *ngIf="summary.credits > 0">${{ summary.credits | number:'1.2-2' }} credit</div>
+    <div class="bubble-badge__tooltip" *ngIf="showTooltip && summary">
+      <div class="tooltip-tier">{{ shown.tier === 'UltraBubble' ? 'Ultra Bubble' : shown.tier === 'SuperBubble' ? 'Super Bubble' : 'Bubble' }}</div>
+      <div class="tooltip-progress" *ngIf="shown.nextTierName">{{ shown.tierProgressPercent }}% to {{ shown.nextTierName }}</div>
+      <div class="tooltip-credits" *ngIf="shown.credits > 0">${{ shown.credits | number:'1.2-2' }} credit</div>
       <div class="tooltip-link">View Rewards →</div>
     </div>
   </button>

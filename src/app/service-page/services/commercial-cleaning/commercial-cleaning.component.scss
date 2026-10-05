@@ -513,3 +513,8 @@
     transition: none;
   }
 }
+
+/* Inline link in a benefit card had no colour (UA #0000ee is 2.0:1 on the night page). */
+.feature-card p a {
+  color: var(--primary-color-text);
+}

@@ -129,7 +129,7 @@
         <!-- ── Every cleaning on the account, newest first, 10 to a page ── -->
         <div class="section orders-section" id="profile-orders">
           <div class="section-header section-header--split">
-            <h2>Your cleanings <span class="orders-count" *ngIf="orders">({{ orders.length }})</span></h2>
+            <h2>Your cleanings <span class="orders-count" *ngIf="orders">({{ realOrderCount }})</span></h2>
             <a routerLink="/booking" class="add-btn">Book a cleaning</a>
           </div>
 
@@ -168,7 +168,8 @@
               <dl class="order-card__facts">
                 <div><dt>When</dt><dd>{{ formatDate(order.serviceDate) }} at {{ formatTime(order.serviceTime) }}</dd></div>
                 <div><dt>Where</dt><dd>{{ order.serviceAddress }}</dd></div>
-                <div><dt>Total</dt><dd class="order-card__price">${{ order.total.toFixed(2) }}</dd></div>
+                <div *ngIf="!order.billedByContractLabel"><dt>Total</dt><dd class="order-card__price">${{ order.total.toFixed(2) }}</dd></div>
+                <div *ngIf="order.billedByContractLabel"><dt>Billing</dt><dd class="order-card__price">{{ order.billedByContractLabel }}</dd></div>
               </dl>
 
               <footer class="order-card__actions">
@@ -311,7 +312,8 @@
             <span *ngIf="specialOffers !== null && specialOffers.length === 0" class="no-offers-text">No special offers yet.</span>
             <div *ngIf="specialOffers !== null && specialOffers.length > 0" class="special-offers-container">
               <div class="special-offer-item" *ngFor="let offer of specialOffers">
-                <span class="offer-badge" [style.background-color]="offer.badgeColor || '#28a745'">
+                <span class="offer-badge" [style.background-color]="offer.badgeColor || '#28a745'"
+                      [style.color]="badgeLabelColor(offer.badgeColor || '#28a745')">
                   <i class="fas fa-gift"></i>
                 </span>
                 <div class="offer-details">
@@ -329,11 +331,11 @@
         <div *ngIf="isEditingProfile" class="edit-form">
           <div class="form-group">
             <label>First Name</label>
-            <input type="text" [(ngModel)]="editProfileForm.firstName" (blur)="onNameBlur('firstName')" required>
+            <input aria-label="First Name" type="text" [(ngModel)]="editProfileForm.firstName" (blur)="onNameBlur('firstName')" required>
           </div>
           <div class="form-group">
             <label>Last Name</label>
-            <input type="text" [(ngModel)]="editProfileForm.lastName" (blur)="onNameBlur('lastName')" required>
+            <input aria-label="Last Name" type="text" [(ngModel)]="editProfileForm.lastName" (blur)="onNameBlur('lastName')" required>
           </div>
           <div class="form-group">
             <label>Phone</label>
@@ -473,18 +475,18 @@
             </div>
             <div class="form-group full-width">
               <label>Address *</label>
-              <input type="text"
+              <input aria-label="Address" type="text"
                      [(ngModel)]="newApartment.address"
                      (input)="onApartmentAddressChange()"
                      required>
             </div>
             <div class="form-group">
               <label>Apt/Suite</label>
-              <input type="text" [(ngModel)]="newApartment.aptSuite">
+              <input aria-label="Apt/Suite" type="text" [(ngModel)]="newApartment.aptSuite">
             </div>
             <div class="form-group">
               <label>State *</label>
-              <select [(ngModel)]="newApartment.state"
+              <select aria-label="State" [(ngModel)]="newApartment.state"
                       (change)="onStateChange(newApartment.state)"
                       required>
                 <option value="">Select state</option>
@@ -493,7 +495,7 @@
             </div>
             <div class="form-group">
               <label>City *</label>
-              <select [(ngModel)]="newApartment.city"
+              <select aria-label="City" [(ngModel)]="newApartment.city"
                       required>
                 <option value="">Select city</option>
                 <option *ngFor="let city of cities" [value]="city">{{ city }}</option>
@@ -510,7 +512,7 @@
             </div>
             <div class="form-group full-width">
               <label>Special Instructions</label>
-              <textarea [(ngModel)]="newApartment.specialInstructions" rows="3" maxlength="2000"></textarea>
+              <textarea aria-label="Special Instructions" [(ngModel)]="newApartment.specialInstructions" rows="3" maxlength="2000"></textarea>
               <small class="char-counter"
                      [class.char-counter--limit]="(newApartment.specialInstructions?.length || 0) >= 2000">
                 {{ newApartment.specialInstructions?.length || 0 }} / 2000 characters
@@ -557,19 +559,19 @@
               <div class="form-grid">
                 <div class="form-group">
                   <label>Name *</label>
-                  <input type="text" [(ngModel)]="editingApartment.name" required>
+                  <input aria-label="Name" type="text" [(ngModel)]="editingApartment.name" required>
                 </div>
                 <div class="form-group full-width">
                   <label>Address *</label>
-                  <input type="text" [(ngModel)]="editingApartment.address" required>
+                  <input aria-label="Address" type="text" [(ngModel)]="editingApartment.address" required>
                 </div>
                 <div class="form-group">
                   <label>Apt/Suite</label>
-                  <input type="text" [(ngModel)]="editingApartment.aptSuite">
+                  <input aria-label="Apt/Suite" type="text" [(ngModel)]="editingApartment.aptSuite">
                 </div>
                 <div class="form-group">
                   <label>State *</label>
-                  <select [(ngModel)]="editingApartment.state"
+                  <select aria-label="State" [(ngModel)]="editingApartment.state"
                           (change)="onStateChange(editingApartment.state)"
                           required>
                     <option value="">Select state</option>
@@ -578,7 +580,7 @@
                 </div>
                 <div class="form-group">
                   <label>City *</label>
-                  <select [(ngModel)]="editingApartment.city" required>
+                  <select aria-label="City" [(ngModel)]="editingApartment.city" required>
                     <option value="">Select city</option>
                     <option *ngFor="let city of cities" [value]="city">{{ city }}</option>
                   </select>
@@ -594,7 +596,7 @@
                 </div>
                 <div class="form-group full-width">
                   <label>Special Instructions</label>
-                  <textarea [(ngModel)]="editingApartment.specialInstructions" rows="3" maxlength="2000"></textarea>
+                  <textarea aria-label="Special Instructions" [(ngModel)]="editingApartment.specialInstructions" rows="3" maxlength="2000"></textarea>
                   <small class="char-counter"
                          [class.char-counter--limit]="(editingApartment.specialInstructions?.length || 0) >= 2000">
                     {{ editingApartment.specialInstructions?.length || 0 }} / 2000 characters
@@ -623,6 +625,22 @@
       <!-- ═══ BILLING ═══ -->
       <section *ngIf="activeTab === 'billing'" role="tabpanel" id="profile-panel-billing" aria-labelledby="profile-tab-billing" class="tab-panel">
         <app-billing-tab></app-billing-tab>
+      </section>
+
+      <!-- ═══ INVOICES — the customer's own invoices, paid and unpaid (2026-09) ═══ -->
+      <section *ngIf="activeTab === 'invoices'" role="tabpanel" id="profile-panel-invoices" aria-labelledby="profile-tab-invoices" class="tab-panel">
+        <div class="section">
+          <div class="section-header"><h2>Invoices</h2></div>
+          <app-my-invoices-tab></app-my-invoices-tab>
+        </div>
+      </section>
+
+      <!-- ═══ GIFT CARDS — cards this customer bought; "send later" cards are sent from here (2026-10) ═══ -->
+      <section *ngIf="activeTab === 'gift-cards'" role="tabpanel" id="profile-panel-gift-cards" aria-labelledby="profile-tab-gift-cards" class="tab-panel">
+        <div class="section">
+          <div class="section-header"><h2>Gift Cards</h2></div>
+          <app-my-gift-cards-tab></app-my-gift-cards-tab>
+        </div>
       </section>
 
       <!-- ═══ SECURITY ═══ -->
@@ -664,7 +682,9 @@
     <div class="modal-backdrop" *ngIf="showCancelModal" (click)="closeCancelModal()">
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="cancel-order-title" (click)="$event.stopPropagation()">
         <h2 id="cancel-order-title">Cancel this cleaning?</h2>
-        <p>Your payment will be refunded within 7 working days.</p>
+        <!-- Card (Stripe) payments only. Cash / Zelle / Check / Other money is collected at the
+             door when the job starts, so a cancelled one has nothing to give back. -->
+        <p *ngIf="getCancelModalOrder()?.isPaid">Your payment will be refunded within 7 working days.</p>
 
         <p *ngIf="getCancelModalOrder() && isLateCancellation(getCancelModalOrder()!)" class="late-cancellation-notice">
           <strong>Please note:</strong> because this is less than 48 hours before the scheduled

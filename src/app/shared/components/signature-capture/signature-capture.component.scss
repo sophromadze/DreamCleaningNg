@@ -49,7 +49,7 @@
 }
 
 .hint {
-  color: var(--text-muted);
+  color: var(--text-muted-on-tint);
   font-size: 0.75rem;
 }
 
@@ -161,7 +161,7 @@
 
 .btn-ghost {
   background: transparent;
-  color: var(--primary-color);
+  color: var(--primary-color-text);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 0.4rem 0.9rem;

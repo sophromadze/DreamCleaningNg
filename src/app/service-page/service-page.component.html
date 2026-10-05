@@ -4,7 +4,7 @@
     <div class="container">
       <h1>Home Cleaning Services in Manhattan, Brooklyn & Queens</h1>
       <p class="main-description">
-        Dream Cleaning offers a full range of professional residential and commercial cleaning services across Manhattan, Brooklyn, and Queens — from standard weekly maintenance (starting from ${{ pricing.residentialFrom }}) to comprehensive deep cleaning (from ${{ pricing.deepFrom }}), move in/out cleaning (from ${{ pricing.moveInOutFrom }}), office cleaning, and specialized services for neglected or post-construction spaces. All services include background-checked, insured cleaners, professional-grade equipment, and a 100% satisfaction guarantee. Book online in under 2 minutes or call (929) 930-1525.
+        Dream Cleaning offers a full range of professional residential and commercial cleaning services across Manhattan, Brooklyn, and Queens — from standard weekly maintenance@if (pricing().standardFrom; as p) { (starting from {{ p }})} to comprehensive deep cleaning@if (pricing().deepFrom; as p) { (from {{ p }})}, move in/out cleaning@if (pricing().moveInOutFrom; as p) { (from {{ p }})}, office cleaning, and specialized services for neglected or post-construction spaces. All services include background-checked, insured cleaners, professional-grade equipment, and a 100% satisfaction guarantee. Book online in under 2 minutes or call (929) 930-1525.
       </p>
       <button class="btn btn-danger book-now-btn" routerLink="/booking">Book Now</button>
     </div>
@@ -29,7 +29,7 @@
             <img src="/images/residential-cleaning3.webp" alt="Residential Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>Residential Cleaning</h3>
+            <h2>Residential Cleaning</h2>
             <p>
               Transform your home into a spotless sanctuary with our professional residential cleaning services. Our experienced cleaners tackle every corner of your living space, from dusting and vacuuming to sanitizing bathrooms and kitchens. Whether you need weekly, bi-weekly, or monthly service, we customize our approach to fit your lifestyle and maintain a consistently clean, comfortable home environment.
             </p>
@@ -40,12 +40,12 @@
         <!-- House Cleaning -->
         <div class="service-card">
           <div class="service-image">
-            <img src="/images/house-cleaning-service-nyc.webp" alt="House Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
+            <img src="/images/house-cleaning-service-nyc.webp" cardImage="servicePageCard" alt="House Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>House Cleaning</h3>
+            <h2>House Cleaning</h2>
             <p>
-              Multi-story homes, brownstones, and family estates need more than an apartment checklist. Our house cleaning crews work floor by floor — staircases, landings, high-traffic living areas, and the complex layouts where dust, pet dander, and allergens collect. Transparent flat-rate pricing is based on square footage, bedrooms, and bathrooms, and we match products to your hardwood floors, tile grout, and custom finishes. House cleaning rates start from ${{ pricing.residentialFrom }}.
+              Multi-story homes, brownstones, and family estates need more than an apartment checklist. Our house cleaning crews work floor by floor — staircases, landings, high-traffic living areas, and the complex layouts where dust, pet dander, and allergens collect. Transparent flat-rate pricing is based on square footage, bedrooms, and bathrooms, and we match products to your hardwood floors, tile grout, and custom finishes.@if (pricing().standardFrom; as p) { House cleaning rates start from {{ p }}.}
             </p>
             <button class="btn btn-primary read-more-btn" routerLink="/services/house-cleaning">Read More About House Cleaning</button>
           </div>
@@ -54,12 +54,12 @@
         <!-- Condo Cleaning -->
         <div class="service-card">
           <div class="service-image">
-            <img src="/images/apartment-cleaning-service-nyc.webp" alt="Condo Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
+            <img src="/images/apartment-cleaning-service-nyc.webp" cardImage="servicePageCard" alt="Condo Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>Condo Cleaning</h3>
+            <h2>Condo Cleaning</h2>
             <p>
-              High-rise condos and boutique lofts come with their own logistics — service elevator scheduling, doorman key permissions, and building rules that have to be handled before the cleaner arrives. Our teams know those protocols and use non-abrasive products chosen to safeguard engineered hardwood, natural stone countertops, and custom glass. Pricing is based on your exact floor plan, starting from ${{ pricing.residentialFrom }}.
+              High-rise condos and boutique lofts come with their own logistics — service elevator scheduling, doorman key permissions, and building rules that have to be handled before the cleaner arrives. Our teams know those protocols and use non-abrasive products chosen to safeguard engineered hardwood, natural stone countertops, and custom glass. Pricing is based on your exact floor plan@if (pricing().standardFrom; as p) {, starting from {{ p }}}.
             </p>
             <button class="btn btn-primary read-more-btn" routerLink="/services/condo-cleaning">Read More About Condo Cleaning</button>
           </div>
@@ -68,12 +68,12 @@
         <!-- Deep Cleaning -->
         <div class="service-card">
           <div class="service-image">
-            <img src="/images/deep-cleaning-service-nyc.webp" alt="Deep Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
+            <img src="/images/deep-cleaning-service-nyc.webp" cardImage="servicePageCard" alt="Deep Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>Deep Cleaning</h3>
+            <h2>Deep Cleaning</h2>
             <p>
-              A detailed, top-to-bottom reset for homes that need more than routine maintenance. Deep cleaning targets stubborn buildup, kitchen grease, soap scum, hidden dust, baseboards, door frames, light switches, and the hard-to-reach areas a regular visit rotates past. It's the right choice if your home hasn't been professionally cleaned in one to three months, if you're booking for the first time, or if you're preparing for guests. Starting from ${{ pricing.deepFrom }}.
+              A detailed, top-to-bottom reset for homes that need more than routine maintenance. Deep cleaning targets stubborn buildup, kitchen grease, soap scum, hidden dust, baseboards, door frames, light switches, and the hard-to-reach areas a regular visit rotates past. It's the right choice if your home hasn't been professionally cleaned in one to three months, if you're booking for the first time, or if you're preparing for guests.@if (pricing().deepFrom; as p) { Starting from {{ p }}.}
             </p>
             <button class="btn btn-primary read-more-btn" routerLink="/services/deep-cleaning">Read More About Deep Cleaning</button>
           </div>
@@ -82,10 +82,10 @@
         <!-- Move In/Out Cleaning -->
         <div class="service-card">
           <div class="service-image">
-            <img src="/images/move-in-out-cleaning.webp" alt="Move In/Out Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
+            <img src="/images/move-in-out-cleaning.webp" cardImage="servicePageCard" alt="Move In/Out Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>Move In/Out Cleaning</h3>
+            <h2>Move In/Out Cleaning</h2>
             <p>
               Make your transition seamless with our comprehensive move in/out cleaning service. We understand that moving is stressful enough without worrying about deep cleaning. Our team meticulously cleans every surface, cabinet interior, appliance, and forgotten corner to ensure your new home is pristine or your old residence meets lease requirements. Leave the heavy-duty cleaning to us while you focus on your move.
             </p>
@@ -96,10 +96,10 @@
         <!-- Kitchen Cleaning -->
         <div class="service-card">
           <div class="service-image">
-            <img src="/images/kitchen-cleaning-in-nyc.webp" alt="Kitchen Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
+            <img src="/images/kitchen-cleaning-in-nyc.webp" cardImage="servicePageCard" alt="Kitchen Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>Kitchen Cleaning</h3>
+            <h2>Kitchen Cleaning</h2>
             <p>
               The kitchen is where daily grease, food residue, and surface buildup accumulate fastest. Our kitchen cleaning disinfects countertops and surfaces, degreases stovetops and backsplashes, scrubs and rinses the sink, cleans cabinet and appliance exteriors including the microwave, then vacuums and mops the floors and takes out the trash. Available on its own or as part of a recurring weekly, bi-weekly, or one-time booking.
             </p>
@@ -113,7 +113,7 @@
             <img src="/images/bathroom-cleaning.webp" alt="Bathroom Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>Bathroom Cleaning</h3>
+            <h2>Bathroom Cleaning</h2>
             <p>
               NYC bathrooms face daily humidity, soap residue, and germs that build up fast in small apartments. We clean and disinfect the toilet inside and out, sanitize sink, faucet and vanity surfaces, polish mirrors and chrome fixtures, clean shower and bathtub surfaces, then vacuum and mop the floors and empty the trash. Heavy soap scum, hard water stains, and detailed grout scrubbing are handled through our deep cleaning service.
             </p>
@@ -124,12 +124,12 @@
         <!-- Airbnb Cleaning -->
         <div class="service-card">
           <div class="service-image">
-            <img src="/images/airbn-cleaning-service-nyc.webp" alt="Airbnb Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
+            <img src="/images/airbn-cleaning-service-nyc.webp" cardImage="servicePageCard" alt="Airbnb Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>Airbnb Cleaning</h3>
+            <h2>Airbnb Cleaning</h2>
             <p>
-              Short-term rental turnovers run on a tight clock — checkout at 11, check-in at 3. Our turnover crews deliver a rapid, hotel-quality reset between guests: full kitchen and bathroom sanitization, linen changes, amenity restocking, and the high-touch details that drive five-star reviews. Built for Airbnb hosts, Vrbo owners, and corporate housing managers who need occupancy protected and Superhost status intact. Turnover rates start from ${{ pricing.residentialFrom }}.
+              Short-term rental turnovers run on a tight clock — checkout at 11, check-in at 3. Our turnover crews deliver a rapid, hotel-quality reset between guests: full kitchen and bathroom sanitization, linen changes, amenity restocking, and the high-touch details that drive five-star reviews. Built for Airbnb hosts, Vrbo owners, and corporate housing managers who need occupancy protected and Superhost status intact.@if (pricing().standardFrom; as p) { Turnover rates start from {{ p }}.}
             </p>
             <button class="btn btn-primary read-more-btn" routerLink="/services/airbnb-cleaning">Read More About Airbnb Cleaning</button>
           </div>
@@ -141,7 +141,7 @@
             <img src="/images/office-cleaning-2.webp" alt="Commercial Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>Commercial Cleaning</h3>
+            <h2>Commercial Cleaning</h2>
             <p>
               Cleaning for the places you do business — offices, retail and showrooms, medical and dental practices, restaurants and cafés, gyms and studios, and building common areas. Crews work after hours or before you open, so neither your team nor your customers are interrupted. Every plan is quoted from a free walkthrough, priced flat by the month, and covered by a written scope of work — on a contract or month to month, whichever your business prefers. Certificate of insurance provided for your building or landlord.
             </p>
@@ -155,7 +155,7 @@
             <img src="/images/office-cleaning.webp" alt="Office Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>Office Cleaning (Commercial)</h3>
+            <h2>Office Cleaning (Commercial)</h2>
             <p>
               Maintain a professional, productive workspace with our reliable commercial cleaning services. We work around your business hours to minimize disruption, providing thorough cleaning of workstations, conference rooms, break areas, and restrooms. A clean office promotes employee health and creates positive impressions for clients. Our flexible scheduling and attention to detail ensure your workplace always looks its best.
             </p>
@@ -169,7 +169,7 @@
             <img src="/images/custom-cleaning.webp" alt="Custom Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>Custom Cleaning</h3>
+            <h2>Custom Cleaning</h2>
             <p>
               Design your perfect cleaning solution with our flexible custom cleaning service. Choose specific rooms, tasks, and duration to match your exact needs and budget. Whether you want focus on high-traffic areas like kitchens and bathrooms, or need help with particular cleaning challenges, our cleaners adapt to your priorities. This option is ideal for large homes or unique cleaning requirements.
             </p>
@@ -180,12 +180,12 @@
         <!-- Heavy Condition Cleaning -->
         <div class="service-card">
           <div class="service-image">
-            <img src="/images/heavy-codition-cleaning-service-in-nyc.webp" alt="Heavy Condition Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
+            <img src="/images/heavy-codition-cleaning-service-in-nyc.webp" cardImage="servicePageCard" alt="Heavy Condition Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>Heavy Condition Cleaning</h3>
+            <h2>Heavy Condition Cleaning</h2>
             <p>
-              Restore neglected spaces to livable conditions with our specialized heavy condition cleaning service. Designed for homes that haven't been cleaned for more than 6 months, this intensive service goes beyond regular cleaning to tackle thick grease buildup, stubborn stains, and accumulated clutter. Our specially trained professionals work with discretion and understanding, using industrial-grade equipment to transform extremely neglected spaces back into comfortable homes. ${{ pricing.heavyConditionPerHour }} per hour per cleaner.
+              Restore neglected spaces to livable conditions with our specialized heavy condition cleaning service. Designed for homes that haven't been cleaned for more than 6 months, this intensive service goes beyond regular cleaning to tackle thick grease buildup, stubborn stains, and accumulated clutter. Our specially trained professionals work with discretion and understanding, using industrial-grade equipment to transform extremely neglected spaces back into comfortable homes.@if (pricing().heavyPerHour; as p) { {{ p }} per hour per cleaner.}
             </p>
             <button class="btn btn-primary read-more-btn" routerLink="/services/heavy-condition-cleaning">Read More About Heavy Condition Cleaning</button>
           </div>
@@ -194,10 +194,10 @@
         <!-- Filthy Cleaning -->
         <div class="service-card">
           <div class="service-image">
-            <img src="/images/filthy-cleaning.webp" alt="Filthy Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
+            <img src="/images/filthy-cleaning.webp" cardImage="servicePageCard" alt="Filthy Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>Filthy Cleaning</h3>
+            <h2>Filthy Cleaning</h2>
             <p>
               Our specialized filthy cleaning service tackles the toughest cleaning challenges. When standard cleaning isn't enough - whether due to hoarding situations, extended neglect, or extreme accumulation of dirt and debris - our trained professionals step in. We handle overwhelming messes with discretion and efficiency, transforming seemingly impossible spaces back to livable conditions. No judgment, just results.
             </p>
@@ -208,10 +208,10 @@
         <!-- Post Construction Cleaning -->
         <div class="service-card">
           <div class="service-image">
-            <img src="/images/post-construction-cleaning.webp" alt="Post Construction Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
+            <img src="/images/post-construction-cleaning.webp" cardImage="servicePageCard" alt="Post Construction Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>Post Construction Cleaning</h3>
+            <h2>Post Construction Cleaning</h2>
             <p>
               Construction work leaves behind fine dust and debris that standard cleaning can't handle. Our post construction cleaning service removes construction dust from every surface, including walls, ceilings, light fixtures, and those hard-to-reach places where dust settles. We ensure your newly renovated space is ready for occupancy, though some residual dust may appear over the following weeks as it settles from hidden areas.
             </p>
@@ -222,10 +222,10 @@
         <!-- Post Renovation Cleaning -->
         <div class="service-card">
           <div class="service-image">
-            <img src="/images/post-construction-cleaning-3.webp" alt="Post Renovation Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
+            <img src="/images/post-construction-cleaning-3.webp" cardImage="servicePageCard" alt="Post Renovation Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>Post Renovation Cleaning</h3>
+            <h2>Post Renovation Cleaning</h2>
             <p>
               Finished remodeling? Kitchen and bathroom upgrades, new flooring, fresh paint, and room additions all leave behind a gritty layer of fine dust, paint specks, and sawdust that ordinary cleaning just spreads around. We capture that dust instead of pushing it room to room — dusting walls and ceilings, damp-mopping hard floors, detailing new cabinets, washing renovation haze off interior windows, and clearing dust from vents, outlets, and closets so you can move back in sooner.
             </p>
@@ -236,10 +236,10 @@
         <!-- Laundry & Dishwashing -->
         <div class="service-card">
           <div class="service-image">
-            <img src="/images/laundry-service-nyc.webp" alt="Laundry and Dishwashing Services in Manhattan, Brooklyn & Queens" loading="lazy">
+            <img src="/images/laundry-service-nyc.webp" cardImage="servicePageCard" alt="Laundry and Dishwashing Services in Manhattan, Brooklyn & Queens" loading="lazy">
           </div>
           <div class="service-content">
-            <h3>Laundry &amp; Dishwashing</h3>
+            <h2>Laundry &amp; Dishwashing</h2>
             <p>
               Skip the laundromat. We sort by color and fabric, pre-treat stains, wash and dry using your building's machines or your in-unit washer/dryer, then fold neatly or hang as you prefer — clothing, bed linens, towels, and delicates. Full dishwashing is available the same way. Everything is done on-site: your clothes and dishes never leave your home. Book it standalone or add it to any cleaning.
             </p>

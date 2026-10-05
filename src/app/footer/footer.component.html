@@ -3,7 +3,7 @@
       <div class="footer-content">
         <div class="footer-section">
           <div class="footer-brand">
-            <img src="/images/logo-white.svg" alt="" class="logo-img">
+            <img src="/images/logo-white.svg" alt="" class="logo-img" width="70" height="70">
             <span class="logo-wordmark">
               <span class="logo-wordmark__line">Dream</span>
               <span class="logo-wordmark__line">Cleaning</span>
@@ -14,8 +14,8 @@
         </div>
         
         <div class="footer-section">
-          <h3>Quick Links</h3>
-          <nav class="footer-nav">
+          <h2>Quick Links</h2>
+          <nav class="footer-nav" aria-label="Quick links">
             <a routerLink="/service-page" routerLinkActive="active">Services</a>
             <a routerLink="/pricing-and-discounts" routerLinkActive="active">Pricing &amp; Discounts</a>
             <a routerLink="/about" routerLinkActive="active">About</a>
@@ -26,7 +26,7 @@
         </div>
 
         <div class="footer-section">
-          <h3>Availability</h3>
+          <h2>Availability</h2>
           <p class="footer-hours">Call center available daily</p>
           <p class="footer-hours footer-hours--note">Online booking 24/7</p>
           <p class="footer-hours footer-hours--note">Same-day service available</p>
@@ -34,27 +34,27 @@
              href="https://www.google.com/search?q=Dream+Cleaning+NYC&amp;stick=H4sIAAAAAAAAAONgU1I1qEg0MjQxMk1LTDWxSDYyNUyxAgpZGCVbJhqmpJqkplmkGFkuYhVyKUpNzFVwzklNzMvMS1fwi3QGAK8CMS8-AAAA"
              target="_blank" rel="noopener noreferrer"
              aria-label="Dream Cleaning NYC on Google Business Profile">
-            <i class="fab fa-google" aria-hidden="true"></i>
+            <i [appIcon]="icons.faGoogle" aria-hidden="true"></i>
             <span>Find us on Google</span>
           </a>
         </div>
 
         <div class="footer-section">
-          <h3>Contact Us</h3>
+          <h2>Contact Us</h2>
           <p>Email: <a href="mailto:hello&#64;dreamcleaningnyc.com">hello&#64;dreamcleaningnyc.com</a></p>
           <p>Phone: <a [href]="phoneNumber.telHref()">{{ phoneNumber.displayNumber() }}</a></p>
           <div class="social-links">
             <a href="https://www.facebook.com/profile.php?id=61563387757936" target="_blank" rel="noopener noreferrer" aria-label="Follow us on Facebook">
-              <i class="fab fa-facebook-f"></i>
+              <i [appIcon]="icons.faFacebookF"></i>
             </a>
             <a href="https://www.instagram.com/dreamcleaningnyc" target="_blank" rel="noopener noreferrer" aria-label="Follow us on Instagram">
-              <i class="fab fa-instagram"></i>
+              <i [appIcon]="icons.faInstagram"></i>
             </a>
             <a href="https://www.tiktok.com/@dreamcleanincnyc" target="_blank" rel="noopener noreferrer" aria-label="TikTok">
-              <i class="fab fa-tiktok"></i>
+              <i [appIcon]="icons.faTiktok"></i>
             </a>
             <a href="https://www.yelp.com/biz/dream-cleaning-brooklyn?osq=dream+cleaning&amp;override_cta=Get+pricing+%26+availability" target="_blank" rel="noopener noreferrer" aria-label="Dream Cleaning on Yelp">
-              <i class="fab fa-yelp"></i>
+              <i [appIcon]="icons.faYelp"></i>
             </a>
           </div>
         </div>
@@ -63,8 +63,8 @@
       <div class="footer-bottom">
         <div class="footer-bottom-content">
           <p>&copy; 2024-2026 DreamCleaning. All rights reserved.</p>
-          <p class="clarity-disclosure">We improve our products and advertising by using Microsoft Clarity to see how you use our website. By using our site, you agree that we and Microsoft can collect and use this data. Our <a routerLink="/privacy-policy">privacy policy</a> has more details.</p>
-          <nav class="footer-nav">
+          <p class="tracking-disclosure">We use cookies and similar technologies from Google and Microsoft Advertising to measure and improve our website and advertising. Our <a routerLink="/privacy-policy">privacy policy</a> has more details.</p>
+          <nav class="footer-nav" aria-label="Legal">
             <a routerLink="/privacy-policy" routerLinkActive="active">Privacy Policy</a>
             <a routerLink="/terms-and-conditions" routerLinkActive="active">Terms & Conditions</a>
             <a routerLink="/commercial-cleaning-policies" routerLinkActive="active">Commercial Policies</a>

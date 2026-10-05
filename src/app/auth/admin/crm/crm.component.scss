@@ -50,7 +50,7 @@
       font-size: 0.62rem;
       text-transform: uppercase;
       background: var(--surface-subtle);
-      color: var(--text-muted);
+      color: var(--text-muted-on-tint);
       padding: 1px 5px;
       border-radius: var(--radius-pill);
       margin-left: 4px;
@@ -106,7 +106,7 @@
   }
 
   .help-block {
-    h4 {
+    h2 {
       margin: 0 0 6px;
       font-size: 0.95rem;
       color: var(--text-primary);
@@ -179,17 +179,17 @@
 
       &.on {
         border-left: 3px solid var(--fresh-green);
-        .onoff-tag { background: var(--mint-fresh); color: var(--fresh-green); }
+        .onoff-tag { background: var(--mint-fresh); color: var(--mint-fresh-text); }
       }
       &.off {
         border-left: 3px solid var(--text-muted);
-        .onoff-tag { background: var(--surface-subtle); color: var(--text-muted); }
+        .onoff-tag { background: var(--surface-subtle); color: var(--text-muted-on-tint); }
       }
     }
 
     .help-example {
       background: var(--soft-blue);
-      color: var(--primary-color);
+      color: var(--primary-text-elevated);
       border-radius: var(--radius-sm);
       padding: 10px 12px;
       font-size: 0.84rem;

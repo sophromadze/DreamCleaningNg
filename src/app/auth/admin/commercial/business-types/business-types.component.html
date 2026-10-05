@@ -19,7 +19,7 @@
 
     <!-- ── The list of business types ──────────────────────────────────────────── -->
     <aside class="bt-list">
-      <h3>Business types</h3>
+      <h2>Business types</h2>
 
       <p class="loading" *ngIf="loading">Loading…</p>
 
@@ -80,10 +80,10 @@
            [class.archived]="g.archived">
 
         <header class="category-head">
-          <input type="text" [(ngModel)]="g.title" [name]="'groupTitle' + gi"
+          <input aria-label="Category title" type="text" [(ngModel)]="g.title" [name]="'groupTitle' + gi"
                  class="category-title" [disabled]="!!g.archived">
 
-          <select [(ngModel)]="g.kind" [name]="'groupKind' + gi" [disabled]="!!g.archived">
+          <select aria-label="Category kind" [(ngModel)]="g.kind" [name]="'groupKind' + gi" [disabled]="!!g.archived">
             <option value="included">Included</option>
             <option value="excluded">Not included</option>
           </select>
@@ -117,7 +117,7 @@
               <span class="sr-only">Ticked by default</span>
             </label>
 
-            <input type="text" [(ngModel)]="item.label" [name]="'itemLabel' + gi + '_' + ii"
+            <input aria-label="Item label" type="text" [(ngModel)]="item.label" [name]="'itemLabel' + gi + '_' + ii"
                    class="item-label" [disabled]="!!item.archived">
 
             <div class="item-actions">

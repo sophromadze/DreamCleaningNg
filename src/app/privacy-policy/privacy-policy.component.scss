@@ -49,7 +49,7 @@
   }
 
   a {
-    color: var(--primary-color);
+    color: var(--primary-color-text);
     text-decoration: none;
     
     &:hover {
@@ -112,4 +112,9 @@
       }
     }
   }
+}
+
+/* Links inside running text are underlined: colour alone is 2:1 against the body text (WCAG 1.4.1). */
+.privacy-policy-container :is(p, li) a {
+  text-decoration: underline;
 }

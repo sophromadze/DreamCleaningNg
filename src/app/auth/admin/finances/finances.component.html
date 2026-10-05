@@ -18,7 +18,7 @@
   <div class="filters-card">
     <div class="filters-left">
       <div class="quick-filter-dropdown">
-        <select [ngModel]="activeQuickFilter" (ngModelChange)="onQuickFilterChange($event)">
+        <select aria-label="Period" [ngModel]="activeQuickFilter" (ngModelChange)="onQuickFilterChange($event)">
           <option *ngFor="let f of quickFilters" [value]="f.key">{{ f.label }}</option>
         </select>
       </div>
@@ -121,7 +121,7 @@
         <!-- Card 1: the profit-and-loss chain, top to bottom -->
         <div class="receipt-card">
           <div class="card-head">
-            <h3 class="viz-title">Where the money went</h3>
+            <h2 class="viz-title">Where the money went</h2>
           </div>
 
           <div class="pnl-row"
@@ -182,7 +182,7 @@
         <!-- Card 2: totals, averages and the pass-throughs -->
         <div class="receipt-card">
           <div class="card-head">
-            <h3 class="viz-title">Totals &amp; averages</h3>
+            <h2 class="viz-title">Totals &amp; averages</h2>
           </div>
 
           <div class="pnl-row kind-summary"
@@ -224,7 +224,7 @@
       <div class="side-col">
 
         <div class="viz-card">
-          <h3 class="viz-title">Revenue vs money out</h3>
+          <h2 class="viz-title">Revenue vs money out</h2>
           <div class="bars">
             <div class="bar-row">
               <div class="bar-head">
@@ -248,7 +248,7 @@
         </div>
 
         <div class="viz-card">
-          <h3 class="viz-title">Where the money goes</h3>
+          <h2 class="viz-title">Where the money goes</h2>
           <div class="donut-wrap" [class.shimmer-loading]="isLoading">
             <canvas #donutCanvas [hidden]="isLoading || donutLegend.length === 0"></canvas>
             <div class="donut-empty" *ngIf="!isLoading && donutLegend.length === 0">
@@ -422,23 +422,23 @@
           <span class="pick-num">{{ i + 1 }}</span>
 
           <ng-container [ngSwitch]="compareUnit">
-            <input *ngSwitchCase="'day'" type="date" [(ngModel)]="pick.date" />
+            <input aria-label="Day" *ngSwitchCase="'day'" type="date" [(ngModel)]="pick.date" />
 
             <ng-container *ngSwitchCase="'week'">
-              <input type="date" [(ngModel)]="pick.date" />
+              <input aria-label="Week starting" type="date" [(ngModel)]="pick.date" />
               <span class="pick-preview" *ngIf="pick.date">{{ weekPreview(pick.date) }}</span>
             </ng-container>
 
             <ng-container *ngSwitchCase="'month'">
-              <select [(ngModel)]="pick.month">
+              <select aria-label="Month" [(ngModel)]="pick.month">
                 <option *ngFor="let m of monthNames; let mi = index" [ngValue]="mi">{{ m }}</option>
               </select>
-              <select [(ngModel)]="pick.year">
+              <select aria-label="Year" [(ngModel)]="pick.year">
                 <option *ngFor="let y of yearOptions" [ngValue]="y">{{ y }}</option>
               </select>
             </ng-container>
 
-            <select *ngSwitchCase="'year'" [(ngModel)]="pick.year">
+            <select aria-label="Year" *ngSwitchCase="'year'" [(ngModel)]="pick.year">
               <option *ngFor="let y of yearOptions" [ngValue]="y">{{ y }}</option>
             </select>
           </ng-container>

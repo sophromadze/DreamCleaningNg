@@ -133,7 +133,7 @@ $cc-header-mobile: 60px;
   padding: 10px 13px;
   border-radius: var(--radius-sm);
   background: var(--soft-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   font-size: 0.85rem;
 }
 
@@ -159,7 +159,8 @@ $cc-header-mobile: 60px;
   letter-spacing: 0;
   font-size: 0.72rem;
   font-weight: var(--fw-medium);
-  color: var(--text-muted);
+  color: var(--text-muted-on-tint);
+  :host-context([data-theme="dark"]) & { color: var(--text-muted-on-elevated); }
   padding: 1px 7px;
   border-radius: var(--radius-pill);
   background: var(--surface-subtle);
@@ -205,7 +206,7 @@ $cc-header-mobile: 60px;
   // The one field the error line above is talking about. Submit is never disabled, so this is
   // what turns "Enter the city." into somewhere to look.
   &.cc-invalid {
-    label { color: var(--bright-red); }
+    label { color: var(--soft-red-text); }
 
     input,
     select {

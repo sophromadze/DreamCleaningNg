@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, of, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthService } from './auth.service';
 
@@ -10,6 +10,10 @@ export interface BeforeAfterPhotoDto {
   subtitle?: string | null;
   beforePhotoUrl: string;
   afterPhotoUrl: string;
+  /** Public list only: "url 400w, url 800w, original Nw" built from the resized variants that
+   *  exist on disk. Null until the variants exist (the plain URL is used meanwhile). */
+  beforeSrcset?: string | null;
+  afterSrcset?: string | null;
   linkUrl?: string | null;
   displayOrder: number;
   isActive: boolean;
@@ -35,6 +39,8 @@ export interface UpdateBeforeAfterPhotoDto {
 @Injectable({ providedIn: 'root' })
 export class BeforeAfterPhotoService {
   private apiUrl = environment.apiUrl;
+  /** The public list once loaded in this tab - see getPublic(). Cleared by every admin write. */
+  private publicList: BeforeAfterPhotoDto[] | null = null;
 
   constructor(private http: HttpClient, private authService: AuthService) {}
 
@@ -45,9 +51,22 @@ export class BeforeAfterPhotoService {
     return new HttpHeaders(headers);
   }
 
-  /** Public: list of active before/after pairs for the homepage. */
+  /**
+   * Public: list of active before/after pairs for the homepage. Loaded once per tab, then answered
+   * from memory - synchronously, so coming back to the homepage (Back) draws the gallery in the
+   * same pass as the rest of the page, before the router restores the scroll position. Fetched
+   * again, it arrived after the restore and pushed everything below it down the page.
+   */
   getPublic(): Observable<BeforeAfterPhotoDto[]> {
-    return this.http.get<BeforeAfterPhotoDto[]>(`${this.apiUrl}/before-after-photos`);
+    if (this.publicList) return of(this.publicList);
+    return this.http.get<BeforeAfterPhotoDto[]>(`${this.apiUrl}/before-after-photos`).pipe(
+      tap(list => this.publicList = list)
+    );
+  }
+
+  /** Admin writes change what the homepage shows: the next visit fetches the list again. */
+  private forgetPublicList<T>() {
+    return tap<T>(() => this.publicList = null);
   }
 
   /** Admin: list everything (active + inactive). */
@@ -73,7 +92,7 @@ export class BeforeAfterPhotoService {
       `${this.apiUrl}/admin/before-after-photos`,
       fd,
       { headers: this.authHeaders() }
-    );
+    ).pipe(this.forgetPublicList());
   }
 
   /** Admin: update text / order / active flag. */
@@ -82,7 +101,7 @@ export class BeforeAfterPhotoService {
       `${this.apiUrl}/admin/before-after-photos/${id}`,
       payload,
       { headers: this.authHeaders() }
-    );
+    ).pipe(this.forgetPublicList());
   }
 
   /** Admin: replace either the before or after image for an existing pair. */
@@ -93,7 +112,7 @@ export class BeforeAfterPhotoService {
       `${this.apiUrl}/admin/before-after-photos/${id}/replace-${side}`,
       fd,
       { headers: this.authHeaders() }
-    );
+    ).pipe(this.forgetPublicList());
   }
 
   /** Admin: delete a pair (also removes the two image files from disk). */
@@ -101,6 +120,6 @@ export class BeforeAfterPhotoService {
     return this.http.delete<void>(
       `${this.apiUrl}/admin/before-after-photos/${id}`,
       { headers: this.authHeaders() }
-    );
+    ).pipe(this.forgetPublicList());
   }
 }

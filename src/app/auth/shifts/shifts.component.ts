@@ -5,6 +5,7 @@ import { forkJoin } from 'rxjs';
 import { ShiftService, AdminShift, ShiftAdmin } from '../../services/shift.service';
 import { AuthService } from '../../services/auth.service';
 import { AdminBonusService, AdminBonusSummary, AdminBonusRates } from '../../services/admin-bonus.service';
+import { readableLabelColor } from '../../shared/admin/readable-label-color';
 
 const FALLBACK_COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e',
@@ -20,6 +21,8 @@ const FALLBACK_COLORS = [
   styleUrls: ['./shifts.component.scss']
 })
 export class ShiftsComponent implements OnInit {
+  /** Colours here are chosen by admins/users and shown as stored; the text on them adapts (AA, 2026-10). */
+  readonly labelColor = readableLabelColor;
 
   // ── Calendar state ──
   currentMonth: Date = new Date();

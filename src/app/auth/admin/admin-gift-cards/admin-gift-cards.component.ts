@@ -10,8 +10,9 @@ interface GiftCardAdmin {
   code: string;
   originalAmount: number;
   currentBalance: number;
-  recipientName: string;
-  recipientEmail: string;
+  /** Null while a "buy for myself - send later" card has not been sent yet. */
+  recipientName: string | null;
+  recipientEmail: string | null;
   senderName: string;
   senderEmail: string;
   message?: string;
@@ -19,7 +20,11 @@ interface GiftCardAdmin {
   isPaid: boolean;
   createdAt: Date;
   paidAt?: Date;
-  purchasedByUserName: string;
+  purchasedByUserName: string | null;
+  purchasedByUserEmail?: string | null;
+  /** "Buy for myself - send later" card the customer has not sent yet. */
+  isPendingSend: boolean;
+  sentAt?: Date | null;
   totalAmountUsed: number;
   timesUsed: number;
   lastUsedAt?: Date;
@@ -70,6 +75,7 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
   searchTerm = '';
   filterStatus = 'all'; // all, active, inactive, fullyUsed, partiallyUsed
   filterPaidStatus = 'all'; // all, paid, unpaid
+  filterDeliveryStatus = 'all'; // all, notSent, sent
   
   // Pagination
   currentPage = 1;
@@ -85,6 +91,8 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
 
   giftCardBackgroundPath: string = '';
   hasGiftCardBackground: boolean = false;
+  /** True when an upload is configured but its file is gone — the preview shows the default. */
+  giftCardBackgroundMissing: boolean = false;
   isUpdatingBackground: boolean = false;
 
   selectedFile: File | null = null;
@@ -430,7 +438,9 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
       const term = this.searchTerm.toLowerCase();
       filtered = filtered.filter(g =>
         g.id.toString().includes(term) ||
-        g.senderEmail.toLowerCase().includes(term)
+        (g.senderEmail || '').toLowerCase().includes(term) ||
+        (g.recipientEmail || '').toLowerCase().includes(term) ||
+        (g.purchasedByUserEmail || '').toLowerCase().includes(term)
       );
     }
 
@@ -457,6 +467,16 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
         break;
       case 'unpaid':
         filtered = filtered.filter(g => !g.isPaid);
+        break;
+    }
+
+    // Delivery filter ("send later" cards the customer hasn't sent yet)
+    switch (this.filterDeliveryStatus) {
+      case 'notSent':
+        filtered = filtered.filter(g => g.isPendingSend);
+        break;
+      case 'sent':
+        filtered = filtered.filter(g => !g.isPendingSend);
         break;
     }
 
@@ -572,8 +592,11 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
   loadGiftCardConfig() {
     this.adminService.getGiftCardConfig().subscribe({
       next: (config) => {
+        // The server sends the background IN EFFECT (the default when nothing usable is
+        // uploaded), so the preview always shows what customers and the email get.
         this.giftCardBackgroundPath = config.backgroundImagePath || '';
         this.hasGiftCardBackground = config.hasBackground;
+        this.giftCardBackgroundMissing = !!config.configuredImageMissing;
       },
       error: () => {}
     });
@@ -621,6 +644,7 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
         if (response && response.imagePath) {
           this.giftCardBackgroundPath = response.imagePath;
           this.hasGiftCardBackground = true;
+          this.giftCardBackgroundMissing = false;
           this.selectedFile = null;
           this.imagePreviewUrl = null;
           
@@ -649,9 +673,8 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
             }, 300);
           };
           
-          // Add cache buster to force fresh load
-          const cacheBuster = `?t=${Date.now()}`;
-          testImg.src = response.imagePath + cacheBuster;
+          // Every upload gets a new file name, so no cache-buster is needed.
+          testImg.src = response.imagePath;
         } else {
           alert('Upload succeeded but no image path returned');
         }

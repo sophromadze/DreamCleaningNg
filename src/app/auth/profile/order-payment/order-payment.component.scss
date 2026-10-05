@@ -139,7 +139,7 @@ h1 {
   align-items: center;
   gap: 0.75rem;
   background-color: var(--mint-fresh);
-  color: var(--fresh-green);
+  color: var(--mint-fresh-text);
   border: 1px solid var(--mint-fresh-border);
   padding: 1.25rem;
   border-radius: var(--radius-md);
@@ -173,7 +173,7 @@ h1 {
   }
   
   .pay-btn {
-    background-color: #28a745;
+    background-color: var(--fill-success);
     color: white;
     
     &:hover:not(:disabled) {
@@ -240,7 +240,7 @@ h1 {
     display: inline-block;
     margin-top: 1.1rem;
     padding: 0.65rem 1.25rem;
-    background-color: #007bff;
+    background-color: var(--primary-color);
     color: white;
     text-decoration: none;
     border-radius: 8px;
@@ -291,7 +291,7 @@ h1 {
     h3 { color: var(--text-primary) !important; }
     .breakdown-line {
       color: var(--text-secondary) !important;
-      .discount { color: var(--fresh-green) !important; }
+      .discount { color: var(--mint-fresh-text) !important; }
       &.amount-due {
         border-top-color: var(--border-color);
         color: var(--text-primary) !important;
@@ -404,7 +404,7 @@ h1 {
   h2 {
     margin: 0 0 0.6rem;
     font-size: 1.15rem;
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
   }
 
   p {
@@ -510,12 +510,12 @@ h1 {
       cursor: pointer;
 
       a {
-        color: var(--primary-color);
+        color: var(--primary-color-text);
         text-decoration: underline;
       }
 
       .required {
-        color: var(--bright-red);
+        color: var(--soft-red-text);
       }
     }
   }
@@ -582,7 +582,7 @@ h1 {
   align-items: center;
   gap: 0.5rem;
   background-color: var(--mint-fresh);
-  color: var(--fresh-green);
+  color: var(--mint-fresh-text);
   border-radius: 8px;
   padding: 0.75rem 1rem;
   margin-bottom: 1.5rem;
@@ -615,7 +615,7 @@ h1 {
   gap: 12px;
   align-items: flex-start;
   background-color: var(--soft-blue);
-  color: var(--primary-color);
+  color: var(--primary-text-elevated);
   border: 1px solid var(--primary-color);
   padding: 1rem 1.25rem;
   border-radius: var(--radius-md);
@@ -635,8 +635,8 @@ h1 {
   margin: 1rem 0;
   border-radius: 8px;
   background: var(--mint-fresh);
-  color: var(--fresh-green);
+  color: var(--mint-fresh-text);
 
   p { margin: 0.25rem 0 0.5rem; color: var(--text-primary); }
-  a { color: var(--primary-color); font-weight: 600; }
+  a { color: var(--primary-text-elevated); font-weight: 600; }
 }

@@ -49,7 +49,22 @@ describe('ProfileComponent', () => {
 
   it('lists the tabs in the order the account area reads in', () => {
     expect(new ProfileComponentTabs().keys)
-      .toEqual(['overview', 'personal', 'plan', 'addresses', 'billing', 'security']);
+      .toEqual(['overview', 'personal', 'plan', 'addresses', 'billing', 'invoices', 'gift-cards', 'security']);
+  });
+
+  // ── "Your cleanings (N)" counts real orders only (2026-10) ────────────────────────────
+
+  it('counts only real orders in "Your cleanings (N)"; the list still holds them all', () => {
+    const c = bare();
+    c.orders = [
+      order(1),
+      order(2, { status: 'Cancelled' }),
+      order(3, { status: 'Refunded' }),
+      order(4, { status: 'Active', totalRefundedAmount: 20 } as any),   // a part refund keeps its status and counts
+      order(5, { status: 'Pending' })
+    ];
+    expect(c.realOrderCount).toBe(3);
+    expect(c.orders.length).toBe(5);
   });
 
   // ── Paging the cleanings ───────────────────────────────────────────────────────────────
@@ -163,6 +178,14 @@ describe('ProfileComponent', () => {
       const occurrence = order(1, { recurringSeriesId: 4, status: 'Active', isPaid: true });
       expect(c.canEditOrder(occurrence)).toBeFalse();
       expect(c.canCancelOrder(occurrence)).toBeFalse();
+    });
+
+    it('lets the customer cancel an office-booked cash/Zelle cleaning (isPaid stays false)', () => {
+      const c = bare();
+      expect(c.canCancelOrder(order(1, { status: 'Active', isPaid: false, paymentMethod: 'Cash' }))).toBeTrue();
+      expect(c.canCancelOrder(order(1, { status: 'Active', isPaid: false, paymentMethod: 'Zelle' }))).toBeTrue();
+      // An unpaid card order is still cancelled through the unpaid-order button, not this modal.
+      expect(c.canCancelOrder(order(1, { status: 'Active', isPaid: false, paymentMethod: 'Normal' }))).toBeFalse();
     });
 
     it('closes editing inside the 48-hour window', () => {

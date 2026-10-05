@@ -40,11 +40,11 @@
         </button>
         <div class="faq-answer" [class.open]="isOpen(2)">
           <div class="faq-answer-content">
-            <p *ngIf="hasExtraPrices || !extraPricesLoaded; else supplyAnswerNoPrices">
+            <p *ngIf="hasExtraPrices; else supplyAnswerNoPrices">
               We can bring cleaning solutions for
-              <span class="faq-price" [class.shimmer-loading]="!extraPricesLoaded">{{ suppliesPriceLabel }}</span>
+              <span class="faq-price">{{ suppliesPriceLabel }}</span>
               and a vacuum for
-              <span class="faq-price" [class.shimmer-loading]="!extraPricesLoaded">{{ vacuumPriceLabel }}</span>.
+              <span class="faq-price">{{ vacuumPriceLabel }}</span>.
               Please let us know in advance which location(s) may require them.
             </p>
             <ng-template #supplyAnswerNoPrices>
@@ -193,7 +193,7 @@
         </button>
         <div class="faq-answer" [class.open]="isOpen(13)">
           <div class="faq-answer-content">
-            <p>Dream Cleaning's standard residential cleaning starts from ${{ pricing.residentialFrom }}, deep cleaning from ${{ pricing.deepFrom }}, and move in/out cleaning from ${{ pricing.moveInOutFrom }}. Pricing depends on home size, condition, and selected services. Get an instant estimate at dreamcleaningnyc.com/booking.</p>
+            <p>@if (startingPrices; as s) {Dream Cleaning's {{ s }}. }Pricing depends on home size, condition, and selected services. Get an instant estimate at dreamcleaningnyc.com/booking.</p>
           </div>
         </div>
       </div>

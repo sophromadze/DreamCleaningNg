@@ -1148,7 +1148,8 @@ export class TasksComponent implements OnInit, OnDestroy {
   }
 
   getAvatarColor(name: string): string {
-    const colors = ['#4A90D9', '#7B61FF', '#E74C3C', '#27AE60', '#F39C12', '#8E44AD', '#1ABC9C', '#E67E22'];
+    // 700 shades of the original hues so white initials pass AA (2026-10); order kept.
+    const colors = ['#2563eb', '#6d28d9', '#b91c1c', '#15803d', '#b45309', '#8E44AD', '#0f766e', '#c2410c'];
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);

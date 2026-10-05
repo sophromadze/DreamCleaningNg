@@ -55,9 +55,50 @@
             </div>
           </div>
 
+          <!-- Delivery choice -->
+          <div class="form-group">
+            <label id="deliveryModeLabel">How would you like to deliver it? *</label>
+            <div class="delivery-options" role="radiogroup" aria-labelledby="deliveryModeLabel">
+              <button
+                type="button"
+                class="delivery-option"
+                role="radio"
+                [attr.aria-checked]="!isSendLater"
+                [class.selected]="!isSendLater"
+                (click)="setDeliveryMode('now')">
+                <span class="delivery-option-title">Send to someone now</span>
+                <span class="delivery-option-text">We email the gift card to the recipient right after payment</span>
+              </button>
+              <button
+                type="button"
+                class="delivery-option"
+                role="radio"
+                [attr.aria-checked]="isSendLater"
+                [class.selected]="isSendLater"
+                (click)="setDeliveryMode('later')">
+                <span class="delivery-option-title">Buy for myself - send later</span>
+                <span class="delivery-option-text">The card waits in your profile until you choose who to send it to</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Send later: needs an account -->
+          <div class="send-later-notice" *ngIf="isSendLater && !currentUser">
+            <p>To buy a gift card for yourself and send it later, please log in or create an account. Your amount stays selected.</p>
+            <div class="send-later-notice-actions">
+              <button type="button" class="btn-outline" (click)="promptLoginForSendLater('login')">Log in</button>
+              <button type="button" class="btn-outline" (click)="promptLoginForSendLater('register')">Create account</button>
+            </div>
+          </div>
+
+          <div class="send-later-notice" *ngIf="isSendLater && currentUser">
+            <p>The gift card will be saved in your profile under <strong>Gift Cards</strong>. Nothing is sent to anyone until you press <strong>Send to someone</strong> there.</p>
+            <p class="send-later-notice-account">Receipt goes to: <strong>{{ currentUser.email }}</strong></p>
+          </div>
+
           <!-- Recipient Information -->
-          <div class="form-section">
-            <h3>Recipient Information</h3>
+          <div class="form-section" *ngIf="!isSendLater">
+            <h2>Recipient Information</h2>
             
             <div class="form-group">
               <label for="recipientName">Recipient Name *</label>
@@ -88,9 +129,9 @@
             </div>
           </div>
 
-          <!-- Sender Information -->
-          <div class="form-section">
-            <h3>Your Information</h3>
+          <!-- Sender Information (send later: taken from the signed-in profile) -->
+          <div class="form-section" *ngIf="!isSendLater">
+            <h2>Your Information</h2>
             
             <div class="form-group">
               <label for="senderName">Your Name *</label>
@@ -120,7 +161,7 @@
           </div>
 
           <!-- Message -->
-          <div class="form-group">
+          <div class="form-group" *ngIf="!isSendLater">
             <label for="message">Personal Message *</label>
             <textarea 
               id="message" 
@@ -140,7 +181,7 @@
 
           <!-- Form Actions -->
           <div class="form-actions">
-            <button type="button" class="btn btn-primary" [disabled]="isLoading" (click)="onCreateGiftCard()">
+            <button type="button" class="btn btn-primary" [disabled]="isLoading || (isSendLater && !currentUser)" (click)="onCreateGiftCard()">
               {{ isLoading ? 'Processing...' : 'Purchase Gift Card' }}
             </button>
           </div>
@@ -164,13 +205,20 @@
             <div class="gift-card-body">
               <div class="left-section"></div>
               <div class="right-section">
-                <div class="recipient-info">
+                <div class="recipient-info" *ngIf="!isSendLater">
                   <p class="dear">Dear {{ previewGiftCard?.recipientName || 'Recipient Name' }},</p>
                   <div class="message" *ngIf="previewGiftCard?.message">
                     <p>{{ previewGiftCard.message }}</p>
                   </div>
                 </div>
-                <div class="gift-card-note">Gift card code will be sent to recipient's and your email</div>
+                <div class="recipient-info" *ngIf="isSendLater">
+                  <p class="dear">Dear Recipient Name,</p>
+                  <div class="message">
+                    <p>You'll add the recipient and your message when you send it</p>
+                  </div>
+                </div>
+                <div class="gift-card-note" *ngIf="!isSendLater">Gift card code will be sent to recipient's and your email</div>
+                <div class="gift-card-note" *ngIf="isSendLater">Gift card code will be saved in your profile and sent to your email</div>
               </div>
             </div>
           </div>

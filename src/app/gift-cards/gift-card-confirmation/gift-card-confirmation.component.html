@@ -6,7 +6,8 @@
       <h3>Purchase Summary</h3>
       <div class="summary-item">
         <span>Recipient:</span>
-        <span>{{ giftCardData?.recipientName }}</span>
+        <span *ngIf="!giftCardData?.sendLater">{{ giftCardData?.recipientName }}</span>
+        <span *ngIf="giftCardData?.sendLater">For myself - send later</span>
       </div>
       <div class="summary-item">
         <span>Amount:</span>
@@ -57,12 +58,23 @@
   </div>
   
   <!-- Success Content -->
-  <div class="success-content" *ngIf="paymentCompleted">
-    <i class="fas fa-check-circle success-icon"></i>
+  <div class="success-content" *ngIf="paymentCompleted && giftCardData?.sendLater">
+    <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
+    <h1>Payment Successful!</h1>
+    <p>Your gift card has been created and saved in your profile. Nothing has been sent to anyone yet.</p>
+    <div class="email-notification">
+      <i [appIcon]="icons.faEnvelope" class="email-icon"></i>
+      <p class="email-message">Your receipt with the gift card code has been sent to your email.</p>
+      <p class="recipient-info">When you're ready, send it from <a routerLink="/profile" [queryParams]="{ tab: 'gift-cards' }"><strong>Profile &rarr; Gift Cards</strong></a>.</p>
+    </div>
+  </div>
+
+  <div class="success-content" *ngIf="paymentCompleted && !giftCardData?.sendLater">
+    <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
     <h1>Payment Successful!</h1>
     <p>Your gift card has been created and sent to the recipient.</p>
     <div class="email-notification">
-      <i class="fas fa-envelope email-icon"></i>
+      <i [appIcon]="icons.faEnvelope" class="email-icon"></i>
       <p class="email-message">Please check your email to see gift card data.</p>
       <p class="recipient-info">The gift card has been sent to: <strong>{{ giftCardData?.recipientEmail }}</strong></p>
     </div>

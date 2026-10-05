@@ -8,7 +8,7 @@
     (click)="toggleOpen()"
     [attr.aria-label]="isOpen ? 'Close chat' : 'Chat with us'"
     [attr.aria-expanded]="isOpen">
-    <i class="fas" [ngClass]="isOpen ? 'fa-xmark' : 'fa-comments'" aria-hidden="true"></i>
+    <i [appIcon]="isOpen ? icons.faXmark : icons.faComments" aria-hidden="true"></i>
     <!-- Unread replies badge (closed panel only) -->
     <span class="chat-fab__badge" *ngIf="unreadCount > 0 && !isOpen" aria-label="Unread messages">
       {{ unreadCount > 9 ? '9+' : unreadCount }}
@@ -26,7 +26,7 @@
     (keydown)="registerActivity()">
     <header class="chat-panel__header">
       <div class="chat-panel__identity">
-        <span class="chat-panel__avatar"><i class="fas fa-broom" aria-hidden="true"></i></span>
+        <span class="chat-panel__avatar"><i [appIcon]="icons.faBroom" aria-hidden="true"></i></span>
         <div class="chat-panel__titles">
           <strong>Dream Cleaning</strong>
           <small>{{ conversationEnded ? 'Conversation ended' : escalated ? "You're chatting with our team" : 'Virtual assistant' }}</small>
@@ -40,10 +40,10 @@
           (click)="endChat()"
           title="End chat"
           aria-label="End chat">
-          <i class="fas fa-power-off" aria-hidden="true"></i>
+          <i [appIcon]="icons.faPowerOff" aria-hidden="true"></i>
         </button>
         <button type="button" class="chat-panel__close" (click)="toggleOpen()" aria-label="Close chat">
-          <i class="fas fa-xmark" aria-hidden="true"></i>
+          <i [appIcon]="icons.faXmark" aria-hidden="true"></i>
         </button>
       </div>
     </header>
@@ -63,7 +63,7 @@
             *ngFor="let opener of openers"
             [disabled]="sending"
             (click)="sendOpener(opener)">
-            <i class="fas" [ngClass]="opener.icon" aria-hidden="true"></i> {{ opener.label }}
+            <i [appIcon]="opener.icon" aria-hidden="true"></i> {{ opener.label }}
           </button>
         </div>
       </div>
@@ -75,7 +75,7 @@
         [class.chat-msg--assistant]="m.role === 'assistant'"
         [class.chat-msg--team]="m.role === 'humanAgent'">
         <div class="chat-msg__label" *ngIf="m.role === 'humanAgent'">
-          <i class="fas fa-headset" aria-hidden="true"></i> {{ m.agentName || 'Team' }}
+          <i [appIcon]="icons.faHeadset" aria-hidden="true"></i> {{ m.agentName || 'Team' }}
         </div>
         <div class="chat-msg__bubble">
           <img *ngIf="m.imagePath" [src]="m.imagePath" alt="Attached photo" class="chat-msg__image" loading="lazy" />
@@ -106,7 +106,7 @@
     </div>
 
     <div class="chat-panel__error" *ngIf="error" role="alert">
-      <i class="fas fa-circle-exclamation" aria-hidden="true"></i> {{ error }}
+      <i [appIcon]="icons.faCircleExclamation" aria-hidden="true"></i> {{ error }}
     </div>
 
     <!-- Pending image preview (attached, not yet sent) -->
@@ -114,7 +114,7 @@
       <img [src]="pendingImage.previewUrl" alt="Image ready to send" />
       <span>Image attached</span>
       <button type="button" (click)="clearPendingImage()" aria-label="Remove attached image">
-        <i class="fas fa-xmark" aria-hidden="true"></i>
+        <i [appIcon]="icons.faXmark" aria-hidden="true"></i>
       </button>
     </div>
 
@@ -127,7 +127,7 @@
     <!-- Idle-pause banner — polling was suspended after inactivity. The input stays
          usable below, so a plain send resumes too; Continue is the explicit path. -->
     <div class="chat-panel__paused" *ngIf="paused && !conversationEnded" role="status">
-      <span><i class="fas fa-circle-pause" aria-hidden="true"></i> Paused due to inactivity</span>
+      <span><i [appIcon]="icons.faCirclePause" aria-hidden="true"></i> Paused due to inactivity</span>
       <button type="button" class="chat-panel__continue" (click)="continueChat()">Continue chat</button>
     </div>
 
@@ -141,7 +141,7 @@
         *ngIf="!confirmingHumanRequest"
         [disabled]="requestingHuman"
         (click)="askForHuman()">
-        <i class="fas fa-headset" aria-hidden="true"></i> Talk to a real person
+        <i [appIcon]="icons.faHeadset" aria-hidden="true"></i> Talk to a real person
       </button>
 
       <ng-container *ngIf="confirmingHumanRequest">
@@ -186,7 +186,7 @@
           [disabled]="savingGuestEmail"
           (click)="submitGuestEmail()"
           aria-label="Save email">
-          <i class="fas" [ngClass]="savingGuestEmail ? 'fa-spinner fa-spin' : 'fa-check'" aria-hidden="true"></i>
+          <i [appIcon]="savingGuestEmail ? icons.faSpinner : icons.faCheck" [class.fa-spin]="savingGuestEmail" aria-hidden="true"></i>
         </button>
         <!-- Dismiss. The field is optional and no longer hides itself on the first message,
              so without this a visitor who doesn't want to leave an address has no way to
@@ -198,7 +198,7 @@
           (click)="dismissGuestEmail()"
           title="No thanks"
           aria-label="Dismiss the email field">
-          <i class="fas fa-xmark" aria-hidden="true"></i>
+          <i [appIcon]="icons.faXmark" aria-hidden="true"></i>
         </button>
       </div>
       <small class="chat-panel__email-error" *ngIf="guestEmailError" role="alert">{{ guestEmailError }}</small>
@@ -206,14 +206,15 @@
 
     <!-- Short confirmation in place of the field, so it doesn't just silently vanish. -->
     <div class="chat-panel__email-note" *ngIf="guestEmailNoteVisible" role="status">
-      <i class="fas fa-circle-check" aria-hidden="true"></i> Thanks — we'll use that if we need to reach you.
+      <i [appIcon]="icons.faCircleCheck" aria-hidden="true"></i> Thanks — we'll use that if we need to reach you.
     </div>
 
     <footer class="chat-panel__input" *ngIf="!conversationEnded">
-      <label class="chat-panel__attach" [class.chat-panel__attach--busy]="uploadingImage" aria-label="Attach an image">
-        <i class="fas" [ngClass]="uploadingImage ? 'fa-spinner fa-spin' : 'fa-paperclip'" aria-hidden="true"></i>
+      <label class="chat-panel__attach" [class.chat-panel__attach--busy]="uploadingImage">
+        <i [appIcon]="uploadingImage ? icons.faSpinner : icons.faPaperclip" [class.fa-spin]="uploadingImage" aria-hidden="true"></i>
         <input
           type="file"
+          aria-label="Attach an image"
           accept="image/jpeg,image/png,image/webp"
           (change)="onFileSelected($event)"
           [disabled]="uploadingImage || sending" />
@@ -228,7 +229,7 @@
         maxlength="4000"
         [disabled]="sending" />
       <button type="button" class="chat-panel__send" (click)="send()" [disabled]="!canSend" aria-label="Send message">
-        <i class="fas fa-paper-plane" aria-hidden="true"></i>
+        <i [appIcon]="icons.faPaperPlane" aria-hidden="true"></i>
       </button>
     </footer>
   </section>

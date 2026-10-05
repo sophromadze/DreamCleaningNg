@@ -2,7 +2,6 @@ import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, HostListener } from 
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { HttpClientModule } from '@angular/common/http';
 import { AuthService } from '../../services/auth.service';
 import { AuthModalService } from '../../services/auth-modal.service';
 import { passwordValidator } from '../../utils/password-validator';
@@ -20,7 +19,6 @@ type LoginStep = 'email' | 'password' | 'otp';
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    HttpClientModule,
     GoogleSigninWrapperComponent,
     AppleSigninButtonComponent
   ],
@@ -48,6 +46,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
 
   private isBrowser: boolean;
   private subscriptions = new Subscription();
+  private googleSignInListening = false;
 
   constructor(
     private fb: FormBuilder,
@@ -106,6 +105,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
     const modalSub = this.authModalService.isOpen$.subscribe(isOpen => {
       this.showModal = isOpen;
       if (isOpen) {
+        this.listenForGoogleSignIn();
         this.resetLoginState();
         const initialMode = this.authModalService.getInitialMode();
         this.isLoginMode = initialMode === 'login';
@@ -123,15 +123,22 @@ export class AuthModalComponent implements OnInit, OnDestroy {
 
     this.subscriptions.add(modalSub);
     this.subscriptions.add(modeSub);
+  }
 
-    if (this.isBrowser && this.authService.socialAuthService) {
-      const googleSub = this.authService.socialAuthService.authState.subscribe((user) => {
-        if (user && user.provider === 'GOOGLE' && this.showModal) {
-          this.handleGoogleSignIn(user);
-        }
-      });
-      this.subscriptions.add(googleSub);
-    }
+  /**
+   * Subscribed on the first open rather than in ngOnInit: touching the social auth service loads
+   * Google Sign-In, and this modal is mounted on every page. The Google button only exists while
+   * the modal is open, so no sign-in can arrive before this runs.
+   */
+  private listenForGoogleSignIn(): void {
+    if (this.googleSignInListening || !this.isBrowser) return;
+    this.googleSignInListening = true;
+    const googleSub = this.authService.socialAuthService.authState.subscribe((user) => {
+      if (user && user.provider === 'GOOGLE' && this.showModal) {
+        this.handleGoogleSignIn(user);
+      }
+    });
+    this.subscriptions.add(googleSub);
   }
 
   ngOnDestroy() {

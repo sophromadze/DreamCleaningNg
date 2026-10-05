@@ -12,6 +12,21 @@ import { StickyCtaService } from '../services/sticky-cta.service';
 import { ChatMarkdownPipe } from '../shared/pipes/chat-markdown.pipe';
 import { describeEmailProblem } from '../utils/email.utils';
 import { extractApiErrorMessage } from '../utils/http-error.utils';
+import { IconComponent } from '../shared/icons/icon.component';
+import { IconDefinition } from '../shared/icons/icon-definition';
+import { faBriefcase } from '../shared/icons/glyphs/faBriefcase';
+import { faBroom } from '../shared/icons/glyphs/faBroom';
+import { faCheck } from '../shared/icons/glyphs/faCheck';
+import { faCircleCheck } from '../shared/icons/glyphs/faCircleCheck';
+import { faCircleExclamation } from '../shared/icons/glyphs/faCircleExclamation';
+import { faCirclePause } from '../shared/icons/glyphs/faCirclePause';
+import { faComments } from '../shared/icons/glyphs/faComments';
+import { faHeadset } from '../shared/icons/glyphs/faHeadset';
+import { faPaperclip } from '../shared/icons/glyphs/faPaperclip';
+import { faPaperPlane } from '../shared/icons/glyphs/faPaperPlane';
+import { faPowerOff } from '../shared/icons/glyphs/faPowerOff';
+import { faSpinner } from '../shared/icons/glyphs/faSpinner';
+import { faXmark } from '../shared/icons/glyphs/faXmark';
 
 interface WidgetMessage {
   id: string | null; // null = optimistic local copy not yet seen from the server
@@ -41,11 +56,13 @@ interface WidgetMessage {
 @Component({
   selector: 'app-chat-widget',
   standalone: true,
-  imports: [CommonModule, FormsModule, ChatMarkdownPipe],
+  imports: [CommonModule, FormsModule, ChatMarkdownPipe, IconComponent],
   templateUrl: './chat-widget.component.html',
   styleUrl: './chat-widget.component.scss'
 })
 export class ChatWidgetComponent implements OnInit, OnDestroy {
+  protected readonly icons = { faBroom, faCheck, faCircleCheck, faCircleExclamation, faCirclePause, faComments, faHeadset, faPaperclip, faPaperPlane, faPowerOff, faSpinner, faXmark };
+
   private static readonly POLL_INTERVAL_MS = 4000;        // panel open, escalated
   private static readonly BG_POLL_INTERVAL_MS = 5000;     // panel closed, escalated only
   /** No user activity for this long → pause BOTH poll rates (protects the server from
@@ -328,7 +345,9 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
       id: null,
       role: 'user',
       content: text || null,
-      imagePath: image?.path ?? null,
+      // The local copy, not image.path: chat photos are private (2026-10), and the stored
+      // path is only a reference for the server. History brings the served URL later.
+      imagePath: image?.previewUrl ?? null,
       createdAt: null
     });
     this.scrollToBottom();
@@ -602,19 +621,19 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
    * reads like something a person said.
    */
   readonly openers: ReadonlyArray<{
-    icon: string;
+    icon: IconDefinition;
     label: string;
     message: string;
     intent: 'booking' | 'employment';
   }> = [
     {
-      icon: 'fa-broom',
+      icon: faBroom,
       label: 'Book a cleaning',
       message: "I'd like to book a cleaning for my home",
       intent: 'booking'
     },
     {
-      icon: 'fa-briefcase',
+      icon: faBriefcase,
       label: 'Work with us',
       message: "I'm looking for a job as a cleaner with your team",
       intent: 'employment'

@@ -1,0 +1,119 @@
+<div class="mgc-tab">
+
+  <div class="mgc-state" *ngIf="loading">Loading your gift cards…</div>
+
+  <div class="mgc-state mgc-state--error" *ngIf="!loading && error">
+    {{ error }}
+    <button type="button" class="mgc-link" (click)="load()">Try again</button>
+  </div>
+
+  <ng-container *ngIf="!loading && !error">
+    <div class="mgc-empty" *ngIf="cards.length === 0">
+      <p class="mgc-state">You haven't bought any gift cards yet.</p>
+      <a class="mgc-btn" routerLink="/gift-cards" [queryParams]="{ mode: 'later' }">Buy a gift card</a>
+    </div>
+
+    <div class="mgc-pending" *ngIf="unsentCount > 0">
+      <i class="fas fa-gift" aria-hidden="true"></i>
+      {{ unsentCount === 1 ? 'One gift card is' : unsentCount + ' gift cards are' }} waiting to be sent.
+    </div>
+
+    <ul class="mgc-list" *ngIf="cards.length > 0">
+      <li class="mgc-card" *ngFor="let card of cards; trackBy: trackById" [class.is-muted]="card.status === 'FullyUsed' || !card.isActive">
+        <div class="mgc-card__main">
+          <div class="mgc-card__title">
+            <span class="mgc-code" [attr.aria-label]="card.isCodeMasked ? 'Gift card code ending in ' + card.code.slice(-4) : 'Gift card code ' + card.code">{{ card.code }}</span>
+            <span class="mgc-status" [ngClass]="'mgc-status--' + card.status.toLowerCase()">{{ statusLabel(card) }}</span>
+            <span class="mgc-status mgc-status--inactive" *ngIf="!card.isActive">Deactivated</span>
+          </div>
+          <span class="mgc-balance">
+            <span class="mgc-balance__label">Balance</span>
+            ${{ card.currentBalance | number:'1.2-2' }}
+          </span>
+        </div>
+
+        <dl class="mgc-facts">
+          <div><dt>Original amount</dt><dd>${{ card.originalAmount | number:'1.2-2' }}</dd></div>
+          <div><dt>Amount used</dt><dd>${{ card.amountUsed | number:'1.2-2' }}</dd></div>
+          <div><dt>Remaining</dt><dd>${{ card.currentBalance | number:'1.2-2' }}</dd></div>
+          <div><dt>Purchased</dt><dd>{{ card.purchasedAt | date:'MMM d, y' }}</dd></div>
+        </dl>
+
+        <p class="mgc-sent" *ngIf="!card.isPendingSend && card.recipientEmail">
+          Sent to <strong>{{ card.recipientName }}</strong> ({{ card.recipientEmail }})<ng-container *ngIf="card.sentAt"> on {{ card.sentAt | date:'MMM d, y' }}</ng-container>
+        </p>
+        <p class="mgc-hint" *ngIf="card.isPendingSend && card.status !== 'FullyUsed'">
+          Not sent yet — you can send it to someone, or use the code yourself when booking.
+        </p>
+
+        <div class="mgc-actions">
+          <button type="button" class="mgc-btn" *ngIf="card.canSend && sendingCardId !== card.id" (click)="openSendForm(card)">
+            <i class="fas fa-paper-plane" aria-hidden="true"></i> Send to someone
+          </button>
+          <button type="button" class="mgc-btn mgc-btn--secondary" *ngIf="card.canResend"
+                  [disabled]="resendingCardId === card.id" (click)="resend(card)">
+            {{ resendingCardId === card.id ? 'Sending…' : 'Resend email' }}
+          </button>
+          <button type="button" class="mgc-link" *ngIf="card.usages.length > 0" (click)="toggleUsage(card)"
+                  [attr.aria-expanded]="expandedUsageId === card.id" [attr.aria-controls]="'mgc-usage-' + card.id">
+            {{ expandedUsageId === card.id ? 'Hide usage history' : 'Usage history (' + card.usages.length + ')' }}
+          </button>
+        </div>
+
+        <div class="mgc-notice" *ngIf="notices[card.id] as notice" [ngClass]="'mgc-notice--' + notice.kind" role="status">
+          {{ notice.text }}
+        </div>
+
+        <ul class="mgc-usage" *ngIf="expandedUsageId === card.id" [id]="'mgc-usage-' + card.id">
+          <li *ngFor="let use of card.usages">
+            <span>{{ use.usedAt | date:'MMM d, y' }}</span>
+            <span>−${{ use.amountUsed | number:'1.2-2' }}</span>
+          </li>
+        </ul>
+
+        <!-- Send to someone -->
+        <form class="mgc-send" *ngIf="sendingCardId === card.id" [formGroup]="sendForm" (ngSubmit)="submitSend(card)" novalidate>
+          <h3 class="mgc-send__title">Send this gift card</h3>
+          <p class="mgc-send__note">
+            The recipient gets the same gift card email as a regular gift card purchase, showing the remaining
+            balance of <strong>${{ card.currentBalance | number:'1.2-2' }}</strong>. A gift card can be sent only once —
+            the recipient can't be changed afterwards.
+          </p>
+
+          <div class="mgc-field">
+            <label [for]="'mgc-rn-' + card.id">Recipient name *</label>
+            <input [id]="'mgc-rn-' + card.id" type="text" formControlName="recipientName" [maxlength]="recipientNameMax" placeholder="Enter recipient's name" autocomplete="off">
+            <span class="mgc-field__error" *ngIf="sendForm.get('recipientName')?.touched && sendForm.get('recipientName')?.errors?.['required']">Recipient name is required</span>
+          </div>
+
+          <div class="mgc-field">
+            <label [for]="'mgc-re-' + card.id">Recipient email *</label>
+            <input [id]="'mgc-re-' + card.id" type="email" formControlName="recipientEmail" maxlength="255" placeholder="Enter recipient's email address" autocomplete="off">
+            <span class="mgc-field__error" *ngIf="sendForm.get('recipientEmail')?.touched && sendForm.get('recipientEmail')?.errors?.['required']">Recipient email is required</span>
+            <span class="mgc-field__error" *ngIf="sendForm.get('recipientEmail')?.touched && recipientEmailProblem">{{ recipientEmailProblem }}</span>
+          </div>
+
+          <div class="mgc-field">
+            <label [for]="'mgc-sn-' + card.id">Your name *</label>
+            <input [id]="'mgc-sn-' + card.id" type="text" formControlName="senderName" maxlength="100" placeholder="Enter your name">
+            <span class="mgc-field__error" *ngIf="sendForm.get('senderName')?.touched && sendForm.get('senderName')?.errors?.['required']">Your name is required</span>
+          </div>
+
+          <div class="mgc-field">
+            <label [for]="'mgc-msg-' + card.id">Personal message *</label>
+            <textarea [id]="'mgc-msg-' + card.id" rows="3" formControlName="message" [maxlength]="messageMax" placeholder="Add a personal message for the recipient..."></textarea>
+            <span class="mgc-field__count">{{ sendForm.get('message')?.value?.length || 0 }}/{{ messageMax }}</span>
+            <span class="mgc-field__error" *ngIf="sendForm.get('message')?.touched && sendForm.get('message')?.errors?.['required']">Personal message is required</span>
+          </div>
+
+          <div class="mgc-notice mgc-notice--error" *ngIf="sendError" role="alert">{{ sendError }}</div>
+
+          <div class="mgc-actions">
+            <button type="submit" class="mgc-btn" [disabled]="isSubmitting">{{ isSubmitting ? 'Sending…' : 'Send gift card' }}</button>
+            <button type="button" class="mgc-btn mgc-btn--secondary" [disabled]="isSubmitting" (click)="cancelSend()">Cancel</button>
+          </div>
+        </form>
+      </li>
+    </ul>
+  </ng-container>
+</div>

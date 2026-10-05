@@ -43,7 +43,7 @@
       <!-- Existing mappings -->
       <table class="agent-names__table" *ngIf="agentNames.length > 0">
         <thead>
-          <tr><th>Telegram user ID</th><th>Display name</th><th class="col-actions"></th></tr>
+          <tr><th>Telegram user ID</th><th>Display name</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr>
         </thead>
         <tbody>
           <tr *ngFor="let m of agentNames">
@@ -66,7 +66,7 @@
         <h6>Seen in chats, not named yet</h6>
         <table class="agent-names__table">
           <thead>
-            <tr><th>Telegram user ID</th><th>Last reply</th><th>Name</th><th class="col-actions"></th></tr>
+            <tr><th>Telegram user ID</th><th>Last reply</th><th>Name</th><th class="col-actions"><span class="sr-only">Actions</span></th></tr>
           </thead>
           <tbody>
             <tr *ngFor="let s of unmappedSenders">
@@ -110,7 +110,7 @@
           <th>Status</th>
           <th class="col-num">Msgs</th>
           <th>Last activity</th>
-          <th class="col-actions" *ngIf="isSuperAdmin"></th>
+          <th class="col-actions" *ngIf="isSuperAdmin"><span class="sr-only">Actions</span></th>
         </tr>
       </thead>
       <tbody>

@@ -163,6 +163,15 @@ describe('CleanerPortalComponent', () => {
   });
 
   describe('the month calendar', () => {
+    // The portal opens on TODAY's NY month and the fixture jobs sit on 2026-09-10, so "today" is
+    // pinned inside September 2026. Unpinned, these specs only passed while the real date was in
+    // September: from October the 10th is not on screen and every cell lookup came back undefined.
+    beforeEach(() => {
+      jasmine.clock().install();
+      jasmine.clock().mockDate(new Date('2026-09-15T16:00:00Z'));
+    });
+    afterEach(() => jasmine.clock().uninstall());
+
     it('files a job under its NY service date, so the dot lands on the day it is worked', () => {
       portal.getMyJobs.and.returnValue(of({
         current: [job({ orderId: 1, serviceTime: '14:30' }), job({ orderId: 2, serviceTime: '09:00' })],

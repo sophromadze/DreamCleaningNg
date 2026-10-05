@@ -215,7 +215,7 @@
   .empty-state {
     text-align: center;
     padding: 2rem;
-    color: #999;
+    color: var(--text-muted);
   }
 }
 
@@ -339,7 +339,7 @@
   transition: background-color 0.2s;
 
   &.btn-primary {
-    background-color: #007bff;
+    background-color: var(--primary-color);
     color: #fff;
     &:hover { background-color: #0056b3; }
   }

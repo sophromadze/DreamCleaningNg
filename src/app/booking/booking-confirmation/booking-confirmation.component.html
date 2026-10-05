@@ -21,7 +21,7 @@
 
       <!-- Fully covered by gift card / credits: no charge required -->
       <div class="fully-covered-notice" *ngIf="fullyCovered">
-        <i class="fas fa-gift"></i>
+        <i [appIcon]="icons.faGift"></i>
         <p>Your gift card covers the full amount. No payment is required — just confirm your booking.</p>
       </div>
 
@@ -56,7 +56,7 @@
       
       <!-- The card WAS charged; only our confirmation is late. Never phrased as a failure. -->
       <div class="finalizing-notice" *ngIf="finalizingPayment" role="status" aria-live="polite">
-        <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+        <i [appIcon]="icons.faCircleNotch" class="fa-spin" aria-hidden="true"></i>
         <div>
           <strong>Your payment went through — we're finalising your booking.</strong>
           <p>Please don't pay again. This usually takes a few seconds; if this message stays,
@@ -109,7 +109,7 @@
   
   <!-- Success Content -->
   <div class="success-content" *ngIf="paymentCompleted">
-    <i class="fas fa-check-circle success-icon"></i>
+    <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
     <h1>Payment Successful!</h1>
     <p>Your booking has been confirmed.</p>
     <p class="order-info">Order #{{ orderId }}</p>

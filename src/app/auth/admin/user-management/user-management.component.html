@@ -36,7 +36,7 @@
              class="search-input">
     </div>
     <div class="filter-controls">
-      <select [(ngModel)]="statusFilter" class="filter-select">
+      <select aria-label="Filter by status" [(ngModel)]="statusFilter" class="filter-select">
         <option value="all">All Status</option>
         <option value="active">Active</option>
         <option value="inactive">Blocked</option>
@@ -44,7 +44,7 @@
       <!-- Only the roles this tab can actually contain. Offering "Customer" on the Staff tab
            (or the three admin roles on Customers) would be a filter that always returns nothing,
            which reads as a broken list rather than an empty one. -->
-      <select [(ngModel)]="roleFilter" class="filter-select" *ngIf="scope === 'staff'">
+      <select aria-label="Filter by role" [(ngModel)]="roleFilter" class="filter-select" *ngIf="scope === 'staff'">
         <option value="all">All Roles</option>
         <option value="SuperAdmin">SAdmin</option>
         <option value="Admin">Admin</option>
@@ -52,7 +52,7 @@
       </select>
       <!-- Customer type by non-cancelled order count: new = 1, returning = 2+.
            Meaningless for staff, who are not booking cleanings. -->
-      <select [(ngModel)]="customerTypeFilter" class="filter-select" *ngIf="scope === 'customers'">
+      <select aria-label="Filter by customer type" [(ngModel)]="customerTypeFilter" class="filter-select" *ngIf="scope === 'customers'">
         <option value="all">All Customers</option>
         <option value="new">New (1 order)</option>
         <option value="returning">Returning (2+)</option>
@@ -344,7 +344,7 @@
 
     <!-- Edit form (Admin / SuperAdmin) -->
     <div *ngIf="editingUser && canEditUserDetails(selectedUser)" class="edit-form-wrap">
-      <h5>Edit User <span class="hint">— all changes are recorded in Audit logs</span></h5>
+      <h4>Edit User <span class="hint">— all changes are recorded in Audit logs</span></h4>
       <div class="edit-grid">
         <label><span>First Name</span><input type="text" [(ngModel)]="editUserForm.firstName"></label>
         <label><span>Last Name</span><input type="text" [(ngModel)]="editUserForm.lastName"></label>
@@ -362,7 +362,7 @@
       </div>
 
       <div class="info-card" *ngIf="userRewardsSummary?.pointsSystemEnabled">
-        <h6>Bubble Rewards</h6>
+        <h4>Bubble Rewards</h4>
         <div class="info-grid">
           <div><span>Tier</span><strong>{{ getTierLabel(userRewardsSummary.tier) }}</strong></div>
           <div><span>Earned</span><strong>{{ userRewardsSummary.totalEarned | number }}</strong></div>
@@ -377,10 +377,25 @@
           <button class="action-btn primary small" (click)="savePointsAdjustment()" [disabled]="savingPoints">{{ savingPoints ? '…' : 'Adjust' }}</button>
         </div>
         <div *ngIf="pointsSaveMessage" class="muted">{{ pointsSaveMessage }}</div>
+
+        <!-- Refund/cancellation reversals with their full record (order, reason, amount, date, who
+             or what applied it). The customer sees these only as "Balance adjustment". -->
+        <div class="referral-block" *ngIf="pointsReversals.length > 0">
+          <div class="referral-block__label">Points taken back ({{ pointsReversals.length }})</div>
+          <ul class="referral-list">
+            <li *ngFor="let h of pointsReversals">
+              <div class="referral-list__main">
+                <strong>{{ h.points | number }}</strong>
+                <span class="muted"> — {{ h.createdAt | date:'MMM d, y' }}</span>
+                <div class="muted">{{ h.description }}</div>
+              </div>
+            </li>
+          </ul>
+        </div>
       </div>
 
       <div class="info-card referrals-card" *ngIf="userRewardsSummary?.pointsSystemEnabled">
-        <h6>Referrals</h6>
+        <h4>Referrals</h4>
 
         <div class="referral-block">
           <div class="referral-block__label">Referred by</div>
@@ -462,13 +477,14 @@
     </div>
 
     <!-- Tabs -->
-    <nav class="detail-tabs" *ngIf="!editingUser">
+    <nav class="detail-tabs" *ngIf="!editingUser" aria-label="User record sections">
       <button class="tab" [class.active]="detailTab === 'details'" (click)="setDetailTab('details')">Details</button>
       <button class="tab" [class.active]="detailTab === 'notes'" (click)="setDetailTab('notes')">Notes
         <span class="badge" *ngIf="generalNotes.length > 0">{{ generalNotes.length }}</span>
       </button>
       <button class="tab" [class.active]="detailTab === 'history'" (click)="setDetailTab('history')">History
-        <span class="badge" *ngIf="(selectedUser.orders?.length || 0) > 0">{{ selectedUser.orders?.length }}</span>
+        <!-- Real orders only (not cancelled, not refunded); the list below still shows every order. -->
+        <span class="badge" *ngIf="historyRealOrderCount > 0">{{ historyRealOrderCount }}</span>
       </button>
       <button class="tab" [class.active]="detailTab === 'photos'" (click)="setDetailTab('photos')">Photos</button>
       <!-- Shown only when there is something in it. An empty Invoices tab on every customer in
@@ -533,7 +549,7 @@
                The two are NOT merged. A legal entity name is not a person's name and a notice
                email is not a login, so where they differ the panel shows both. -->
           <div class="info-card um-business-card" *ngIf="businessClient as bc">
-            <h6>Business client</h6>
+            <h4>Business client</h4>
             <div class="info-grid">
               <div class="um-span-2"><span>Legal entity</span><strong>{{ bc.legalEntityName }}</strong></div>
               <div><span>Entity type</span><strong>{{ bc.entityType || '—' }}</strong></div>
@@ -562,12 +578,12 @@
             </p>
           </div>
           <div class="info-card" *ngIf="loadingBusinessClient && !businessClient">
-            <h6>Business client</h6>
+            <h4>Business client</h4>
             <p class="muted">Loading the commercial record…</p>
           </div>
 
           <div class="info-card">
-            <h6>Account</h6>
+            <h4>Account</h4>
             <div class="info-grid">
               <div><span>User ID</span><strong>{{ selectedUser.id }}</strong></div>
               <div><span>Provider</span><strong>{{ selectedUser.authProvider || 'Local' }}</strong></div>
@@ -634,7 +650,7 @@
 
               <span class="pref-row" *ngIf="canModifyUserRole(selectedUser)">
                 <span class="pref-label">Role</span>
-                <select class="role-select"
+                <select aria-label="Role" class="role-select"
                         [ngModel]="selectedUser.role"
                         (ngModelChange)="updateUserRole(selectedUser, $event)">
                   <option value="Customer">Customer</option>
@@ -676,7 +692,7 @@
                 </span>
                 <span class="pref-row">
                   <span class="pref-label pref-label-sub">Role in the team</span>
-                  <select class="role-select"
+                  <select aria-label="Role in the team" class="role-select"
                           [ngModel]="selectedUser.adminPosition || 'Administrator'"
                           [disabled]="savingAdminPositionUserId === selectedUser.id"
                           (ngModelChange)="updateAdminPosition(selectedUser, $event)">
@@ -690,7 +706,7 @@
                   <span class="pref-label pref-label-sub">Reports to</span>
                   <!-- ngValue, not value: the ids are numbers, and a plain [value] would render
                        them as strings and never match the bound managerId. -->
-                  <select class="role-select"
+                  <select aria-label="Reports to" class="role-select"
                           [ngModel]="selectedUser.managerId ?? null"
                           [disabled]="savingAdminPositionUserId === selectedUser.id"
                           (ngModelChange)="updateUserManager(selectedUser, $event)">
@@ -714,7 +730,7 @@
                 </span>
                 <span class="pref-row">
                   <span class="pref-label pref-label-sub">Title</span>
-                  <select class="role-select"
+                  <select aria-label="Title" class="role-select"
                           *ngIf="canAssignOrgTitle"
                           [ngModel]="selectedUser.orgTitle || 'None'"
                           [disabled]="savingOrgTitleUserId === selectedUser.id"
@@ -802,7 +818,7 @@
                Moderator sees the percentage + status but no edit/clear actions.
                Phase 7 user-details section (spec 5.3). -->
           <div class="info-card">
-            <h6>Loyalty Discount</h6>
+            <h4>Loyalty Discount</h4>
 
             <div class="muted" *ngIf="loadingLoyalty">Loading…</div>
 
@@ -898,7 +914,7 @@
           </div>
 
           <div class="info-card" *ngIf="$any(selectedUser).lastCleaningDate">
-            <h6>Last service snapshot</h6>
+            <h4>Last service snapshot</h4>
             <div class="info-grid">
               <div><span>Date</span><strong>{{ formatShortDate($any(selectedUser).lastCleaningDate) }}</strong></div>
               <div><span>Type</span><strong>{{ $any(selectedUser).lastCleaningServiceType || '—' }}</strong></div>
@@ -910,7 +926,7 @@
           </div>
 
           <div class="info-card">
-            <h6>Saved Addresses ({{ selectedUser.apartments?.length || 0 }})</h6>
+            <h4>Saved Addresses ({{ selectedUser.apartments?.length || 0 }})</h4>
             <div class="addresses">
               <div *ngFor="let apt of selectedUser.apartments" class="address-item">
                 <div *ngIf="editingAddressId !== apt.id" class="address-display">
@@ -968,17 +984,19 @@
       <!-- ─── HISTORY ─── -->
       <section *ngIf="detailTab === 'history'" class="tab-pane">
         <div class="info-card" *ngIf="(selectedUser.orders?.length || 0) > 0; else noOrders">
-          <h6>Cleaning History</h6>
+          <h4>Cleaning History</h4>
           <div class="success-message inline" *ngIf="recreateSuccessMessage">{{ recreateSuccessMessage }}</div>
           <div class="history-list">
             <div *ngFor="let order of selectedUser.orders"
                  class="history-row"
-                 [class.cancelled]="(order.status || '').toLowerCase() === 'cancelled'"
+                 [class.cancelled]="isCancelledOrRefunded(order)"
                  (click)="openOrderInAdmin(order.id)">
               <div class="history-row__main">
                 <span class="history-date">{{ formatShortDate(order.serviceDate) }}</span>
                 <span class="history-type">{{ order.serviceTypeName }}</span>
-                <span class="history-status" [ngClass]="getStatusClass(order.status)">{{ order.status }}</span>
+                <!-- The Orders tab's pill: same classes, labels and RefundH tooltip. -->
+                <span class="status-badge history-status" [ngClass]="getStatusClass(order)"
+                      [title]="getStatusTitle(order)">{{ getStatusLabel(order) }}</span>
               </div>
               <div class="history-row__meta">
                 <span class="history-amount">{{ formatCurrency(order.total) }}</span>
@@ -1004,9 +1022,9 @@
       <!-- ─── PHOTOS ─── -->
       <section *ngIf="detailTab === 'photos'" class="tab-pane">
         <div class="info-card">
-          <h6>Cleaning Photos
+          <h4>Cleaning Photos
             <span class="hint">— last 2 cleanings only (older are auto-pruned)</span>
-          </h6>
+          </h4>
 
           <div *ngIf="loadingPhotos" class="muted center">Loading photos…</div>
 
@@ -1056,7 +1074,7 @@
       <!-- ─── NOTES (general only) ─── -->
       <section *ngIf="detailTab === 'notes'" class="tab-pane">
         <div class="info-card" *ngIf="canUpdate">
-          <h6>Add note</h6>
+          <h4>Add note</h4>
           <div class="note-form">
             <textarea [(ngModel)]="newNoteContent"
                       rows="3"
@@ -1073,7 +1091,7 @@
         </div>
 
         <div class="info-card">
-          <h6>General notes <span class="muted">({{ generalNotes.length }})</span></h6>
+          <h4>General notes <span class="muted">({{ generalNotes.length }})</span></h4>
           <div *ngIf="loadingNotes" class="muted center">Loading…</div>
           <div *ngIf="!loadingNotes && generalNotes.length === 0" class="muted center">No general notes yet.</div>
           <div class="note-list">
@@ -1089,7 +1107,7 @@
                 </div>
               </ng-container>
               <ng-container *ngIf="editingNoteId === n.id">
-                <textarea [(ngModel)]="editNoteContent" rows="2"></textarea>
+                <textarea aria-label="Edit note" [(ngModel)]="editNoteContent" rows="2"></textarea>
                 <div class="edit-actions">
                   <button class="action-btn primary small" (click)="saveEditNote(n)">Save</button>
                   <button class="action-btn small ghost" (click)="cancelEditNote()">Cancel</button>

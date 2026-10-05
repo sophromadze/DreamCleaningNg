@@ -2,7 +2,6 @@ import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, Inject, PLATFO
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
-import { HttpClientModule } from '@angular/common/http';
 import { BookingService, ServiceType, Service, ExtraService, Subscription, BookingCalculation, BlockedTimeSlot } from '../services/booking.service';
 import {
   PAYMENT_METHOD_OPTIONS, PaymentMethodValue, isSettledOnRecord
@@ -64,10 +63,14 @@ import {
   buildQuoteInputFromSelections,
   mapSelectedExtraInputs,
   round2,
+  percentOf,
+  capFixedDiscount,
   SALES_TAX_RATE,
-  EXTRA_CLEANERS_NAME,
+  isExtraCleaners,
   QuoteInput
 } from '../shared/pricing/order-pricing.calculator';
+import { findResidentialServiceType, isResidentialServiceType, serviceTypeIs } from '../shared/booking/service-type-keys';
+import { findFirstTimeOffer, isFirstTimeOffer as offerIsFirstTime, KeyedOffer } from '../shared/booking/special-offer-keys';
 import { buildCustomServiceTypeNameOptions } from '../shared/booking/custom-service-type.util';
 import { normalizeTipAmount } from '../shared/booking/tip-amount.utils';
 import {
@@ -91,7 +94,6 @@ import {
 import {
   buildSupplyChecklistItems,
   CLEANING_ESSENTIALS_ITEMS,
-  extraServiceNamesOf,
   isCleaningEssentialsExtra,
   isCleaningSuppliesExtra,
   requiresOvenCleaner,
@@ -106,6 +108,28 @@ import {
   BookingDiagnosticsSnapshot,
   logBookingBlockers
 } from '../shared/booking/booking-blockers.diagnostics';
+import { IconComponent } from '../shared/icons/icon.component';
+import { IconDefinition } from '../shared/icons/icon-definition';
+import { IconServiceType, serviceTypeIcon } from '../shared/icons/service-type-icon';
+import { faBolt } from '../shared/icons/glyphs/faBolt';
+import { faBroom } from '../shared/icons/glyphs/faBroom';
+import { faCheck } from '../shared/icons/glyphs/faCheck';
+import { faChevronDown } from '../shared/icons/glyphs/faChevronDown';
+import { faCircleCheck } from '../shared/icons/glyphs/faCircleCheck';
+import { faCircleInfo } from '../shared/icons/glyphs/faCircleInfo';
+import { faCoins } from '../shared/icons/glyphs/faCoins';
+import { faLock } from '../shared/icons/glyphs/faLock';
+import { faPiggyBank } from '../shared/icons/glyphs/faPiggyBank';
+import { faPlus } from '../shared/icons/glyphs/faPlus';
+import { faShieldHalved } from '../shared/icons/glyphs/faShieldHalved';
+import { faSprayCanSparkles } from '../shared/icons/glyphs/faSprayCanSparkles';
+import { faStar } from '../shared/icons/glyphs/faStar';
+import { faTag } from '../shared/icons/glyphs/faTag';
+import { faTriangleExclamation } from '../shared/icons/glyphs/faTriangleExclamation';
+import { faUserCheck } from '../shared/icons/glyphs/faUserCheck';
+import { faUserPlus } from '../shared/icons/glyphs/faUserPlus';
+import { faUserShield } from '../shared/icons/glyphs/faUserShield';
+import { faXmark } from '../shared/icons/glyphs/faXmark';
 
 /** Address-name presets. Anything that isn't one of the fixed labels is "Other" (free text). */
 type AddressNameType = 'Home' | 'Office' | 'Other';
@@ -136,15 +160,42 @@ interface SelectedExtraService {
  */
 type BookingSubmitTarget = 'admin-for-user' | 'self';
 
+/**
+ * The admin payment choices on the booking page. `RegularInvoice` is booking-page-only — it is not
+ * a stored payment method (the order is an ordinary card order the server issues a regular
+ * invoice for), so it deliberately does not live in the shared PaymentMethodValue list used by
+ * the orders filters and the recreate modal.
+ */
+export type AdminBookingPaymentMethod = PaymentMethodValue | 'RegularInvoice';
+
+/** Normal / Cash / Zelle / Check / Other, then Invoice; Commercial invoice only for a business customer. */
+export function AdminBookingPaymentOptions(hasBusinessClient: boolean): { value: AdminBookingPaymentMethod; label: string }[] {
+  const options: { value: AdminBookingPaymentMethod; label: string }[] =
+    PAYMENT_METHOD_OPTIONS.filter(o => o.value !== 'Invoice');
+  options.push({ value: 'RegularInvoice', label: 'Invoice' });
+  if (hasBusinessClient) options.push({ value: 'Invoice', label: 'Commercial invoice' });
+  return options;
+}
+
+/** Money already in hand? RegularInvoice is not — it is an unpaid card order with a bill. */
+export function adminMethodIsSettled(method: AdminBookingPaymentMethod): boolean {
+  return method !== 'RegularInvoice' && isSettledOnRecord(method);
+}
+
 @Component({
   selector: 'app-booking',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule, HttpClientModule, RouterModule, DurationSelectorComponent, TimeSelectorComponent, DateSelectorComponent, ShimmerDirective, FloorTypeSelectorComponent, CleaningTypeDetailsExpandableComponent, MoveInOutChecklistComponent, AdminUserSearchComponent, RegisterCustomerModalComponent, ReorderSectionComponent, QuantityControlComponent, ExtraServicesGridComponent, OrderSummaryCardComponent],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterModule, DurationSelectorComponent, TimeSelectorComponent, DateSelectorComponent, ShimmerDirective, FloorTypeSelectorComponent, CleaningTypeDetailsExpandableComponent, MoveInOutChecklistComponent, AdminUserSearchComponent, RegisterCustomerModalComponent, ReorderSectionComponent, QuantityControlComponent, ExtraServicesGridComponent, OrderSummaryCardComponent, IconComponent],
+  // This page-level BookingService must get the APP's HttpClient (app.config: authInterceptor).
+  // Never add HttpClientModule to `imports` above: it gave this component a private HttpClient
+  // with no interceptors, so the service's calls skipped refresh-on-401 and session revocation.
   providers: [BookingService],
   templateUrl: './booking.component.html',
   styleUrl: './booking.component.scss'
 })
 export class BookingComponent implements OnInit, OnDestroy {
+  protected readonly icons = { faBolt, faBroom, faCheck, faChevronDown, faCircleCheck, faCircleInfo, faCoins, faLock, faPiggyBank, faPlus, faShieldHalved, faSprayCanSparkles, faStar, faTag, faTriangleExclamation, faUserCheck, faUserPlus, faUserShield, faXmark };
+
   private destroy$ = new Subject<void>();
   private isBrowser: boolean;
   /** Set true when navigating to confirmation or clearing form so ngOnDestroy does not overwrite storage. */
@@ -163,6 +214,8 @@ export class BookingComponent implements OnInit, OnDestroy {
   customServiceName: FormControl = new FormControl('', [Validators.required]);
   customServiceNameOptions: string[] = [];
   bedroomsQuantityControl: FormControl = new FormControl(0, [Validators.required, Validators.min(0), Validators.max(10)]);
+  /** Custom pricing only: share the bedroom/bathroom counts with the customer (off by default). */
+  showRoomCountsToCustomer: FormControl<boolean> = new FormControl(false, { nonNullable: true });
   bathroomsQuantityControl: FormControl = new FormControl(1, [Validators.required, Validators.min(0), Validators.max(10)]);
 
   // Service Type Form Control
@@ -326,9 +379,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       const st = this.serviceTypes.find(st => String(st.id) === String(saved.selectedServiceTypeId));
       if (st) return st;
     }
-    const residential = this.serviceTypes.find(st =>
-      st.name.toLowerCase().includes('residential') && st.name.toLowerCase().includes('cleaning')
-    );
+    const residential = findResidentialServiceType(this.serviceTypes);
     return residential ?? this.serviceTypes[0] ?? null;
   }
   isLoading = false;
@@ -557,8 +608,19 @@ export class BookingComponent implements OnInit, OnDestroy {
   // Phase 1 manual payment tracking — admin-only. Reset to defaults whenever admin mode is
   // toggled off or the target user changes so a previous selection doesn't leak across users.
   // PAYMENT_METHOD_OPTIONS is imported below.
-  paymentMethodOptions = PAYMENT_METHOD_OPTIONS;
-  adminPaymentMethod: PaymentMethodValue = 'Normal';
+  /**
+   * The admin payment choices on THIS page (2026-09). "Invoice" is the REGULAR customer invoice
+   * (`RegularInvoice`: an ordinary card order plus an invoice the customer can pay by card or bank
+   * transfer — no client to choose). The commercial invoice is offered as "Commercial invoice"
+   * only when the selected customer has a linked business client, and is billed to that client
+   * automatically. Rebuilt by refreshAdminPaymentMethodOptions(), never a getter — a new array on
+   * every change detection would re-render the radios under the admin's cursor.
+   */
+  paymentMethodOptions: { value: AdminBookingPaymentMethod; label: string }[] =
+    AdminBookingPaymentOptions(false);
+  adminPaymentMethod: AdminBookingPaymentMethod = 'Normal';
+  /** The selected customer's linked commercial client, when they have one. */
+  adminBusinessClient: InvoiceClientOption | null = null;
   adminPaymentReference = '';
   adminPaymentNotes = '';
 
@@ -1078,7 +1140,7 @@ export class BookingComponent implements OnInit, OnDestroy {
             const extraService = savedServiceType.extraServices.find(es => String(es.id) === String(ses.extraServiceId));
             // Extra Cleaners is admin-only now — drop it from restored drafts so an
             // invisible (filtered-out) extra can't keep charging the customer.
-            if (extraService && extraService.name === EXTRA_CLEANERS_NAME && extraService.hasQuantity) {
+            if (extraService && isExtraCleaners(extraService)) {
               return;
             }
             if (extraService) {
@@ -1110,9 +1172,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.calculateTotal();
         this.saveFormData(); // Persist restored state (quantities + deep extra) so it's not overwritten by defaults
     } else {
-      const residentialCleaning = this.serviceTypes.find(st =>
-        st.name.toLowerCase().includes('residential') && st.name.toLowerCase().includes('cleaning')
-      );
+      const residentialCleaning = findResidentialServiceType(this.serviceTypes);
       if (residentialCleaning) {
         this.serviceTypeControl.setValue(residentialCleaning.id);
         this.selectServiceType(residentialCleaning);
@@ -1220,7 +1280,7 @@ export class BookingComponent implements OnInit, OnDestroy {
           }
         }
         if (this.subscriptions.length > 0) {
-          const oneTimeSubscription = this.subscriptions.find(s => s.name === 'One Time') || this.subscriptions[0];
+          const oneTimeSubscription = this.findOneTimeSubscription();
           this.selectedSubscription = oneTimeSubscription;
         }
         // Last, so a draft in progress always wins over a standing preference. The two loads
@@ -1545,9 +1605,10 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.customCleaners.setValue(1);
       this.customDuration.setValue(60);
       
-      // Reset special offers and discounts
+      // Reset special offers and discounts (+ the first-time marker the offer sets)
       this.selectedSpecialOffer = null;
       this.specialOfferApplied = false;
+      this.firstTimeDiscountApplied = false;
       this.promoCodeApplied = false;
       this.promoDiscount = 0;
       this.promoIsPercentage = true;
@@ -1799,7 +1860,7 @@ export class BookingComponent implements OnInit, OnDestroy {
             border: none !important;
             outline: none !important;
             font-size: 1rem !important;
-            font-family: 'Poppins', sans-serif !important;
+            font-family: 'Inter', 'Inter Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
             font-weight: 400 !important;
             line-height: 1.5 !important;
             background: transparent !important;
@@ -2072,21 +2133,9 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.serviceTypeDropdownOpen = !this.serviceTypeDropdownOpen;
   }
 
-  /** Maps a service-type name to a FontAwesome 6 Free Solid icon class.
-   *  Used purely for presentation in the service-type dropdown — does not
-   *  influence selection logic or persisted data. */
-  getServiceTypeIcon(name: string | null | undefined): string {
-    if (!name) return 'fa-broom';
-    const key = name.toLowerCase();
-    if (key.includes('residential')) return 'fa-house';
-    if (key.includes('move')) return 'fa-truck-moving';
-    if (key.includes('office')) return 'fa-building';
-    if (key.includes('custom')) return 'fa-sliders';
-    if (key.includes('heavy')) return 'fa-shield-halved';
-    if (key.includes('filthy')) return 'fa-spray-can-sparkles';
-    if (key.includes('construction')) return 'fa-helmet-safety';
-    if (key.includes('pre-arranged') || key.includes('prearranged')) return 'fa-calendar-check';
-    return 'fa-broom';
+  /** Icon for a service type in the dropdown — see shared/icons/service-type-icon.ts. */
+  getServiceTypeIcon(type: IconServiceType | null | undefined): IconDefinition {
+    return serviceTypeIcon(type);
   }
 
   /** @param skipSave When true, do not persist to storage (e.g. when restoring from main page). Caller should save after restoring. */
@@ -2168,18 +2217,12 @@ export class BookingComponent implements OnInit, OnDestroy {
       // Clear validators for fields not required in poll forms
       this.contactLastName.clearValidators();
       this.contactLastName.updateValueAndValidity();
-      
-      this.contactEmail.clearValidators();
-      this.contactEmail.updateValueAndValidity();
-      
-      this.smsConsent.clearValidators();
-      this.smsConsent.updateValueAndValidity();
-      
-      this.cancellationConsent.clearValidators();
-      this.cancellationConsent.updateValueAndValidity();
 
-      this.termsConsent.clearValidators();
-      this.termsConsent.updateValueAndValidity();
+      // The poll's contact block asks for an email now, so it keeps the normal required +
+      // format rule (applyContactEmailValidators is the single place that decides it).
+      this.applyContactEmailValidators();
+
+      this.applyConsentValidators();
 
       // Set default values to prevent validation errors but disable validators
       // Only set to 'I will be home' if no saved value exists
@@ -2212,14 +2255,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       
       this.applyContactEmailValidators();
 
-      this.smsConsent.setValidators([Validators.requiredTrue]);
-      this.smsConsent.updateValueAndValidity();
-      
-      this.cancellationConsent.setValidators([Validators.requiredTrue]);
-      this.cancellationConsent.updateValueAndValidity();
-
-      this.termsConsent.setValidators([Validators.requiredTrue]);
-      this.termsConsent.updateValueAndValidity();
+      this.applyConsentValidators();
 
       // Reset entry method value when switching back to regular booking only if no saved value exists
       if (!this.entryMethod.value || this.entryMethod.value === 'N/A') {
@@ -2710,7 +2746,7 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   hasExtraCleanersSelected(): boolean {
     return this.selectedExtraServices.some(
-      s => s.extraService.name === 'Extra Cleaners' && s.extraService.hasQuantity
+      s => isExtraCleaners(s.extraService)
     );
   }
 
@@ -3006,21 +3042,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     });
   }
 
-  applyFirstTimeDiscount() {
-    // If promo code is already applied, show error
-    if (this.promoCodeApplied) {
-      this.errorMessage = 'Cannot apply first-time discount when a promo code is already applied. Please remove the promo code first.';
-      return;
-    }
-    
-    this.firstTimeDiscountApplied = true;
-    // Disable the promo code input
-    this.promoCode.disable();
-    this.errorMessage = '';
-    this.calculateTotal();
-  }
-
-  private updateDateRestrictions() {
+private updateDateRestrictions() {
     if (this.isSameDaySelected) {
       const today = this.getNowInNewYork();
 
@@ -3125,29 +3147,40 @@ export class BookingComponent implements OnInit, OnDestroy {
 
     // Subscription discount: only when the user's active subscription matches the selection.
     if (this.hasActiveSubscription && this.userSubscription && this.selectedSubscription) {
-      const userSubscriptionDays = this.getSubscriptionDaysForSubscription(this.userSubscription.subscriptionName);
+      const userSubscriptionDays = this.getUserSubscriptionDays(this.userSubscription);
       const selectedSubscriptionDays = this.selectedSubscription.subscriptionDays || 0;
       if (userSubscriptionDays === selectedSubscriptionDays && selectedSubscriptionDays > 0) {
-        this.subscriptionDiscountAmount = round2(subTotal * (this.selectedSubscription.discountPercentage / 100));
+        this.subscriptionDiscountAmount = percentOf(subTotal, this.selectedSubscription.discountPercentage);
       }
     }
 
-    // Promo / special offer / first-time discount (can stack with subscription).
+    // Promo / special offer / first-time discount (can stack with subscription). Same rules as
+    // the server (BookingCreationService.ApplyPromoRule) and every order edit: a percentage is
+    // percentOf, a fixed amount is its face value capped at the subtotal (2026-10: a fixed promo
+    // CODE is capped too now, like a fixed special offer always was).
+    let fixedPromoFace: number | null = null;
     if (this.specialOfferApplied && this.selectedSpecialOffer) {
       const offer = this.selectedSpecialOffer;
+      if (!offer.isPercentage) fixedPromoFace = offer.discountValue;
       this.promoOrFirstTimeDiscountAmount = offer.isPercentage
-        ? round2(subTotal * (offer.discountValue / 100))
-        : Math.min(offer.discountValue, subTotal);
-    } else if (this.hasFirstTimeDiscount && this.currentUser?.firstTimeOrder && this.firstTimeDiscountApplied) {
-      this.promoOrFirstTimeDiscountAmount = round2(subTotal * (this.firstTimeDiscountPercentage / 100));
+        ? percentOf(subTotal, offer.discountValue)
+        : capFixedDiscount(offer.discountValue, subTotal, 0);
     } else if (this.promoCodeApplied && !this.giftCardApplied) {
+      if (!this.promoIsPercentage) fixedPromoFace = this.promoDiscount;
       this.promoOrFirstTimeDiscountAmount = this.promoIsPercentage
-        ? round2(subTotal * (this.promoDiscount / 100))
-        : this.promoDiscount;
+        ? percentOf(subTotal, this.promoDiscount)
+        : capFixedDiscount(this.promoDiscount, subTotal, 0);
     }
 
     // Loyalty Discount stacking — mutates the three discount slots in place.
     this.applyLoyaltyStacking(subTotal);
+
+    // A surviving fixed amount is capped once more against the other survivors (subscription and
+    // promo can stack), exactly as BookingCreationService.RecordDiscountRules does server-side.
+    if (fixedPromoFace != null && this.promoOrFirstTimeDiscountAmount > 0) {
+      this.promoOrFirstTimeDiscountAmount = capFixedDiscount(
+        fixedPromoFace, subTotal, this.subscriptionDiscountAmount + this.loyaltyDiscountAmount);
+    }
 
     // Total discount is the sum of all three slots; after stacking at most two are non-zero.
     const totalDiscountAmount = this.subscriptionDiscountAmount + this.promoOrFirstTimeDiscountAmount + this.loyaltyDiscountAmount;
@@ -3299,9 +3332,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   getExtraCleanersCount(): number {
-    const extraCleanersService = this.selectedExtraServices.find(s => 
-      s.extraService.name === 'Extra Cleaners' && s.extraService.hasQuantity
-    );
+    const extraCleanersService = this.selectedExtraServices.find(s => isExtraCleaners(s.extraService));
     return extraCleanersService ? extraCleanersService.quantity : 0;
   }
 
@@ -3408,8 +3439,6 @@ export class BookingComponent implements OnInit, OnDestroy {
       let label = '';
       if (this.specialOfferApplied && this.selectedSpecialOffer) {
         label = this.selectedSpecialOffer.name + (this.selectedSpecialOffer.isPercentage ? ` (${this.selectedSpecialOffer.discountValue}%)` : '');
-      } else if (this.firstTimeDiscountApplied) {
-        label = `First-Time Discount (${this.firstTimeDiscountPercentage}%)`;
       } else if (this.promoCodeApplied) {
         label = 'Promo Code Discount' + (this.promoIsPercentage ? ` (${this.promoDiscount}%)` : '');
       }
@@ -3480,9 +3509,7 @@ export class BookingComponent implements OnInit, OnDestroy {
              this.selectedServiceType !== null && 
              this.selectedSubscription !== null && 
              this.cleaningType.value !== null &&
-             this.smsConsent.value === true &&
-             this.cancellationConsent.value === true &&
-             this.termsConsent.value === true &&
+             this.consentsSatisfied &&
              this.customServiceName.valid &&
              this.customAmount.valid &&
              this.customCleaners.valid &&
@@ -3495,9 +3522,7 @@ export class BookingComponent implements OnInit, OnDestroy {
            this.selectedServiceType !== null && 
            this.selectedSubscription !== null && 
            this.cleaningType.value !== null &&
-           this.smsConsent.value === true &&
-           this.cancellationConsent.value === true &&
-           this.termsConsent.value === true;
+           this.consentsSatisfied;
   }
 
   /**
@@ -3643,6 +3668,9 @@ export class BookingComponent implements OnInit, OnDestroy {
     const paymentLine =
       this.adminPaymentMethod === 'Normal'
         ? `Payment: ${methodLabel} — a Pay Now link will be sent to the customer. Nothing is charged to you.`
+        : this.adminPaymentMethod === 'RegularInvoice'
+          ? `Payment: Invoice — an invoice is created and sent to the customer. They can pay it by card `
+            + `or bank transfer; the order stays Pending Payment until it is paid.`
         : this.adminPaymentMethod === 'Invoice'
           ? `Payment: Invoice${client ? ` to ${client.legalEntityName}` : ''} — the order stays `
             + `Pending Payment until an invoice covering it is paid in full. No payment link is sent.`
@@ -3667,6 +3695,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (this.showPollForm) return 'Send for Quote';
 
     if (this.isAdminMode && this.selectedTargetUser) {
+      if (this.adminPaymentMethod === 'RegularInvoice') return 'Send Invoice';
       return this.adminPaymentMethod === 'Normal' ? 'Send Payment' : 'Book for User';
     }
 
@@ -3800,9 +3829,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       zipCode: formValue.zipCode,
       apartmentId: apartmentId,
       apartmentName: apartmentName,
-      promoCode: this.giftCardApplied && this.isGiftCard ? null : 
-         (this.specialOfferApplied && this.selectedSpecialOffer ? null :
-         (this.firstTimeDiscountApplied && !formValue.promoCode ? 'firstUse' : formValue.promoCode)),
+      promoCode: this.resolveSubmittedPromoCode(formValue.promoCode),
       specialOfferId: this.specialOfferApplied ? this.selectedSpecialOffer?.specialOfferId : undefined,
       userSpecialOfferId: this.specialOfferApplied && this.selectedSpecialOffer && this.authService.isLoggedIn() ? this.selectedSpecialOffer.id : undefined,
       // Normalized, never raw: the API's Tips is a non-nullable decimal, so a cleared
@@ -3837,6 +3864,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       customServiceDisplayName: this.showCustomPricing ? (this.customServiceName.value || null) : undefined,
       bedroomsQuantity: this.getSelectedBedroomsQuantity(),
       bathroomsQuantity: this.getSelectedBathroomsQuantity(),
+      showRoomCountsToCustomer: this.showCustomPricing && this.showRoomCountsToCustomer.value,
       // Property type is sent even on a custom order (where levels are hidden and unpriced), so
       // the admin panel and the cleaner's job details still know what kind of building it is.
       // The LEVEL COUNT travels as an ordinary service line in `services`, not as its own field:
@@ -3886,8 +3914,8 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.adminPaymentMethod,
         // Reference and notes describe money that has ALREADY changed hands, so they travel for
         // cash/Zelle/cheque/other and not for Invoice — which is unpaid by definition.
-        isSettledOnRecord(this.adminPaymentMethod) ? this.adminPaymentReference : null,
-        isSettledOnRecord(this.adminPaymentMethod) ? this.adminPaymentNotes : null,
+        adminMethodIsSettled(this.adminPaymentMethod) ? this.adminPaymentReference : null,
+        adminMethodIsSettled(this.adminPaymentMethod) ? this.adminPaymentNotes : null,
         { contractClientId: this.adminContractClientId }
       ).subscribe({
         next: (response) => {
@@ -3900,6 +3928,9 @@ export class BookingComponent implements OnInit, OnDestroy {
           const outcome =
             this.adminPaymentMethod === 'Normal'
               ? 'A payment request has been sent to them; the order also appears in their profile.'
+              : this.adminPaymentMethod === 'RegularInvoice'
+                ? 'An invoice was created and sent to them (Admin → Invoices). The order stays Pending '
+                  + 'Payment until the invoice is paid by card, or you mark it paid for a bank transfer.'
               : this.adminPaymentMethod === 'Invoice'
                 // Invoice is handled outside Stripe but is NOT settled: saying "recorded as paid"
                 // would be false, and this alert is where an admin would believe it.
@@ -3915,6 +3946,7 @@ export class BookingComponent implements OnInit, OnDestroy {
           this.bookingForm.reset();
           this.selectedTargetUser = null;
           this.isAdminMode = false;
+          this.applyConsentValidators();
           this.resetAdminPaymentFields();
           
           // Reload page or navigate
@@ -4196,15 +4228,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     };
   }
   
-  removeFirstTimeDiscount() {
-    this.firstTimeDiscountApplied = false;
-    // Re-enable the promo code input
-    this.promoCode.enable();
-    this.errorMessage = '';
-    this.calculateTotal();
-  }
-
-  loadBubblePointsOptions(): void {
+loadBubblePointsOptions(): void {
     if (this.isAdminMode && this.selectedTargetUser) {
       // Load target user's points, not admin's
       this.bubbleRewardsService.getAdminUserSummary(this.selectedTargetUser.id).subscribe({
@@ -4265,14 +4289,14 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.adminService.getUserSpecialOffers(this.selectedTargetUser.id).subscribe({
         next: (offers) => {
           this.userSpecialOffers = offers;
-          const firstTimeOffer = offers.find(o => o.name.includes('First Time'));
+          const firstTimeOffer = findFirstTimeOffer(offers, BookingComponent.legacyFirstTimeOfferCased);
           if (firstTimeOffer) {
             this.firstTimeDiscountPercentage = firstTimeOffer.discountValue;
             this.hasFirstTimeDiscountOffer = true;
           } else {
             this.hasFirstTimeDiscountOffer = false;
           }
-          this.hasFirstTimeDiscount = offers.some(o => o.name.toLowerCase().includes('first time'));
+          this.hasFirstTimeDiscount = offers.some(o => this.isFirstTimeOffer(o));
           setPromoLoaded();
         },
         error: (error) => {
@@ -4286,14 +4310,14 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.specialOfferService.getMySpecialOffers().subscribe({
         next: (offers) => {
           this.userSpecialOffers = offers;
-          const firstTimeOffer = offers.find(o => o.name.includes('First Time'));
+          const firstTimeOffer = findFirstTimeOffer(offers, BookingComponent.legacyFirstTimeOfferCased);
           if (firstTimeOffer) {
             this.firstTimeDiscountPercentage = firstTimeOffer.discountValue;
             this.hasFirstTimeDiscountOffer = true;
           } else {
             this.hasFirstTimeDiscountOffer = false;
           }
-          this.hasFirstTimeDiscount = offers.some(o => o.name.toLowerCase().includes('first time'));
+          this.hasFirstTimeDiscount = offers.some(o => this.isFirstTimeOffer(o));
           setPromoLoaded();
         },
         error: (error) => {
@@ -4539,10 +4563,35 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.formPersistenceService.updateFormData({ wasAdminMode: this.isAdminMode || undefined });
   }
 
+  /**
+   * The SMS / cancellation-fee / terms consents are the CUSTOMER's to give. An admin booking for
+   * somebody (Admin Mode) never sees or ticks them — the customer accepts them on the payment page
+   * instead (PaymentConsentPolicy gates an admin-created order until they do). Poll forms don't
+   * ask either. One place decides, so the validators and the template can't disagree.
+   */
+  get consentsWaived(): boolean {
+    return this.showPollForm || this.isAdminMode;
+  }
+
+  get consentsSatisfied(): boolean {
+    return this.consentsWaived || (
+      this.smsConsent.value === true &&
+      this.cancellationConsent.value === true &&
+      this.termsConsent.value === true);
+  }
+
+  applyConsentValidators(): void {
+    for (const control of [this.smsConsent, this.cancellationConsent, this.termsConsent]) {
+      control.setValidators(this.consentsWaived ? [] : [Validators.requiredTrue]);
+      control.updateValueAndValidity();
+    }
+  }
+
   toggleAdminMode() {
     // Admin mode changes who the order belongs to — drop discounts before anything else.
     this.clearAppliedDiscountsForAccountSwitch();
     this.isAdminMode = !this.isAdminMode;
+    this.applyConsentValidators();
     this.syncAdminDraftMarker();
     // Turning the toggle back on is the admin acknowledging the discarded-draft notice.
     if (this.isAdminMode) this.adminDraftDiscarded = false;
@@ -4594,17 +4643,21 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.clearAppliedDiscountsForAccountSwitch();
 
     this.selectedTargetUser = user;
+    // A different customer: "Commercial invoice" is only offered when THIS one has a business client.
+    if (this.adminPaymentMethod === 'Invoice') this.adminPaymentMethod = 'Normal';
+    this.loadAdminBusinessClient(user);
 
     // Store admin's original apartments before loading user's apartments
     this.adminOriginalApartments = [...this.userApartments];
 
-    // Pre-fill form with selected user's contact information
-    if (user.firstName) {
-      this.contactFirstName.setValue(user.firstName);
-    }
-    if (user.lastName) {
-      this.contactLastName.setValue(user.lastName);
-    }
+    // Pre-fill form with the selected user's contact information. Every field is OVERWRITTEN,
+    // blank included: a field the customer has no value for must come up empty, never keep
+    // whatever the form held before (the admin's own details, the previously selected customer's,
+    // or a restored session draft). 2026-09: a customer registered without a phone was booked
+    // with the previous customer's number still in the box; create-for-user then backfilled it
+    // onto the new account and the order's SMS went to a stranger.
+    this.contactFirstName.setValue(user.firstName || '');
+    this.contactLastName.setValue(user.lastName || '');
     if (user.isNoEmailUser) {
       // Cash customer without email: blank the field and drop the required rule so the
       // admin can complete the booking. The backend allows a missing contact email only
@@ -4614,9 +4667,10 @@ export class BookingComponent implements OnInit, OnDestroy {
       this.contactEmail.setValue(user.email);
     }
     this.applyContactEmailValidators();
-    if (user.phone) {
-      this.contactPhone.setValue(user.phone.replace(/\D/g, '').slice(0, 10));
-    }
+    this.contactPhone.setValue(user.phone ? user.phone.replace(/\D/g, '').slice(0, 10) : '');
+    // No number on file: show "Phone number is required" straight away, so the admin asks the
+    // customer for it rather than discovering the empty box at Book Now.
+    if (!this.contactPhone.value) this.contactPhone.markAsTouched();
     
     // Load and populate user's address information
     this.loadUserAddress(user.id);
@@ -4692,26 +4746,39 @@ export class BookingComponent implements OnInit, OnDestroy {
   }
 
   /**
-   * Loads the commercial clients an Invoice booking can be billed to — on demand, the first time
-   * the method is chosen, rather than on every booking-page load. Almost every booking taken here
-   * is residential, and the roster is of no use to those.
+   * The commercial invoice bills the selected customer's OWN linked business client — there is
+   * nothing to choose (owner's call, 2026-09), and the option only appears when one exists. Any
+   * other method clears it. The regular Invoice needs no client at all.
    */
   onAdminPaymentMethodChange(): void {
-    if (this.adminPaymentMethod !== 'Invoice') {
-      this.adminContractClientId = null;
-      return;
-    }
+    this.adminContractClientId = this.adminPaymentMethod === 'Invoice'
+      ? (this.adminBusinessClient?.id ?? null)
+      : null;
+  }
 
-    if (this.adminContractClients.length || this.loadingContractClients) return;
-
+  /**
+   * Looks up whether the selected customer is linked to a commercial client, which is what puts
+   * "Commercial invoice" on the list. A failed lookup just leaves it off — Invoice (regular) is
+   * always available.
+   */
+  private loadAdminBusinessClient(user: UserAdmin): void {
+    this.adminBusinessClient = null;
+    this.paymentMethodOptions = AdminBookingPaymentOptions(false);
     this.loadingContractClients = true;
-    this.invoiceService.clients()
+    this.invoiceService.clientForUser(user.id)
       .pipe(finalize(() => { this.loadingContractClients = false; }))
       .subscribe({
-        next: list => { this.adminContractClients = list; },
-        // Left empty: the submit guard below refuses an Invoice booking with no client chosen,
-        // so a failed roster fetch cannot produce an unbillable order.
-        error: () => { this.adminContractClients = []; }
+        next: client => {
+          if (this.selectedTargetUser?.id !== user.id) return;   // switched customer meanwhile
+          this.adminBusinessClient = client ?? null;
+          this.adminContractClients = client ? [client] : [];
+          this.paymentMethodOptions = AdminBookingPaymentOptions(!!client);
+          this.onAdminPaymentMethodChange();
+        },
+        error: () => {
+          this.adminBusinessClient = null;
+          this.adminContractClients = [];
+        }
       });
   }
 
@@ -4727,6 +4794,9 @@ export class BookingComponent implements OnInit, OnDestroy {
 
     this.selectedTargetUser = null;
     this.resetAdminPaymentFields();
+    this.adminBusinessClient = null;
+    this.adminContractClients = [];
+    this.paymentMethodOptions = AdminBookingPaymentOptions(false);
 
     // Restore the standard email requirement (may have been relaxed for a no-email customer).
     this.applyContactEmailValidators();
@@ -4849,6 +4919,7 @@ export class BookingComponent implements OnInit, OnDestroy {
         this.giftCardApplied = false;
         this.specialOfferApplied = false;
         this.selectedSpecialOffer = null;
+        this.firstTimeDiscountApplied = false;
         if (this.promoCode) {
           this.promoCode.setValue('');
         }
@@ -4884,7 +4955,7 @@ export class BookingComponent implements OnInit, OnDestroy {
             const extraService = serviceType.extraServices.find(es => es.id === orderExtraService.extraServiceId);
             // Extra Cleaners is admin-only now — don't carry it over from a past
             // order into a new booking (it would be selected but invisible).
-            if (extraService && extraService.name === EXTRA_CLEANERS_NAME && extraService.hasQuantity) {
+            if (extraService && isExtraCleaners(extraService)) {
               return;
             }
             if (extraService) {
@@ -4939,9 +5010,21 @@ export class BookingComponent implements OnInit, OnDestroy {
     });
   }
 
+  /**
+   * The customer's first-time offer: by its offerKey ("first-time"); an UNKEYED offer still by the
+   * old "first time" in the name rule (warned once) - see shared/booking/special-offer-keys.ts.
+   */
   isFirstTimeOffer(offer: UserSpecialOffer): boolean {
-    return offer.name.toLowerCase().includes('first time');
+    return offerIsFirstTime(offer, BookingComponent.legacyFirstTimeOfferName);
   }
+
+  /** The rules this page used before keys, verbatim: "first time" in the name, any case... */
+  private static readonly legacyFirstTimeOfferName = (_: KeyedOffer, lowerName: string): boolean =>
+    lowerName.includes('first time');
+
+  /** ...and, where it picked the offer whose discount it shows, "First Time" exactly as typed. */
+  private static readonly legacyFirstTimeOfferCased = (offer: KeyedOffer): boolean =>
+    (offer.name ?? '').includes('First Time');
 
   applySpecialOffer(offer: UserSpecialOffer) {
     // Check if promo code is already applied (but NOT gift card)
@@ -4980,13 +5063,25 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.updatePromoCodeDisabledState();
     
     // For backward compatibility with first-time discount
-    if (offer.name.toLowerCase().includes('first time')) {
+    if (this.isFirstTimeOffer(offer)) {
       this.firstTimeDiscountApplied = true;
     }
     
     this.calculateTotal();
   }
   
+  /**
+   * The promoCode the booking is submitted with. A first-time customer's discount travels as the
+   * applied special offer (specialOfferId / userSpecialOfferId), so it never needs a code of its
+   * own: the old "firstUse" marker is no longer sent (it could only be reached through a stale
+   * first-time flag, and the server refused it).
+   */
+  resolveSubmittedPromoCode(formPromoCode: string | null | undefined): string | null | undefined {
+    if (this.giftCardApplied && this.isGiftCard) return null;
+    if (this.specialOfferApplied && this.selectedSpecialOffer) return null;
+    return formPromoCode;
+  }
+
   removeSpecialOffer() {
     this.selectedSpecialOffer = null;
     this.specialOfferApplied = false;
@@ -5120,12 +5215,21 @@ export class BookingComponent implements OnInit, OnDestroy {
       }
     }
     
-    // For poll forms, only require: first name and phone (no address fields needed)
-    if (!this.contactFirstName.valid || !this.contactPhone.valid) {
+    // For poll forms, require the four contact fields the poll shows: name, phone, email and
+    // service address (no city/state/zip).
+    if (!this.isPollContactValid()) {
       return false;
     }
     
     return true;
+  }
+
+  /** The poll's Contact Information block: name, phone, email and service address. */
+  isPollContactValid(): boolean {
+    return this.contactFirstName.valid &&
+           this.contactPhone.valid &&
+           this.contactEmail.valid &&
+           this.serviceAddress.valid;
   }
 
   submitPollForm() {
@@ -5150,11 +5254,14 @@ export class BookingComponent implements OnInit, OnDestroy {
       contactLastName: formValue.contactLastName,
       contactEmail: formValue.contactEmail,
       contactPhone: formValue.contactPhone,
+      // The poll form asks for ONE address line and nothing else. Apt/city/state/zip still live on
+      // the booking form (pre-filled from the customer's SAVED address), so sending them made the
+      // quote email print the typed address and the saved one underneath it.
       serviceAddress: formValue.serviceAddress,
-      aptSuite: formValue.aptSuite,
-      city: formValue.city,
-      state: formValue.state,
-      postalCode: formValue.zipCode,
+      aptSuite: '',
+      city: '',
+      state: '',
+      postalCode: '',
       answers: answers,
       uploadedPhotos: this.preparePhotosForSubmission()
     };
@@ -5296,7 +5403,7 @@ export class BookingComponent implements OnInit, OnDestroy {
             this.userSubscription = null;
             // Set default subscription if user has no active subscription
             if (this.subscriptions && this.subscriptions.length > 0) {
-              const oneTimeSubscription = this.subscriptions.find(s => s.name === 'One Time') || this.subscriptions[0];
+              const oneTimeSubscription = this.findOneTimeSubscription();
               this.selectedSubscription = oneTimeSubscription;
               // Recalculate total to clear any previous discount
               this.calculateTotal();
@@ -5311,7 +5418,7 @@ export class BookingComponent implements OnInit, OnDestroy {
           this.userSubscription = null;
           // Set default subscription on error
           if (this.subscriptions && this.subscriptions.length > 0) {
-            const oneTimeSubscription = this.subscriptions.find(s => s.name === 'One Time') || this.subscriptions[0];
+            const oneTimeSubscription = this.findOneTimeSubscription();
             this.selectedSubscription = oneTimeSubscription;
             // Recalculate total to clear any previous discount
             this.calculateTotal();
@@ -5414,7 +5521,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (this.loyaltyDiscountPercentage <= 0 || subTotal <= 0) return;
 
     // Single stacking implementation lives in the shared calculator (mirrored by the backend).
-    const loyaltyCandidate = round2(subTotal * (this.loyaltyDiscountPercentage / 100));
+    const loyaltyCandidate = percentOf(subTotal, this.loyaltyDiscountPercentage);
     const stacked = resolveLoyaltyStacking(
       loyaltyCandidate,
       this.loyaltyDiscountPercentage,
@@ -5478,16 +5585,28 @@ export class BookingComponent implements OnInit, OnDestroy {
     }
   }
 
-  // Helper method to map subscription name to subscription days
-  getSubscriptionDaysForSubscription(subscriptionName: string | undefined): number {
-    if (!subscriptionName) return 0;
-    
-    const mapping: { [key: string]: number } = {
-      'Weekly': 7,
-      'Bi-Weekly': 14,
-      'Monthly': 30
-    };
-    return mapping[subscriptionName] || 0;
+  /**
+   * The active plan's period, from the plan itself (api/booking/user-subscription carries
+   * subscriptionDays). Only a response from before that field existed falls back to the old
+   * name -> days table, with one console warning.
+   */
+  getUserSubscriptionDays(userSubscription: { subscriptionDays?: number | null; subscriptionName?: string } | null | undefined): number {
+    if (!userSubscription) return 0;
+    if (typeof userSubscription.subscriptionDays === 'number') return userSubscription.subscriptionDays;
+
+    const legacyDays: { [name: string]: number } = { 'Weekly': 7, 'Bi-Weekly': 14, 'Monthly': 30 };
+    const name = userSubscription.subscriptionName ?? '';
+    if (!BookingComponent.warnedLegacySubscriptionDays) {
+      BookingComponent.warnedLegacySubscriptionDays = true;
+      console.warn(`[subscriptions] user-subscription has no subscriptionDays; mapped plan "${name}" to days by name.`);
+    }
+    return legacyDays[name] || 0;
+  }
+  private static warnedLegacySubscriptionDays = false;
+
+  /** The one-off plan a fresh form starts on: the plan with no period (subscriptionDays 0), else the first. */
+  private findOneTimeSubscription(): Subscription | null {
+    return this.subscriptions.find(s => s.subscriptionDays === 0) || this.subscriptions[0] || null;
   }
 
   // Get filtered extra services (excluding deep cleaning and super deep cleaning)
@@ -5507,7 +5626,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       // can't buy cleaners here (the extra stays active for the admin order editor).
       // Custom Pricing has its own "Number of Cleaners" field, which is what sets MaidsCount —
       // a second, informational cleaner count would contradict it.
-      if (extra.name === EXTRA_CLEANERS_NAME && extra.hasQuantity) {
+      if (isExtraCleaners(extra)) {
         return false;
       }
 
@@ -5525,7 +5644,7 @@ export class BookingComponent implements OnInit, OnDestroy {
       // of the arrangement is not informational: CleanerJobView.RequiresCleanerToBringEssentials
       // reads the order's extras by NAME, whatever the service type, so that row is what puts
       // the Essentials line in the assignment email and SMS and the banner in the portal.
-      if (isCleaningEssentialsExtra(extra.name) && !this.showCustomPricing) {
+      if (isCleaningEssentialsExtra(extra) && !this.showCustomPricing) {
         return false;
       }
 
@@ -5638,21 +5757,18 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   /** Show move in/out checklist when this service type is selected (name from API). */
   isMoveInOutCleaningServiceType(): boolean {
-    const name = this.selectedServiceType?.name?.toLowerCase().trim() ?? '';
-    if (!name.includes('move')) return false;
-    return name.includes('in') && name.includes('out');
+    return serviceTypeIs(this.selectedServiceType, 'move-in-out',
+      name => name.includes('move') && name.includes('in') && name.includes('out'));
   }
 
   /** Cleaning-type + what's-included UI only for Residential Cleaning (name from API). */
   isResidentialCleaningServiceType(): boolean {
-    const name = this.selectedServiceType?.name?.toLowerCase().trim() ?? '';
-    return name.includes('residential') && name.includes('cleaning');
+    return isResidentialServiceType(this.selectedServiceType);
   }
 
   /** Offices don't have bedrooms/bathrooms — suppress the standalone inputs for this service type. */
   isOfficeCleaningServiceType(): boolean {
-    const name = this.selectedServiceType?.name?.toLowerCase().trim() ?? '';
-    return name.includes('office');
+    return serviceTypeIs(this.selectedServiceType, 'office', name => name.includes('office'));
   }
 
   private normalizeCleaningTypeForSelectedServiceType(): void {
@@ -6085,36 +6201,6 @@ export class BookingComponent implements OnInit, OnDestroy {
     }));
   }
 
-  getExtraServiceIcon(extraService: ExtraService): string {
-    const serviceName = extraService.name.toLowerCase();
-    
-    if (serviceName.includes('same day')) return 'fas fa-bolt';
-    if (serviceName.includes('extra cleaners')) return 'fas fa-users';
-    if (serviceName.includes('extra minutes')) return 'fas fa-clock';
-    if (serviceName.includes('cleaning supplies')) return 'fas fa-spray-can';
-    if (serviceName.includes('cleaning essentials')) return 'fas fa-toilet-paper';
-    if (serviceName.includes('vacuum cleaner')) return 'fas fa-stethoscope fa-flip-vertical';
-    if (serviceName.includes('pets')) return 'fas fa-paw';
-    if (serviceName.includes('fridge')) return 'fas fa-toilet-portable';
-    if (serviceName.includes('oven')) return 'fas fa-pager fa-flip-vertical';
-    if (serviceName.includes('kitchen cabinets')) return 'fas fa-box-archive';
-    if (serviceName.includes('closets')) return 'fas fa-calendar-week fa-flip-vertical';
-    if (serviceName.includes('dishes')) return 'fas fa-utensils';
-    if (serviceName.includes('baseboards')) return 'fas fa-ruler-horizontal';
-    if (serviceName.includes('windows')) return 'fas fa-table';
-    if (serviceName.includes('walls')) return 'fas fa-clapperboard fa-flip-vertical';
-    if (serviceName.includes('stairs')) return 'fas fa-stairs';
-    if (serviceName.includes('folding') || serviceName.includes('folding / organizing')) return 'fas fa-layer-group';
-    if (serviceName.includes('laundry')) return 'fas fa-camera-retro';
-    if (serviceName.includes('balcony')) return 'fas fa-store';
-    // Home Office ('cabinet' is the former name, kept as an alias).
-    if (serviceName.includes('office') || serviceName.includes('cabinet')) return 'fas fa-desktop';
-    if (serviceName.includes('couches')) return 'fas fa-couch';
-    
-    // Default icon for unknown services
-    return 'fas fa-plus';
-  }
-
   getExtraServiceImage(extraService: ExtraService, isSelected: boolean): string {
     // Icon mapping lives in shared/booking/extra-service-display.utils.
     return getExtraServiceImage(extraService, isSelected);
@@ -6291,11 +6377,11 @@ export class BookingComponent implements OnInit, OnDestroy {
   getServiceSpecificInfo(): string {
     if (!this.selectedServiceType) return '';
     
-    const serviceName = this.selectedServiceType.name.toLowerCase();
-    
-    if (serviceName.includes('move in') || serviceName.includes('move out') || serviceName.includes('move-in') || serviceName.includes('move-out')) {
+    const type = this.selectedServiceType;
+    if (serviceTypeIs(type, 'move-in-out', n =>
+      n.includes('move in') || n.includes('move out') || n.includes('move-in') || n.includes('move-out'))) {
       return 'move-in-out';
-    } else if (serviceName.includes('heavy condition') || serviceName.includes('heavy-condition')) {
+    } else if (serviceTypeIs(type, 'heavy-condition', n => n.includes('heavy condition') || n.includes('heavy-condition'))) {
       return 'heavy-condition';
     } else {
       return 'standard';
@@ -6381,9 +6467,7 @@ export class BookingComponent implements OnInit, OnDestroy {
    */
   get suppliesRequireOvenCleaner(): boolean {
     if (this.cleaningType?.value === 'deep') return true;
-    return requiresOvenCleaner(
-      extraServiceNamesOf(this.selectedExtraServices.map(s => s.extraService))
-    );
+    return requiresOvenCleaner(this.selectedExtraServices.map(s => s.extraService));
   }
 
   get cleaningSuppliesExtra(): ExtraService | null {
@@ -6423,10 +6507,10 @@ export class BookingComponent implements OnInit, OnDestroy {
    * in the modal itself, which is the point: the customer sees the list shrink as they add.
    */
   get modalSupplyChecklistItems(): string[] {
-    const names = extraServiceNamesOf(this.selectedExtraServices.map(s => s.extraService));
+    const extras = this.selectedExtraServices.map(s => s.extraService);
     // The cleaning TYPE is a form control here rather than an extra, so fold it in — the
     // stored order will carry the Deep Cleaning extra and reach the same answer.
-    const facts = resolveSupplyChecklistFacts(names, false);
+    const facts = resolveSupplyChecklistFacts(extras, false);
     return buildSupplyChecklistItems({
       ...facts,
       requiresOvenCleaner: facts.requiresOvenCleaner || this.cleaningType?.value === 'deep'
@@ -6466,12 +6550,12 @@ export class BookingComponent implements OnInit, OnDestroy {
 
   private getCleaningSuppliesExtraService(): ExtraService | null {
     const extras = this.selectedServiceType?.extraServices || [];
-    return extras.find(e => isCleaningSuppliesExtra(e?.name)) || null;
+    return extras.find(e => isCleaningSuppliesExtra(e)) || null;
   }
 
   private getCleaningEssentialsExtraService(): ExtraService | null {
     const extras = this.selectedServiceType?.extraServices || [];
-    return extras.find(e => isCleaningEssentialsExtra(e?.name)) || null;
+    return extras.find(e => isCleaningEssentialsExtra(e)) || null;
   }
 
   private extraServicePrice(extra: ExtraService | null): number | null {
@@ -6548,8 +6632,8 @@ export class BookingComponent implements OnInit, OnDestroy {
     if (!this.selectedServiceType) return false;
     
     if (this.showPollForm) {
-      // For poll forms on step 2, check contact info (name and phone)
-      return this.contactFirstName.valid && this.contactPhone.valid;
+      // For poll forms on step 2, check contact info (name, phone, email, service address)
+      return this.isPollContactValid();
     }
     
     // Block continue if selected date/time is blocked (for non-admin users)
@@ -6577,9 +6661,7 @@ export class BookingComponent implements OnInit, OnDestroy {
            this.city.valid &&
            this.state.valid &&
            this.zipCode.valid &&
-           this.smsConsent.value === true &&
-           this.cancellationConsent.value === true &&
-           this.termsConsent.value === true;
+           this.consentsSatisfied;
   }
 
   // Check if we can proceed to next step

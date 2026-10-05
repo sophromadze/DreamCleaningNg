@@ -15,10 +15,24 @@
  * of purpose, not by being the same rule.
  */
 
-/** Residential is the one service type that splits into Regular + Deep. Matched by name. */
+/** Residential is the one service type that splits into Regular + Deep. Matched by name - the
+ *  fallback for a type with no ServiceKey; prefer isResidentialServiceTypeOrKey. */
 export function isResidentialServiceTypeName(serviceTypeName: string | null | undefined): boolean {
   const normalized = (serviceTypeName || '').toLowerCase().trim().replace(/[_\s]+/g, '-');
   return normalized === 'residential-cleaning' || normalized === 'residentialcleaning';
+}
+
+/**
+ * Residential by ServiceType.serviceKey ("residential"). Only a type with NO key (serviceTypeKey
+ * null - an unkeyed type, or a custom order, whose key the API never sends) falls back to the name.
+ */
+export function isResidentialServiceTypeOrKey(
+  serviceTypeName: string | null | undefined,
+  serviceTypeKey: string | null | undefined
+): boolean {
+  const key = (serviceTypeKey ?? '').trim();
+  if (key) return key === 'residential';
+  return isResidentialServiceTypeName(serviceTypeName);
 }
 
 /**
@@ -57,6 +71,8 @@ export function formatAdminServiceTypeLabel(serviceTypeName: string | null | und
 export interface ServiceTypeLabelInput {
   /** The RAW ServiceType.Name — not an already-resolved display name. */
   serviceTypeName?: string | null;
+  /** ServiceType.serviceKey of a non-custom type; when present it decides Residential. */
+  serviceTypeKey?: string | null;
   isCustomServiceType?: boolean;
   /** The per-order label an admin chose for a custom ("Pre-Arranged") order. */
   customServiceDisplayName?: string | null;
@@ -80,7 +96,7 @@ export function resolveServiceTypeShortLabel(input: ServiceTypeLabelInput): stri
     return input.customServiceDisplayName;
   }
 
-  if (isResidentialServiceTypeName(input.serviceTypeName)) {
+  if (isResidentialServiceTypeOrKey(input.serviceTypeName, input.serviceTypeKey)) {
     return input.isDeepCleaning ? 'Deep' : 'Regular';
   }
 

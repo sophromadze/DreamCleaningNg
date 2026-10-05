@@ -6,7 +6,7 @@
       <div class="filters">
         <input type="search" class="search-input" placeholder="Search number, client or address…"
                [(ngModel)]="search" (ngModelChange)="onSearchChanged()" />
-        <select class="status-select" [(ngModel)]="statusFilter" (ngModelChange)="load()">
+        <select aria-label="Filter by status" class="status-select" [(ngModel)]="statusFilter" (ngModelChange)="load()">
           <option *ngFor="let option of statusOptions" [ngValue]="option.value">{{ option.label }}</option>
         </select>
       </div>

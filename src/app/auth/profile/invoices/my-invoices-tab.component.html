@@ -1,0 +1,41 @@
+<div class="mi-tab">
+
+    <div class="mi-state" *ngIf="loading">Loading your invoices…</div>
+
+    <div class="mi-state mi-state--error" *ngIf="!loading && error">
+      {{ error }}
+      <button type="button" class="mi-link" (click)="load()">Try again</button>
+    </div>
+
+    <ng-container *ngIf="!loading && !error">
+      <p class="mi-state" *ngIf="invoices.length === 0">You have no invoices yet.</p>
+
+      <div class="mi-owed" *ngIf="unpaid.length > 0">
+        <i class="fas fa-file-invoice-dollar" aria-hidden="true"></i>
+        {{ unpaid.length === 1 ? 'One invoice is' : unpaid.length + ' invoices are' }} waiting for payment —
+        <strong>${{ unpaidTotal | number:'1.2-2' }}</strong> due.
+      </div>
+
+      <ul class="mi-list" *ngIf="invoices.length > 0">
+        <li class="mi-row" *ngFor="let inv of invoices" [class.is-muted]="inv.status === 'Void' || inv.status === 'Cancelled'">
+          <div class="mi-row__main">
+            <div>
+              <a class="mi-number" [href]="inv.publicUrl" target="_blank" rel="noopener">{{ inv.invoiceNumber }}</a>
+              <span class="mi-status" [ngClass]="'mi-status--' + inv.status.toLowerCase()">{{ statusLabels[inv.status] }}</span>
+            </div>
+            <span class="mi-amount">${{ inv.amount | number:'1.2-2' }}</span>
+          </div>
+          <div class="mi-row__meta">
+            <span>{{ inv.serviceTypeName }} · Order #{{ inv.orderId }} · {{ inv.serviceDate | date:'MMM d, y' }}</span>
+            <span *ngIf="kindLabel(inv) as kind">· {{ kind }}</span>
+            <span>· Issued {{ inv.issuedAt | date:'MMM d, y' }}</span>
+            <span *ngIf="inv.status === 'Paid' && inv.paidAt">· Paid {{ inv.paidAt | date:'MMM d, y' }}<ng-container *ngIf="inv.paidVia"> ({{ inv.paidVia }})</ng-container></span>
+          </div>
+          <div class="mi-row__actions">
+            <a class="mi-btn" *ngIf="isPayable(inv)" [href]="inv.publicUrl">Pay ${{ inv.amountDue | number:'1.2-2' }}</a>
+            <a class="mi-link" [href]="inv.publicUrl" target="_blank" rel="noopener">View / download PDF</a>
+          </div>
+        </li>
+      </ul>
+    </ng-container>
+</div>

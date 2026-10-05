@@ -32,7 +32,7 @@
 
   .success-message {
     background: var(--mint-fresh);
-    color: var(--fresh-green);
+    color: var(--mint-fresh-text);
     border: 1px solid var(--mint-fresh-border);
     border-radius: var(--radius-md);
     padding: 0.75rem 1rem;
@@ -50,7 +50,7 @@
   /* Additional payment / cannot-save banners */
   .additional-amount-info {
     background: var(--soft-blue);
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
     border-radius: var(--radius-md);
     padding: 1rem 1.25rem;
     margin: 1rem 0;
@@ -67,7 +67,7 @@
 
     &.warning {
       background: var(--soft-red);
-      color: var(--bright-red);
+      color: var(--soft-red-text);
     }
   }
 
@@ -89,7 +89,7 @@
       }
 
       .negative {
-        color: var(--bright-red);
+        color: var(--soft-red-text);
       }
     }
 
@@ -149,7 +149,7 @@
     .amount {
       font-size: 2rem;
       font-weight: var(--fw-bold);
-      color: var(--primary-color);
+      color: var(--primary-text-elevated);
       margin: 0.5rem 0;
     }
 
@@ -178,7 +178,7 @@
 
     .card-errors {
       margin-top: 0.5rem;
-      color: var(--bright-red);
+      color: var(--soft-red-text);
       font-size: 0.85rem;
     }
   }

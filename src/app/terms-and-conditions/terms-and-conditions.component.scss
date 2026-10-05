@@ -46,10 +46,16 @@
         color: var(--text-secondary);
         line-height: 1.6;
       }
+
+      /* A closing paragraph kept inside its list (valid markup): no marker, the <p> supplies the spacing. */
+      .list-note {
+        list-style: none;
+        margin-bottom: 0;
+      }
     }
   
     a {
-      color: var(--primary-color);
+      color: var(--primary-color-text);
       text-decoration: none;
       
       &:hover {
@@ -94,21 +100,21 @@
       border: 2px solid var(--mint-fresh-border);
   
       .sms-intro {
-        color: var(--fresh-green);
+        color: var(--mint-fresh-text);
         font-size: 1.1rem;
         margin-bottom: 15px;
       }
   
       h3 {
-        color: var(--fresh-green);
+        color: var(--mint-fresh-text);
       }
   
       .sms-info {
         li {
-          color: var(--fresh-green);
+          color: var(--mint-fresh-text);
           
           strong {
-            color: var(--fresh-green);
+            color: var(--mint-fresh-text);
           }
         }
       }
@@ -130,3 +136,8 @@
       }
     }
   }
+
+/* Links inside running text are underlined: colour alone is 2:1 against the body text (WCAG 1.4.1). */
+.terms-conditions-container :is(p, li) a {
+  text-decoration: underline;
+}

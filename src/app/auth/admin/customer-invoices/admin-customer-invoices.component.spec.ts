@@ -1,0 +1,107 @@
+import { AdminCustomerInvoicesComponent } from './admin-customer-invoices.component';
+import { CustomerInvoiceOrderOption } from '../../../services/customer-invoice.service';
+import { AdminBookingPaymentOptions, adminMethodIsSettled } from '../../../booking/booking.component';
+import { CustomerInvoicePageComponent } from '../../../invoice/customer-invoice/customer-invoice-page.component';
+
+/**
+ * Regular customer invoices (Admin → Invoices, 2026-09). The server owns every rule; these pin the
+ * form's own arithmetic and the choices it offers, built on the prototype so no DI is needed.
+ */
+describe('AdminCustomerInvoicesComponent (create form)', () => {
+  const order = (over: Partial<CustomerInvoiceOrderOption> = {}): CustomerInvoiceOrderOption => ({
+    orderId: 7, serviceTypeName: 'Regular Cleaning', serviceDate: '2026-10-07', status: 'Pending',
+    total: 2743.65, amountDue: 2743.65, availableToInvoice: 2743.65, canInvoice: true,
+    cannotInvoiceReason: null, openInvoiceNumbers: [], ...over
+  });
+
+  const bare = (): AdminCustomerInvoicesComponent => {
+    const c = Object.create(AdminCustomerInvoicesComponent.prototype) as AdminCustomerInvoicesComponent;
+    c.orderOptions = [order()];
+    c.selectedOrderId = 7;
+    c.splitMode = false;
+    c.splitAmounts = [null, null];
+    c.creating = false;
+    return c;
+  };
+
+  it('bills the whole balance by default', () => {
+    const c = bare();
+    expect(c.isSplit).toBeFalse();
+    expect(c.canSubmitCreate).toBeTrue();
+  });
+
+  it('fills the last split with whatever is not allocated yet', () => {
+    const c = bare();
+    c.splitMode = true;
+    c.splitAmounts = [1000, null];
+    c.fillRemainder(1);
+    expect(c.splitAmounts[1]).toBe(1743.65);
+    expect(c.splitTotal).toBe(2743.65);
+    expect(c.splitUnallocated).toBe(0);
+    expect(c.canSubmitCreate).toBeTrue();
+  });
+
+  it('refuses a split that asks for more than is owed, or a slice under the $0.50 card minimum', () => {
+    const c = bare();
+    c.splitMode = true;
+    c.splitAmounts = [2000, 1000];
+    expect(c.splitUnallocated).toBeLessThan(0);
+    expect(c.canSubmitCreate).toBeFalse();
+
+    c.splitAmounts = [2743.40, 0.25];
+    expect(c.canSubmitCreate).toBeFalse();
+  });
+
+  it('keeps splitting an order that already carries a split invoice — never a whole-balance one beside it', () => {
+    const c = bare();
+    c.orderOptions = [order({ openInvoiceNumbers: ['DCR-2026-12345678'], availableToInvoice: 1743.65 })];
+    c.splitMode = false;
+    expect(c.isSplit).toBeTrue();
+  });
+
+  it('cannot submit an order the server said cannot be invoiced', () => {
+    const c = bare();
+    c.orderOptions = [order({ canInvoice: false, cannotInvoiceReason: 'Already invoiced in full.' })];
+    expect(c.canSubmitCreate).toBeFalse();
+  });
+});
+
+describe('booking page admin payment choices', () => {
+  it('offers Invoice to everybody and Commercial invoice only to a business customer', () => {
+    const regular = AdminBookingPaymentOptions(false).map(o => o.value);
+    expect(regular).toContain('RegularInvoice');
+    expect(regular).not.toContain('Invoice');
+
+    const business = AdminBookingPaymentOptions(true);
+    expect(business.map(o => o.value)).toContain('Invoice');
+    expect(business.find(o => o.value === 'RegularInvoice')?.label).toBe('Invoice');
+  });
+
+  it('never treats a regular invoice as money already received', () => {
+    expect(adminMethodIsSettled('RegularInvoice')).toBeFalse();
+    expect(adminMethodIsSettled('Invoice')).toBeFalse();
+    expect(adminMethodIsSettled('Zelle')).toBeTrue();
+  });
+});
+
+describe('CustomerInvoicePageComponent', () => {
+  const page = (status: string, amountDue: number) => {
+    const c = Object.create(CustomerInvoicePageComponent.prototype) as CustomerInvoicePageComponent;
+    c.invoice = { status, amountDue, kind: 'Full' } as any;
+    return c;
+  };
+
+  it('offers payment only while the invoice is owed', () => {
+    expect(page('Sent', 100).isPayable).toBeTrue();
+    expect(page('NotSent', 100).isPayable).toBeTrue();
+    expect(page('Paid', 0).isPayable).toBeFalse();
+    expect(page('Void', 100).isPayable).toBeFalse();
+    expect(page('Cancelled', 100).isPayable).toBeFalse();
+  });
+
+  it('reads a service time as a 12-hour clock', () => {
+    const c = page('Sent', 1);
+    expect(c.formatTime('14:30')).toBe('2:30 PM');
+    expect(c.formatTime('09:00')).toBe('9:00 AM');
+  });
+});

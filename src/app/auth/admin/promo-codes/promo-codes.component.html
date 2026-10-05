@@ -88,15 +88,15 @@
           <td>{{code.code}}</td>
           <td>
             <div *ngIf="editingPromoCodeId !== code.id">{{code.description}}</div>
-            <textarea *ngIf="editingPromoCodeId === code.id" [(ngModel)]="code.description"></textarea>
+            <textarea aria-label="Description" *ngIf="editingPromoCodeId === code.id" [(ngModel)]="code.description"></textarea>
           </td>
           <td>
             <div *ngIf="editingPromoCodeId !== code.id">
               {{code.isPercentage ? code.discountValue + '%' : '$' + code.discountValue}}
             </div>
             <div *ngIf="editingPromoCodeId === code.id" class="edit-discount">
-              <input type="number" [(ngModel)]="code.discountValue">
-              <select [(ngModel)]="code.isPercentage">
+              <input aria-label="Discount value" type="number" [(ngModel)]="code.discountValue">
+              <select aria-label="Discount type" [(ngModel)]="code.isPercentage">
                 <option [ngValue]="false">$</option>
                 <option [ngValue]="true">%</option>
               </select>
@@ -120,8 +120,8 @@
               {{code.validFrom | date:'short'}} - {{code.validTo | date:'short'}}
             </div>
             <div *ngIf="editingPromoCodeId === code.id" class="edit-validity">
-              <input type="datetime-local" [(ngModel)]="code.validFrom">
-              <input type="datetime-local" [(ngModel)]="code.validTo">
+              <input aria-label="Valid from" type="datetime-local" [(ngModel)]="code.validFrom">
+              <input aria-label="Valid to" type="datetime-local" [(ngModel)]="code.validTo">
             </div>
           </td>
           <td>

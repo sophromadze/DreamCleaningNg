@@ -1,13 +1,9 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
-import { CommonModule, isPlatformBrowser, DOCUMENT } from '@angular/common';
-import { Subscription } from 'rxjs';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, inject } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
-import { SERVICE_PRICING } from '../shared/service-pricing.data';
-import { BookingService, ExtraService } from '../services/booking.service';
-
-/** Extra-service names (lowercased, substring match) whose live DB price the FAQ quotes. */
-const SUPPLIES_EXTRA_NAME = 'cleaning supplies';
-const VACUUM_EXTRA_NAME = 'vacuum cleaner';
+import { StructuredDataService } from '../services/structured-data.service';
+import { MarketingPricingService } from '../shared/pricing/marketing-pricing.service';
+import { listStartingPrices } from '../shared/pricing/marketing-price-format';
 
 @Component({
   selector: 'app-faq',
@@ -18,80 +14,51 @@ const VACUUM_EXTRA_NAME = 'vacuum cleaner';
 })
 export class FaqComponent implements OnInit, OnDestroy {
   openItems: Set<number> = new Set();
-  readonly pricing = SERVICE_PRICING;
+  /**
+   * Every price on this page, including the "Cleaning Supplies" / "Vacuum Cleaner" extras, comes
+   * from the booking catalogue via MarketingPricingService - already resolved on the server, so
+   * the answers and the JSON-LD below are complete in the SSR HTML and always agree.
+   */
+  readonly pricing = inject(MarketingPricingService).text;
 
-  /** Live prices for the "Cleaning Supplies" / "Vacuum Cleaner" extras (from the DB catalog). */
-  suppliesPrice: number | null = null;
-  vacuumPrice: number | null = null;
-  extraPricesLoaded = false;
-
-  private schemaElement: HTMLScriptElement | null = null;
-  private extrasSub?: Subscription;
+  private readonly structuredData = inject(StructuredDataService);
 
   constructor(
-    @Inject(PLATFORM_ID) private platformId: Object,
-    @Inject(DOCUMENT) private document: Document,
-    private bookingService: BookingService
+    @Inject(PLATFORM_ID) private platformId: Object
   ) { }
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {
       window.scrollTo(0, 0);
     }
-    // The schema is injected only once the extra prices resolve, so the JSON-LD answer
-    // always matches the visible answer.
-    this.loadExtraPrices();
+    this.injectFaqSchema();
   }
 
   ngOnDestroy(): void {
-    this.extrasSub?.unsubscribe();
-    if (this.schemaElement && this.schemaElement.parentNode) {
-      this.schemaElement.parentNode.removeChild(this.schemaElement);
-    }
+    this.structuredData.remove('faq-schema');
   }
 
-  /** True once both extras resolved to a real price — otherwise the copy drops the amounts. */
+  /** True when both extras resolved to a real price — otherwise the copy drops the amounts. */
   get hasExtraPrices(): boolean {
-    return this.suppliesPrice !== null && this.vacuumPrice !== null;
+    return this.pricing().suppliesExtra !== null && this.pricing().vacuumExtra !== null;
   }
 
   get suppliesPriceLabel(): string {
-    return this.formatPrice(this.suppliesPrice);
+    return this.pricing().suppliesExtra ?? '';
   }
 
   get vacuumPriceLabel(): string {
-    return this.formatPrice(this.vacuumPrice);
+    return this.pricing().vacuumExtra ?? '';
   }
 
-  private formatPrice(price: number | null): string {
-    if (price === null) return '';
-    return Number.isInteger(price) ? `$${price}` : `$${price.toFixed(2)}`;
-  }
-
-  private loadExtraPrices(): void {
-    this.extrasSub = this.bookingService.getServiceTypes().subscribe({
-      next: (serviceTypes) => {
-        const extras = (serviceTypes ?? []).flatMap((st) => st.extraServices ?? []);
-        this.suppliesPrice = this.findExtraPrice(extras, SUPPLIES_EXTRA_NAME);
-        this.vacuumPrice = this.findExtraPrice(extras, VACUUM_EXTRA_NAME);
-        this.extraPricesLoaded = true;
-        this.injectFaqSchema();
-      },
-      error: () => {
-        // Backend unreachable (e.g. during the build-time prerender pass) — render the
-        // answer without amounts rather than quoting a stale hardcoded price.
-        this.extraPricesLoaded = true;
-        this.injectFaqSchema();
-      }
-    });
-  }
-
-  private findExtraPrice(extras: ExtraService[], nameFragment: string): number | null {
-    const matches = extras.filter((es) => (es?.name ?? '').toLowerCase().includes(nameFragment));
-    // Supplies/vacuum are universal extras; if a service-type-specific copy exists too,
-    // the universal one is the price the FAQ should quote.
-    const match = matches.find((es) => es.isAvailableForAll) ?? matches[0];
-    return match && match.price != null ? match.price : null;
+  /** "standard residential cleaning starts from $130, deep cleaning from $220, and ..."; null = none resolved. */
+  get startingPrices(): string | null {
+    const p = this.pricing();
+    return listStartingPrices([
+      ['standard residential cleaning', p.standardFrom],
+      ['deep cleaning', p.deepFrom],
+      ['move in/out cleaning', p.moveInOutFrom]
+    ]);
   }
 
   toggleItem(index: number): void {
@@ -143,7 +110,7 @@ export class FaqComponent implements OnInit, OnDestroy {
           'name': "What's the difference between deep cleaning and heavy condition cleaning?",
           'acceptedAnswer': {
             '@type': 'Answer',
-            'text': `Deep cleaning includes baseboards, hard-to-reach areas, and dusting above head level. Heavy condition cleaning goes further with wall washing, cabinet interiors, under sinks, and more — designed for homes that haven't been cleaned in 6+ months or have significant buildup. Heavy condition cleaning is $${SERVICE_PRICING.heavyConditionPerHour} per hour per cleaner.`
+            'text': `Deep cleaning includes baseboards, hard-to-reach areas, and dusting above head level. Heavy condition cleaning goes further with wall washing, cabinet interiors, under sinks, and more — designed for homes that haven't been cleaned in 6+ months or have significant buildup.${this.pricing().heavyPerHour ? ` Heavy condition cleaning is ${this.pricing().heavyPerHour} per hour per cleaner.` : ''}`
           }
         },
         {
@@ -151,7 +118,7 @@ export class FaqComponent implements OnInit, OnDestroy {
           'name': "What's included in Move-In/Move-Out cleaning?",
           'acceptedAnswer': {
             '@type': 'Answer',
-            'text': `Move in/out cleaning includes baseboards, outside kitchen cabinets, fridge interior, light wall spot cleaning, and oven and dishwasher cleaning (can be added if not selected). Starting from $${SERVICE_PRICING.moveInOutFrom}.`
+            'text': `Move in/out cleaning includes baseboards, outside kitchen cabinets, fridge interior, light wall spot cleaning, and oven and dishwasher cleaning (can be added if not selected).${this.pricing().moveInOutFrom ? ` Starting from ${this.pricing().moveInOutFrom}.` : ''}`
           }
         },
         {
@@ -223,7 +190,7 @@ export class FaqComponent implements OnInit, OnDestroy {
           'name': 'How much does apartment cleaning cost in NYC?',
           'acceptedAnswer': {
             '@type': 'Answer',
-            'text': `Dream Cleaning's standard residential cleaning starts from $${SERVICE_PRICING.residentialFrom}, deep cleaning from $${SERVICE_PRICING.deepFrom}, and move in/out cleaning from $${SERVICE_PRICING.moveInOutFrom}. Pricing depends on home size, condition, and selected services.`
+            'text': `${this.startingPrices ? `Dream Cleaning's ${this.startingPrices}. ` : ''}Pricing depends on home size, condition, and selected services.`
           }
         },
         {
@@ -269,18 +236,8 @@ export class FaqComponent implements OnInit, OnDestroy {
       ]
     };
 
-    // Drop any earlier copy first — hydration re-runs this after the prerendered
-    // markup already carried one, and two FAQPage blocks would disagree once the
-    // client resolves live prices.
-    const existing = this.document.head.querySelector('script#faq-schema');
-    if (existing?.parentNode) {
-      existing.parentNode.removeChild(existing);
-    }
-
-    this.schemaElement = this.document.createElement('script');
-    this.schemaElement.id = 'faq-schema';
-    this.schemaElement.type = 'application/ld+json';
-    this.schemaElement.textContent = JSON.stringify(schema);
-    this.document.head.appendChild(this.schemaElement);
+    // Replaces the prerendered copy - hydration re-runs this, and the client's live prices
+    // must update the one FAQPage block rather than add a second.
+    this.structuredData.set('faq-schema', schema);
   }
 }

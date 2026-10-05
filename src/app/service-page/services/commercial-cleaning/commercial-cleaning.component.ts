@@ -15,8 +15,16 @@ import { TestimonialSectionComponent } from '../../../shared/components/testimon
 import { PhoneNumberService } from '../../../services/phone-number.service';
 import { AnalyticsService } from '../../../services/analytics.service';
 import { OrderSoundService } from '../../../services/order-sound.service';
+import { StructuredDataService } from '../../../services/structured-data.service';
 import { extractApiErrorMessage } from '../../../utils/http-error.utils';
 import { COMMERCIAL_FIRST_MONTH_DISCOUNT_PERCENT } from '../../../shared/commercial-offer.data';
+import { responsiveImage } from '../../../shared/images/responsive-image.loader';
+
+/**
+ * Sector card photos (1122x1402, object-fit: cover). Measured: one column up to ~580px wide with
+ * the box at 100vw - 49px; otherwise boxes of 265-345px whose drawn width never exceeds ~365px.
+ */
+const SECTOR_PHOTO_SIZES = '(max-width: 580px) calc(100vw - 49px), 365px';
 
 /**
  * Commercial cleaning landing page — the destination for the commercial Google Ads
@@ -28,9 +36,9 @@ import { COMMERCIAL_FIRST_MONTH_DISCOUNT_PERCENT } from '../../../shared/commerc
  *  1. THE HERO CARD IS A QUOTE FORM, NOT THE BOOKING WIDGET. `app-home-hero`'s form asks
  *     bedrooms/bathrooms/sq.ft and prices a residential job from the catalogue; a commercial
  *     buyer has no bedroom count and buys on a walkthrough and a proposal. So the hero card
- *     collects a lead and posts it to the same `contact/quote-request` endpoint the
- *     /free-quote page uses — which also means these leads land in the CRM through the
- *     existing LeadCaptureService with no backend change.
+ *     collects a lead and posts it to `contact/commercial-quote-request`, which emails a
+ *     "New Commercial Quote Request" with every field labelled for what it is and files the
+ *     lead in the CRM as Commercial through the existing LeadCaptureService.
  *  2. Its styles come from the homepage stylesheets rather than a copy of them — see the
  *     styleUrls note below.
  *
@@ -70,6 +78,13 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
    * from a walkthrough and never priced through the booking flow, so there is no DB value to read.
    */
   readonly firstMonthDiscountPercent = COMMERCIAL_FIRST_MONTH_DISCOUNT_PERCENT;
+  protected readonly sectorPhotos = {
+    retail: responsiveImage('/images/retail-showrooms.webp', SECTOR_PHOTO_SIZES),
+    medical: responsiveImage('/images/medical-dental.webp', SECTOR_PHOTO_SIZES),
+    restaurants: responsiveImage('/images/restaurants-cafes.webp', SECTOR_PHOTO_SIZES),
+    gyms: responsiveImage('/images/gyms-studios.webp', SECTOR_PHOTO_SIZES),
+    commonAreas: responsiveImage('/images/building-common-areas.webp', SECTOR_PHOTO_SIZES)
+  };
 
   quoteForm: FormGroup;
   isSubmitting = false;
@@ -78,7 +93,7 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
   errorMessage = '';
 
   private readonly isBrowser: boolean;
-  private schemaElements: HTMLScriptElement[] = [];
+  private readonly structuredData = inject(StructuredDataService);
 
   constructor(
     private fb: FormBuilder,
@@ -106,10 +121,8 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    for (const el of this.schemaElements) {
-      el.parentNode?.removeChild(el);
-    }
-    this.schemaElements = [];
+    this.structuredData.remove('ld-commercial-cleaning-service');
+    this.structuredData.remove('ld-commercial-cleaning-faq');
   }
 
   // ---------- Quote form ----------
@@ -134,19 +147,20 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
 
     const v = this.quoteForm.getRawValue();
 
-    this.http.post(`${environment.apiUrl}/contact/quote-request`, {
-      // QuoteRequestDto is shaped for the residential free-quote form. The commercial
-      // fields map onto it rather than changing a DTO other callers share: the business
-      // name leads the contact name so the notification email's subject line ("New Free
-      // Quote Request from …") names the company, and everything with no column of its
-      // own is written into Message, which is the field an admin actually reads.
-      firstName: v.businessName,
-      lastName: v.contactName,
+    // Its own endpoint (CommercialQuoteRequestDto), NOT the residential `quote-request`. Mapping
+    // these fields onto that DTO printed the business name as "First Name", the contact as "Last
+    // Name", the business address as "Home Address", and frequency / size / notes as one blob
+    // under "Message" in a "New Free Quote Request" email.
+    this.http.post(`${environment.apiUrl}/contact/commercial-quote-request`, {
+      businessName: v.businessName,
+      contactName: v.contactName,
       phone: v.phone,
       email: v.email,
-      homeAddress: v.businessAddress,
-      cleaningType: `Commercial - ${v.facilityType}`,
-      message: this.buildMessage(v)
+      businessAddress: v.businessAddress,
+      facilityType: v.facilityType,
+      squareFootage: (v.squareFootage ?? '').toString().trim() || null,
+      frequency: v.frequency,
+      notes: (v.notes ?? '').trim() || null
     }).subscribe({
       next: () => {
         this.isSubmitting = false;
@@ -173,31 +187,6 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
         );
       }
     });
-  }
-
-  /**
-   * ONLY the fields that have no row of their own in the notification email.
-   *
-   * ContactController's quote-request template already prints First Name, Last Name, Phone,
-   * Email, Home Address and Cleaning Type as labelled table rows, and this form maps the
-   * business name, contact name, address and facility type onto exactly those. Repeating
-   * them here printed each one twice in the same email, so frequency, size and the free-text
-   * notes are all that belong in Message.
-   *
-   * Frequency is a required control, so this can never return the empty string the DTO's
-   * [Required] on Message would reject.
-   */
-  private buildMessage(v: Record<string, string>): string {
-    const lines = [`Requested frequency: ${v['frequency']}`];
-    const size = (v['squareFootage'] ?? '').trim();
-    if (size) {
-      lines.push(`Approx. size: ${size} sq ft`);
-    }
-    const notes = (v['notes'] ?? '').trim();
-    if (notes) {
-      lines.push('', 'Notes:', notes);
-    }
-    return lines.join('\n');
   }
 
   hasError(field: string): boolean {
@@ -237,7 +226,7 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
   // ---------- Structured data ----------
 
   private injectSchema(): void {
-    this.appendSchema({
+    this.structuredData.set('ld-commercial-cleaning-service', {
       '@context': 'https://schema.org',
       '@type': 'Service',
       'name': 'Commercial Cleaning Services in NYC',
@@ -274,7 +263,7 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
       }
     });
 
-    this.appendSchema({
+    this.structuredData.set('ld-commercial-cleaning-faq', {
       '@context': 'https://schema.org',
       '@type': 'FAQPage',
       'mainEntity': this.faqs.map(f => ({
@@ -283,14 +272,6 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
         'acceptedAnswer': { '@type': 'Answer', 'text': f.a }
       }))
     });
-  }
-
-  private appendSchema(schema: unknown): void {
-    const el = this.document.createElement('script');
-    el.type = 'application/ld+json';
-    el.textContent = JSON.stringify(schema);
-    this.document.head.appendChild(el);
-    this.schemaElements.push(el);
   }
 
   /** Rendered in the FAQ section AND emitted as FAQPage JSON-LD — one source, so they can't drift. */
@@ -336,9 +317,10 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
     },
     {
       q: 'Do you supply the cleaning products and equipment?',
-      a: 'Yes - commercial-grade products, vacuums and equipment are included in the quoted ' +
-         'price. Consumables you want stocked in restrooms and kitchens (paper, soap, liners) ' +
-         'can either be supplied by you or added to the plan.'
+      a: 'We can - or you can, or we can split it. Cleaning supplies and equipment can be ' +
+         'provided by us, by you, or divided between us, and consumables such as trash liners, ' +
+         'paper towels and toilet tissue are agreed item by item. Whatever we agree is written ' +
+         'into your service agreement and reflected in the quote.'
     },
     {
       q: 'Which parts of NYC do you serve?',

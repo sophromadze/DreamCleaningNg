@@ -85,10 +85,18 @@ export class InvoiceFormComponent implements OnInit {
     this.driftChoices = this.driftChoices.filter(c => !c.endsWith(kind));
     this.driftChoices.push((useCurrent ? 'Current' : 'Keep') + kind);
     if (this.selectedOrderIds.length && this.driftChoices.includes('CurrentPrice')) {
-      this.negotiatedGroupTotal = previewTotals(
-        [{ quantity: this.selectedOrderIds.length, unitPrice: invoice.currentContractUnitPrice! }],
-        this.discountType, this.discountValue, this.taxType, this.taxRate).total;
-      this.negotiatingTotal = true;
+      if (invoice.currentContractIsWeeklyFlatFee) {
+        // A WEEKLY FLAT FEE is billed per SERVICE WEEK, which the server prices from the contract
+        // itself for the cleanings selected. Multiplying the weekly fee by the number of cleanings
+        // here billed six weekly fees for one week of six visits.
+        this.negotiatedGroupTotal = null;
+        this.negotiatingTotal = false;
+      } else {
+        this.negotiatedGroupTotal = previewTotals(
+          [{ quantity: this.selectedOrderIds.length, unitPrice: invoice.currentContractUnitPrice! }],
+          this.discountType, this.discountValue, this.taxType, this.taxRate).total;
+        this.negotiatingTotal = true;
+      }
     }
     invoice.draftWarnings = invoice.draftWarnings.filter(w => this.driftKind(w) !== kind);
     if (this.selectedOrderIds.length) this.previewAllocation();
@@ -203,6 +211,18 @@ export class InvoiceFormComponent implements OnInit {
   allocations: InvoiceOrderAllocation[] = [];
   allocationWarnings: string[] = [];
   savingOrders = false;
+
+  /** The last preview priced the selection as the contract's weekly flat fee, over this many weeks. */
+  pricedAsWeeklyFlatFee = false;
+  serviceWeekCount = 0;
+
+  /**
+   * The chosen contract bills a flat fee per SERVICE WEEK. Its cleanings' own totals are then
+   * operational figures, not charges, so the picker stops showing them as prices.
+   */
+  get contractIsWeeklyFlatFee(): boolean {
+    return this.selectedContract?.pricingBasis === 'WeeklyFlatFee';
+  }
 
   /** Committed allocations, loaded on edit — proof of what a SENT invoice actually did. */
   get hasCommittedAllocation(): boolean {
@@ -400,7 +420,7 @@ export class InvoiceFormComponent implements OnInit {
     if (!this.clientId) return;
 
     this.loadingEligible = true;
-    this.invoiceService.eligibleOrders(this.clientId, { invoiceId: this.invoiceId })
+    this.invoiceService.eligibleOrders(this.clientId, { invoiceId: this.invoiceId, contractId: this.contractId })
       .pipe(finalize(() => { this.loadingEligible = false; }))
       .subscribe({
         next: res => {
@@ -453,6 +473,13 @@ export class InvoiceFormComponent implements OnInit {
   toggleOrder(order: InvoiceEligibleOrder): void {
     if (!order.canSelect || this.monetaryLocked || !this.linkedDraftEditable) return;
     this.rememberStandalone();
+
+    // A cleaning a contract-linked plan scheduled can only be billed on THAT contract's invoice
+    // (the server refuses otherwise). Picking one with no contract chosen yet chooses it.
+    if (order.contractId && !this.contractId && this.availableContracts.some(c => c.id === order.contractId)) {
+      this.contractId = order.contractId;
+      this.onContractChange();
+    }
 
     const index = this.selectedOrderIds.indexOf(order.orderId);
     if (index >= 0) this.selectedOrderIds.splice(index, 1);
@@ -526,6 +553,8 @@ export class InvoiceFormComponent implements OnInit {
     if (this.selectedOrderIds.length === 0) {
       this.allocations = [];
       this.allocationWarnings = [];
+      this.pricedAsWeeklyFlatFee = false;
+      this.serviceWeekCount = 0;
       this.savingOrders = false;
       if (this.selectionTouched) {
         this.lines = this.standaloneDraft?.lines.map(l => ({ ...l })) ?? [{ description: '', quantity: 1, unitPrice: 0 }];
@@ -544,7 +573,11 @@ export class InvoiceFormComponent implements OnInit {
     this.serviceDates = [...new Set(selected.map(o => o.serviceDate.slice(0, 10)))];
     this.serviceStartDate = this.serviceDates[0] ?? '';
     this.serviceEndDate = this.serviceDates[this.serviceDates.length - 1] ?? '';
-    this.lines = selected.map(o => ({ description: `${o.serviceTypeName} — ${o.serviceDate.slice(0, 10)} (#${o.orderId})`, quantity: 1, unitPrice: o.total }));
+    // Placeholder lines until the server answers — never under a weekly flat fee, where a
+    // cleaning's own total is not a charge and summing them would flash six weekly fees.
+    if (!this.contractIsWeeklyFlatFee) {
+      this.lines = selected.map(o => ({ description: `${o.serviceTypeName} — ${o.serviceDate.slice(0, 10)} (#${o.orderId})`, quantity: 1, unitPrice: o.total }));
+    }
 
     this.savingOrders = true;
     this.invoiceService.previewOrders(this.buildPayload(), this.invoiceId)
@@ -554,6 +587,8 @@ export class InvoiceFormComponent implements OnInit {
           if (version !== this.allocationRequest) return;
           this.allocations = res.allocations;
           this.allocationWarnings = res.warnings;
+          this.pricedAsWeeklyFlatFee = !!res.pricedAsWeeklyFlatFee;
+          this.serviceWeekCount = res.serviceWeekCount ?? 0;
           this.eligibleError = '';
           // The server rebuilt the line items from the selection; mirror them so the totals
           // preview and the saved invoice agree.
@@ -656,6 +691,10 @@ export class InvoiceFormComponent implements OnInit {
       this.prefillWarning =
         `Filled in what was empty from ${contract.contractNumber}, and kept ${kept.join(' and ')}.`;
     }
+
+    // The contract decides which cleanings belong here (another contract's are listed as blocked)
+    // and, for a weekly flat fee, how they are priced — so the picker and split are re-read.
+    if (this.clientId) this.loadEligibleOrders();
   }
 
   // ── Service dates ──

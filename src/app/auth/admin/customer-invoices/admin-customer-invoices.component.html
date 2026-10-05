@@ -1,0 +1,249 @@
+<div class="ci-page">
+  <div class="ci-header">
+    <div>
+      <h2>Invoices</h2>
+      <p class="ci-subtitle">
+        Regular invoices for customers — paid by card or bank transfer from a link that works without
+        logging in. Commercial (business) invoices are in Commercial → Invoices.
+      </p>
+    </div>
+    <button type="button" class="ci-btn ci-btn--primary" *ngIf="canCreate" (click)="openCreate()">
+      <i class="fas fa-plus" aria-hidden="true"></i> Create Invoice
+    </button>
+  </div>
+
+  <div class="ci-filters">
+    <input type="search" [(ngModel)]="search" (ngModelChange)="onSearchChange()"
+           placeholder="Search invoice #, order #, customer name or email" aria-label="Search invoices">
+    <select [(ngModel)]="statusFilter" (ngModelChange)="load()" aria-label="Filter by status">
+      <option value="All">All statuses</option>
+      <option value="Open">Awaiting payment</option>
+      <option value="NotSent">Not sent</option>
+      <option value="Paid">Paid</option>
+      <option value="Void">Void</option>
+      <option value="Cancelled">Order cancelled</option>
+    </select>
+  </div>
+
+  <div class="ci-message ci-message--ok" *ngIf="message">{{ message }}</div>
+  <div class="ci-message ci-message--error" *ngIf="error">{{ error }}</div>
+
+  <div class="ci-empty" *ngIf="!loading && invoices.length === 0">
+    No invoices yet. Use <strong>Create Invoice</strong>, or choose <strong>Invoice</strong> as the payment
+    method when booking for a customer.
+  </div>
+  <div class="ci-empty" *ngIf="loading && invoices.length === 0">Loading invoices…</div>
+
+  <div class="ci-table-wrap" *ngIf="invoices.length > 0">
+    <table class="ci-table">
+      <thead>
+        <tr>
+          <th>Invoice</th>
+          <th>Customer</th>
+          <th>Order</th>
+          <th class="num">Amount</th>
+          <th class="num">Due</th>
+          <th>Status</th>
+          <th>Sent</th>
+          <th class="actions">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let inv of invoices">
+          <td>
+            <strong>{{ inv.invoiceNumber }}</strong>
+            <span class="ci-kind" *ngIf="inv.kind === 'Split'">Split</span>
+            <span class="ci-kind" *ngIf="inv.kind === 'Additional'">Additional</span>
+            <div class="ci-sub">{{ inv.createdAt | date:'MMM d, y' }}<span *ngIf="inv.createdByName"> · {{ inv.createdByName }}</span></div>
+          </td>
+          <td>
+            {{ inv.customerName }}
+            <div class="ci-sub" *ngIf="inv.customerEmail">{{ inv.customerEmail }}</div>
+          </td>
+          <td>
+            #{{ inv.orderId }}
+            <div class="ci-sub">{{ inv.serviceTypeName }} · {{ inv.serviceDate | date:'MMM d, y' }}</div>
+          </td>
+          <td class="num">${{ inv.amount | number:'1.2-2' }}</td>
+          <td class="num">${{ inv.amountDue | number:'1.2-2' }}</td>
+          <td>
+            <span class="ci-status" [ngClass]="statusClass(inv.status)">{{ statusLabels[inv.status] }}</span>
+            <div class="ci-sub" *ngIf="inv.status === 'Paid' && inv.paidVia">
+              {{ inv.paidVia === 'Other' ? 'Manual' : inv.paidVia }}<span *ngIf="inv.paidAt"> · {{ inv.paidAt | date:'MMM d' }}</span>
+            </div>
+            <div class="ci-sub" *ngIf="inv.status === 'Void' && inv.voidReason">{{ inv.voidReason }}</div>
+          </td>
+          <td>
+            <span *ngIf="inv.lastSentAt">{{ inv.lastSentAt | date:'MMM d, h:mm a' }}</span>
+            <span *ngIf="!inv.lastSentAt" class="ci-sub">—</span>
+            <div class="ci-sub" *ngIf="inv.sendCount > 1">{{ inv.sendCount }} times</div>
+          </td>
+          <td class="actions">
+            <a class="ci-link" [href]="inv.publicUrl" target="_blank" rel="noopener">Open</a>
+            <button type="button" class="ci-link" (click)="copyLink(inv)">Copy link</button>
+            <button type="button" class="ci-link" *ngIf="canUpdate && inv.canSend"
+                    [disabled]="busyInvoiceId === inv.id" (click)="send(inv)">
+              {{ busyInvoiceId === inv.id ? 'Sending…' : (inv.sendCount > 0 ? 'Resend' : 'Send') }}
+            </button>
+            <button type="button" class="ci-link ci-link--strong" *ngIf="canUpdate && inv.canRecordPayment"
+                    (click)="openRecordPayment(inv)">Mark paid</button>
+            <button type="button" class="ci-link ci-link--danger" *ngIf="canUpdate && inv.canVoid"
+                    (click)="openVoid(inv)">Void</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ Create invoice ═══ -->
+<div class="ci-overlay" *ngIf="showCreate" (click)="closeCreate()">
+  <div class="ci-modal" role="dialog" aria-modal="true" aria-labelledby="ci-create-title" (click)="$event.stopPropagation()">
+    <div class="ci-modal__head">
+      <h3 id="ci-create-title">Create invoice</h3>
+      <button type="button" class="ci-close" (click)="closeCreate()" aria-label="Close">&times;</button>
+    </div>
+
+    <div class="ci-modal__body">
+      <label class="ci-label">Customer</label>
+      <app-admin-user-search
+        [selectedUser]="createUser"
+        (userSelected)="onCreateUserSelected($event)"
+        (cleared)="onCreateUserCleared()">
+      </app-admin-user-search>
+
+      <ng-container *ngIf="createUser">
+        <label class="ci-label">Order to invoice</label>
+        <div class="ci-sub" *ngIf="loadingOrders">Loading orders…</div>
+        <div class="ci-sub" *ngIf="!loadingOrders && orderOptions.length === 0">
+          This customer has no unpaid orders to invoice.
+        </div>
+        <div class="ci-orders" *ngIf="orderOptions.length > 0">
+          <label class="ci-order" *ngFor="let o of orderOptions" [class.disabled]="!o.canInvoice"
+                 [class.selected]="selectedOrderId === o.orderId">
+            <input type="radio" name="ciOrder" [value]="o.orderId" [(ngModel)]="selectedOrderId" [disabled]="!o.canInvoice">
+            <span class="ci-order__main">
+              <strong>#{{ o.orderId }}</strong> · {{ o.serviceTypeName }} · {{ o.serviceDate | date:'MMM d, y' }}
+              <span class="ci-sub">{{ o.status }} · total ${{ o.total | number:'1.2-2' }} · owes ${{ o.amountDue | number:'1.2-2' }}</span>
+              <span class="ci-sub ci-warn" *ngIf="!o.canInvoice">{{ o.cannotInvoiceReason }}</span>
+              <span class="ci-sub" *ngIf="o.canInvoice && o.openInvoiceNumbers.length > 0">
+                Already on {{ o.openInvoiceNumbers.join(', ') }} — ${{ o.availableToInvoice | number:'1.2-2' }} left to invoice
+              </span>
+            </span>
+          </label>
+        </div>
+      </ng-container>
+
+      <ng-container *ngIf="selectedOrder as order">
+        <label class="ci-label">What to bill</label>
+        <p class="ci-sub" *ngIf="order.isAdditionalCharge">
+          This order was already paid; an edit added <strong>${{ order.availableToInvoice | number:'1.2-2' }}</strong>. The invoice bills that additional amount.
+        </p>
+        <div class="ci-mode" *ngIf="order.openInvoiceNumbers.length === 0 && !order.isAdditionalCharge">
+          <label class="radio-row">
+            <input type="radio" name="ciMode" [value]="false" [(ngModel)]="splitMode">
+            <span>The whole balance — <strong>${{ order.availableToInvoice | number:'1.2-2' }}</strong></span>
+          </label>
+          <label class="radio-row">
+            <input type="radio" name="ciMode" [value]="true" [(ngModel)]="splitMode">
+            <span>Split the payment into separate invoices</span>
+          </label>
+        </div>
+        <p class="ci-sub" *ngIf="order.openInvoiceNumbers.length > 0">
+          This order is already split — add more invoices for what is not invoiced yet.
+        </p>
+
+        <div class="ci-split" *ngIf="isSplit">
+          <div class="ci-split__row" *ngFor="let a of splitAmounts; let i = index; trackBy: trackByIndex">
+            <span class="ci-split__label">Invoice {{ i + 1 }}</span>
+            <span class="ci-money"><span>$</span>
+              <input type="number" min="0.5" step="0.01" [(ngModel)]="splitAmounts[i]" [name]="'split' + i"
+                     [attr.aria-label]="'Amount of invoice ' + (i + 1)">
+            </span>
+            <button type="button" class="ci-link" (click)="fillRemainder(i)">Rest</button>
+            <button type="button" class="ci-link ci-link--danger" *ngIf="splitAmounts.length > 1" (click)="removeSplitRow(i)">Remove</button>
+          </div>
+          <button type="button" class="ci-link" (click)="addSplitRow()" *ngIf="splitAmounts.length < 12">+ Add another invoice</button>
+          <div class="ci-split__sum" [class.ci-warn]="splitUnallocated < 0">
+            Total ${{ splitTotal | number:'1.2-2' }} of ${{ order.availableToInvoice | number:'1.2-2' }}
+            <span *ngIf="splitUnallocated > 0"> — ${{ splitUnallocated | number:'1.2-2' }} not invoiced yet</span>
+            <span *ngIf="splitUnallocated < 0"> — ${{ -splitUnallocated | number:'1.2-2' }} more than is owed</span>
+          </div>
+        </div>
+
+        <label class="ci-label" for="ciNote">Note on the invoice (optional)</label>
+        <textarea id="ciNote" rows="2" maxlength="1000" [(ngModel)]="createNote"
+                  placeholder="Shown to the customer on the invoice"></textarea>
+
+        <div class="ci-send">
+          <label><input type="checkbox" [(ngModel)]="createSendEmail"> Email it to the customer</label>
+          <label><input type="checkbox" [(ngModel)]="createSendSms"> Text it to the customer</label>
+        </div>
+      </ng-container>
+
+      <div class="ci-message ci-message--error" *ngIf="createError">{{ createError }}</div>
+    </div>
+
+    <div class="ci-modal__foot">
+      <button type="button" class="ci-btn" (click)="closeCreate()" [disabled]="creating">Cancel</button>
+      <button type="button" class="ci-btn ci-btn--primary" (click)="submitCreate()" [disabled]="!canSubmitCreate">
+        {{ creating ? 'Creating…' : (createSendEmail || createSendSms ? 'Create & send' : 'Create') }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Mark paid ═══ -->
+<div class="ci-overlay" *ngIf="payingInvoice as inv" (click)="closeRecordPayment()">
+  <div class="ci-modal ci-modal--small" role="dialog" aria-modal="true" aria-labelledby="ci-pay-title" (click)="$event.stopPropagation()">
+    <div class="ci-modal__head">
+      <h3 id="ci-pay-title">Mark {{ inv.invoiceNumber }} paid</h3>
+      <button type="button" class="ci-close" (click)="closeRecordPayment()" aria-label="Close">&times;</button>
+    </div>
+    <div class="ci-modal__body">
+      <p class="ci-sub">
+        Record <strong>${{ inv.amountDue | number:'1.2-2' }}</strong> received outside the website. A bank
+        transfer never reaches us automatically, so this is how the invoice becomes paid. When nothing is
+        left owing on order #{{ inv.orderId }}, the order becomes <strong>Active</strong> and the customer
+        gets their booking confirmation.
+      </p>
+      <label class="ci-label" for="ciPayMethod">Paid by</label>
+      <select id="ciPayMethod" [(ngModel)]="payMethod">
+        <option *ngFor="let m of manualPaymentOptions" [value]="m.value">{{ m.label }}</option>
+      </select>
+      <label class="ci-label" for="ciPayRef">Reference (optional)</label>
+      <input id="ciPayRef" type="text" maxlength="255" [(ngModel)]="payReference"
+             [placeholder]="payMethod === 'BankTransfer' ? 'Bank transfer — ' + inv.invoiceNumber : 'e.g. Zelle confirmation'">
+      <label class="ci-label" for="ciPayNotes">Notes (optional)</label>
+      <textarea id="ciPayNotes" rows="2" maxlength="1000" [(ngModel)]="payNotes"></textarea>
+      <div class="ci-message ci-message--error" *ngIf="payError">{{ payError }}</div>
+    </div>
+    <div class="ci-modal__foot">
+      <button type="button" class="ci-btn" (click)="closeRecordPayment()" [disabled]="recordingPayment">Cancel</button>
+      <button type="button" class="ci-btn ci-btn--primary" (click)="submitRecordPayment()" [disabled]="recordingPayment">
+        {{ recordingPayment ? 'Saving…' : 'Mark as paid' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ Void ═══ -->
+<div class="ci-overlay" *ngIf="voidingInvoice as inv" (click)="closeVoid()">
+  <div class="ci-modal ci-modal--small" role="dialog" aria-modal="true" aria-labelledby="ci-void-title" (click)="$event.stopPropagation()">
+    <div class="ci-modal__head">
+      <h3 id="ci-void-title">Void {{ inv.invoiceNumber }}?</h3>
+      <button type="button" class="ci-close" (click)="closeVoid()" aria-label="Close">&times;</button>
+    </div>
+    <div class="ci-modal__body">
+      <p class="ci-sub">The customer's link stops accepting payment. The order is not changed and can be invoiced again.</p>
+      <label class="ci-label" for="ciVoidReason">Reason (optional, internal)</label>
+      <input id="ciVoidReason" type="text" maxlength="500" [(ngModel)]="voidReason">
+    </div>
+    <div class="ci-modal__foot">
+      <button type="button" class="ci-btn" (click)="closeVoid()" [disabled]="voiding">Keep it</button>
+      <button type="button" class="ci-btn ci-btn--danger" (click)="confirmVoid()" [disabled]="voiding">
+        {{ voiding ? 'Voiding…' : 'Void invoice' }}
+      </button>
+    </div>
+  </div>
+</div>

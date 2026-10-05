@@ -27,7 +27,8 @@
       </div>
 
       <div class="uro-item-money">
-        <span class="uro-total">{{ o.total | currency:'USD' }}</span>
+        <span class="uro-total" *ngIf="!o.billedByContractLabel">{{ o.total | currency:'USD' }}</span>
+        <span class="uro-total uro-total--contract" *ngIf="o.billedByContractLabel">{{ o.billedByContractLabel }}</span>
 
         <span class="uro-paid" *ngIf="o.isPaid">Paid</span>
 

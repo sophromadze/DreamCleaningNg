@@ -1,6 +1,158 @@
 /* You can add global styles to this file, and also import other style files */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Fraunces:wght@600;700&display=swap');
-@import '@fortawesome/fontawesome-free/css/all.css';
+/* ==============================================================
+   Fonts — self-hosted (public/fonts/), no Google Fonts request.
+   These are the exact variable-weight files Google Fonts served
+   (Inter v20, Fraunces v38): one file per subset covers every weight,
+   so each family is one face per subset with a weight RANGE.
+   Latin is preloaded from index.html; Latin-ext and Cyrillic only download
+   when a page actually contains one of their characters (unicode-range).
+   File names carry the upstream version — when replacing a file,
+   bump the name (and the preload in index.html), never reuse it:
+   /fonts/* is served with a one-year cache.
+   ============================================================== */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url('/fonts/inter-v20-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url('/fonts/inter-v20-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* Cyrillic: Google review author names in the testimonials (e.g. "Мила",
+   "Евгений") were already rendered in Inter by Google Fonts. Downloaded only
+   on pages that actually contain Cyrillic text; never preloaded. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 300 900;
+  font-display: swap;
+  src: url('/fonts/inter-v20-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 600 700;
+  font-display: swap;
+  src: url('/fonts/fraunces-v38-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Fraunces';
+  font-style: normal;
+  font-weight: 600 700;
+  font-display: swap;
+  src: url('/fonts/fraunces-v38-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* Metric-matched fallbacks: what renders during the swap period, sized so
+   the swap to the real font moves as little text as possible (CLS).
+   size-adjust = real font's advance width / local font's (measured on body
+   copy), and the overrides restate the real font's ascent/descent in that
+   scaled box — Inter 0.96875 / 0.2412, Fraunces 0.9780 / 0.2549.
+   Regular and bold are separate faces because Inter's width ratio to Arial
+   differs by weight (1.068 at 400, 1.015–1.036 at 600–800). Where the local
+   font is missing (Android has no Arial) the face fails to load and the
+   stack moves on to the system font, exactly as before. */
+@font-face {
+  font-family: 'Inter Fallback';
+  font-weight: 100 549;
+  src: local('Arial'), local('ArialMT');
+  size-adjust: 107%;
+  ascent-override: 90.54%;
+  descent-override: 22.54%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Inter Fallback';
+  font-weight: 550 1000;
+  src: local('Arial Bold'), local('Arial-BoldMT');
+  size-adjust: 102%;
+  ascent-override: 94.98%;
+  descent-override: 23.65%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Fraunces Fallback';
+  font-weight: 600 700;
+  src: local('Times New Roman Bold'), local('TimesNewRomanPS-BoldMT');
+  size-adjust: 112.8%;
+  ascent-override: 86.70%;
+  descent-override: 22.60%;
+  line-gap-override: 0%;
+}
+
+/* ==============================================================
+   Inline SVG icons — <i [appIcon]> (shared/icons/icon.component.ts),
+   the public pages' replacement for the Font Awesome webfont, which
+   now loads only on admin/profile routes (shared/icons/font-awesome.loader.ts).
+   The box is built to match the webfont glyph it replaces exactly,
+   so existing `.x i { font-size; color; line-height; vertical-align }`
+   rules lay it out identically:
+   - the <svg> is 1em tall, glyph-width wide (set inline from the
+     viewBox) and sits 0.125em below the baseline — Font Awesome's
+     font has ascent 0.875em / descent 0.125em, so that is where its
+     glyph box was;
+   - line-height 0 keeps the inherited text font's own (different)
+     ascent/descent out of the <i>'s line box, leaving it exactly the
+     svg's 1em box, as the webfont's `line-height: 1` did. A page rule
+     that sets line-height on the <i> still takes over as before.
+   Kept here, where the Font Awesome import used to be, so it keeps the
+   same place in the cascade.
+   ============================================================== */
+.app-icon {
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  line-height: 0;
+  text-rendering: auto;
+}
+
+.app-icon > .app-icon__svg {
+  display: inline-block;
+  height: 1em;
+  overflow: visible;
+  vertical-align: -0.125em;
+}
+
+/* Same animation and reduced-motion behaviour as Font Awesome's `fa-spin`
+   (identical rules, so nothing changes when the admin bundle adds its own). */
+.fa-spin {
+  animation-name: fa-spin;
+  animation-delay: var(--fa-animation-delay, 0s);
+  animation-direction: var(--fa-animation-direction, normal);
+  animation-duration: var(--fa-animation-duration, 2s);
+  animation-iteration-count: var(--fa-animation-iteration-count, infinite);
+  animation-timing-function: var(--fa-animation-timing, linear);
+}
+
+@keyframes fa-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fa-spin {
+    animation-delay: -1ms;
+    animation-duration: 1ms;
+    animation-iteration-count: 1;
+    transition-delay: 0s;
+    transition-duration: 0s;
+  }
+}
 
 /* Color Variables */
 :root {
@@ -82,6 +234,24 @@
   --soft-red: #fee2e2;               /* red-100, was #f4e6e6 */
   --soft-yellow: #fef3c7;            /* amber-100, was #eee8a9 */
   --soft-yellow-text: #92400e;       /* amber-800, was #856404 */
+  /* Accessible text on tinted / dark surfaces (WCAG AA 4.5:1, 2026-10). Light values first; dark below. */
+  --soft-red-text: #b91c1c;          /* red-700 — text on --soft-red and error text (5.3:1 on --soft-red) */
+  --soft-red-text-elevated: #b91c1c; /* red text on a raised panel; same as --soft-red-text by day */
+  --accent-purple-text: #6d28d9;     /* violet-700 — purple figures/text (7.1:1 on white) */
+  /* Theme-STABLE fills for white labels on coloured buttons and badges (2026-10). One step darker
+     than the old fills so white text passes AA (>= 5:1); identical in both themes on purpose. */
+  --fill-success: #15803d;           /* green-700, white 5.02:1 */
+  --fill-warning: #c2410c;           /* orange-700, white 5.18:1 */
+  --fill-danger: #b91c1c;            /* red-700, white 6.47:1 */
+  --fill-neutral: #475569;           /* slate-600, white 7.58:1 */
+  --fill-info-cyan: #0e7490;         /* cyan-700, white 5.36:1 */
+  --fill-accent: #7e22ce;            /* purple-700, white 6.98:1 */
+  --fill-pink: #be185d;              /* pink-700, white 6.04:1 */
+  --text-muted-on-tint: #475569;     /* slate-600 — secondary text on --soft-blue (6.2:1); --text-muted is 3.9:1 there */
+  --primary-color-text: #2563eb;     /* brand blue AS TEXT: same as --primary-color in day, lifted at night */
+  --primary-text-elevated: #1d4ed8;  /* blue text on --surface-elevated cards (night value differs) */
+  --amber-text: #b45309;             /* amber-700 — "please note" labels on white (5.0:1) */
+  --text-muted-on-elevated: #64748b; /* muted text that may sit on --surface-elevated (night value differs) */
   --mint-fresh-border: #bbf7d0;      /* green-200 sRGB fallback */
   --soft-lavender: #a5b4fc;          /* indigo-300, was #9ea8df */
   --soft-lavender-background: linear-gradient(135deg, #a5b4fc 0%, #c7d2fe 100%);
@@ -282,6 +452,14 @@
   --soft-red: #2a1518;
   --soft-yellow: #2a2208;             /* darker amber wash */
   --soft-yellow-text: #fcd34d;        /* readable amber on dark */
+  --soft-red-text: #f87171;           /* red-400 — same as night --bright-red (6.2:1 on --soft-red) */
+  --soft-red-text-elevated: #fca5a5;  /* red-300 — on --surface-elevated (5.5:1); red-400 is only 3.7:1 there */
+  --accent-purple-text: #c4b5fd;      /* violet-300 — 7.9:1 on --surface */
+  --text-muted-on-tint: #94a3b8;      /* same as night --text-muted */
+  --primary-color-text: #60a5fa;      /* blue-400 — --primary-color text was 2.8:1 on --surface */
+  --primary-text-elevated: #93c5fd;   /* blue-300 — 5.7:1 on --surface-elevated (#60a5fa is 4.1:1 there) */
+  --amber-text: #fbbf24;              /* amber-400 — 6.2:1 on --surface-elevated */
+  --text-muted-on-elevated: #cbd5e1;  /* slate-300 — 7.0:1 on --surface-elevated; dropdown placeholders, gift-card options */
   --soft-lavender-background: linear-gradient(135deg, #1e1e2e 0%, #1a1a2e 100%);
   --soft-lavender-background-light: linear-gradient(135deg, #1e1e2e 0%, #1a1a2e 100%);
   --soft-yellow-background: linear-gradient(135deg, #2a2208 0%, #1a1505 100%);
@@ -485,7 +663,7 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-family: 'Inter', 'Inter Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     -webkit-tap-highlight-color: transparent;
     -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
     
@@ -571,7 +749,7 @@ textarea::placeholder {
   display: block;
   margin-top: 4px;
   font-size: 0.85rem;
-  color: var(--text-muted);
+  color: var(--text-muted-on-elevated);
   text-align: right;
 
   &--limit {
@@ -592,7 +770,7 @@ textarea::placeholder {
 /* Google button content – height match, bold text (Inter 16px 700) */
 asl-google-signin-button,
 asl-google-signin-button * {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-family: 'Inter', 'Inter Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     font-size: 16px !important;
     font-weight: 700 !important;
 }
@@ -601,7 +779,7 @@ asl-google-signin-button div[role="button"] > div > div > div {
     align-items: center !important;
     justify-content: center !important;
     gap: 8px !important;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-family: 'Inter', 'Inter Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
     font-size: 16px !important;
     font-weight: 700 !important;
 }
@@ -615,7 +793,7 @@ asl-google-signin-button div[role="button"] > div > div > div {
     flex-direction: column;
     justify-content: center;
     margin-top: 10px;
-    font-family: 'Fraunces', serif;
+    font-family: 'Fraunces', 'Fraunces Fallback', serif;
     font-weight: 600;
     line-height: 0.95;
     white-space: nowrap;
@@ -1135,4 +1313,18 @@ body.has-coverage-bar {
     .chat-panel { bottom: calc(182px + env(safe-area-inset-bottom, 0px)); }
     .social-sticky-banners { top: 74%; }
   }
+}
+
+// Visually hidden, still read by screen readers (table headers for icon-only columns, page
+// headings a design does not show). Several components carry a local copy; this is the shared one.
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

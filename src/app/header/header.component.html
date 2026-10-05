@@ -1,19 +1,22 @@
 <header class="header">
   <div class="header-inner">
     <div class="container">
-      <nav class="nav">
+      <nav class="nav" aria-label="Main">
       <a routerLink="/" class="logo" aria-label="Dream Cleaning home">
-        <img src="/images/logo.svg" alt="" class="logo-img logo-img--day">
-        <img src="/images/logo-white.svg" alt="" class="logo-img logo-img--night">
+        <img src="/images/logo.svg" alt="" class="logo-img logo-img--day" width="60" height="60">
+        <img src="/images/logo-white.svg" alt="" class="logo-img logo-img--night" width="60" height="60">
         <span class="logo-wordmark">
           <span class="logo-wordmark__line">Dream</span>
           <span class="logo-wordmark__line">Cleaning</span>
         </span>
       </a>
-      <span class="ny-time-clock" *ngIf="isAdminOrSuperAdmin && nyTime">{{ nyTime }}</span>
+      <!-- Server-rendered for an admin (layout hint), so it never pops in. -->
+      <span class="ny-time-clock" *ngIf="clockVisible">{{ nyTime }}</span>
       <div class="nav-container">
-        <!-- Bubble Rewards Badge — shown for logged-in non-admin customers (kept at the left of the cluster) -->
-        <app-bubble-badge *ngIf="isBrowser && showAuthUI && !shouldShowLogin()"></app-bubble-badge>
+        <!-- Bubble Rewards Badge (kept at the left of the cluster). Its slot is part of the server
+             render when the layout hint says the badge shows; it holds an invisible same-size
+             placeholder until the points arrive, so the nav never moves. -->
+        <app-bubble-badge *ngIf="badgeVisible" (availability)="onPointsBadgeAvailability($event)"></app-bubble-badge>
         <div class="nav-links" id="mobile-navigation">
           <!-- Cleaning Services Mega Dropdown -->
           <div class="has-dropdown services-dropdown"
@@ -208,216 +211,14 @@
             </div>
           </div>
           <ng-container *ngIf="showAuthUI && isBrowser">
-            <ng-container *ngIf="shouldShowLogin(); else userMenu">
-              <div class="guest-auth-actions">
-                <div class="guest-auth-menu" (click)="toggleLoginMenu($event)">
-                  <div class="login-avatar">
-                    <i class="fas fa-user"></i>
-                    <svg class="chevron-down" viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-                      <g fill-rule="evenodd" transform="translate(-448 -544)">
-                        <path fill-rule="nonzero" d="M452.707 549.293a1 1 0 0 0-1.414 1.414l4 4a1 1 0 0 0 1.414 0l4-4a1 1 0 0 0-1.414-1.414L456 552.586l-3.293-3.293z"></path>
-                      </g>
-                    </svg>
-                  </div>
-                  <div class="dropdown-menu" *ngIf="isLoginMenuOpen" (click)="$event.stopPropagation()">
-                    <div class="guest-menu-header">
-                      <span>Theme</span>
-                      <button type="button"
-                              class="theme-toggle theme-toggle--inline"
-                              (click)="toggleTheme(); $event.stopPropagation()"
-                              [attr.aria-label]="isDark ? 'Switch to light mode' : 'Switch to dark mode'">
-                        <span class="theme-icon theme-icon-sun" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" width="18" height="18">
-                            <circle cx="12" cy="12" r="3.5" fill="currentColor"/>
-                            <path d="M12 1v3m0 16v3M4.22 4.22l2.12 2.12m11.32 11.32l2.12 2.12M1 12h3m16 0h3M4.22 19.78l2.12-2.12M19.78 4.22l-2.12 2.12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                          </svg>
-                        </span>
-                        <span class="theme-icon theme-icon-moon" aria-hidden="true">
-                          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                        </span>
-                      </button>
-                    </div>
-                    <a (click)="openLoginModal($event); closeLoginMenu()">Log In</a>
-                    <a (click)="openRegisterModal($event); closeLoginMenu()">Sign Up</a>
-                  </div>
-                </div>
-              </div>
-            </ng-container>
-            <ng-template #userMenu>
-              <div class="user-menu" (click)="toggleUserMenu($event)" *ngIf="shouldShowUserMenu()">
-              <div class="user-avatar">
-                <img *ngIf="currentUser?.profilePictureUrl" 
-                     [src]="currentUser.profilePictureUrl" 
-                     [alt]="currentUser.firstName + ' ' + currentUser.lastName"
-                     class="user-avatar-img">
-                <span *ngIf="!currentUser?.profilePictureUrl" class="user-initials">
-                  {{ userInitials }}
-                </span>
-                <!-- Unpaid orders notification indicator -->
-                <span class="unpaid-orders-indicator" *ngIf="hasUnpaidOrders"></span>
-                <!-- New order indicator for admins -->
-                <span class="new-order-indicator" *ngIf="hasUnviewedNewOrders && isAdminOrSuperAdmin"></span>
-                <!--
-                  RETIRED (2026-09) along with the Tasks menu entry below: Tasks is not in use for
-                  now. The avatar dots went with the link rather than after it - a notification dot
-                  with nothing in the menu to click is a dot that leads nowhere.
-
-                  Nothing behind them was removed. `hasPendingPersonalTasks` /
-                  `hasUncheckedDoneTasks` are still computed and still refreshed over SignalR, and
-                  /admin/tasks is untouched, so bringing this back is uncommenting these two lines
-                  and the menu entry.
-
-                  <span class="task-indicator" *ngIf="hasPendingPersonalTasks && isAdminOrSuperAdmin"></span>
-                  <span class="done-task-indicator" *ngIf="hasUncheckedDoneTasks && isAdminOrSuperAdmin"></span>
-                -->
-                <svg class="chevron-down" viewBox="0 0 16 16" width="12" height="12" fill="currentColor">
-                  <g fill-rule="evenodd" transform="translate(-448 -544)">
-                    <path fill-rule="nonzero" d="M452.707 549.293a1 1 0 0 0-1.414 1.414l4 4a1 1 0 0 0 1.414 0l4-4a1 1 0 0 0-1.414-1.414L456 552.586l-3.293-3.293z"></path>
-                  </g>
-                </svg>
-              </div>
-              <div class="dropdown-menu" *ngIf="isUserMenuOpen" (click)="$event.stopPropagation()">
-                <div class="user-info">
-                  <div class="user-info__name">
-                    {{ currentUser?.firstName }}
-                    <small class="user-role"
-                           [class.role-superadmin]="currentUser?.role === 'SuperAdmin'"
-                           [class.role-admin]="currentUser?.role === 'Admin'"
-                           [class.role-moderator]="currentUser?.role === 'Moderator'"
-                           [class.role-customer]="currentUser?.role === 'Customer'">
-                      {{ displayRole(currentUser?.role) }}
-                    </small>
-                  </div>
-                  <button type="button" class="theme-toggle theme-toggle--inline" (click)="toggleTheme(); $event.stopPropagation()" [attr.aria-label]="isDark ? 'Switch to light mode' : 'Switch to dark mode'">
-                    <span class="theme-icon theme-icon-sun" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" width="18" height="18">
-                        <circle cx="12" cy="12" r="3.5" fill="currentColor"/>
-                        <path d="M12 1v3m0 16v3M4.22 4.22l2.12 2.12m11.32 11.32l2.12 2.12M1 12h3m16 0h3M4.22 19.78l2.12-2.12M19.78 4.22l-2.12 2.12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                      </svg>
-                    </span>
-                    <span class="theme-icon theme-icon-moon" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                    </span>
-                  </button>
-                </div>
-                <!-- Cleaner accounts have no customer side: no profile to edit, no orders of
-                     their own and no rewards balance. Their one destination is the portal. -->
-                <a routerLink="/cleaner-portal"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="isCleanerAccount">
-                  My Jobs
-                </a>
-                <a routerLink="/profile" (click)="closeAllMenus(); $event.stopPropagation()" *ngIf="!isCleanerAccount">Profile</a>
-                <a routerLink="/profile" (click)="closeAllMenus(); $event.stopPropagation()" class="orders-menu-item" *ngIf="!isCleanerAccount">
-                  My Orders
-                  <span class="unpaid-orders-menu-indicator" *ngIf="hasUnpaidOrders"></span>
-                </a>
-                <a routerLink="/rewards" (click)="closeAllMenus(); $event.stopPropagation()" *ngIf="!isCleanerAccount">My Rewards</a>
-                <!-- Business customers only, and only once they actually have a contract. Driven
-                     by one cheap boolean endpoint that applies both halves of that rule, so a
-                     residential customer and a business with nothing on file both see nothing. -->
-                <a routerLink="/profile/contracts"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="!isCleanerAccount && hasContracts">
-                  My Contracts
-                </a>
-                <!-- Its own boolean, not a reuse of hasContracts: commercial work is routinely
-                     invoiced without a signed agreement, and an agreement may have nothing billed
-                     against it yet. Each entry appears on its own evidence. -->
-                <a routerLink="/profile/invoices"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="!isCleanerAccount && hasInvoices">
-                  My Invoices
-                </a>
-                <a routerLink="/admin"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'"
-                   class="admin-panel-menu-item">
-                  Admin Panel
-                  <span class="new-order-menu-indicator" *ngIf="hasUnviewedNewOrders"></span>
-                </a>
-                <a routerLink="/admin/crm"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'">
-                  CRM
-                </a>
-                <!-- Contracts became its own top-level section (2026-09), then joined Invoices
-                     and Clients under Commercial. Role-gated the same way as CRM here; the
-                     Contracts permission matrix and the invoicing role checks are both enforced
-                     server-side on every action inside it. -->
-                <a routerLink="/admin/commercial"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin'">
-                  Commercial
-                </a>
-                <!-- Company shell (Statistics/Expenses/Finances/Ads) — single entry, shown only when
-                     the user can see at least one tab. Replaces the old separate Stats/Expenses/
-                     Finances links (those routes still exist as redirects for old bookmarks). -->
-                <a routerLink="/admin/company"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="canViewCompany()">
-                  Company
-                </a>
-                <!-- SuperAdmin only: cleaner wages and the record of paying them. Gated on the
-                     role here and by superAdminGuard on the route. -->
-                <a routerLink="/admin/outgoing-payments"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="currentUser?.role === 'SuperAdmin'">
-                  Outgoing Payments
-                </a>
-                <a routerLink="/admin/blog"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'"
-                   class="blog-menu-item">
-                  Blog
-                  <span class="pending-drafts-badge" *ngIf="pendingBlogDrafts > 0">{{ pendingBlogDrafts }}</span>
-                </a>
-                <a routerLink="/cleaners-dashboard"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin' || currentUser?.role === 'Moderator'">
-                  Cleaners
-                </a>
-                <!--
-                  "All Cleanings" MOVED (2026-09) into /cleaners-dashboard as its Portal tab, so an
-                  admin has one door to the cleaners section instead of two entries that opened
-                  different halves of it. The Cleaners link above reaches both tabs, and
-                  /cleaner-portal now redirects a system-wide role there, so old bookmarks land on
-                  the Portal tab rather than 404ing or opening an orphaned copy.
-                -->
-                <!--
-                  RETIRED (2026-09): Tasks is not in use for now. Only this menu entry and the two
-                  avatar dots went - /admin/tasks, its route, its guard and everything on the page
-                  are untouched, and the counts behind the badges are still computed, so restoring
-                  is uncommenting this block.
-
-                  <a routerLink="/admin/tasks"
-                     (click)="closeAllMenus(); $event.stopPropagation()"
-                     *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin'"
-                     class="tasks-menu-item">
-                    Tasks
-                    <span class="task-menu-indicator" *ngIf="hasPendingPersonalTasks"></span>
-                    <span class="done-task-menu-indicator" *ngIf="hasUncheckedDoneTasks && !hasPendingPersonalTasks"></span>
-                  </a>
-                -->
-                <a routerLink="/admin/shifts"
-                   (click)="closeAllMenus(); $event.stopPropagation()"
-                   *ngIf="currentUser?.role === 'SuperAdmin' || currentUser?.role === 'Admin'">
-                  Shifts
-                </a>
-                <!-- Statistics / Expenses / Finances collapsed into the single "Company" entry above.
-                     Bubble Rewards MOVED (2026-09) into the admin panel as its SuperAdmin-only
-                     Rewards tab, so it has no entry of its own here either; /admin/rewards
-                     redirects onto that tab. -->
-                <a (click)="logout(); closeAllMenus(); $event.stopPropagation()">Logout</a>
-              </div>
-            </div>
-            </ng-template>
+            <app-header-account-menu></app-header-account-menu>
           </ng-container>
         </div>
         <!-- Mobile-only phone icon — always available now that the sticky CTA bar no longer has a call button -->
+        <!-- Rendered on the server too: the stylesheet shows it only in the mobile layout
+             (max-width 768px or no hover), so an isMobile *ngIf here only made it pop in. -->
         <a [href]="phoneNumber.telHref()"
            class="mobile-phone-icon"
-           *ngIf="isMobile"
            [attr.aria-label]="'Call ' + phoneNumber.displayNumber()">
           <svg viewBox="0 0 24 24" fill="currentColor" class="phone-icon-svg">
             <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
@@ -427,7 +228,6 @@
         <a routerLink="/free-quote"
            routerLinkActive="active"
            class="mobile-quote-btn"
-           *ngIf="isMobile"
            (click)="closeMobileMenu()">Get a Quote</a>
       </div>
       </nav>

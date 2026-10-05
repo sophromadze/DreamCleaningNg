@@ -30,27 +30,27 @@
       <input type="text" placeholder="Search name, phone, email, address…"
              [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()" />
     </div>
-    <select [(ngModel)]="stageFilter" (ngModelChange)="onStageFilterChange()" class="source-select">
+    <select aria-label="Filter by stage" [(ngModel)]="stageFilter" (ngModelChange)="onStageFilterChange()" class="source-select">
       <option value="">All stages</option>
       <option *ngFor="let s of stages" [value]="s">{{ s }}</option>
       <option value="Archived">Archived</option>
     </select>
-    <select [(ngModel)]="sourceFilter" (ngModelChange)="onSourceFilterChange()" class="source-select">
+    <select aria-label="Filter by source" [(ngModel)]="sourceFilter" (ngModelChange)="onSourceFilterChange()" class="source-select">
       <option value="">All sources</option>
       <option *ngFor="let s of sources" [value]="s">{{ sourceLabel(s) }}</option>
     </select>
-    <select [(ngModel)]="typeFilter" (ngModelChange)="onTypeFilterChange()" class="source-select">
+    <select aria-label="Filter by type" [(ngModel)]="typeFilter" (ngModelChange)="onTypeFilterChange()" class="source-select">
       <option value="">All types</option>
       <option *ngFor="let t of types" [value]="t">{{ t }}</option>
     </select>
-    <select [(ngModel)]="periodFilter" (ngModelChange)="onPeriodFilterChange()" class="source-select">
+    <select aria-label="Period" [(ngModel)]="periodFilter" (ngModelChange)="onPeriodFilterChange()" class="source-select">
       <option value="">All time</option>
       <option value="today">This day</option>
       <option value="week">This week</option>
       <option value="month">This month</option>
       <option value="year">This year</option>
     </select>
-    <select [(ngModel)]="dateFieldFilter" (ngModelChange)="onDateFieldChange()" class="source-select"
+    <select aria-label="Which date the period filter applies to" [(ngModel)]="dateFieldFilter" (ngModelChange)="onDateFieldChange()" class="source-select"
             [disabled]="!periodFilter" title="Which date the period filter applies to">
       <option value="created">By created date</option>
       <option value="activity">By last activity</option>
@@ -99,7 +99,7 @@
           <div class="card-actions" (click)="$event.stopPropagation()">
             <button class="move-btn" [disabled]="!canMoveLeft(lead)"
                     (click)="moveStage(lead, -1, $event)" title="Move back">◀</button>
-            <select class="stage-select" [ngModel]="lead.stage"
+            <select aria-label="Stage" class="stage-select" [ngModel]="lead.stage"
                     (ngModelChange)="onStageSelect(lead, $event)">
               <option *ngFor="let s of stages" [value]="s">{{ s }}</option>
             </select>
@@ -168,7 +168,7 @@
   <aside class="detail-panel" *ngIf="selectedLead" [class.open]="selectedLead">
     <div class="panel-header">
       <div>
-        <h3>{{ selectedLead.fullName || 'Unnamed lead' }}</h3>
+        <h2>{{ selectedLead.fullName || 'Unnamed lead' }}</h2>
         <span class="stage-pill" [ngClass]="stageClass(selectedLead.stage)">{{ selectedLead.stage }}</span>
         <span class="type-badge" [ngClass]="'type-' + selectedLead.type.toLowerCase()">{{ selectedLead.type }}</span>
         <span class="source-badge" [ngClass]="'src-' + selectedLead.source.toLowerCase()">{{ sourceLabel(selectedLead.source) }}</span>
@@ -218,7 +218,7 @@
 
       <!-- Activity timeline -->
       <section class="timeline">
-        <h4>Activity</h4>
+        <h3>Activity</h3>
         <div class="add-note">
           <textarea rows="2" placeholder="Log a call, note, or next step…" [(ngModel)]="newNote"></textarea>
           <button class="btn-note" (click)="addNote()" [disabled]="addingNote || !newNote.trim()">Add</button>
@@ -244,7 +244,7 @@
   <div class="modal-overlay" *ngIf="showAddModal" (click)="closeAddModal()">
     <div class="modal" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h3>Add lead</h3>
+        <h2>Add lead</h2>
         <button class="close-btn" (click)="closeAddModal()">✕</button>
       </div>
       <div class="modal-body edit-grid">

@@ -6,7 +6,7 @@
       <p class="subtitle">Detailed top-to-bottom deep cleaning by Dream Cleaning NYC — trusted by homes and apartments across NYC.</p>
       <p class="first-time-discount" *ngIf="firstTimeDiscountLabel">
         <span class="first-time-discount__pill">
-          <i class="fas fa-tags" aria-hidden="true"></i>
+          <i [appIcon]="icons.faTags" aria-hidden="true"></i>
           New customer? Save <strong>{{ firstTimeDiscountLabel }}</strong> on your first cleaning.
         </span>
       </p>
@@ -21,7 +21,7 @@
     <div class="content-section">
       <div class="intro-text">
         <p>Dream Cleaning's deep cleaning service is a detailed, top-to-bottom cleaning solution for apartments, condos, brownstones, and family homes in Brooklyn, Manhattan, Queens, and across NYC. Our trained local cleaners go far beyond standard residential cleaning to restore freshness, hygiene, and long-lasting cleanliness in every room.</p>
-        <p><strong>Starting from ${{ pricing.deepFrom }}.</strong> Designed for homes that need more than routine maintenance, our NYC deep cleaning service targets stubborn buildup, kitchen grease, soap scum, hidden dust, baseboards, door frames, light switches, and other hard-to-reach areas often missed during regular cleanings — making it the perfect choice for first-time customers, seasonal resets, and pre-event preparation.</p>
+        <p>@if (pricing().deepFrom; as p) {<strong>Starting from {{ p }}.</strong> }Designed for homes that need more than routine maintenance, our NYC deep cleaning service targets stubborn buildup, kitchen grease, soap scum, hidden dust, baseboards, door frames, light switches, and other hard-to-reach areas often missed during regular cleanings — making it the perfect choice for first-time customers, seasonal resets, and pre-event preparation.</p>
       </div>
 
       <div class="why-deep-cleaning">
@@ -54,7 +54,7 @@
               <li>Trash removal and light bin wipe</li>
             </ul>
             <div class="image-placeholder right">
-              <img src="/images/kitchen-deep-cleaning.webp" alt="Kitchen Deep Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
+              <img src="/images/kitchen-deep-cleaning.webp" cardImage="serviceCategory" alt="Kitchen Deep Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
             </div>
           </div>
           <div class="add-ons">
@@ -106,7 +106,7 @@
               <li>Trash removal (up to 1-2 standard bags)</li>
             </ul>
             <div class="image-placeholder right">
-              <img src="/images/deep-cleaning2.webp" alt="Bedroom and Living Area Deep Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
+              <img src="/images/deep-cleaning2.webp" cardImage="serviceCategory" alt="Bedroom and Living Area Deep Cleaning Services in Manhattan, Brooklyn & Queens" loading="lazy">
             </div>
           </div>
           <div class="add-ons">
@@ -120,29 +120,29 @@
       </div>
 
       <div class="what-we-cannot">
-        <h2><i class="fas fa-exclamation-triangle"></i> Pricing & Estimates</h2>
+        <h2><i [appIcon]="icons.faTriangleExclamation"></i> Pricing & Estimates</h2>
         <div class="limitations-grid">
           <div class="limitation-item">
             <div class="limitation-icon">
-              <i class="fas fa-home"></i>
+              <i [appIcon]="icons.faHouse"></i>
             </div>
             <span>Size (square footage)</span>
           </div>
           <div class="limitation-item">
             <div class="limitation-icon">
-              <i class="fas fa-bed"></i>
+              <i [appIcon]="icons.faBed"></i>
             </div>
             <span>Number of bedrooms and bathrooms</span>
           </div>
           <div class="limitation-item">
             <div class="limitation-icon">
-              <i class="fas fa-search"></i>
+              <i [appIcon]="icons.faMagnifyingGlass"></i>
             </div>
             <span>Current condition of the home</span>
           </div>
           <div class="limitation-item">
             <div class="limitation-icon">
-              <i class="fas fa-list-check"></i>
+              <i [appIcon]="icons.faListCheck"></i>
             </div>
             <span>Level of buildup and detail required</span>
           </div>

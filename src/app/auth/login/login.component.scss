@@ -21,7 +21,7 @@
     text-align: center;
     margin-bottom: 32px;
   
-    h2 {
+    h1 {
       color: #333;
       font-size: 28px;
       margin-bottom: 8px;
@@ -375,7 +375,7 @@
     }
   
     .auth-header {
-      h2 {
+      h1 {
         font-size: 24px;
       }
   
@@ -396,7 +396,7 @@
     border: 1px solid var(--border-color);
   }
   .auth-header {
-    h2 {
+    h1 {
       color: var(--text-primary);
     }
     p {
@@ -435,7 +435,7 @@
   .auth-footer {
     color: var(--text-secondary);
     .toggle-link {
-      color: var(--primary-color);
+      color: var(--primary-text-elevated);
     }
   }
   .error-banner {

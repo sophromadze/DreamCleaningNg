@@ -24,6 +24,7 @@ import {
   type BoroughType,
 } from '../data/zip-code-data';
 import { ThemeService } from '../services/theme.service';
+import { environment } from '../../environments/environment';
 
 /** Served from public folder at site root so production can load it reliably. */
 const GEOJSON_URL = '/nyc-zip-codes.json';
@@ -32,6 +33,20 @@ const ZIP_PROP_KEYS = ['postalCode', 'ZIPCODE', 'ZCTA5CE10', 'zcta5'];
 
 /** ZIPs where the GeoJSON has separate island features; we keep only the northernmost (mainland) feature. All other ZIPs show every feature (full area). */
 const ZIPS_WITH_ISLANDS = new Set(['10004', '10005']);
+
+/**
+ * CARTO basemap tiles. Without `?key=` CARTO serves an "API KEY REQUIRED" placeholder tile.
+ * The key is Referer-restricted to our domains, so tiles 403 from anywhere else (incl. localhost).
+ */
+const CARTO_TILE_BASE = 'https://{s}.basemaps.cartocdn.com';
+
+/** Credit required by the CARTO and OpenStreetMap terms — must stay visible on the map. */
+const TILE_LAYER_OPTIONS = {
+  attribution:
+    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19,
+};
 
 /** For MultiPolygons, keep only the single largest part (mainland only; drop islands). */
 
@@ -386,11 +401,7 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
       });
       L.control.zoom({ position: 'topright' }).addTo(this.map);
 
-      this.tileLayer = L.tileLayer(this.getTileUrl(), {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 19,
-      }).addTo(this.map) as import('leaflet').TileLayer;
+      this.tileLayer = this.createTileLayer(L).addTo(this.map!);
 
       const serviceSet = new Set(this.serviceZipCodes);
 
@@ -471,19 +482,21 @@ export class ServiceAreaMapComponent implements AfterViewInit, OnDestroy {
   }
 
   private getTileUrl(): string {
-    return this.themeService.theme === 'dark'
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+    const style = this.themeService.theme === 'dark' ? 'dark_all' : 'light_all';
+    const key = environment.cartoBasemapsKey;
+    const query = key ? `?key=${encodeURIComponent(key)}` : '';
+    return `${CARTO_TILE_BASE}/${style}/{z}/{x}/{y}{r}.png${query}`;
+  }
+
+  /** The one place the basemap layer is built — used on first init and on every theme switch. */
+  private createTileLayer(L: typeof import('leaflet')): import('leaflet').TileLayer {
+    return L.tileLayer(this.getTileUrl(), TILE_LAYER_OPTIONS);
   }
 
   private updateMapTileLayer(): void {
     if (!this.map || !this.L) return;
     if (this.tileLayer) this.map.removeLayer(this.tileLayer);
-    this.tileLayer = this.L.tileLayer(this.getTileUrl(), {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-      subdomains: 'abcd',
-      maxZoom: 19,
-    }).addTo(this.map) as import('leaflet').TileLayer;
+    this.tileLayer = this.createTileLayer(this.L).addTo(this.map);
     this.cdr.markForCheck();
   }
 

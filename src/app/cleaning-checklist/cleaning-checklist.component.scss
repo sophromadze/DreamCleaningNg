@@ -15,7 +15,7 @@
 
 .eyebrow {
   margin: 0 0 0.75rem;
-  color: var(--primary-color);
+  color: var(--primary-color-text);
   font-size: 0.8rem;
   font-weight: var(--fw-black);
   letter-spacing: 0.12em;
@@ -445,7 +445,7 @@
   }
 
   &--no {
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     background: var(--soft-red);
   }
 }
@@ -572,7 +572,7 @@
 
     i,
     h3 {
-      color: var(--bright-red);
+      color: var(--soft-red-text);
     }
   }
 }

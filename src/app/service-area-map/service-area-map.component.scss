@@ -49,14 +49,14 @@
   font-size: 0.95rem;
   font-weight: 500;
   color: #fff;
-  background: #1e90ff;
+  background: var(--primary-color);
   border: none;
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.2s, transform 0.1s;
 
   &:hover {
-    background: #1873cc;
+    background: var(--primary-color-hover);
   }
 
   &:active {
@@ -124,9 +124,34 @@
   background: var(--page-bg) !important;
 }
 
-/* Hide Leaflet attribution (bottom-right) */
-:host ::ng-deep .leaflet-bottom.leaflet-right {
-  display: none !important;
+/* Map credit (bottom-right). The CARTO + OpenStreetMap terms require it to stay VISIBLE — never
+   hide it. It sits inside .map-container (overflow: hidden, above the search bar in both
+   variants), so it cannot overlap the ZIP input or the sticky bar. */
+:host ::ng-deep .leaflet-control-attribution {
+  margin: 0;
+  padding: 1px 6px;
+  font-size: 10px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  background: var(--surface-overlay);
+  border-top-left-radius: 4px;
+
+  a {
+    color: var(--text-secondary);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  :host ::ng-deep .leaflet-control-attribution {
+    max-width: 100%;
+    font-size: 9px;
+    padding: 0 4px;
+  }
 }
 
 /* ============================================================

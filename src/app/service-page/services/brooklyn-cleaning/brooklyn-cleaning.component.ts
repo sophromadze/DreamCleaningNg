@@ -1,48 +1,66 @@
-import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
-import { CommonModule, DOCUMENT } from '@angular/common';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
-import { GooglePlacesService } from '../../../services/google-reviews.service';
+import {
+  GooglePlacesService,
+  ReviewStats,
+  aggregateRatingSchema,
+  formatRating,
+  formatReviewCount
+} from '../../../services/google-reviews.service';
 import { ServiceAreaMapComponent } from '../../../service-area-map/service-area-map.component';
 import { HomeHeroComponent } from '../../../shared/components/home-hero/home-hero.component';
 import { BROOKLYN_ZIPS } from '../../../data/zip-code-data';
-import { SERVICE_PRICING } from '../../../shared/service-pricing.data';
+import { MarketingPricingService } from '../../../shared/pricing/marketing-pricing.service';
+import { listStartingPrices, priceFragment } from '../../../shared/pricing/marketing-price-format';
 import { environment } from '../../../../environments/environment';
+import { CardImageDirective } from '../../../shared/images/card-image.directive';
+import { StructuredDataService } from '../../../services/structured-data.service';
 
 @Component({
   selector: 'app-brooklyn-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterModule, ServiceAreaMapComponent, HomeHeroComponent],
+  imports: [CommonModule, RouterModule, ServiceAreaMapComponent, HomeHeroComponent, CardImageDirective],
   templateUrl: './brooklyn-cleaning.component.html',
   styleUrls: ['./brooklyn-cleaning.component.scss']
 })
 export class BrooklynCleaningComponent implements OnInit, OnDestroy {
-  totalReviews: number = 0;
+  /** Google review count/rating (shared /stats endpoint); null until loaded or in local dev. */
+  stats: ReviewStats | null = null;
   showGoogleReviews = environment.production;
   brooklynZips = Object.keys(BROOKLYN_ZIPS);
   brooklynMapCenter: [number, number] = [40.6502, -73.9496];
   brooklynZoom = 11;
-  readonly pricing = SERVICE_PRICING;
-  private schemaElement: HTMLScriptElement | null = null;
+  private readonly marketingPricing = inject(MarketingPricingService);
+  /** Prices from the booking catalogue; null = fragment left out (MarketingPricingService). */
+  readonly pricing = this.marketingPricing.text;
+  private readonly structuredData = inject(StructuredDataService);
 
   constructor(
-    private googlePlacesService: GooglePlacesService,
-    @Inject(DOCUMENT) private document: Document
+    private googlePlacesService: GooglePlacesService
   ) {}
 
   ngOnInit() {
     if (this.showGoogleReviews) {
-      this.googlePlacesService.getReviews().subscribe({
-        next: (data) => this.totalReviews = data.totalReviews,
-        error: (err) => console.error('Error loading reviews:', err)
+      this.googlePlacesService.getStats().subscribe(stats => {
+        this.stats = stats;
+        this.injectSchema();
       });
+    } else {
+      this.injectSchema();
     }
-    this.injectSchema();
+  }
+
+  get ratingLabel(): string {
+    return this.stats ? formatRating(this.stats.rating) : '';
+  }
+
+  get reviewCountLabel(): string {
+    return this.stats ? formatReviewCount(this.stats.total) : '';
   }
 
   ngOnDestroy(): void {
-    if (this.schemaElement && this.schemaElement.parentNode) {
-      this.schemaElement.parentNode.removeChild(this.schemaElement);
-    }
+    this.structuredData.remove('ld-brooklyn-cleaning');
   }
 
   private injectSchema(): void {
@@ -50,7 +68,7 @@ export class BrooklynCleaningComponent implements OnInit, OnDestroy {
       '@context': 'https://schema.org',
       '@type': 'LocalBusiness',
       'name': 'Dream Cleaning - Brooklyn',
-      'description': `Dream Cleaning provides professional cleaning services across 38 ZIP codes in Brooklyn, New York — including Park Slope, Williamsburg, DUMBO, Brooklyn Heights, Bay Ridge, Sunset Park, and Bushwick. Standard cleaning from $${SERVICE_PRICING.residentialFrom}, deep cleaning from $${SERVICE_PRICING.deepFrom}.`,
+      'description': `Dream Cleaning provides professional cleaning services across 38 ZIP codes in Brooklyn, New York — including Park Slope, Williamsburg, DUMBO, Brooklyn Heights, Bay Ridge, Sunset Park, and Bushwick.${priceFragment(listStartingPrices([['Standard cleaning', this.pricing().standardFrom], ['deep cleaning', this.pricing().deepFrom]], 'from'), ' ', '.')}`,
       'url': 'https://dreamcleaningnyc.com/services/brooklyn-cleaning',
       'telephone': '+1-929-930-1525',
       'dateModified': '2026-03-22',
@@ -60,16 +78,9 @@ export class BrooklynCleaningComponent implements OnInit, OnDestroy {
         'name': 'Brooklyn',
         'containedInPlace': { '@type': 'City', 'name': 'New York' }
       },
-      'aggregateRating': {
-        '@type': 'AggregateRating',
-        'ratingValue': '5.0',
-        'reviewCount': '100'
-      }
+      'aggregateRating': aggregateRatingSchema(this.stats)
     };
 
-    this.schemaElement = this.document.createElement('script');
-    this.schemaElement.type = 'application/ld+json';
-    this.schemaElement.textContent = JSON.stringify(schema);
-    this.document.head.appendChild(this.schemaElement);
+    this.structuredData.set('ld-brooklyn-cleaning', schema);
   }
 }

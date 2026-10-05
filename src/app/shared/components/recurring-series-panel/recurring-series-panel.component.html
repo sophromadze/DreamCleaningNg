@@ -23,8 +23,19 @@
       </span>
     </p>
 
-    <p class="rsp-line"><strong>First cleaning:</strong> {{ series.anchorDate | date:'mediumDate' }}</p>
+    <p class="rsp-line"><strong>Recurrence start date:</strong> {{ series.anchorDate | date:'mediumDate' }}</p>
     <p class="rsp-line" *ngIf="series.endDate"><strong>Ends:</strong> {{ series.endDate | date:'mediumDate' }}</p>
+    <p class="rsp-line">
+      <strong>Upcoming cleanings:</strong>
+      <ng-container *ngIf="series.upcomingOccurrenceTarget != null">
+        keeps {{ series.upcomingOccurrenceTarget }} generated ({{ series.upcomingCount ?? 0 }} now).
+      </ng-container>
+      <ng-container *ngIf="series.upcomingOccurrenceTarget == null">the next 30 days are generated.</ng-container>
+    </p>
+    <p class="rsp-line" *ngIf="series.contract">
+      <strong>Contract:</strong> {{ series.contract.contractNumber }}
+      <span *ngIf="series.contract.serviceAddress"> · {{ series.contract.serviceAddress }}</span>
+    </p>
     <p class="rsp-line" *ngIf="series.notes"><strong>Note:</strong> {{ series.notes }}</p>
 
     <!--
@@ -44,10 +55,14 @@
     <p class="rsp-line rsp-line--fact">
       <strong>Payment:</strong>
       <ng-container *ngIf="series.stoppedAt">no automatic payment requests are sent for this stopped plan.</ng-container>
-      <ng-container *ngIf="!series.stoppedAt && series.autoRequestPayment">
+      <ng-container *ngIf="!series.stoppedAt && series.billingControlledByContract">
+        billed by {{ series.contract?.contractNumber }}'s weekly invoice. These cleanings are operational
+        records — no per-cleaning payment requests are sent.
+      </ng-container>
+      <ng-container *ngIf="!series.stoppedAt && !series.billingControlledByContract && series.autoRequestPayment">
         requested automatically, never sooner than 24 hours after the previous cleaning.
       </ng-container>
-      <ng-container *ngIf="!series.stoppedAt && !series.autoRequestPayment">
+      <ng-container *ngIf="!series.stoppedAt && !series.billingControlledByContract && !series.autoRequestPayment">
         the customer can pay whenever they like; nothing is sent automatically.
       </ng-container>
     </p>
@@ -75,7 +90,7 @@
     <ul class="rsp-list">
       <li *ngFor="let o of futureOccurrences" class="rsp-occurrence">
         <span class="rsp-occ-date">{{ o.serviceDate | date:'EEE d MMM' }}</span>
-        <span class="rsp-occ-total">{{ o.total | currency:'USD' }}</span>
+        <span class="rsp-occ-total" *ngIf="!series.billingControlledByContract">{{ o.total | currency:'USD' }}</span>
         <span class="rsp-occ-status" [class.rsp-occ-status--paid]="o.isPaid">
           {{ o.isSkipped ? 'Skipped' : (o.isPaid ? 'Paid' : o.status) }}
         </span>
@@ -88,12 +103,12 @@
         </span>
       </li>
       <li *ngIf="futureOccurrences.length === 0" class="rsp-muted">
-        Nothing scheduled in the next 30 days.
+        {{ series.upcomingOccurrenceTarget != null ? 'No upcoming cleanings.' : 'Nothing scheduled in the next 30 days.' }}
       </li>
     </ul>
 
     <p class="rsp-muted rsp-tiny" *ngIf="series.pendingDates.length > 0">
-      {{ series.pendingDates.length }} date(s) in the next 30 days have no cleaning yet —
+      {{ series.pendingDates.length }} date(s) {{ series.upcomingOccurrenceTarget != null ? 'are still needed to reach the target' : 'in the next 30 days have no cleaning yet' }} —
       they are created by the daily pass, or press Generate now.
     </p>
 
@@ -134,8 +149,8 @@
           <span class="rsp-label">Repeat every</span>
           <div class="rsp-inline">
             <input type="number" min="1" class="rsp-input rsp-input--count" [(ngModel)]="intervalValue"
-                   aria-label="Interval">
-            <select class="rsp-input" [(ngModel)]="intervalUnit" aria-label="Interval unit">
+                   (ngModelChange)="refreshSuggestedFirstCleaning()" aria-label="Interval">
+            <select class="rsp-input" [(ngModel)]="intervalUnit" (ngModelChange)="onIntervalUnitChange()" aria-label="Interval unit">
               <option *ngFor="let u of units" [ngValue]="u.value">{{ u.label }}</option>
             </select>
           </div>
@@ -153,11 +168,50 @@
         Daily cleaning is not supported yet. Choose 2 days or more, or use weeks or months.
       </p>
 
+      <!-- Any combination of weekdays — nothing is excluded for anyone. -->
+      <div class="rsp-field" *ngIf="intervalUnit === Units.Weeks">
+        <span class="rsp-label">Service days</span>
+        <div class="rsp-days" role="group" aria-label="Service days">
+          <button type="button" *ngFor="let d of weekdayChips" class="rsp-day"
+                  [class.rsp-day--on]="serviceDaysOfWeek.includes(d.value)"
+                  [attr.aria-pressed]="serviceDaysOfWeek.includes(d.value)"
+                  (click)="toggleWeekday(d.value)">{{ d.label }}</button>
+        </div>
+        <small class="rsp-hint" *ngIf="isLegacyPattern">
+          This plan repeats on its first cleaning's weekday. Choose days to change that.
+        </small>
+        <small class="rsp-hint" *ngIf="!isLegacyPattern">
+          One cleaning on each selected day of every applicable week, all at the service time below.
+        </small>
+      </div>
+
+      <!-- Days of the month. A day a month does not have (the 31st in April) is skipped that
+           month, never moved to another date. -->
+      <div class="rsp-field" *ngIf="intervalUnit === Units.Months">
+        <span class="rsp-label">Days of month</span>
+        <div class="rsp-days rsp-days--month" role="group" aria-label="Days of month">
+          <button type="button" *ngFor="let d of monthDayChoices" class="rsp-day"
+                  [class.rsp-day--on]="serviceDaysOfMonth.includes(d)"
+                  [attr.aria-pressed]="serviceDaysOfMonth.includes(d)"
+                  (click)="toggleMonthDay(d)">{{ d }}</button>
+        </div>
+        <small class="rsp-hint" *ngIf="isLegacyPattern">
+          This plan repeats on its first cleaning's day of the month. Choose days to change that.
+        </small>
+        <small class="rsp-hint" *ngIf="!isLegacyPattern">
+          A day a month does not have (e.g. the 31st in April) is skipped that month.
+        </small>
+      </div>
+
       <div class="rsp-row">
         <label class="rsp-field">
-          <span class="rsp-label">First cleaning</span>
-          <input type="date" class="rsp-input" [(ngModel)]="anchorDate">
-          <small class="rsp-hint">Leave blank to use this order's own service date.</small>
+          <span class="rsp-label">First recurring cleaning</span>
+          <input type="date" class="rsp-input" [(ngModel)]="anchorDate" (ngModelChange)="onAnchorDateChange()"
+                 aria-label="First recurring cleaning">
+          <small class="rsp-hint">
+            The source order already exists. Choose the first additional cleaning to generate.
+            Leave blank to continue from the source order's service date.
+          </small>
         </label>
         <label class="rsp-field">
           <span class="rsp-label">Ends <span class="rsp-optional">optional</span></span>
@@ -165,12 +219,45 @@
           <small class="rsp-hint">Leave blank to repeat until the plan is paused.</small>
         </label>
       </div>
+
+      <label class="rsp-field">
+        <span class="rsp-label">Generate upcoming cleanings</span>
+        <input type="number" min="1" [max]="maxUpcoming" step="1" class="rsp-input rsp-input--count"
+               [(ngModel)]="upcomingOccurrenceTarget" aria-label="Generate upcoming cleanings">
+        <small class="rsp-hint">
+          Keep this many future cleaning orders ready.
+          <ng-container *ngIf="allowsLegacyWindow"> Leave blank to keep this plan's 30-day window.</ng-container>
+        </small>
+      </label>
+
+      <label class="rsp-field" *ngIf="contractOptions.length || contractId">
+        <span class="rsp-label">Commercial contract <span class="rsp-optional">optional</span></span>
+        <select class="rsp-input" [(ngModel)]="contractId" (ngModelChange)="refreshSuggestedFirstCleaning()"
+                aria-label="Commercial contract">
+          <option [ngValue]="null">No contract</option>
+          <option *ngFor="let c of contractOptions" [ngValue]="c.id">
+            {{ c.contractNumber }} — {{ c.isWeeklyFlatFee ? 'weekly flat fee' : 'per visit' }}
+          </option>
+        </select>
+        <small class="rsp-hint" *ngIf="selectedContract?.serviceAddress">{{ selectedContract?.serviceAddress }}</small>
+      </label>
     </section>
 
     <!-- ── What it costs ── -->
     <section class="rsp-group">
       <h6 class="rsp-group-title">Pricing</h6>
 
+      <div class="rsp-note" *ngIf="billingControlledByContract">
+        <p class="rsp-note-title">Billing is controlled by the linked commercial contract.</p>
+        <p class="rsp-note-body">
+          Individual cleaning orders are operational service records and do not represent separate
+          customer charges. {{ selectedContract?.contractNumber }} bills a flat
+          {{ selectedContract?.preTaxPrice | currency:'USD' }} per service week
+          ({{ selectedContract?.visitsPerWeek }} scheduled visits) on its weekly invoice.
+        </p>
+      </div>
+
+      <ng-container *ngIf="!billingControlledByContract">
       <div class="rsp-note" *ngIf="pricePreview">
         <p class="rsp-note-title">Discounts on the source order</p>
         <p class="rsp-note-body">
@@ -271,10 +358,19 @@
           worth more on the cleaning applies.
         </small>
       </div>
+      </ng-container>
     </section>
 
     <div *ngIf="needsFutureOrdersChoice" class="rsp-alert rsp-alert--notice">
       <p class="rsp-note-title">Future generated orders already exist. Choose how this edit should apply.</p>
+      <p class="rsp-note-body">
+        {{ retainedFutureOccurrences.length }} future cleaning(s) are already generated, through
+        {{ lastRetainedFutureDate | date:'mediumDate' }}.
+        Future generation will use: every {{ intervalValue }} {{ intervalUnit === Units.Weeks ? 'week(s)' : intervalUnit === Units.Months ? 'month(s)' : 'day(s)' }}<ng-container
+          *ngIf="intervalUnit === Units.Weeks && serviceDaysOfWeek.length"> on {{ describeDays(serviceDaysOfWeek, Units.Weeks) }}</ng-container><ng-container
+          *ngIf="intervalUnit === Units.Months && serviceDaysOfMonth.length"> on the {{ describeDays(serviceDaysOfMonth, Units.Months) }}</ng-container>.
+        Nothing already created is moved or deleted automatically.
+      </p>
       <label class="rsp-check">
         <input type="radio" name="futureOrdersAction" value="Keep" [(ngModel)]="futureOrdersAction">
         <span>
@@ -309,7 +405,7 @@
         </span>
       </label>
 
-      <label class="rsp-check">
+      <label class="rsp-check" *ngIf="!billingControlledByContract">
         <input type="checkbox" [(ngModel)]="autoRequestPayment">
         <span>
           Request payment automatically
@@ -319,6 +415,9 @@
           </small>
         </span>
       </label>
+      <p class="rsp-muted rsp-tiny" *ngIf="billingControlledByContract">
+        Automatic payment requests are off: this contract is billed weekly by invoice, not per cleaning.
+      </p>
 
       <label class="rsp-check">
         <input type="checkbox" [(ngModel)]="isActive">

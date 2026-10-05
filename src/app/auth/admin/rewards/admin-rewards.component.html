@@ -56,7 +56,7 @@
             </ng-container>
             <!-- Numeric/text input -->
             <ng-container *ngIf="!isBooleanSetting(setting.settingKey)">
-              <input type="text"
+              <input [attr.aria-label]="getDisplayLabel(setting.settingKey)" type="text"
                      class="setting-input"
                      [value]="group.pendingChanges[setting.settingKey] ?? setting.settingValue"
                      [disabled]="!canEdit"

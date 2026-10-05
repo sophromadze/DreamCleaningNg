@@ -325,6 +325,30 @@
         }
       }
 
+      // "Send later" delivery state (2026-10) - theme-aware tokens, so no dark override needed.
+      .delivery-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        margin-left: 8px;
+
+        &.not-sent {
+          background: var(--soft-yellow);
+          color: var(--soft-yellow-text);
+        }
+
+        &.sent {
+          background: var(--soft-blue);
+          color: var(--primary-text-elevated);
+        }
+      }
+
+      .user-info.not-sent div {
+        font-style: italic;
+        color: var(--text-muted);
+      }
+
       .payment-badge {
         display: inline-block;
         padding: 4px 8px;
@@ -369,7 +393,7 @@
             }
 
             &.activate {
-              background: #28a745;
+              background: var(--fill-success);
               color: white;
 
               &:hover {
@@ -588,7 +612,7 @@
       border-radius: 4px;
 
       &:hover:not(:disabled) {
-        background: #007bff;
+        background: var(--primary-color);
         color: white;
         border-color: #007bff;
       }
@@ -600,7 +624,7 @@
       }
 
       &.active {
-        background: #007bff;
+        background: var(--primary-color);
         color: white;
         border-color: #007bff;
       }
@@ -622,7 +646,7 @@
 
     .close-details-btn {
       padding: 0.5rem 2rem;
-      background-color: #007bff;
+      background-color: var(--primary-color);
       color: white;
       border: none;
       border-radius: 4px;
@@ -658,7 +682,7 @@
       .left-section {
         flex: 1;
         
-        h3 {
+        h2 {
           margin: 0 0 0.5rem 0;
           color: #333;
           font-size: 1.2rem;
@@ -706,7 +730,7 @@
             
             .btn-upload {
               padding: 0.5rem 1.5rem;
-              background: #28a745;
+              background: var(--fill-success);
               color: white;
               border: none;
               border-radius: 4px;
@@ -840,15 +864,15 @@
     background: var(--surface-elevated) !important;
     border-color: var(--border-color);
     .stat-value { color: var(--text-primary) !important; }
-    .stat-label { color: var(--text-muted) !important; }
+    .stat-label { color: var(--text-muted-on-elevated) !important; }
   }
 
   // Gift card background config section
   .gift-card-config-section .config-card {
     background: var(--surface-elevated) !important;
     border-color: var(--border-color);
-    .left-section h3 { color: var(--text-primary) !important; }
-    .config-description { color: var(--text-muted) !important; }
+    .left-section h2 { color: var(--text-primary) !important; }
+    .config-description { color: var(--text-muted-on-elevated) !important; }
     .file-label {
       background: var(--surface) !important;
       color: var(--text-primary) !important;
@@ -858,7 +882,7 @@
         border-color: var(--border-color);
       }
     }
-    .upload-info small { color: var(--text-muted) !important; }
+    .upload-info small { color: var(--text-muted-on-elevated) !important; }
     .background-preview { border-color: var(--border-color); }
   }
 
@@ -951,12 +975,12 @@
     color: var(--text-primary) !important;
     border-color: var(--border-color);
     &:hover:not(:disabled) {
-      background: #007bff !important;
+      background: var(--primary-color) !important;
       color: white !important;
       border-color: #007bff !important;
     }
     &.active {
-      background: #007bff !important;
+      background: var(--primary-color) !important;
       color: white !important;
       border-color: #007bff !important;
     }

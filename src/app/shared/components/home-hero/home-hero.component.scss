@@ -1,3 +1,5 @@
+@use '../../../../styles/icon-urls' as *;
+
 /* =============================================================
    Shared homepage hero styles.
    Extracted from main.component.scss so the hero + booking form
@@ -28,16 +30,6 @@
   &--success {
     background: var(--mint-fresh);
     color: var(--mint-fresh-text);
-  }
-
-  &--warning {
-    background: var(--warning-orange-bg);
-    color: var(--warning-orange-text);
-  }
-
-  &--info {
-    background: var(--soft-blue);
-    color: var(--primary-text);
   }
 }
 
@@ -185,7 +177,7 @@
   &__step {
     font-size: 0.8125rem;
     font-weight: var(--fw-extrabold);
-    color: var(--primary-color);
+    color: var(--primary-color-text);
     margin: 0;
   }
 
@@ -213,7 +205,7 @@
 }
 
 .error-message {
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   font-size: 0.8125rem;
   font-weight: var(--fw-semibold);
 }
@@ -484,26 +476,6 @@
   }
 }
 
-.slider-container {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  width: 200px;
-
-  .slider-quantity {
-    font-size: 0.8125rem;
-    font-weight: var(--fw-extrabold);
-    color: var(--primary-color);
-    min-width: 40px;
-    text-align: right;
-  }
-
-  input[type="range"] {
-    flex: 1;
-    accent-color: var(--primary-color);
-  }
-}
-
 .cleaning-type-buttons {
   display: grid;
   /* Auto-fit: each card needs at least 270px. If the form column is too
@@ -642,17 +614,18 @@
     text-transform: none;
     letter-spacing: 0;
 
+    /* fa-dollar-sign: white glyph as a background layer over the green
+       chip, 1em (= font-size) tall and centred, where the webfont glyph sat.
+       The mobile block below only changes size/font-size, so it follows. */
     &::before {
-      content: "\f155"; /* fa-dollar-sign */
-      font-family: "Font Awesome 6 Free";
-      font-weight: 900;
+      content: "";
       width: 1.5rem;
       height: 1.5rem;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       border-radius: 50%;
-      background: var(--fresh-green);
+      background: icon-url("dollar-sign", #fff) center / auto 1em no-repeat, var(--fresh-green);
       color: #fff;
       font-size: 0.75rem;
       flex-shrink: 0;
@@ -665,72 +638,6 @@
     color: var(--fresh-green);
     letter-spacing: -0.02em;
   }
-}
-
-/* Next-available panel — soft green callout matching the React mockup.
-   The icon now has a pulsing "live" dot that gently signals real-time
-   slot availability — pure visual touch, no JS. */
-.next-available {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.625rem;
-  padding: 0.625rem 0.875rem;
-  background: var(--mint-fresh);
-  border: 1px solid var(--mint-fresh-border);
-  border-radius: var(--radius-lg);
-
-  &__icon {
-    width: 1.25rem;
-    height: 1.25rem;
-    color: var(--fresh-green);
-    flex-shrink: 0;
-    /* Live dot — small green pulse anchored to the calendar icon */
-    position: relative;
-
-    &::after {
-      content: "";
-      position: absolute;
-      top: -2px;
-      right: -2px;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--fresh-green);
-      box-shadow: 0 0 0 2px var(--mint-fresh);
-      animation: nextAvailablePulse 2s ease-in-out infinite;
-    }
-  }
-
-  &__text {
-    display: flex;
-    flex-direction: column;
-    gap: 0.125rem;
-    min-width: 0;
-  }
-
-  &__title {
-    font-size: 1rem;
-    font-weight: var(--fw-black);
-    color: var(--text-primary);
-    margin: 0;
-    line-height: 1.3;
-  }
-}
-
-@keyframes nextAvailablePulse {
-  0%, 100% {
-    transform: scale(1);
-    box-shadow: 0 0 0 2px var(--mint-fresh), 0 0 0 4px rgba(34, 197, 94, 0.0);
-  }
-  50% {
-    transform: scale(1.15);
-    box-shadow: 0 0 0 2px var(--mint-fresh), 0 0 0 8px rgba(34, 197, 94, 0.18);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .next-available__icon::after { animation: none; }
 }
 
 /* Full-width form CTA — soft green halo on hover for extra polish */
@@ -787,32 +694,16 @@
   }
 }
 
-/* Shimmer placeholders inside the form (sized boxes) */
-.shimmer-dropdown {
-  height: 50px;
-  border-radius: var(--radius-md);
-  background: var(--shimmer-bg);
-}
-.shimmer-service-line {
-  height: 52px;
-  border-radius: var(--radius-lg);
-  background: var(--shimmer-bg);
-}
-.shimmer-btn-pill {
-  height: 50px;
-  border-radius: var(--radius-lg);
-  background: var(--shimmer-bg);
-}
-.shimmer-price {
-  height: 28px;
-  width: 80px;
-  border-radius: var(--radius-sm);
-  background: var(--shimmer-bg);
-}
-.shimmer-btn {
-  height: 56px;
-  border-radius: var(--radius-pill);
-  background: var(--shimmer-bg);
+/* Loading placeholders inside the form. They are the real form elements under the global
+   .shimmer-loading (which hides their content and paints the shimmer colour), so every size
+   comes from the same rules as the loaded form at every breakpoint. This strips what would
+   still show through: gradient backgrounds, shadows and the hover lift. */
+.hero-skeleton {
+  background-image: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  cursor: default;
+  pointer-events: none;
 }
 
 /* ===== Hero content (right) ===== */
@@ -949,10 +840,19 @@
     min-height: 430px;
   }
 
+  /* The hero photo. NgOptimizedImage's `fill` mode already makes it absolute, inset 0, 100% x
+     100%; cover + center reproduces the crop of the background-image it replaced exactly. */
+  &__img {
+    object-fit: cover;
+    object-position: center;
+    display: block;
+  }
+
+  /* Background-image variant, still used by the commercial page's hero (which sets its own
+     background-image on it in commercial-cleaning.component.scss). */
   &__media {
     position: absolute;
     inset: 0;
-    background-image: var(--main-hero-image);
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -965,41 +865,6 @@
       linear-gradient(to top, var(--overlay-dark-strong) 0%, transparent 60%),
       linear-gradient(to right, var(--overlay-dark-soft) 0%, transparent 50%);
   }
-}
-
-.hero-stat {
-  position: absolute;
-  padding: 0.625rem 0.875rem;
-  background: var(--surface-glass-strong);
-  border: 1px solid var(--surface-glass-border);
-  border-radius: var(--radius-lg);
-  backdrop-filter: blur(3px);
-  box-shadow: var(--shadow-photo);
-  min-width: 135px;
-
-  &__title {
-    font-size: 0.75rem;
-    font-weight: var(--fw-black);
-    margin: 0;
-    color: var(--text-primary);
-  }
-
-  &__sub {
-    font-size: 0.6875rem;
-    font-weight: var(--fw-semibold);
-    color: var(--text-secondary);
-    margin: 0;
-  }
-
-  &--bookings {
-    top: 1rem;
-    left: 1rem;
-
-    .hero-stat__title {
-      color: var(--fresh-green);
-    }
-  }
-
 }
 
 /* ===== First-time discount coupon — warm "deal" ticket on the hero image ===== */
@@ -1037,7 +902,8 @@
   overflow: hidden;
   // drop-shadow (not box-shadow) so the shadow follows the masked notch shape
   filter: drop-shadow(var(--btn-coupon-shadow));
-  animation: hero-coupon-in 0.4s ease-out both;
+  // No entrance fade (2026-10): the coupon is part of the server render and must be visible from
+  // the first painted frame, like the booking form card beside it.
 
   // Real punched notches at the top & bottom of the perforation seam
   -webkit-mask:
@@ -1122,6 +988,11 @@
     font-weight: var(--fw-black);
     line-height: 1;
     letter-spacing: -0.02em;
+    // The one part that may fill in after load: its line is reserved even while empty, so "OFF"
+    // and the panel never move when the number arrives. The panel's width is already fixed
+    // (--deal-w) and the number is centred in it.
+    display: block;
+    min-height: 1em;
   }
 
   &__off {
@@ -1145,17 +1016,6 @@
   }
 }
 
-// Simple fade-in entrance — no scaling.
-@keyframes hero-coupon-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-offer-coupon {
-    animation: none;
-  }
-}
 
 .hero-trust-bar {
   position: absolute;
@@ -1187,20 +1047,6 @@
     border-radius: var(--radius-xl);
     backdrop-filter: blur(3px);
     box-shadow: var(--shadow-photo);
-
-    .rating-stars {
-      display: inline-flex;
-      justify-content: center;
-      align-self: stretch;
-      gap: 2px;
-      margin-bottom: 0.25rem;
-
-      svg {
-        width: 0.875rem;
-        height: 0.875rem;
-        color: var(--star-color);
-      }
-    }
   }
 
   &__title {
@@ -1240,25 +1086,6 @@
 
     &--amber {
       color: var(--warning-orange);
-    }
-  }
-}
-
-.hero-cta-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-
-  @media (max-width: 1024px) {
-    justify-content: center;
-  }
-
-  @media (max-width: 480px) {
-    flex-direction: column;
-
-    > * {
-      width: 100%;
     }
   }
 }
@@ -1347,12 +1174,6 @@
     &__price { font-size: 1.25rem; }
   }
 
-  .next-available {
-    padding: 0.5rem 0.75rem;
-
-    &__title { font-size: 0.875rem; }
-  }
-
   .btn-cta-secondary--full {
     padding: 0.75rem 1.5rem;
     font-size: 0.9375rem;
@@ -1392,14 +1213,8 @@
     }
   }
 
-  .hero-cta-row {
-    gap: 0.5rem;
-    margin-top: 0.25rem;
-  }
-
   .btn-cta-primary,
-  .btn-cta-secondary,
-  .btn-cta-quote {
+  .btn-cta-secondary {
     padding: 0.625rem 1.25rem;
     font-size: 0.875rem;
 
@@ -1408,14 +1223,6 @@
 
   .hero-image-card {
     min-height: 320px;
-  }
-
-  .hero-stat {
-    padding: 0.4375rem 0.6875rem;
-    min-width: auto;
-
-    &__title { font-size: 0.6875rem; }
-    &__sub { font-size: 0.625rem; }
   }
 
   .hero-trust-bar {
@@ -1429,16 +1236,11 @@
     &__sub { font-size: 0.5625rem; }
 
     .trust-icon { width: 1.125rem; height: 1.125rem; margin-bottom: 0.125rem; }
-
-    .rating-stars {
-      margin-bottom: 0.125rem;
-      svg { width: 0.75rem; height: 0.75rem; }
-    }
   }
 }
 
 
-/* ===== Mobile fine-tuning (copied from main) ===== */
+/* ===== Mobile fine-tuning ===== */
 @media (max-width: 640px) {
   .hero-section {
     padding: 1rem 16px 2.5rem;
@@ -1452,39 +1254,9 @@
   .hero-image-card {
     border-radius: var(--radius-2xl);
   }
-
-  .hero-stat {
-    min-width: auto;
-    padding: 0.4375rem 0.6875rem;
-
-    &__title {
-      font-size: 0.8125rem;
-    }
-
-    &__sub {
-      font-size: 0.75rem;
-    }
-  }
-
-  .container-narrow {
-    padding: 0 16px;
-  }
-
-  .feature-card,
-  .area-card,
-  .service-pick-card {
-    padding: 1.25rem;
-  }
-
-  .services-overview-card,
-  .included-card,
-  .final-cta-card {
-    padding: 1.5rem;
-    border-radius: var(--radius-2xl);
-  }
 }
 
-/* Very narrow phones (copied from main) */
+/* Very narrow phones */
 @media (max-width: 399.98px) {
   .booking-form-card {
     padding: 0.625rem;
@@ -1535,21 +1307,6 @@
     }
   }
 
-  .next-available {
-    padding: 0.4375rem 0.5625rem;
-    gap: 0.4375rem;
-
-    &__icon {
-      width: 1.0625rem;
-      height: 1.0625rem;
-    }
-
-    &__title {
-      font-size: 0.75rem;
-      line-height: 1.25;
-    }
-  }
-
   .trust-mini-list {
     gap: 0.25rem;
 
@@ -1565,18 +1322,6 @@
 
   .hero-image-card {
     min-height: 260px;
-  }
-
-  .hero-stat {
-    padding: 0.3125rem 0.5rem;
-
-    &__title {
-      font-size: 0.625rem;
-    }
-
-    &__sub {
-      font-size: 0.5625rem;
-    }
   }
 
   .hero-trust-bar {
@@ -1605,15 +1350,6 @@
       height: 0.9375rem;
       margin-bottom: 0.0625rem;
     }
-
-    .rating-stars {
-      margin-bottom: 0.0625rem;
-
-      svg {
-        width: 0.5625rem;
-        height: 0.5625rem;
-      }
-    }
   }
 
   .hero-content__badge {
@@ -1627,71 +1363,6 @@
 
   .hero-subtitle {
     font-size: 0.8125rem;
-  }
-
-  .final-cta-section {
-    padding: 2.25rem 0 3rem;
-  }
-
-  .final-cta-card {
-    padding: 1.125rem 0.875rem;
-    gap: 1rem;
-
-    &__main {
-      gap: 0.625rem;
-
-      h2 {
-        font-size: clamp(1.35rem, 7vw, 1.65rem);
-      }
-
-      p {
-        font-size: 0.875rem;
-        line-height: 1.5;
-      }
-    }
-
-    &__buttons {
-      gap: 0.5rem;
-      margin-top: 0.25rem;
-
-      .btn-cta-primary,
-      .btn-cta-secondary {
-        padding: 0.5625rem 0.875rem;
-        font-size: 0.8125rem;
-
-        svg {
-          width: 0.9375rem;
-          height: 0.9375rem;
-        }
-      }
-    }
-
-    &__side {
-      padding: 1rem;
-
-      .side-label {
-        font-size: 0.6875rem;
-      }
-
-      .side-title {
-        font-size: 1.125rem;
-      }
-
-      .side-sub {
-        font-size: 0.75rem;
-        margin-bottom: 0.5rem;
-      }
-
-      .btn-cta-secondary--full {
-        padding: 0.5rem 0.75rem;
-        font-size: 0.75rem;
-
-        .btn-arrow {
-          width: 1rem;
-          height: 1rem;
-        }
-      }
-    }
   }
 }
 

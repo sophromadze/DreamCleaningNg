@@ -47,12 +47,12 @@ import {
   getSquareFeetForBedrooms,
   getSquareFeetOptions,
   resolveSquareFeetForBedroomChange,
-  rescaleDiscountToSubTotal,
+  resolveEditedDiscounts,
   buildQuoteInputFromSelections,
   mapSelectedExtraInputs,
   round2,
   SALES_TAX_RATE,
-  EXTRA_CLEANERS_NAME,
+  isExtraCleaners,
   QuoteInput
 } from '../../../shared/pricing/order-pricing.calculator';
 import { normalizeTipAmount } from '../../../shared/booking/tip-amount.utils';
@@ -60,6 +60,7 @@ import {
   buildServiceTimeSlots,
   getAllServiceTimeSlots
 } from '../../../shared/booking/service-time-slots';
+import { isCleanersLine } from '../../../shared/booking/order-service-keys';
 
 interface SelectedService {
   service: Service;
@@ -612,9 +613,8 @@ export class OrderEditComponent implements OnInit, OnDestroy {
         // Special handling for Hours service when not found in database
         if (service.serviceRelationType === 'hours' && !orderService) {
           // Try to calculate hours from cleaner service duration
-          const cleanerService = this.order!.services.find(s => 
-            s.serviceName.toLowerCase().includes('cleaner')
-          );
+          // The order's Cleaners line: by serviceKey, the name only for an unkeyed line.
+          const cleanerService = this.order!.services.find(s => isCleanersLine(s));
           if (cleanerService && cleanerService.duration) {
             // Calculate hours from duration (duration is in minutes)
             quantity = Math.floor(cleanerService.duration / 60);
@@ -920,7 +920,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
       // Extra Cleaners is admin-only now (the team decides staffing) — hide it
       // unless it's already on this order, so an existing selection stays editable
       // instead of silently vanishing from the price.
-      if (extra.name === EXTRA_CLEANERS_NAME && extra.hasQuantity) {
+      if (isExtraCleaners(extra)) {
         return this.selectedExtraServices.some(s => s.extraService.id === extra.id);
       }
       return true;
@@ -988,17 +988,24 @@ export class OrderEditComponent implements OnInit, OnDestroy {
 
     const rawSubTotal = quote.subTotal;
 
-    // Edit flows re-scale the ORIGINAL discounts: promo/subscription by ratio of the raw
-    // subtotal, loyalty by the locked percentage snapshot from the order. The ratio math is
-    // shared with the admin order editor (rescaleDiscountToSubTotal) — it existed as two
-    // copies, and the copies had already drifted into different behaviour.
-    this.appliedSubscriptionDiscountAmount = rescaleDiscountToSubTotal(
-      this.originalSubscriptionDiscountAmount, this.originalRawSubTotal, rawSubTotal);
-    this.appliedDiscountAmount = rescaleDiscountToSubTotal(
-      this.originalDiscountAmount, this.originalRawSubTotal, rawSubTotal);
-    this.appliedLoyaltyDiscountAmount = this.originalLoyaltyDiscountPercentage > 0
-      ? round2(rawSubTotal * (this.originalLoyaltyDiscountPercentage / 100))
-      : 0;
+    // Edit flows re-derive the ORIGINAL discounts exactly as booking does, from the rule the
+    // order recorded (a percentage stays that percentage, a fixed promo stays fixed) — the same
+    // shared function the admin order editor and the server (OrderService.UpdateOrder) use, so
+    // the total previewed here is the total the server stores.
+    const edited = resolveEditedDiscounts({
+      originalSubTotal: this.originalRawSubTotal,
+      newSubTotal: rawSubTotal,
+      discountAmount: this.originalDiscountAmount,
+      discountPercent: this.order?.discountPercent,
+      discountFixedAmount: this.order?.discountFixedAmount,
+      subscriptionDiscountAmount: this.originalSubscriptionDiscountAmount,
+      subscriptionDiscountPercent: this.order?.subscriptionDiscountPercent,
+      loyaltyDiscountPercentage: this.originalLoyaltyDiscountPercentage,
+      loyaltyDiscountAmount: this.originalLoyaltyDiscountAmount
+    });
+    this.appliedSubscriptionDiscountAmount = edited.subscriptionDiscountAmount;
+    this.appliedDiscountAmount = edited.discountAmount;
+    this.appliedLoyaltyDiscountAmount = edited.loyaltyDiscountAmount;
 
     const tips = this.tipsAmount;
 
@@ -1817,9 +1824,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   }
 
   getExtraCleanersCount(): number {
-    const extraCleanersService = this.selectedExtraServices.find(s =>
-      s.extraService.name === 'Extra Cleaners' && s.extraService.hasQuantity
-    );
+    const extraCleanersService = this.selectedExtraServices.find(s => isExtraCleaners(s.extraService));
     return extraCleanersService ? extraCleanersService.quantity : 0;
   }
 
@@ -1936,36 +1941,6 @@ export class OrderEditComponent implements OnInit, OnDestroy {
     }
     
     return basePrice; // regular cleaning - no multiplier
-  }
-
-  getExtraServiceIcon(extraService: ExtraService): string {
-    const serviceName = extraService.name.toLowerCase();
-    
-    if (serviceName.includes('same day')) return 'fas fa-bolt';
-    if (serviceName.includes('extra cleaners')) return 'fas fa-users';
-    if (serviceName.includes('extra minutes')) return 'fas fa-clock';
-    if (serviceName.includes('cleaning supplies')) return 'fas fa-spray-can';
-    if (serviceName.includes('cleaning essentials')) return 'fas fa-toilet-paper';
-    if (serviceName.includes('vacuum cleaner')) return 'fas fa-stethoscope fa-flip-vertical';
-    if (serviceName.includes('pets')) return 'fas fa-paw';
-    if (serviceName.includes('fridge')) return 'fas fa-toilet-portable';
-    if (serviceName.includes('oven')) return 'fas fa-pager fa-flip-vertical';
-    if (serviceName.includes('kitchen cabinets')) return 'fas fa-box-archive';
-    if (serviceName.includes('closets')) return 'fas fa-calendar-week fa-flip-vertical';
-    if (serviceName.includes('dishes')) return 'fas fa-utensils';
-    if (serviceName.includes('baseboards')) return 'fas fa-ruler-horizontal';
-    if (serviceName.includes('windows')) return 'fas fa-table';
-    if (serviceName.includes('walls')) return 'fas fa-clapperboard fa-flip-vertical';
-    if (serviceName.includes('stairs')) return 'fas fa-stairs';
-    if (serviceName.includes('folding') || serviceName.includes('folding / organizing')) return 'fas fa-layer-group';
-    if (serviceName.includes('laundry')) return 'fas fa-camera-retro';
-    if (serviceName.includes('balcony')) return 'fas fa-store';
-    // Home Office ('cabinet' is the former name, kept as an alias).
-    if (serviceName.includes('office') || serviceName.includes('cabinet')) return 'fas fa-desktop';
-    if (serviceName.includes('couches')) return 'fas fa-couch';
-    
-    // Default icon for unknown services
-    return 'fas fa-plus';
   }
 
   getExtraServiceImage(extraService: ExtraService, isSelected: boolean): string {

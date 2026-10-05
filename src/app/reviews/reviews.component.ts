@@ -1,9 +1,15 @@
-import { Component, OnInit, OnDestroy, Inject, inject } from '@angular/core';
-import { CommonModule, DOCUMENT } from '@angular/common';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { environment } from '../../environments/environment';
-import { GooglePlacesService, Review } from '../services/google-reviews.service';
+import {
+  GooglePlacesService,
+  Review,
+  aggregateRatingSchema,
+  formatReviewCount
+} from '../services/google-reviews.service';
 import { PhoneNumberService } from '../services/phone-number.service';
+import { StructuredDataService } from '../services/structured-data.service';
 import { Subscription } from 'rxjs';
 
 interface DisplayReview extends Review {
@@ -42,7 +48,7 @@ export class ReviewsComponent implements OnInit, OnDestroy {
   /** Google Reviews only resolve in production (API has IP restrictions for hosting only). */
   showGoogleReviews = environment.production;
 
-  private schemaElement: HTMLScriptElement | null = null;
+  private readonly structuredData = inject(StructuredDataService);
   private subscription = new Subscription();
 
   // Local-dev preview only. In production the backend endpoint (7-day cache) supplies
@@ -80,20 +86,40 @@ export class ReviewsComponent implements OnInit, OnDestroy {
   ];
 
   constructor(
-    @Inject(DOCUMENT) private document: Document,
     private googlePlacesService: GooglePlacesService
   ) {}
 
   ngOnInit(): void {
-    this.injectSchema();
+    this.loadStats();
     this.loadReviews();
+  }
+
+  /** "153 Google reviews" — the shared wording for every review count on the site. */
+  get reviewCountLabel(): string {
+    return formatReviewCount(this.totalReviews);
+  }
+
+  /** Headline count/rating: always Google's total from /stats, never the number of loaded reviews. */
+  private loadStats(): void {
+    if (!this.showGoogleReviews) {
+      return;
+    }
+    this.subscription.add(
+      this.googlePlacesService.getStats().subscribe(stats => {
+        if (stats) {
+          this.overallRating = stats.rating;
+          this.totalReviews = stats.total;
+        }
+        // The rating goes on the site-wide #business node (index.html's @graph), so the page
+        // carries one LocalBusiness node with one rating - see StructuredDataService.
+        this.structuredData.setBusinessRating(aggregateRatingSchema(stats));
+      })
+    );
   }
 
   ngOnDestroy(): void {
     this.subscription.unsubscribe();
-    if (this.schemaElement && this.schemaElement.parentNode) {
-      this.schemaElement.parentNode.removeChild(this.schemaElement);
-    }
+    this.structuredData.setBusinessRating(undefined);
   }
 
   private loadReviews(): void {
@@ -130,8 +156,6 @@ export class ReviewsComponent implements OnInit, OnDestroy {
         next: data => {
           const mapped = data.reviews.map(r => this.toDisplay(r));
           this.reviews = page === 1 ? mapped : [...this.reviews, ...mapped];
-          this.overallRating = data.overallRating;
-          this.totalReviews = data.totalReviews;
           this.hasMore = data.hasMore;
           this.currentPage = page;
           done();
@@ -168,24 +192,5 @@ export class ReviewsComponent implements OnInit, OnDestroy {
       .slice(0, 2)
       .map(p => p[0].toUpperCase())
       .join('');
-  }
-
-  private injectSchema(): void {
-    const schema = {
-      '@context': 'https://schema.org',
-      '@type': 'LocalBusiness',
-      'name': 'Dream Cleaning',
-      '@id': 'https://dreamcleaningnyc.com/#business',
-      'url': 'https://dreamcleaningnyc.com/reviews',
-      'aggregateRating': {
-        '@type': 'AggregateRating',
-        'ratingValue': '5.0',
-        'reviewCount': '100'
-      }
-    };
-    this.schemaElement = this.document.createElement('script');
-    this.schemaElement.type = 'application/ld+json';
-    this.schemaElement.textContent = JSON.stringify(schema);
-    this.document.head.appendChild(this.schemaElement);
   }
 }

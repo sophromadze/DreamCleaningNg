@@ -29,7 +29,7 @@ select {
   min-width: 0;
 
   &:focus { outline: none; border-color: var(--primary-color); }
-  &:disabled { background: var(--surface-subtle); color: var(--text-muted); }
+  &:disabled { background: var(--surface-subtle); color: var(--text-muted-on-tint); }
 }
 
 // Admin sizing for all four. Only .btn-secondary needs no colour rule of its own — the shared
@@ -72,7 +72,7 @@ select {
 .btn-danger {
   background: var(--surface);
   border: 1px solid var(--bright-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
 
   &:hover:not(:disabled) { background: var(--soft-red); }
 }
@@ -116,8 +116,8 @@ select {
   border-radius: var(--radius-sm);
   font-size: 0.88rem;
 
-  &.alert-danger { background: var(--soft-red); color: var(--bright-red); }
-  &.alert-success { background: var(--mint-fresh); color: var(--fresh-green); }
+  &.alert-danger { background: var(--soft-red); color: var(--soft-red-text); }
+  &.alert-success { background: var(--mint-fresh); color: var(--mint-fresh-text); }
 }
 
 .bt-layout {
@@ -136,7 +136,7 @@ select {
   border-radius: var(--radius-md, 10px);
   background: var(--surface);
 
-  h3 {
+  h2 {
     margin: 0 0 0.75rem;
     font-size: 0.78rem;
     text-transform: uppercase;
@@ -185,7 +185,7 @@ select {
 
 .type-premises {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--text-muted-on-tint);
 }
 
 .type-badge {
@@ -193,7 +193,7 @@ select {
   padding: 0.1rem 0.4rem;
   border-radius: 999px;
   background: var(--surface-subtle);
-  color: var(--text-muted);
+  color: var(--text-muted-on-tint);
   font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -245,7 +245,7 @@ select {
 }
 
 .hint {
-  color: var(--text-muted);
+  color: var(--text-muted-on-tint);
   font-size: 0.72rem;
   line-height: 1.4;
 }
@@ -275,7 +275,7 @@ select {
 }
 
 .category-count {
-  color: var(--text-muted);
+  color: var(--text-muted-on-tint);
   font-size: 0.74rem;
   white-space: nowrap;
 }
@@ -344,7 +344,7 @@ select {
   line-height: 1.4;
   cursor: pointer;
 
-  &:hover:not(:disabled) { border-color: var(--primary-color); color: var(--primary-color); }
+  &:hover:not(:disabled) { border-color: var(--primary-color); color: var(--primary-text-elevated); }
   &:disabled { opacity: 0.35; cursor: default; }
 }
 
@@ -352,13 +352,13 @@ select {
   border: none;
   background: none;
   padding: 0;
-  color: var(--primary-color);
+  color: var(--primary-color-text);
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
 
   &:hover { text-decoration: underline; }
-  &.danger { color: var(--bright-red); }
+  &.danger { color: var(--soft-red-text); }
   &.restore { margin: 0.15rem 0 0 0.7rem; }
 }
 

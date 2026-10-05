@@ -8,15 +8,20 @@ import { PhoneNumberService } from '../services/phone-number.service';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
 import { OrderSoundService } from '../services/order-sound.service';
 import { AnalyticsService } from '../services/analytics.service';
+import { IconComponent } from '../shared/icons/icon.component';
+import { faCircleCheck } from '../shared/icons/glyphs/faCircleCheck';
+import { faCircleXmark } from '../shared/icons/glyphs/faCircleXmark';
 
 @Component({
   selector: 'app-free-quote',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule, BubbleFieldComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule, BubbleFieldComponent, IconComponent],
   templateUrl: './free-quote.component.html',
   styleUrl: './free-quote.component.scss'
 })
 export class FreeQuoteComponent implements OnInit {
+  protected readonly icons = { faCircleCheck, faCircleXmark };
+
   quoteForm: FormGroup;
   isSubmitting = false;
   showSuccess = false;

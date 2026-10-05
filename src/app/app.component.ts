@@ -13,8 +13,10 @@ import { ContinueBookingComponent } from './continue-booking/continue-booking.co
 import { AuthModalComponent } from './auth/auth-modal/auth-modal.component';
 import { FirstTimeOfferPopupComponent } from './first-time-offer-popup/first-time-offer-popup.component';
 import { AuthService } from './services/auth.service';
+import { AuthModalService } from './services/auth-modal.service';
 import { TokenRefreshService } from './services/token-refresh.service';
 import { AttributionService } from './services/attribution.service';
+import { MarketingPricingService } from './shared/pricing/marketing-pricing.service';
 // TEMPORARILY DISABLED — Telegram bot integration is off; widget is commented out in app.component.html.
 // import { LiveChatWidgetComponent } from './shared/live-chat-widget/live-chat-widget.component';
 // AI chat widget (visibility is server-controlled: Disabled / AdminOnly / Public)
@@ -22,6 +24,10 @@ import { ChatWidgetComponent } from './chat-widget/chat-widget.component';
 import { TelClickTrackingDirective } from './directives/tel-click-tracking.directive';
 import { Subscription, combineLatest } from 'rxjs';
 import { filter, map, mergeMap } from 'rxjs/operators';
+import { IconComponent } from './shared/icons/icon.component';
+import { faFacebookF } from './shared/icons/glyphs/faFacebookF';
+import { faInstagram } from './shared/icons/glyphs/faInstagram';
+import { faTiktok } from './shared/icons/glyphs/faTiktok';
 
 /** Paths that require auth; show route-loading shimmer until we know auth (same idea as header auth slot). */
 function isProtectedRoute(url: string): boolean {
@@ -90,7 +96,8 @@ function isSocialStickyHiddenRoute(url: string): boolean {
     ContinueBookingComponent,
     AuthModalComponent,
     FirstTimeOfferPopupComponent,
-    ChatWidgetComponent
+    ChatWidgetComponent,
+    IconComponent
     // LiveChatWidgetComponent  // disabled with the widget tag in app.component.html
   ],
   hostDirectives: [TelClickTrackingDirective],
@@ -98,6 +105,8 @@ function isSocialStickyHiddenRoute(url: string): boolean {
   styleUrl: './app.component.scss'
 })
 export class AppComponent implements OnInit, OnDestroy {
+  protected readonly icons = { faFacebookF, faInstagram, faTiktok };
+
   title = 'DreamCleaning';
   private subscriptions: Subscription = new Subscription();
   private servicesInitialized = false;
@@ -106,6 +115,11 @@ export class AppComponent implements OnInit, OnDestroy {
   isAuthInitialized = false;
   isBrowser = false;
   private _path: string;
+
+  /** Trigger for the deferred account-notice / order-reminder block: set once and kept. */
+  hasSessionUser = false;
+  /** Trigger for the deferred auth modal when it is asked for before the page went idle. */
+  authModalRequested = false;
 
   /** Same as header showAuthUI: show loading until auth ready, then show outlet. */
   get showRouteLoading(): boolean {
@@ -131,8 +145,13 @@ export class AppComponent implements OnInit, OnDestroy {
 
   constructor(
     private authService: AuthService,
+    private authModalService: AuthModalService,
     private tokenRefreshService: TokenRefreshService,
     private attributionService: AttributionService,
+    // Injected here so every render - whatever the route - resolves the marketing prices and ships
+    // them in TransferState: priced route descriptions need them, and the browser then never
+    // has to fetch them on a later client-side navigation.
+    private marketingPricing: MarketingPricingService,
     private router: Router,
     private activatedRoute: ActivatedRoute,
     private titleService: Title,
@@ -150,6 +169,13 @@ export class AppComponent implements OnInit, OnDestroy {
     const path = this.router.url.split('?')[0].split('#')[0];
     const url = 'https://dreamcleaningnyc.com' + (path === '/' ? '/' : path);
     let link = this.document.querySelector('link[rel="canonical"]') as HTMLLinkElement;
+    // Missing after a page that took it out, e.g. a 404 that was the SSR landing page and so had
+    // no canonical to put back on leave.
+    if (!link && this.document.head) {
+      link = this.document.createElement('link');
+      link.setAttribute('rel', 'canonical');
+      this.document.head.appendChild(link);
+    }
     if (link) {
       link.setAttribute('href', url);
     }
@@ -165,7 +191,7 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnInit() {
     // Meta/title/canonical must run on SSR too — otherwise Google sees the
     // generic defaults from index.html instead of the route-specific copy
-    // (with current SERVICE_PRICING values). Router events fire during the
+    // (with the live marketing prices). Router events fire during the
     // initial SSR render.
     this.subscriptions.add(
       this.router.events.pipe(
@@ -180,10 +206,19 @@ export class AppComponent implements OnInit, OnDestroy {
         if (data['title']) {
           this.titleService.setTitle(data['title']);
         }
-        if (data['description']) {
-          this.metaService.updateTag({ name: 'description', content: data['description'] });
+        // A description that quotes prices is a function of them (see PricedDescription in
+        // app.routes.ts); the prices are already resolved here, on the server and in the browser.
+        const description = typeof data['description'] === 'function'
+          ? data['description'](this.marketingPricing.text())
+          : data['description'];
+        if (description) {
+          this.metaService.updateTag({ name: 'description', content: description });
         }
-        this.updateCanonicalUrl();
+        // The 404 page removes the canonical itself (a canonical to a URL that does not
+        // exist contradicts the 404), so it must not be written back here.
+        if (!data['noCanonical']) {
+          this.updateCanonicalUrl();
+        }
       })
     );
 
@@ -201,6 +236,12 @@ export class AppComponent implements OnInit, OnDestroy {
     this.captureReferralCode();
 
     this.subscriptions.add(
+      this.authModalService.isOpen$.subscribe(isOpen => {
+        if (isOpen) this.authModalRequested = true;
+      })
+    );
+
+    this.subscriptions.add(
       this.router.events.pipe(
         filter((e): e is NavigationEnd => e instanceof NavigationEnd),
         map(() => this.getInitialPath())
@@ -215,7 +256,8 @@ export class AppComponent implements OnInit, OnDestroy {
       combineLatest([
         this.authService.isInitialized$,
         this.authService.currentUser
-      ]).subscribe(([initialized]) => {
+      ]).subscribe(([initialized, user]) => {
+        if (user) this.hasSessionUser = true;
         if (initialized && !this.servicesInitialized) {
           this.servicesInitialized = true;
           this.tokenRefreshService.startTokenRefresh();

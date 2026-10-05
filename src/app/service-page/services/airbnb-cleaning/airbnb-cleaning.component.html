@@ -6,7 +6,7 @@
       <h1>Airbnb Cleaning Service NYC: Short-Term Rental Turnover Specialists</h1>
       <p class="subtitle">Fast, Reliable Turnover Cleaning in Manhattan, Brooklyn, and Queens by Dream Cleaning NYC</p>
       <p class="hero-description">
-        Hotel-quality short-term rental resets between guests to protect your Superhost status — Airbnb turnover rates start from ${{ pricing.residentialFrom }}.
+        Hotel-quality short-term rental resets between guests to protect your Superhost status@if (pricing().standardFrom; as p) { — Airbnb turnover rates start from {{ p }}}.
       </p>
       <button class="btn btn-danger book-now-btn" routerLink="/booking">Book Now</button>
     </div>
@@ -24,11 +24,11 @@
           In the competitive NYC hospitality business, timing, flawless execution, and 5-star reviews are everything. Our trained, local turnover cleaners go far beyond standard housekeeping. We deliver a rapid, hotel-quality reset between guests to maximize your occupancy, protect your Superhost status, and keep your check-out to check-in transitions completely seamless.
         </p>
         <p>
-          Our NYC short-term rental cleaning rates start at just ${{ pricing.residentialFrom }}. Tailored for busy property managers and remote hosts, we handle everything from quick standard guest changeovers to intensive deep cleans and heavy condition restorations. We target the hidden dust, high-touch sanitization, and kitchen prep that guests notice the most, making us the top choice for Airbnb hosts, Vrbo owners, and corporate housing managers in New York.
+          @if (pricing().standardFrom; as p) {Our NYC short-term rental cleaning rates start at just {{ p }}. }Tailored for busy property managers and remote hosts, we handle everything from quick standard guest changeovers to intensive deep cleans and heavy condition restorations. We target the hidden dust, high-touch sanitization, and kitchen prep that guests notice the most, making us the top choice for Airbnb hosts, Vrbo owners, and corporate housing managers in New York.
         </p>
       </div>
       <div class="image-placeholder">
-        <img src="/images/airbn-cleaning-service-nyc.webp" alt="Airbnb turnover cleaning service for short-term rentals in Manhattan, Brooklyn & Queens" loading="lazy">
+        <img src="/images/airbn-cleaning-service-nyc.webp" cardImage="contentImage" alt="Airbnb turnover cleaning service for short-term rentals in Manhattan, Brooklyn & Queens" loading="lazy">
       </div>
     </section>
 
@@ -63,7 +63,7 @@
           </ul>
         </div>
         <div class="image-placeholder">
-          <img src="/images/kitchen-cleaning-in-nyc.webp" alt="Airbnb kitchen reset and guest prep in NYC — counters, appliances and sink sanitized" loading="lazy">
+          <img src="/images/kitchen-cleaning-in-nyc.webp" cardImage="contentImage" alt="Airbnb kitchen reset and guest prep in NYC — counters, appliances and sink sanitized" loading="lazy">
         </div>
       </div>
 
@@ -99,7 +99,7 @@
           </ul>
         </div>
         <div class="image-placeholder">
-          <img src="/images/residential-cleaning.webp" alt="Airbnb living area and bedroom turnover in NYC — bed making, dusting and staging" loading="lazy">
+          <img src="/images/residential-cleaning.webp" cardImage="contentImage" alt="Airbnb living area and bedroom turnover in NYC — bed making, dusting and staging" loading="lazy">
         </div>
       </div>
     </section>
@@ -134,7 +134,7 @@
     <section class="highlight-section">
       <h2>Affordable Airbnb Cleaning Rates Near You in NYC</h2>
       <p>
-        Our Airbnb cleaning NYC rates start at a flat baseline of ${{ pricing.residentialFrom }}, with final pricing depending on your rental's layout, square footage, and specific turnover requirements. This baseline rate applies to normally maintained properties that require a sharp, efficient reset between guest stays.
+        Our Airbnb cleaning NYC rates @if (pricing().standardFrom; as p) {start at a flat baseline of {{ p }}} @else {are based on a flat baseline}, with final pricing depending on your rental's layout, square footage, and specific turnover requirements. This baseline rate applies to normally maintained properties that require a sharp, efficient reset between guest stays.
       </p>
       <p style="margin-bottom: 0;">
         Because guest habits vary wildly, if a previous checkout leaves your apartment in a condition that requires extensive grease removal, deep stain treatments, or heavy trash clearing, our local cleaning team will immediately send you photo updates. We will clearly explain your options for upgrading to a Heavy Condition or Filthy Cleanup rate before we begin, ensuring you never face surprise charges on your final invoice.
@@ -148,35 +148,35 @@
         <div class="benefit-item">
           <div class="checkmark">&#10003;</div>
           <div class="benefit-content">
-            <h4>Local NYC Specialists</h4>
+            <h3>Local NYC Specialists</h3>
             <p>Experienced turnover cleaners serving Manhattan, Brooklyn, and Queens who know exactly what Airbnb guests look for.</p>
           </div>
         </div>
         <div class="benefit-item">
           <div class="checkmark">&#10003;</div>
           <div class="benefit-content">
-            <h4>Streamlined Checklist System</h4>
+            <h3>Streamlined Checklist System</h3>
             <p>Engineered for rapid, high-speed turnovers without cutting corners on quality.</p>
           </div>
         </div>
         <div class="benefit-item">
           <div class="checkmark">&#10003;</div>
           <div class="benefit-content">
-            <h4>Reliable Calendar Syncing</h4>
+            <h3>Reliable Calendar Syncing</h3>
             <p>Tight scheduling that aligns perfectly with your check-out and check-in booking windows.</p>
           </div>
         </div>
         <div class="benefit-item">
           <div class="checkmark">&#10003;</div>
           <div class="benefit-content">
-            <h4>Superhost Status Protection</h4>
+            <h3>Superhost Status Protection</h3>
             <p>Consistent, high-quality results designed to protect your 5-star rating and maximize rental revenue.</p>
           </div>
         </div>
         <div class="benefit-item">
           <div class="checkmark">&#10003;</div>
           <div class="benefit-content">
-            <h4>Real-Time Photo Updates</h4>
+            <h3>Real-Time Photo Updates</h3>
             <p>Immediate notifications, timestamped photos, and damage reports if a guest leaves an extreme mess.</p>
           </div>
         </div>
@@ -187,7 +187,7 @@
     <section class="cta-section">
       <h2>Automate Your Short-Term Rental Cleaning in NYC</h2>
       <p>
-        Contact Dream Cleaning NYC today to automate your short-term rental cleaning, protect your reviews, and keep your NYC properties pristine. Airbnb turnover rates start from ${{ pricing.residentialFrom }}, with final pricing based on your rental's layout and turnover requirements.
+        Contact Dream Cleaning NYC today to automate your short-term rental cleaning, protect your reviews, and keep your NYC properties pristine. Airbnb turnover rates @if (pricing().standardFrom; as p) {start from {{ p }}, with final pricing based on} @else {are based on} your rental's layout and turnover requirements.
       </p>
       <div class="cta-buttons">
         <a routerLink="/booking" class="btn btn-primary">Book Airbnb Cleaning</a>

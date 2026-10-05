@@ -3,13 +3,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, forkJoin } from 'rxjs';
 import {
-  AdvancedTermsSnapshot, BillingCadenceSnapshot, BusinessCustomer, ContractBillingFrequency,
+  AdvancedTermsSnapshot, BillingCadenceSnapshot, BusinessCustomer, ContractBillingFrequency, ContractPricingBasis,
   ContractClient, ContractContact, ContractContactRole, ContractDetail,
   ContractPricingInput, ContractPricingPreview, ContractPriceMode, ContractService,
   ContractServiceLocation, ContractSnapshot, ContractTemplate, ContractorProfile,
   InsuranceEndorsementsSnapshot, OperationalContactsSnapshot,
-  SaveContract, ScheduleSnapshot, ScopeGroup, ScopeStructure, ScopeTemplate,
-  SiteDetailsSnapshot, TermSnapshot
+  SaveContract, ScheduleSnapshot, ScopeDetailMode, ScopeGroup, ScopeStructure, ScopeTemplate,
+  SiteDetailsSnapshot, SuppliesSnapshot, SupplyProvider, TermSnapshot
 } from '../../../../services/contract.service';
 import { InvoiceService, InvoiceTaxType } from '../../../../services/invoice.service';
 import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
@@ -22,6 +22,10 @@ import { applyInferredEntityType } from '../../../../utils/entity-type.utils';
  * before multiple days existed. Reading them the other way round is the bug this exists to prevent
  * — it would silently collapse a Mon/Wed/Fri schedule to one day.
  */
+/** Stock Exhibit B2 invoicing sentence for a weekly flat fee (swapped in only for the stock per-visit one). */
+export const WEEKLY_INVOICE_TIMING =
+  'One invoice per service week, ordinarily at least seven calendar days before the first scheduled visit of that week.';
+
 export function resolveServiceDays(schedule: ScheduleSnapshot | undefined): string[] {
   if (!schedule) return [];
   if (schedule.serviceDays?.length) return [...schedule.serviceDays];
@@ -39,7 +43,7 @@ export function resolveServiceDays(schedule: ScheduleSnapshot | undefined): stri
 type PanelKey =
   | 'template' | 'contractor' | 'contractorSigner' | 'client'
   | 'location' | 'schedule' | 'billing' | 'term' | 'pricing' | 'scope'
-  | 'siteDetails' | 'contacts' | 'insurance' | 'advanced';
+  | 'siteDetails' | 'contacts' | 'insurance' | 'advanced' | 'supplies';
 
 /**
  * The Create / Edit Contract form: one page of collapsible sections in the order the spec lays
@@ -110,6 +114,28 @@ export class ContractFormComponent implements OnInit {
   openPanels = new Set<PanelKey>(['template', 'client', 'location', 'schedule', 'pricing']);
 
   readonly ContractPriceMode = ContractPriceMode;
+  readonly ContractPricingBasis = ContractPricingBasis;
+  readonly SupplyProvider = SupplyProvider;
+  readonly ScopeDetailMode = ScopeDetailMode;
+
+  /** How the Contractor is named in the supplies pickers. The document itself says "Contractor". */
+  readonly contractorShortName = 'Contractor (us)';
+
+  /** Exhibit A's three levels of detail, in the order the choice is offered. */
+  readonly scopeDetailOptions = [
+    { value: ScopeDetailMode.Detailed, label: 'Detailed' },
+    { value: ScopeDetailMode.Simplified, label: 'Simplified' },
+    { value: ScopeDetailMode.Omitted, label: 'Omit detailed scope' }
+  ];
+
+  /** The three consumables every agreement allocates; anything else goes under "Other". */
+  readonly standardConsumables: ReadonlyArray<{
+    key: 'trashLinersProvidedBy' | 'paperTowelsProvidedBy' | 'toiletTissueProvidedBy'; label: string;
+  }> = [
+    { key: 'trashLinersProvidedBy', label: 'Trash bags / liners provided by' },
+    { key: 'paperTowelsProvidedBy', label: 'Paper towels provided by' },
+    { key: 'toiletTissueProvidedBy', label: 'Toilet tissue provided by' }
+  ];
   readonly ContractBillingFrequency = ContractBillingFrequency;
   readonly weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   readonly frequencyUnits = ['calendar week', 'calendar month', 'two calendar weeks'];
@@ -238,8 +264,49 @@ export class ContractFormComponent implements OnInit {
    * creates without generating a preview. Computed here purely for display; the document's own
    * copies are derived server-side from the same two numbers.
    */
+  /**
+   * There is NO standard minimum commitment: zero months means none, and a commitment exists only
+   * when an admin records one that was specifically agreed with this client.
+   */
+  get hasCustomCommitment(): boolean {
+    return (this.model.term.minimumCommitmentMonths ?? 0) > 0 || this.customCommitmentChosen;
+  }
+
+  /** True while "Custom" is selected but no number has been typed yet. */
+  private customCommitmentChosen = false;
+
+  setCommitmentMode(mode: 'none' | 'custom'): void {
+    if (mode === 'none') {
+      this.customCommitmentChosen = false;
+      this.model.term.minimumCommitmentMonths = 0;
+      this.model.term.initialTermMonths = 0;
+      return;
+    }
+    // No preset length: the admin types the number that was agreed.
+    this.customCommitmentChosen = true;
+  }
+
+  /** The initial term can never end before the earliest date the client may leave. */
+  onCommitmentMonthsChanged(): void {
+    const months = Number(this.model.term.minimumCommitmentMonths) || 0;
+    if ((Number(this.model.term.initialTermMonths) || 0) < months) {
+      this.model.term.initialTermMonths = months;
+    }
+  }
+
+  addOtherConsumable(): void {
+    this.model.supplies.otherConsumables.push({ item: '', providedBy: null });
+  }
+
+  removeOtherConsumable(index: number): void {
+    this.model.supplies.otherConsumables.splice(index, 1);
+  }
+
   get termDatesHint(): string {
     const start = this.model.term.serviceCommencementDate;
+    if (!this.hasCustomCommitment) {
+      return 'No minimum commitment — service runs from this date until either party gives notice.';
+    }
     if (!start) return 'The initial term and minimum commitment both run from this date.';
 
     const commitmentEnd = this.addMonths(start, this.model.term.minimumCommitmentMonths);
@@ -416,6 +483,8 @@ export class ContractFormComponent implements OnInit {
       term: { ...snapshot.term },
       pricing: {
         priceMode: snapshot.pricing.priceMode,
+        // Absent on a snapshot frozen before the basis existed - and every one of those is per visit.
+        pricingBasis: snapshot.pricing.pricingBasis ?? ContractPricingBasis.PerVisit,
         priceInput: snapshot.pricing.priceInput,
         salesTaxRatePercent: snapshot.pricing.salesTaxRatePercent,
         cancellationPercent: snapshot.pricing.cancellationPercent,
@@ -436,8 +505,19 @@ export class ContractFormComponent implements OnInit {
       siteDetails: { ...this.defaultSiteDetails(), ...(snapshot.siteDetails ?? {}) },
       contacts: { ...this.defaultContacts(), ...(snapshot.contacts ?? {}) },
       insurance: { ...this.defaultInsurance(), ...(snapshot.insurance ?? {}) },
+      supplies: {
+        ...this.defaultSupplies(),
+        ...(snapshot.supplies ?? {}),
+        otherConsumables: (snapshot.supplies?.otherConsumables ?? []).map(c => ({ ...c }))
+      },
+      scopeDetail: snapshot.scopeDetail ?? ScopeDetailMode.Detailed,
       scope: JSON.parse(JSON.stringify(snapshot.scope ?? { groups: [] }))
     };
+
+    // A draft saved before Exhibit B4 had its own client notice email carries null here. Posted
+    // back as a string, so the re-saved draft takes the server's blank-field fallback (the client's
+    // notice email on file, then approval, then operational) instead of the legacy null path.
+    this.model.contacts.clientNoticeEmail ??= '';
 
     // Inferred rather than stored: the checkbox is a data-entry convenience, not contract data.
     // If the saved notice contact already equals the signer's, reopening the form shows it ticked,
@@ -760,6 +840,24 @@ export class ContractFormComponent implements OnInit {
     this.model.schedule.serviceDay = ordered[0] ?? '';
   }
 
+  /**
+   * The visit count and the ticked days disagree - shown EVEN WITH flexible scheduling on
+   * (2026-09-30). DCC-2026-12918497 was drafted with six days ticked and "Visits per period" left at
+   * its default of 1; the only warning was switched off for flexible schedules, so the agreement
+   * said "One (1) scheduled cleaning visit per calendar week" and nobody was told. The count is
+   * what the agreement promises and what a weekly fee is divided by, so it is never changed to
+   * match the days (or the reverse) - the admin is told and decides.
+   */
+  get visitCountWarning(): string | null {
+    if (!this.model.schedule.flexibleScheduling) return null; // serviceDayCountWarning covers it
+    if (this.model.schedule.frequencyUnit !== 'calendar week') return null;
+    const picked = this.selectedServiceDays.length;
+    const promised = Math.max(1, Number(this.model.schedule.visitsPerPeriod) || 1);
+    if (picked === 0 || picked === promised) return null;
+    return `Visits per period is ${promised} but ${picked} regular service days are selected. `
+      + 'The agreement will state the visit count — check that it is right.';
+  }
+
   /** "Regular service day" for one, "Regular service days" for several. */
   get serviceDaysLabel(): string {
     return this.model.schedule.visitsPerPeriod > 1 || this.selectedServiceDays.length > 1
@@ -920,7 +1018,45 @@ export class ContractFormComponent implements OnInit {
 
   onPricingChanged(): void { this.pricingChanged$.next(); }
 
+  /** Weekly flat fee selected. */
+  get isWeeklyFlatFee(): boolean {
+    return this.model.pricing.pricingBasis === ContractPricingBasis.WeeklyFlatFee;
+  }
+
+  /**
+   * Why a weekly flat fee cannot be saved with the current schedule / billing, mirroring the
+   * server's ContractPricingCalculator.IncompatibilityReason (which refuses the save regardless).
+   */
+  get weeklyFlatFeeProblem(): string | null {
+    if (!this.isWeeklyFlatFee) return null;
+    if (this.model.schedule.frequencyUnit !== 'calendar week')
+      return 'A weekly flat fee needs the service schedule to be set per calendar week.';
+    if (!((Number(this.model.schedule.visitsPerPeriod) || 0) >= 1))
+      return 'A weekly flat fee needs at least one scheduled visit per week.';
+    if (this.model.billing.frequency !== ContractBillingFrequency.Weekly)
+      return 'A weekly flat fee must be invoiced weekly (or every N weeks). Change the billing cadence, or price per visit.';
+    return null;
+  }
+
+  onPricingBasisChanged(): void {
+    // A weekly fee is invoiced weekly: offer that cadence, never change the visit count.
+    if (this.isWeeklyFlatFee && this.model.billing.frequency !== ContractBillingFrequency.Weekly) {
+      this.model.billing.frequency = ContractBillingFrequency.Weekly;
+      this.model.billing.intervalCount = Math.max(1, this.model.billing.intervalCount || 1);
+    }
+    // The stock per-visit timing sentence would contradict weekly invoices in Exhibit B2. Only the
+    // stock defaults are swapped (both ways); anything an admin typed is theirs and is left alone.
+    const perVisitTiming = this.defaultPricing().invoiceTiming;
+    if (this.isWeeklyFlatFee && this.model.pricing.invoiceTiming === perVisitTiming) {
+      this.model.pricing.invoiceTiming = WEEKLY_INVOICE_TIMING;
+    } else if (!this.isWeeklyFlatFee && this.model.pricing.invoiceTiming === WEEKLY_INVOICE_TIMING) {
+      this.model.pricing.invoiceTiming = perVisitTiming;
+    }
+    this.onPricingChanged();
+  }
+
   private refreshPricingPreview(): void {
+    this.model.pricing.scheduledVisitsPerWeek = Math.max(1, Number(this.model.schedule.visitsPerPeriod) || 1);
     this.contracts.pricingPreview(this.model.pricing).subscribe({
       next: preview => this.pricingPreview = preview,
       // A failed echo must not block the form — Generate Preview recomputes server-side anyway.
@@ -987,7 +1123,14 @@ export class ContractFormComponent implements OnInit {
       return 'Enter the person who will sign for the client.';
     if (!this.model.newClientSigner?.email?.trim())
       return 'The client signer needs an email address — that is where the review and signing links go.';
-    if (this.model.pricing.priceInput <= 0) return 'Enter the price per visit.';
+    if (this.model.pricing.priceInput <= 0)
+      return this.isWeeklyFlatFee ? 'Enter the weekly fee.' : 'Enter the price per visit.';
+    if (this.weeklyFlatFeeProblem) return this.weeklyFlatFeeProblem;
+    if (this.hasCustomCommitment && !((Number(this.model.term.minimumCommitmentMonths) || 0) >= 1))
+      return 'Enter the agreed minimum commitment in months, or choose “No minimum commitment”.';
+    if (this.model.supplies.equipmentProvidedBy === SupplyProvider.Shared
+        && !this.model.supplies.equipmentArrangementNotes?.trim())
+      return 'Describe how cleaning supplies and equipment are divided between the parties.';
     return null;
   }
 
@@ -1018,6 +1161,9 @@ export class ContractFormComponent implements OnInit {
       siteDetails: this.defaultSiteDetails(),
       contacts: this.defaultContacts(),
       insurance: this.defaultInsurance(),
+      supplies: this.defaultSupplies(),
+      // Detailed is exactly what every agreement printed before the choice existed.
+      scopeDetail: ScopeDetailMode.Detailed,
       scope: { groups: [] }
     };
   }
@@ -1051,14 +1197,28 @@ export class ContractFormComponent implements OnInit {
     return {
       contractorApprovalEmail: '', contractorOperationalEmail: '',
       contractorSupervisorName: '', contractorSupervisorPhone: '', contractorBackupContact: '',
-      clientApprovalEmail: '', clientNoticeMailingAddress: '', clientOperationalEmail: '',
+      clientApprovalEmail: '', clientNoticeEmail: '', clientNoticeMailingAddress: '',
+      clientOperationalEmail: '',
       clientOnCallName: '', clientOnCallPhone: '', clientBackupContact: ''
     };
   }
 
-  /** No endorsements agreed unless somebody agrees one; all three render "None"/"Not applicable". */
+  /** No endorsements agreed unless somebody agrees one; with all three blank, Exhibit B5 is left out. */
   private defaultInsurance(): InsuranceEndorsementsSnapshot {
     return { agreedEndorsements: '', endorsementDetails: '', additionalPremium: '' };
+  }
+
+  /**
+   * Every allocation starts UNSET. There is no company-wide rule for who provides supplies or
+   * consumables, and pre-filling "Client" would quietly reinstate the one the older template
+   * hardcoded. An unset answer is flagged in the preview's warning banner.
+   */
+  private defaultSupplies(): SuppliesSnapshot {
+    return {
+      equipmentProvidedBy: null, equipmentArrangementNotes: '',
+      trashLinersProvidedBy: null, paperTowelsProvidedBy: null, toiletTissueProvidedBy: null,
+      otherConsumables: []
+    };
   }
 
   private emptyClient() {
@@ -1110,18 +1270,16 @@ export class ContractFormComponent implements OnInit {
   }
 
   /**
-   * Committed for TEN months, then month-to-month with sixty days notice (raised from six on
-   * 2026-09-15).
+   * NO minimum commitment and THIRTY days' notice (owner's decision, 2026-09-30) — the ten-month
+   * commitment and sixty-day notice were a company-wide rule the business does not have.
    *
-   * These are the terms actually being offered, and they MIRROR `TermSnapshot`'s server-side
-   * defaults — the server fills a draft it receives without these fields, so a number changed on
-   * one side only shows up as a contract whose preview disagrees with what was saved. They apply
-   * to NEW drafts only: every generated version carries its own frozen copy, so nothing already
-   * signed moves when this changes.
+   * These MIRROR `TermSnapshot`'s server-side defaults, so a draft the server fills in agrees with
+   * the form that submitted it. They apply to NEW drafts only: every generated version carries its
+   * own frozen copy, so nothing already signed moves when this changes.
    */
   private defaultTerm(): TermSnapshot {
     return {
-      initialTermMonths: 10, minimumCommitmentMonths: 10, terminationNoticeDays: 60,
+      initialTermMonths: 0, minimumCommitmentMonths: 0, terminationNoticeDays: 30,
       // Left null deliberately. The Minimum Commitment End Date and Initial Term End Date are
       // derived from it, so seeding "today" would print three confident dates nobody chose.
       serviceCommencementDate: null,
@@ -1139,7 +1297,8 @@ export class ContractFormComponent implements OnInit {
    */
   private defaultPricing(): ContractPricingInput {
     return {
-      priceMode: ContractPriceMode.TaxInclusive, priceInput: 0, salesTaxRatePercent: 8.875,
+      priceMode: ContractPriceMode.TaxInclusive, pricingBasis: ContractPricingBasis.PerVisit,
+      priceInput: 0, salesTaxRatePercent: 8.875,
       cancellationPercent: 50,
       invoiceTiming: 'Ordinarily at least seven calendar days before each scheduled visit.',
       paymentDeadlineHours: 48, paymentMethod: 'ACH or bank transfer using verified instructions',
@@ -1161,7 +1320,8 @@ export class ContractFormComponent implements OnInit {
 
       billingDisputeDays: 10, disputeResponseBusinessDays: 10,
       resolutionPaymentBusinessDays: 5, damageNoticeBusinessDays: 5,
-      qualityComplaintHours: 48, qualityCorrectionBusinessDays: 2, refundBusinessDays: 10,
+      qualityComplaintHours: 24, qualityLatentDeficiencyLimitHours: 72,
+      qualityCorrectionBusinessDays: 2, refundBusinessDays: 10,
 
       keyReturnBusinessDays: 2,
       confidentialityYears: 2,

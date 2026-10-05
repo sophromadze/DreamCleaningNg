@@ -4,6 +4,11 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
 export interface OrderList {
+  /**
+   * "Billed weekly by contract DCC-…" — an operational cleaning under a weekly flat fee contract.
+   * Shown INSTEAD of its $0 price, which would otherwise read as a free cleaning.
+   */
+  billedByContractLabel?: string | null;
   id: number;
   /** Owner of the order — used to flag the customer from the orders panel. */
   userId?: number;
@@ -12,6 +17,8 @@ export interface OrderList {
   /** Optional admin note on why the customer is flagged (shown in the row tooltip). */
   flagReason?: string | null;
   serviceTypeName: string;
+  /** ServiceType.serviceKey of a non-custom type (null for custom / unkeyed). */
+  serviceTypeKey?: string | null;
   isCustomServiceType: boolean;
   /** Bare admin-chosen label for custom orders (no "Cleaning" suffix), e.g. "Deep". */
   customServiceDisplayName?: string | null;
@@ -24,6 +31,8 @@ export interface OrderList {
   orderDate: Date;
   isPaid?: boolean;
   paidAt?: Date;
+  /** Refunded so far; with a non-Refunded status it is a partial refund (the RefundH pill). */
+  totalRefundedAmount?: number;
   // ── Part-payments (2026-09). Zero/false on an ordinary order. ───────────────────────
   /** Money received against the order's own total through admin-requested part-payments. */
   amountPaid?: number;
@@ -116,6 +125,9 @@ export interface OrderPaymentBalance {
   total: number;
   amountPaid: number;
   amountDue: number;
+  /** Owed ON TOP of a paid order because an edit raised its price afterwards (the order-edit
+   *  top-up). Separate from amountDue, the balance of the order's own total. */
+  additionalAmountDue?: number;
   isPartiallyPaid: boolean;
   /** Money taken beyond the total — only reachable when an admin lowered the price after a
    *  deposit. Reported so a person can refund it; never refunded automatically. */
@@ -127,6 +139,11 @@ export interface OrderPaymentBalance {
 }
 
 export interface Order {
+  /**
+   * "Billed weekly by contract DCC-…" — an operational cleaning under a weekly flat fee contract.
+   * Shown INSTEAD of its $0 price, which would otherwise read as a free cleaning.
+   */
+  billedByContractLabel?: string | null;
   recurringSeriesId?: number | null;
   id: number;
   userId: number;
@@ -147,8 +164,12 @@ export interface Order {
   serviceTypeName: string;
   /** True when this order uses the custom ("Pre-Arranged") service type. */
   isCustomServiceType?: boolean;
+  /** ServiceType.serviceKey of a non-custom type (null for custom / unkeyed); see OrderDto.ServiceTypeKey. */
+  serviceTypeKey?: string | null;
   /** Bare admin-chosen label for custom orders (no "Cleaning" suffix), e.g. "Deep". */
   customServiceDisplayName?: string | null;
+  /** Custom orders: the admin chose to show the bedroom/bathroom counts to the customer. */
+  showRoomCountsToCustomer?: boolean;
   orderDate: Date;
   serviceDate: Date;
   serviceTime: string;
@@ -179,6 +200,11 @@ export interface Order {
    *  optional only for backward compat with older clients. */
   loyaltyDiscountAmount?: number;
   loyaltyDiscountPercentage?: number;
+  /** The booking rule behind each discount (2026-10) — read by resolveEditedDiscounts so both
+   *  order editors preview the numbers the server stores. null = no rule recorded. */
+  discountPercent?: number | null;
+  discountFixedAmount?: number | null;
+  subscriptionDiscountPercent?: number | null;
   /** Phase 1 manual payment tracking. 'Normal' = Stripe-flow order; otherwise the literal
    *  value of the backend PaymentMethod enum (Cash/Zelle/Check/Other). */
   paymentMethod?: string;
@@ -287,6 +313,10 @@ export interface OrderExtraService {
   id: number;
   extraServiceId: number;
   extraServiceName: string;
+  /** The catalogue row's key and Deep / Super Deep flags, through the line's extra link. */
+  extraServiceKey?: string | null;
+  isDeepCleaning?: boolean;
+  isSuperDeepCleaning?: boolean;
   quantity: number;
   hours: number;
   cost: number;

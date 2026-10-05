@@ -1,0 +1,58 @@
+// ─── Order status pill ─────────────────────────────────────────────────────────────────────
+//
+// THE ONE DEFINITION of the order status pill: the admin Orders table and the Users panel's
+// History tab (2026-10). Moved here verbatim from orders.component.scss so the History tab could
+// show cancelled and refunded orders with the same pill instead of a second copy of the CSS.
+// The class names come from shared/admin/order-status-badge.ts, which decides them for both.
+//
+// The four original pills still hardcode hex (they predate the token rule); RefundH uses the
+// theme-aware warning pair. Kept exactly as they were - a colour change is a design change.
+//
+// Usage (relative path, same reason as _admin-tab-nav.scss - includePaths is build-only):
+//   @use '../../../../styles/order-status-badge' as *;
+//   .status-badge { @include order-status-badge; }
+
+@mixin order-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  &.status-active {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+
+  &.status-pending {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  &.status-done {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  &.status-cancelled {
+    background: #fee2e2;
+    color: #b91c1c;
+  }
+
+  // REFUNDED reuses the cancelled pill's colours (the badge helper emits both classes): both
+  // statuses mean "this order brought in no money". Letter-spacing only, so the longer word
+  // stays readable at the pill's size.
+  &.status-refunded {
+    letter-spacing: 0.02em;
+  }
+
+  // REFUNDH - partially refunded, e.g. cancelled with the fee retained. Deliberately NOT the
+  // cancelled red: this order kept some money. Amber is the paired warning token, theme-aware.
+  &.status-refund-partial {
+    background: var(--warning-orange-bg);
+    color: var(--warning-orange-text);
+    letter-spacing: 0.02em;
+  }
+}

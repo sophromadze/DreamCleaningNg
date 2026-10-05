@@ -1,11 +1,12 @@
-import { Component, Inject, OnDestroy, OnInit, Optional } from '@angular/core';
-import { CommonModule, DOCUMENT } from '@angular/common';
+import { Component, Inject, OnDestroy, OnInit, Optional, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { Meta, Title, DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription, take } from 'rxjs';
 import { BlogService, BlogPostDetail } from '../../services/blog.service';
 import { BlogStatusService } from '../../services/blog-status.service';
 import { SSR_RESPONSE_CONTEXT, SsrResponseContext } from '../../shared/ssr/ssr-response.token';
+import { StructuredDataService } from '../../services/structured-data.service';
 
 const BASE_URL = 'https://dreamcleaningnyc.com';
 
@@ -33,7 +34,7 @@ export class BlogPostComponent implements OnInit, OnDestroy {
   comingSoon = false;
 
   private subscription = new Subscription();
-  private schemaElement: HTMLScriptElement | null = null;
+  private readonly structuredData = inject(StructuredDataService);
   /** OG/article tags added by this page — removed on destroy so they don't leak. */
   private readonly managedMetaSelectors: string[] = [];
 
@@ -44,7 +45,6 @@ export class BlogPostComponent implements OnInit, OnDestroy {
     private titleService: Title,
     private metaService: Meta,
     private sanitizer: DomSanitizer,
-    @Inject(DOCUMENT) private document: Document,
     @Optional() @Inject(SSR_RESPONSE_CONTEXT) private ssrResponse: SsrResponseContext | null
   ) {}
 
@@ -191,17 +191,11 @@ export class BlogPostComponent implements OnInit, OnDestroy {
       }
     };
 
-    this.schemaElement = this.document.createElement('script');
-    this.schemaElement.type = 'application/ld+json';
-    this.schemaElement.textContent = JSON.stringify(schema);
-    this.document.head.appendChild(this.schemaElement);
+    this.structuredData.set('ld-blog-post', schema);
   }
 
   private removeSchema(): void {
-    if (this.schemaElement && this.schemaElement.parentNode) {
-      this.schemaElement.parentNode.removeChild(this.schemaElement);
-      this.schemaElement = null;
-    }
+    this.structuredData.remove('ld-blog-post');
   }
 
   private removeManagedMeta(): void {

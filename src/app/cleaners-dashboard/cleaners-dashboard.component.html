@@ -37,7 +37,7 @@
     dashboard but not the schedule, so the tab strip is not rendered for them at all rather than
     showing one tab.
   -->
-  <nav class="dashboard-tabs" *ngIf="canSeePortal && !embedded">
+  <nav class="dashboard-tabs" *ngIf="canSeePortal && !embedded" aria-label="Cleaners sections">
     <button type="button"
             class="dashboard-tab"
             [class.active]="activeTab === 'dashboard'"
@@ -122,7 +122,7 @@
         [class.selected]="selectedDetail?.id === cleaner.id"
         (click)="openDetail(cleaner)">
         <div class="avatar">
-          <img *ngIf="cleaner.photoUrl" [src]="cleaner.photoUrl" [alt]="cleaner.firstName + ' ' + cleaner.lastName" />
+          <img *ngIf="cleaner.photoUrl" [src]="cleaner.photoUrl" [alt]="cleaner.firstName + ' ' + cleaner.lastName" referrerpolicy="no-referrer" />
           <span *ngIf="!cleaner.photoUrl" class="avatar-initials">
             {{ (cleaner.firstName.charAt(0) || '') + (cleaner.lastName.charAt(0) || '') }}
           </span>
@@ -130,7 +130,7 @@
         <div class="card-body">
           <div class="card-top-row">
             <div class="name-group">
-              <h3 class="name">{{ cleaner.firstName }} {{ cleaner.lastName }}</h3>
+              <h2 class="name">{{ cleaner.firstName }} {{ cleaner.lastName }}</h2>
               <span [class]="rankingClass(cleaner.ranking)">{{ rankingLabel(cleaner.ranking) }}</span>
             </div>
             <a
@@ -173,7 +173,7 @@
             [attr.aria-label]="selectedDetail.photoUrl ? 'View profile photo' : null"
             (keydown.enter)="openImageViewer(selectedDetail.photoUrl, selectedDetail.firstName + ' ' + selectedDetail.lastName, 'cleaner photo')"
             (keydown.space)="$event.preventDefault(); openImageViewer(selectedDetail.photoUrl, selectedDetail.firstName + ' ' + selectedDetail.lastName, 'cleaner photo')">
-            <img *ngIf="selectedDetail.photoUrl" [src]="selectedDetail.photoUrl" alt="cleaner photo" />
+            <img *ngIf="selectedDetail.photoUrl" [src]="selectedDetail.photoUrl" alt="cleaner photo" referrerpolicy="no-referrer" />
             <span *ngIf="!selectedDetail.photoUrl" class="avatar-initials">
               {{ (selectedDetail.firstName.charAt(0) || '') + (selectedDetail.lastName.charAt(0) || '') }}
             </span>
@@ -315,7 +315,7 @@
                 </div>
 
                 <ng-container *ngIf="editingNoteId === note.id; else readNote">
-                  <textarea
+                  <textarea aria-label="Edit note"
                     class="note-edit-textarea"
                     [(ngModel)]="editingNoteText"
                     [name]="'editNote-' + note.id"
@@ -632,7 +632,7 @@
                 <input type="date" [(ngModel)]="vac.endDate" [name]="'vac-end-' + i" />
               </label>
             </div>
-            <input
+            <input aria-label="Vacation note"
               type="text"
               class="vacation-note"
               [(ngModel)]="vac.note"
@@ -685,7 +685,7 @@
             <span class="field-label">Profile photo</span>
             <div class="file-preview-row">
               <div class="file-thumb" *ngIf="formPhotoPreview">
-                <img [src]="formPhotoPreview" alt="photo preview" />
+                <img [src]="formPhotoPreview" alt="photo preview" referrerpolicy="no-referrer" />
               </div>
               <label class="file-button">
                 <input type="file" accept="image/*" (change)="onFormPhotoSelected($event)" />
@@ -807,7 +807,7 @@
 <div *ngIf="imageViewer" class="image-viewer-overlay" (click)="closeImageViewer()">
   <button type="button" class="image-viewer-close" (click)="closeImageViewer()" aria-label="Close">&times;</button>
   <figure class="image-viewer-figure" (click)="$event.stopPropagation()">
-    <img [src]="imageViewer.src" [alt]="imageViewer.alt" />
+    <img [src]="imageViewer.src" [alt]="imageViewer.alt" referrerpolicy="no-referrer" />
     <figcaption *ngIf="imageViewer.title">{{ imageViewer.title }}</figcaption>
   </figure>
 </div>

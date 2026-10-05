@@ -4,15 +4,19 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { GiftCardService } from '../../services/gift-card.service';
 import { PaymentComponent } from '../../booking/payment/payment.component';
 import { AuthService } from '../../services/auth.service';
+import { IconComponent } from '../../shared/icons/icon.component';
+import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
 
 @Component({
   selector: 'app-gift-card-payment',
   standalone: true,
-  imports: [CommonModule, PaymentComponent],
+  imports: [CommonModule, PaymentComponent, IconComponent],
   templateUrl: './gift-card-payment.component.html',
   styleUrls: ['./gift-card-payment.component.scss']
 })
 export class GiftCardPaymentComponent implements OnInit {
+  protected readonly icons = { faCircleCheck };
+
   giftCardId: number | null = null;
   clientSecret: string | null = null;
   amount: number = 0;

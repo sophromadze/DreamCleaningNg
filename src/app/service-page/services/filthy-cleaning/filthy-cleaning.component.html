@@ -33,7 +33,7 @@
           <h3>Complete Space Restoration:</h3>
           <div class="service-content">
             <div class="image-placeholder left">
-              <img src="/images/filthy-cleaning.webp" alt="Complete Space Restoration Services in Manhattan, Brooklyn & Queens" loading="lazy">
+              <img src="/images/filthy-cleaning.webp" cardImage="serviceCategory" alt="Complete Space Restoration Services in Manhattan, Brooklyn & Queens" loading="lazy">
             </div>
             <ul>
               <li>Removal of grease, mold, mildew, dust, and dirt from all surfaces using industrial-strength cleaners</li>
@@ -57,7 +57,7 @@
               <li>Commitment to transforming your space completely</li>
             </ul>
             <div class="image-placeholder right">
-              <img src="/images/filthy-cleaning-2.webp" alt="Specialized Attention to Problem Areas in Manhattan, Brooklyn & Queens" loading="lazy">
+              <img src="/images/filthy-cleaning-2.webp" cardImage="serviceCategory" alt="Specialized Attention to Problem Areas in Manhattan, Brooklyn & Queens" loading="lazy">
             </div>
           </div>
         </div>
@@ -66,7 +66,7 @@
       <div class="pricing-section">
         <h2>Pricing and Service Terms:</h2>
         <ul>
-          <li><strong>${{ pricing.filthyPerHour }} per hour per cleaner</strong> – transparent hourly pricing</li>
+          <li>@if (pricing().filthy; as p) {<strong>{{ p }}</strong> – transparent pricing} @else {<strong>Priced after assessment</strong> – transparent pricing}</li>
           <li><strong>Minimum of 2 cleaners per job</strong> – ensuring efficient, thorough cleaning</li>
           <li><strong>No flat rates</strong> – each property in NYC is individually assessed based on condition</li>
           <li><strong>Photos are required for evaluation</strong> – send images for accurate estimation</li>
@@ -97,35 +97,35 @@
           <div class="benefit-item">
             <span class="checkmark">✓</span>
             <div class="benefit-content">
-              <h4>Experienced Professionals</h4>
+              <h3>Experienced Professionals</h3>
               <p>Trained in extreme cleaning situations</p>
             </div>
           </div>
           <div class="benefit-item">
             <span class="checkmark">✓</span>
             <div class="benefit-content">
-              <h4>Discrete and Compassionate</h4>
+              <h3>Discrete and Compassionate</h3>
               <p>We understand these situations can be overwhelming</p>
             </div>
           </div>
           <div class="benefit-item">
             <span class="checkmark">✓</span>
             <div class="benefit-content">
-              <h4>Industrial-Grade Equipment</h4>
+              <h3>Industrial-Grade Equipment</h3>
               <p>Cleaning solutions for the toughest jobs</p>
             </div>
           </div>
           <div class="benefit-item">
             <span class="checkmark">✓</span>
             <div class="benefit-content">
-              <h4>Complete Transformation</h4>
+              <h3>Complete Transformation</h3>
               <p>We don't leave until your space is fully restored</p>
             </div>
           </div>
           <div class="benefit-item">
             <span class="checkmark">✓</span>
             <div class="benefit-content">
-              <h4>Health and Safety Focused</h4>
+              <h3>Health and Safety Focused</h3>
               <p>Eliminating hazards and creating livable environments</p>
             </div>
           </div>

@@ -49,7 +49,7 @@
 
   &.alert-error {
     background: var(--soft-red);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
   }
 
   &.alert-success {
@@ -83,8 +83,8 @@
     line-height: 1.2;
     min-height: 1.4rem * 1.2;
 
-    &.positive { color: var(--fresh-green); }
-    &.negative { color: var(--bright-red); }
+    &.positive { color: var(--mint-fresh-text); }
+    &.negative { color: var(--soft-red-text); }
   }
 
   .card-label {
@@ -165,7 +165,7 @@
 
   .align-right { text-align: right; }
   .mono { font-variant-numeric: tabular-nums; font-weight: var(--fw-medium); white-space: nowrap; }
-  .muted { color: var(--text-muted); }
+  .muted { color: var(--text-muted-on-tint); }
 
   .amount { font-weight: var(--fw-semibold); white-space: nowrap; }
 
@@ -177,7 +177,7 @@
 
   .paid-on {
     font-size: 0.74rem;
-    color: var(--fresh-green);
+    color: var(--mint-fresh-text);
     white-space: nowrap;
   }
 
@@ -212,12 +212,12 @@
 
   &.status-draft {
     background: var(--surface-subtle);
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
   }
 
   &.status-sent {
     background: var(--soft-blue);
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
   }
 
   /* Viewed is a step past Sent, so it is the same family one shade stronger rather than a new hue. */
@@ -239,12 +239,12 @@
 
   &.status-overdue {
     background: var(--soft-red);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
   }
 
   &.status-void {
     background: var(--surface-subtle);
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
     text-decoration: line-through;
   }
 }
@@ -296,7 +296,7 @@
     white-space: nowrap;
 
     &:hover { background: var(--surface-subtle); }
-    &.danger { color: var(--bright-red); }
+    &.danger { color: var(--soft-red-text); }
   }
 }
 

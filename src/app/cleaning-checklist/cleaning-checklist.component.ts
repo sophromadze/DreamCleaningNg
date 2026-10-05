@@ -12,15 +12,23 @@ import {
   MOVE_OUT_IMPORTANT_REQUIREMENTS,
   MoveOutChecklistSection,
 } from '../shared/cleaning-checklist-page.data';
+import { IconComponent } from '../shared/icons/icon.component';
+import { faBan } from '../shared/icons/glyphs/faBan';
+import { faCheck } from '../shared/icons/glyphs/faCheck';
+import { faCircleInfo } from '../shared/icons/glyphs/faCircleInfo';
+import { faPlus } from '../shared/icons/glyphs/faPlus';
+import { faXmark } from '../shared/icons/glyphs/faXmark';
 
 @Component({
   selector: 'app-cleaning-checklist',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, IconComponent],
   templateUrl: './cleaning-checklist.component.html',
   styleUrl: './cleaning-checklist.component.scss',
 })
 export class CleaningChecklistComponent implements OnInit, OnDestroy {
+  protected readonly icons = { faBan, faCheck, faCircleInfo, faPlus, faXmark };
+
   readonly comparisonSections = CHECKLIST_COMPARISON_SECTIONS;
   readonly moveOutSections = MOVE_OUT_CHECKLIST_SECTIONS;
   readonly importantRequirements = MOVE_OUT_IMPORTANT_REQUIREMENTS;

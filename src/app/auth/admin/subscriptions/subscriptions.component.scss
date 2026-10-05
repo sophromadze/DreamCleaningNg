@@ -217,7 +217,7 @@
   transition: all 0.2s ease;
 
   &.edit {
-    background: #007bff;
+    background: var(--primary-color);
     color: white;
     
     &:hover {
@@ -235,7 +235,7 @@
   }
 
   &.activate {
-    background-color: #28a745;
+    background-color: var(--fill-success);
     color: white;
 
     &:hover {
@@ -253,7 +253,7 @@
   }
 
   &.add {
-    background: #28a745;
+    background: var(--fill-success);
     color: white;
 
     &:hover {
@@ -262,7 +262,7 @@
   }
 
   &.save {
-    background: #28a745;
+    background: var(--fill-success);
     color: white;
 
     &:hover {

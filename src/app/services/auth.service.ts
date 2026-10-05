@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { Injectable, Inject, Injector, PLATFORM_ID } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, of, throwError, timeout, from, defer } from 'rxjs';
 import { map, tap, catchError, switchMap, filter, take, first, finalize } from 'rxjs/operators';
@@ -6,6 +6,7 @@ import { Router } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
 import { environment } from '../../environments/environment';
 import { storeDeviceToken } from './two-factor.service';
+import { ANONYMOUS_UI_HINT, writeUiHintCookie } from '../shared/ssr/ui-hint-cookie';
 import {
   SocialAuthService,
   SocialUser
@@ -117,11 +118,27 @@ export class AuthService {
   }
   private profilePictureCache = new Map<string, string>();
 
+  /**
+   * Google Sign-In, resolved on first use. Constructing SocialAuthService is what loads
+   * accounts.google.com/gsi/client (~100 KB), so it is no longer injected here: AuthService is
+   * created on every page, and the script is only needed where a Google button is drawn (login
+   * page, auth modal) or a Google session is ended. Same singleton as before - only WHEN it is
+   * created moved.
+   */
+  get socialAuthService(): SocialAuthService {
+    return this.injector.get(SocialAuthService);
+  }
+
+  /** Starts loading Google Sign-In ahead of the sign-in UI (e.g. when the login menu opens). */
+  warmUpSocialAuth(): void {
+    if (this.isBrowser) void this.socialAuthService;
+  }
+
   constructor(
     private http: HttpClient,
     private router: Router,
     @Inject(PLATFORM_ID) platformId: Object,
-    public socialAuthService: SocialAuthService
+    private injector: Injector
   ) {
     this.isBrowser = isPlatformBrowser(platformId);
 
@@ -176,16 +193,10 @@ export class AuthService {
         
         // IMMEDIATE initialization if we have user data and token
         if (token && userStr && storedUser) {
-          // User is already logged in - initialize immediately
+          // User is already logged in - initialize immediately. (A social session used to
+          // subscribe to the social auth state here with an empty handler; its only effect was
+          // loading Google Sign-In on every page, so it is gone - see socialAuthService.)
           this.isInitializedSubject.next(true);
-          
-          // If it's a social login, still subscribe to social auth state
-          // but don't block initialization
-          if (isSocialLogin) {
-            this.socialAuthService.initState.subscribe((isReady) => {
-              // Social auth is ready, but we're already initialized
-            });
-          }
         } else if (isSocialLogin && !token) {
           // Only wait for social auth if it's a social login without token
           this.socialAuthService.initState.subscribe((isReady) => {
@@ -562,8 +573,11 @@ export class AuthService {
 
   // Social logout
   async socialSignOut(): Promise<void> {
-    // Only sign out from social providers if it was a social login
-    if (this.isSocialLogin && this.socialAuthService && this.isBrowser) {
+    // Only sign out from social providers if it was a social login. The library can only end a
+    // Google session that signed in during THIS page load (anything else rejects "Not logged
+    // in"), and such a sign-in has necessarily loaded Google Sign-In - so when the script is
+    // absent there is nothing to end, and loading ~100 KB just to be told so is skipped.
+    if (this.isSocialLogin && this.isBrowser && (window as any).google?.accounts?.id) {
       try {
         await this.socialAuthService.signOut();
       } catch (error) {
@@ -1115,6 +1129,8 @@ export class AuthService {
       } catch (error) {
         console.warn('Failed to clear header cache:', error);
       }
+      // The server-side layout hint goes with it: the next render is anonymous.
+      writeUiHintCookie(document, ANONYMOUS_UI_HINT);
     }
   }
 

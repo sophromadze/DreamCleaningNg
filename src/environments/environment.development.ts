@@ -1,6 +1,7 @@
 export const environment = {
     production: false,
     googleMapsApiKey: 'AIzaSyAoKRkNejxYTtwv92SX5RQX6qR6b9NwJh8',
+    cartoBasemapsKey: 'cb1_414m_1_7c28b29902d8ee9818004aec',
     // Use relative URL so Angular dev-server proxy (`proxy.conf.json`) can forward to the local API.
     // This avoids CORS/credentials issues and mirrors production behavior more closely.
     apiUrl: '/api',

@@ -29,7 +29,7 @@
 }
 
 .hint {
-  color: var(--text-muted);
+  color: var(--text-muted-on-tint);
   font-size: 0.72rem;
 }
 
@@ -97,7 +97,7 @@
   border: none;
   background: none;
   padding: 0;
-  color: var(--primary-color);
+  color: var(--primary-color-text);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -126,7 +126,7 @@
 
 .form-error {
   background: var(--soft-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   border-radius: var(--radius-sm);
   padding: 0.75rem 1rem;
   font-size: 0.88rem;
@@ -134,7 +134,7 @@
 
 .callout {
   background: var(--soft-blue);
-  color: var(--primary-color);
+  color: var(--primary-text-elevated);
   border-radius: var(--radius-sm);
   padding: 0.7rem 0.9rem;
   font-size: 0.83rem;
@@ -243,7 +243,7 @@
   background: var(--mint-fresh);
   border-radius: var(--radius-sm);
 
-  h4 {
+  h3 {
     margin: 0 0 0.6rem;
     font-size: 0.78rem;
     letter-spacing: 0.05em;
@@ -284,7 +284,7 @@
   gap: 0.5rem;
   margin-bottom: 0.55rem;
 
-  h4 { margin: 0; flex: 1; font-size: 0.88rem; }
+  h3 { margin: 0; flex: 1; font-size: 0.88rem; }
 }
 
 // A whole extra category for this contract. Set apart from the per-category "add an item" rows
@@ -362,7 +362,7 @@
   right: 0;
   background: none;
   border: none;
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   font-size: 1.05rem;
   line-height: 1;
   cursor: pointer;
@@ -411,7 +411,7 @@
 
 .btn-ghost {
   background: transparent;
-  color: var(--primary-color);
+  color: var(--primary-color-text);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 0.5rem 1rem;
@@ -430,7 +430,7 @@
   padding-top: 1rem;
   border-top: 1px solid var(--border-color);
 
-  h4 {
+  h3 {
     margin: 0 0 0.75rem;
     font-size: 0.8rem;
     text-transform: uppercase;

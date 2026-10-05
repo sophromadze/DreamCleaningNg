@@ -16,6 +16,7 @@ import { BeforeAfterPhotosComponent } from './before-after-photos/before-after-p
 import { ChatAgentSettingsComponent } from './chat-agent-settings/chat-agent-settings.component';
 import { ChatSessionsComponent } from './chat-sessions/chat-sessions.component';
 import { AdminRewardsComponent } from './rewards/admin-rewards.component';
+import { AdminCustomerInvoicesComponent } from './customer-invoices/admin-customer-invoices.component';
 
 @Component({
   selector: 'app-admin',
@@ -32,7 +33,8 @@ import { AdminRewardsComponent } from './rewards/admin-rewards.component';
     BeforeAfterPhotosComponent,
     ChatAgentSettingsComponent,
     ChatSessionsComponent,
-    AdminRewardsComponent
+    AdminRewardsComponent,
+    AdminCustomerInvoicesComponent
   ],
   templateUrl: './admin.component.html',
   styleUrls: ['./admin.component.scss']
@@ -62,7 +64,7 @@ export class AdminComponent implements OnInit {
   /** Every tab the panel can show, in strip order. Only used to validate an incoming ?tab=. */
   private static readonly KNOWN_TABS = [
     'orders', 'users', 'booking-services', 'discounts',
-    'scheduling', 'audit-history', 'mails-sms', 'before-after', 'chats', 'rewards'
+    'scheduling', 'audit-history', 'mails-sms', 'before-after', 'chats', 'rewards', 'invoices'
   ];
 
   /**
@@ -405,8 +407,14 @@ export class AdminComponent implements OnInit {
   }
 
   canOpenTab(tab: string): boolean {
+    if (AdminComponent.ADMIN_AND_UP_TABS.includes(tab))
+      return this.userRole === 'Admin' || this.userRole === 'SuperAdmin';
     return !AdminComponent.SUPER_ADMIN_ONLY_TABS.includes(tab) || this.userRole === 'SuperAdmin';
   }
+
+  /** Tabs a Moderator may not open. Invoices mirrors [Authorize(Roles = "Admin,SuperAdmin")] on
+   *  AdminCustomerInvoicesController — Moderators hold canView, so the permission is not enough. */
+  private static readonly ADMIN_AND_UP_TABS = ['invoices'];
 
   /**
    * A tab name from a link or from storage, resolved to the tab that actually exists today —

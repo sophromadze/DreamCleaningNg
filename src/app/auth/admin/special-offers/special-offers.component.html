@@ -32,7 +32,7 @@
 
         <div class="form-group">
           <label>Offer Type *</label>
-          <select formControlName="type">
+          <select aria-label="Offer Type" formControlName="type">
             <option *ngFor="let type of offerTypes" [value]="type.value">{{ type.label }}</option>
           </select>
         </div>
@@ -44,9 +44,9 @@
 
         <div class="form-group">
           <label>Discount Type *</label>
-          <select formControlName="isPercentage">
-            <option [value]="true">Percentage</option>
-            <option [value]="false">Fixed Amount</option>
+          <select aria-label="Discount Type" formControlName="isPercentage">
+            <option [ngValue]="true">Percentage</option>
+            <option [ngValue]="false">Fixed Amount</option>
           </select>
         </div>
 
@@ -54,7 +54,7 @@
           <label>Discount Value *</label>
           <div class="input-group">
             <span class="input-prefix" *ngIf="!specialOfferForm.get('isPercentage')?.value">$</span>
-            <input type="number" formControlName="discountValue" min="0.01" [max]="specialOfferForm.get('isPercentage')?.value ? 100 : null">
+            <input aria-label="Discount value" type="number" formControlName="discountValue" min="0.01" [max]="specialOfferForm.get('isPercentage')?.value ? 100 : null">
             <span class="input-suffix" *ngIf="specialOfferForm.get('isPercentage')?.value">%</span>
           </div>
           <div class="error" *ngIf="specialOfferForm.get('discountValue')?.touched && specialOfferForm.get('discountValue')?.errors?.['max']">
@@ -64,25 +64,25 @@
 
         <div class="form-group">
           <label>Valid From</label>
-          <input type="date" formControlName="validFrom">
+          <input aria-label="Valid From" type="date" formControlName="validFrom">
         </div>
 
         <div class="form-group">
           <label>Valid To</label>
-          <input type="date" formControlName="validTo">
+          <input aria-label="Valid To" type="date" formControlName="validTo">
         </div>
 
         <div class="form-group">
           <label>Minimum Order Amount</label>
           <div class="input-group">
             <span class="input-prefix">$</span>
-            <input type="number" formControlName="minimumOrderAmount" min="0">
+            <input aria-label="Minimum order amount" type="number" formControlName="minimumOrderAmount" min="0">
           </div>
         </div>
 
         <div class="form-group">
           <label>Badge Color</label>
-          <input type="color" formControlName="badgeColor" [value]="specialOfferForm.get('badgeColor')?.value || '#28a745'">
+          <input aria-label="Badge Color" type="color" formControlName="badgeColor" [value]="specialOfferForm.get('badgeColor')?.value || '#28a745'">
         </div>
 
         <div class="form-group full-width">
@@ -90,6 +90,16 @@
             <input type="checkbox" formControlName="requiresFirstTimeCustomer">
             Requires First-Time Customer
           </label>
+        </div>
+
+        <div class="form-group full-width" *ngIf="canEditOfferKey">
+          <label>Key</label>
+          <input type="text" formControlName="offerKey" placeholder="e.g. first-time" maxlength="50" autocomplete="off">
+          <small class="form-note">
+            Optional. A fixed name the website uses to find this offer, because names can change.
+            "first-time" marks the first-time customer discount. Lowercase letters, numbers and hyphens.
+            Leave blank if not needed.
+          </small>
         </div>
       </div>
 
@@ -122,7 +132,8 @@
         <tr *ngFor="let offer of specialOffers" [class.inactive]="!offer.isActive">
           <td *ngIf="editingOfferId !== offer.id">{{ offer.name }}</td>
           <td *ngIf="editingOfferId !== offer.id">
-            <span class="offer-type-badge" [style.background-color]="offer.badgeColor || '#6c757d'">
+            <span class="offer-type-badge" [style.background-color]="offer.badgeColor || '#6c757d'"
+                  [style.color]="badgeLabelColor(offer.badgeColor || '#6c757d')">
               {{ getOfferTypeLabel(offer.type) }}
             </span>
           </td>
@@ -163,7 +174,7 @@
                     (click)="toggleOfferStatus(offer, true)">
               Enable
             </button>
-            <button *ngIf="canDelete && !isFirstTimeOffer(offer)" 
+            <button *ngIf="canDelete && !isProtectedFirstTimeOffer(offer)" 
                     class="action-btn delete" 
                     (click)="deleteOffer(offer)">
               Delete
@@ -182,7 +193,7 @@
 
                 <div class="form-group">
                   <label>Offer Type *</label>
-                  <select [(ngModel)]="editingOfferType[offer.id]" 
+                  <select aria-label="Offer Type" [(ngModel)]="editingOfferType[offer.id]" 
                           [disabled]="isEditingFirstTimeOffer()">
                     <option *ngFor="let type of offerTypes" [value]="type.value">{{ type.label }}</option>
                   </select>
@@ -195,9 +206,9 @@
 
                 <div class="form-group">
                   <label>Discount Type *</label>
-                  <select [(ngModel)]="offer.isPercentage">
-                    <option [value]="true">Percentage</option>
-                    <option [value]="false">Fixed Amount</option>
+                  <select aria-label="Discount Type" [(ngModel)]="offer.isPercentage">
+                    <option [ngValue]="true">Percentage</option>
+                    <option [ngValue]="false">Fixed Amount</option>
                   </select>
                 </div>
 
@@ -205,24 +216,31 @@
                   <label>Discount Value *</label>
                   <div class="input-group">
                     <span class="input-prefix" *ngIf="!offer.isPercentage">$</span>
-                    <input type="number" [(ngModel)]="offer.discountValue" min="0.01" [max]="offer.isPercentage ? 100 : null">
+                    <input aria-label="Discount value" type="number" [(ngModel)]="offer.discountValue" min="0.01" [max]="offer.isPercentage ? 100 : null">
                     <span class="input-suffix" *ngIf="offer.isPercentage">%</span>
                   </div>
                 </div>
 
                 <div class="form-group">
                   <label>Valid From</label>
-                  <input type="date" [(ngModel)]="offer.validFrom">
+                  <input aria-label="Valid From" type="date" [(ngModel)]="offer.validFrom">
                 </div>
 
                 <div class="form-group">
                   <label>Valid To</label>
-                  <input type="date" [(ngModel)]="offer.validTo">
+                  <input aria-label="Valid To" type="date" [(ngModel)]="offer.validTo">
                 </div>
 
                 <div class="form-group">
                   <label>Badge Color</label>
-                  <input type="color" [(ngModel)]="offer.badgeColor" [value]="offer.badgeColor || '#28a745'">
+                  <input aria-label="Badge Color" type="color" [(ngModel)]="offer.badgeColor" [value]="offer.badgeColor || '#28a745'">
+                </div>
+
+                <!-- SuperAdmin only. Invalid or duplicate keys are refused by the API, whose message
+                     shows in the alert above. -->
+                <div class="form-group" *ngIf="canEditOfferKey">
+                  <label>Key</label>
+                  <input type="text" [(ngModel)]="offer.offerKey" placeholder="e.g. first-time" maxlength="50" autocomplete="off">
                 </div>
               </div>
 

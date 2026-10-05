@@ -3,7 +3,7 @@
   class="reorder-btn"
   (click)="toggleModal()"
   [class.active]="showModal">
-  <i class="fas fa-redo"></i>
+  <i [appIcon]="icons.faArrowRotateRight"></i>
   Reorder from Previous Orders
 </button>
 
@@ -12,7 +12,7 @@
   <div class="reorder-modal-header">
     <h3>Select an Order to Reorder</h3>
     <button type="button" class="close-btn" (click)="toggleModal()">
-      <i class="fas fa-times"></i>
+      <i [appIcon]="icons.faXmark"></i>
     </button>
   </div>
   <div class="reorder-modal-body">

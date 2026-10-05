@@ -1,7 +1,7 @@
 <div class="pin-setup-page">
   <div class="pin-setup-card">
     <div class="pin-setup-header">
-      <i class="fas fa-shield-halved tf-shield"></i>
+      <i [appIcon]="icons.faShieldHalved" class="tf-shield"></i>
       <h1>Set up your security PIN</h1>
       <p class="pin-setup-subtitle">
         Your account is staff-level, so we add a second layer of protection.
@@ -27,7 +27,7 @@
                   class="pin-eye"
                   (click)="showPin = !showPin"
                   [attr.aria-label]="showPin ? 'Hide PIN' : 'Show PIN'">
-            <i class="fas" [class.fa-eye]="!showPin" [class.fa-eye-slash]="showPin"></i>
+            <i [appIcon]="showPin ? icons.faEyeSlash : icons.faEye"></i>
           </button>
         </div>
         <small *ngIf="pin" class="pin-strength" [attr.data-strength]="strengthClass()">
@@ -51,7 +51,7 @@
                   class="pin-eye"
                   (click)="showConfirm = !showConfirm"
                   [attr.aria-label]="showConfirm ? 'Hide PIN' : 'Show PIN'">
-            <i class="fas" [class.fa-eye]="!showConfirm" [class.fa-eye-slash]="showConfirm"></i>
+            <i [appIcon]="showConfirm ? icons.faEyeSlash : icons.faEye"></i>
           </button>
         </div>
         <small *ngIf="confirmPin && confirmPin !== pin" class="pin-mismatch">
@@ -63,22 +63,21 @@
               class="btn btn-primary pin-submit"
               [disabled]="isSaving || !pin || pin !== confirmPin"
               (click)="save()">
-        <i class="fas" [class.fa-spinner]="isSaving" [class.fa-spin]="isSaving"
-           [class.fa-lock]="!isSaving"></i>
+        <i [appIcon]="isSaving ? icons.faSpinner : icons.faLock" [class.fa-spin]="isSaving"></i>
         {{ isSaving ? 'Saving…' : 'Save PIN and continue' }}
       </button>
     </div>
 
     <div class="pin-message pin-error" *ngIf="error">
-      <i class="fas fa-exclamation-circle"></i> {{ error }}
+      <i [appIcon]="icons.faCircleExclamation"></i> {{ error }}
     </div>
     <div class="pin-message pin-notice" *ngIf="notice && !error">
-      <i class="fas fa-check-circle"></i> {{ notice }}
+      <i [appIcon]="icons.faCircleCheck"></i> {{ notice }}
     </div>
 
     <div class="pin-footer">
       <p class="pin-tips">
-        <i class="fas fa-info-circle"></i>
+        <i [appIcon]="icons.faCircleInfo"></i>
         Tip: pick a PIN you'll remember but that isn't a common pattern (avoid 0000, 1234, birth years).
       </p>
       <button type="button" class="pin-signout" (click)="signOut()">

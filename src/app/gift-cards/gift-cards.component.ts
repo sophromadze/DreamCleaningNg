@@ -1,11 +1,20 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, Inject, PLATFORM_ID, afterNextRender } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { GiftCardService, CreateGiftCard } from '../services/gift-card.service';
 import { AuthService } from '../services/auth.service';
+import { AuthModalService } from '../services/auth-modal.service';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
+import { GIFT_CARD_DEFAULT_BACKGROUND } from '../shared/gift-card-background';
+
+/** "Send to someone now" (today's flow) or "Buy for myself - send later" (signed-in only). */
+export type GiftCardDeliveryMode = 'now' | 'later';
+
+/** The form survives a login/register round-trip in sessionStorage under this key. */
+const GIFT_CARD_DRAFT_KEY = 'giftCardPurchaseDraft';
+const GIFT_CARD_DRAFT_TTL_MS = 30 * 60 * 1000;
 
 @Component({
   selector: 'app-gift-cards',
@@ -14,7 +23,7 @@ import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
   templateUrl: './gift-cards.component.html',
   styleUrls: ['./gift-cards.component.scss']
 })
-export class GiftCardsComponent implements OnInit, OnDestroy {
+export class GiftCardsComponent implements OnInit {
   giftCardForm: FormGroup;
   previewGiftCard: any = null;
   isLoading = false;
@@ -24,6 +33,9 @@ export class GiftCardsComponent implements OnInit, OnDestroy {
   currentUser: any = null;
   giftCardBackgroundPath: string = '';
   isLoadingBackground: boolean = true;
+  /** Set once the config endpoint has answered; a slower cache probe must not override it. */
+  private backgroundFromServer = false;
+  deliveryMode: GiftCardDeliveryMode = 'now';
   private isBrowser: boolean;
 
   // Add billing details getter
@@ -40,11 +52,18 @@ export class GiftCardsComponent implements OnInit, OnDestroy {
     private fb: FormBuilder,
     private giftCardService: GiftCardService,
     private authService: AuthService,
+    private authModalService: AuthModalService,
     private router: Router,
+    private route: ActivatedRoute,
     private http: HttpClient,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
+
+    // The server always renders "send now" (it can't see sessionStorage or the signed-in user), so
+    // the restored mode is applied only AFTER hydration - switching before it leaves the server's
+    // recipient fields stuck in the DOM next to the client's.
+    afterNextRender(() => this.restoreDraft());
     
     this.giftCardForm = this.fb.group({
       amount: ['', [Validators.required, Validators.min(50), Validators.max(10000)]],
@@ -68,12 +87,77 @@ export class GiftCardsComponent implements OnInit, OnDestroy {
     this.updatePreview(this.giftCardForm.value);
   }
 
-  ngOnDestroy() {
-    // Clean up any preload links created by this component only in browser
-    if (this.isBrowser) {
-      const giftCardPreloadLinks = document.querySelectorAll('link[rel="preload"][data-gift-card="true"]');
-      giftCardPreloadLinks.forEach(link => link.remove());
+  get isSendLater(): boolean {
+    return this.deliveryMode === 'later';
+  }
+
+  setDeliveryMode(mode: GiftCardDeliveryMode) {
+    if (this.deliveryMode === mode) return;
+    this.deliveryMode = mode;
+    this.errorMessage = '';
+    // Recipient fields are not asked in "send later" mode - disabled controls don't validate.
+    const recipientControls = ['recipientName', 'recipientEmail', 'message'];
+    recipientControls.forEach(name => {
+      const control = this.giftCardForm.get(name);
+      if (mode === 'later') control?.disable({ emitEvent: false });
+      else control?.enable({ emitEvent: false });
+    });
+    this.updatePreview(this.giftCardForm.getRawValue());
+  }
+
+  /** Saves the form and opens login/register; the page restores the draft on return. */
+  promptLoginForSendLater(mode: 'login' | 'register' = 'login') {
+    this.saveDraft();
+    this.authModalService.open(mode, '/gift-cards?mode=later');
+  }
+
+  private saveDraft() {
+    if (!this.isBrowser) return;
+    try {
+      sessionStorage.setItem(GIFT_CARD_DRAFT_KEY, JSON.stringify({
+        ...this.giftCardForm.getRawValue(),
+        deliveryMode: this.deliveryMode,
+        savedAt: Date.now()
+      }));
+    } catch { /* storage unavailable - the form just isn't restored */ }
+  }
+
+  private clearDraft() {
+    if (!this.isBrowser) return;
+    try { sessionStorage.removeItem(GIFT_CARD_DRAFT_KEY); } catch { /* ignore */ }
+  }
+
+  private restoreDraft() {
+    if (!this.isBrowser) return;
+    let draft: any = null;
+    try {
+      const raw = sessionStorage.getItem(GIFT_CARD_DRAFT_KEY);
+      if (raw) draft = JSON.parse(raw);
+    } catch { /* ignore a broken draft */ }
+    // A draft is only for the login/register round-trip - an old one is ignored.
+    if (draft && !(Date.now() - (draft.savedAt ?? 0) < GIFT_CARD_DRAFT_TTL_MS)) draft = null;
+    this.clearDraft();
+
+    const modeFromUrl = this.route.snapshot.queryParamMap.get('mode');
+    const mode: GiftCardDeliveryMode =
+      draft?.deliveryMode === 'later' || modeFromUrl === 'later' ? 'later' : 'now';
+
+    if (draft) {
+      this.giftCardForm.patchValue({
+        amount: draft.amount ?? '',
+        recipientName: draft.recipientName ?? '',
+        recipientEmail: draft.recipientEmail ?? '',
+        message: draft.message ?? ''
+      });
+      // Sender fields come from the signed-in profile when there is one.
+      if (!this.currentUser) {
+        this.giftCardForm.patchValue({
+          senderName: draft.senderName ?? '',
+          senderEmail: draft.senderEmail ?? ''
+        });
+      }
     }
+    this.setDeliveryMode(mode);
   }
 
   updatePreview(formValue: any) {
@@ -112,18 +196,32 @@ export class GiftCardsComponent implements OnInit, OnDestroy {
     this.giftCardForm.patchValue({ amount });
   }
 
-  onCreateGiftCard() {    
+  onCreateGiftCard() {
+    if (this.isSendLater && !this.currentUser) {
+      this.errorMessage = 'Please log in or create an account to buy a gift card for yourself.';
+      return;
+    }
+
     if (!this.giftCardForm.valid) {
       this.markFormGroupTouched();
       this.errorMessage = 'Please fill in all required fields correctly.';
       return;
     }
-  
+
     this.isLoading = true;
     this.errorMessage = '';
-  
+
     // Get gift card data
-    const giftCardData: CreateGiftCard = this.giftCardForm.getRawValue();
+    const raw = this.giftCardForm.getRawValue();
+    const giftCardData: CreateGiftCard = this.isSendLater
+      ? {
+          amount: raw.amount,
+          senderName: raw.senderName,
+          senderEmail: raw.senderEmail,
+          sendLater: true
+        }
+      : raw;
+    this.clearDraft();
     
     // Navigate to confirmation page with gift card data
     this.router.navigate(['/gift-card-confirmation'], {
@@ -166,114 +264,57 @@ export class GiftCardsComponent implements OnInit, OnDestroy {
   loadGiftCardBackground() {
     // Only execute in browser environment
     if (!this.isBrowser) return;
-    
-    // Step 1: Check cache first for instant display
+
+    // Last background that loaded, for a fast repeat visit — but probed like any other, so a
+    // file that has since disappeared is never painted. The server's answer always wins.
     const cachedPath = localStorage.getItem('giftCardBackground');
-    const cachedTimestamp = localStorage.getItem('giftCardBackgroundTimestamp');
-    if (cachedPath) {
-      this.giftCardBackgroundPath = cachedPath;
-      this.isLoadingBackground = false;
-    }
-    
-    // Step 2: Always fetch latest from API to check for updates (now public endpoint)
+    if (cachedPath) this.showBackground(cachedPath, true);
+
+    // The server answers with the background IN EFFECT (2026-10): a missing upload already
+    // resolves to the default there, so this is never a path that 404s.
     this.http.get<any>('/api/admin/gift-card-config').subscribe({
       next: (response) => {
-        const newPath = response.backgroundImagePath || '/images/mainImage.webp';
-        // Convert timestamp to string for comparison (handle both Date objects and strings)
-        const newTimestamp = response.lastUpdated 
-          ? (typeof response.lastUpdated === 'string' 
-              ? response.lastUpdated 
-              : new Date(response.lastUpdated).toISOString())
-          : new Date().toISOString();
-        
-        // Check if image has changed by comparing path or timestamp
-        const pathChanged = newPath !== this.giftCardBackgroundPath;
-        const timestampChanged = cachedTimestamp !== newTimestamp;
-        
-        // Always preload if path changed, timestamp changed, or no cache
-        // This ensures we always get the latest image
-        if (pathChanged || timestampChanged || !cachedPath || !cachedTimestamp) {
-          // Clear old cache before loading new image
-          if (pathChanged || timestampChanged) {
-            localStorage.removeItem('giftCardBackground');
-            localStorage.removeItem('giftCardBackgroundTimestamp');
-          }
-          this.preloadImage(newPath, newTimestamp);
-        } else {
-          // Path and timestamp match cache, we're showing the right image
-          this.isLoadingBackground = false;
-        }
+        this.backgroundFromServer = true;
+        this.showBackground(response?.backgroundImagePath || GIFT_CARD_DEFAULT_BACKGROUND);
       },
-      error: (_error: any) => {
-        // Silently handle error - use cached or fallback
-        if (!this.giftCardBackgroundPath) {
-          this.giftCardBackgroundPath = '/images/mainImage.webp';
-          this.isLoadingBackground = false;
-        }
+      error: () => {
+        if (!this.giftCardBackgroundPath) this.showBackground(GIFT_CARD_DEFAULT_BACKGROUND);
       }
     });
   }
 
-  private preloadImage(imagePath: string, timestamp?: string) {
-    // Only execute in browser environment
+  /**
+   * Swap to a background only once it has actually loaded, falling back to the default if it
+   * cannot — so the card never renders a broken image. No <link rel=preload> and no cache-buster:
+   * an uploaded background has a unique name per upload, and a preload of a URL that differs
+   * from the one used (the old ?t= query) is exactly the "preloaded but not used" warning.
+   */
+  private showBackground(imagePath: string, fromCache = false) {
     if (!this.isBrowser) return;
-    
-    // Create a preload link for the dynamic image if it's different from mainImage
-    if (imagePath !== '/images/mainImage.webp') {
-      this.createPreloadLink(imagePath);
-    }
-    
+
     const img = new Image();
-    
     img.onload = () => {
+      if (fromCache && this.backgroundFromServer) return; // the server's answer already won
       this.giftCardBackgroundPath = imagePath;
       this.isLoadingBackground = false;
-      
-      // Update cache with new path and timestamp
       localStorage.setItem('giftCardBackground', imagePath);
-      if (timestamp) {
-        localStorage.setItem('giftCardBackgroundTimestamp', timestamp);
+    };
+    img.onerror = () => {
+      localStorage.removeItem('giftCardBackground');
+      if (fromCache) return; // stale cache: the config response decides what to show
+      if (imagePath !== GIFT_CARD_DEFAULT_BACKGROUND) {
+        this.showBackground(GIFT_CARD_DEFAULT_BACKGROUND);
+      } else {
+        this.isLoadingBackground = false;
       }
     };
-    
-    img.onerror = () => {
-      this.giftCardBackgroundPath = '/images/mainImage.webp';
-      this.isLoadingBackground = false;
-      
-      // Don't cache failed image
-      localStorage.removeItem('giftCardBackground');
-      localStorage.removeItem('giftCardBackgroundTimestamp');
-    };
-    
-    // Start loading the image (add cache busting if timestamp provided)
-    // Use timestamp or current time to force browser to reload
-    const cacheBuster = timestamp 
-      ? `?t=${encodeURIComponent(timestamp)}` 
-      : `?t=${Date.now()}`;
-    const fullImagePath = imagePath + cacheBuster;
-    img.src = fullImagePath;
+    img.src = imagePath;
   }
 
   getGiftCardBackground(): string {
     return this.giftCardBackgroundPath;
   }
 
-  private createPreloadLink(imagePath: string) {
-    // Only execute in browser environment
-    if (!this.isBrowser) return;
-    
-    // Remove any existing preload links for gift card backgrounds to avoid duplicates
-    const existingLinks = document.querySelectorAll('link[rel="preload"][data-gift-card="true"]');
-    existingLinks.forEach(link => link.remove());
-    
-    // Create a new preload link for the dynamic image
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'image';
-    link.href = imagePath;
-    link.setAttribute('data-gift-card', 'true'); // Mark it for easy removal
-    document.head.appendChild(link);
-  }
 
 
   // Form getters for template

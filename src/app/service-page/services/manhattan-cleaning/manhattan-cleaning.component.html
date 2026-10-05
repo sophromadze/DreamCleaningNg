@@ -155,11 +155,11 @@
       <h2>Our Manhattan Cleaning Services</h2>
       <div class="services-grid">
         <a class="service-item" routerLink="/services/residential-cleaning">
-          <img src="/images/residential-cleaning.webp" alt="Residential Cleaning Manhattan" loading="lazy" />
+          <img src="/images/residential-cleaning.webp" cardImage="boroughCard" alt="Residential Cleaning Manhattan" loading="lazy" />
           <h3>Residential Cleaning, Manhattan</h3>
         </a>
         <a class="service-item" routerLink="/services/house-cleaning">
-          <img src="/images/house-cleaning-service-nyc-3.webp" alt="House Cleaning Manhattan" loading="lazy" />
+          <img src="/images/house-cleaning-service-nyc-3.webp" cardImage="boroughCard" alt="House Cleaning Manhattan" loading="lazy" />
           <h3>House Cleaning, Manhattan</h3>
         </a>
         <a class="service-item" routerLink="/services/condo-cleaning">
@@ -171,11 +171,11 @@
           <h3>Deep Cleaning, Manhattan</h3>
         </a>
         <a class="service-item" routerLink="/services/move-in-out-cleaning">
-          <img src="/images/move-in-out-cleaning.webp" alt="Move In/Out Cleaning Manhattan" loading="lazy" />
+          <img src="/images/move-in-out-cleaning.webp" cardImage="boroughCard" alt="Move In/Out Cleaning Manhattan" loading="lazy" />
           <h3>Move In/Out Cleaning, Manhattan</h3>
         </a>
         <a class="service-item" routerLink="/services/residential-cleaning/kitchen">
-          <img src="/images/kitchen-cleaning-in-nyc.webp" alt="Kitchen Cleaning Manhattan" loading="lazy" />
+          <img src="/images/kitchen-cleaning-in-nyc.webp" cardImage="boroughCard" alt="Kitchen Cleaning Manhattan" loading="lazy" />
           <h3>Kitchen Cleaning, Manhattan</h3>
         </a>
         <a class="service-item" routerLink="/services/residential-cleaning/bathroom">
@@ -195,15 +195,15 @@
           <h3>Post-Construction Cleaning, Manhattan</h3>
         </a>
         <a class="service-item" routerLink="/services/post-renovation-cleaning">
-          <img src="/images/post-construction-cleaning-3.webp" alt="Post-Renovation Cleaning Manhattan" loading="lazy" />
+          <img src="/images/post-construction-cleaning-3.webp" cardImage="boroughCard" alt="Post-Renovation Cleaning Manhattan" loading="lazy" />
           <h3>Post-Renovation Cleaning, Manhattan</h3>
         </a>
         <a class="service-item" routerLink="/services/heavy-condition-cleaning">
-          <img src="/images/heavy-codition-cleaning-service-in-nyc.webp" alt="Heavy Condition Cleaning Manhattan" loading="lazy" />
+          <img src="/images/heavy-codition-cleaning-service-in-nyc.webp" cardImage="boroughCard" alt="Heavy Condition Cleaning Manhattan" loading="lazy" />
           <h3>Heavy Condition Cleaning, Manhattan</h3>
         </a>
         <a class="service-item" routerLink="/services/filthy-cleaning">
-          <img src="/images/filthy-cleaning.webp" alt="Filthy Cleaning Manhattan" loading="lazy" />
+          <img src="/images/filthy-cleaning.webp" cardImage="boroughCard" alt="Filthy Cleaning Manhattan" loading="lazy" />
           <h3>Filthy Cleaning, Manhattan</h3>
         </a>
         <a class="service-item" routerLink="/services/custom-cleaning">
@@ -211,7 +211,7 @@
           <h3>Custom Cleaning, Manhattan</h3>
         </a>
         <a class="service-item" routerLink="/services/laundry-and-dishwashing">
-          <img src="/images/laundry-service-nyc.webp" alt="Laundry &amp; Dishwashing Manhattan" loading="lazy" />
+          <img src="/images/laundry-service-nyc.webp" cardImage="boroughCard" alt="Laundry &amp; Dishwashing Manhattan" loading="lazy" />
           <h3>Laundry &amp; Dishwashing, Manhattan</h3>
         </a>
       </div>
@@ -267,18 +267,18 @@
       <h2>Our Cleaning Services Manhattan</h2>
       <div class="services-list">
         <div class="service-category">
-          <h4>Floor Cleaning Manhattan</h4>
-          <h4>Deep Cleaning Manhattan</h4>
-          <h4>Move Out Cleaning Manhattan</h4>
-          <h4>Move In Cleaning Manhattan</h4>
-          <h4>Airbnb Cleaning Manhattan</h4>
-          <h4>Apartment Cleaning Manhattan</h4>
-          <h4>Janitorial Services Manhattan</h4>
-          <h4>Office Cleaning Manhattan</h4>
-          <h4>Commercial Cleaning Manhattan</h4>
-          <h4>House Cleaning Manhattan</h4>
-          <h4>Residential Cleaner Manhattan</h4>
-          <h4>Maid Service</h4>
+          <h3>Floor Cleaning Manhattan</h3>
+          <h3>Deep Cleaning Manhattan</h3>
+          <h3>Move Out Cleaning Manhattan</h3>
+          <h3>Move In Cleaning Manhattan</h3>
+          <h3>Airbnb Cleaning Manhattan</h3>
+          <h3>Apartment Cleaning Manhattan</h3>
+          <h3>Janitorial Services Manhattan</h3>
+          <h3>Office Cleaning Manhattan</h3>
+          <h3>Commercial Cleaning Manhattan</h3>
+          <h3>House Cleaning Manhattan</h3>
+          <h3>Residential Cleaner Manhattan</h3>
+          <h3>Maid Service</h3>
         </div>
       </div>
       <div class="call-to-action-buttons">
@@ -565,16 +565,16 @@
       </div>
       <div class="hero-content">
         <h1>Cleaning Service in Manhattan NY</h1>
-        <div class="overall-rating" *ngIf="showGoogleReviews">
+        <div class="overall-rating" *ngIf="stats">
           <div class="rating-stars">
             <span class="star">⭐</span>
-            <span class="rating-number">5.0</span>
+            <span class="rating-number">{{ ratingLabel }}</span>
             <img src="https://cdn.nicejob.co/icons/google-2025.svg" alt="Google" class="google-icon">
           </div>
-          <a href="https://g.page/r/CSmN7-QdmiyoEAI/review" target="_blank" class="reviews-link">Based on {{totalReviews}} reviews</a>
+          <a href="https://g.page/r/CSmN7-QdmiyoEAI/review" target="_blank" class="reviews-link">Based on {{ reviewCountLabel }}</a>
         </div>
         <p class="hero-description">
-          Dream Cleaning is a 5.0-star rated professional cleaning service serving 24 ZIP codes across Manhattan, New York — including Midtown, Chelsea, Lower East Side, Upper West Side, Financial District, SoHo, East Village, Greenwich Village, and Tribeca. We offer standard cleaning (from ${{ pricing.residentialFrom }}), deep cleaning (from ${{ pricing.deepFrom }}), move in/out cleaning (from ${{ pricing.moveInOutFrom }}), office cleaning, and specialized services with online booking and a 100% satisfaction guarantee.
+          Dream Cleaning is a 5.0-star rated professional cleaning service serving 24 ZIP codes across Manhattan, New York — including Midtown, Chelsea, Lower East Side, Upper West Side, Financial District, SoHo, East Village, Greenwich Village, and Tribeca. We offer standard cleaning@if (pricing().standardFrom; as p) { (from {{ p }})}, deep cleaning@if (pricing().deepFrom; as p) { (from {{ p }})}, move in/out cleaning@if (pricing().moveInOutFrom; as p) { (from {{ p }})}, office cleaning, and specialized services with online booking and a 100% satisfaction guarantee.
         </p>
         <div class="call-to-action-buttons">
           <a routerLink="/booking" class="btn-primary">Book in 60 Seconds</a>

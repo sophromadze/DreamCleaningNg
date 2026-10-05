@@ -3,16 +3,18 @@ import { Component, OnInit, Inject, PLATFORM_ID } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AnalyticsService } from '../../services/analytics.service';
+import { IconComponent } from '../../shared/icons/icon.component';
+import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
 
 @Component({
   selector: 'app-poll-success',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, IconComponent],
   template: `
     <div class="poll-success-container">
       <div class="success-card">
         <div class="success-icon">
-          <i class="fas fa-check-circle"></i>
+          <i [appIcon]="icons.faCircleCheck"></i>
         </div>
         <h1>Thank You!</h1>
         <p class="success-message">
@@ -122,6 +124,8 @@ import { AnalyticsService } from '../../services/analytics.service';
   `]
 })
 export class PollSuccessComponent implements OnInit {
+  protected readonly icons = { faCircleCheck };
+
   serviceType = '';
 
   constructor(

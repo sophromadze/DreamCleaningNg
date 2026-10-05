@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { environment } from '../../environments/environment';
 import { AuthService } from './auth.service';
 import { AttributionService } from './attribution.service';
+import { DisplayPriceUnit } from '../shared/pricing/display-price';
 
 export interface ServiceType {
   id: number;
@@ -27,6 +28,17 @@ export interface ServiceType {
   timeDuration: number;
   /** Floor for base price + services. 0 = no floor. Consumed by the shared pricing calculator. */
   minimumPrice?: number;
+  /**
+   * Stable admin-assigned identifier ("residential", "move-in-out"), null when unset. The only
+   * safe way for code to recognise a service type - Id and name both differ between databases.
+   */
+  serviceKey?: string | null;
+  /**
+   * Marketing-only price for a type the calculator can't price (Filthy Cleaning). Never part of a
+   * quote. Null when unset. See shared/pricing/display-price.ts.
+   */
+  displayPrice?: number | null;
+  displayPriceUnit?: DisplayPriceUnit | null;
 }
 
 /**
@@ -82,6 +94,8 @@ export interface Service {
 export interface ExtraService {
   id: number;
   name: string;
+  /** Stable admin-set identifier (see shared/booking/extra-service-keys.ts); null when unset. */
+  extraServiceKey?: string | null;
   description?: string;
   price: number;
   duration: number;
@@ -103,6 +117,8 @@ export interface Subscription {
   description?: string;
   discountPercentage: number;
   subscriptionDays: number;
+  /** Shows the "Most popular" badge on the booking page (admin flag; at most one plan). */
+  isMostPopular?: boolean;
   isActive: boolean;
   displayOrder?: number;
 }
@@ -221,8 +237,14 @@ export class BookingService {
       return new HttpHeaders(headers);
     }
 
-  getServiceTypes(): Observable<ServiceType[]> {
-    return this.http.get<ServiceType[]>(`${this.apiUrl}/booking/service-types`);
+  /**
+   * @param options.transferCache false keeps this one response out of the HTTP transfer cache.
+   * The home hero passes it during SSR because it ships its own trimmed copy through
+   * TransferState instead; every other caller leaves it unset and gets the default.
+   */
+  getServiceTypes(options?: { transferCache?: false }): Observable<ServiceType[]> {
+    return this.http.get<ServiceType[]>(`${this.apiUrl}/booking/service-types`,
+      options?.transferCache === false ? { transferCache: false } : {});
   }
 
   getSubscriptions(): Observable<Subscription[]> {
@@ -348,11 +370,15 @@ export class BookingService {
   createPartialPaymentIntent(
     orderId: number,
     guestToken?: string,
-    payFullBalance = false
+    payFullBalance = false,
+    partialPaymentId?: number | null
   ): Observable<any> {
     const params: string[] = [];
     if (guestToken) params.push(`guestToken=${encodeURIComponent(guestToken)}`);
     if (payFullBalance) params.push('payFullBalance=true');
+    // A regular customer invoice names its own request — an order split into several invoices
+    // has several open at once, and each invoice must charge exactly its own.
+    if (partialPaymentId) params.push(`partialPaymentId=${partialPaymentId}`);
     const query = params.length ? `?${params.join('&')}` : '';
     return this.http.post<any>(
       `${this.apiUrl}/booking/create-partial-payment-intent/${orderId}${query}`,

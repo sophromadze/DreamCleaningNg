@@ -59,6 +59,40 @@
           </small>
         </div>
         <div class="form-group">
+          <label for="newServiceTypeDisplayPrice">Display Price</label>
+          <input type="number"
+                 id="newServiceTypeDisplayPrice"
+                 step="0.01"
+                 min="0"
+                 [(ngModel)]="newServiceType.displayPrice"
+                 name="displayPrice"
+                 placeholder="none">
+          <select aria-label="Display price unit" [(ngModel)]="newServiceType.displayPriceUnit" name="displayPriceUnit">
+            <option [ngValue]="null">no unit</option>
+            <option *ngFor="let unit of displayPriceUnits" [ngValue]="unit.value">{{ unit.label }}</option>
+          </select>
+          <small class="form-note">
+            Optional, website text only - never used for booking prices. Only for types the booking
+            calculator can't price (for example a poll type). Leave empty to show
+            "priced after assessment" instead.
+          </small>
+        </div>
+        <div class="form-group">
+          <label for="newServiceTypeServiceKey">Service Key</label>
+          <input type="text"
+                 id="newServiceTypeServiceKey"
+                 [(ngModel)]="newServiceType.serviceKey"
+                 name="serviceKey"
+                 placeholder="e.g. residential"
+                 maxlength="50"
+                 autocomplete="off">
+          <small class="form-note">
+            Optional. A fixed name the website uses to find this service type, because names and IDs
+            can change. Lowercase letters, numbers and hyphens only (for example move-in-out).
+            Each key can belong to one service type. Leave blank if not needed.
+          </small>
+        </div>
+        <div class="form-group">
           <label for="newServiceTypeDisplayOrder">Display Order:</label>
           <input type="number" 
                  id="newServiceTypeDisplayOrder" 
@@ -121,8 +155,10 @@
               <tr>
             <th>ID</th>
             <th>Name</th>
+            <th>Key</th>
             <th>Price</th>
             <th>Min Price</th>
+            <th>Display Price</th>
             <th>Time</th>
             <th>Type</th>
             <th>Description</th>
@@ -141,16 +177,31 @@
               <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
                 {{type.name}}
               </ng-container>
-              <input *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
+              <input aria-label="Name" *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
                      type="text" 
                      [(ngModel)]="type.name"
                      class="edit-input">
             </td>
             <td>
               <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
+                <code *ngIf="type.serviceKey">{{type.serviceKey}}</code>
+                <span *ngIf="!type.serviceKey" class="muted-cell">none</span>
+              </ng-container>
+              <!-- Blank saves as "no key". Format and uniqueness are checked by the server,
+                   which answers with the exact problem (shown in the message bar above). -->
+              <input aria-label="Key" *ngIf="isEditingServiceType && selectedServiceType?.id === type.id"
+                     type="text"
+                     [(ngModel)]="type.serviceKey"
+                     placeholder="e.g. residential"
+                     maxlength="50"
+                     autocomplete="off"
+                     class="edit-input">
+            </td>
+            <td>
+              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
                 {{type.basePrice | currency}}
               </ng-container>
-              <input *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
+              <input aria-label="Price" *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
                      type="number" 
                      [(ngModel)]="type.basePrice"
                      class="edit-input">
@@ -160,7 +211,7 @@
                 <span *ngIf="type.minimumPrice">{{type.minimumPrice | currency}}</span>
                 <span *ngIf="!type.minimumPrice" class="muted-cell">none</span>
               </ng-container>
-              <input *ngIf="isEditingServiceType && selectedServiceType?.id === type.id"
+              <input aria-label="Min price" *ngIf="isEditingServiceType && selectedServiceType?.id === type.id"
                      type="number"
                      step="0.01"
                      min="0"
@@ -168,10 +219,29 @@
                      class="edit-input">
             </td>
             <td>
+              <!-- Marketing text only (never a quote): the website shows it for types it can't price. -->
+              <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
+                <span *ngIf="type.displayPrice">{{type.displayPrice | currency}} {{ displayPriceUnitLabel(type.displayPriceUnit) }}</span>
+                <span *ngIf="!type.displayPrice" class="muted-cell">none</span>
+              </ng-container>
+              <ng-container *ngIf="isEditingServiceType && selectedServiceType?.id === type.id">
+                <input type="number"
+                       step="0.01"
+                       min="0"
+                       [(ngModel)]="type.displayPrice"
+                       placeholder="none"
+                       class="edit-input">
+                <select aria-label="Display price unit" [(ngModel)]="type.displayPriceUnit" class="edit-input">
+                  <option [ngValue]="null">no unit</option>
+                  <option *ngFor="let unit of displayPriceUnits" [ngValue]="unit.value">{{ unit.label }}</option>
+                </select>
+              </ng-container>
+            </td>
+            <td>
               <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
                 {{type.timeDuration}} min
               </ng-container>
-              <input *ngIf="isEditingServiceType && selectedServiceType?.id === type.id"
+              <input aria-label="Time (minutes)" *ngIf="isEditingServiceType && selectedServiceType?.id === type.id"
                      type="number"
                      [(ngModel)]="type.timeDuration"
                      class="edit-input">
@@ -219,7 +289,7 @@
               <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
                 {{type.description}}
               </ng-container>
-              <textarea *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
+              <textarea aria-label="Description" *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
                         [(ngModel)]="type.description"
                         class="edit-textarea"></textarea>
             </td>
@@ -227,7 +297,7 @@
               <ng-container *ngIf="!isEditingServiceType || selectedServiceType?.id !== type.id">
                 {{type.displayOrder || 0}}
               </ng-container>
-              <input *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
+              <input aria-label="Order" *ngIf="isEditingServiceType && selectedServiceType?.id === type.id" 
                      type="number" 
                      [(ngModel)]="type.displayOrder"
                      class="edit-input"
@@ -309,7 +379,7 @@
             
             <div class="form-group">
               <label>Question Type</label>
-              <select [(ngModel)]="newPollQuestion.questionType">
+              <select aria-label="Question Type" [(ngModel)]="newPollQuestion.questionType">
                 <option *ngFor="let type of questionTypes" [value]="type.value">
                   {{ type.label }}
                 </option>
@@ -318,7 +388,7 @@
             
             <div class="form-group">
               <label>Display Order</label>
-              <input type="number" [(ngModel)]="newPollQuestion.displayOrder" min="1">
+              <input aria-label="Display Order" type="number" [(ngModel)]="newPollQuestion.displayOrder" min="1">
             </div>
             
             <div class="form-group full-width" *ngIf="newPollQuestion.questionType === 'dropdown' || newPollQuestion.questionType === 'radio' || newPollQuestion.questionType === 'checkbox'">
@@ -388,17 +458,17 @@
                   {{ getPollQuestionDisplayPosition(question) }}
                 </td>
                 <td *ngIf="editingPollQuestionId === question.id">
-                  <input type="text" [(ngModel)]="question.question" class="edit-input">
+                  <input aria-label="Question" type="text" [(ngModel)]="question.question" class="edit-input">
                 </td>
                 <td *ngIf="editingPollQuestionId === question.id">
-                  <select [(ngModel)]="question.questionType" class="edit-select">
+                  <select aria-label="Question type" [(ngModel)]="question.questionType" class="edit-select">
                     <option *ngFor="let type of questionTypes" [value]="type.value">
                       {{ type.label }}
                     </option>
                   </select>
                 </td>
                 <td *ngIf="editingPollQuestionId === question.id">
-                  <input type="text" 
+                  <input aria-label="Options" type="text" 
                          [(ngModel)]="question.options" 
                          class="edit-input"
                          [disabled]="question.questionType === 'text' || question.questionType === 'textarea'"
@@ -504,7 +574,7 @@
             </label>
             
             <div *ngIf="showExistingServices" class="existing-services-select">
-              <select [(ngModel)]="selectedExistingServiceId" (change)="onServiceSelectionChange($event)">
+              <select aria-label="Copy from existing service" [(ngModel)]="selectedExistingServiceId" (change)="onServiceSelectionChange($event)">
                 <option value="">Select a service to copy</option>
                 <option *ngFor="let service of allServices" [value]="service.id">
                   {{ service.name }} ({{ getServiceTypeNameById(service.serviceTypeId) }})
@@ -527,19 +597,19 @@
             </div>
             <div class="form-group">
               <label>Cost</label>
-              <input type="number" [(ngModel)]="newService.cost" step="0.01">
+              <input aria-label="Cost" type="number" [(ngModel)]="newService.cost" step="0.01">
             </div>
             <div class="form-group">
               <label>Duration (minutes)</label>
-              <input type="number" [(ngModel)]="newService.timeDuration">
+              <input aria-label="Duration (minutes)" type="number" [(ngModel)]="newService.timeDuration">
             </div>
             <div class="form-group">
               <label>Display Order</label>
-              <input type="number" [(ngModel)]="newService.displayOrder" min="1">
+              <input aria-label="Display Order" type="number" [(ngModel)]="newService.displayOrder" min="1">
             </div>
             <div class="form-group">
               <label>Input Type</label>
-              <select [(ngModel)]="newService.inputType">
+              <select aria-label="Input Type" [(ngModel)]="newService.inputType">
                 <option value="dropdown">Dropdown</option>
                 <option value="slider">Slider</option>
                 <option value="number">Number</option>
@@ -547,15 +617,15 @@
             </div>
             <div class="form-group">
               <label>Min Value</label>
-              <input type="number" [(ngModel)]="newService.minValue">
+              <input aria-label="Min Value" type="number" [(ngModel)]="newService.minValue">
             </div>
             <div class="form-group">
               <label>Max Value</label>
-              <input type="number" [(ngModel)]="newService.maxValue">
+              <input aria-label="Max Value" type="number" [(ngModel)]="newService.maxValue">
             </div>
             <div class="form-group">
               <label>Step Value</label>
-              <input type="number" [(ngModel)]="newService.stepValue">
+              <input aria-label="Step Value" type="number" [(ngModel)]="newService.stepValue">
             </div>
             <div class="form-group">
               <label>Unit</label>
@@ -563,7 +633,7 @@
             </div>
             <div class="form-group">
               <label>Service Type</label>
-              <select [(ngModel)]="newService.serviceRelationType">
+              <select aria-label="Service Type" [(ngModel)]="newService.serviceRelationType">
                 <option value="">Regular Service</option>
                 <option value="cleaner">Cleaner Service</option>
                 <option value="hours">Hours for Cleaners</option>
@@ -655,29 +725,29 @@
                     <div class="form-row">
                       <div class="form-group">
                         <label>Name</label>
-                        <input type="text" [(ngModel)]="service.name">
+                        <input aria-label="Name" type="text" [(ngModel)]="service.name">
                       </div>
                       <div class="form-group">
                         <label>Service Key</label>
-                        <input type="text" [(ngModel)]="service.serviceKey">
+                        <input aria-label="Service Key" type="text" [(ngModel)]="service.serviceKey">
                       </div>
                       <div class="form-group">
                         <label>Cost</label>
-                        <input type="number" [(ngModel)]="service.cost" step="0.01">
+                        <input aria-label="Cost" type="number" [(ngModel)]="service.cost" step="0.01">
                       </div>
                       <div class="form-group">
                         <label>Duration (minutes)</label>
-                        <input type="number" [(ngModel)]="service.timeDuration">
+                        <input aria-label="Duration (minutes)" type="number" [(ngModel)]="service.timeDuration">
                       </div>
                       <div class="form-group">
                         <label>Display Order</label>
-                        <input type="number" [(ngModel)]="service.displayOrder" min="1">
+                        <input aria-label="Display Order" type="number" [(ngModel)]="service.displayOrder" min="1">
                       </div>
                     </div>
                     <div class="form-row">
                       <div class="form-group">
                         <label>Input Type</label>
-                        <select [(ngModel)]="service.inputType">
+                        <select aria-label="Input Type" [(ngModel)]="service.inputType">
                           <option value="dropdown">Dropdown</option>
                           <option value="slider">Slider</option>
                           <option value="number">Number</option>
@@ -685,15 +755,15 @@
                       </div>
                       <div class="form-group">
                         <label>Min Value</label>
-                        <input type="number" [(ngModel)]="service.minValue">
+                        <input aria-label="Min Value" type="number" [(ngModel)]="service.minValue">
                       </div>
                       <div class="form-group">
                         <label>Max Value</label>
-                        <input type="number" [(ngModel)]="service.maxValue">
+                        <input aria-label="Max Value" type="number" [(ngModel)]="service.maxValue">
                       </div>
                       <div class="form-group">
                         <label>Step Value</label>
-                        <input type="number" [(ngModel)]="service.stepValue">
+                        <input aria-label="Step Value" type="number" [(ngModel)]="service.stepValue">
                       </div>
                     </div>
                     <div class="form-row">
@@ -703,7 +773,7 @@
                       </div>
                       <div class="form-group">
                         <label>Service Type</label>
-                        <select [(ngModel)]="service.serviceRelationType">
+                        <select aria-label="Service Type" [(ngModel)]="service.serviceRelationType">
                           <option value="">Regular Service</option>
                           <option value="cleaner">Cleaner Service</option>
                           <option value="hours">Hours for Cleaners</option>
@@ -797,14 +867,14 @@
                             </ng-container>
                             <ng-container *ngIf="editingThresholdId === row.id">
                               <td>
-                                <select [(ngModel)]="row.sourceServiceId">
+                                <select aria-label="Based on" [(ngModel)]="row.sourceServiceId">
                                   <option *ngFor="let candidate of getThresholdSourceCandidates(service)" [ngValue]="candidate.id">
                                     {{ candidate.name }}
                                   </option>
                                 </select>
                               </td>
-                              <td><input type="number" [(ngModel)]="row.sourceQuantity" min="0"></td>
-                              <td><input type="number" [(ngModel)]="row.includedQuantity" min="0" step="0.01"></td>
+                              <td><input aria-label="When quantity is" type="number" [(ngModel)]="row.sourceQuantity" min="0"></td>
+                              <td><input aria-label="Included amount" type="number" [(ngModel)]="row.includedQuantity" min="0" step="0.01"></td>
                               <td>
                                 <button class="save-btn" (click)="saveThreshold(service, row)">Save</button>
                                 <button class="cancel-btn" (click)="cancelEditingThreshold(service)">Cancel</button>
@@ -814,15 +884,15 @@
 
                           <tr *ngIf="isAddingThreshold" class="new-row">
                             <td>
-                              <select [(ngModel)]="newThreshold.sourceServiceId">
+                              <select aria-label="Based on" [(ngModel)]="newThreshold.sourceServiceId">
                                 <option [ngValue]="0" disabled>Choose a service…</option>
                                 <option *ngFor="let candidate of getThresholdSourceCandidates(service)" [ngValue]="candidate.id">
                                   {{ candidate.name }}
                                 </option>
                               </select>
                             </td>
-                            <td><input type="number" [(ngModel)]="newThreshold.sourceQuantity" min="0"></td>
-                            <td><input type="number" [(ngModel)]="newThreshold.includedQuantity" min="0" step="0.01"></td>
+                            <td><input aria-label="When quantity is" type="number" [(ngModel)]="newThreshold.sourceQuantity" min="0"></td>
+                            <td><input aria-label="Included amount" type="number" [(ngModel)]="newThreshold.includedQuantity" min="0" step="0.01"></td>
                             <td>
                               <button class="save-btn" (click)="addThreshold(service)">Add</button>
                               <button class="cancel-btn" (click)="cancelAddingThreshold()">Cancel</button>
@@ -878,10 +948,10 @@
                               </td>
                             </ng-container>
                             <ng-container *ngIf="editingRateTierId === tier.id">
-                              <td><input type="number" [(ngModel)]="tier.fromQuantity" min="0" step="0.01"></td>
+                              <td><input aria-label="Starts at (above included)" type="number" [(ngModel)]="tier.fromQuantity" min="0" step="0.01"></td>
                               <td class="applies-to">{{ getRateTierAppliesTo(service, tier) }}</td>
-                              <td><input type="number" [(ngModel)]="tier.cost" min="0" step="0.0001"></td>
-                              <td><input type="number" [(ngModel)]="tier.timeDuration" min="0" step="0.0001"></td>
+                              <td><input aria-label="Cost per unit" type="number" [(ngModel)]="tier.cost" min="0" step="0.0001"></td>
+                              <td><input aria-label="Minutes per unit" type="number" [(ngModel)]="tier.timeDuration" min="0" step="0.0001"></td>
                               <td>
                                 <button class="save-btn" (click)="saveRateTier(service, tier)">Save</button>
                                 <button class="cancel-btn" (click)="cancelEditingRateTier(service)">Cancel</button>
@@ -890,10 +960,10 @@
                           </tr>
 
                           <tr *ngIf="isAddingRateTier" class="new-row">
-                            <td><input type="number" [(ngModel)]="newRateTier.fromQuantity" min="0" step="0.01"></td>
+                            <td><input aria-label="Starts at (above included)" type="number" [(ngModel)]="newRateTier.fromQuantity" min="0" step="0.01"></td>
                             <td class="applies-to">—</td>
-                            <td><input type="number" [(ngModel)]="newRateTier.cost" min="0" step="0.0001"></td>
-                            <td><input type="number" [(ngModel)]="newRateTier.timeDuration" min="0" step="0.0001"></td>
+                            <td><input aria-label="Cost per unit" type="number" [(ngModel)]="newRateTier.cost" min="0" step="0.0001"></td>
+                            <td><input aria-label="Minutes per unit" type="number" [(ngModel)]="newRateTier.timeDuration" min="0" step="0.0001"></td>
                             <td>
                               <button class="save-btn" (click)="addRateTier(service)">Add</button>
                               <button class="cancel-btn" (click)="cancelAddingRateTier()">Cancel</button>
@@ -1078,7 +1148,7 @@
             </label>
             
             <div *ngIf="showExistingExtraServices" class="existing-services-select">
-              <select [(ngModel)]="selectedExistingExtraServiceId" (change)="onExtraServiceSelectionChange($event)">
+              <select aria-label="Copy from existing extra service" [(ngModel)]="selectedExistingExtraServiceId" (change)="onExtraServiceSelectionChange($event)">
                 <option value="">Select an extra service to copy</option>
                 <option *ngFor="let extra of getAvailableExtraServicesForCopy()" [value]="extra.id">
                   {{ extra.name }} ({{ extra.isAvailableForAll ? 'Universal' : 'Service-specific' }})
@@ -1093,31 +1163,41 @@
           <div *ngIf="!showExistingExtraServices" class="form-grid">
             <div class="form-group">
               <label>Name</label>
-              <input type="text" [(ngModel)]="newExtraService.name">
+              <input aria-label="Name" type="text" [(ngModel)]="newExtraService.name">
+            </div>
+            <div class="form-group">
+              <label>Key</label>
+              <input type="text" [(ngModel)]="newExtraService.extraServiceKey" placeholder="e.g. cleaning-supplies"
+                     maxlength="50" autocomplete="off">
+              <small class="form-note">
+                Optional. A fixed name the website uses to find this extra (prices, checklists), because
+                names can change. Lowercase letters, numbers and hyphens. Copies of one extra in
+                different service types share a key. Leave blank if not needed.
+              </small>
             </div>
             <div class="form-group">
               <label>Description</label>
-              <input type="text" [(ngModel)]="newExtraService.description">
+              <input aria-label="Description" type="text" [(ngModel)]="newExtraService.description">
             </div>
             <div class="form-group">
               <label>Price</label>
-              <input type="number" [(ngModel)]="newExtraService.price" step="0.01">
+              <input aria-label="Price" type="number" [(ngModel)]="newExtraService.price" step="0.01">
             </div>
             <div class="form-group">
               <label>Duration (minutes)</label>
-              <input type="number" [(ngModel)]="newExtraService.duration">
+              <input aria-label="Duration (minutes)" type="number" [(ngModel)]="newExtraService.duration">
             </div>
             <div class="form-group">
               <label>Display Order</label>
-              <input type="number" [(ngModel)]="newExtraService.displayOrder" min="1">
+              <input aria-label="Display Order" type="number" [(ngModel)]="newExtraService.displayOrder" min="1">
             </div>
             <div class="form-group">
               <label>Price Multiplier</label>
-              <input type="number" [(ngModel)]="newExtraService.priceMultiplier" step="0.1">
+              <input aria-label="Price Multiplier" type="number" [(ngModel)]="newExtraService.priceMultiplier" step="0.1">
             </div>
             <div class="form-group">
               <label>Icon</label>
-              <input type="text" [(ngModel)]="newExtraService.icon">
+              <input aria-label="Icon" type="text" [(ngModel)]="newExtraService.icon">
             </div>
           </div>
           <div class="form-group full-width">
@@ -1168,6 +1248,7 @@
                     <tr>
                 <th>ID</th>
                 <th>Name</th>
+                <th>Key</th>
                 <th>Description</th>
                 <th>Price</th>
                 <th>Duration</th>
@@ -1181,6 +1262,10 @@
               <tr *ngFor="let extra of selectedServiceType.extraServices">
                 <td *ngIf="editingExtraServiceId !== extra.id">{{ extra.id }}</td>
                 <td *ngIf="editingExtraServiceId !== extra.id">{{ extra.name }}</td>
+                <td *ngIf="editingExtraServiceId !== extra.id">
+                  <code *ngIf="extra.extraServiceKey">{{ extra.extraServiceKey }}</code>
+                  <span *ngIf="!extra.extraServiceKey" class="muted-cell">none</span>
+                </td>
                 <td *ngIf="editingExtraServiceId !== extra.id">{{ extra.description || 'No description' }}</td>
                 <td *ngIf="editingExtraServiceId !== extra.id">${{ extra.price }}</td>
                 <td *ngIf="editingExtraServiceId !== extra.id">{{ extra.duration }}min</td>
@@ -1202,38 +1287,45 @@
                 </td>
                 
                 <!-- Edit mode -->
-                <td class="edit-mode-td" colspan="8" *ngIf="editingExtraServiceId === extra.id">
+                <td class="edit-mode-td" colspan="10" *ngIf="editingExtraServiceId === extra.id">
                   <div class="inline-edit-form">
                     <div class="form-row">
                       <div class="form-group">
                         <label>Name</label>
-                        <input type="text" [(ngModel)]="extra.name">
+                        <input aria-label="Name" type="text" [(ngModel)]="extra.name">
+                      </div>
+                      <!-- Blank saves as "no key". Format and uniqueness are checked by the server,
+                           which answers with the exact problem (shown in the message bar above). -->
+                      <div class="form-group">
+                        <label>Key</label>
+                        <input type="text" [(ngModel)]="extra.extraServiceKey" placeholder="e.g. cleaning-supplies"
+                               maxlength="50" autocomplete="off">
                       </div>
                       <div class="form-group">
                         <label>Description</label>
-                        <input type="text" [(ngModel)]="extra.description">
+                        <input aria-label="Description" type="text" [(ngModel)]="extra.description">
                       </div>
                       <div class="form-group">
                         <label>Price</label>
-                        <input type="number" [(ngModel)]="extra.price" step="0.01">
+                        <input aria-label="Price" type="number" [(ngModel)]="extra.price" step="0.01">
                       </div>
                       <div class="form-group">
                         <label>Duration (minutes)</label>
-                        <input type="number" [(ngModel)]="extra.duration">
+                        <input aria-label="Duration (minutes)" type="number" [(ngModel)]="extra.duration">
                       </div>
                       <div class="form-group">
                         <label>Display Order</label>
-                        <input type="number" [(ngModel)]="extra.displayOrder" min="1">
+                        <input aria-label="Display Order" type="number" [(ngModel)]="extra.displayOrder" min="1">
                       </div>
                     </div>
                     <div class="form-row">
                       <div class="form-group">
                         <label>Price Multiplier</label>
-                        <input type="number" [(ngModel)]="extra.priceMultiplier" step="0.1">
+                        <input aria-label="Price Multiplier" type="number" [(ngModel)]="extra.priceMultiplier" step="0.1">
                       </div>
                       <div class="form-group">
                         <label>Icon</label>
-                        <input type="text" [(ngModel)]="extra.icon">
+                        <input aria-label="Icon" type="text" [(ngModel)]="extra.icon">
                       </div>
                     </div>
                     <div class="form-group full-width">

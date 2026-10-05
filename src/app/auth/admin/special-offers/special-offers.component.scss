@@ -33,7 +33,7 @@
     }
 
     .create-btn {
-      background: #28a745;
+      background: var(--fill-success);
       color: white;
       padding: .25rem .5rem;
       font-size: .875rem;
@@ -139,6 +139,14 @@
         resize: vertical;
       }
 
+      // Hint under the Key field.
+      .form-note {
+        display: block;
+        margin-top: 0.25rem;
+        font-size: 0.75rem;
+        color: var(--text-muted);
+      }
+
       input[type="color"] {
         width: 100%;
         height: 38px;
@@ -216,7 +224,7 @@
       }
 
       .save-btn {
-        background: #28a745;
+        background: var(--fill-success);
         color: white;
 
         &:hover:not(:disabled) {
@@ -328,14 +336,15 @@
             background: #f8f9fa;
           }
 
+          // Inactive rows keep the grey tint and the "Inactive" badge; fading the whole row with
+          // opacity took every label in it below AA (2026-10).
           &.inactive {
-            opacity: 0.7;
             background: #e9ecef;
           }
 
           td {
             padding: 0 5px;
-            color: #6c757d;
+            color: var(--text-muted-on-tint);
             font-size: 0.875rem;
             border-bottom: 1px solid #e9ecef;
             border-right: 1px solid #e9ecef;
@@ -529,7 +538,7 @@
                   }
 
                   .save-btn {
-                    background: #28a745;
+                    background: var(--fill-success);
                     color: white;
 
                     &:hover:not(:disabled) {
@@ -572,13 +581,14 @@
       font-weight: 600;
 
       &.active {
-        background: #d4edda;
-        color: #155724;
+        // Paired theme tokens (2026-10): the pale pills stayed pale in dark mode.
+        background: var(--mint-fresh);
+        color: var(--mint-fresh-text);
       }
 
       &.inactive {
-        background: #f8d7da;
-        color: #721c24;
+        background: var(--soft-red);
+        color: var(--soft-red-text);
       }
     }
 
@@ -593,7 +603,7 @@
       text-align: center;
 
       &.edit {
-        background: #007bff;
+        background: var(--primary-color);
         color: white;
 
         &:hover {
@@ -602,7 +612,7 @@
       }
 
       &.enable {
-        background-color: #28a745;
+        background-color: var(--fill-success);
         color: white;
         
         &:hover {
@@ -620,7 +630,7 @@
       }
 
       &.delete {
-        background: #dc3545;
+        background: var(--fill-danger);
         color: white;
 
         &:hover {
@@ -629,7 +639,7 @@
       }
 
       &.save {
-        background: #28a745;
+        background: var(--fill-success);
         color: white;
 
         &:hover {
@@ -671,7 +681,7 @@
     }
 
     .create-btn {
-      background: #007bff;
+      background: var(--primary-color);
       color: white;
       border: none;
       padding: 0.5rem 1rem;
@@ -789,7 +799,6 @@
   }
   .offers-list table tbody tr.inactive {
     background: rgba(255, 255, 255, 0.03) !important;
-    opacity: 0.85;
   }
   .offers-list table tbody td {
     background: var(--surface-elevated) !important;

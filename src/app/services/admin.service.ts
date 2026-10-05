@@ -3,6 +3,7 @@ import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/comm
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { ServiceType, Service, ExtraService, Subscription, ServiceThreshold, ServiceRateTier } from './booking.service';
+import { DisplayPriceUnit } from '../shared/pricing/display-price';
 import { Order, OrderList, OrderPartialPayment, OrderPaymentBalance } from './order.service';
 import { Apartment, CreateApartment } from './profile.service';
 import { UserSpecialOffer } from './special-offer.service';
@@ -226,7 +227,11 @@ export interface AdminOrderList {
   contactEmail: string;
   contactFirstName: string;
   contactLastName: string;
+  /** Stored as bare digits. Lets the orders search match a phone number. */
+  contactPhone?: string;
   serviceTypeName: string;
+  /** ServiceType.serviceKey of a non-custom type (null for custom / unkeyed). */
+  serviceTypeKey?: string | null;
   isCustomServiceType: boolean;
   /** Bare admin-chosen label for custom orders (no "Cleaning" suffix), e.g. "Deep". */
   customServiceDisplayName?: string | null;
@@ -586,6 +591,8 @@ export interface UserAdmin {
   lastCleaningDate?: string | Date | null;
   /** Service type name of the user's most recent non-cancelled order. */
   lastCleaningServiceType?: string | null;
+  /** ServiceType.serviceKey of that order's non-custom type (null for custom / unkeyed). */
+  lastCleaningServiceTypeKey?: string | null;
   lastBedrooms?: number | null;
   lastBathrooms?: number | null;
   /** Total number of non-cancelled orders this user has placed. */
@@ -725,6 +732,12 @@ export interface SuperAdminUpdateOrderDto {
   taxOverride?: number | null;
   /** The discounted subtotal `taxOverride` was split out of. */
   taxOverrideBase?: number | null;
+  /**
+   * True when the admin TYPED the price (SubTotal or Total) in this edit. Without it the server
+   * re-prices the order from its lines and ignores subTotal (2026-10) — see
+   * OrderService.ResolveAdminEditPricingAsync.
+   */
+  priceTypedByAdmin?: boolean;
   discountAmount?: number | null;
   subscriptionDiscountAmount?: number | null;
   /** Loyalty Discount amount rescaled when subTotal changes during an admin edit.
@@ -734,7 +747,12 @@ export interface SuperAdminUpdateOrderDto {
   cleanerTotalSalary?: number | null;
   /** Custom ("Pre-Arranged") orders only: display label. '' clears it, null = no change. */
   customServiceDisplayName?: string | null;
-  services?: { orderServiceId: number; quantity: number; cost: number }[] | null;
+  /**
+   * Existing rows: orderServiceId = row id. A row the editor ADDED (only ever the priced Levels
+   * line, when an apartment order becomes a house): orderServiceId = 0 with serviceId, plus the
+   * line's minutes from the editor's quote.
+   */
+  services?: { orderServiceId: number; serviceId?: number; quantity: number; cost: number; duration?: number }[] | null;
   /** Existing rows: orderExtraServiceId = row id. New rows: orderExtraServiceId = 0 and extraServiceId required. */
   extraServices?: { orderExtraServiceId: number; extraServiceId?: number; quantity: number; hours: number; cost: number }[] | null;
 }
@@ -770,6 +788,8 @@ export interface OrderCleanerPayroll {
   totalSalary: number;
   storedTotalSalary: number;
   splitCount: number;
+  /** The order's own cleaner count (Order.MaidsCount) — what the Wages card edits. */
+  maidsCount?: number;
   assignedCount: number;
   automaticMinutesPerCleaner: number;
   orderHourlyRate: number;
@@ -858,6 +878,11 @@ export interface CreateServiceType {
   isCustom?: boolean;
   /** Floor for base price + services. 0 = no floor. */
   minimumPrice?: number;
+  /** Optional stable identifier; blank or null = no key. Validated server-side. */
+  serviceKey?: string | null;
+  /** Marketing-only price; amount and unit together or neither. Validated server-side. */
+  displayPrice?: number | null;
+  displayPriceUnit?: DisplayPriceUnit | null;
 }
 
 export interface UpdateServiceType {
@@ -872,6 +897,11 @@ export interface UpdateServiceType {
   isCustom?: boolean;
   /** Floor for base price + services. 0 = no floor. */
   minimumPrice?: number;
+  /** Optional stable identifier; blank or null = no key. Validated server-side. */
+  serviceKey?: string | null;
+  /** Marketing-only price; amount and unit together or neither. Validated server-side. */
+  displayPrice?: number | null;
+  displayPriceUnit?: DisplayPriceUnit | null;
 }
 
 export interface CreateService {
@@ -962,6 +992,10 @@ export interface PricingConfigurationServiceType {
   basePrice: number;
   timeDuration: number;
   minimumPrice: number;
+  /** Carried, never used to resolve. Absent/null on import leaves the target key unchanged. */
+  serviceKey?: string | null;
+  /** Absent on import leaves the target unchanged; both null clears it. Export always writes it. */
+  displayPrice?: { amount: number | null; unit: DisplayPriceUnit | null } | null;
   services: PricingConfigurationService[];
 }
 
@@ -1027,6 +1061,8 @@ export interface CreateExtraService {
   serviceTypeId?: number;
   isAvailableForAll: boolean;
   displayOrder: number;
+  /** Blank = no key. Format and "no service type sees it twice" are checked by the server. */
+  extraServiceKey?: string | null;
 }
 
 export interface UpdateExtraService {
@@ -1044,6 +1080,8 @@ export interface UpdateExtraService {
   serviceTypeId?: number;
   isAvailableForAll: boolean;
   displayOrder: number;
+  /** Always sent by this form: blank/null clears the key (the server keeps it only when ABSENT). */
+  extraServiceKey: string | null;
 }
 
 export interface CreateSubscription {
@@ -1052,6 +1090,8 @@ export interface CreateSubscription {
   discountPercentage: number;
   subscriptionDays: number;
   displayOrder: number;
+  /** "Most popular" badge on the booking page; ticking it moves it off every other plan. */
+  isMostPopular?: boolean;
 }
 
 export interface UpdateSubscription {
@@ -1060,6 +1100,8 @@ export interface UpdateSubscription {
   discountPercentage: number;
   subscriptionDays: number;
   displayOrder: number;
+  /** Omit to keep the stored badge; true moves it to this plan, false removes it. */
+  isMostPopular?: boolean;
 }
 
 export interface CopyService {
@@ -1853,6 +1895,11 @@ export class AdminService {
     return this.http.post(`${this.apiUrl}/gift-cards/${id}/${action}`, {});
   }
 
+  /** Every audited change made to one order (all order-scoped audit types) — the Changes tab. */
+  getOrderChanges(orderId: number): Observable<AuditLog[]> {
+    return this.http.get<AuditLog[]>(`${this.apiUrl}/orders/${orderId}/changes`);
+  }
+
   getEntityAuditHistory(entityType: string, entityId: number): Observable<AuditLog[]> {
     return this.http.get<AuditLog[]>(`${this.apiUrl}/audit-logs/${entityType}/${entityId}`);
   }
@@ -1954,12 +2001,21 @@ export class AdminService {
 
   /**
    * Sets the ORDER's cleaner hourly rate — the default every assigned cleaner without their own
-   * rate is paid at — and writes it onto the order, so Statistics and Finances follow. Distinct
-   * from the edit form's "Cleaner $/hr" box, which only lands as part of a full order save.
+   * rate is paid at — and writes it onto the order, so Statistics and Finances follow. This is
+   * the only place the rate is set; the order edit form no longer carries it.
    */
   updateOrderCleanerHourlyRate(orderId: number, hourlyRate: number): Observable<OrderCleanerPayroll> {
     return this.http.put<OrderCleanerPayroll>(
       `${this.apiUrl}/orders/${orderId}/cleaner-payroll/hourly-rate`, { hourlyRate });
+  }
+
+  /**
+   * Sets how many cleaners the order is staffed for (Order.MaidsCount) from the Wages card.
+   * Refused server-side on a cleaner+hours order, whose count is its priced Cleaners line.
+   */
+  updateOrderMaidsCount(orderId: number, maidsCount: number): Observable<OrderCleanerPayroll> {
+    return this.http.put<OrderCleanerPayroll>(
+      `${this.apiUrl}/orders/${orderId}/cleaner-payroll/maids-count`, { maidsCount });
   }
 
   /**
@@ -2047,6 +2103,41 @@ export class AdminService {
    * Record a non-Stripe payment (Zelle/Cash/Check/Other) for a single additional-amount row.
    * SuperAdmin only. Marks just that update-history row paid; the base order stays a Stripe order.
    */
+  /** Corrects the method / reference / notes of a manually recorded edit (top-up) payment. */
+  editManualAdditionalPayment(orderId: number, historyId: number, paymentMethod: string,
+    paymentReference: string | null, paymentNotes: string | null): Observable<{ message: string }> {
+    return this.http.put<{ message: string }>(
+      `${this.apiUrl}/orders/${orderId}/update-history/${historyId}/manual-payment`,
+      { paymentMethod, paymentReference, paymentNotes });
+  }
+
+  /** Takes back a manually recorded edit (top-up) payment confirmed by mistake — owed again. */
+  revertManualAdditionalPayment(orderId: number, historyId: number): Observable<{ message: string; status: string | null }> {
+    return this.http.delete<{ message: string; status: string | null }>(
+      `${this.apiUrl}/orders/${orderId}/update-history/${historyId}/manual-payment`);
+  }
+
+  /** Corrects the method / reference / notes of a manually recorded part payment. */
+  editPartialManualPayment(orderId: number, requestId: number, paymentMethod: string,
+    paymentReference: string | null, paymentNotes: string | null): Observable<{ message: string }> {
+    return this.http.put<{ message: string }>(
+      `${this.apiUrl}/orders/${orderId}/partial-payments/${requestId}/manual-payment`,
+      { paymentMethod, paymentReference, paymentNotes });
+  }
+
+  /** Payments-tab row keys ("booking", "p{id}", "u{id}") that were paid online and can have
+   *  their receipt emailed, plus the address the confirm step pre-fills. */
+  getReceiptPayments(orderId: number): Observable<{ paymentKeys: string[]; defaultEmail: string | null }> {
+    return this.http.get<{ paymentKeys: string[]; defaultEmail: string | null }>(
+      `${this.apiUrl}/orders/${orderId}/receipt-payments`);
+  }
+
+  /** Emails the customer the official receipt for one online payment. Blank email = the order's own. */
+  sendPaymentReceipt(orderId: number, paymentKey: string, email: string | null): Observable<{ message: string; sentTo: string }> {
+    return this.http.post<{ message: string; sentTo: string }>(
+      `${this.apiUrl}/orders/${orderId}/payments/${encodeURIComponent(paymentKey)}/send-receipt`, { email });
+  }
+
   recordManualAdditionalPayment(
     orderId: number,
     historyId: number,

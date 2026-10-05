@@ -38,7 +38,7 @@
   padding: 0;
   cursor: pointer;
 
-  &:hover { color: var(--primary-color); }
+  &:hover { color: var(--primary-text-elevated); }
   &:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
 }
 
@@ -80,7 +80,7 @@
     font-weight: var(--fw-semibold);
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
   }
 
   span { color: var(--text-primary); overflow-wrap: anywhere; }
@@ -159,7 +159,7 @@ input[type='password'] {
 
 .error {
   margin-top: 6px;
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   font-size: 0.85rem;
   line-height: 1.45;
 }
@@ -174,8 +174,8 @@ input[type='password'] {
   font-size: 0.9rem;
   line-height: 1.5;
 
-  &--error { background: var(--soft-red); color: var(--bright-red); }
-  &--success { background: var(--mint-fresh); color: var(--fresh-green); }
+  &--error { background: var(--soft-red); color: var(--soft-red-text); }
+  &--success { background: var(--mint-fresh); color: var(--mint-fresh-text); }
 }
 
 // Requirements / what-happens-next. Deliberately plain, not a coloured warning panel: it is
@@ -260,7 +260,7 @@ input[type='password'] {
     background: var(--surface);
     border-color: var(--border-color);
     color: var(--text-primary);
-    &:hover:not(:disabled) { border-color: var(--primary-color); color: var(--primary-color); }
+    &:hover:not(:disabled) { border-color: var(--primary-color); color: var(--primary-text-elevated); }
   }
 }
 
@@ -277,13 +277,13 @@ input[type='password'] {
     margin-bottom: 14px;
     border-radius: 50%;
     background: var(--surface-subtle);
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
 
     svg { width: 30px; height: 30px; }
 
-    &.success { background: var(--mint-fresh); color: var(--fresh-green); }
-    &.error { background: var(--soft-red); color: var(--bright-red); }
-    &.loading { color: var(--primary-color); }
+    &.success { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+    &.error { background: var(--soft-red); color: var(--soft-red-text); }
+    &.loading { color: var(--primary-text-elevated); }
   }
 
   h1 { margin-bottom: 10px; }

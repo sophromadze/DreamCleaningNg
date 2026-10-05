@@ -17,7 +17,6 @@
   color: var(--primary-color, #007bff);
   font-size: 0.95rem;
   font-weight: 600;
-  font-family: 'Poppins', sans-serif;
   cursor: pointer;
   transition: background 0.2s ease, border-color 0.2s ease;
 
@@ -45,7 +44,6 @@
   border: 1px solid #e2e8f0;
   text-align: left;
   color: #1e293b;
-  font-family: 'Poppins', sans-serif;
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
   position: relative;
 }

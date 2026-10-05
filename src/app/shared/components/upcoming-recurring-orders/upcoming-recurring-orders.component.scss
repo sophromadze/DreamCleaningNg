@@ -85,6 +85,9 @@
 .uro-total {
   font-weight: var(--fw-semibold);
   color: var(--text-primary);
+
+  // "Billed weekly by contract …" in place of a $0.00 price.
+  &--contract { font-size: 0.82rem; font-weight: var(--fw-medium); color: var(--text-secondary); }
 }
 
 .uro-paid {

@@ -71,13 +71,13 @@
              class="search-input">
     </div>
     <div class="filter-controls">
-      <select [ngModel]="statusFilter" (ngModelChange)="statusFilter = $event; onFilterChanged()" class="filter-select">
+      <select aria-label="Filter by status" [ngModel]="statusFilter" (ngModelChange)="statusFilter = $event; onFilterChanged()" class="filter-select">
         <option value="all">All Status</option>
         <option value="active">Active</option>
         <option value="inactive">Blocked</option>
       </select>
       <!-- An unlinked account signs in and sees nothing, so it earns a filter of its own. -->
-      <select [ngModel]="linkFilter" (ngModelChange)="linkFilter = $event; onFilterChanged()" class="filter-select">
+      <select aria-label="Filter by link" [ngModel]="linkFilter" (ngModelChange)="linkFilter = $event; onFilterChanged()" class="filter-select">
         <option value="all">All Accounts</option>
         <option value="linked">Linked</option>
         <option value="unlinked">Not linked</option>
@@ -332,7 +332,7 @@
   ranking, phone, document AND its Edit / Delete / close buttons. A second title bar above it would
   print the name twice and offer a second close.
 -->
-<aside class="ca-record-panel"
+<div class="ca-record-panel"
        *ngIf="recordCleanerId"
        role="dialog"
        aria-modal="true"
@@ -343,4 +343,4 @@
                             (closed)="closeCleanerRecord()"
                             (changed)="onCleanerRecordChanged()"></app-cleaners-dashboard>
   </div>
-</aside>
+</div>

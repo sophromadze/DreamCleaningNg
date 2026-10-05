@@ -1,5 +1,7 @@
 <app-header></app-header>
-<div class="main-content">
+<!-- The page's ONE main landmark, for every route: pages render their content inside it and must
+     not add a <main> of their own (a second one is an accessibility failure). -->
+<main class="main-content">
   <!-- Same flow as header auth slot: show shimmer until auth ready, then show content (outlet) -->
   <div *ngIf="showRouteLoading" class="route-loading-overlay">
     <div class="route-loading-animation">
@@ -13,41 +15,61 @@
   <ng-container *ngIf="!showRouteLoading">
     <router-outlet></router-outlet>
   </ng-container>
-</div>
-<app-footer></app-footer>
+</main>
+<!-- [incremental-hydration] Footer: full HTML in the server render (SEO links), hydrated only
+     when it scrolls into view - see withIncrementalHydration in app.config.ts. -->
+@defer (on immediate; hydrate on viewport) {
+  <app-footer></app-footer>
+}
 <app-sticky-mobile-cta></app-sticky-mobile-cta>
-    
-<!-- Add the notification modal -->
-<app-notification-modal></app-notification-modal>
-<app-order-reminder></app-order-reminder>
 
-<!-- Add auth modal -->
-<app-auth-modal></app-auth-modal>
+<!-- Account notices (SignalR) and admin order reminders only ever show to a signed-in user, so
+     their code - SignalR included - loads once there is one. -->
+@defer (when hasSessionUser) {
+  <app-notification-modal></app-notification-modal>
+  <app-order-reminder></app-order-reminder>
+}
+
+<!-- Auth modal: loaded once the page is idle, so the first Log In click opens it at once; a click
+     before then (authModalRequested) loads it immediately and it opens as soon as it arrives. -->
+@defer (on idle; when authModalRequested) {
+  <app-auth-modal></app-auth-modal>
+}
 
 <!-- Floating contact buttons (Call / Email / Book / Quote). Customer-facing, so they stay off the
      cleaner portal - see isCleanerPortalRoute. -->
 <app-floating-action-buttons *ngIf="showFloatingActions"></app-floating-action-buttons>
-<div *ngIf="showSocialStickyBanners" class="social-sticky-banners" aria-label="Social media links">
+<div *ngIf="showSocialStickyBanners" class="social-sticky-banners" role="complementary" aria-label="Social media links">
   <a href="https://www.facebook.com/profile.php?id=61563387757936" target="_blank" rel="noopener noreferrer" aria-label="Facebook" class="social-sticky-banner social-sticky-banner-facebook">
-    <i class="fa-brands fa-facebook-f"></i>
+    <i [appIcon]="icons.faFacebookF"></i>
   </a>
   <a href="https://www.instagram.com/dreamcleaningnyc" target="_blank" rel="noopener noreferrer" aria-label="Instagram" class="social-sticky-banner social-sticky-banner-instagram">
-    <i class="fa-brands fa-instagram"></i>
+    <i [appIcon]="icons.faInstagram"></i>
   </a>
   <a href="https://www.tiktok.com/@dreamcleanincnyc" target="_blank" rel="noopener noreferrer" aria-label="TikTok" class="social-sticky-banner social-sticky-banner-tiktok">
-    <i class="fa-brands fa-tiktok"></i>
+    <i [appIcon]="icons.faTiktok"></i>
   </a>
 </div>
 
-<!-- Add continue booking component -->
-<app-continue-booking></app-continue-booking>
+<!-- Continue-booking card and first-time-offer popup are browser-only (they render nothing on the
+     server) and appear after load, so their code waits for the page to go idle. -->
+@defer (on idle) {
+  <app-continue-booking></app-continue-booking>
+}
 
 <!-- Desktop-only first-time-offer popup (bottom-left); mobile is covered by the sticky CTA bar -->
-<app-first-time-offer-popup></app-first-time-offer-popup>
+@defer (on idle) {
+  <app-first-time-offer-popup></app-first-time-offer-popup>
+}
 
 <!-- Live chat widget — TEMPORARILY DISABLED. Telegram bot integration is off; widget hidden site-wide. -->
 <!-- <app-live-chat-widget *ngIf="showLiveChat"></app-live-chat-widget> -->
 
 <!-- AI chat widget — server decides visibility (Disabled / AdminOnly / Public via the
-     admin chat-agent settings); showLiveChat additionally hides it on admin/cleaner pages. -->
-<app-chat-widget *ngIf="showLiveChat"></app-chat-widget>
+     admin chat-agent settings); showLiveChat additionally hides it on admin/cleaner pages.
+     Browser-only, so its code waits for the page to go idle. -->
+@if (showLiveChat) {
+  @defer (on idle) {
+    <app-chat-widget></app-chat-widget>
+  }
+}

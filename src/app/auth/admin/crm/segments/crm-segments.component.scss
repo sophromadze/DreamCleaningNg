@@ -8,7 +8,7 @@
 
 .error-message {
   background: var(--soft-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   margin-bottom: 12px;
@@ -32,12 +32,13 @@
   transition: transform 0.1s ease, box-shadow 0.1s ease;
 
   &:hover:not(.empty) { transform: translateY(-2px); box-shadow: 0 4px 12px var(--shadow-color); }
-  &.empty { opacity: 0.55; cursor: default; }
+  // Empty segments are marked by their 0 count; no opacity, which took the text below AA (2026-10).
+  &.empty { cursor: default; }
 
   .seg-count { font-size: 1.8rem; font-weight: var(--fw-extrabold); color: var(--text-primary); line-height: 1; }
   .seg-label { font-size: 0.98rem; font-weight: var(--fw-semibold); color: var(--text-primary); margin-top: 4px; }
   .seg-desc { font-size: 0.76rem; color: var(--text-muted); margin-top: 4px; }
-  .seg-value { font-size: 0.74rem; color: var(--fresh-green); font-weight: var(--fw-semibold); margin-top: 6px; }
+  .seg-value { font-size: 0.74rem; color: var(--mint-fresh-text); font-weight: var(--fw-semibold); margin-top: 6px; }
 
   /* Accent colors per segment */
   &.seg-new { border-left-color: var(--primary-color); }

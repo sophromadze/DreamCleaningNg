@@ -25,10 +25,18 @@
 
   <div class="alert warn" *ngIf="detail.voidReason">Voided: {{ detail.voidReason }}</div>
 
-  <!-- An unfilled placeholder must never reach a client as a literal {{TOKEN}}. -->
-  <div class="alert warn" *ngIf="detail.unresolvedTokens.length">
-    <strong>Unfilled placeholders in this document:</strong>
-    {{ detail.unresolvedTokens.join(', ') }}. Fill these in before sending it to the client.
+  <!-- Only what THIS document prints and nobody supplied. The server already drops anything the
+       contract's configuration hides (Exhibit A detail under Simplified/Omitted scope, commitment
+       dates with no commitment, an empty B5, a blank optional contact), and it refuses to send
+       while this list is non-empty — so the buttons below are disabled to match. -->
+  <!-- Consistency warnings (e.g. visits per week vs. named service days). They never block a
+       send: the admin decides which value is right; nothing is changed for them. -->
+  <div class="alert warn" *ngFor="let warning of detail.scheduleWarnings ?? []">{{ warning }}</div>
+
+  <div class="alert warn" *ngIf="missingFields.length">
+    <strong>Missing required information:</strong>
+    {{ missingFields.join('; ') }}. Fill these in and generate a new preview before sending it to
+    the client.
   </div>
 
   <!-- Actions. Every button is gated on the contract's state AND the server's permission matrix;
@@ -38,10 +46,10 @@
             (click)="edit.emit(detail.id)" [disabled]="busy">Back to edit</button>
 
     <button type="button" class="btn-primary" *ngIf="showSendForReview"
-            (click)="sendForReview()" [disabled]="busy">Approve &amp; send for client review</button>
+            (click)="sendForReview()" [disabled]="busy || missingFields.length > 0">Approve &amp; send for client review</button>
 
     <button type="button" class="btn-primary" *ngIf="showSendForSignature"
-            (click)="sendForSignature()" [disabled]="busy">Send for signature</button>
+            (click)="sendForSignature()" [disabled]="busy || missingFields.length > 0">Send for signature</button>
 
     <button type="button" class="btn-primary" *ngIf="canSignAsContractor && !signingOpen"
             (click)="openSigning()" [disabled]="busy">Sign as Contractor</button>

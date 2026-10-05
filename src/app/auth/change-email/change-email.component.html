@@ -3,7 +3,7 @@
   <!-- ═══ Step 1: ask for the new address ═══ -->
   <ng-container *ngIf="currentStep === 'form'">
     <button type="button" class="account-form-back" (click)="goBack()">
-      <i class="fas fa-arrow-left" aria-hidden="true"></i> Back to My Account
+      <i [appIcon]="icons.faArrowLeft" aria-hidden="true"></i> Back to My Account
     </button>
 
     <div class="account-form-card">
@@ -18,12 +18,12 @@
       </div>
 
       <div class="account-form-alert account-form-alert--success" *ngIf="successMessage" role="status">
-        <i class="fas fa-paper-plane" aria-hidden="true"></i>
+        <i [appIcon]="icons.faPaperPlane" aria-hidden="true"></i>
         <span>{{ successMessage }}</span>
       </div>
 
       <div class="account-form-alert account-form-alert--error" *ngIf="errorMessage" role="alert">
-        <i class="fas fa-circle-exclamation" aria-hidden="true"></i>
+        <i [appIcon]="icons.faCircleExclamation" aria-hidden="true"></i>
         <span>{{ errorMessage }}</span>
       </div>
 

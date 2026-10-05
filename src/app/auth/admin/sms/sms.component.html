@@ -46,7 +46,7 @@
       <p class="timezone-note">All times are in <strong>New York (NY)</strong> time.</p>
       <div class="form-group">
         <label>Schedule</label>
-        <select [(ngModel)]="frequency">
+        <select aria-label="Schedule" [(ngModel)]="frequency">
           <option [ngValue]="null">Once (specific date)</option>
           <option [ngValue]="1">Weekly (specific day of week)</option>
           <option [ngValue]="2">Monthly (specific day of month)</option>
@@ -54,11 +54,11 @@
       </div>
       <div class="form-group" *ngIf="frequency === null">
         <label>Date</label>
-        <input type="date" [(ngModel)]="scheduledDate" />
+        <input aria-label="Date" type="date" [(ngModel)]="scheduledDate" />
       </div>
       <div class="form-group" *ngIf="frequency === 1">
         <label>Day of week</label>
-        <select [(ngModel)]="dayOfWeek">
+        <select aria-label="Day of week" [(ngModel)]="dayOfWeek">
           <option [ngValue]="0">Sunday</option>
           <option [ngValue]="1">Monday</option>
           <option [ngValue]="2">Tuesday</option>
@@ -70,13 +70,13 @@
       </div>
       <div class="form-group" *ngIf="frequency === 2">
         <label>Day of month (1–31)</label>
-        <select [(ngModel)]="dayOfMonth">
+        <select aria-label="Day of month (1–31)" [(ngModel)]="dayOfMonth">
           <option *ngFor="let d of daysOfMonth" [ngValue]="d">{{ d }}</option>
         </select>
       </div>
       <div class="form-group">
         <label>Time</label>
-        <input type="time" [(ngModel)]="scheduledTime" step="3600" />
+        <input aria-label="Time" type="time" [(ngModel)]="scheduledTime" step="3600" />
       </div>
     </div>
     <div class="form-actions">

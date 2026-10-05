@@ -36,12 +36,12 @@ export interface PolicyRenderItem {
  * app.routes.server.ts).
  *
  * The standalone Cancellation & Termination document is NOT rendered here as a second copy — its
- * sections are literally the same clause blocks as sections 4, 5 and 7 below. It exists as a PDF
+ * sections are literally the same clause blocks as sections 3 and 4 below. It exists as a PDF
  * for handing to a prospective client on its own, and the page links to it rather than repeating
  * it under a second set of headings.
  *
  * Residential policies are untouched and separate: /terms-and-conditions governs online bookings,
- * this page governs commercial agreements, and section 1 says so.
+ * this page governs commercial agreements, and the introduction says so.
  */
 @Component({
   selector: 'app-commercial-cleaning-policies',

@@ -121,7 +121,7 @@
   &__price {
     font-size: 1.9rem;
     font-weight: var(--fw-extrabold);
-    color: var(--primary-color);
+    color: var(--primary-color-text);
     margin-bottom: 12px;
     line-height: 1.1;
   }
@@ -198,7 +198,9 @@
     padding: 3px 12px;
     border-radius: var(--radius-pill);
     background: var(--mint-fresh);
-    color: var(--fresh-green);
+    /* The text partner of --mint-fresh (green-800 by day, 6.45:1). --fresh-green (green-500) is
+       2.0:1 on this wash and failed WCAG AA; at night the token is the same green-400 as before. */
+    color: var(--mint-fresh-text);
     font-size: 0.8rem;
     font-weight: var(--fw-bold);
     letter-spacing: 0.3px;
@@ -254,7 +256,7 @@
 
   &__link {
     font-weight: var(--fw-semibold);
-    color: var(--primary-text);
+    color: var(--primary-text-elevated);
     text-decoration: none;
 
     &:hover {

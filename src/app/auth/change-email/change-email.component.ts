@@ -6,6 +6,10 @@ import { finalize } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
 import { describeEmailProblem } from '../../utils/email.utils';
 import { extractApiErrorMessage } from '../../utils/http-error.utils';
+import { IconComponent } from '../../shared/icons/icon.component';
+import { faArrowLeft } from '../../shared/icons/glyphs/faArrowLeft';
+import { faCircleExclamation } from '../../shared/icons/glyphs/faCircleExclamation';
+import { faPaperPlane } from '../../shared/icons/glyphs/faPaperPlane';
 
 /**
  * Change email, reached from the profile's Security tab, and also the landing page for the
@@ -34,11 +38,13 @@ import { extractApiErrorMessage } from '../../utils/http-error.utils';
 @Component({
   selector: 'app-change-email',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, IconComponent],
   templateUrl: './change-email.component.html',
   styleUrls: ['../account-form.scss', './change-email.component.scss']
 })
 export class ChangeEmailComponent implements OnInit {
+  protected readonly icons = { faArrowLeft, faCircleExclamation, faPaperPlane };
+
   // Form step
   newEmail: string = '';
   currentPassword: string = '';

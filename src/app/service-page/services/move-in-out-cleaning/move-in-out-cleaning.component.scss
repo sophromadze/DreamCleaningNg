@@ -219,7 +219,7 @@
       h2 {
         font-size: 1.5rem;
         font-weight: 600;
-        color: var(--bright-red);
+        color: var(--soft-red-text);
         margin-bottom: 20px;
         display: flex;
         align-items: center;
@@ -558,7 +558,7 @@
             justify-content: center;
             
             a {
-              color: #007bff;
+              color: var(--primary-text);
               text-decoration: none;
               font-size: 0.9rem;
               word-break: break-all;

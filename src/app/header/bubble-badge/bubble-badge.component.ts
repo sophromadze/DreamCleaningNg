@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, EventEmitter, Output } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { Subject, Subscription } from 'rxjs';
@@ -15,6 +15,21 @@ import { AuthService } from '../../services/auth.service';
 })
 export class BubbleBadgeComponent implements OnInit, OnDestroy {
   summary: HeaderSummary | null = null;
+  /**
+   * Whether the points system is on for this account, reported after each load so the header can
+   * drop the slot (and remember the answer for the next server render) when it is off.
+   */
+  @Output() availability = new EventEmitter<boolean>();
+  /**
+   * Stands in for the summary until it loads (and on the server): the badge is drawn from it in
+   * full - visible - with an empty number slot, so the balance arriving fills reserved space
+   * instead of pushing the nav. Never user data: the server renders it for any signed-in hint.
+   * A five-digit balance still fits the pill's 120px minimum width.
+   */
+  readonly placeholder: HeaderSummary = {
+    points: 0, tier: 'Bubble', tierEmoji: '', credits: 0, pointsSystemEnabled: true,
+    tierProgressPercent: 0, nextTierName: null
+  };
   isLoading = false;
   showTooltip = false;
   isBrowser: boolean;
@@ -79,9 +94,12 @@ export class BubbleBadgeComponent implements OnInit, OnDestroy {
       next: (data) => {
         this.summary = data;
         this.isLoading = false;
+        this.availability.emit(!!data?.pointsSystemEnabled);
       },
       error: () => {
         this.isLoading = false;
+        // No badge to show: give the reserved slot back rather than leave an invisible gap.
+        this.availability.emit(false);
       }
     });
   }

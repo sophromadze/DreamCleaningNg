@@ -1,6 +1,7 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID, inject } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { isPlatformBrowser } from '@angular/common';
+import { DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { writeHeroChoiceCookie } from '../shared/booking/hero-choice-cookie';
 
 export interface BookingFormData {
   // Service Type and Services
@@ -101,6 +102,7 @@ export class FormPersistenceService {
   private formDataSubject = new BehaviorSubject<BookingFormData | null>(null);
   public formData$ = this.formDataSubject.asObservable();
   private isBrowser: boolean;
+  private readonly document = inject(DOCUMENT);
 
   constructor(@Inject(PLATFORM_ID) private platformId: Object) {
     this.isBrowser = isPlatformBrowser(this.platformId);
@@ -133,6 +135,8 @@ export class FormPersistenceService {
       
       sessionStorage.setItem(this.STORAGE_KEY, JSON.stringify(dataToSave));
       this.formDataSubject.next(dataToSave);
+      // The home hero's part of it, for the server render (see hero-choice-cookie.ts).
+      writeHeroChoiceCookie(this.document, dataToSave);
     } catch (error) {
       console.error('Error saving form data:', error);
     }
@@ -183,6 +187,7 @@ export class FormPersistenceService {
     try {
       sessionStorage.removeItem(this.STORAGE_KEY);
       this.formDataSubject.next(null);
+      writeHeroChoiceCookie(this.document, null);
     } catch (error) {
       console.error('Error clearing form data:', error);
     }

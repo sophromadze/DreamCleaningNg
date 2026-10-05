@@ -1,7 +1,7 @@
 <div class="tf-page">
   <div class="tf-card" *ngIf="challenge">
     <div class="tf-header">
-      <i class="fas fa-shield-halved tf-shield"></i>
+      <i [appIcon]="icons.faShieldHalved" class="tf-shield"></i>
       <h1>Verify it's you</h1>
       <p class="tf-subtitle">
         Extra protection for staff accounts. Two quick steps and you're in.
@@ -46,8 +46,7 @@
               class="btn btn-primary tf-submit"
               [disabled]="isVerifying || !code"
               (click)="verifyCode()">
-        <i class="fas" [class.fa-spinner]="isVerifying" [class.fa-spin]="isVerifying"
-           [class.fa-arrow-right]="!isVerifying"></i>
+        <i [appIcon]="isVerifying ? icons.faSpinner : icons.faArrowRight" [class.fa-spin]="isVerifying"></i>
         {{ isVerifying ? 'Verifying…' : 'Continue' }}
       </button>
 
@@ -90,18 +89,17 @@
               class="btn btn-primary tf-submit"
               [disabled]="isVerifying || !pin"
               (click)="verifyPin()">
-        <i class="fas" [class.fa-spinner]="isVerifying" [class.fa-spin]="isVerifying"
-           [class.fa-check]="!isVerifying"></i>
+        <i [appIcon]="isVerifying ? icons.faSpinner : icons.faCheck" [class.fa-spin]="isVerifying"></i>
         {{ isVerifying ? 'Verifying…' : 'Sign in' }}
       </button>
     </div>
 
     <!-- ── Messages ───────────────────────────────────────────────────── -->
     <div class="tf-message tf-error" *ngIf="error">
-      <i class="fas fa-exclamation-circle"></i> {{ error }}
+      <i [appIcon]="icons.faCircleExclamation"></i> {{ error }}
     </div>
     <div class="tf-message tf-notice" *ngIf="notice && !error">
-      <i class="fas fa-info-circle"></i> {{ notice }}
+      <i [appIcon]="icons.faCircleInfo"></i> {{ notice }}
     </div>
 
     <div class="tf-footer">

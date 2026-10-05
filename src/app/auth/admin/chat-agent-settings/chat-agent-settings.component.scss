@@ -100,13 +100,13 @@
 
     &--success {
       background: var(--mint-fresh);
-      color: var(--fresh-green);
+      color: var(--mint-fresh-text);
       border: 1px solid var(--mint-fresh-border);
     }
 
     &--error {
       background: var(--soft-red);
-      color: var(--bright-red);
+      color: var(--soft-red-text);
     }
   }
 

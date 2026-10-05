@@ -1,21 +1,36 @@
-import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
-import { CommonModule, DOCUMENT } from '@angular/common';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { SERVICE_PRICING } from '../../../shared/service-pricing.data';
+import { MarketingPricingService } from '../../../shared/pricing/marketing-pricing.service';
+import { priceFragment, startingPriceOffer } from '../../../shared/pricing/marketing-price-format';
 import { TestimonialSectionComponent } from '../../../shared/components/testimonial-section/testimonial-section.component';
 import { SpecialOfferService, PublicSpecialOffer } from '../../../services/special-offer.service';
+import { IconComponent } from '../../../shared/icons/icon.component';
+import { faBed } from '../../../shared/icons/glyphs/faBed';
+import { faHouse } from '../../../shared/icons/glyphs/faHouse';
+import { faListCheck } from '../../../shared/icons/glyphs/faListCheck';
+import { faMagnifyingGlass } from '../../../shared/icons/glyphs/faMagnifyingGlass';
+import { faTags } from '../../../shared/icons/glyphs/faTags';
+import { faTriangleExclamation } from '../../../shared/icons/glyphs/faTriangleExclamation';
+import { CardImageDirective } from '../../../shared/images/card-image.directive';
+import { StructuredDataService } from '../../../services/structured-data.service';
+import { findAdvertisedFirstTimeOffer } from '../../../shared/booking/special-offer-keys';
 
 @Component({
   selector: 'app-deep-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterModule, TestimonialSectionComponent],
+  imports: [CommonModule, RouterModule, TestimonialSectionComponent, IconComponent, CardImageDirective],
   templateUrl: './deep-cleaning.component.html',
   styleUrl: './deep-cleaning.component.scss'
 })
 export class DeepCleaningComponent implements OnInit, OnDestroy {
-  readonly pricing = SERVICE_PRICING;
-  private schemaElement: HTMLScriptElement | null = null;
+  protected readonly icons = { faBed, faHouse, faListCheck, faMagnifyingGlass, faTags, faTriangleExclamation };
+
+  private readonly marketingPricing = inject(MarketingPricingService);
+  /** Prices from the booking catalogue; null = fragment left out (MarketingPricingService). */
+  readonly pricing = this.marketingPricing.text;
+  private readonly structuredData = inject(StructuredDataService);
 
   /** First-time customer offer from public special offers. The percentage is
    *  admin-configurable (never hardcoded) — the hero line only renders once it loads. */
@@ -23,7 +38,6 @@ export class DeepCleaningComponent implements OnInit, OnDestroy {
   private subscription = new Subscription();
 
   constructor(
-    @Inject(DOCUMENT) private document: Document,
     private specialOfferService: SpecialOfferService
   ) {}
 
@@ -34,9 +48,7 @@ export class DeepCleaningComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.subscription.unsubscribe();
-    if (this.schemaElement && this.schemaElement.parentNode) {
-      this.schemaElement.parentNode.removeChild(this.schemaElement);
-    }
+    this.structuredData.remove('ld-deep-cleaning');
   }
 
   private loadFirstTimeOffer(): void {
@@ -50,12 +62,7 @@ export class DeepCleaningComponent implements OnInit, OnDestroy {
 
   /** Mirrors MainComponent.firstTimeOffer — finds the first-time customer offer. */
   get firstTimeOffer(): PublicSpecialOffer | undefined {
-    return this.specialOffers?.find(o =>
-      o.requiresFirstTimeCustomer ||
-      o.type === 'FirstTime' ||
-      (o.name?.toLowerCase().includes('first time') ?? false) ||
-      (o.name?.toLowerCase().includes('first-time') ?? false)
-    );
+    return findAdvertisedFirstTimeOffer(this.specialOffers);
   }
 
   /** Display label for the first-time discount, e.g. "10%" or "$20". Empty when no offer is loaded. */
@@ -70,7 +77,7 @@ export class DeepCleaningComponent implements OnInit, OnDestroy {
       '@context': 'https://schema.org',
       '@type': 'Service',
       'name': 'Deep Cleaning Service in NYC',
-      'description': `Dream Cleaning's deep cleaning service is a detailed, top-to-bottom cleaning solution for apartments, condos, brownstones, and family homes in Brooklyn, Manhattan, Queens, and across NYC — targeting stubborn buildup, kitchen grease, soap scum, hidden dust, baseboards, door frames, light switches, and other hard-to-reach areas often missed during regular cleanings. Starting from $${SERVICE_PRICING.deepFrom}.`,
+      'description': `Dream Cleaning's deep cleaning service is a detailed, top-to-bottom cleaning solution for apartments, condos, brownstones, and family homes in Brooklyn, Manhattan, Queens, and across NYC — targeting stubborn buildup, kitchen grease, soap scum, hidden dust, baseboards, door frames, light switches, and other hard-to-reach areas often missed during regular cleanings.${priceFragment(this.pricing().deepFrom, ' Starting from ', '.')}`,
       'dateModified': '2026-03-22',
       'provider': {
         '@type': 'LocalBusiness',
@@ -82,17 +89,9 @@ export class DeepCleaningComponent implements OnInit, OnDestroy {
         'name': 'New York'
       },
       'serviceType': 'Deep Cleaning',
-      'offers': {
-        '@type': 'AggregateOffer',
-        'lowPrice': String(SERVICE_PRICING.deepFrom),
-        'highPrice': String(SERVICE_PRICING.deepHigh),
-        'priceCurrency': 'USD'
-      }
+      ...startingPriceOffer(this.marketingPricing.prices().deepFrom)
     };
 
-    this.schemaElement = this.document.createElement('script');
-    this.schemaElement.type = 'application/ld+json';
-    this.schemaElement.textContent = JSON.stringify(schema);
-    this.document.head.appendChild(this.schemaElement);
+    this.structuredData.set('ld-deep-cleaning', schema);
   }
 }

@@ -1,25 +1,27 @@
-import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
-import { CommonModule, DOCUMENT } from '@angular/common';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { IconComponent } from '../../../../shared/icons/icon.component';
+import { faBan } from '../../../../shared/icons/glyphs/faBan';
+import { faTriangleExclamation } from '../../../../shared/icons/glyphs/faTriangleExclamation';
+import { StructuredDataService } from '../../../../services/structured-data.service';
 
 @Component({
   selector: 'app-bathroom-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, IconComponent],
   templateUrl: './bathroom-cleaning.component.html',
   styleUrl: './bathroom-cleaning.component.scss'
 })
 export class BathroomCleaningComponent implements OnInit, OnDestroy {
-  private schemaElement: HTMLScriptElement | null = null;
+  protected readonly icons = { faBan, faTriangleExclamation };
 
-  constructor(@Inject(DOCUMENT) private document: Document) {}
+  private readonly structuredData = inject(StructuredDataService);
 
   ngOnInit(): void { this.injectSchema(); }
 
   ngOnDestroy(): void {
-    if (this.schemaElement && this.schemaElement.parentNode) {
-      this.schemaElement.parentNode.removeChild(this.schemaElement);
-    }
+    this.structuredData.remove('ld-bathroom-cleaning');
   }
 
   private injectSchema(): void {
@@ -33,9 +35,6 @@ export class BathroomCleaningComponent implements OnInit, OnDestroy {
       'areaServed': { '@type': 'City', 'name': 'New York' },
       'serviceType': 'Bathroom Cleaning'
     };
-    this.schemaElement = this.document.createElement('script');
-    this.schemaElement.type = 'application/ld+json';
-    this.schemaElement.textContent = JSON.stringify(schema);
-    this.document.head.appendChild(this.schemaElement);
+    this.structuredData.set('ld-bathroom-cleaning', schema);
   }
 }

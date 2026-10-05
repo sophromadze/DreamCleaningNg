@@ -1,4 +1,6 @@
 <div class="tasks-container" (click)="onDocumentClick()">
+  <!-- The page's own title for screen readers; the design shows only the section headings. -->
+  <h1 class="sr-only">Tasks</h1>
 
   <!-- ═══ TAB LAYOUT ═══ -->
   <div class="tab-layout">
@@ -53,7 +55,7 @@
                 View All &rarr;
               </a>
             </div>
-            <div class="urgent-list" *ngIf="!loadingTasks && urgentTasks.length > 0">
+            <div class="urgent-list" *ngIf="!loadingTasks && urgentTasks.length > 0" tabindex="0" role="region" aria-label="Urgent tasks">
               <div class="task-row task-row-columns" *ngFor="let task of dashboardUrgentTasks"
                    (click)="openEditTask(task)">
                 <label class="checkbox-wrap" (click)="$event.stopPropagation()">
@@ -198,13 +200,13 @@
           </div>
           <div class="history-filters">
             <input type="text" class="search-input" placeholder="Search clients..." [(ngModel)]="historySearch" (ngModelChange)="onHistoryFilterChange()">
-            <select class="filter-select" [(ngModel)]="historyStatusFilter" (ngModelChange)="onHistoryFilterChange()">
+            <select aria-label="Filter by status" class="filter-select" [(ngModel)]="historyStatusFilter" (ngModelChange)="onHistoryFilterChange()">
               <option value="">All Status</option>
               <option value="Pending">Pending</option>
               <option value="Urgent">Urgent</option>
               <option value="Closed">Closed</option>
             </select>
-            <select class="filter-select" [(ngModel)]="historyAdminFilter" (ngModelChange)="onHistoryFilterChange()">
+            <select aria-label="Filter by admin" class="filter-select" [(ngModel)]="historyAdminFilter" (ngModelChange)="onHistoryFilterChange()">
               <option value="">All Admins</option>
               <option *ngFor="let admin of historyAdmins" [value]="admin.id">{{ admin.firstName }}</option>
             </select>
@@ -296,7 +298,7 @@
 
           <!-- Urgent sub-tab -->
           <ng-container *ngSwitchCase="'urgent'">
-            <div class="urgent-list" *ngIf="!loadingTasks && urgentTasks.length > 0">
+            <div class="urgent-list" *ngIf="!loadingTasks && urgentTasks.length > 0" tabindex="0" role="region" aria-label="Urgent tasks">
               <div class="task-row task-row-columns" *ngFor="let task of paginatedUrgentTasks" (click)="openEditTask(task)">
                 <label class="checkbox-wrap" (click)="$event.stopPropagation()">
                   <input type="checkbox" [checked]="task.status === 'Done'" (change)="toggleTaskStatus(task)">
@@ -449,10 +451,10 @@
           <ng-container *ngSwitchCase="'active'">
             <div class="history-filters">
               <input type="text" class="search-input" placeholder="Search clients..." [(ngModel)]="historySearch" (ngModelChange)="onHistoryFilterChange()">
-              <select class="filter-select" [(ngModel)]="historyStatusFilter" (ngModelChange)="onHistoryFilterChange()">
+              <select aria-label="Filter by status" class="filter-select" [(ngModel)]="historyStatusFilter" (ngModelChange)="onHistoryFilterChange()">
                 <option value="">All Status</option><option value="Pending">Pending</option><option value="Urgent">Urgent</option>
               </select>
-              <select class="filter-select" [(ngModel)]="historyAdminFilter" (ngModelChange)="onHistoryFilterChange()">
+              <select aria-label="Filter by admin" class="filter-select" [(ngModel)]="historyAdminFilter" (ngModelChange)="onHistoryFilterChange()">
                 <option value="">All Admins</option>
                 <option *ngFor="let admin of historyAdmins" [value]="admin.id">{{ admin.firstName }}</option>
               </select>
@@ -795,21 +797,21 @@
           </div>
           <div class="log-filters">
             <input type="text" class="search-input" placeholder="Search by ID..." [(ngModel)]="logSearchId" (ngModelChange)="onLogFilterChange()">
-            <select class="filter-select" [(ngModel)]="logEntityTypeFilter" (ngModelChange)="onLogFilterChange()">
+            <select aria-label="Filter by record type" class="filter-select" [(ngModel)]="logEntityTypeFilter" (ngModelChange)="onLogFilterChange()">
               <option value="">All Types</option>
               <option value="SharedTask">Shared Task</option>
               <option value="PersonalTask">Admin Task</option>
               <option value="ClientInteraction">Client Interaction</option>
               <option value="HandoverNote">Handover Note</option>
             </select>
-            <select class="filter-select" [(ngModel)]="logActionFilter" (ngModelChange)="onLogFilterChange()">
+            <select aria-label="Filter by action" class="filter-select" [(ngModel)]="logActionFilter" (ngModelChange)="onLogFilterChange()">
               <option value="">All Actions</option>
               <option value="Created">Created</option>
               <option value="Updated">Updated</option>
               <option value="StatusChanged">Status Changed</option>
               <option value="Deleted">Deleted</option>
             </select>
-            <select class="filter-select" [(ngModel)]="logAdminFilter" (ngModelChange)="onLogFilterChange()">
+            <select aria-label="Filter by admin" class="filter-select" [(ngModel)]="logAdminFilter" (ngModelChange)="onLogFilterChange()">
               <option value="">All Admins</option>
               <option *ngFor="let admin of admins" [value]="admin.id">{{ admin.firstName }}</option>
             </select>
@@ -875,13 +877,13 @@
         <div class="form-row">
           <div class="form-group">
             <label>Priority</label>
-            <select [(ngModel)]="taskForm.priority" class="form-input">
+            <select aria-label="Priority" [(ngModel)]="taskForm.priority" class="form-input">
               <option value="Urgent">Urgent</option><option value="High">High</option><option value="Medium">Medium</option><option value="Normal">Normal</option><option value="Low">Low</option>
             </select>
           </div>
           <div class="form-group">
             <label>Due Date</label>
-            <input type="date" [(ngModel)]="taskForm.dueDate" class="form-input">
+            <input aria-label="Due Date" type="date" [(ngModel)]="taskForm.dueDate" class="form-input">
           </div>
         </div>
         <div class="form-group autocomplete-group" (click)="$event.stopPropagation()">
@@ -945,13 +947,13 @@
         <div class="form-row">
           <div class="form-group">
             <label>Priority</label>
-            <select [(ngModel)]="personalTaskForm.priority" class="form-input" [disabled]="personalTaskReadOnly">
+            <select aria-label="Priority" [(ngModel)]="personalTaskForm.priority" class="form-input" [disabled]="personalTaskReadOnly">
               <option value="Urgent">Urgent</option><option value="High">High</option><option value="Medium">Medium</option><option value="Normal">Normal</option><option value="Low">Low</option>
             </select>
           </div>
           <div class="form-group">
             <label>Due Date</label>
-            <input type="date" [(ngModel)]="personalTaskForm.dueDate" class="form-input" [disabled]="personalTaskReadOnly">
+            <input aria-label="Due Date" type="date" [(ngModel)]="personalTaskForm.dueDate" class="form-input" [disabled]="personalTaskReadOnly">
           </div>
         </div>
         <!-- Multi-admin select for create mode -->
@@ -970,7 +972,7 @@
         <!-- Single admin display for edit mode -->
         <div class="form-group" *ngIf="editingPersonalTaskId">
           <label>Assigned To</label>
-          <select [(ngModel)]="personalTaskForm.assignedToAdminId" class="form-input" [disabled]="personalTaskReadOnly">
+          <select aria-label="Assigned To" [(ngModel)]="personalTaskForm.assignedToAdminId" class="form-input" [disabled]="personalTaskReadOnly">
             <option [ngValue]="0" disabled>Select admin...</option>
             <option *ngFor="let admin of admins" [ngValue]="admin.id">
               {{ admin.firstName }} ({{ displayRole(admin.role) }})
@@ -1023,7 +1025,7 @@
         <div class="form-row">
           <div class="form-group">
             <label>Type</label>
-            <select [(ngModel)]="interactionForm.type" class="form-input">
+            <select aria-label="Type" [(ngModel)]="interactionForm.type" class="form-input">
               <option value="">Select type...</option>
               <option value="Phone call">Phone call</option><option value="SMS sent">SMS sent</option><option value="Email sent">Email sent</option>
               <option value="Quote sent">Quote sent</option><option value="Reminder call">Reminder call</option><option value="Booking confirmed">Booking confirmed</option>
@@ -1032,7 +1034,7 @@
           </div>
           <div class="form-group">
             <label>Status</label>
-            <select [(ngModel)]="interactionForm.status" class="form-input">
+            <select aria-label="Status" [(ngModel)]="interactionForm.status" class="form-input">
               <option value="Pending">Pending</option><option value="Urgent">Urgent</option><option value="Closed">Closed</option>
             </select>
           </div>
@@ -1063,7 +1065,7 @@
         </div>
         <div class="form-group">
           <label>For</label>
-          <select [(ngModel)]="noteForm.targetAudience" class="form-input">
+          <select aria-label="For" [(ngModel)]="noteForm.targetAudience" class="form-input">
             <option value="ForNextAdmin">Next Admin</option>
             <option value="ForAllAdmins">All Admins</option>
           </select>

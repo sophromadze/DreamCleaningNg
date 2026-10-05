@@ -7,13 +7,13 @@
   
       <!-- Success Message -->
       <div class="alert alert-success" *ngIf="showSuccess">
-        <i class="fas fa-check-circle success-icon"></i>
+        <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
         <span>Your message has been sent successfully! We'll get back to you soon.</span>
       </div>
   
       <!-- Error Message -->
       <div class="alert alert-error" *ngIf="showError">
-        <i class="fas fa-times-circle error-icon"></i>
+        <i [appIcon]="icons.faCircleXmark" class="error-icon"></i>
         <span>{{ errorMessage }}</span>
       </div>
   
@@ -122,15 +122,15 @@
         <h2>Other Ways to Reach Us</h2>
         <div class="info-grid">
           <div class="info-item">
-            <a href="mailto:hello@dreamcleaningnyc.com">
-              <i class="fas fa-envelope icon"></i>
+            <a href="mailto:hello@dreamcleaningnyc.com" aria-label="Email us at hello@dreamcleaningnyc.com">
+              <i [appIcon]="icons.faEnvelope" class="icon"></i>
             </a>
             <h3>Email</h3>
             <p>hello&#64;dreamcleaningnyc.com</p>
           </div>
           <div class="info-item">
-            <a [href]="phoneNumber.telHref()">
-              <i class="fas fa-phone icon"></i>
+            <a [href]="phoneNumber.telHref()" [attr.aria-label]="'Call us at ' + phoneNumber.displayNumber()">
+              <i [appIcon]="icons.faPhone" class="icon"></i>
             </a>
             <h3>Phone</h3>
             <p>{{ phoneNumber.displayNumber() }}</p>
@@ -138,10 +138,10 @@
           <div class="info-item">
             <div class="social-icons">
               <a href="https://www.facebook.com/profile.php?id=61563387757936" target="_blank" rel="noopener noreferrer" aria-label="Follow us on Facebook">
-                <i class="fab fa-facebook icon"></i>
+                <i [appIcon]="icons.faFacebook" class="icon"></i>
               </a>
               <a href="https://www.instagram.com/dreamcleaningnyc" target="_blank" rel="noopener noreferrer" aria-label="Follow us on Instagram">
-                <i class="fab fa-instagram icon"></i>
+                <i [appIcon]="icons.faInstagram" class="icon"></i>
               </a>
             </div>
             <h3>Meta</h3>

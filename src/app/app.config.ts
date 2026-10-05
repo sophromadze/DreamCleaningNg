@@ -1,8 +1,8 @@
-import { ApplicationConfig, PLATFORM_ID, APP_ID, provideZoneChangeDetection } from '@angular/core';
+import { ApplicationConfig, PLATFORM_ID, APP_ID, provideZoneChangeDetection, provideAppInitializer, inject } from '@angular/core';
 import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import { provideHttpClient, withFetch, withInterceptorsFromDi, withInterceptors } from '@angular/common/http';
 import { routes } from './app.routes';
-import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
+import { provideClientHydration, withEventReplay, withIncrementalHydration } from '@angular/platform-browser';
 import { authInterceptor } from './interceptors/auth.interceptor';
 import { importProvidersFrom } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
@@ -13,6 +13,7 @@ import {
   GoogleSigninButtonModule
 } from '@abacritt/angularx-social-login';
 import { environment } from '../environments/environment';
+import { ScrollRestoreService } from './services/scroll-restore.service';
 
 // Auth is no longer awaited in APP_INITIALIZER so that protected routes (profile, admin)
 // can show a loading shimmer until auth is ready instead of flashing the login page.
@@ -62,8 +63,18 @@ export const appConfig: ApplicationConfig = {
     ),
     provideZoneChangeDetection({ eventCoalescing: true }),
     
-    // Re-enable client hydration with event replay
-    provideClientHydration(withEventReplay()),
+    // Client hydration with event replay, plus incremental hydration: `@defer (hydrate on ...)`
+    // blocks (footer, below-the-fold home sections) are server-rendered in full but stay
+    // dehydrated - no JS downloaded, no hydration work - until their trigger fires. Developer
+    // preview in Angular 19. Those blocks also carry `on immediate`: hydration ignores it, but a
+    // CLIENT-side render of the page (navigating to it in the app) needs a regular trigger, or
+    // the block would wait for idle and pop in after the rest of the page.
+    // FALLBACK to full hydration takes BOTH steps: delete withIncrementalHydration() here AND
+    // unwrap every block tagged [incremental-hydration] (keep the content, drop the
+    // `@defer (on immediate; hydrate ...) {` line and its closing brace). Removing only this
+    // provider is not enough: without it the server renders a @defer block's placeholder instead
+    // of its content, which would take those sections out of the SEO HTML.
+    provideClientHydration(withEventReplay(), withIncrementalHydration()),
     
     provideRouter(
       routes,
@@ -72,6 +83,11 @@ export const appConfig: ApplicationConfig = {
         anchorScrolling: 'enabled',
       }),
     ),
+    // Back/Forward restores land without the animated trip from the top - see ScrollRestoreService.
+    // Started before the first navigation so its bookkeeping matches the router's.
+    provideAppInitializer(() => {
+      if (isPlatformBrowser(inject(PLATFORM_ID))) inject(ScrollRestoreService).start();
+    }),
 
     // Social auth configuration with platform check
     {

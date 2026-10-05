@@ -9,6 +9,13 @@ import { InjectionToken } from '@angular/core';
  */
 export interface SsrResponseContext {
   statusCode: number | null;
+  /** The request's Cookie header, for the few first-party functional cookies a render reads. */
+  requestCookies?: string | null;
+  /**
+   * Set by a component whose output came from the visitor's own cookie (the home hero's saved
+   * choice). server.ts then marks the response private so no shared cache stores it.
+   */
+  renderedFromCookie?: boolean;
 }
 
 export const SSR_RESPONSE_CONTEXT = new InjectionToken<SsrResponseContext>('SSR_RESPONSE_CONTEXT');

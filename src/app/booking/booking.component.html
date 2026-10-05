@@ -13,7 +13,7 @@
           class="register-customer-btn"
           *ngIf="canRegisterCustomers"
           (click)="openRegisterCustomerModal()">
-          <i class="fas fa-user-plus"></i>
+          <i [appIcon]="icons.faUserPlus"></i>
           <span>Register User</span>
         </button>
         <button
@@ -21,7 +21,7 @@
           class="admin-toggle-btn"
           [class.active]="isAdminMode"
           (click)="toggleAdminMode()">
-          <i class="fas fa-user-shield"></i>
+          <i [appIcon]="icons.faUserShield"></i>
           <span *ngIf="isModerator">
             {{ isAdminMode ? 'Moderator Mode: ON' : 'Moderator Mode: OFF' }}
           </span>
@@ -36,7 +36,7 @@
          not survive a reload, and resuming it silently would submit the booking as the admin.
          See discardAdminDraftIfPresent(). -->
     <div class="admin-draft-discarded" *ngIf="adminDraftDiscarded">
-      <i class="fas fa-triangle-exclamation"></i>
+      <i [appIcon]="icons.faTriangleExclamation"></i>
       <span>
         Your admin booking session was not restored for safety reasons. Please start the booking
         again: turn on Admin Mode and re-select the customer.
@@ -45,7 +45,7 @@
 
     <!-- Result of the header's Register Customer action. -->
     <div class="customer-registered-note" *ngIf="registeredCustomerMessage">
-      <i class="fas fa-circle-check"></i>
+      <i [appIcon]="icons.faCircleCheck"></i>
       <span>{{ registeredCustomerMessage }}</span>
     </div>
 
@@ -68,7 +68,7 @@
       <div class="selected-user-info" *ngIf="selectedTargetUser">
         <div class="selected-user-panel">
           <div class="selected-user-card">
-            <i class="fas fa-user-check"></i>
+            <i [appIcon]="icons.faUserCheck"></i>
             <div class="selected-user-details">
               <strong>{{ selectedTargetUser.firstName }} {{ selectedTargetUser.lastName }}</strong>
               <span>{{ selectedTargetUser.email }}</span>
@@ -79,6 +79,7 @@
             <h4 class="payment-method-heading">Payment Method</h4>
             <p class="payment-method-hint">
               Select how the customer will pay. <strong>Normal</strong> sends them a Pay Now link;
+              <strong>Invoice</strong> sends them an invoice they can pay by card or bank transfer;
               manual methods send a formal booking confirmation only.
             </p>
 
@@ -95,7 +96,7 @@
             <!-- Reference and notes record money that has ALREADY changed hands, so they are
                  offered for cash/Zelle/cheque/other and not for Invoice — which is unpaid by
                  definition until its invoice is settled. -->
-            <ng-container *ngIf="adminPaymentMethod !== 'Normal' && adminPaymentMethod !== 'Invoice'">
+            <ng-container *ngIf="adminPaymentMethod !== 'Normal' && adminPaymentMethod !== 'Invoice' && adminPaymentMethod !== 'RegularInvoice'">
               <div class="field">
                 <label>Reference (Zelle ID, check #, etc.)</label>
                 <input type="text"
@@ -111,23 +112,24 @@
               </div>
             </ng-container>
 
-            <!-- INVOICE: who is billed. Required — a cleaning no invoice can pick up would sit
-                 Pending forever with nothing able to settle it, so the server refuses one
-                 without a client and this asks for it up front. -->
+            <!-- REGULAR INVOICE (2026-09): nothing to choose. The server creates the invoice and
+                 sends it instead of the Pay Now link. -->
+            <ng-container *ngIf="adminPaymentMethod === 'RegularInvoice'">
+              <small class="payment-method-hint">
+                An invoice for this order is created and emailed / texted to the customer. They can pay
+                it by card or by bank transfer — find it in Admin → Invoices to resend it or mark a
+                bank transfer as paid. The order stays Pending Payment until it is paid.
+              </small>
+            </ng-container>
+
+            <!-- COMMERCIAL INVOICE: only offered when the customer has a linked business client, and
+                 billed to that client automatically — no dropdown to get wrong. -->
             <ng-container *ngIf="adminPaymentMethod === 'Invoice'">
               <div class="field">
-                <label>Billed to (commercial client)</label>
-                <select [(ngModel)]="adminContractClientId">
-                  <option [ngValue]="null">— Choose a commercial client —</option>
-                  <option *ngFor="let c of adminContractClients" [ngValue]="c.id">
-                    {{ c.legalEntityName }}
-                  </option>
-                </select>
-                <small class="payment-method-hint" *ngIf="loadingContractClients">
-                  Loading commercial clients…
-                </small>
-                <small class="payment-method-hint" *ngIf="!loadingContractClients">
-                  The order stays Pending Payment. It becomes Active when an invoice covering it
+                <label>Billed to</label>
+                <div *ngIf="adminBusinessClient"><strong>{{ adminBusinessClient.legalEntityName }}</strong> (commercial client)</div>
+                <small class="payment-method-hint">
+                  The order stays Pending Payment. It becomes Active when a commercial invoice covering it
                   is paid in full — no payment link is sent to the customer.
                 </small>
               </div>
@@ -139,7 +141,7 @@
 
     <!-- Discounts are account-scoped: switching admin mode / customer clears them. -->
     <div class="admin-discount-notice" *ngIf="discountsClearedForAccountSwitch">
-      <i class="fas fa-triangle-exclamation"></i>
+      <i [appIcon]="icons.faTriangleExclamation"></i>
       <span>
         Applied discounts (special offer, promo code, gift card, points) were removed because the
         customer changed. Re-apply them from this account's own offers.
@@ -161,7 +163,7 @@
              an admin booked for the wrong customer without noticing (2026-08). -->
         <div class="admin-target-banner"
              *ngIf="isAdminMode && selectedTargetUser && currentStep === 3">
-          <i class="fas fa-user-check"></i>
+          <i [appIcon]="icons.faUserCheck"></i>
           <span class="admin-target-banner__text">
             Booking for
             <strong>{{ selectedTargetUser.firstName }} {{ selectedTargetUser.lastName }}</strong>
@@ -170,7 +172,10 @@
             </span>
           </span>
           <span class="admin-target-banner__method">
-            {{ adminPaymentMethod === 'Normal' ? 'Payment request' : adminPaymentMethod }}
+            {{ adminPaymentMethod === 'Normal' ? 'Payment request'
+               : adminPaymentMethod === 'RegularInvoice' ? 'Invoice'
+               : adminPaymentMethod === 'Invoice' ? 'Commercial invoice'
+               : adminPaymentMethod }}
           </span>
         </div>
 
@@ -227,18 +232,12 @@
               <div class="special-offer-card"
                     *ngFor="let offer of userSpecialOffers"
                     [class.applied]="specialOfferApplied && selectedSpecialOffer?.id === offer.id"
-                    (click)="onSpecialOfferCardClick(offer)"
-                    role="button"
-                    tabindex="0"
-                    (keydown.enter)="onSpecialOfferCardClick(offer)"
-                    (keydown.space)="onSpecialOfferCardClick(offer); $event.preventDefault()"
-                    [attr.aria-pressed]="specialOfferApplied && selectedSpecialOffer?.id === offer.id"
-                    [attr.aria-label]="(specialOfferApplied && selectedSpecialOffer?.id === offer.id ? 'Remove offer ' : 'Apply offer ') + offer.name">
+                    (click)="onSpecialOfferCardClick(offer)">
                 <div class="offer-info">
                   <div class="offer-content">
                     <div class="offer-badge">
-                      <i class="fas fa-tag offer-badge-icon" aria-hidden="true"></i>
-                      <h4>{{ offer.name }}</h4>
+                      <i [appIcon]="icons.faTag" class="offer-badge-icon" aria-hidden="true"></i>
+                      <h3>{{ offer.name }}</h3>
                     </div>
                     <div class="offer-details">
                       <p class="offer-description" *ngIf="offer.description">{{ offer.description }}</p>
@@ -255,12 +254,14 @@
                   <button
                     type="button"
                     class="apply-btn"
+                    [attr.aria-label]="'Apply offer ' + offer.name"
                     *ngIf="!(specialOfferApplied && selectedSpecialOffer?.id === offer.id)">
                     Apply offer
                   </button>
                   <button
                     type="button"
                     class="remove-btn"
+                    [attr.aria-label]="'Remove offer ' + offer.name"
                     *ngIf="specialOfferApplied && selectedSpecialOffer?.id === offer.id">
                     Remove
                   </button>
@@ -282,12 +283,11 @@
                     (click)="toggleServiceTypeDropdown()"
                     [disabled]="isLoading">
                     <span class="dropdown-toggle__label">
-                      <i class="fas dropdown-toggle__icon"
-                         [ngClass]="getServiceTypeIcon(selectedServiceType?.name)"
+                      <i [appIcon]="getServiceTypeIcon(selectedServiceType)" class="dropdown-toggle__icon"
                          aria-hidden="true"></i>
                       <span>{{ selectedServiceType ? selectedServiceType.name : 'Select a service type' }}</span>
                     </span>
-                    <i class="fas fa-chevron-down dropdown-toggle__chevron"></i>
+                    <i [appIcon]="icons.faChevronDown" class="dropdown-toggle__chevron"></i>
                   </button>
                   <div class="dropdown-menu" *ngIf="serviceTypeDropdownOpen">
                     <button
@@ -296,8 +296,7 @@
                       class="dropdown-item"
                       [class.is-active]="selectedServiceType?.id === type.id"
                       (click)="selectServiceType(type)">
-                      <i class="fas dropdown-item__icon"
-                         [ngClass]="getServiceTypeIcon(type.name)"
+                      <i [appIcon]="getServiceTypeIcon(type)" class="dropdown-item__icon"
                          aria-hidden="true"></i>
                       <span>{{ type.name }}</span>
                     </button>
@@ -494,7 +493,7 @@
                 <div class="service-item">
                   <label>Bedrooms</label>
                   <div class="service-input">
-                    <app-quantity-control class="quantity-control"
+                    <app-quantity-control class="quantity-control" label="bedrooms"
                       [value]="(bedroomsQuantityControl.value || 0) === 0 ? 'Studio' : bedroomsQuantityControl.value"
                       (decrement)="bedroomsQuantityControl.setValue(Math.max((bedroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()"
                       (increment)="bedroomsQuantityControl.setValue(Math.min((bedroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
@@ -505,7 +504,7 @@
                 <div class="service-item">
                   <label>Bathrooms</label>
                   <div class="service-input">
-                    <app-quantity-control class="quantity-control"
+                    <app-quantity-control class="quantity-control" label="bathrooms"
                       [value]="bathroomsQuantityControl.value || 0"
                       (decrement)="bathroomsQuantityControl.setValue(Math.max((bathroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()"
                       (increment)="bathroomsQuantityControl.setValue(Math.min((bathroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
@@ -513,6 +512,12 @@
                   </div>
                 </div>
               </div>
+              <!-- On a custom order the counts are informational (the price is the typed total),
+                   so the admin decides whether the customer sees them on their order details. -->
+              <label class="custom-room-counts-toggle">
+                <input type="checkbox" [formControl]="showRoomCountsToCustomer">
+                <span>Show bedrooms &amp; bathrooms to the customer in their order details</span>
+              </label>
 
               <div class="form-group">
                 <label>Describe Your Cleaning</label>
@@ -578,7 +583,7 @@
                 class="cleaning-type-cta-banner"
                 *ngIf="!loading.serviceTypes && !loading.cleaningTypes && selectedServiceType && isResidentialCleaningServiceType() && canSelectDeepCleaning"
                 role="note">
-                <i class="fas fa-star cleaning-type-cta-banner__star" aria-hidden="true"></i>
+                <i [appIcon]="icons.faStar" class="cleaning-type-cta-banner__star" aria-hidden="true"></i>
                 <div class="cleaning-type-cta-banner__body">
                   <p class="cleaning-type-cta-banner__lead">
                     <strong>Not sure which to choose?</strong> Most first-time customers choose Deep Cleaning for the best results.
@@ -596,12 +601,12 @@
                     class="cleaning-type-btn"
                     [class.selected]="cleaningType.value === 'normal'"
                     (click)="selectCleaningType('normal')">
-                    <i class="fas fa-broom cleaning-type-btn__icon" aria-hidden="true"></i>
+                    <i [appIcon]="icons.faBroom" class="cleaning-type-btn__icon" aria-hidden="true"></i>
                     <span class="cleaning-type-btn__body">
                       <span class="cleaning-type-btn__title">Regular Cleaning</span>
                       <span class="cleaning-type-btn__sub">Standard maintenance clean</span>
                     </span>
-                    <i class="fas fa-check-circle cleaning-type-btn__check" aria-hidden="true"></i>
+                    <i [appIcon]="icons.faCircleCheck" class="cleaning-type-btn__check" aria-hidden="true"></i>
                   </button>
                   <button
                     type="button"
@@ -609,12 +614,12 @@
                     [class.selected]="cleaningType.value === 'deep'"
                     (click)="selectCleaningType('deep')">
                     <span class="cleaning-type-btn__badge">Most popular</span>
-                    <i class="fas fa-spray-can-sparkles cleaning-type-btn__icon" aria-hidden="true"></i>
+                    <i [appIcon]="icons.faSprayCanSparkles" class="cleaning-type-btn__icon" aria-hidden="true"></i>
                     <span class="cleaning-type-btn__body">
                       <span class="cleaning-type-btn__title">Deep Cleaning</span>
                       <span class="cleaning-type-btn__sub">Recommended for first-timers</span>
                     </span>
-                    <i class="fas fa-check-circle cleaning-type-btn__check" aria-hidden="true"></i>
+                    <i [appIcon]="icons.faCircleCheck" class="cleaning-type-btn__check" aria-hidden="true"></i>
                   </button>
                 </div>
                 <div class="error-message" *ngIf="!loading.serviceTypes && !loading.cleaningTypes && cleaningType.invalid && cleaningType.touched">
@@ -644,7 +649,7 @@
                   
                   <!-- Quantity Control Input -->
                   <div class="service-input" *ngIf="selected.service.inputType === 'dropdown'" [shimmer]="loading.serviceDetails">
-                    <app-quantity-control class="quantity-control"
+                    <app-quantity-control class="quantity-control" [label]="selected.service.name"
                       [value]="selected.service.serviceKey === 'bedrooms' && selected.quantity === 0 ? 'Studio' : selected.quantity"
                       [decrementDisabled]="selected.quantity <= getServiceMinValue(selected.service)"
                       [incrementDisabled]="selected.quantity >= (selected.service.maxValue || 10)"
@@ -662,6 +667,8 @@
                       <input type="range"
                             min="0"
                             step="1"
+                            [attr.aria-label]="selected.service.name"
+                            [attr.aria-valuetext]="selected.quantity + ' square feet'"
                             [max]="getSquareFeetSliderMaxIndex(selected.service)"
                             [value]="getSquareFeetSliderIndex(selected.service, selected.quantity)"
                             (input)="onSquareFeetSliderChange(selected.service, $any($event.target).value)">
@@ -674,7 +681,7 @@
                 <div class="service-item" *ngIf="shouldShowStandaloneBedroomBathroom()">
                   <label>Bedrooms</label>
                   <div class="service-input">
-                    <app-quantity-control class="quantity-control"
+                    <app-quantity-control class="quantity-control" label="bedrooms"
                       [value]="(bedroomsQuantityControl.value || 0) === 0 ? 'Studio' : bedroomsQuantityControl.value"
                       (decrement)="bedroomsQuantityControl.setValue(Math.max((bedroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()"
                       (increment)="bedroomsQuantityControl.setValue(Math.min((bedroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
@@ -685,7 +692,7 @@
                 <div class="service-item" *ngIf="shouldShowStandaloneBedroomBathroom()">
                   <label>Bathrooms</label>
                   <div class="service-input">
-                    <app-quantity-control class="quantity-control"
+                    <app-quantity-control class="quantity-control" label="bathrooms"
                       [value]="bathroomsQuantityControl.value || 0"
                       (decrement)="bathroomsQuantityControl.setValue(Math.max((bathroomsQuantityControl.value || 0) - 1, 0)); onStandaloneQuantityChange()"
                       (increment)="bathroomsQuantityControl.setValue(Math.min((bathroomsQuantityControl.value || 0) + 1, 10)); onStandaloneQuantityChange()">
@@ -827,7 +834,7 @@
                   [class.is-active]="currentStep === 1"
                   [class.is-complete]="currentStep > 1">
                 <div class="booking-progress-stepper__bubble" aria-hidden="true">
-                  <i *ngIf="currentStep > 1" class="fas fa-check"></i>
+                  <i *ngIf="currentStep > 1" [appIcon]="icons.faCheck"></i>
                   <span *ngIf="currentStep <= 1">1</span>
                 </div>
                 <span class="booking-progress-stepper__label">Configure</span>
@@ -837,7 +844,7 @@
                   [class.is-active]="currentStep === 2"
                   [class.is-complete]="currentStep > 2">
                 <div class="booking-progress-stepper__bubble" aria-hidden="true">
-                  <i *ngIf="currentStep > 2" class="fas fa-check"></i>
+                  <i *ngIf="currentStep > 2" [appIcon]="icons.faCheck"></i>
                   <span *ngIf="currentStep <= 2">2</span>
                 </div>
                 <span class="booking-progress-stepper__label">Schedule</span>
@@ -905,11 +912,11 @@
             <section class="booking-section">
               <h2>How often would you like us to clean?</h2>
               <p class="subscription-fee-note">
-                <i class="fas fa-check-circle"></i>
+                <i [appIcon]="icons.faCircleCheck"></i>
                 No extra fee - a plan just lowers your price. Cancel anytime.
               </p>
               <div class="active-subscription-notice" *ngIf="hasActiveSubscription && userSubscription">
-                <i class="fas fa-info-circle"></i>
+                <i [appIcon]="icons.faCircleInfo"></i>
                 <span>Your current plan: {{ userSubscription?.subscriptionName }} 
                       ({{ userSubscription?.discountPercentage }}% discount)</span>
               </div>
@@ -919,11 +926,11 @@
                      [class.selected]="selectedSubscription?.id === subscription.id"
                      [class.user-subscription]="hasActiveSubscription && userSubscription?.subscriptionId === subscription.id"
                      [class.mobile-tooltip-visible]="isMobileTooltipVisible(subscription.id)"
-                     [class.subscription-card--popular]="subscription.name === 'Monthly'"
+                     [class.subscription-card--popular]="subscription.isMostPopular"
                      (click)="selectSubscription(subscription)"
                      [attr.data-tooltip]="getSubscriptionTooltip(subscription)">
-                  <span class="subscription-card__badge" *ngIf="subscription.name === 'Monthly'">Most popular</span>
-                  <h4>{{ subscription.name }}</h4>
+                  <span class="subscription-card__badge" *ngIf="subscription.isMostPopular">Most popular</span>
+                  <h3>{{ subscription.name }}</h3>
                   <div class="discount" *ngIf="subscription.discountPercentage > 0">
                     Save {{ subscription.discountPercentage }}%
                   </div>
@@ -932,54 +939,6 @@
 
             </section>
 
-            <!-- Special Discount on step 2 (same as step 1, always visible when offers exist) -->
-            <section class="special-offers-section" *ngIf="currentStep === 2 && !loading.promoBanner && userSpecialOffers.length > 0">
-              <h2 class="special-offers-heading">Special Discount</h2>
-              <div class="special-offers-grid">
-                <div class="special-offer-card"
-                      *ngFor="let offer of userSpecialOffers"
-                      [class.applied]="specialOfferApplied && selectedSpecialOffer?.id === offer.id"
-                      (click)="onSpecialOfferCardClick(offer)"
-                      role="button"
-                      tabindex="0"
-                      (keydown.enter)="onSpecialOfferCardClick(offer)"
-                      (keydown.space)="onSpecialOfferCardClick(offer); $event.preventDefault()"
-                      [attr.aria-pressed]="specialOfferApplied && selectedSpecialOffer?.id === offer.id"
-                      [attr.aria-label]="(specialOfferApplied && selectedSpecialOffer?.id === offer.id ? 'Remove offer ' : 'Apply offer ') + offer.name">
-                  <div class="offer-info">
-                    <div class="offer-content">
-                      <div class="offer-badge">
-                        <i class="fas fa-tag offer-badge-icon" aria-hidden="true"></i>
-                        <h4>{{ offer.name }}</h4>
-                      </div>
-                      <div class="offer-details">
-                        <p class="offer-description" *ngIf="offer.description">{{ offer.description }}</p>
-                        <span class="offer-expiry" *ngIf="offer.expiresAt">
-                          Expires {{ offer.expiresAt | date: 'MMM d, y' }}
-                        </span>
-                        <span class="offer-minimum" *ngIf="offer.minimumOrderAmount">
-                          Min. order ${{ offer.minimumOrderAmount }}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="offer-actions">
-                    <button
-                      type="button"
-                      class="apply-btn"
-                      *ngIf="!(specialOfferApplied && selectedSpecialOffer?.id === offer.id)">
-                      Apply offer
-                    </button>
-                    <button
-                      type="button"
-                      class="remove-btn"
-                      *ngIf="specialOfferApplied && selectedSpecialOffer?.id === offer.id">
-                      Remove
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
 
             <!-- Entry Method -->
             <section class="booking-section">
@@ -993,7 +952,7 @@
                     (click)="toggleEntryMethodDropdown()"
                     [disabled]="isLoading">
                     <span>{{ entryMethod.value || 'Select entry method' }}</span>
-                    <i class="fas fa-chevron-down"></i>
+                    <i [appIcon]="icons.faChevronDown"></i>
                   </button>
                   <div class="dropdown-menu" *ngIf="entryMethodDropdownOpen">
                     <button 
@@ -1177,7 +1136,8 @@
             <div class="contact-privacy-note">
               <p>We will use this information to stay in touch with you. We don't share your personal information with anyone.</p>
             </div>
-            <!-- Simplified contact form for poll forms - only name and phone -->
+            <!-- Simplified contact form for poll forms: name, phone, email and service address.
+                 No city/state/zip here — the address line is what the team needs to quote. -->
             <div class="form-grid">
               <div class="form-group">
                 <input type="text" [formControl]="contactFirstName" placeholder="Name *" id="contactFirstNamePollStep2">
@@ -1190,6 +1150,19 @@
                 <div class="error-message" *ngIf="contactPhone.invalid && contactPhone.touched">
                   <div *ngIf="contactPhone.errors?.['required']">Phone number is required</div>
                   <div *ngIf="contactPhone.errors?.['pattern']">Please enter a valid 10-digit phone number</div>
+                </div>
+              </div>
+              <div class="form-group">
+                <input type="email" [formControl]="contactEmail" placeholder="Email *" id="contactEmailPollStep2" autocomplete="email">
+                <div class="error-message" *ngIf="contactEmail.invalid && contactEmail.touched">
+                  <div *ngIf="contactEmail.errors?.['required']">Email is required</div>
+                  <div *ngIf="contactEmail.errors?.['email']">Please enter a valid email address</div>
+                </div>
+              </div>
+              <div class="form-group">
+                <input type="text" [formControl]="serviceAddress" placeholder="Service Address *" id="serviceAddressPollStep2" autocomplete="street-address">
+                <div class="error-message" *ngIf="serviceAddress.invalid && serviceAddress.touched">
+                  <div *ngIf="serviceAddress.errors?.['required']">Service address is required</div>
                 </div>
               </div>
             </div>
@@ -1215,7 +1188,7 @@
                   [class.is-active]="currentStep === 1"
                   [class.is-complete]="currentStep > 1">
                 <div class="booking-progress-stepper__bubble" aria-hidden="true">
-                  <i *ngIf="currentStep > 1" class="fas fa-check"></i>
+                  <i *ngIf="currentStep > 1" [appIcon]="icons.faCheck"></i>
                   <span *ngIf="currentStep <= 1">1</span>
                 </div>
                 <span class="booking-progress-stepper__label">Configure</span>
@@ -1225,7 +1198,7 @@
                   [class.is-active]="currentStep === 2"
                   [class.is-complete]="currentStep > 2">
                 <div class="booking-progress-stepper__bubble" aria-hidden="true">
-                  <i *ngIf="currentStep > 2" class="fas fa-check"></i>
+                  <i *ngIf="currentStep > 2" [appIcon]="icons.faCheck"></i>
                   <span *ngIf="currentStep <= 2">2</span>
                 </div>
                 <span class="booking-progress-stepper__label">Schedule</span>
@@ -1290,7 +1263,7 @@
                             (click)="toggleSavedAddressDropdown()"
                             aria-label="Saved address">
                       <span [class.is-placeholder]="!selectedApartmentId.value">{{ savedAddressLabel }}</span>
-                      <i class="fas fa-chevron-down"></i>
+                      <i [appIcon]="icons.faChevronDown"></i>
                     </button>
                     <div class="dropdown-menu" *ngIf="savedAddressDropdownOpen">
                       <button type="button"
@@ -1357,7 +1330,7 @@
                           id="city"
                           aria-label="City">
                     <span [class.is-placeholder]="!city.value">{{ city.value || 'City *' }}</span>
-                    <i class="fas fa-chevron-down"></i>
+                    <i [appIcon]="icons.faChevronDown"></i>
                   </button>
                   <div class="dropdown-menu" *ngIf="cityDropdownOpen">
                     <button *ngFor="let cityOption of cities"
@@ -1383,7 +1356,7 @@
                           id="state"
                           aria-label="State">
                     <span [class.is-placeholder]="!state.value">{{ state.value || 'State *' }}</span>
-                    <i class="fas fa-chevron-down"></i>
+                    <i [appIcon]="icons.faChevronDown"></i>
                   </button>
                   <div class="dropdown-menu" *ngIf="stateDropdownOpen">
                     <button *ngFor="let stateOption of states"
@@ -1415,7 +1388,7 @@
                             title="Address name"
                             aria-label="Address name">
                       <span>{{ addressNameType }}</span>
-                      <i class="fas fa-chevron-down"></i>
+                      <i [appIcon]="icons.faChevronDown"></i>
                     </button>
                     <div class="dropdown-menu" *ngIf="addressNameDropdownOpen">
                       <button type="button"
@@ -1456,7 +1429,7 @@
               <!-- Reward balance row -->
               <div class="bubble-reward-row" *ngIf="userBubbleCredits > 0">
                 <div class="bubble-reward-row__info">
-                  <i class="fas fa-piggy-bank bubble-reward-row__icon" aria-hidden="true"></i>
+                  <i [appIcon]="icons.faPiggyBank" class="bubble-reward-row__icon" aria-hidden="true"></i>
                   <div class="bubble-reward-row__text">
                     <span class="bubble-reward-row__title">Reward balance</span>
                     <span class="bubble-reward-row__sub">
@@ -1478,7 +1451,7 @@
               <!-- Bubble points row -->
               <div class="bubble-reward-row bubble-reward-row--points" *ngIf="bubblePointsOptions.length > 0">
                 <div class="bubble-reward-row__info">
-                  <i class="fas fa-coins bubble-reward-row__icon" aria-hidden="true"></i>
+                  <i [appIcon]="icons.faCoins" class="bubble-reward-row__icon" aria-hidden="true"></i>
                   <div class="bubble-reward-row__text">
                     <span class="bubble-reward-row__title">Bubble points</span>
                     <span class="bubble-reward-row__sub">
@@ -1595,13 +1568,13 @@
                 Remove Promo Code
               </button>
               <p class="promo-note-info" *ngIf="specialOfferApplied">
-                <i class="fas fa-info-circle"></i> Remove special offer to use a promo code
+                <i [appIcon]="icons.faCircleInfo"></i> Remove special offer to use a promo code
               </p>
             </div>
           </section>
 
           <!-- SMS Consent Checkbox -->
-          <div class="sms-consent-section" *ngIf="!showPollForm">
+          <div class="sms-consent-section" *ngIf="!showPollForm && !isAdminMode">
             <div class="checkbox-group">
               <input 
                 type="checkbox" 
@@ -1621,7 +1594,7 @@
           </div>
 
           <!-- Cancellation Fee and Booking Details Consent Checkbox -->
-          <div class="cancellation-consent-section" *ngIf="!showPollForm">
+          <div class="cancellation-consent-section" *ngIf="!showPollForm && !isAdminMode">
             <div class="checkbox-group">
               <input 
                 type="checkbox" 
@@ -1639,7 +1612,7 @@
           </div>
 
           <!-- Privacy Policy and Terms of Service Consent Checkbox -->
-          <div class="terms-consent-section" *ngIf="!showPollForm">
+          <div class="terms-consent-section" *ngIf="!showPollForm && !isAdminMode">
             <div class="checkbox-group">
               <input
                 type="checkbox"
@@ -1693,7 +1666,7 @@
                     </button>
                   </div>
                   <p class="promo-note" *ngIf="specialOfferApplied">
-                    <i class="fas fa-info-circle"></i> Remove special offer to use a promo code
+                    <i [appIcon]="icons.faCircleInfo"></i> Remove special offer to use a promo code
                   </p>
                 </div>
               </div>
@@ -1790,49 +1763,25 @@
                   [attr.aria-expanded]="isExtraInfoExpanded"
                   (click)="toggleExtraInfoExpansion()">
             <span class="partnership-accordion__title">
-              <i class="fas fa-info-circle partnership-accordion__icon" aria-hidden="true"></i>
-              <span>What's included &amp; what to have ready</span>
+              <i [appIcon]="icons.faCircleInfo" class="partnership-accordion__icon" aria-hidden="true"></i>
+              <span>What to have ready</span>
             </span>
-            <i class="fas fa-chevron-down partnership-accordion__chevron" aria-hidden="true"></i>
+            <i [appIcon]="icons.faChevronDown" class="partnership-accordion__chevron" aria-hidden="true"></i>
           </button>
           <div class="partnership-accordion__body" *ngIf="isExtraInfoExpanded">
+            <!-- ONLY what the customer has to provide, and it depends on whether they added
+                 Cleaning Supplies / Cleaning Essentials (and Vacuum Cleaner, Oven Cleaning, Deep).
+                 Live for the CURRENT selection, from the same shared checklist the modal, the
+                 confirmation email and the order pages use — a static list here would go stale
+                 the moment an extra is added. The per-cleaning-type "we'll bring" lists were
+                 removed (owner's call, 2026-09): the supplies modal already explains the add-ons. -->
             <div class="general-info">
-              <p><strong>Standard Cleaning</strong></p>
-              <p><strong>If you add Cleaning Supplies, we'll bring:</strong></p>
-              <ul>
-                <li>Zep (or similar) liquids: Green Liquid, Floor Liquid</li>
-                <li>Windex</li>
-                <li>Cleaning cloths</li>
-                <li>Sponge</li>
-                <li>Mop</li>
-              </ul>
-
-              <p><strong>Deep Cleaning</strong></p>
-              <p><strong>If you add Cleaning Supplies, we'll bring:</strong></p>
-              <ul>
-                <li>Zep (or similar) liquids: Green Liquid, Floor Liquid, Oven Cleaner Liquid</li>
-                <li>Windex</li>
-                <li>Cleaning cloths</li>
-                <li>Sponge</li>
-                <li>Mop</li>
-              </ul>
-
-              <p><strong>Oven Cleaning extra:</strong> if you add Oven Cleaning to any service, Oven Cleaner Liquid is included in the list above.</p>
-
-              <p><strong>If you skip this option, please have the above items ready for our team.</strong></p>
-
-              <p><strong>Cleaning Essentials:</strong> add it and we bring the paper towels, garbage
-              bags, toilet brush and a broom too.</p>
-
-              <!-- Live for the CURRENT selection, from the same shared checklist the modal, the
-                   confirmation email and the order pages use — a static list here would go stale
-                   the moment Cleaning Essentials or Vacuum Cleaner is added. -->
-              <p><strong>You provide:</strong></p>
+              <p><strong>Please have these ready for our team:</strong></p>
               <ul *ngIf="modalSupplyChecklistItems.length > 0">
                 <li *ngFor="let item of modalSupplyChecklistItems">{{ item }}</li>
               </ul>
               <p *ngIf="modalSupplyChecklistItems.length === 0">
-                Nothing — we bring everything for this cleaning.
+                Nothing — with Cleaning Supplies and Cleaning Essentials added, we bring everything for this cleaning.
               </p>
             </div>
 
@@ -1867,7 +1816,7 @@
             <div class="dc-modal-header">
               <h3>Supplies &amp; Essentials <span class="dc-modal-subtitle">({{ cleaningSuppliesCleaningTypeLabel }})</span></h3>
               <button type="button" class="dc-modal-close" (click)="closeCleaningSuppliesConfirm()" aria-label="Close">
-                <i class="fas fa-times"></i>
+                <i [appIcon]="icons.faXmark"></i>
               </button>
             </div>
 
@@ -1948,7 +1897,7 @@
                         class="dc-modal-btn dc-modal-add"
                         [class.dc-modal-add--added]="cleaningSuppliesSelected"
                         (click)="toggleSupplyExtraFromModal(cleaningSuppliesExtra)">
-                  <i class="fas" [ngClass]="cleaningSuppliesSelected ? 'fa-check' : 'fa-plus'" aria-hidden="true"></i>
+                  <i [appIcon]="cleaningSuppliesSelected ? icons.faCheck : icons.faPlus" aria-hidden="true"></i>
                   {{ cleaningSuppliesSelected ? 'Added — tap to remove' : 'Add Cleaning Supplies' }}
                 </button>
               </div>
@@ -1987,7 +1936,7 @@
                         class="dc-modal-btn dc-modal-add"
                         [class.dc-modal-add--added]="cleaningEssentialsSelected"
                         (click)="toggleSupplyExtraFromModal(cleaningEssentialsExtra)">
-                  <i class="fas" [ngClass]="cleaningEssentialsSelected ? 'fa-check' : 'fa-plus'" aria-hidden="true"></i>
+                  <i [appIcon]="cleaningEssentialsSelected ? icons.faCheck : icons.faPlus" aria-hidden="true"></i>
                   {{ cleaningEssentialsSelected ? 'Added — tap to remove' : 'Add Cleaning Essentials' }}
                 </button>
               </div>
@@ -2014,7 +1963,7 @@
             <div class="dc-modal-header">
               <h3>Login required</h3>
               <button type="button" class="dc-modal-close" (click)="closeGuestOfferLoginModal()" aria-label="Close">
-                <i class="fas fa-times"></i>
+                <i [appIcon]="icons.faXmark"></i>
               </button>
             </div>
             <div class="dc-modal-body">
@@ -2075,7 +2024,7 @@
           </button>
         </div>
         <p class="promo-note" *ngIf="specialOfferApplied">
-          <i class="fas fa-info-circle"></i> Remove special offer to use a promo code
+          <i [appIcon]="icons.faCircleInfo"></i> Remove special offer to use a promo code
         </p>
       </div>
     </div>
@@ -2100,19 +2049,19 @@
 <!-- Trust strip (decorative reassurance) -->
 <div class="booking-trust-strip" *ngIf="!isAdminMode">
   <div class="booking-trust-strip__item">
-    <i class="fas fa-shield-alt booking-trust-strip__icon booking-trust-strip__icon--green" aria-hidden="true"></i>
+    <i [appIcon]="icons.faShieldHalved" class="booking-trust-strip__icon booking-trust-strip__icon--green" aria-hidden="true"></i>
     <span>Fully insured &amp; bonded</span>
   </div>
   <div class="booking-trust-strip__item">
-    <i class="fas fa-star booking-trust-strip__icon booking-trust-strip__icon--amber" aria-hidden="true"></i>
+    <i [appIcon]="icons.faStar" class="booking-trust-strip__icon booking-trust-strip__icon--amber" aria-hidden="true"></i>
     <span>5.0 on Google</span>
   </div>
   <div class="booking-trust-strip__item">
-    <i class="fas fa-bolt booking-trust-strip__icon booking-trust-strip__icon--blue" aria-hidden="true"></i>
+    <i [appIcon]="icons.faBolt" class="booking-trust-strip__icon booking-trust-strip__icon--blue" aria-hidden="true"></i>
     <span>Same-day available</span>
   </div>
   <div class="booking-trust-strip__item">
-    <i class="fas fa-lock booking-trust-strip__icon booking-trust-strip__icon--blue" aria-hidden="true"></i>
+    <i [appIcon]="icons.faLock" class="booking-trust-strip__icon booking-trust-strip__icon--blue" aria-hidden="true"></i>
     <span>Secure payment via Stripe</span>
   </div>
 </div>

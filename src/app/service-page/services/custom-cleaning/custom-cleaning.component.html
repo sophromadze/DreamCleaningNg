@@ -70,7 +70,7 @@
           <h3>Additional Custom Services:</h3>
           <div class="service-content">
             <div class="image-placeholder left">
-              <img src="/images/custom-cleaning-3.webp" alt="Additional Custom Services in Manhattan, Brooklyn & Queens" loading="lazy">
+              <img src="/images/custom-cleaning-3.webp" cardImage="serviceCategory" alt="Additional Custom Services in Manhattan, Brooklyn & Queens" loading="lazy">
             </div>
             <ul>
               <li>Decluttering assistance before cleaning</li>
@@ -93,28 +93,28 @@
           <div class="benefit-item">
             <span class="checkmark">✓</span>
             <div class="benefit-content">
-              <h4>Flexible Scheduling</h4>
+              <h3>Flexible Scheduling</h3>
               <p>Available 7 days a week to accommodate your lifestyle</p>
             </div>
           </div>
           <div class="benefit-item">
             <span class="checkmark">✓</span>
             <div class="benefit-content">
-              <h4>Transparent Pricing</h4>
-              <p>${{ pricing.customPerHour }} per hour with no hidden fees</p>
+              <h3>Transparent Pricing</h3>
+              <p>@if (pricing().customPerHour; as p) {<ng-container>{{ p }}</ng-container> per hour per cleaner with no hidden fees} @else {Hourly pricing with no hidden fees}</p>
             </div>
           </div>
           <div class="benefit-item">
             <span class="checkmark">✓</span>
             <div class="benefit-content">
-              <h4>Experienced Team</h4>
+              <h3>Experienced Team</h3>
               <p>Professionals who understand diverse cleaning requirements</p>
             </div>
           </div>
           <div class="benefit-item">
             <span class="checkmark">✓</span>
             <div class="benefit-content">
-              <h4>Quality Guarantee</h4>
+              <h3>Quality Guarantee</h3>
               <p>Attention to detail for every custom request</p>
             </div>
           </div>
@@ -138,28 +138,28 @@
           <div class="step-item">
             <div class="step-number">1</div>
             <div class="step-content">
-              <h4>Tell us your needs</h4>
+              <h3>Tell us your needs</h3>
               <p>Share which areas and tasks you want completed</p>
             </div>
           </div>
           <div class="step-item">
             <div class="step-number">2</div>
             <div class="step-content">
-              <h4>We create your plan</h4>
+              <h3>We create your plan</h3>
               <p>Our team develops a customized cleaning strategy</p>
             </div>
           </div>
           <div class="step-item">
             <div class="step-number">3</div>
             <div class="step-content">
-              <h4>Choose your schedule</h4>
+              <h3>Choose your schedule</h3>
               <p>Select frequency and duration that works for you</p>
             </div>
           </div>
           <div class="step-item">
             <div class="step-number">4</div>
             <div class="step-content">
-              <h4>Enjoy personalized service</h4>
+              <h3>Enjoy personalized service</h3>
               <p>Experience cleaning tailored exactly to your preferences</p>
             </div>
           </div>
@@ -168,7 +168,7 @@
 
       <div class="cta-section">
         <h2>Book Your Custom Cleaning Today</h2>
-        <p>Dream Cleaning NYC proudly offers Custom Cleaning at ${{ pricing.customPerHour }} per hour, providing complete freedom to choose duration, budget, and specific tasks. Whether you need a minimum 2-hour targeted cleaning or a full day of customized service, we adapt to your needs.</p>
+        <p>Dream Cleaning NYC proudly offers Custom Cleaning @if (pricing().customPerHour; as p) {at {{ p }} per hour per cleaner} @else {by the hour}, providing complete freedom to choose duration, budget, and specific tasks. Whether you need a minimum 2-hour targeted cleaning or a full day of customized service, we adapt to your needs.</p>
         
         <p class="tagline">Create your perfect cleaning plan with Dream Cleaning NYC - serving all of NYC including Brooklyn, Manhattan, and Queens. Your home, your rules, our expertise.</p>
         

@@ -99,19 +99,34 @@
         </div>
       </div>
   
-      <!-- Service Details -->
-      <div class="section">
+      <!-- Service Details. A custom ("Pre-Arranged") order has no priced service lines — its name
+           is the heading above — so the list is replaced by the bedroom/bathroom counts when the
+           admin chose to share them, and left out entirely otherwise (it used to render empty). -->
+      <div class="section" *ngIf="isCustomServiceType() && showCustomRoomCounts()">
+        <h3>Services</h3>
+        <div class="services-list">
+          <div class="service-item" *ngIf="order.bedroomsQuantity != null">
+            <span class="service-name">Bedrooms</span>
+            <span class="service-quantity">{{ order.bedroomsQuantity === 0 ? 'Studio' : 'Qty: ' + order.bedroomsQuantity }}</span>
+          </div>
+          <div class="service-item" *ngIf="order.bathroomsQuantity != null">
+            <span class="service-name">Bathrooms</span>
+            <span class="service-quantity">Qty: {{ order.bathroomsQuantity }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="section" *ngIf="!isCustomServiceType()">
         <h3>Services</h3>
         <div class="services-list">
           <div class="service-item" *ngFor="let service of order.services">
             <span class="service-name">{{ service.serviceName }}</span>
             <span class="service-quantity">
-              <ng-container *ngIf="service.serviceName.toLowerCase().includes('bedroom') && service.quantity === 0">Studio</ng-container>
-              <ng-container *ngIf="!(service.serviceName.toLowerCase().includes('bedroom') && service.quantity === 0)">
-                <ng-container *ngIf="service.serviceName.toLowerCase().includes('cleaner')">
+              <ng-container *ngIf="isBedroomsServiceLine(service) && service.quantity === 0">Studio</ng-container>
+              <ng-container *ngIf="!(isBedroomsServiceLine(service) && service.quantity === 0)">
+                <ng-container *ngIf="isCleanersServiceLine(service)">
                   Qty: {{ service.quantity }} | Hours: {{ service.duration / 60 }}
                 </ng-container>
-                <ng-container *ngIf="!service.serviceName.toLowerCase().includes('cleaner')">
+                <ng-container *ngIf="!isCleanersServiceLine(service)">
                   Qty: {{ service.quantity }}
                 </ng-container>
               </ng-container>
@@ -121,9 +136,12 @@
       </div>
   
       <!-- Extra Services -->
-      <div class="section" *ngIf="order.extraServices.length > 0">
+      <!-- On a custom order the service type name at the top already says what kind of cleaning
+           it is, and the Cleaning Type row read "Normal Cleaning" for a Deep job — so it is left
+           out there, along with the whole section when nothing else is in it. -->
+      <div class="section" *ngIf="order.extraServices.length > 0 && (!isCustomServiceType() || getDisplayExtraServices().length > 0)">
         <h3>Extra Services</h3>
-        <div class="cleaning-type-display">
+        <div class="cleaning-type-display" *ngIf="!isCustomServiceType()">
           <strong>Cleaning Type:</strong>
           <span [class]="getCleaningTypeText().toLowerCase().replace(' ', '-')"
                 [class.regular]="getCleaningTypeText() === 'Normal Cleaning'"
@@ -193,8 +211,14 @@
         </div>
       </div>
 
+      <!-- A weekly-flat-fee contract cleaning is billed by the contract's weekly invoice. -->
+      <div class="section" *ngIf="order.billedByContractLabel">
+        <h3>Billing</h3>
+        <p class="billed-by-contract">{{ order.billedByContractLabel }}</p>
+      </div>
+
       <!-- Price Breakdown -->
-      <div class="section">
+      <div class="section" *ngIf="!order.billedByContractLabel">
         <h3>Price Breakdown</h3>
         <div class="price-breakdown">
           <div class="price-row">
@@ -293,7 +317,7 @@
       <!-- Action Buttons -->
       <div class="action-buttons">
         <!-- Pay and Cancel buttons for unpaid orders (not cancelled) -->
-        <div class="unpaid-actions" *ngIf="!order.recurringSeriesId && !isEffectivelyPaid() && order.status !== 'Cancelled'">
+        <div class="unpaid-actions" *ngIf="showsUnpaidActions()">
           <a [routerLink]="['/order', order.id, 'pay']"
              class="pay-btn">
             <!-- Named amount once a deposit exists: "Pay Now" on an order already carrying
@@ -329,7 +353,9 @@
           Edit Order
         </a>
         
-        <button class="cancel-btn" *ngIf="!order.recurringSeriesId"
+        <!-- Hidden while the unpaid block above is showing: it carries its own Cancel Order next
+             to Pay Now, and this one (disabled for a Pending order) rendered as a second copy. -->
+        <button class="cancel-btn" *ngIf="!order.recurringSeriesId && !showsUnpaidActions()"
                 (click)="canCancelOrder() ? openCancelModal() : null"
                 [class.disabled]="!canCancelOrder()"
                 [attr.data-tooltip]="!canCancelOrder() ? (order.status === 'Done' ? 'Order is completed' : order.status === 'Cancelled' ? 'Order is already cancelled' : null) : null">
@@ -343,7 +369,9 @@
       <div class="modal" (click)="$event.stopPropagation()">
         <h2>Cancel Order</h2>
         <p>Are you sure you want to cancel this order?</p>
-        <p class="refund-notice">Your payment will be refunded within 7 working days.</p>
+        <!-- Card (Stripe) payments only. Cash / Zelle / Check / Other money is collected at the
+             door when the job starts, so a cancelled one has nothing to give back. -->
+        <p class="refund-notice" *ngIf="order?.isPaid">Your payment will be refunded within 7 working days.</p>
 
         <p *ngIf="isLateCancellation()" class="late-cancellation-notice">
           <strong>Please note:</strong> Since you are cancelling less than 48 hours before the scheduled service, a $70.00 late cancellation fee will apply in accordance with our terms of service.

@@ -42,7 +42,7 @@
       padding: 12px 20px;
       border-radius: 12px;
       background: var(--soft-blue);
-      color: var(--primary-color);
+      color: var(--primary-text);
     }
 
     .hero-offer-headline {
@@ -218,7 +218,7 @@
       padding: 15px;
       box-shadow: 0 2px 8px var(--shadow-color);
 
-      h4 {
+      h3 {
         color: var(--text-primary);
         font-size: 1rem;
         font-weight: 600;
@@ -259,7 +259,7 @@
 
       .benefit-content {
         position: relative;
-        h4 {
+        h3 {
           color: var(--text-primary);
           font-size: 1.2rem;
           margin-bottom: 8px;
@@ -477,7 +477,7 @@
         }
         
         .benefit-content {
-          h4 {
+          h3 {
             font-size: 1.1rem;
           }
           
@@ -623,7 +623,7 @@
         }
         
         .benefit-content {
-          h4 {
+          h3 {
             font-size: 1rem;
           }
           
@@ -770,7 +770,7 @@
         }
         
         .benefit-content {
-          h4 {
+          h3 {
             font-size: 0.9rem;
           }
           

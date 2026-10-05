@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController } from '@angular/common/http/testing';
 
-import { RecurringSeriesPanelComponent } from './recurring-series-panel.component';
+import { RecurringSeriesPanelComponent, nextRecurrenceDateAfter } from './recurring-series-panel.component';
 import { RecurrenceIntervalUnit, RecurringSeries } from '../../../services/recurring-order.service';
 import { environment } from '../../../../environments/environment';
 import { testProviders } from '../../../../testing/test-providers';
@@ -60,12 +60,19 @@ describe('RecurringSeriesPanelComponent', () => {
     httpMock = TestBed.inject(HttpTestingController);
   });
 
-  afterEach(() => httpMock.verify());
+  afterEach(() => {
+    // Opening the form also asks which commercial contracts the order could be linked to — an
+    // ordinary residential order has none.
+    httpMock.match(r => r.url.endsWith('/contracts')).forEach(r => r.flush({ contracts: [] }));
+    httpMock.verify();
+  });
 
   function open(existing: RecurringSeries | null = series()): void {
     fixture.componentRef.setInput('orderId', 41);
     fixture.componentRef.setInput('canCreate', true);
     fixture.componentRef.setInput('canUpdate', true);
+    // The host always passes the order's own date — a new weekly plan starts on that weekday.
+    fixture.componentRef.setInput('orderServiceDate', '2026-10-04T00:00:00');
     fixture.detectChanges();
 
     httpMock.expectOne(FOR_ORDER(41)).flush(existing);
@@ -82,7 +89,7 @@ describe('RecurringSeriesPanelComponent', () => {
     button.click();
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [], baseCleaning: 100, loyaltyPercent: 0, loyaltySource: 'None', loyaltyAmount: 0, tax: 8.88, tips: 0, total: 108.88 });
     expect(component.startingNew).toBeTrue(); expect(component.isActive).toBeTrue();
-    expect(component.anchorDate).toBe(''); expect(component.needsFutureOrdersChoice).toBeFalse();
+    expect(component.anchorDate).toBe('2026-10-18'); // suggested: the next fortnightly Sunday after the source expect(component.needsFutureOrdersChoice).toBeFalse();
     spyOn(component.ordersGenerated, 'emit');
     component.save();
     const request = httpMock.expectOne(CREATE(41));
@@ -352,4 +359,215 @@ describe('RecurringSeriesPanelComponent', () => {
       httpMock.expectOne(environment.apiUrl + '/admin/recurring-series/3').flush(series());
     });
   }
+
+  // ── Service days, days of month and the upcoming-cleanings count (2026-10) ─────────────
+
+  const PREVIEW = { sourceDiscounts: [], baseCleaning: 100, loyaltyPercent: 0, loyaltySource: 'None', loyaltyAmount: 0, tax: 8.88, tips: 0, total: 108.88, commercialLoyaltyExcluded: false };
+  const CONTRACTS = (id: number) => CREATE(id) + '/contracts';
+
+  function startNew(contracts: object = { contracts: [] }): void {
+    open(null);
+    component.startSetup();
+    httpMock.expectOne(CREATE(41) + '/preview').flush(PREVIEW);
+    httpMock.expectOne(CONTRACTS(41)).flush(contracts);
+    fixture.detectChanges();
+  }
+
+  function chip(label: string): HTMLButtonElement {
+    return Array.from(fixture.nativeElement.querySelectorAll('.rsp-day') as NodeListOf<HTMLButtonElement>)
+      .find(b => b.textContent?.trim() === label)!;
+  }
+
+  it('starts a new weekly plan on the order\'s own weekday and sends any combination of days', () => {
+    startNew();
+    expect(component.serviceDaysOfWeek).toEqual([0]); // Sunday 4 October
+    expect(component.upcomingOccurrenceTarget).toBe(12);
+
+    for (const label of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']) { chip(label).click(); }
+    fixture.detectChanges();
+    expect(chip('Sat').getAttribute('aria-pressed')).toBe('false');
+
+    component.save();
+    const body = httpMock.expectOne(CREATE(41)).request.body;
+    expect(body.serviceDaysOfWeek).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(body.serviceDaysOfMonth).toBeNull();
+    expect(body.upcomingOccurrenceTarget).toBe(12);
+  });
+
+  it('lets Saturday — or every day — be chosen; nothing is hard-coded away', () => {
+    startNew();
+    component.toggleWeekday(0);
+    for (const day of [6, 2]) component.toggleWeekday(day);
+    expect(component.serviceDaysOfWeek).toEqual([2, 6]);
+    for (const day of [0, 1, 3, 4, 5]) component.toggleWeekday(day);
+    expect(component.serviceDaysOfWeek).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(component.validationError).toBeNull();
+  });
+
+  it('requires at least one service day for a new weekly plan', () => {
+    startNew();
+    component.toggleWeekday(0);
+    expect(component.validationError).toBe('Choose at least one service day.');
+    component.save();
+    httpMock.expectNone(CREATE(41));
+  });
+
+  it('switching to months seeds the first cleaning\'s day and sends the chosen days of the month', () => {
+    startNew();
+    component.intervalUnit = RecurrenceIntervalUnit.Months;
+    component.onIntervalUnitChange();
+    fixture.detectChanges();
+    expect(component.serviceDaysOfMonth).toEqual([4]);
+    expect(fixture.nativeElement.textContent).toContain('is skipped that month');
+
+    component.toggleMonthDay(4); component.toggleMonthDay(31); component.toggleMonthDay(15); component.toggleMonthDay(1);
+    component.save();
+    const body = httpMock.expectOne(CREATE(41)).request.body;
+    expect(body.serviceDaysOfMonth).toEqual([1, 15, 31]);
+    expect(body.serviceDaysOfWeek).toBeNull();
+  });
+
+  it('validates the upcoming-cleanings count: required, whole, 1 to 60', () => {
+    startNew();
+    for (const bad of [null, 0, 61, 2.5]) {
+      component.upcomingOccurrenceTarget = bad;
+      expect(component.validationError).withContext(String(bad)).toContain('upcoming cleanings');
+    }
+    component.upcomingOccurrenceTarget = 6;
+    expect(component.validationError).toBeNull();
+    expect(fixture.nativeElement.textContent).toContain('Keep this many future cleaning orders ready.');
+  });
+
+  it('keeps an older plan as it was: no days chosen, blank count allowed, 30-day wording', () => {
+    open(series({ upcomingOccurrenceTarget: null, serviceDaysOfWeek: [] }));
+    expect(fixture.nativeElement.textContent).toContain('the next 30 days are generated');
+    component.startSetup();
+    httpMock.expectOne(CREATE(41) + '/preview').flush(PREVIEW);
+    expect(component.isLegacyPattern).toBeTrue();
+    expect(component.validationError).toBeNull();
+    component.notes = 'just a note';
+    component.save();
+    const request = httpMock.expectOne(environment.apiUrl + '/admin/recurring-series/3');
+    expect(request.request.body.serviceDaysOfWeek).toBeNull();
+    expect(request.request.body.upcomingOccurrenceTarget).toBeNull();
+    request.flush(series({ upcomingOccurrenceTarget: null }));
+  });
+
+  it('says what stays and what the new days will use when a schedule with future cleanings changes', () => {
+    open(series({ serviceDaysOfWeek: [0], upcomingOccurrenceTarget: 6 }));
+    component.startSetup();
+    httpMock.expectOne(CREATE(41) + '/preview').flush(PREVIEW);
+    component.toggleWeekday(1); component.toggleWeekday(3);
+    fixture.detectChanges();
+    expect(component.needsFutureOrdersChoice).toBeTrue();
+    const text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
+    expect(text).toContain('1 future cleaning(s) are already generated');
+    expect(text).toContain('on Sun, Mon, Wed');
+    expect(text).toContain('Nothing already created is moved or deleted automatically');
+  });
+
+  // ── Weekly flat fee contracts ───────────────────────────────────────────────────────────
+
+  const WEEKLY = {
+    id: 40, contractNumber: 'DCC-2026-12918497', status: 'FullySigned', contractClientId: 7,
+    serviceAddress: '1 Commerce St, New York, NY 10001', pricingBasis: 'WeeklyFlatFee', isWeeklyFlatFee: true,
+    visitsPerWeek: 6, preTaxPrice: 875, salesTaxAmount: 77.66, totalPrice: 952.66, weekDefinition: 'Sunday through Saturday'
+  };
+
+  it('a weekly flat fee contract controls billing: no per-cleaning estimate and no automatic requests', () => {
+    startNew({ contractClientId: 7, contracts: [WEEKLY], suggestedContractId: 40 });
+
+    expect(component.contractId).toBe(40);
+    expect(component.billingControlledByContract).toBeTrue();
+    const text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
+    expect(text).toContain('Billing is controlled by the linked commercial contract');
+    expect(text).toContain('do not represent separate customer charges');
+    expect(text).not.toContain('Estimated recurring cleaning');
+    expect(text).not.toContain('Request payment automatically');
+
+    component.autoRequestPayment = true;
+    component.save();
+    const body = httpMock.expectOne(CREATE(41)).request.body;
+    expect(body.contractId).toBe(40);
+    expect(body.autoRequestPayment).toBeFalse();
+  });
+
+  it('an ordinary residential plan keeps its estimate and its automatic-request switch', () => {
+    startNew();
+    const text = fixture.nativeElement.textContent as string;
+    expect(component.billingControlledByContract).toBeFalse();
+    expect(text).toContain('Estimated recurring cleaning');
+    expect(text).toContain('Request payment automatically');
+  });
+
+  it('an existing weekly-flat-fee plan states who bills it and shows no per-visit prices', () => {
+    open(series({ contract: WEEKLY, billingControlledByContract: true, upcomingOccurrenceTarget: 12, upcomingCount: 12 }));
+    const text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
+    expect(text).toContain('billed by DCC-2026-12918497\'s weekly invoice');
+    expect(text).toContain('keeps 12 generated (12 now)');
+    expect(fixture.nativeElement.querySelector('.rsp-occ-total')).toBeNull();
+  });
+
+  // ── Suggested first recurring cleaning (new plans only) ─────────────────────────────────
+
+  it('suggests the next scheduled day after the source order: Sunday Oct 4 + Sun–Fri → Monday Oct 5', () => {
+    startNew();
+    component.intervalValue = 1; component.refreshSuggestedFirstCleaning();
+    for (const day of [1, 2, 3, 4, 5]) component.toggleWeekday(day);
+    expect(component.anchorDate).toBe('2026-10-05');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('First recurring cleaning');
+    expect(fixture.nativeElement.textContent).toContain('The source order already exists');
+
+    component.save();
+    expect(httpMock.expectOne(CREATE(41)).request.body.anchorDate).toBe('2026-10-05');
+  });
+
+  it('never overwrites a date the admin chose, and a blank date stays blank', () => {
+    startNew();
+    component.anchorDate = '2026-11-02'; component.onAnchorDateChange();
+    component.toggleWeekday(3);
+    expect(component.anchorDate).toBe('2026-11-02');
+    component.anchorDate = ''; component.onAnchorDateChange();
+    component.toggleWeekday(4);
+    expect(component.anchorDate).toBe('');
+  });
+
+  it('an existing plan keeps its stored first date exactly as it is', () => {
+    open(series({ anchorDate: '2026-10-04T00:00:00', serviceDaysOfWeek: [0], upcomingOccurrenceTarget: 6 }));
+    component.startSetup();
+    httpMock.expectOne(CREATE(41) + '/preview').flush(PREVIEW);
+    component.toggleWeekday(1);
+    expect(component.anchorDate).toBe('2026-10-04');
+  });
+
+  it('the generate-upcoming count is a compact input with the short hint', () => {
+    startNew();
+    const input = fixture.nativeElement.querySelector('input[aria-label="Generate upcoming cleanings"]') as HTMLInputElement;
+    expect(input.type).toBe('number');
+    expect(input.getBoundingClientRect().width).toBeLessThan(120);
+    expect(fixture.nativeElement.textContent).toContain('Keep this many future cleaning orders ready.');
+  });
+
+  describe('nextRecurrenceDateAfter', () => {
+    const W = RecurrenceIntervalUnit.Weeks, M = RecurrenceIntervalUnit.Months, D = RecurrenceIntervalUnit.Days;
+    it('weekly, every week', () => expect(nextRecurrenceDateAfter('2026-10-04', W, 1, [0, 1, 2, 3, 4, 5], [], 0)).toBe('2026-10-05'));
+    it('every 2 weeks stays in the source week, then skips a week', () => {
+      expect(nextRecurrenceDateAfter('2026-10-05', W, 2, [1, 3], [], 0)).toBe('2026-10-07');
+      expect(nextRecurrenceDateAfter('2026-10-07', W, 2, [1, 3], [], 0)).toBe('2026-10-19');
+    });
+    it('follows a Monday-start contract week', () =>
+      // Sunday Oct 4 closes its Monday-start week; with every 2 weeks the next cycle is Oct 12.
+      expect(nextRecurrenceDateAfter('2026-10-04', W, 2, [0, 1], [], 1)).toBe('2026-10-12'));
+    it('month days skip a day the month lacks', () => {
+      expect(nextRecurrenceDateAfter('2027-01-15', M, 1, [], [15, 30], 0)).toBe('2027-01-30');
+      expect(nextRecurrenceDateAfter('2027-01-30', M, 1, [], [15, 30], 0)).toBe('2027-02-15');
+      expect(nextRecurrenceDateAfter('2027-01-31', M, 1, [], [31], 0)).toBe('2027-03-31');
+    });
+    it('no days chosen: one interval later', () => {
+      expect(nextRecurrenceDateAfter('2026-10-04', W, 2, [], [], 0)).toBe('2026-10-18');
+      expect(nextRecurrenceDateAfter('2027-01-31', M, 1, [], [], 0)).toBe('2027-02-28');
+      expect(nextRecurrenceDateAfter('2026-10-04', D, 3, [], [], 0)).toBe('2026-10-07');
+    });
+  });
 });

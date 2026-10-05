@@ -53,7 +53,7 @@
 
   &__error {
     background: var(--soft-red);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     padding: 10px 14px;
     border-radius: var(--radius-sm);
     margin-bottom: 12px;
@@ -62,7 +62,7 @@
 
   &__success {
     background: var(--mint-fresh);
-    color: var(--fresh-green);
+    color: var(--mint-fresh-text);
     border: 1px solid var(--mint-fresh-border);
     padding: 10px 14px;
     border-radius: var(--radius-sm);
@@ -75,7 +75,7 @@
   &__delete {
     border: 1px solid var(--soft-red);
     background: var(--surface);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     border-radius: var(--radius-sm);
     width: 30px;
     height: 30px;
@@ -207,7 +207,7 @@
 
   &--resolved {
     background: var(--soft-blue);
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
   }
 }
 
@@ -284,7 +284,7 @@
     // Destructive delete — red border, danger fill on hover (distinct from resolve).
     .chat-transcript__delete {
       border-color: var(--soft-red);
-      color: var(--bright-red);
+      color: var(--soft-red-text);
 
       &:hover:not(:disabled) {
         background: var(--btn-danger); // full gradient token
@@ -296,7 +296,7 @@
   &__error {
     margin: 12px 16px 0;
     background: var(--soft-red);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     padding: 9px 12px;
     border-radius: var(--radius-sm);
     font-size: 0.8rem;
@@ -362,7 +362,7 @@
 .tr-msg__label {
   font-size: 0.68rem;
   font-weight: var(--fw-semibold);
-  color: var(--fresh-green);
+  color: var(--mint-fresh-text);
   margin: 0 4px 3px;
   display: flex;
   align-items: center;
@@ -430,7 +430,7 @@
   max-width: 92%;
   background: var(--surface-subtle);
   border: 1px dashed var(--border-color);
-  color: var(--text-muted);
+  color: var(--text-muted-on-tint);
   border-radius: var(--radius-md);
   padding: 6px 12px;
   font-size: 0.74rem;
@@ -477,7 +477,7 @@
 
   &__error {
     background: var(--soft-red);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     padding: 8px 12px;
     border-radius: var(--radius-sm);
     margin-bottom: 10px;
@@ -557,7 +557,7 @@
   &__delete {
     border: 1px solid var(--soft-red);
     background: var(--surface);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     border-radius: var(--radius-sm);
     padding: 6px 10px;
     font-size: 0.8rem;

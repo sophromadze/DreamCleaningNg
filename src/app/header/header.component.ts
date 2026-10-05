@@ -1,29 +1,42 @@
-import { Component, OnInit, HostListener, ElementRef, Inject, PLATFORM_ID, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, Inject, Injector, PLATFORM_ID, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { RouterLink, RouterLinkActive, Router, NavigationEnd, NavigationStart } from '@angular/router';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { BubbleBadgeComponent } from './bubble-badge/bubble-badge.component';
 import { AuthService } from '../services/auth.service';
 import { AuthModalService } from '../services/auth-modal.service';
-import { OrderService } from '../services/order.service';
 import { StickyCtaService } from '../services/sticky-cta.service';
 import { ThemeService } from '../services/theme.service';
-import { NewOrderNotificationService } from '../services/new-order-notification.service';
-import { TaskService } from '../services/task.service';
-import { BlogService } from '../services/blog.service';
-import { ContractService } from '../services/contract.service';
-import { InvoiceService } from '../services/invoice.service';
 import { BlogStatusService } from '../services/blog-status.service';
-import { SignalRService } from '../services/signalr.service';
 import { PhoneNumberService } from '../services/phone-number.service';
+// Type-only: the classes themselves arrive through ./header-account.services (see accountServices).
+import type { OrderService } from '../services/order.service';
+import type { NewOrderNotificationService } from '../services/new-order-notification.service';
+import type { TaskService } from '../services/task.service';
+import type { BlogService } from '../services/blog.service';
+import type { ContractService } from '../services/contract.service';
+import type { InvoiceService } from '../services/invoice.service';
+import type { SignalRService } from '../services/signalr.service';
 import { canViewAdminPage } from '../shared/admin-viewable-pages';
 import { combineLatest, Subject, fromEvent } from 'rxjs';
 import { takeUntil, filter, debounceTime } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
+import { HeaderAccountMenuComponent } from './header-account-menu/header-account-menu.component';
+import { UiHintService } from '../shared/ssr/ui-hint.service';
+
+interface HeaderAccountServices {
+  orders: OrderService;
+  contracts: ContractService;
+  invoices: InvoiceService;
+  tasks: TaskService;
+  blog: BlogService;
+  signalR: SignalRService;
+  newOrders: NewOrderNotificationService;
+}
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive, BubbleBadgeComponent],
+  imports: [CommonModule, RouterLink, RouterLinkActive, BubbleBadgeComponent, HeaderAccountMenuComponent],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss'
 })
@@ -59,29 +72,78 @@ export class HeaderComponent implements OnInit, OnDestroy {
   hasInvoices = false;
   stickyCtaVisible = false; // When true, hide header mobile call icon (sticky CTA bar is shown)
   nyTime: string = ''; // Live New York time for admins/superadmins
+  /**
+   * Whether the points badge is on for this account: null until the badge has loaded once
+   * (the layout hint stands in until then), false when the points system is switched off.
+   */
+  pointsBadgeOn: boolean | null = null;
   private nyTimeInterval: any;
   public isBrowser: boolean;
+  private accountServices: Promise<HeaderAccountServices> | null = null;
 
   constructor(
     private authService: AuthService,
     private authModalService: AuthModalService,
-    private orderService: OrderService,
     private stickyCtaService: StickyCtaService,
     public themeService: ThemeService,
     private router: Router,
     private elementRef: ElementRef,
     private cdr: ChangeDetectorRef,
-    private newOrderNotificationService: NewOrderNotificationService,
-    private taskService: TaskService,
-    private blogService: BlogService,
-    private contractService: ContractService,
-    private invoiceService: InvoiceService,
     private blogStatusService: BlogStatusService,
-    private signalRService: SignalRService,
     public phoneNumber: PhoneNumberService,
+    private injector: Injector,
+    private uiHint: UiHintService,
     @Inject(PLATFORM_ID) private platformId: Object
   ) {
     this.isBrowser = isPlatformBrowser(this.platformId);
+    // An admin's time pill is part of the server render when the layout hint says so, so the
+    // first frame already holds it at its final width (see clockVisible).
+    if (this.uiHint.initial.admin) this.updateNyTime();
+  }
+
+  /**
+   * Header layout before auth has resolved comes from the layout hint (ui-hint-cookie.ts), the
+   * same input the server rendered from, so the first client render matches the SSR HTML and
+   * nothing moves when the real state arrives. showAuthUI flips only after hydration.
+   */
+  get clockVisible(): boolean {
+    return (this.showAuthUI ? this.isAdminOrSuperAdmin : this.uiHint.initial.admin) && !!this.nyTime;
+  }
+
+  /** The points badge's slot: reserved from the hint until auth resolves, then the real answer. */
+  get badgeVisible(): boolean {
+    if (!this.showAuthUI) return this.uiHint.initial.signedIn && this.uiHint.initial.pointsBadge;
+    return !this.shouldShowLogin() && this.pointsBadgeOn !== false;
+  }
+
+  /** The badge reports whether the points system is on; remembered for the next render. */
+  onPointsBadgeAvailability(enabled: boolean): void {
+    this.pointsBadgeOn = enabled;
+    this.uiHint.setPointsBadge(enabled, this.currentUser);
+  }
+
+  /**
+   * The signed-in-only services, loaded on first use (./header-account.services). Every caller
+   * runs only in the browser with a user present, so an anonymous visit never fetches the chunk.
+   * The first load also starts what used to start in ngOnInit for everybody: the new-order badge
+   * feed and the SignalR task listener - both of which only ever did anything for a signed-in user.
+   */
+  private loadAccountServices(): Promise<HeaderAccountServices> {
+    this.accountServices ??= import('./header-account.services').then(m => {
+      const services: HeaderAccountServices = {
+        orders: this.injector.get(m.OrderService),
+        contracts: this.injector.get(m.ContractService),
+        invoices: this.injector.get(m.InvoiceService),
+        tasks: this.injector.get(m.TaskService),
+        blog: this.injector.get(m.BlogService),
+        signalR: this.injector.get(m.SignalRService),
+        newOrders: this.injector.get(m.NewOrderNotificationService)
+      };
+      this.listenForNewOrders(services.newOrders);
+      this.setupTaskSignalR(services.signalR);
+      return services;
+    });
+    return this.accountServices;
   }
 
   ngOnInit() {
@@ -101,8 +163,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
         this.userInitials = `${initialUser.firstName[0]}${initialUser.lastName[0]}`.toUpperCase();
       }
     }
-    // Listen for real-time personal task updates
-    this.setupTaskSignalR();
+    // Real-time personal task updates and the new-order badge start with the account services
+    // (loadAccountServices), the first time a signed-in user is seen.
 
     // Blog visibility (admin master switch). Runs on SSR too so crawlers see the
     // real link when the blog is live; one shared cached call app-wide.
@@ -126,6 +188,8 @@ export class HeaderComponent implements OnInit, OnDestroy {
         // Cache the minimal user data for next refresh
         if (this.isBrowser) {
           this.cacheUserData(user);
+          // ...and the layout hint the next server render draws the header and hero from.
+          this.uiHint.syncUser(user);
         }
         // Start NY time clock for admins/superadmins
         if (this.isAdminOrSuperAdmin && !this.nyTimeInterval) {
@@ -152,10 +216,13 @@ export class HeaderComponent implements OnInit, OnDestroy {
         this.userInitials = '';
         this.hasUnpaidOrders = false;
         this.hasPendingPersonalTasks = false;
-        this.stopNyTimeClock();
         if (this.isBrowser) {
+          this.stopNyTimeClock();
           this.clearUserCache();
+          this.uiHint.syncUser(null);
         }
+        // On the server auth is always "initialized, nobody signed in" (it cannot see the session),
+        // so the pill the layout hint asked for must not be cleared there.
       }
       // Show auth UI after auth is ready; use requestAnimationFrame + short delay so shimmer is visible at least one frame
       if (isInitialized && this.isBrowser) {
@@ -172,14 +239,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
         }
       }
     });
-
-    // Subscribe to new order notifications for admin indicator
-    this.newOrderNotificationService.hasUnviewedOrders$
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(has => {
-        this.hasUnviewedNewOrders = has;
-        this.cdr.detectChanges();
-      });
 
     // Close user/login dropdown when any navigation starts (e.g. clicking a menu link)
     this.router.events
@@ -299,12 +358,16 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.nyTimeInterval = setInterval(() => this.updateNyTime(), 1000);
   }
 
+  /**
+   * Stops the ticking only. Whether the pill shows is clockVisible's call (it follows the role
+   * once auth has resolved); blanking the text here could empty a pill the server drew before
+   * hydration had finished.
+   */
   private stopNyTimeClock(): void {
     if (this.nyTimeInterval) {
       clearInterval(this.nyTimeInterval);
       this.nyTimeInterval = null;
     }
-    this.nyTime = '';
   }
 
   private updateNyTime(): void {
@@ -322,16 +385,20 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   private checkUnpaidOrders() {
     if (!this.isBrowser) return;
-    
-    this.orderService.getUserOrders()
+
+    this.loadAccountServices().then(s => s.orders.getUserOrders()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (orders) => {
-          // Check if there are any unpaid orders that are not cancelled
+          // The dot means "something here can be paid on the website". Cash / Zelle / Check /
+          // Other / Invoice orders keep isPaid=false by backend design but are never paid here
+          // (create-payment-intent refuses them), so only a Stripe ('Normal') order can owe its
+          // booking payment. A top-up (pendingUpdateAmount) is only ever set on an isPaid order.
           this.hasUnpaidOrders = orders.some(order =>
-            (order.status !== 'Cancelled') &&
+            order.status !== 'Cancelled' &&
+            order.status !== 'Refunded' &&
             (
-              !order.isPaid ||
+              (!order.isPaid && (!order.paymentMethod || order.paymentMethod === 'Normal')) ||
               ((order.pendingUpdateAmount ?? 0) > 0.01)
             )
           );
@@ -341,7 +408,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
           console.error('Error checking unpaid orders:', error);
           this.hasUnpaidOrders = false;
         }
-      });
+      }));
   }
 
   // Public method to refresh unpaid orders check (can be called from other components)
@@ -351,7 +418,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   private checkPendingPersonalTasks(): void {
     if (!this.isBrowser) return;
-    this.taskService.getPendingPersonalTaskCount()
+    this.loadAccountServices().then(s => s.tasks.getPendingPersonalTaskCount()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (count) => {
@@ -362,7 +429,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
           this.hasPendingPersonalTasks = false;
           this.hasUncheckedDoneTasks = false;
         }
-      });
+      }));
   }
 
   /**
@@ -380,7 +447,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.contractService.hasMyContracts()
+    this.loadAccountServices().then(s => s.contracts.hasMyContracts()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res: { hasContracts: boolean }) => {
@@ -391,7 +458,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
         error: () => {
           this.hasContracts = false;
         }
-      });
+      }));
   }
 
   /**
@@ -409,7 +476,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.invoiceService.hasMyInvoices()
+    this.loadAccountServices().then(s => s.invoices.hasMyInvoices()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res: { hasInvoices: boolean }) => {
@@ -419,12 +486,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
         error: () => {
           this.hasInvoices = false;
         }
-      });
+      }));
   }
 
   private checkPendingBlogDrafts(): void {
     if (!this.isBrowser) return;
-    this.blogService.adminGetPendingCount()
+    this.loadAccountServices().then(s => s.blog.adminGetPendingCount()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (res) => {
@@ -434,12 +501,12 @@ export class HeaderComponent implements OnInit, OnDestroy {
         error: () => {
           this.pendingBlogDrafts = 0;
         }
-      });
+      }));
   }
 
   private checkUncheckedDoneTasks(): void {
     if (!this.isBrowser) return;
-    this.taskService.getUncheckedDoneCount()
+    this.loadAccountServices().then(s => s.tasks.getUncheckedDoneCount()
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (count) => {
@@ -449,12 +516,22 @@ export class HeaderComponent implements OnInit, OnDestroy {
         error: () => {
           this.hasUncheckedDoneTasks = false;
         }
+      }));
+  }
+
+  /** Admin indicator for new orders (the service itself decides who is an audience for it). */
+  private listenForNewOrders(newOrders: NewOrderNotificationService): void {
+    newOrders.hasUnviewedOrders$
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(has => {
+        this.hasUnviewedNewOrders = has;
+        this.cdr.detectChanges();
       });
   }
 
-  private setupTaskSignalR(): void {
+  private setupTaskSignalR(signalR: SignalRService): void {
     if (!this.isBrowser) return;
-    this.signalRService.tasksUpdated$.pipe(
+    signalR.tasksUpdated$.pipe(
       takeUntil(this.destroy$),
       filter(e => e !== null && e.type === 'personal')
     ).subscribe(() => {
@@ -610,6 +687,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
     this.isLoginMenuOpen = !this.isLoginMenuOpen;
     if (this.isLoginMenuOpen) {
       this.isUserMenuOpen = false;
+      // Google Sign-In is no longer loaded on every page; start it now so the modal's Google
+      // button is ready by the time "Log In" / "Sign Up" is picked from this menu.
+      this.authService.warmUpSocialAuth();
     }
   }
 

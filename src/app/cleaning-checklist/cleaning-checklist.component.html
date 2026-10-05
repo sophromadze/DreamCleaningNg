@@ -1,4 +1,4 @@
-<main class="cleaning-checklist-page">
+<div class="cleaning-checklist-page">
   <section id="regular" class="comparison-section" aria-labelledby="comparison-title">
     <div class="container-narrow">
       <div class="section-header">
@@ -15,7 +15,7 @@
           [class.room-tab--active]="section.key === activeRoom"
           [attr.aria-selected]="section.key === activeRoom"
           (click)="selectRoom(section.key)">
-          <i class="fas" [ngClass]="section.icon" aria-hidden="true"></i>
+          <i [appIcon]="section.icon" aria-hidden="true"></i>
           {{ section.label }}
         </button>
       </div>
@@ -52,24 +52,24 @@
                 <td class="cell-task">{{ row.task }}</td>
                 <td class="cell-status" data-label="Standard">
                   <span class="status-icon status-icon--yes" *ngIf="row.standard; else standardNo">
-                    <i class="fas fa-check" aria-hidden="true"></i>
+                    <i [appIcon]="icons.faCheck" aria-hidden="true"></i>
                     <span class="sr-only">Included</span>
                   </span>
                   <ng-template #standardNo>
                     <span class="status-icon status-icon--no">
-                      <i class="fas fa-times" aria-hidden="true"></i>
+                      <i [appIcon]="icons.faXmark" aria-hidden="true"></i>
                       <span class="sr-only">Not included</span>
                     </span>
                   </ng-template>
                 </td>
                 <td class="cell-status" data-label="Deep">
                   <span class="status-icon status-icon--yes" *ngIf="row.deep; else deepNo">
-                    <i class="fas fa-check" aria-hidden="true"></i>
+                    <i [appIcon]="icons.faCheck" aria-hidden="true"></i>
                     <span class="sr-only">Included</span>
                   </span>
                   <ng-template #deepNo>
                     <span class="status-icon status-icon--no">
-                      <i class="fas fa-times" aria-hidden="true"></i>
+                      <i [appIcon]="icons.faXmark" aria-hidden="true"></i>
                       <span class="sr-only">Not included</span>
                     </span>
                   </ng-template>
@@ -94,7 +94,7 @@
                   class="status-icon"
                   [class.status-icon--yes]="row.standard"
                   [class.status-icon--no]="!row.standard">
-                  <i class="fas" [ngClass]="row.standard ? 'fa-check' : 'fa-times'" aria-hidden="true"></i>
+                  <i [appIcon]="row.standard ? icons.faCheck : icons.faXmark" aria-hidden="true"></i>
                   <span class="sr-only">{{ row.standard ? 'Included' : 'Not included' }}</span>
                 </span>
               </div>
@@ -103,7 +103,7 @@
                   class="status-icon"
                   [class.status-icon--yes]="row.deep"
                   [class.status-icon--no]="!row.deep">
-                  <i class="fas" [ngClass]="row.deep ? 'fa-check' : 'fa-times'" aria-hidden="true"></i>
+                  <i [appIcon]="row.deep ? icons.faCheck : icons.faXmark" aria-hidden="true"></i>
                   <span class="sr-only">{{ row.deep ? 'Included' : 'Not included' }}</span>
                 </span>
               </div>
@@ -140,7 +140,7 @@
             <ul>
               <li *ngFor="let row of section.rows">
                 <span class="status-icon status-icon--yes" aria-hidden="true">
-                  <i class="fas fa-check"></i>
+                  <i [appIcon]="icons.faCheck"></i>
                 </span>
                 <span>
                   {{ row.task }}
@@ -156,7 +156,7 @@
             <h3>Important requirements</h3>
             <ul>
               <li *ngFor="let item of importantRequirements; trackBy: trackByText">
-                <i class="fas fa-circle-info" aria-hidden="true"></i>
+                <i [appIcon]="icons.faCircleInfo" aria-hidden="true"></i>
                 {{ item }}
               </li>
             </ul>
@@ -166,7 +166,7 @@
             <h3>What's not included</h3>
             <ul>
               <li *ngFor="let item of notIncluded; trackBy: trackByText">
-                <i class="fas fa-ban" aria-hidden="true"></i>
+                <i [appIcon]="icons.faBan" aria-hidden="true"></i>
                 {{ item }}
               </li>
             </ul>
@@ -181,7 +181,7 @@
         </div>
         <ul>
           <li *ngFor="let item of extras; trackBy: trackByText">
-            <i class="fas fa-plus" aria-hidden="true"></i>
+            <i [appIcon]="icons.faPlus" aria-hidden="true"></i>
             {{ item }}
           </li>
         </ul>
@@ -196,4 +196,4 @@
       </div>
     </div>
   </section>
-</main>
+</div>

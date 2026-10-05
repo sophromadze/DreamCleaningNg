@@ -92,7 +92,7 @@
     color: var(--text-secondary);
 
     em {
-      color: var(--bright-red);
+      color: var(--soft-red-text);
       font-style: normal;
     }
   }
@@ -103,7 +103,8 @@
     border: 2px dashed var(--border-color);
     border-radius: var(--radius-lg);
     background: var(--surface-subtle);
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
+    :host-context([data-theme="dark"]) & { color: var(--text-muted-on-elevated); }
     display: flex;
     align-items: center;
     justify-content: center;
@@ -153,7 +154,7 @@
       color: var(--text-secondary);
 
       em {
-        color: var(--bright-red);
+        color: var(--soft-red-text);
         font-style: normal;
       }
     }
@@ -331,13 +332,13 @@
     font-size: 0.6875rem;
     font-weight: var(--fw-black);
     background: var(--mint-fresh);
-    color: var(--fresh-green);
+    color: var(--mint-fresh-text);
     text-transform: uppercase;
     letter-spacing: 0.05em;
 
     &--off {
       background: var(--surface-subtle);
-      color: var(--text-muted);
+      color: var(--text-muted-on-tint);
     }
   }
 
@@ -391,13 +392,13 @@
   &:hover { text-decoration: underline; }
 
   &--danger {
-    color: var(--bright-red);
+    color: var(--soft-red-text);
   }
 }
 
 .error-message {
   background: var(--soft-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   border-radius: var(--radius-md);
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
@@ -406,7 +407,7 @@
 
 .success-message {
   background: var(--mint-fresh);
-  color: var(--fresh-green);
+  color: var(--mint-fresh-text);
   border-radius: var(--radius-md);
   padding: 0.75rem 1rem;
   font-size: 0.875rem;

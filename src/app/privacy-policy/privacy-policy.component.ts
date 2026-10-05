@@ -12,7 +12,7 @@ export class PrivacyPolicyComponent {
   websiteUrl = 'https://dreamcleaningnyc.com';
   emailAddress = 'hello@dreamcleaningnyc.com';
   phoneNumber = '929-930-1525';
-  effectiveDate = 'February 14, 2026';
+  effectiveDate = 'October 2, 2026';
   companyName = 'Dream Cleaning';
   state = 'New York';
   serviceCities = ['Brooklyn', 'Manhattan', 'Queens'];

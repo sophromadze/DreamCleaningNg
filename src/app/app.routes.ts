@@ -1,7 +1,19 @@
 import { Router, Routes } from '@angular/router';
 import { inject } from '@angular/core';
 import { MainComponent } from './main/main.component';
-import { SERVICE_PRICING } from './shared/service-pricing.data';
+import type { MarketingPriceText } from './shared/pricing/marketing-pricing.service';
+import { listStartingPrices, priceFragment } from './shared/pricing/marketing-price-format';
+
+/**
+ * A meta description that quotes prices is a FUNCTION of the live marketing prices (the booking
+ * catalogue, via MarketingPricingService), evaluated by AppComponent on every navigation - SSR
+ * included. An unresolved price drops its fragment; the rest of the description stays.
+ */
+type PricedDescription = (p: MarketingPriceText) => string;
+
+/** " Standard from $130 and deep from $220." - whatever resolved, or ''. */
+const standardAndDeep = (p: MarketingPriceText): string =>
+  priceFragment(listStartingPrices([['Standard', p.standardFrom], ['deep', p.deepFrom]], 'from'), ' ', '.');
 import { authGuard } from './guards/auth.guard';
 import { noAuthGuard } from './guards/no-auth.guard';
 import { adminGuard } from './guards/admin.guard';
@@ -17,6 +29,7 @@ import { pinSetupGuard } from './guards/pin-setup.guard';
 import { superAdminGuard } from './guards/super-admin.guard';
 import { skipWhenPaymentToken } from './guards/payment-link.guard';
 import { cleanerPortalGuard, notCleanerGuard } from './guards/cleaner-portal.guard';
+import { fontAwesomeGuard } from './shared/icons/font-awesome.loader';
 
 export const routes: Routes = [
   {
@@ -28,7 +41,7 @@ export const routes: Routes = [
     component: MainComponent,
     data: {
       title: 'Dream Cleaning - Professional Cleaning Services Near Me | NYC',
-      description: `5.0-star rated NYC cleaning service in Brooklyn, Manhattan & Queens. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. 100+ Google reviews. Book online in 2 minutes.`
+      description: ((p) => `5.0-star rated NYC cleaning service in Brooklyn, Manhattan & Queens.${standardAndDeep(p)} Book online in 2 minutes.`) as PricedDescription
     }
   },
   {
@@ -80,7 +93,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/residential-cleaning/residential-cleaning.component').then(m => m.ResidentialCleaningComponent),
     data: {
       title: 'Residential Cleaning Service NYC | Dream Cleaning',
-      description: `Standard residential cleaning in NYC by Dream Cleaning. Starting from $${SERVICE_PRICING.residentialFrom}. Weekly, biweekly, monthly plans. Brooklyn, Manhattan & Queens. 5.0-star rated.`
+      description: ((p) => `Standard residential cleaning in NYC by Dream Cleaning.${priceFragment(p.standardFrom, ' Starting from ', '.')} Weekly, biweekly, monthly plans. Brooklyn, Manhattan & Queens. 5.0-star rated.`) as PricedDescription
     }
   },
   {
@@ -104,7 +117,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/house-cleaning/house-cleaning.component').then(m => m.HouseCleaningComponent),
     data: {
       title: 'House Cleaning Service NYC | Dream Cleaning',
-      description: `Professional house cleaning in NYC from $${SERVICE_PRICING.residentialFrom}. Multi-floor homes & estates in Queens, Brooklyn & Staten Island. Fully insured, 5.0-star rated.`
+      description: ((p) => `Professional house cleaning in NYC${priceFragment(p.standardFrom, ' from ')}. Multi-floor homes & estates in Queens & Brooklyn. Fully insured, 5.0-star rated.`) as PricedDescription
     }
   },
   {
@@ -112,7 +125,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/condo-cleaning/condo-cleaning.component').then(m => m.CondoCleaningComponent),
     data: {
       title: 'Condo Cleaning Service NYC | Dream Cleaning',
-      description: `Premium condo cleaning in NYC from $${SERVICE_PRICING.residentialFrom}. Luxury high-rise & boutique condos in Manhattan, Brooklyn & Queens. Fully insured, 5.0-star rated.`
+      description: ((p) => `Premium condo cleaning in NYC${priceFragment(p.standardFrom, ' from ')}. Luxury high-rise & boutique condos in Manhattan, Brooklyn & Queens. Fully insured, 5.0-star rated.`) as PricedDescription
     }
   },
   {
@@ -120,7 +133,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/airbnb-cleaning/airbnb-cleaning.component').then(m => m.AirbnbCleaningComponent),
     data: {
       title: 'Airbnb Cleaning Service NYC | Short-Term Rental Turnover | Dream Cleaning',
-      description: `Airbnb & short-term rental turnover cleaning in NYC from $${SERVICE_PRICING.residentialFrom}. Same-day changeovers, hotel-quality resets, restocking. Manhattan, Brooklyn & Queens.`
+      description: ((p) => `Airbnb & short-term rental turnover cleaning in NYC${priceFragment(p.standardFrom, ' from ')}. Same-day changeovers, hotel-quality resets, restocking. Manhattan, Brooklyn & Queens.`) as PricedDescription
     }
   },
   {
@@ -128,7 +141,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/deep-cleaning/deep-cleaning.component').then(m => m.DeepCleaningComponent),
     data: {
       title: 'Deep Cleaning Service NYC | Dream Cleaning',
-      description: `Deep cleaning in NYC from $${SERVICE_PRICING.deepFrom} — baseboards, inside appliances, behind furniture. Brooklyn, Manhattan & Queens. 5.0-star rated.`
+      description: ((p) => `Deep cleaning in NYC${priceFragment(p.deepFrom, ' from ')} — baseboards, inside appliances, behind furniture. Brooklyn, Manhattan & Queens. 5.0-star rated.`) as PricedDescription
     }
   },
   {
@@ -149,6 +162,9 @@ export const routes: Routes = [
     redirectTo: 'services/commercial-cleaning',
     pathMatch: 'full'
   },
+  // Bare /services is the obvious guess for the services overview. A full request gets a real
+  // 301 from server.ts; this covers in-app navigation. pathMatch 'full' leaves services/* alone.
+  { path: 'services', redirectTo: 'service-page', pathMatch: 'full' },
   {
     path: 'services/office-cleaning',
     loadComponent: () => import('./service-page/services/office-cleaning/office-cleaning.component').then(m => m.OfficeCleaningComponent),
@@ -170,7 +186,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/move-in-out-cleaning/move-in-out-cleaning.component').then(m => m.MoveInOutCleaningComponent),
     data: {
       title: 'Move In/Out Cleaning Service NYC | Dream Cleaning',
-      description: `Move in/out cleaning in NYC from $${SERVICE_PRICING.moveInOutFrom} — cabinet interiors, appliance cleaning, wall spot cleaning. Brooklyn, Manhattan & Queens.`
+      description: ((p) => `Move in/out cleaning in NYC${priceFragment(p.moveInOutFrom, ' from ')} — cabinet interiors, appliance cleaning, wall spot cleaning. Brooklyn, Manhattan & Queens.`) as PricedDescription
     }
   },
   {
@@ -178,7 +194,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/heavy-condition-cleaning/heavy-condition-cleaning.component').then(m => m.HeavyConditionCleaningComponent),
     data: {
       title: 'Heavy Condition Cleaning NYC | Dream Cleaning',
-      description: `Heavy condition cleaning in NYC — $${SERVICE_PRICING.heavyConditionPerHour}/hour per cleaner for homes not cleaned in 6+ months. Wall washing, cabinet interiors. Brooklyn, Manhattan & Queens.`
+      description: ((p) => `Heavy condition cleaning in NYC — ${priceFragment(p.heavyPerHour, '', '/hour per cleaner ')}for homes not cleaned in 6+ months. Wall washing, cabinet interiors. Brooklyn, Manhattan & Queens.`) as PricedDescription
     }
   },
   {
@@ -218,7 +234,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/brooklyn-cleaning/brooklyn-cleaning.component').then(m => m.BrooklynCleaningComponent),
     data: {
       title: 'Cleaning Service in Brooklyn NY | Dream Cleaning',
-      description: `Cleaning service in Brooklyn NY — 38 ZIP codes covered. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. 5.0-star Google rating, 100+ reviews. Book online.`
+      description: ((p) => `Cleaning service in Brooklyn NY — 38 ZIP codes covered.${standardAndDeep(p)} 5.0-star Google rating. Book online.`) as PricedDescription
     }
   },
   {
@@ -226,7 +242,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/manhattan-cleaning/manhattan-cleaning.component').then(m => m.ManhattanCleaningComponent),
     data: {
       title: 'Cleaning Service in Manhattan NY | Dream Cleaning',
-      description: `Cleaning service in Manhattan NY — 24 ZIP codes covered. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. 5.0-star Google rating, 100+ reviews. Book online.`
+      description: ((p) => `Cleaning service in Manhattan NY — 24 ZIP codes covered.${standardAndDeep(p)} 5.0-star Google rating. Book online.`) as PricedDescription
     }
   },
   {
@@ -234,7 +250,7 @@ export const routes: Routes = [
     loadComponent: () => import('./service-page/services/queens-cleaning/queens-cleaning.component').then(m => m.QueensCleaningComponent),
     data: {
       title: 'Cleaning Service in Queens NY | Dream Cleaning',
-      description: `Cleaning service in Queens NY — 58 ZIP codes covered. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. 5.0-star Google rating, 100+ reviews. Book online.`
+      description: ((p) => `Cleaning service in Queens NY — 58 ZIP codes covered.${standardAndDeep(p)} 5.0-star Google rating. Book online.`) as PricedDescription
     }
   },
   {
@@ -243,7 +259,7 @@ export const routes: Routes = [
     canActivate: [maintenanceGuard],
     data: {
       title: 'Book Cleaning Service | Dream Cleaning NYC',
-      description: `Book professional cleaning in NYC online in under 2 minutes. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. Instant estimates. Brooklyn, Manhattan & Queens.`
+      description: ((p) => `Book professional cleaning in NYC online in under 2 minutes.${standardAndDeep(p)} Instant estimates. Brooklyn, Manhattan & Queens.`) as PricedDescription
     }
   },
   {
@@ -260,7 +276,7 @@ export const routes: Routes = [
     loadComponent: () => import('./reviews/reviews.component').then(m => m.ReviewsComponent),
     data: {
       title: 'Customer Reviews | Dream Cleaning NYC',
-      description: "Read why NYC customers rate Dream Cleaning 5.0 stars across 100+ Google reviews. Professional, reliable cleaning in Brooklyn, Manhattan & Queens."
+      description: "Read why NYC customers rate Dream Cleaning 5.0 stars on Google. Professional, reliable cleaning in Brooklyn, Manhattan & Queens."
     }
   },
   {
@@ -268,7 +284,7 @@ export const routes: Routes = [
     loadComponent: () => import('./pricing-and-discounts/pricing-and-discounts.component').then(m => m.PricingAndDiscountsComponent),
     data: {
       title: 'Pricing & Discounts | Dream Cleaning NYC',
-      description: `Transparent flat-rate cleaning prices from $${SERVICE_PRICING.residentialFrom}, plus first-time and recurring (weekly, bi-weekly, monthly) discounts. Brooklyn, Manhattan & Queens.`
+      description: ((p) => `Transparent flat-rate cleaning prices${priceFragment(p.standardFrom, ' from ')}, plus first-time and recurring (weekly, bi-weekly, monthly) discounts. Brooklyn, Manhattan & Queens.`) as PricedDescription
     }
   },
   {
@@ -306,7 +322,7 @@ export const routes: Routes = [
     canActivate: [maintenanceGuard],
     data: {
       title: 'FAQ | Dream Cleaning NYC',
-      description: `Answers about Dream Cleaning NYC — pricing (from $${SERVICE_PRICING.residentialFrom}), service areas (120 ZIP codes), booking, what's included and our satisfaction guarantee.`
+      description: ((p) => `Answers about Dream Cleaning NYC — pricing${priceFragment(p.standardFrom, ' (from ', ')')}, service areas (120 ZIP codes), booking, what's included and our satisfaction guarantee.`) as PricedDescription
     }
   },
   {
@@ -333,7 +349,7 @@ export const routes: Routes = [
     // pages have nothing on them for a work login - no orders, no rewards, no booking history -
     // so without it they render as a set of unexplained empty screens.
     path: 'profile',
-    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
+    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard, fontAwesomeGuard],
     loadComponent: () => import('./auth/profile/profile.component').then(m => m.ProfileComponent)
   },
   {
@@ -372,17 +388,17 @@ export const routes: Routes = [
   },
   {
     path: 'admin',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard, fontAwesomeGuard],
     loadComponent: () => import('./auth/admin/admin.component').then(m => m.AdminComponent)
   },
   {
     path: 'admin/tasks',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard, fontAwesomeGuard],
     loadComponent: () => import('./auth/tasks/tasks.component').then(m => m.TasksComponent)
   },
   {
     path: 'admin/shifts',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard, fontAwesomeGuard],
     loadComponent: () => import('./auth/shifts/shifts.component').then(m => m.ShiftsComponent)
   },
   // Statistics/Expenses/Finances moved under the Company shell (2026-07). Old paths redirect so
@@ -405,7 +421,7 @@ export const routes: Routes = [
   // enforced server-side on every endpoint behind these tabs; the guards here are the outer door.
   {
     path: 'admin/commercial',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard, fontAwesomeGuard],
     loadComponent: () => import('./auth/admin/commercial/commercial.component')
       .then(m => m.CommercialComponent),
     children: [
@@ -475,14 +491,14 @@ export const routes: Routes = [
   { path: 'admin/contracts/:id', redirectTo: 'admin/commercial/contracts/:id' },
   {
     path: 'admin/crm',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard, fontAwesomeGuard],
     loadComponent: () => import('./auth/admin/crm/crm.component').then(m => m.CrmComponent)
   },
   {
     // Company shell (money & performance): Statistics / Expenses / Finances / Ads as child tabs,
     // each pageView-gated. Bare path lands on the first tab the user is granted (companyLandingGuard).
     path: 'admin/company',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard],
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, fontAwesomeGuard],
     loadComponent: () => import('./auth/admin/company/company.component').then(m => m.CompanyComponent),
     children: [
       // Bare /admin/company → first tab the user can actually see (not hardcoded to statistics).
@@ -529,13 +545,13 @@ export const routes: Routes = [
     // SuperAdmin only, and deliberately NOT behind a grantable pageView key: every write here
     // moves what the company reports as its labour cost, and records money leaving the business.
     path: 'admin/outgoing-payments',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, superAdminGuard],
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, superAdminGuard, fontAwesomeGuard],
     loadComponent: () => import('./auth/admin/outgoing-payments/outgoing-payments.component')
       .then(m => m.OutgoingPaymentsComponent)
   },
   {
     path: 'admin/blog',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard, fontAwesomeGuard],
     loadComponent: () => import('./auth/admin/blog/admin-blog.component').then(m => m.AdminBlogComponent)
   },
 
@@ -565,19 +581,28 @@ export const routes: Routes = [
       .then(m => m.PublicInvoiceComponent)
   },
 
+  // A REGULAR customer invoice (Admin → Invoices, 2026-09). Unguarded for the same reason as the
+  // commercial page above: the customer may not be logged in, or logged in as somebody else, and
+  // the token is the whole authorization. Client-rendered only (app.routes.server.ts).
+  {
+    path: 'pay-invoice/:token',
+    loadComponent: () => import('./invoice/customer-invoice/customer-invoice-page.component')
+      .then(m => m.CustomerInvoicePageComponent)
+  },
+
   // ── My Contracts: the business customer's own contracts ───────────────────────────────────
   // Guarded like the rest of the customer account area. The route guard is only half of it —
   // every endpoint behind these pages re-checks ContractClient.SourceUserId against the signed-in
   // account, so a guessed contract id returns 404 rather than someone else's agreement.
   {
     path: 'profile/contracts',
-    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
+    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard, fontAwesomeGuard],
     loadComponent: () => import('./contract/my-contracts/my-contracts.component')
       .then(m => m.MyContractsComponent)
   },
   {
     path: 'profile/contracts/:id',
-    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
+    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard, fontAwesomeGuard],
     loadComponent: () => import('./contract/my-contract-detail/my-contract-detail.component')
       .then(m => m.MyContractDetailComponent)
   },
@@ -589,7 +614,7 @@ export const routes: Routes = [
   // for those rules to drift.
   {
     path: 'profile/invoices',
-    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
+    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard, fontAwesomeGuard],
     loadComponent: () => import('./invoice/my-invoices/my-invoices.component')
       .then(m => m.MyInvoicesComponent)
   },
@@ -610,12 +635,12 @@ export const routes: Routes = [
   },
   {
     path: 'order/:id',
-    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
+    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard, fontAwesomeGuard],
     loadComponent: () => import('./auth/profile/order-details/order-details.component').then(m => m.OrderDetailsComponent)
   },
   {
     path: 'order/:id/edit',
-    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard],
+    canActivate: [clientOnlyGuard, authGuard, notCleanerGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, maintenanceGuard, fontAwesomeGuard],
     loadComponent: () => import('./auth/profile/order-edit/order-edit.component').then(m => m.OrderEditComponent)
   },
   {
@@ -681,7 +706,7 @@ export const routes: Routes = [
     // Not under maintenanceGuard either - maintenance keeps CUSTOMERS off the site, and the crews
     // still have jobs that day.
     path: 'cleaner-portal',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, cleanerPortalGuard],
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, cleanerPortalGuard, fontAwesomeGuard],
     loadComponent: () => import('./cleaner-portal/cleaner-portal.component').then(m => m.CleanerPortalComponent),
     data: {
       title: 'Cleaner Portal | Dream Cleaning'
@@ -689,7 +714,7 @@ export const routes: Routes = [
   },
   {
     path: 'cleaners-dashboard',
-    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard],
+    canActivate: [clientOnlyGuard, authGuard, realEmailGuard, passwordSetupGuard, pinSetupGuard, adminGuard, fontAwesomeGuard],
     loadComponent: () => import('./cleaners-dashboard/cleaners-dashboard.component').then(m => m.CleanersDashboardComponent),
     data: {
       title: 'Cleaners Dashboard | Dream Cleaning'
@@ -711,7 +736,7 @@ export const routes: Routes = [
     canActivate: [maintenanceGuard],
     data: {
       title: 'Free Quote | Dream Cleaning NYC',
-      description: `Get a free, no-obligation cleaning quote from Dream Cleaning. Standard from $${SERVICE_PRICING.residentialFrom}, deep from $${SERVICE_PRICING.deepFrom}. Brooklyn, Manhattan & Queens.`
+      description: ((p) => `Get a free, no-obligation cleaning quote from Dream Cleaning.${standardAndDeep(p)} Brooklyn, Manhattan & Queens.`) as PricedDescription
     }
   },
   {
@@ -728,9 +753,16 @@ export const routes: Routes = [
         });
     }
   },
+  // Any unknown URL: a real 404 page (HTTP 404 on SSR, noindex) instead of the home page with
+  // 200, which Google treats as a soft 404. noCanonical: AppComponent leaves the canonical link
+  // alone here; NotFoundComponent removes it and puts it back on leave.
   {
     path: '**',
-    redirectTo: '',
-    pathMatch: 'prefix'
+    canActivate: [maintenanceGuard],
+    loadComponent: () => import('./not-found/not-found.component').then(m => m.NotFoundComponent),
+    data: {
+      title: 'Page not found | Dream Cleaning',
+      noCanonical: true
+    }
   }
 ];

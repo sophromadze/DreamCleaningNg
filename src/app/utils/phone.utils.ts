@@ -41,6 +41,22 @@ export function sanitizePhoneInput(rawValue: string | null | undefined): string 
 }
 
 /**
+ * Admin search: does `phone` match what the admin typed? Compares DIGITS only, so
+ * "(917) 555-1234", "917-555-1234", "+1 917 555 1234" and "9175551234" all find the same
+ * record whatever format it was stored in. Needs at least 3 digits in the query and nothing
+ * but phone punctuation besides — otherwise a name/email search ("john3") would match every
+ * phone containing those digits.
+ */
+export function matchesPhoneSearch(phone: string | null | undefined, term: string | null | undefined): boolean {
+  if (!phone || !term) return false;
+  if (!/^[\d\s()+.\-]+$/.test(term.trim())) return false;
+  let query = term.replace(/\D/g, '');
+  if (query.length === 11 && query.startsWith('1')) query = query.substring(1);
+  if (query.length < 3) return false;
+  return (normalizePhone10(phone) ?? '').includes(query);
+}
+
+/**
  * Build a tel: href for click-to-call. Always prefixes +1 so the dialer
  * uses the US country code.
  */

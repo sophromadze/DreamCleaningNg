@@ -116,7 +116,7 @@
 
     &.publish {
       border-color: var(--fresh-green);
-      color: var(--fresh-green);
+      color: var(--mint-fresh-text);
 
       &:hover:not(:disabled) {
         background: var(--mint-fresh);
@@ -125,7 +125,7 @@
 
     &.danger {
       border-color: var(--bright-red);
-      color: var(--bright-red);
+      color: var(--soft-red-text);
 
       &:hover:not(:disabled) {
         background: var(--soft-red);
@@ -259,12 +259,12 @@
 
     &.status-published {
       background: var(--mint-fresh);
-      color: var(--fresh-green);
+      color: var(--mint-fresh-text);
     }
 
     &.status-archived {
       background: var(--soft-blue);
-      color: var(--primary-color);
+      color: var(--primary-text-elevated);
     }
   }
 
@@ -320,7 +320,7 @@
     padding: 10px 14px;
     border-radius: var(--radius-sm);
     background: var(--soft-red);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     font-size: 0.9rem;
     font-weight: var(--fw-semibold);
     margin: 0 0 16px;
@@ -370,17 +370,17 @@
 
       &:disabled {
         background: var(--surface-subtle);
-        color: var(--text-muted);
+        color: var(--text-muted-on-tint);
       }
     }
 
     .locked-hint { color: var(--warning-orange-text); }
 
     .char-counter {
-      color: var(--fresh-green);
+      color: var(--mint-fresh-text);
       font-weight: var(--fw-semibold);
 
-      &.over { color: var(--bright-red); }
+      &.over { color: var(--soft-red-text); }
     }
   }
 
@@ -453,7 +453,7 @@
       font-weight: var(--fw-bold);
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      color: var(--text-muted);
+      color: var(--text-muted-on-tint);
       border-radius: var(--radius-md) var(--radius-md) 0 0;
     }
 
@@ -684,7 +684,7 @@
     .setting-text {
       flex: 1;
 
-      h3 { margin: 0 0 6px; font-size: 1.05rem; font-weight: var(--fw-bold); }
+      h2 { margin: 0 0 6px; font-size: 1.05rem; font-weight: var(--fw-bold); }
       p { margin: 0; color: var(--text-secondary); font-size: 0.9rem; }
     }
 
@@ -759,7 +759,7 @@
         &::after { transform: translateX(23px); }
       }
 
-      .toggle-label { color: var(--fresh-green); }
+      .toggle-label { color: var(--mint-fresh-text); }
     }
 
     &:disabled { opacity: 0.6; cursor: default; }
@@ -789,7 +789,7 @@
         text-align: right;
         font-weight: var(--fw-semibold);
 
-        &.failed { color: var(--bright-red); }
+        &.failed { color: var(--soft-red-text); }
       }
     }
   }
@@ -866,7 +866,7 @@
         margin-top: 12px;
         padding: 10px 14px;
         background: var(--soft-blue);
-        color: var(--primary-color);
+        color: var(--primary-text-elevated);
         border-radius: var(--radius-sm);
         font-size: 0.92rem;
       }

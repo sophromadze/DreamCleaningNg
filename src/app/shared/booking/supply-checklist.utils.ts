@@ -21,11 +21,28 @@
  * rather than as an empty bulleted box.
  */
 
-/** Extra-service shapes the various surfaces carry: booking uses `name`, orders use `extraServiceName`. */
-export interface SupplyChecklistExtra {
+import {
+  DeepFlags,
+  EXTRA_SERVICE_KEYS,
+  extraIs,
+  isDeepOrSuperDeepExtra,
+  legacyCleaningEssentials,
+  legacyCleaningSupplies,
+  legacyOven,
+  legacyVacuum
+} from './extra-service-keys';
+
+/**
+ * Extra-service shapes the various surfaces carry: booking uses `name`, orders use
+ * `extraServiceName`; both carry `extraServiceKey` (and orders the Deep flags). A plain string is
+ * accepted too and treated as an UNKEYED extra of that name - the legacy rules.
+ */
+export interface SupplyChecklistExtra extends DeepFlags {
   name?: string | null;
   extraServiceName?: string | null;
 }
+
+export type SupplyChecklistInput = SupplyChecklistExtra | string | null | undefined;
 
 /**
  * Everything about one order that decides the checklist. Resolved once by
@@ -46,9 +63,10 @@ export interface SupplyChecklistFacts {
 }
 
 /**
- * Name fragments the extras are matched on — matched on NAME (contains, case-insensitive)
- * rather than on Id, because catalogue Ids differ between dev and production and these rows
- * are admin-created. Mirrors the constants on `CustomerSupplyChecklist`.
+ * LEGACY name fragments (contains, case-insensitive). The extras are recognised by their
+ * extraServiceKey ("cleaning-supplies", "cleaning-essentials", "vacuum-cleaner", "oven" - see
+ * extra-service-keys.ts); these fragments only decide for an UNKEYED row. Mirrors the constants
+ * on `CustomerSupplyChecklist`.
  */
 export const CLEANING_SUPPLIES_MATCH = 'cleaning supplies';
 export const CLEANING_ESSENTIALS_MATCH = 'cleaning essentials';
@@ -61,23 +79,41 @@ export const CLEANING_ESSENTIALS_ITEMS = ['Paper towels', 'Garbage bags', 'Toile
 /** The one line the Vacuum Cleaner extra buys the customer out of. */
 export const BROOM_OR_VACUUM_ITEM = 'Broom or vacuum cleaner';
 
-/** Single-name predicates, for surfaces that hold one extra rather than a list of names. */
-export function isCleaningSuppliesExtra(name: string | null | undefined): boolean {
-  return (name || '').toLowerCase().includes(CLEANING_SUPPLIES_MATCH);
+function asExtra(input: SupplyChecklistInput): SupplyChecklistExtra | null {
+  if (input == null) return null;
+  return typeof input === 'string' ? { name: input } : input;
 }
 
-export function isCleaningEssentialsExtra(name: string | null | undefined): boolean {
-  return (name || '').toLowerCase().includes(CLEANING_ESSENTIALS_MATCH);
+function asExtras(inputs: SupplyChecklistInput[] | null | undefined): SupplyChecklistExtra[] {
+  return (inputs || []).map(asExtra).filter((e): e is SupplyChecklistExtra => !!e);
 }
 
+/** Single-extra predicates, for surfaces that hold one extra rather than a list. */
+export function isCleaningSuppliesExtra(extra: SupplyChecklistInput): boolean {
+  return extraIs(asExtra(extra), EXTRA_SERVICE_KEYS.cleaningSupplies, legacyCleaningSupplies);
+}
+
+export function isCleaningEssentialsExtra(extra: SupplyChecklistInput): boolean {
+  return extraIs(asExtra(extra), EXTRA_SERVICE_KEYS.cleaningEssentials, legacyCleaningEssentials);
+}
+
+export function isVacuumExtra(extra: SupplyChecklistInput): boolean {
+  return extraIs(asExtra(extra), EXTRA_SERVICE_KEYS.vacuumCleaner, legacyVacuum);
+}
+
+export function isOvenExtra(extra: SupplyChecklistInput): boolean {
+  return extraIs(asExtra(extra), EXTRA_SERVICE_KEYS.oven, legacyOven);
+}
+
+/** Lowercased names, for display-only callers. Recognition goes through the predicates above. */
 export function extraServiceNamesOf(extras: SupplyChecklistExtra[] | null | undefined): string[] {
   return (extras || [])
     .map(e => (e?.extraServiceName ?? e?.name ?? '').toLowerCase())
     .filter(n => !!n);
 }
 
-export function hasCleaningSuppliesExtra(extraNames: string[]): boolean {
-  return extraNames.some(n => n.includes(CLEANING_SUPPLIES_MATCH));
+export function hasCleaningSuppliesExtra(extras: SupplyChecklistInput[]): boolean {
+  return asExtras(extras).some(isCleaningSuppliesExtra);
 }
 
 /**
@@ -85,49 +121,52 @@ export function hasCleaningSuppliesExtra(extraNames: string[]): boolean {
  * "Cleaning Supplies" and vice versa — the two are separate purchases that can be held
  * together, and each removes a different part of the checklist.
  */
-export function hasCleaningEssentialsExtra(extraNames: string[]): boolean {
-  return extraNames.some(n => n.includes(CLEANING_ESSENTIALS_MATCH));
+export function hasCleaningEssentialsExtra(extras: SupplyChecklistInput[]): boolean {
+  return asExtras(extras).some(isCleaningEssentialsExtra);
 }
 
 /** True when we bring a vacuum, so the customer is not asked for one. */
-export function hasVacuumExtra(extraNames: string[]): boolean {
-  return extraNames.some(n => n.includes(VACUUM_MATCH));
+export function hasVacuumExtra(extras: SupplyChecklistInput[]): boolean {
+  return asExtras(extras).some(isVacuumExtra);
 }
 
 /**
- * True when the cleaners need an oven-cleaning liquid: a Deep / Super Deep Cleaning booking,
- * OR the Oven Cleaning extra on its own. The oven extra used to be missed here, so a customer
- * who ordered oven cleaning without deep cleaning was never told to have Oven Cleaner ready.
+ * True when the cleaners need an oven-cleaning liquid: a Deep / Super Deep Cleaning booking
+ * (their flags; an unkeyed row by its name), OR the Oven Cleaning extra on its own. The oven extra
+ * used to be missed here, so a customer who ordered oven cleaning without deep cleaning was never
+ * told to have Oven Cleaner ready.
  */
-export function requiresOvenCleaner(extraNames: string[]): boolean {
-  return extraNames.some(n => n.includes('deep cleaning')) || extraNames.some(n => n.includes('oven'));
+export function requiresOvenCleaner(extras: SupplyChecklistInput[]): boolean {
+  const list = asExtras(extras);
+  return list.some(isDeepOrSuperDeepExtra) || list.some(isOvenExtra);
 }
 
-/** Convenience wrapper for surfaces that hold the extras list rather than the names. */
+/** Alias kept for surfaces that already call it with the extras list. */
 export function requiresOvenCleanerForExtras(extras: SupplyChecklistExtra[] | null | undefined): boolean {
-  return requiresOvenCleaner(extraServiceNamesOf(extras));
+  return requiresOvenCleaner(extras || []);
 }
 
-/** Reads every checklist-relevant fact off the extra-service names in one pass. */
+/** Reads every checklist-relevant fact off the extras (or bare names) in one pass. */
 export function resolveSupplyChecklistFacts(
-  extraNames: string[],
+  extras: SupplyChecklistInput[],
   isCustomServiceType: boolean
 ): SupplyChecklistFacts {
+  const list = asExtras(extras);
   return {
-    hasCleaningSupplies: hasCleaningSuppliesExtra(extraNames),
-    hasCleaningEssentials: hasCleaningEssentialsExtra(extraNames),
-    weBringVacuum: hasVacuumExtra(extraNames),
-    requiresOvenCleaner: requiresOvenCleaner(extraNames),
+    hasCleaningSupplies: hasCleaningSuppliesExtra(list),
+    hasCleaningEssentials: hasCleaningEssentialsExtra(list),
+    weBringVacuum: hasVacuumExtra(list),
+    requiresOvenCleaner: requiresOvenCleaner(list),
     isCustomServiceType
   };
 }
 
-/** Same, for surfaces holding the extras list rather than the names. */
+/** Same, named for surfaces holding the extras list. */
 export function resolveSupplyChecklistFactsForExtras(
   extras: SupplyChecklistExtra[] | null | undefined,
   isCustomServiceType: boolean
 ): SupplyChecklistFacts {
-  return resolveSupplyChecklistFacts(extraServiceNamesOf(extras), isCustomServiceType);
+  return resolveSupplyChecklistFacts(extras || [], isCustomServiceType);
 }
 
 /** The Zep line, phrased identically to the email/SMS checklist. */

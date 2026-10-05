@@ -427,14 +427,13 @@
     }
   }
 
-  &--locked {
-    opacity: 0.52;
-  }
+  // Locked rewards are marked by their "0 / 1,000" progress badge; fading the card with opacity
+  // took its text below AA (2026-10).
 
   &__points {
     font-size: 13px;
     font-weight: 700;
-    color: var(--primary-color, #007bff);
+    color: var(--primary-color-text);
     margin-bottom: 6px;
     position: relative;
     z-index: 1;
@@ -475,7 +474,7 @@
 
   &--locked {
     background: rgba(0, 0, 0, 0.06);
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
   }
 }
 

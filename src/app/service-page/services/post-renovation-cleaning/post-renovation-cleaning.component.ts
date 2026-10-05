@@ -1,27 +1,25 @@
-import { Component, OnInit, OnDestroy, Inject, inject } from '@angular/core';
-import { CommonModule, DOCUMENT } from '@angular/common';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { PhoneNumberService } from '../../../services/phone-number.service';
+import { CardImageDirective } from '../../../shared/images/card-image.directive';
+import { StructuredDataService } from '../../../services/structured-data.service';
 
 @Component({
   selector: 'app-post-renovation-cleaning',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, CardImageDirective],
   templateUrl: './post-renovation-cleaning.component.html',
   styleUrl: './post-renovation-cleaning.component.scss'
 })
 export class PostRenovationCleaningComponent implements OnInit, OnDestroy {
   protected readonly phoneNumber = inject(PhoneNumberService);
-  private schemaElement: HTMLScriptElement | null = null;
-
-  constructor(@Inject(DOCUMENT) private document: Document) {}
+  private readonly structuredData = inject(StructuredDataService);
 
   ngOnInit(): void { this.injectSchema(); }
 
   ngOnDestroy(): void {
-    if (this.schemaElement && this.schemaElement.parentNode) {
-      this.schemaElement.parentNode.removeChild(this.schemaElement);
-    }
+    this.structuredData.remove('ld-post-renovation-cleaning');
   }
 
   private injectSchema(): void {
@@ -36,9 +34,6 @@ export class PostRenovationCleaningComponent implements OnInit, OnDestroy {
       'areaServed': { '@type': 'City', 'name': 'New York' },
       'serviceType': 'Post Renovation Cleaning'
     };
-    this.schemaElement = this.document.createElement('script');
-    this.schemaElement.type = 'application/ld+json';
-    this.schemaElement.textContent = JSON.stringify(schema);
-    this.document.head.appendChild(this.schemaElement);
+    this.structuredData.set('ld-post-renovation-cleaning', schema);
   }
 }

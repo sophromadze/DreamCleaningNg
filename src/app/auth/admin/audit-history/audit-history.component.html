@@ -20,19 +20,19 @@
     </div>
 
     <div class="filter-controls">
-      <select [(ngModel)]="selectedEntityType" class="filter-select" (change)="onFilterChange()"
+      <select aria-label="Record type" [(ngModel)]="selectedEntityType" class="filter-select" (change)="onFilterChange()"
               title="What kind of thing changed">
         <option *ngFor="let type of entityTypes" [value]="type.value">
           {{ type.label }}
         </option>
       </select>
 
-      <select [(ngModel)]="selectedAction" class="filter-select" (change)="onFilterChange()"
+      <select aria-label="Action" [(ngModel)]="selectedAction" class="filter-select" (change)="onFilterChange()"
               title="What was done">
         <option *ngFor="let a of actionOptions" [value]="a.value">{{ a.label }}</option>
       </select>
 
-      <select [(ngModel)]="selectedAdminId" class="filter-select" (change)="onFilterChange()"
+      <select aria-label="Changed by" [(ngModel)]="selectedAdminId" class="filter-select" (change)="onFilterChange()"
               title="Who made the change">
         <option value="all">Anyone</option>
         <option *ngFor="let admin of metadata.admins" [value]="admin.id">
@@ -40,7 +40,7 @@
         </option>
       </select>
 
-      <select [(ngModel)]="selectedDays"
+      <select aria-label="Period" [(ngModel)]="selectedDays"
               class="filter-select"
               [disabled]="hasExplicitDateRange"
               [title]="hasExplicitDateRange ? 'Ignored while an explicit date range is set' : 'How far back to look'"
@@ -143,7 +143,7 @@
                 <div class="log-details">
                   <ng-container *ngIf="collectionChanges(log) as changes">
                     <div *ngIf="changes.added.length || changes.removed.length" class="field-changes">
-                      <h4>Cleaners</h4>
+                      <h3>Cleaners</h3>
                       <div *ngFor="let name of changes.added" class="new-value">+ {{ name }}</div>
                       <div *ngFor="let name of changes.removed" class="old-value">- {{ name }}</div>
                     </div>
@@ -151,14 +151,14 @@
                   
                   <!-- Special view for BubblePointsAdjustment logs -->
                   <div *ngIf="log.entityType === 'BubblePointsAdjustment'" class="cleaner-assignment-details">
-                    <h4>Bubble Points Adjustment</h4>
+                    <h3>Bubble Points Adjustment</h3>
                     <ng-container *ngIf="log.newValues as v">
                       <div class="detail-item">
                         <strong>User:</strong> {{ v['TargetUserName'] }} (ID {{ v['TargetUserId'] }})
                       </div>
                       <div class="detail-item">
                         <strong>Points:</strong>
-                        <span [style.color]="v['Points'] > 0 ? '#28a745' : '#dc3545'">
+                        <span [style.color]="v['Points'] > 0 ? 'var(--mint-fresh-text)' : 'var(--soft-red-text)'">
                           {{ v['Points'] > 0 ? '+' : '' }}{{ v['Points'] }}
                         </span>
                       </div>
@@ -173,7 +173,7 @@
 
                   <!-- Special view for CleanerAssignment logs -->
                   <div *ngIf="log.entityType === 'CleanerAssignment'" class="cleaner-assignment-details">
-                    <h4>Cleaner Assignment Details</h4>
+                    <h3>Cleaner Assignment Details</h3>
                     <ng-container *ngIf="getCleanerAssignmentDetails(log) as details">
                       <div class="detail-item">
                         <strong>Cleaner Email:</strong> {{ details.cleanerEmail }}
@@ -190,7 +190,7 @@
                        empty. Reads the old/new Percentage/IsManualOverride/Activated/LastUsed
                        JSON from the audit row directly. -->
                   <div *ngIf="log.entityType === 'UserLoyaltyDiscount'" class="cleaner-assignment-details">
-                    <h4>{{ getActionDisplayLabel(log.action) }}</h4>
+                    <h3>{{ getActionDisplayLabel(log.action) }}</h3>
                     <div class="detail-item">
                       <strong>User ID:</strong> #{{ log.entityId }}
                     </div>
@@ -244,7 +244,7 @@
 
                     <!-- Show changed fields for updates -->
                     <div *ngIf="showChangedFields(log) && hasMeaningfulChangedFields(log)" class="changed-fields">
-                      <h4>Changed Fields</h4>
+                      <h3>Changed Fields</h3>
                       <div class="field-changes">
                         <ng-container *ngFor="let field of meaningfulChangedFields(log)">
                           <div *ngIf="shouldShowField(field)" class="field-change">
@@ -273,7 +273,7 @@
 
                     <!-- Show created values for creates -->
                     <div *ngIf="log.action === 'Create' && log.newValues" class="created-values">
-                      <h4>Created With</h4>
+                      <h3>Created With</h3>
                       <div class="field-values-list">
                         <div *ngFor="let key of summaryFields(log, log.newValues)" class="value-item">
                           <div *ngIf="shouldShowField(key)">
@@ -286,7 +286,7 @@
 
                     <!-- Show deleted values for deletes -->
                     <div *ngIf="log.action === 'Delete' && log.oldValues" class="deleted-values">
-                      <h4>Deleted Record</h4>
+                      <h3>Deleted Record</h3>
                       <div class="field-values-list">
                         <div *ngFor="let key of summaryFields(log, log.oldValues)" class="value-item">
                           <div *ngIf="shouldShowField(key)">
@@ -301,7 +301,7 @@
                          summary. There is no "before" to diff against, so it is rendered as what
                          was recorded. Without this block these rows expanded to nothing at all. -->
                     <div *ngIf="showRecordedValues(log)" class="recorded-values">
-                      <h4>{{ getActionDisplayLabel(log.action) }}</h4>
+                      <h3>{{ getActionDisplayLabel(log.action) }}</h3>
                       <div class="field-values-list">
                         <div *ngFor="let key of getObjectKeys(recordedValues(log))" class="value-item">
                           <div *ngIf="shouldShowField(key)">
@@ -315,12 +315,12 @@
 
                   <!-- Combined view for merged Order logs with service changes -->
                   <div *ngIf="log.hasServiceChanges && log.serviceLogs" class="combined-update-details">
-                    <h4>Order Update Details</h4>
+                    <h3>Order Update Details</h3>
                     
                     <div class="order-changes-container">
                       <!-- Regular field changes -->
                       <div *ngIf="showChangedFields(log) && hasMeaningfulChangedFields(log)" class="changed-fields">
-                        <h4>Changed Fields</h4>
+                        <h3>Changed Fields</h3>
                         <div class="field-changes">
                                                   <ng-container *ngFor="let field of meaningfulChangedFields(log)">
                           <div *ngIf="shouldShowField(field)" class="field-change">
@@ -349,7 +349,7 @@
                           
                           <!-- Regular Services -->
                           <div class="services-section" *ngIf="getAllServices(details.services.old, details.services.new).length > 0">
-                            <h4>Services</h4>
+                            <h3>Services</h3>
                             <div class="service-changes">
                               <ng-container *ngFor="let service of getAllServices(details.services.old, details.services.new)">
                                 <div class="service-change"
@@ -381,7 +381,7 @@
                           
                           <!-- Extra Services -->
                           <div class="extra-services-section" *ngIf="getAllExtraServices(details.extraServices.old, details.extraServices.new).length > 0">
-                            <h4>Extra Services</h4>
+                            <h3>Extra Services</h3>
                             <div class="service-changes">
                               <ng-container *ngFor="let service of getAllExtraServices(details.extraServices.old, details.extraServices.new)">
                                 <div class="service-change"
@@ -440,13 +440,13 @@
 
                   <!-- Special view for standalone OrderServicesUpdate logs -->
                   <div *ngIf="isServiceUpdateLog(log) && !log.hasServiceChanges" class="service-update-details">
-                    <h4>Order Services Update Details</h4>
+                    <h3>Order Services Update Details</h3>
                     <ng-container *ngIf="getServiceUpdateDetails(log) as details">
                       
                       <div class="order-changes-container">
                         <!-- Regular Services -->
                         <div class="services-section" *ngIf="getAllServices(details.services.old, details.services.new).length > 0">
-                        <h4>Services</h4>
+                        <h3>Services</h3>
                         <div class="service-changes">
                           <ng-container *ngFor="let service of getAllServices(details.services.old, details.services.new)">
                             <div class="service-change"
@@ -478,7 +478,7 @@
                       
                       <!-- Extra Services -->
                       <div class="extra-services-section" *ngIf="getAllExtraServices(details.extraServices.old, details.extraServices.new).length > 0">
-                        <h4>Extra Services</h4>
+                        <h3>Extra Services</h3>
                         <div class="service-changes">
                           <ng-container *ngFor="let service of getAllExtraServices(details.extraServices.old, details.extraServices.new)">
                             <div class="service-change"

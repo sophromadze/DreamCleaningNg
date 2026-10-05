@@ -19,6 +19,10 @@ export interface SpecialOffer {
   totalUsersGranted?: number;
   timesUsed?: number;
   createdAt: Date;
+  minimumOrderAmount?: number;
+  requiresFirstTimeCustomer?: boolean;
+  /** Stable identifier ("first-time" marks the first-time offer). SuperAdmin-editable. */
+  offerKey?: string | null;
 }
 
 export interface UserSpecialOffer {
@@ -33,6 +37,8 @@ export interface UserSpecialOffer {
   icon?: string;
   badgeColor?: string;
   minimumOrderAmount?: number;
+  /** "first-time" marks the first-time offer - see shared/booking/special-offer-keys.ts. */
+  offerKey?: string | null;
 }
 
 export interface PublicSpecialOffer {
@@ -46,6 +52,8 @@ export interface PublicSpecialOffer {
   badgeColor?: string;
   minimumOrderAmount?: number;
   requiresFirstTimeCustomer: boolean;
+  /** "first-time" marks the first-time offer - see shared/booking/special-offer-keys.ts. */
+  offerKey?: string | null;
 }
 
 export interface CreateSpecialOffer {
@@ -60,6 +68,7 @@ export interface CreateSpecialOffer {
   badgeColor?: string;
   minimumOrderAmount?: number;
   requiresFirstTimeCustomer: boolean;
+  offerKey?: string | null;
 }
 
 export interface UpdateSpecialOffer {
@@ -74,6 +83,8 @@ export interface UpdateSpecialOffer {
   badgeColor?: string;
   minimumOrderAmount?: number;
   isActive: boolean;
+  /** Omit to keep the stored key; null / '' clears it (SuperAdmin only). */
+  offerKey?: string | null;
 }
 
 export enum OfferType {

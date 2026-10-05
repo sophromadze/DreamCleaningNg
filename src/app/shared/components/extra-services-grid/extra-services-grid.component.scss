@@ -1,3 +1,5 @@
+@use '../../../../styles/icon-urls' as *;
+
 /* Extracted from booking.component.scss. Rules are ported in their original
    cascade order (legacy layer → toggle/shimmer → Tailwind-redesign layers),
    with `.booking-form` ancestors rewritten to `:host-context(.booking-form)`
@@ -31,7 +33,6 @@
   gap: 0.5rem;
   text-align: left;
   line-height: 1.3;
-  font-family: 'Poppins', sans-serif;
   font-size: 1.2rem;
   font-weight: 400;
   margin: 0;
@@ -254,7 +255,7 @@
       }
     }
 
-    .extra-info h4 {
+    .extra-info h3 {
       color: #999;
       text-align: left;
     }
@@ -413,12 +414,11 @@
       width: 100%;
       overflow: hidden;
 
-      h4 {
+      h3 {
         color: #333;
         font-size: 1.2rem;
         font-weight: 400;
         text-align: left;
-        font-family: 'Poppins', sans-serif;
         margin-top: auto;
         line-height: 1.2;
         overflow: hidden;
@@ -457,7 +457,6 @@
           padding: 5px 0 0;
           font-size: 14px;
           line-height: 1.2;
-          font-family: 'Poppins', sans-serif;
           font-weight: 400;
 
           @media (max-width: 768px) {
@@ -476,7 +475,6 @@
           font-size: 14px;
           gap: 0.5rem;
           padding: 5px;
-          font-family: 'Poppins', sans-serif;
           font-weight: 400;
 
           .duration-icon {
@@ -573,12 +571,11 @@
     padding: 0.5rem 1rem;
     background: transparent;
     border: none;
-    color: var(--primary-color);
+    color: var(--primary-color-text);
     font-size: 1rem;
     font-weight: 400;
     cursor: pointer;
     transition: all 0.3s ease;
-    font-family: 'Poppins', sans-serif;
     white-space: nowrap;
     z-index: 5;
 
@@ -659,7 +656,7 @@
        showing tooltips. */
   }
 
-  .extra-info h4 {
+  .extra-info h3 {
     font-weight: var(--fw-extrabold) !important;
     color: var(--text-primary) !important;
     font-size: 0.875rem !important;
@@ -709,8 +706,13 @@
 /* Single corner indicator on every extra-service card — same slot,
    colour & icon swap by state. ::after stays free for tooltips.
    Every state restates dimensions + font-size with !important so the
-   different FontAwesome glyph metrics (+, ✓, ✕) can't visually grow
-   the badge across hover/selected transitions. */
+   different glyphs (+, ✓, ✕) can't visually grow the badge across
+   hover/selected transitions.
+   The glyph is a white background-image layer (the badge's own
+   background-colour is the state colour), 1em (= font-size) tall and
+   centred — exactly where the Font Awesome webfont glyph used to sit.
+   States set background-COLOR/-IMAGE longhands: the shorthand would
+   reset the glyph layer. */
 %extra-card-badge-geometry {
   position: absolute !important;
   top: 0.5rem !important;
@@ -727,9 +729,10 @@
   align-items: center !important;
   justify-content: center !important;
   border-radius: 50% !important;
-  font-family: "Font Awesome 6 Free" !important;
-  font-weight: 900 !important;
   font-size: 0.625rem !important;
+  background-position: center !important;
+  background-size: auto 1em !important;
+  background-repeat: no-repeat !important;
   line-height: 1 !important;
   color: #fff !important;
   z-index: 2 !important;
@@ -743,15 +746,17 @@
 :host-context(.booking-form) .extra-services .extra-service-card {
   &::before {
     @extend %extra-card-badge-geometry;
-    content: "\f067"; /* fa-plus */
-    background: var(--primary-color) !important;
+    content: "";
+    background-color: var(--primary-color) !important;
+    background-image: icon-url("plus", #fff) !important;
     box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
   }
 
   &:hover:not(.selected):not(.disabled)::before {
     @extend %extra-card-badge-geometry;
-    content: "\f067";
-    background: var(--primary-color) !important;
+    content: "";
+    background-color: var(--primary-color) !important;
+    background-image: icon-url("plus", #fff) !important;
     box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
   }
 
@@ -761,15 +766,17 @@
 
   &.selected::before {
     @extend %extra-card-badge-geometry;
-    content: "\f00c"; /* fa-check */
-    background: var(--fresh-green) !important;
+    content: "";
+    background-color: var(--fresh-green) !important;
+    background-image: icon-url("check", #fff) !important;
     box-shadow: 0 2px 6px rgba(34, 197, 94, 0.35);
   }
 
   &.selected:hover::before {
     @extend %extra-card-badge-geometry;
-    content: "\f00d"; /* fa-times */
-    background: var(--bright-red) !important;
+    content: "";
+    background-color: var(--bright-red) !important;
+    background-image: icon-url("xmark", #fff) !important;
     box-shadow: 0 2px 6px rgba(239, 68, 68, 0.40);
   }
 }
@@ -879,8 +886,8 @@
 
     /* Selected card hover keeps the green ✓ instead of swapping to ✕ */
     &.selected:hover::before {
-      content: "\f00c" !important;
-      background: var(--fresh-green) !important;
+      background-color: var(--fresh-green) !important;
+      background-image: icon-url("check", #fff) !important;
       box-shadow: 0 2px 6px rgba(34, 197, 94, 0.35) !important;
     }
 

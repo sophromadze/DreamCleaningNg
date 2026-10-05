@@ -3,15 +3,22 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { OrderReminderService, OrderReminder } from '../services/order-reminder.service';
 import { AuthService } from '../services/auth.service';
+import { IconComponent } from '../shared/icons/icon.component';
+import { IconDefinition } from '../shared/icons/icon-definition';
+import { faCheck } from '../shared/icons/glyphs/faCheck';
+import { faCirclePlay } from '../shared/icons/glyphs/faCirclePlay';
+import { faCircleStop } from '../shared/icons/glyphs/faCircleStop';
 
 @Component({
   selector: 'app-order-reminder',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, IconComponent],
   templateUrl: './order-reminder.component.html',
   styleUrls: ['./order-reminder.component.scss']
 })
 export class OrderReminderComponent implements OnInit, OnDestroy {
+  protected readonly icons = { faCheck };
+
   activeReminders: OrderReminder[] = [];
   modalReminder: OrderReminder | null = null;
   isAdmin = false;
@@ -63,7 +70,7 @@ export class OrderReminderComponent implements OnInit, OnDestroy {
     this.reminderService.acknowledgeReminder(reminder.orderId, reminder.type);
   }
 
-  getReminderIcon(type: 'start' | 'end'): string {
-    return type === 'start' ? 'fa-play-circle' : 'fa-stop-circle';
+  getReminderIcon(type: 'start' | 'end'): IconDefinition {
+    return type === 'start' ? faCirclePlay : faCircleStop;
   }
 }

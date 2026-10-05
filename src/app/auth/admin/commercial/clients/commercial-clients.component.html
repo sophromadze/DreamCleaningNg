@@ -160,7 +160,8 @@
           <span class="avatar-initials">{{ getAvatarInitials(c.legalEntityName) }}</span>
         </div>
         <div class="detail-identity">
-          <h3 class="detail-name">
+          <!-- A client saved without a name renders an empty heading: name it for screen readers only. -->
+          <h3 class="detail-name" [attr.aria-label]="c.legalEntityName ? null : 'Unnamed client'">
             {{ c.legalEntityName }}
             <span *ngIf="!c.isActive" class="tag-chip blocked">Removed</span>
           </h3>
@@ -210,7 +211,7 @@
     <div class="detail-body" *ngIf="panelTab === 'customer'">
       <div class="overview-details">
         <div class="info-card">
-          <h6>Customer account</h6>
+          <h4>Customer account</h4>
           <p class="muted">
             {{ c.legalEntityName }} has no website account — it is a commercial client typed in by
             hand, with contracts and invoices but no login, no bookings and no cleaning history.
@@ -245,7 +246,7 @@
       <div class="overview-details">
 
         <div class="info-card">
-          <h6>Billing</h6>
+          <h4>Billing</h4>
           <div class="info-grid">
             <div>
               <span>Contact</span>
@@ -277,7 +278,7 @@
              the billing email is where invoices go, and they are allowed to differ. Merging them
              would silently pick a winner. -->
         <div class="info-card" *ngIf="isLinked(c)">
-          <h6>Customer account</h6>
+          <h4>Customer account</h4>
           <div class="info-grid">
             <div>
               <span>Name</span>
@@ -310,7 +311,7 @@
         </div>
 
         <div class="info-card">
-          <h6>Service locations</h6>
+          <h4>Service locations</h4>
           <p class="muted" *ngIf="!c.locations.length">None on file.</p>
           <ul class="cc-list" *ngIf="c.locations.length">
             <li *ngFor="let l of c.locations">
@@ -320,7 +321,7 @@
         </div>
 
         <div class="info-card">
-          <h6>Contracts</h6>
+          <h4>Contracts</h4>
           <p class="muted" *ngIf="!c.contracts.length">
             None — this client can still be invoiced.
           </p>
@@ -334,7 +335,7 @@
         </div>
 
         <div class="info-card" *ngIf="!c.isActive && isLinked(c)">
-          <h6>Restore</h6>
+          <h4>Restore</h4>
           <p class="muted">
             {{ c.linkedAccountName }} is an ordinary customer again. Turn the business flag back on
             for them in the Customers tab to list this client — with its contracts and invoices —

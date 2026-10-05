@@ -26,7 +26,7 @@
                 (click)="setViewMode('full')">Full</button>
       </div>
       <div class="quick-filter-dropdown">
-        <select [ngModel]="activeQuickFilter" (ngModelChange)="onQuickFilterChange($event)">
+        <select aria-label="Period" [ngModel]="activeQuickFilter" (ngModelChange)="onQuickFilterChange($event)">
           <option *ngFor="let f of quickFilters" [value]="f.key">{{ f.label }}</option>
         </select>
       </div>
@@ -86,7 +86,7 @@
     <ng-container *ngTemplateOutlet="trendCard"></ng-container>
 
     <div class="detail-card" *ngIf="simpleFollowUpCards.length > 0">
-      <h3 class="viz-title">Follow-ups (CRM)</h3>
+      <h2 class="viz-title">Follow-ups (CRM)</h2>
       <p class="section-note">
         <i class="fas fa-info-circle"></i> {{ simpleFollowUpNote }}
       </p>
@@ -125,7 +125,7 @@
 
       <!-- How often the period's customers booked inside it -->
       <div class="viz-card">
-        <h3 class="viz-title">Cleanings per customer, this period</h3>
+        <h2 class="viz-title">Cleanings per customer, this period</h2>
         <p class="viz-hint">
           How many customers booked once, twice, or more inside the selected period.
         </p>
@@ -145,7 +145,7 @@
 
     <!-- Everything else, grouped, with the period-over-period movement on each row -->
     <div class="detail-card" *ngFor="let section of groupedCards">
-      <h3 class="viz-title">{{ section.group }}</h3>
+      <h2 class="viz-title">{{ section.group }}</h2>
       <p class="section-note" *ngIf="section.note">
         <i class="fas fa-info-circle"></i> {{ section.note }}
       </p>
@@ -176,7 +176,7 @@
     </div>
 
     <div class="detail-card" *ngIf="stats && stats.topCustomers.length > 0">
-      <h3 class="viz-title">Biggest customers this period</h3>
+      <h2 class="viz-title">Biggest customers this period</h2>
       <div class="table-wrap">
         <table class="top-table">
           <thead>
@@ -266,7 +266,7 @@
        for @ViewChild to resolve no matter which view is on screen. -->
   <ng-template #splitCard>
     <div class="viz-card" *ngIf="stats">
-      <h3 class="viz-title">First-time vs returning</h3>
+      <h2 class="viz-title">First-time vs returning</h2>
       <p class="viz-hint">
         The same period read two ways — how the customers split, and how their money splits.
       </p>
@@ -429,23 +429,23 @@
           <span class="pick-num">{{ i + 1 }}</span>
 
           <ng-container [ngSwitch]="compareUnit">
-            <input *ngSwitchCase="'day'" type="date" [(ngModel)]="pick.date" />
+            <input aria-label="Day" *ngSwitchCase="'day'" type="date" [(ngModel)]="pick.date" />
 
             <ng-container *ngSwitchCase="'week'">
-              <input type="date" [(ngModel)]="pick.date" />
+              <input aria-label="Week starting" type="date" [(ngModel)]="pick.date" />
               <span class="pick-preview" *ngIf="pick.date">{{ weekPreview(pick.date) }}</span>
             </ng-container>
 
             <ng-container *ngSwitchCase="'month'">
-              <select [(ngModel)]="pick.month">
+              <select aria-label="Month" [(ngModel)]="pick.month">
                 <option *ngFor="let m of monthNames; let mi = index" [ngValue]="mi">{{ m }}</option>
               </select>
-              <select [(ngModel)]="pick.year">
+              <select aria-label="Year" [(ngModel)]="pick.year">
                 <option *ngFor="let y of yearOptions" [ngValue]="y">{{ y }}</option>
               </select>
             </ng-container>
 
-            <select *ngSwitchCase="'year'" [(ngModel)]="pick.year">
+            <select aria-label="Year" *ngSwitchCase="'year'" [(ngModel)]="pick.year">
               <option *ngFor="let y of yearOptions" [ngValue]="y">{{ y }}</option>
             </select>
           </ng-container>

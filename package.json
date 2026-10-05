@@ -10,7 +10,9 @@
     "build:ssr": "ng build --configuration production",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "serve:ssr:DreamCleaningNG": "node dist/dream-cleaning-ng/server/server.mjs"
+    "serve:ssr:DreamCleaningNG": "node dist/dream-cleaning-ng/server/server.mjs",
+    "images:responsive": "node scripts/responsive-images.mjs",
+    "icons": "node scripts/generate-icons.mjs"
   },
   "private": true,
   "dependencies": {
@@ -51,6 +53,7 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
+    "sharp": "^0.35.5",
     "typescript": "~5.7.2"
   }
 }

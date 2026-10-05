@@ -3,12 +3,13 @@
   <div class="extra-services-toggle" *ngIf="hasMore">
     <button type="button" class="toggle-btn" (click)="toggleShowAll()">
       <span>{{ showAll ? 'See less' : 'See all' }}</span>
-      <i class="fas fa-chevron-down" [class.rotated]="showAll"></i>
+      <i [appIcon]="icons.faChevronDown" [class.rotated]="showAll"></i>
     </button>
   </div>
 </div>
 
-<div class="extra-services-container" [class.collapsed]="!showAll" [style.max-width.px]="containerMaxWidth">
+<div class="extra-services-container" [class.collapsed]="!showAll" [style.max-width.px]="containerMaxWidth"
+     tabindex="0" role="region" aria-label="Extra services">
   <!-- Shimmer row when loading (matches real card layout) -->
   <div *ngIf="loading" class="extra-services extra-services-shimmer-row">
     <div class="extra-service-card-shimmer" *ngFor="let i of shimmerCards" [shimmer]="true"></div>
@@ -34,7 +35,7 @@
             <div class="extra-icon">
               <img [src]="imageFor(extra)" [alt]="extra.name">
             </div>
-            <h4>{{ extra.name }}</h4>
+            <h3>{{ extra.name }}</h3>
             <div class="extra-details" *ngIf="showPrices">
               <span class="extra-price">{{ priceLabelFor(extra) }}</span>
             </div>
@@ -44,14 +45,14 @@
 
       <!-- Quantity / hours controls (render only when the card is selected) -->
       <div class="extra-controls" *ngIf="isSelected(extra) && (extra.hasQuantity || extra.hasHours)">
-        <app-quantity-control class="quantity-control" variant="extra" *ngIf="extra.hasQuantity"
+        <app-quantity-control class="quantity-control" variant="extra" *ngIf="extra.hasQuantity" [label]="extra.name + ' quantity'"
           [value]="getQuantity(extra)"
           [decrementDisabled]="getQuantity(extra) <= 1"
           (decrement)="quantityChange.emit({ extra: extra, quantity: getQuantity(extra) - 1 }); $event.stopPropagation()"
           (increment)="quantityChange.emit({ extra: extra, quantity: getQuantity(extra) + 1 }); $event.stopPropagation()">
         </app-quantity-control>
 
-        <app-quantity-control class="hours-control" variant="extra" *ngIf="extra.hasHours"
+        <app-quantity-control class="hours-control" variant="extra" *ngIf="extra.hasHours" [label]="extra.name + ' hours'"
           [value]="getHours(extra)"
           [decrementDisabled]="getHours(extra) <= 0.5"
           (decrement)="hoursChange.emit({ extra: extra, hours: getHours(extra) - 0.5 }); $event.stopPropagation()"

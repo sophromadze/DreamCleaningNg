@@ -2,7 +2,7 @@
 
 .safety-banner {
   background: var(--mint-fresh);
-  color: var(--fresh-green);
+  color: var(--mint-fresh-text);
   border: 1px solid var(--mint-fresh-border);
   border-radius: var(--radius-sm);
   padding: 10px 14px;
@@ -13,7 +13,7 @@
 
 .error-message {
   background: var(--soft-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   margin-bottom: 12px;
@@ -21,14 +21,14 @@
 }
 .info-message {
   background: var(--soft-blue);
-  color: var(--primary-color);
+  color: var(--primary-text-elevated);
   padding: 10px 14px;
   border-radius: var(--radius-sm);
   margin-bottom: 12px;
   font-size: 0.88rem;
 }
 
-section h3 {
+section h2 {
   font-size: 1.05rem;
   color: var(--text-primary);
   margin: 0 0 12px;
@@ -64,9 +64,9 @@ section h3 {
       padding: 2px 8px;
       border-radius: var(--radius-pill);
       background: var(--surface-subtle);
-      color: var(--text-muted);
+      color: var(--text-muted-on-tint);
       text-transform: uppercase;
-      &.on { background: var(--mint-fresh); color: var(--fresh-green); }
+      &.on { background: var(--mint-fresh); color: var(--mint-fresh-text); }
     }
     .open-count {
       font-size: 0.7rem;
@@ -199,8 +199,8 @@ section h3 {
     flex-wrap: wrap;
     gap: 12px;
     font-size: 0.78rem;
-    a { color: var(--text-muted); text-decoration: none; &:hover { color: var(--primary-color); } }
-    .ltv { color: var(--fresh-green); font-weight: var(--fw-semibold); }
+    a { color: var(--text-muted); text-decoration: none; &:hover { color: var(--primary-text-elevated); } }
+    .ltv { color: var(--mint-fresh-text); font-weight: var(--fw-semibold); }
   }
 
   .alert-actions, .alert-resolved {
@@ -265,8 +265,8 @@ section h3 {
     font-weight: var(--fw-semibold);
     padding: 2px 9px;
     border-radius: var(--radius-pill);
-    &.rs-done { background: var(--mint-fresh); color: var(--fresh-green); }
-    &.rs-dismissed { background: var(--surface-subtle); color: var(--text-muted); }
+    &.rs-done { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+    &.rs-dismissed { background: var(--surface-subtle); color: var(--text-muted-on-tint); }
   }
 }
 

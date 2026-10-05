@@ -148,7 +148,7 @@
   
   .error-message {
     display: block;
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     font-size: 13px;
     margin-top: 5px;
   }
@@ -187,9 +187,10 @@
     flex: 1;
   }
 
+  /* Underlined: the link colour alone is under 3:1 against the label text (WCAG 1.4.1). */
   .checkbox-label a {
     color: var(--primary-text);
-    text-decoration: none;
+    text-decoration: underline;
   }
 
   .checkbox-label a:hover {

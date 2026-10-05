@@ -31,7 +31,7 @@
         <div class="config-form">
           <!-- Left Side: Title, Description, and Upload Section -->
           <div class="left-section">
-            <h3>Gift Card Background Configuration</h3>
+            <h2>Gift Card Background Configuration</h2>
             <p class="config-description">Upload a background image for all gift cards</p>
             
             <div class="upload-section">
@@ -74,7 +74,7 @@
                 class="background-preview" 
                 *ngIf="!imagePreviewUrl && giftCardBackgroundPath"
                 [style.backgroundImage]="'url(' + giftCardBackgroundPath + ')'">
-                <span class="preview-badge">Current</span>
+                <span class="preview-badge">{{ hasGiftCardBackground ? 'Current' : (giftCardBackgroundMissing ? 'Default — uploaded image missing, please re-upload' : 'Default') }}</span>
               </div>
             </div>
           </div>
@@ -92,7 +92,7 @@
       </div>
       
       <div class="filter-group">
-        <select [(ngModel)]="filterStatus" (ngModelChange)="applyFilters()">
+        <select aria-label="Filter by status" [(ngModel)]="filterStatus" (ngModelChange)="applyFilters()">
           <option value="all">All Status</option>
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
@@ -100,10 +100,16 @@
           <option value="partiallyUsed">Partially Used</option>
         </select>
         
-        <select [(ngModel)]="filterPaidStatus" (ngModelChange)="applyFilters()">
+        <select aria-label="Filter by payment status" [(ngModel)]="filterPaidStatus" (ngModelChange)="applyFilters()">
           <option value="all">All Payment Status</option>
           <option value="paid">Paid</option>
           <option value="unpaid">Unpaid</option>
+        </select>
+
+        <select aria-label="Filter by delivery status" [(ngModel)]="filterDeliveryStatus" (ngModelChange)="applyFilters()">
+          <option value="all">All Delivery</option>
+          <option value="notSent">Not sent yet</option>
+          <option value="sent">Sent</option>
         </select>
       </div>
     </div>
@@ -119,6 +125,7 @@
             <th>Used</th>
             <th>Recipient</th>
             <th>Sender</th>
+            <th>Purchaser</th>
             <th>Status</th>
             <th *ngIf="isSuperAdmin || userPermissions.permissions.canActivate || userPermissions.permissions.canDeactivate">Actions</th>
           </tr>
@@ -139,15 +146,29 @@
                 </span>
               </td>
               <td>
-                <div class="user-info">
+                <div class="user-info" *ngIf="!giftCard.isPendingSend">
                   <div>{{ giftCard.recipientName }}</div>
                   <small>{{ giftCard.recipientEmail }}</small>
+                </div>
+                <div class="user-info not-sent" *ngIf="giftCard.isPendingSend">
+                  <div>Not sent yet</div>
+                  <small>Kept by purchaser</small>
                 </div>
               </td>
               <td>
                 <div class="user-info">
                   <div>{{ giftCard.senderName }}</div>
                   <small>{{ giftCard.senderEmail }}</small>
+                </div>
+              </td>
+              <td>
+                <div class="user-info" *ngIf="giftCard.purchasedByUserName">
+                  <div>{{ giftCard.purchasedByUserName }}</div>
+                  <small>{{ giftCard.purchasedByUserEmail }}</small>
+                </div>
+                <div class="user-info not-sent" *ngIf="!giftCard.purchasedByUserName">
+                  <div>Guest</div>
+                  <small>No account</small>
                 </div>
               </td>
               <td>
@@ -158,6 +179,9 @@
                 </span>
                 <span class="payment-badge" [class.paid]="giftCard.isPaid" [class.unpaid]="!giftCard.isPaid">
                   {{ giftCard.isPaid ? 'Paid' : 'Unpaid' }}
+                </span>
+                <span class="delivery-badge" [class.not-sent]="giftCard.isPendingSend" [class.sent]="!giftCard.isPendingSend">
+                  {{ giftCard.isPendingSend ? 'Not sent yet' : 'Sent' }}
                 </span>
               </td>
               <td *ngIf="isSuperAdmin || userPermissions.permissions.canActivate || userPermissions.permissions.canDeactivate" class="actions">
@@ -172,7 +196,7 @@
             </tr>
             <!-- Expanded Details Row -->
             <tr *ngIf="selectedGiftCard?.id === giftCard.id" class="details-row">
-              <td colspan="8">
+              <td colspan="9">
                 <div class="details-content">
                   <div class="detail-section">
                     <h3>Card Information</h3>
@@ -201,6 +225,12 @@
                         <label>Paid At:</label>
                         <span>{{ formatDateTime(selectedGiftCard!.paidAt) }}</span>
                       </div>
+                      <div class="detail-item">
+                        <label>Delivery:</label>
+                        <span *ngIf="selectedGiftCard!.isPendingSend">Not sent yet (bought to send later)</span>
+                        <span *ngIf="!selectedGiftCard!.isPendingSend && selectedGiftCard!.sentAt">Sent from profile {{ formatDateTime(selectedGiftCard!.sentAt) }}</span>
+                        <span *ngIf="!selectedGiftCard!.isPendingSend && !selectedGiftCard!.sentAt">Sent at purchase</span>
+                      </div>
                     </div>
                   </div>
 
@@ -209,9 +239,12 @@
                     <div class="detail-grid">
                       <div class="detail-item">
                         <label>Recipient:</label>
-                        <div class="user-details">
+                        <div class="user-details" *ngIf="!selectedGiftCard!.isPendingSend">
                           <div>{{ selectedGiftCard!.recipientName }}</div>
                           <small>{{ selectedGiftCard!.recipientEmail }}</small>
+                        </div>
+                        <div class="user-details" *ngIf="selectedGiftCard!.isPendingSend">
+                          <div>Not sent yet</div>
                         </div>
                       </div>
                       <div class="detail-item">
@@ -219,6 +252,13 @@
                         <div class="user-details">
                           <div>{{ selectedGiftCard!.senderName }}</div>
                           <small>{{ selectedGiftCard!.senderEmail }}</small>
+                        </div>
+                      </div>
+                      <div class="detail-item">
+                        <label>Purchased By:</label>
+                        <div class="user-details">
+                          <div>{{ selectedGiftCard!.purchasedByUserName || 'Guest (no account)' }}</div>
+                          <small *ngIf="selectedGiftCard!.purchasedByUserEmail">{{ selectedGiftCard!.purchasedByUserEmail }}</small>
                         </div>
                       </div>
                     </div>

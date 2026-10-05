@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { OrdersComponent } from './orders.component';
-import { round2 } from '../../../shared/pricing/order-pricing.calculator';
+import { round2, calculateQuote, buildQuoteInputFromSelections, percentOf } from '../../../shared/pricing/order-pricing.calculator';
 
 import { testProviders } from '../../../../testing/test-providers';
 import { AdminService } from '../../../services/admin.service';
@@ -25,6 +25,14 @@ describe('OrdersComponent', () => {
 
   it('should create', () => {
     expect(component).toBeTruthy();
+  });
+
+  // 2026-10: the API leaves photoUrl empty for a row it will not expose (not a local upload),
+  // so the panel must not request the photo endpoint for it (that would only 404).
+  it('builds a cleaning-photo URL only for rows the server exposes', () => {
+    expect(component.resolvePhotoUrl({ id: 5, photoUrl: '/api/files/cleaning-photos/5' } as any)).toMatch(/\/files\/cleaning-photos\/5$/);
+    expect(component.resolvePhotoUrl({ id: 6, photoUrl: '' } as any)).toBe('');
+    expect(component.resolvePhotoUrl(null)).toBe('');
   });
 
   /**
@@ -1303,7 +1311,8 @@ describe('OrdersComponent', () => {
       // The server refuses it in this state, so sending it only put a change row in the
       // confirmation modal describing something that was never going to happen.
       expect(dto.cleanerTotalSalary).toBeUndefined();
-      expect(dto.cleanerHourlyRate).toBe(25);
+      // The rate is set on the Wages card only; the order edit never carries it.
+      expect(dto.cleanerHourlyRate).toBeUndefined();
     });
 
     it('sends cleanerTotalSalary while the order is still unstaffed', () => {
@@ -1602,6 +1611,66 @@ describe('OrdersComponent', () => {
           expect(component.payrollError).toBe('Nobody is assigned to this order yet.');
           expect(component.errorMessage).toBe('');
         });
+      });
+
+      /** Cleaners Count moved out of Edit Order onto the Wages card (2026-09). */
+      describe('the cleaners count editor', () => {
+        beforeEach(() => {
+          admin('SuperAdmin');
+          selectOrder();
+          component.selectedOrderPayroll = payroll() as any;
+        });
+
+        it('writes the new count and copies it back onto the order', () => {
+          const svc = TestBed.inject(AdminService);
+          const spy = spyOn(svc, 'updateOrderMaidsCount')
+            .and.returnValue(of(payroll({ maidsCount: 3 }) as any));
+          spyOn(svc, 'getOrdersStaffingWarnings').and.returnValue(of({}));
+
+          component.startEditMaidsCount();
+          expect(component.maidsCountInput).toBe(2);
+          component.maidsCountInput = 3;
+          component.saveMaidsCount();
+
+          expect(spy).toHaveBeenCalledWith(315, 3);
+          expect(component.selectedOrder!.maidsCount).toBe(3);
+          expect(component.editingMaidsCount).toBe(false);
+        });
+
+        it('saving the same count writes nothing', () => {
+          const spy = spyOn(TestBed.inject(AdminService), 'updateOrderMaidsCount');
+
+          component.startEditMaidsCount();
+          component.saveMaidsCount();
+
+          expect(spy).not.toHaveBeenCalled();
+          expect(component.editingMaidsCount).toBe(false);
+        });
+
+        it('refuses zero or a fraction without calling the server', () => {
+          const spy = spyOn(TestBed.inject(AdminService), 'updateOrderMaidsCount');
+
+          component.startEditMaidsCount();
+          component.maidsCountInput = 0;
+          component.saveMaidsCount();
+          component.maidsCountInput = 1.5;
+          component.saveMaidsCount();
+
+          expect(spy).not.toHaveBeenCalled();
+          expect(component.payrollError).toContain('whole number');
+        });
+
+        it('is not offered on a cleaner+hours order, whose count is its priced Cleaners line', () => {
+          (component.selectedOrder as any).hasCleanersService = true;
+          expect(component.canEditMaidsCountFromWages()).toBe(false);
+        });
+      });
+
+      it('lets only a SuperAdmin type into the discount boxes in Edit Order', () => {
+        admin('SuperAdmin');
+        expect(component.canEditOrderDiscounts).toBe(true);
+        admin('Admin');
+        expect(component.canEditOrderDiscounts).toBe(false);
       });
 
       it('says the change reaches everyone, including lines set by hand', () => {
@@ -2158,5 +2227,324 @@ describe('OrdersComponent — additional amount owed after a down-then-up edit',
     expect(component.getUpdateRowDelta(DOWN_ROW_CLAMPED)).toBe(-2243.65);
     expect(component.getUpdateRowDelta(UP_ROW)).toBe(2243.65);
     expect(component.getUpdateRowDelta({ originalTotal: 500, newTotal: 500 })).toBe(0);
+  });
+});
+
+/**
+ * LEVELS PRICE THE SAME IN THE ADMIN EDITOR AS IN BOOKING (2026-10).
+ *
+ * An order booked as an apartment has no Levels line. Switching it to House in the admin editor
+ * used to show an unpriced "Levels (informational)" box, so 3 levels on Residential cost the
+ * same as 1 - while booking charges two extra levels. The editor now adds the type's priced
+ * Levels row, and every case below asserts the editor's subtotal against BOOKING's own path for
+ * the same inputs (buildQuoteInputFromSelections -> calculateQuote), not against a number.
+ */
+describe('OrdersComponent — levels price like booking', () => {
+  let component: OrdersComponent;
+  let fixture: ComponentFixture<OrdersComponent>;
+
+  const BED_ID = 10, BATH_ID = 20, SQFT_ID = 30, LEVELS_ID = 40;
+
+  const SQFT_ROWS: [number, number][] = [[0, 400], [1, 650], [2, 850], [3, 1000], [4, 1500], [5, 1800], [6, 2000]];
+
+  /** Production-shaped catalogue (scripts/generate-pricing-fixtures.js CONFIG). */
+  function serviceType(id: number, name: string, opts: {
+    basePrice: number; timeDuration: number; minimumPrice: number; withLevels: boolean;
+    bedroomTiers?: { fromQuantity: number; cost: number; timeDuration: number }[];
+  }): any {
+    const tier = (serviceId: number) => (t: any, i: number) => ({ id: serviceId * 10 + i, serviceId, displayOrder: i + 1, ...t });
+    const services: any[] = [
+      { id: BED_ID + id, name: 'Bedrooms', serviceKey: 'bedrooms', cost: 22.5, timeDuration: 30, serviceTypeId: id,
+        isActive: true, minValue: 0, maxValue: 6, zeroQuantityCost: 0, zeroQuantityDuration: 0,
+        chargeAboveThreshold: false, thresholds: [], rateTiers: (opts.bedroomTiers ?? []).map(tier(BED_ID + id)) },
+      { id: BATH_ID + id, name: 'Bathrooms', serviceKey: 'bathrooms', cost: 22.5, timeDuration: 30, serviceTypeId: id,
+        isActive: true, minValue: 1, maxValue: 6, chargeAboveThreshold: false, thresholds: [], rateTiers: [] },
+      { id: SQFT_ID + id, name: 'Sq.ft', serviceKey: 'sqft', cost: 0.18, timeDuration: 0.24, serviceTypeId: id,
+        isActive: true, minValue: 400, maxValue: 5000, chargeAboveThreshold: true,
+        thresholds: SQFT_ROWS.map(([q, inc], i) => ({ id: 500 + i, serviceId: SQFT_ID + id, sourceServiceId: BED_ID + id,
+          sourceServiceKey: 'bedrooms', sourceQuantity: q, includedQuantity: inc })),
+        rateTiers: [
+          { fromQuantity: 0, cost: 0.18, timeDuration: 0.24 },
+          { fromQuantity: 400, cost: 0.135, timeDuration: 0.18 },
+          { fromQuantity: 1200, cost: 0.11, timeDuration: 0.145 }
+        ].map(tier(SQFT_ID + id)) }
+    ];
+    if (opts.withLevels) {
+      // Seeded shape: ChargeAboveThreshold + ONE self-referencing threshold => billable = levels - 1.
+      services.push({ id: LEVELS_ID + id, name: 'Levels', serviceKey: 'levels', cost: 35, timeDuration: 25,
+        serviceTypeId: id, isActive: true, minValue: 1, maxValue: 4, chargeAboveThreshold: true,
+        thresholds: [{ id: 900 + id, serviceId: LEVELS_ID + id, sourceServiceId: LEVELS_ID + id,
+          sourceServiceKey: 'levels', sourceQuantity: 1, includedQuantity: 1 }], rateTiers: [] });
+    }
+    return { id, name, basePrice: opts.basePrice, timeDuration: opts.timeDuration, minimumPrice: opts.minimumPrice,
+      services, extraServices: [], isActive: true, hasPoll: false, isCustom: false };
+  }
+
+  const RESIDENTIAL = serviceType(1, 'Residential Cleaning', { basePrice: 90, timeDuration: 120, minimumPrice: 130, withLevels: true });
+  const MOVE = serviceType(4, 'Move in/out Cleaning', { basePrice: 187.5, timeDuration: 270, minimumPrice: 245, withLevels: true,
+    bedroomTiers: [{ fromQuantity: 0, cost: 45, timeDuration: 60 }, { fromQuantity: 1, cost: 22.5, timeDuration: 30 }] });
+  // A type with no priced Levels service: levels stay informational there, exactly as in booking.
+  const HEAVY = serviceType(6, 'Heavy Conditional Cleaning', { basePrice: 150, timeDuration: 180, minimumPrice: 200, withLevels: false });
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ providers: [...testProviders], imports: [OrdersComponent] }).compileComponents();
+    fixture = TestBed.createComponent(OrdersComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.isSuperAdmin = true;
+    component.serviceTypesCache = [RESIDENTIAL, MOVE, HEAVY];
+  });
+
+  /** An apartment order exactly as booking stores it: bedrooms, bathrooms, sq.ft - no levels line. */
+  function openApartmentOrder(st: any, bedrooms: number, bathrooms: number, sqft: number) {
+    const def = (key: string) => st.services.find((s: any) => s.serviceKey === key);
+    const selections = [
+      { service: def('bedrooms'), quantity: bedrooms },
+      { service: def('bathrooms'), quantity: bathrooms },
+      { service: def('sqft'), quantity: sqft }
+    ];
+    const quote = calculateQuote(buildQuoteInputFromSelections(st, selections, []));
+    component.selectedOrder = {
+      id: 77, serviceTypeId: st.id, propertyType: 'Apartment', levelsQuantity: null,
+      services: selections.map((sel, i) => ({ id: 1000 + i, serviceId: sel.service.id, serviceName: sel.service.name,
+        serviceKey: sel.service.serviceKey, quantity: sel.quantity, cost: quote.serviceLines[i].cost })),
+      extraServices: [], subTotal: quote.subTotal, tax: 0, total: quote.subTotal, tips: 0,
+      discountAmount: 0, subscriptionDiscountAmount: 0, loyaltyDiscountAmount: 0, totalDuration: quote.displayDuration,
+      maidsCount: 1, serviceDate: '2026-11-02T00:00:00', serviceTime: '10:00:00', status: 'Active'
+    } as any;
+    component.startEditOrder();
+    return selections;
+  }
+
+  /** What BOOKING charges for the same home as a house with N levels. */
+  function bookingSubTotal(st: any, selections: any[], levels: number | null): number {
+    const all = levels == null ? selections
+      : [...selections, { service: st.services.find((s: any) => s.serviceKey === 'levels'), quantity: levels }];
+    return calculateQuote(buildQuoteInputFromSelections(st, all, [])).subTotal;
+  }
+
+  const levelsRowIndex = () => component.editOrderForm.services!.findIndex((_r, i) =>
+    component.getEditServiceDefinition(i)?.serviceKey === 'levels');
+
+  function setLevels(n: number) {
+    const i = levelsRowIndex();
+    const row = component.editOrderForm.services![i];
+    row.quantity = n;
+    component.onEditServiceQuantityChange(row, i);
+  }
+
+  [RESIDENTIAL, MOVE].forEach(st => {
+    describe(st.name, () => {
+      it('adds the priced Levels row on House, and every level count prices like booking', () => {
+        const selections = openApartmentOrder(st, 2, 1, 850);
+        const apartmentSubTotal = component.editOrderForm.subTotal;
+        expect(apartmentSubTotal).toBe(bookingSubTotal(st, selections, null));
+
+        component.editOrderForm.propertyType = 'House';
+        component.onEditPropertyTypeChange();
+
+        expect(levelsRowIndex()).toBe(3); // appended after the order's own rows
+        expect(component.showEditInformationalLevels()).toBeFalse();
+        // One level is included: a one-level house costs exactly what the apartment did.
+        expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(st, selections, 1));
+        expect(component.editOrderForm.subTotal).toBe(apartmentSubTotal);
+
+        [2, 3, 4].forEach(n => {
+          setLevels(n);
+          expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(st, selections, n));
+        });
+        expect(component.editOrderForm.subTotal).toBe(round2(apartmentSubTotal! + 3 * 35));
+      });
+
+      it('sends the added row so the server can persist it, and diff-lists it', () => {
+        openApartmentOrder(st, 2, 1, 850);
+        component.editOrderForm.propertyType = 'House';
+        component.onEditPropertyTypeChange();
+        setLevels(3);
+
+        const dto = (component as any).buildOrderEditDto();
+        const added = dto.services.find((s: any) => !s.orderServiceId);
+        expect(added).toEqual(jasmine.objectContaining({ orderServiceId: 0, serviceId: LEVELS_ID + st.id, quantity: 3, cost: 70 }));
+        expect(added.duration).toBe(50);
+        expect(dto.subTotal).toBe(component.editOrderForm.subTotal);
+
+        const changes = component.computeOrderEditChanges(component.selectedOrder, dto);
+        expect(changes.find(c => c.field === 'Levels')).toEqual(jasmine.objectContaining({ current: '—', proposed: '3' }));
+        expect(changes.some(c => c.field === 'Levels (new) (qty/cost)')).toBeTrue();
+      });
+
+      it('takes the added row away again on Apartment, back to the apartment price', () => {
+        const selections = openApartmentOrder(st, 2, 1, 850);
+        component.editOrderForm.propertyType = 'House';
+        component.onEditPropertyTypeChange();
+        setLevels(4);
+
+        component.editOrderForm.propertyType = 'Apartment';
+        component.onEditPropertyTypeChange();
+
+        expect(levelsRowIndex()).toBe(-1);
+        expect(component.editOrderForm.services!.length).toBe(3);
+        expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(st, selections, null));
+      });
+
+      it('keeps levels inside the range booking offers (1-4)', () => {
+        openApartmentOrder(st, 2, 1, 850);
+        component.editOrderForm.propertyType = 'House';
+        component.onEditPropertyTypeChange();
+        setLevels(9);
+        expect(component.editOrderForm.services![levelsRowIndex()].quantity).toBe(4);
+        setLevels(0);
+        expect(component.editOrderForm.services![levelsRowIndex()].quantity).toBe(1);
+      });
+
+      it('turns a studio into 1 bedroom on House, like booking', () => {
+        const selections = openApartmentOrder(st, 0, 1, 400);
+        component.editOrderForm.propertyType = 'House';
+        component.onEditPropertyTypeChange();
+
+        expect(component.editOrderForm.services![0].quantity).toBe(1);
+        // Sq.ft follows the bedroom floor (400 -> 650), exactly as booking's linkage does.
+        expect(component.editOrderForm.services![2].quantity).toBe(650);
+        const house = [{ ...selections[0], quantity: 1 }, selections[1], { ...selections[2], quantity: 650 }];
+        expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(st, house, 1));
+      });
+    });
+  });
+
+  it('leaves levels informational, and the price alone, on a type that does not price them', () => {
+    const selections = openApartmentOrder(HEAVY, 2, 1, 850);
+    component.editOrderForm.propertyType = 'House';
+    component.onEditPropertyTypeChange();
+
+    expect(levelsRowIndex()).toBe(-1);
+    expect(component.showEditInformationalLevels()).toBeTrue();
+    expect(component.editLevelsArePriced()).toBeFalse();
+    component.editOrderForm.levelsQuantity = 3;
+    component.onEditInformationalLevelsChange();
+    expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(HEAVY, selections, null));
+  });
+
+  it('turns a house order saved WITHOUT its Levels row priced the moment the count changes', () => {
+    // Only the old bug could produce this: a house on a priced type with an informational count.
+    const selections = openApartmentOrder(RESIDENTIAL, 2, 1, 850);
+    (component.selectedOrder as any).propertyType = 'House';
+    (component.selectedOrder as any).levelsQuantity = 3;
+    component.startEditOrder();
+
+    // Opening the editor moves nothing...
+    expect(component.showEditInformationalLevels()).toBeTrue();
+    expect(component.editLevelsArePriced()).toBeTrue();
+    expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(RESIDENTIAL, selections, null));
+
+    // ...and touching the count adds the priced row at that count.
+    component.editOrderForm.levelsQuantity = 2;
+    component.onEditInformationalLevelsChange();
+    expect(component.showEditInformationalLevels()).toBeFalse();
+    expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(RESIDENTIAL, selections, 2));
+  });
+});
+
+describe('OrdersComponent — edits price like booking (2026-10)', () => {
+  let component: OrdersComponent;
+
+  const BED = { id: 10, name: 'Bedrooms', serviceKey: 'bedrooms', cost: 22.5, timeDuration: 30, serviceTypeId: 1,
+    isActive: true, minValue: 0, maxValue: 6, zeroQuantityCost: 0, zeroQuantityDuration: 0, thresholds: [], rateTiers: [] };
+  const BATH = { id: 20, name: 'Bathrooms', serviceKey: 'bathrooms', cost: 22.5, timeDuration: 30, serviceTypeId: 1,
+    isActive: true, minValue: 1, maxValue: 5, thresholds: [], rateTiers: [] };
+  const ST = { id: 1, name: 'Residential Cleaning', basePrice: 90, timeDuration: 120, minimumPrice: 130,
+    services: [BED, BATH], extraServices: [], isActive: true, hasPoll: false, isCustom: false } as any;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ providers: [...testProviders], imports: [OrdersComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(OrdersComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    component.isSuperAdmin = true;
+    component.serviceTypesCache = [ST];
+  });
+
+  const subTotalOf = (bed: number, bath: number) => calculateQuote(buildQuoteInputFromSelections(ST,
+    [{ service: BED, quantity: bed }, { service: BATH, quantity: bath }], [])).subTotal;
+
+  /** A 2-bed / 1-bath order as booking stores it, with the discount and the rule it recorded. */
+  function open(discount: { amount: number; percent?: number | null; fixed?: number | null }) {
+    const quote = calculateQuote(buildQuoteInputFromSelections(ST,
+      [{ service: BED, quantity: 2 }, { service: BATH, quantity: 1 }], []));
+    component.selectedOrder = {
+      id: 88, serviceTypeId: 1, propertyType: 'Apartment', levelsQuantity: null,
+      services: [{ id: 1, serviceId: 10, serviceName: 'Bedrooms', serviceKey: 'bedrooms', quantity: 2, cost: quote.serviceLines[0].cost },
+                 { id: 2, serviceId: 20, serviceName: 'Bathrooms', serviceKey: 'bathrooms', quantity: 1, cost: quote.serviceLines[1].cost }],
+      extraServices: [], subTotal: quote.subTotal, tax: 0, total: quote.subTotal, tips: 0,
+      discountAmount: discount.amount, discountPercent: discount.percent ?? null, discountFixedAmount: discount.fixed ?? null,
+      subscriptionDiscountAmount: 0, loyaltyDiscountAmount: 0, totalDuration: quote.displayDuration,
+      maidsCount: 1, serviceDate: '2026-11-02T00:00:00', serviceTime: '10:00:00', status: 'Active'
+    } as any;
+    component.startEditOrder();
+  }
+
+  function setQuantity(index: number, quantity: number) {
+    const row = component.editOrderForm.services![index];
+    row.quantity = quantity;
+    component.onEditServiceQuantityChange(row, index);
+  }
+
+  const dto = () => (component as any).buildOrderEditDto();
+
+  it('keeps a FIXED promo fixed when the job grows (it used to scale with the subtotal)', () => {
+    open({ amount: 30, fixed: 30 });
+    setQuantity(1, 3);
+    expect(component.editOrderForm.subTotal).toBe(subTotalOf(2, 3));
+    expect(component.editOrderForm.discountAmount).toBe(30);
+  });
+
+  it('recomputes a PERCENTAGE promo exactly like booking', () => {
+    open({ amount: percentOf(subTotalOf(2, 1), 20), percent: 20 });
+    setQuantity(0, 4);
+    expect(component.editOrderForm.discountAmount).toBe(percentOf(subTotalOf(4, 1), 20));
+  });
+
+  it('keeps the proportional re-scale for an order with no recorded rule', () => {
+    open({ amount: 30 });
+    setQuantity(1, 3);
+    expect(component.editOrderForm.discountAmount).toBe(round2(subTotalOf(2, 3) * (30 / subTotalOf(2, 1))));
+  });
+
+  it('holds every stepper inside the range booking allows', () => {
+    open({ amount: 0 });
+    setQuantity(1, 9);   // bathrooms max 5
+    expect(component.editOrderForm.services![1].quantity).toBe(5);
+    setQuantity(1, 0);   // bathrooms min 1
+    expect(component.editOrderForm.services![1].quantity).toBe(1);
+    setQuantity(0, 12);  // bedrooms max 6
+    expect(component.editOrderForm.services![0].quantity).toBe(6);
+    expect(component.editOrderForm.subTotal).toBe(subTotalOf(6, 1));
+  });
+
+  it('a house never steps below one bedroom', () => {
+    open({ amount: 0 });
+    component.editOrderForm.propertyType = 'House';
+    setQuantity(0, 0);
+    expect(component.editOrderForm.services![0].quantity).toBe(1);
+  });
+
+  it('tells the server when the admin TYPED the price, and stops once the lines re-price it', () => {
+    open({ amount: 0 });
+    expect(dto().priceTypedByAdmin).toBeUndefined();
+
+    component.editOrderForm.subTotal = 400;
+    component.onEditSubTotalChange();
+    expect(dto().priceTypedByAdmin).toBeTrue();
+    expect(dto().subTotal).toBe(400);
+
+    setQuantity(1, 2);
+    expect(dto().priceTypedByAdmin).toBeUndefined();
+    expect(dto().subTotal).toBe(subTotalOf(2, 2));
+  });
+
+  it('a typed Total also counts as a typed price', () => {
+    open({ amount: 0 });
+    component.editOrderTotalInput = 250;
+    component.onEditTotalChange();
+    expect(dto().priceTypedByAdmin).toBeTrue();
   });
 });

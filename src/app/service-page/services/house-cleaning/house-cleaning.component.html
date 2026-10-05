@@ -4,9 +4,9 @@
   <section class="hero-section">
     <div class="container">
       <h1>Professional House Cleaning Services NYC</h1>
-      <p class="subtitle">Deep, Reliable Home Cleaning for Houses and Estates in Queens, Brooklyn, and Staten Island</p>
+      <p class="subtitle">Deep, Reliable Home Cleaning for Houses and Estates in Queens and Brooklyn</p>
       <p class="hero-description">
-        Thorough, dependable house cleaning for multi-story homes and family estates — house cleaning rates start from ${{ pricing.residentialFrom }}.
+        Thorough, dependable house cleaning for multi-story homes and family estates@if (pricing().standardFrom; as p) { — house cleaning rates start from {{ p }}}.
       </p>
       <button class="btn btn-danger book-now-btn" routerLink="/booking">Book Now</button>
     </div>
@@ -24,11 +24,11 @@
           Unlike small apartments, a house features multiple floors, larger high-traffic living areas, and complex layouts that trap dust, pet dander, and allergens. Our trained, fully insured local cleaners specialize in deep residential care, arriving with the right tools to tackle large spaces efficiently. We respect your family's sanctuary, delivering a thorough clean that fits your schedule and protects your investment from the front porch to the back doors.
         </p>
         <p>
-          Our NYC house cleaning rates start at ${{ pricing.residentialFrom }}, offering transparent, flat-rate pricing based entirely on your home's square footage, bedrooms, and bathrooms. We match our cleaning methods to your home's exact condition across our specialized service levels, using safe, high-quality products to preserve your hardwood floors, tile grout, and custom finishes.
+          Our NYC house cleaning rates @if (pricing().standardFrom; as p) {start at {{ p }}, offering} @else {offer} transparent, flat-rate pricing based entirely on your home's square footage, bedrooms, and bathrooms. We match our cleaning methods to your home's exact condition across our specialized service levels, using safe, high-quality products to preserve your hardwood floors, tile grout, and custom finishes.
         </p>
       </div>
       <div class="image-placeholder">
-        <img src="/images/house-cleaning-service-nyc.webp" alt="Professional house cleaning service for multi-floor NYC homes in Queens, Brooklyn & Staten Island" loading="lazy">
+        <img src="/images/house-cleaning-service-nyc.webp" cardImage="contentImage" alt="Professional house cleaning service for multi-floor NYC homes in Queens & Brooklyn" loading="lazy">
       </div>
     </section>
 
@@ -84,7 +84,7 @@
           </ul>
         </div>
         <div class="image-placeholder">
-          <img src="/images/house-cleaning-service-nyc-2.webp" alt="House cleaning for NYC bedrooms, living rooms and high-traffic family areas" loading="lazy">
+          <img src="/images/house-cleaning-service-nyc-2.webp" cardImage="contentImage" alt="House cleaning for NYC bedrooms, living rooms and high-traffic family areas" loading="lazy">
         </div>
       </div>
 
@@ -102,7 +102,7 @@
           </ul>
         </div>
         <div class="image-placeholder">
-          <img src="/images/kitchen-cleaning-in-nyc.webp" alt="House kitchen deep-wipe in NYC — island counters, appliances and cabinet faces" loading="lazy">
+          <img src="/images/kitchen-cleaning-in-nyc.webp" cardImage="contentImage" alt="House kitchen deep-wipe in NYC — island counters, appliances and cabinet faces" loading="lazy">
         </div>
       </div>
 
@@ -140,28 +140,28 @@
         <div class="benefit-item">
           <div class="checkmark">&#10003;</div>
           <div class="benefit-content">
-            <h4>Multi-Floor Experts</h4>
+            <h3>Multi-Floor Experts</h3>
             <p>Teams equipped to handle large layout homes, staircases, and high-traffic family zones efficiently.</p>
           </div>
         </div>
         <div class="benefit-item">
           <div class="checkmark">&#10003;</div>
           <div class="benefit-content">
-            <h4>Safe for Kids &amp; Pets</h4>
+            <h3>Safe for Kids &amp; Pets</h3>
             <p>We use high-quality, non-toxic products that clean deeply without leaving harsh, dangerous chemical residues behind.</p>
           </div>
         </div>
         <div class="benefit-item">
           <div class="checkmark">&#10003;</div>
           <div class="benefit-content">
-            <h4>Reliable and Consistent</h4>
+            <h3>Reliable and Consistent</h3>
             <p>Lock in your preferred weekly or bi-weekly slot with the same trusted cleaner who knows your home's layout.</p>
           </div>
         </div>
         <div class="benefit-item">
           <div class="checkmark">&#10003;</div>
           <div class="benefit-content">
-            <h4>Fully Bonded and Insured</h4>
+            <h3>Fully Bonded and Insured</h3>
             <p>Complete liability protection for your high-value property, structural assets, and peace of mind.</p>
           </div>
         </div>
@@ -172,7 +172,7 @@
     <section class="cta-section">
       <h2>Book Professional House Cleaning in NYC</h2>
       <p>
-        Contact Dream Cleaning NYC today to schedule your professional house cleaning and keep your entire family home beautifully maintained. House cleaning rates start from ${{ pricing.residentialFrom }}, with flat-rate pricing based on your home's square footage, bedrooms, and bathrooms.
+        Contact Dream Cleaning NYC today to schedule your professional house cleaning and keep your entire family home beautifully maintained. House cleaning rates @if (pricing().standardFrom; as p) {start from {{ p }}, with flat-rate pricing based on} @else {are flat-rate, based on} your home's square footage, bedrooms, and bathrooms.
       </p>
       <div class="cta-buttons">
         <a routerLink="/booking" class="btn btn-primary">Book House Cleaning</a>

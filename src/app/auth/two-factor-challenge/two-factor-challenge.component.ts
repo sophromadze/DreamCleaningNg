@@ -4,15 +4,24 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { TwoFactorService, TwoFactorChallenge } from '../../services/two-factor.service';
 import { AuthService } from '../../services/auth.service';
+import { IconComponent } from '../../shared/icons/icon.component';
+import { faArrowRight } from '../../shared/icons/glyphs/faArrowRight';
+import { faCheck } from '../../shared/icons/glyphs/faCheck';
+import { faCircleExclamation } from '../../shared/icons/glyphs/faCircleExclamation';
+import { faCircleInfo } from '../../shared/icons/glyphs/faCircleInfo';
+import { faShieldHalved } from '../../shared/icons/glyphs/faShieldHalved';
+import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
 
 @Component({
   selector: 'app-two-factor-challenge',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, IconComponent],
   templateUrl: './two-factor-challenge.component.html',
   styleUrls: ['./two-factor-challenge.component.scss']
 })
 export class TwoFactorChallengeComponent implements OnInit {
+  protected readonly icons = { faArrowRight, faCheck, faCircleExclamation, faCircleInfo, faShieldHalved, faSpinner };
+
   // Pulled from localStorage so a page refresh on this screen survives. If missing
   // the user is bounced back to /auth (they need to log in again).
   challenge: TwoFactorChallenge | null = null;
@@ -53,7 +62,7 @@ export class TwoFactorChallengeComponent implements OnInit {
 
     if (!this.challenge?.challengeId) {
       // No active challenge — send back to login.
-      this.router.navigate(['/auth']);
+      this.router.navigate(['/login']);
     }
   }
 
@@ -164,7 +173,7 @@ export class TwoFactorChallengeComponent implements OnInit {
     if (this.isBrowser) {
       localStorage.removeItem('tf_pending_challenge');
     }
-    this.router.navigate(['/auth']);
+    this.router.navigate(['/login']);
   }
 
   // ───── Helpers ───────────────────────────────────────────────────────────
@@ -189,6 +198,6 @@ export class TwoFactorChallengeComponent implements OnInit {
     if (this.isBrowser) {
       localStorage.removeItem('tf_pending_challenge');
     }
-    setTimeout(() => this.router.navigate(['/auth']), 1500);
+    setTimeout(() => this.router.navigate(['/login']), 1500);
   }
 }

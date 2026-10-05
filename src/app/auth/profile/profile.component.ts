@@ -1,3 +1,5 @@
+import { MyInvoicesTabComponent } from './invoices/my-invoices-tab.component';
+import { MyGiftCardsTabComponent } from './gift-cards/my-gift-cards-tab.component';
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -30,8 +32,10 @@ import {
   ReferAFriendComponent
 } from '../../shared/components/refer-a-friend/refer-a-friend.component';
 import { BubbleRewardsService } from '../../services/bubble-rewards.service';
+import { readableLabelColor } from '../../shared/admin/readable-label-color';
+import { isCancelledOrRefundedStatus } from '../../shared/admin/order-status-badge';
 
-export type ProfileTab = 'overview' | 'personal' | 'plan' | 'addresses' | 'billing' | 'security';
+export type ProfileTab = 'overview' | 'personal' | 'plan' | 'addresses' | 'billing' | 'invoices' | 'gift-cards' | 'security';
 
 /**
  * How many cleanings one page of the Overview list holds. The owner's figure (10, 2026-09) —
@@ -46,7 +50,7 @@ export const ORDERS_PER_PAGE = 10;
   imports: [
     CommonModule, FormsModule, RouterModule, ShimmerDirective,
     TrustedDevicesComponent, BillingTabComponent, UpcomingRecurringOrdersComponent,
-    ReferAFriendComponent
+    ReferAFriendComponent, MyInvoicesTabComponent, MyGiftCardsTabComponent
   ],
   templateUrl: './profile.component.html',
   styleUrls: ['./profile.component.scss']
@@ -64,6 +68,8 @@ export class ProfileComponent implements OnInit {
     { key: 'plan', label: 'Plan', icon: 'fas fa-calendar-check' },
     { key: 'addresses', label: 'Addresses', icon: 'fas fa-map-marker-alt' },
     { key: 'billing', label: 'Billing', icon: 'fas fa-credit-card' },
+    { key: 'invoices', label: 'Invoices', icon: 'fas fa-file-invoice-dollar' },
+    { key: 'gift-cards', label: 'Gift Cards', icon: 'fas fa-gift' },
     { key: 'security', label: 'Security', icon: 'fas fa-shield-alt' }
   ];
   activeTab: ProfileTab = 'overview';
@@ -83,6 +89,15 @@ export class ProfileComponent implements OnInit {
   // ── The customer's cleanings, on Overview ────────────────────────────────────────────
   orders: OrderList[] | null = null;   // null = not loaded yet, [] = loaded and empty
   ordersError = '';
+
+  /**
+   * "Your cleanings (N)": REAL orders only - not cancelled, not fully refunded (owner's rule,
+   * 2026-10, the same as the admin panel's Total Jobs). The list below still shows every order
+   * with its status; a partly refunded order keeps its status, so it still counts.
+   */
+  get realOrderCount(): number {
+    return (this.orders ?? []).filter(o => !isCancelledOrRefundedStatus(o.status)).length;
+  }
   ordersPage = 1;
   readonly ordersPerPage = ORDERS_PER_PAGE;
 
@@ -153,6 +168,9 @@ export class ProfileComponent implements OnInit {
 
   // Edit apartment form
   editingApartment: Apartment | null = null;
+
+  /** Offer badge colours are chosen by an admin; the label adapts so it stays readable on any of them. */
+  readonly badgeLabelColor = readableLabelColor;
 
   constructor(
     private profileService: ProfileService,
@@ -814,9 +832,14 @@ export class ProfileComponent implements OnInit {
     return hoursUntilService > 48;
   }
 
+  /**
+   * Cash / Zelle / Check / Other orders booked by the office keep isPaid=false by backend design,
+   * so a raw isPaid test left the customer no way to cancel them. isEffectivelyPaid is the same
+   * rule the Paid badge uses; the backend's cancel accepts any not-Done, not-Cancelled order.
+   */
   canCancelOrder(order: OrderList): boolean {
     if (order.recurringSeriesId) return false;
-    return order.status === 'Active' && !!order.isPaid;
+    return order.status === 'Active' && this.isEffectivelyPaid(order);
   }
 
   isLateCancellation(order: OrderList): boolean {

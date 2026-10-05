@@ -8,11 +8,11 @@
 
   <div class="about-intro-row">
     <div class="about-intro-image">
-      <img src="/images/dream-cleaning-maids-in-nyc.webp" alt="Dream Cleaning Team" loading="lazy" />
+      <img [srcset]="teamPhoto.srcset" [sizes]="teamPhoto.sizes" [src]="teamPhoto.src" alt="Dream Cleaning Team" loading="lazy" />
     </div>
     <div class="about-intro-text">
       <p class="lead-text">
-        Dream Cleaning is a locally owned and operated cleaning company based in Brooklyn, New York, founded in 2024. We serve over 120 ZIP codes across Brooklyn, Manhattan, and Queens with a team of 10+ background-checked, insured cleaning professionals. With a 5.0-star Google rating across 100+ reviews and thousands of homes cleaned, Dream Cleaning has quickly become one of NYC's most trusted residential and commercial cleaning services.
+        Dream Cleaning is a locally owned and operated cleaning company based in Brooklyn, New York, founded in 2024. We serve over 120 ZIP codes across Brooklyn, Manhattan, and Queens with a team of 10+ background-checked, insured cleaning professionals. With a 5.0-star Google rating and thousands of homes cleaned, Dream Cleaning has quickly become one of NYC's most trusted residential and commercial cleaning services.
       </p>
     </div>
   </div>
@@ -89,7 +89,7 @@
             </svg>
           </div>
           <h3>Standard Residential Cleaning</h3>
-          <p>Weekly, biweekly, or monthly maintenance starting from ${{ pricing.residentialFrom }}.</p>
+          <p>Weekly, biweekly, or monthly maintenance@if (pricing().standardFrom; as p) { starting from {{ p }}}.</p>
         </div>
 
         <div class="value-card">
@@ -101,7 +101,7 @@
             </svg>
           </div>
           <h3>Deep Cleaning</h3>
-          <p>A detailed, top-to-bottom cleaning solution starting from ${{ pricing.deepFrom }} — designed for homes that need more than routine maintenance, targeting stubborn buildup, kitchen grease, hidden dust, baseboards, and hard-to-reach areas. Recommended every 3-6 months.</p>
+          <p>A detailed, top-to-bottom cleaning solution@if (pricing().deepFrom; as p) { starting from {{ p }}} — designed for homes that need more than routine maintenance, targeting stubborn buildup, kitchen grease, hidden dust, baseboards, and hard-to-reach areas. Recommended every 3-6 months.</p>
         </div>
 
         <div class="value-card">
@@ -112,7 +112,7 @@
             </svg>
           </div>
           <h3>Move In/Out Cleaning</h3>
-          <p>Comprehensive transition cleaning starting from ${{ pricing.moveInOutFrom }}, designed to meet lease requirements.</p>
+          <p>Comprehensive transition cleaning@if (pricing().moveInOutFrom; as p) { starting from {{ p }}}, designed to meet lease requirements.</p>
         </div>
 
         <div class="value-card">
@@ -136,7 +136,7 @@
             </svg>
           </div>
           <h3>Heavy Condition Cleaning</h3>
-          <p>Intensive restoration for severely neglected spaces with significant buildup at ${{ pricing.heavyConditionPerHour }}/hour per cleaner.</p>
+          <p>Intensive restoration for severely neglected spaces with significant buildup@if (pricing().heavyPerHour; as p) { at {{ p }}/hour per cleaner}.</p>
         </div>
 
         <div class="value-card">
@@ -149,7 +149,7 @@
             </svg>
           </div>
           <h3>Filthy Cleaning</h3>
-          <p>Our most intensive service for extreme situations — hoarding, years of neglect — at ${{ pricing.filthyPerHour }}/hour per cleaner with a 2-cleaner minimum.</p>
+          <p>Our most intensive service for extreme situations — hoarding, years of neglect —@if (pricing().filthyShort; as p) { at {{ p }} with a 2-cleaner minimum} @else { priced after assessment, with a 2-cleaner minimum}.</p>
         </div>
       </div>
       <p>All services include background-checked cleaners, professional-grade equipment, and a 100% satisfaction guarantee.</p>
@@ -164,7 +164,7 @@
               <polyline points="20,6 9,17 4,12"/>
             </svg>
           </div>
-          <span>5.0-star Google rating with 100+ reviews</span>
+          <span>5.0-star Google rating</span>
         </div>
         <div class="stand-for-item">
           <div class="check-icon">

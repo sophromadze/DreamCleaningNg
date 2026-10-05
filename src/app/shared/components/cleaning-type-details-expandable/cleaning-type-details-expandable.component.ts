@@ -7,15 +7,22 @@ import {
   DEEP_CLEANING_NOT_INCLUDED,
   CleaningChecklistSection,
 } from '../../cleaning-type-details.data';
+import { IconComponent } from '../../icons/icon.component';
+import { faCheck } from '../../icons/glyphs/faCheck';
+import { faChevronDown } from '../../icons/glyphs/faChevronDown';
+import { faChevronUp } from '../../icons/glyphs/faChevronUp';
+import { faXmark } from '../../icons/glyphs/faXmark';
 
 @Component({
   selector: 'app-cleaning-type-details-expandable',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, IconComponent],
   templateUrl: './cleaning-type-details-expandable.component.html',
   styleUrl: './cleaning-type-details-expandable.component.scss',
 })
 export class CleaningTypeDetailsExpandableComponent {
+  protected readonly icons = { faCheck, faChevronDown, faChevronUp, faXmark };
+
   @Input() cleaningType: 'normal' | 'deep' = 'normal';
 
   expanded = false;

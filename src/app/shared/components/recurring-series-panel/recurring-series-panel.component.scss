@@ -16,7 +16,8 @@
 
 .rsp-loading,
 .rsp-muted {
-  color: var(--text-muted);
+  color: var(--text-muted-on-tint);
+  :host-context([data-theme="dark"]) & { color: var(--text-muted-on-elevated); }
   font-size: 0.85rem;
   margin: 0 0 8px;
 }
@@ -236,6 +237,13 @@
   &--count { flex: 0 0 74px; }
 }
 
+/* A count on its own line (Generate upcoming cleanings) stays the size of the "Repeat every"
+   number instead of stretching across the column. */
+.rsp-field > .rsp-input--count {
+  width: 74px;
+  align-self: flex-start;
+}
+
 /* "Repeat every [2] [week(s)]" is one sentence, so the number and the unit sit on one line. The
    old markup faked the alignment with an empty &nbsp; label above the select. */
 .rsp-inline {
@@ -329,6 +337,41 @@
     color: var(--primary-color);
     font-weight: var(--fw-semibold);
     box-shadow: 0 1px 2px var(--shadow-color);
+  }
+}
+
+// ── Service days / days of month ──────────────────────────────────────────────────────────
+// Toggle chips, the segmented control's look spread over seven (or 31) independent choices.
+
+.rsp-days {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+
+  &--month { max-width: 300px; }
+}
+
+.rsp-day {
+  min-width: 38px;
+  padding: 5px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--page-bg);
+  color: var(--text-muted);
+  font-size: 0.79rem;
+  font-weight: var(--fw-medium);
+  font-family: inherit;
+  cursor: pointer;
+
+  .rsp-days--month & { min-width: 32px; padding: 4px 0; }
+
+  &:hover:not(.rsp-day--on) { color: var(--text-primary); }
+
+  &--on {
+    border-color: var(--primary-color);
+    background: var(--surface);
+    color: var(--primary-color);
+    font-weight: var(--fw-semibold);
   }
 }
 

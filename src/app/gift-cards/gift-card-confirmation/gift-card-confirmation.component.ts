@@ -4,15 +4,20 @@ import { Router, RouterModule } from '@angular/router';
 import { GiftCardService, CreateGiftCard } from '../../services/gift-card.service';
 import { AuthService } from '../../services/auth.service';
 import { StripeService } from '../../services/stripe.service';
+import { IconComponent } from '../../shared/icons/icon.component';
+import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
+import { faEnvelope } from '../../shared/icons/glyphs/faEnvelope';
 
 @Component({
   selector: 'app-gift-card-confirmation',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [CommonModule, RouterModule, IconComponent],
   templateUrl: './gift-card-confirmation.component.html',
   styleUrls: ['./gift-card-confirmation.component.scss']
 })
 export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
+  protected readonly icons = { faCircleCheck, faEnvelope };
+
   giftCardId: number = 0;
   isProcessing = false;
   paymentCompleted = false;
@@ -174,7 +179,9 @@ export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
         },
         error: (error) => {
           if (error.status === 401) {
-            this.errorMessage = 'Authentication required. Please try again or contact support if the issue persists.';
+            // "Send later" answers 401 with its own message when the session has ended.
+            this.errorMessage = error.error?.message
+              || 'Authentication required. Please try again or contact support if the issue persists.';
           } else {
             this.errorMessage = error.error?.message || 'Failed to create gift card. Please try again.';
           }

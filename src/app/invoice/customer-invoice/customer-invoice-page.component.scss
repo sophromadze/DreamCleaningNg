@@ -1,0 +1,295 @@
+// /pay-invoice/:token — a regular customer invoice. Reads as a document on screen and on paper.
+.cip-page {
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 28px 16px 48px;
+}
+
+.cip-state {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-secondary);
+
+  h1 { color: var(--text-primary); font-size: 24px; }
+}
+
+.cip-invoice {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md, 12px);
+  padding: 28px;
+  color: var(--text-primary);
+}
+
+.cip-muted {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.cip-head {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid var(--primary-color);
+}
+
+.cip-company__name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.cip-title {
+  text-align: right;
+
+  h1 {
+    margin: 0;
+    font-size: 28px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+}
+
+.cip-number {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 2px 0;
+}
+
+.cip-status {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--soft-yellow);
+  color: var(--soft-yellow-text);
+
+  &--paid { background: #d4edda; color: #155724; }
+  &--void, &--cancelled { background: var(--soft-red); color: var(--bright-red); }
+}
+
+.cip-banner {
+  margin-top: 18px;
+  padding: 12px 16px;
+  border-radius: var(--radius-sm, 8px);
+  font-weight: 600;
+
+  &--paid { background: #d4edda; color: #155724; }
+  &--void { background: var(--soft-red); color: var(--bright-red); }
+}
+
+.cip-parties {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin: 22px 0;
+
+  h2 {
+    margin: 0 0 6px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+}
+
+.cip-breakdown {
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+}
+
+.cip-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 15px;
+
+  &--total {
+    border-top: 1px solid var(--border-color);
+    margin-top: 6px;
+    padding-top: 10px;
+    font-weight: 700;
+  }
+
+  &--part {
+    font-weight: 700;
+    color: var(--primary-color);
+  }
+}
+
+.cip-note {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--surface-subtle);
+  white-space: pre-wrap;
+}
+
+.cip-due {
+  margin-top: 24px;
+  text-align: center;
+
+  &__label { color: var(--text-secondary); font-size: 14px; }
+  &__amount { font-size: 38px; font-weight: 800; color: var(--primary-color); }
+}
+
+.cip-pay {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  margin-top: 18px;
+  text-align: left;
+
+  &__option {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md, 12px);
+    padding: 18px;
+
+    h3 {
+      margin: 0 0 6px;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .cip-btn { margin-top: auto; }
+
+    // The two ONLINE options: each carries its own accent so they read as different choices.
+    &--card { border-top: 4px solid var(--primary-color); }
+    &--ach  { border-top: 4px solid var(--fresh-green); }
+
+    // Manual transfer: instructions, not a button — full width under the two online options.
+    &--transfer {
+      grid-column: 1 / -1;
+      background: var(--surface-subtle, transparent);
+      .cip-bank { margin-top: 6px; }
+    }
+  }
+
+  &__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    margin-bottom: 10px;
+    font-size: 18px;
+  }
+  &__option--card &__icon { background: color-mix(in srgb, var(--primary-color) 14%, transparent); color: var(--primary-color); }
+  &__option--ach &__icon  { background: color-mix(in srgb, var(--fresh-green) 16%, transparent); color: color-mix(in srgb, var(--fresh-green) 70%, #000); }
+
+  &__badge {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    background: var(--surface-subtle, rgba(0, 0, 0, 0.05));
+    color: var(--text-secondary);
+  }
+}
+
+.cip-btn--ach {
+  background: color-mix(in srgb, var(--fresh-green) 72%, #000);
+  &:hover:not(:disabled) { background: color-mix(in srgb, var(--fresh-green) 62%, #000); }
+  &:disabled { opacity: 0.7; cursor: wait; }
+}
+
+.cip-status--processing {
+  background: color-mix(in srgb, var(--primary-color) 14%, transparent);
+  color: var(--primary-color);
+}
+
+.cip-btn {
+  margin-top: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--primary-color);
+  color: #fff;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover { background: var(--primary-color-hover); }
+}
+
+.cip-bank {
+  margin: 10px 0 0;
+
+  > div {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--border-color);
+    font-size: 14px;
+  }
+
+  dt { color: var(--text-secondary); }
+  dd { margin: 0; text-align: right; word-break: break-all; }
+}
+
+.cip-copy {
+  margin-left: 6px;
+  padding: 1px 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  background: none;
+  color: var(--primary-color);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.cip-foot {
+  margin-top: 24px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.cip-link {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 600px) {
+  .cip-page { padding-top: 16px; }
+  .cip-invoice { padding: 18px; }
+  .cip-title { text-align: left; }
+}
+
+@media print {
+  .cip-page { padding: 0; }
+  .cip-invoice { border: none; }
+  .cip-btn, .cip-copy, .cip-link { display: none !important; }
+}
+
+.cip-banner--processing {
+  background: color-mix(in srgb, var(--primary-color) 10%, var(--surface, #fff));
+  border: 1px solid color-mix(in srgb, var(--primary-color) 35%, transparent);
+  color: var(--text-primary);
+}
+
+.cip-error {
+  margin-top: 0.5rem;
+  color: var(--bright-red);
+  font-size: 0.875rem;
+}

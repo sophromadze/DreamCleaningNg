@@ -43,7 +43,7 @@
       <div class="help-body">
         <!-- ზოგადი ახსნა — ყველა ტაბზე -->
         <div class="help-block">
-          <h4>CRM — ზოგადი</h4>
+          <h2>CRM — ზოგადი</h2>
           <p>
             <strong>CRM</strong> (Customer Relationship Management) არის სისტემა, რომელიც გვეხმარება
             მართოთ ურთიერთობა როგორც <strong>პოტენციურ კლიენტებთან</strong> (ვინც ჯერ არ დაჯავშნა),
@@ -58,7 +58,7 @@
 
         <!-- LEADS ტაბი -->
         <div class="help-block" *ngIf="activeTab === 'leads'">
-          <h4>Leads &amp; Pipeline — ლიდები და გაყიდვების ძაბრი</h4>
+          <h2>Leads &amp; Pipeline — ლიდები და გაყიდვების ძაბრი</h2>
           <p><strong>ლიდი</strong> = პოტენციური კლიენტი, რომელმაც დაგვიკავშირდა, მაგრამ ჯერ არ დაუჯავშნია სერვისი.</p>
           <ul>
             <li><strong>წყაროები (Source):</strong>
@@ -80,7 +80,7 @@
 
         <!-- CUSTOMERS ტაბი -->
         <div class="help-block" *ngIf="activeTab === 'customers'">
-          <h4>Customers — კლიენტების 360° ხედი</h4>
+          <h2>Customers — კლიენტების 360° ხედი</h2>
           <p>ყველა რეგისტრირებული მომხმარებლის სრული სურათი ერთ ადგილას.</p>
           <ul>
             <li><strong>LTV (Lifetime Value):</strong> კლიენტის მიერ დახარჯული ჯამური თანხა.</li>
@@ -97,7 +97,7 @@
 
         <!-- SEGMENTS ტაბი -->
         <div class="help-block" *ngIf="activeTab === 'segments'">
-          <h4>Segments — სეგმენტები (ავტომატური ჯგუფები)</h4>
+          <h2>Segments — სეგმენტები (ავტომატური ჯგუფები)</h2>
           <p>
             სეგმენტი ავტომატურად გამოითვლება შეკვეთების ისტორიის, დახარჯვისა და გამოწერის მიხედვით.
             ბარათზე დაჭერით გადახვალთ ამ ჯგუფის კლიენტების სიაზე.
@@ -116,13 +116,13 @@
 
         <!-- AUTOMATION ტაბი -->
         <div class="help-block" *ngIf="activeTab === 'automation'">
-          <h4>Automation — ავტომატიზაცია</h4>
+          <h2>Automation — ავტომატიზაცია</h2>
           <p class="help-warn">
             🔒 სისტემა კლიენტს <u>არასოდეს</u> უგზავნის შეტყობინებას. წესები მხოლოდ <strong>შესახსენებელ
             სიას (Review alerts) გიქმნით</strong> — დაკავშირებას თქვენ თვითონ აკეთებთ ხელით.
           </p>
 
-          <h5 class="help-sub">🔄 Win-back — დაკარგული კლიენტების დაბრუნება</h5>
+          <h3 class="help-sub">🔄 Win-back — დაკარგული კლიენტების დაბრუნება</h3>
           <p>
             ეს წესი ეძებს კლიენტებს, რომლებიც <strong>ადრე გვიკვეთავდნენ, მაგრამ დიდი ხანია გაჩუმდნენ</strong>
             („lapsed“ = მიძინებული / დაკარგული კლიენტი).

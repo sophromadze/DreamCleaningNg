@@ -148,7 +148,7 @@
         <div class="field">
           <label>Invoice number</label>
           <!-- Allocated by the server and frozen once issued: it is the client's payment memo. -->
-          <input type="text" class="mono readonly"
+          <input aria-label="Invoice number" type="text" class="mono readonly"
                  [value]="existing?.invoiceNumber || 'Assigned when saved'" readonly disabled>
         </div>
 
@@ -173,7 +173,7 @@
           <input id="dueDate" type="date" name="customDueDate"
                  *ngIf="dueTerms === InvoiceDueTerms.Custom"
                  [(ngModel)]="customDueDate" [disabled]="monetaryLocked">
-          <input type="date" *ngIf="dueTerms !== InvoiceDueTerms.Custom"
+          <input aria-label="Due date" type="date" *ngIf="dueTerms !== InvoiceDueTerms.Custom"
                  [value]="resolvedDueDate" readonly disabled class="readonly">
         </div>
       </div>
@@ -278,7 +278,12 @@
 
           <span class="covered-date">{{ o.serviceDate | date:'EEE d MMM y' }}</span>
           <span class="covered-type">{{ o.serviceTypeName }}</span>
-          <span class="covered-total">{{ o.total | currency:'USD' }}</span>
+          <span class="covered-meta">
+            #{{ o.orderId }} · {{ o.status }}<ng-container *ngIf="o.assignedCleaners"> · {{ o.assignedCleaners }}</ng-container><ng-container
+              *ngIf="o.contractNumber"> · {{ o.contractNumber }}</ng-container>
+          </span>
+          <!-- Under a weekly flat fee a cleaning's own total is an operational figure, not a charge. -->
+          <span class="covered-total" *ngIf="!contractIsWeeklyFlatFee">{{ o.total | currency:'USD' }}</span>
 
           <!-- An order missing from the picker is the thing an admin cannot debug, so a blocked
                one is LISTED with the reason instead — "Already included in DCI-2026-…". -->
@@ -288,9 +293,15 @@
 
       <!-- ── The agreed group total ────────────────────────────────────────────────── -->
       <div class="negotiated" *ngIf="selectedOrderIds.length > 0">
-        <p class="negotiated-default">
+        <p class="negotiated-default" *ngIf="!pricedAsWeeklyFlatFee">
           {{ selectedOrderIds.length }} cleaning(s) —
           <strong>{{ selectedOrdersDefaultTotal | currency:'USD' }}</strong> at their current prices.
+        </p>
+        <!-- A weekly flat fee: one fee per distinct contract service week, never one per cleaning. -->
+        <p class="negotiated-default" *ngIf="pricedAsWeeklyFlatFee">
+          {{ selectedOrderIds.length }} cleaning(s) across
+          <strong>{{ serviceWeekCount }} service week(s)</strong> — billed at the contract's flat weekly
+          fee, once per week.
         </p>
 
         <button type="button" class="btn-ghost" *ngIf="!negotiatingTotal && !monetaryLocked"
@@ -364,11 +375,11 @@
         </div>
 
         <div class="items-row" *ngFor="let line of lines; let i = index">
-          <input type="text" [(ngModel)]="line.description" [name]="'desc' + i"
+          <input aria-label="Description" type="text" [(ngModel)]="line.description" [name]="'desc' + i"
                  [disabled]="monetaryLocked" placeholder="Recurring commercial cleaning">
-          <input type="number" class="align-right" [(ngModel)]="line.quantity" [name]="'qty' + i"
+          <input aria-label="Quantity" type="number" class="align-right" [(ngModel)]="line.quantity" [name]="'qty' + i"
                  [disabled]="monetaryLocked" min="0" step="0.01">
-          <input type="number" class="align-right" [(ngModel)]="line.unitPrice" [name]="'rate' + i"
+          <input aria-label="Rate" type="number" class="align-right" [(ngModel)]="line.unitPrice" [name]="'rate' + i"
                  [disabled]="monetaryLocked" min="0" step="0.01">
           <span class="line-amount">{{ lineAmount(line) | currency:'USD' }}</span>
           <button type="button" class="remove-line" (click)="removeLine(i)"

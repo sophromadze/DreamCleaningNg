@@ -8,15 +8,24 @@ import { PhoneNumberService } from '../services/phone-number.service';
 import { environment } from '../../environments/environment';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
 import { AnalyticsService } from '../services/analytics.service';
+import { IconComponent } from '../shared/icons/icon.component';
+import { faCircleCheck } from '../shared/icons/glyphs/faCircleCheck';
+import { faCircleXmark } from '../shared/icons/glyphs/faCircleXmark';
+import { faEnvelope } from '../shared/icons/glyphs/faEnvelope';
+import { faFacebook } from '../shared/icons/glyphs/faFacebook';
+import { faInstagram } from '../shared/icons/glyphs/faInstagram';
+import { faPhone } from '../shared/icons/glyphs/faPhone';
 
 @Component({
   selector: 'app-contact',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterModule, BubbleFieldComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterModule, BubbleFieldComponent, IconComponent],
   templateUrl: './contact.component.html',
   styleUrl: './contact.component.scss'
 })
 export class ContactComponent implements OnInit {
+  protected readonly icons = { faCircleCheck, faCircleXmark, faEnvelope, faFacebook, faInstagram, faPhone };
+
   contactForm: FormGroup;
   isSubmitting = false;
   showSuccess = false;

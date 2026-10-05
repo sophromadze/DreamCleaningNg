@@ -103,6 +103,9 @@ export class RewardsComponent implements OnInit {
       StreakBonus:                'Streak Bonus',
       ReviewBonus:                'Review Bonus',
       AdminAdjustment:            'Admin Adjustment',
+      // Refund/cancellation reversals reach the customer only under this neutral name, with no
+      // order number or reason (BubblePointsService.GetHistory masks them).
+      BalanceAdjustment:          'Balance adjustment',
       Redemption:                 'Redeemed',
       Redeemed:                   'Redeemed',
     };

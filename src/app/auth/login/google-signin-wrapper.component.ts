@@ -85,7 +85,7 @@ import { ThemeService } from '../../services/theme.service';
       border-radius: 8px;
       font-size: 16px;
       font-weight: 500;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Inter', 'Inter Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       display: flex;
       align-items: center;
       justify-content: center;

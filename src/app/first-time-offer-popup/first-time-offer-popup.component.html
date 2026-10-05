@@ -1,10 +1,10 @@
 <div class="first-time-popup" *ngIf="isVisible" role="dialog" aria-label="First-time customer offer">
   <button type="button" class="first-time-popup__close" (click)="close()" aria-label="Close offer">
-    <i class="fas fa-times" aria-hidden="true"></i>
+    <i [appIcon]="icons.faXmark" aria-hidden="true"></i>
   </button>
 
   <div class="first-time-popup__icon" aria-hidden="true">
-    <i class="fas fa-gift" aria-hidden="true"></i>
+    <i [appIcon]="icons.faGift" aria-hidden="true"></i>
   </div>
 
   <div class="first-time-popup__body">

@@ -23,7 +23,7 @@
               <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z"/>
             </svg>
           </span>
-          <span class="reviews-hero__count">Based on {{ totalReviews }}+ Google reviews</span>
+          <span class="reviews-hero__count">Based on {{ reviewCountLabel }}</span>
         </div>
       </div>
       <div class="reviews-hero__media" *ngIf="!heroImageFailed">
@@ -43,6 +43,7 @@
             <div class="review-card__avatar">
               <img *ngIf="r.profilePhotoUrl && !r.avatarFailed"
                    [src]="r.profilePhotoUrl" [alt]="r.authorName"
+                   width="44" height="44" referrerpolicy="no-referrer"
                    loading="lazy" (error)="onAvatarError(r)">
               <span *ngIf="!r.profilePhotoUrl || r.avatarFailed" class="review-card__initials">
                 {{ initials(r.authorName) }}

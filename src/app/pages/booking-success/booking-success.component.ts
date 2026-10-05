@@ -8,19 +8,23 @@ import { BubbleRewardsService } from '../../services/bubble-rewards.service';
 import { AnalyticsService, AnalyticsUserData } from '../../services/analytics.service';
 import {
   buildSupplyChecklistItems,
-  extraServiceNamesOf,
   hasCleaningSuppliesExtra,
   resolveSupplyChecklistFacts
 } from '../../shared/booking/supply-checklist.utils';
+import { IconComponent } from '../../shared/icons/icon.component';
+import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
+import { faEnvelopeOpenText } from '../../shared/icons/glyphs/faEnvelopeOpenText';
 
 @Component({
   selector: 'app-booking-success',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule],
+  imports: [CommonModule, RouterModule, FormsModule, IconComponent],
   templateUrl: './booking-success.component.html',
   styleUrls: ['./booking-success.component.scss']
 })
 export class BookingSuccessComponent implements OnInit, OnDestroy {
+  protected readonly icons = { faCircleCheck, faEnvelopeOpenText };
+
   orderId: string = '';
   order: Order | null = null;
 
@@ -82,12 +86,12 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
         this.orderService.getOrderById(id).subscribe({
           next: (order) => {
             this.order = order;
-            const extraNames = extraServiceNamesOf(order.extraServices ?? []);
+            const extras = order.extraServices ?? [];
 
-            this.hasCleaningSupplies = hasCleaningSuppliesExtra(extraNames);
+            this.hasCleaningSupplies = hasCleaningSuppliesExtra(extras);
             this.isCustomServiceType = this.isCustomServiceTypeOrder(order);
             this.supplyChecklistItems = buildSupplyChecklistItems(
-              resolveSupplyChecklistFacts(extraNames, this.isCustomServiceType)
+              resolveSupplyChecklistFacts(extras, this.isCustomServiceType)
             );
             this.suppliesLoaded = true;
             this.loadEstimatedPoints(order);

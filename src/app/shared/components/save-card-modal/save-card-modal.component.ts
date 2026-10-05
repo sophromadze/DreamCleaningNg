@@ -2,6 +2,9 @@ import {
   AfterViewChecked, Component, ElementRef, EventEmitter, Input, Output, ViewChild
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { IconComponent } from '../../icons/icon.component';
+import { faCircleNotch } from '../../icons/glyphs/faCircleNotch';
+import { faLock } from '../../icons/glyphs/faLock';
 
 /**
  * "Save your card for faster checkout?" — asked BETWEEN the Pay click and the charge (2026-09).
@@ -23,11 +26,13 @@ import { CommonModule } from '@angular/common';
 @Component({
   selector: 'app-save-card-modal',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, IconComponent],
   templateUrl: './save-card-modal.component.html',
   styleUrls: ['./save-card-modal.component.scss']
 })
 export class SaveCardModalComponent implements AfterViewChecked {
+  protected readonly icons = { faCircleNotch, faLock };
+
   /** The host opens it on the Pay click; it never opens itself. */
   @Input() open = false;
 

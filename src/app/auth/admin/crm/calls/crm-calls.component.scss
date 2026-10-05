@@ -38,8 +38,8 @@
       color: var(--text-muted);
     }
 
-    &.stat--answered .stat-value { color: var(--fresh-green); }
-    &.stat--missed .stat-value { color: var(--bright-red); }
+    &.stat--answered .stat-value { color: var(--mint-fresh-text); }
+    &.stat--missed .stat-value { color: var(--soft-red-text); }
 
     /* Category breakdown cards — colored left accent matching the badge palette. */
     &.stat--cat { border-left-width: 4px; }
@@ -133,7 +133,7 @@
 
 .error-banner {
   background: var(--soft-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   border: 1px solid var(--soft-red);
   border-radius: var(--radius-sm);
   padding: 10px 14px;
@@ -201,8 +201,8 @@
   font-size: 0.78rem;
   font-weight: var(--fw-medium);
 
-  &.result-accepted { background: var(--mint-fresh); color: var(--fresh-green); }
-  &.result-missed { background: var(--soft-red); color: var(--bright-red); }
+  &.result-accepted { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &.result-missed { background: var(--soft-red); color: var(--soft-red-text); }
   &.result-voicemail { background: var(--soft-yellow); color: var(--soft-yellow-text); }
   &.result-other { background: var(--surface-subtle); color: var(--text-secondary); }
 }
@@ -215,9 +215,9 @@
   font-size: 0.75rem;
   font-weight: var(--fw-semibold);
 
-  &.cat-customer { background: var(--mint-fresh); color: var(--fresh-green); }
-  &.cat-cleaner { background: var(--soft-blue); color: var(--primary-color); }
-  &.cat-spam { background: var(--surface-subtle); color: var(--text-muted); }
+  &.cat-customer { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &.cat-cleaner { background: var(--soft-blue); color: var(--primary-text-elevated); }
+  &.cat-spam { background: var(--surface-subtle); color: var(--text-muted-on-tint); }
   &.cat-unknown { background: var(--surface-subtle); color: var(--text-secondary); }
 }
 

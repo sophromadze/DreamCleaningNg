@@ -57,7 +57,7 @@
         <div class="ba-admin__dropzone" [class.has-preview]="createForm.beforePreview">
           <img *ngIf="createForm.beforePreview" [src]="createForm.beforePreview" alt="Before preview">
           <span *ngIf="!createForm.beforePreview">Click to choose…</span>
-          <input type="file" accept="image/*" (change)="onBeforeFileChange($event)">
+          <input aria-label="Before photo" type="file" accept="image/*" (change)="onBeforeFileChange($event)">
         </div>
       </div>
 
@@ -66,7 +66,7 @@
         <div class="ba-admin__dropzone" [class.has-preview]="createForm.afterPreview">
           <img *ngIf="createForm.afterPreview" [src]="createForm.afterPreview" alt="After preview">
           <span *ngIf="!createForm.afterPreview">Click to choose…</span>
-          <input type="file" accept="image/*" (change)="onAfterFileChange($event)">
+          <input aria-label="After photo" type="file" accept="image/*" (change)="onAfterFileChange($event)">
         </div>
       </div>
     </div>

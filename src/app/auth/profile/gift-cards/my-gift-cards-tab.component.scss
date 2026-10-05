@@ -1,0 +1,273 @@
+// Profile → Gift Cards. The card shell (.section) is the profile page's; same row language as the
+// Invoices tab (status pills, meta line, actions). All colours are theme-aware tokens.
+.mgc-state {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+
+  &--error { color: var(--soft-red-text); }
+}
+
+.mgc-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+
+  .mgc-state { margin: 0; }
+}
+
+.mgc-pending {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--warning-orange-border);
+  border-radius: var(--radius-md);
+  background: var(--warning-orange-bg);
+  color: var(--warning-orange-text);
+  font-size: 0.92rem;
+}
+
+.mgc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mgc-card {
+  padding: 0.95rem 0;
+  border-top: 1px solid var(--border-color);
+
+  &:first-child { border-top: none; padding-top: 0.25rem; }
+  &.is-muted .mgc-card__main,
+  &.is-muted .mgc-facts { opacity: 0.65; }
+}
+
+.mgc-card__main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.mgc-card__title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.mgc-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: var(--fw-semibold);
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.mgc-status {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  white-space: nowrap;
+
+  &--sent { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &--notsent { background: var(--warning-orange-bg); color: var(--warning-orange-text); }
+  &--fullyused { background: var(--surface-subtle); color: var(--text-secondary); }
+  &--inactive { background: var(--soft-red); color: var(--soft-red-text); }
+}
+
+.mgc-balance {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary);
+  white-space: nowrap;
+
+  &__label {
+    font-size: 0.8rem;
+    font-weight: normal;
+    color: var(--text-secondary);
+  }
+}
+
+.mgc-facts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0.6rem 0 0;
+
+  div { min-width: 0; }
+
+  dt {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+  }
+
+  dd {
+    margin: 0.1rem 0 0;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+  }
+}
+
+.mgc-sent,
+.mgc-hint {
+  margin: 0.55rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  word-break: break-word;
+
+  strong { color: var(--text-primary); }
+}
+
+.mgc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+}
+
+.mgc-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--primary-color);
+  border-radius: var(--radius-sm, 8px);
+  background: var(--primary-color);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: var(--fw-semibold);
+  text-decoration: none;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--primary-color-hover); border-color: var(--primary-color-hover); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  &--secondary {
+    background: transparent;
+    color: var(--primary-text-elevated);
+
+    &:hover:not(:disabled) { background: var(--soft-blue); border-color: var(--primary-color); }
+  }
+}
+
+.mgc-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--primary-text-elevated);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+}
+
+.mgc-notice {
+  margin-top: 0.6rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  word-break: break-word;
+
+  &--success { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &--error { background: var(--soft-red); color: var(--soft-red-text); }
+}
+
+.mgc-usage {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+
+  li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.25rem 0;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+
+    & + li { border-top: 1px solid var(--border-color); }
+  }
+}
+
+.mgc-send {
+  margin-top: 0.8rem;
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+
+  &__title {
+    margin: 0 0 0.3rem;
+    font-size: 1rem;
+    color: var(--text-primary);
+  }
+
+  &__note {
+    margin: 0 0 0.8rem;
+    font-size: 0.83rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+  }
+}
+
+.mgc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.8rem;
+
+  label {
+    font-size: 0.85rem;
+    color: var(--text-primary);
+  }
+
+  input,
+  textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+    font-family: inherit;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text-primary);
+
+    &::placeholder { color: var(--text-muted); }
+    &:focus { outline: none; border-color: var(--primary-color); }
+  }
+
+  textarea { resize: vertical; min-height: 70px; }
+
+  &__count {
+    align-self: flex-end;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+
+  &__error {
+    font-size: 0.8rem;
+    color: var(--soft-red-text);
+  }
+}
+
+@media (max-width: 640px) {
+  .mgc-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .mgc-actions .mgc-btn { flex: 1 1 auto; justify-content: center; }
+}

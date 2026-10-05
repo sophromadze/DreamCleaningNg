@@ -1,3 +1,9 @@
+import { IconDefinition } from './icons/icon-definition';
+import { faBath } from './icons/glyphs/faBath';
+import { faBed } from './icons/glyphs/faBed';
+import { faCouch } from './icons/glyphs/faCouch';
+import { faUtensils } from './icons/glyphs/faUtensils';
+
 export type ChecklistRoomKey = 'kitchen' | 'bathroom' | 'living' | 'bedroom';
 
 export interface ChecklistComparisonRow {
@@ -9,7 +15,7 @@ export interface ChecklistComparisonRow {
 export interface ChecklistComparisonSection {
   key: ChecklistRoomKey;
   label: string;
-  icon: string;
+  icon: IconDefinition;
   heading: string;
   rows: ChecklistComparisonRow[];
 }
@@ -32,7 +38,7 @@ export const CHECKLIST_COMPARISON_SECTIONS: ChecklistComparisonSection[] = [
   {
     key: 'kitchen',
     label: 'Kitchen',
-    icon: 'fa-utensils',
+    icon: faUtensils,
     heading: 'Kitchen',
     rows: [
       { task: 'Wiping and disinfecting countertops and surfaces', standard: true, deep: true },
@@ -58,7 +64,7 @@ export const CHECKLIST_COMPARISON_SECTIONS: ChecklistComparisonSection[] = [
   {
     key: 'bathroom',
     label: 'Bathroom',
-    icon: 'fa-bath',
+    icon: faBath,
     heading: 'Bathroom',
     rows: [
       { task: 'Cleaning and disinfecting the toilet (inside and outside)', standard: true, deep: true },
@@ -78,7 +84,7 @@ export const CHECKLIST_COMPARISON_SECTIONS: ChecklistComparisonSection[] = [
   {
     key: 'living',
     label: 'Living Room',
-    icon: 'fa-couch',
+    icon: faCouch,
     heading: 'Living Room',
     rows: [
       { task: 'Dusting all accessible surfaces', standard: true, deep: true },
@@ -96,7 +102,7 @@ export const CHECKLIST_COMPARISON_SECTIONS: ChecklistComparisonSection[] = [
   {
     key: 'bedroom',
     label: 'Bedroom',
-    icon: 'fa-bed',
+    icon: faBed,
     heading: 'Bedroom',
     rows: [
       { task: 'Dusting all accessible surfaces', standard: true, deep: true },

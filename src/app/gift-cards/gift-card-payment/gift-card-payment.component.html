@@ -18,7 +18,7 @@
     </div>
     
     <div class="success-content" *ngIf="paymentCompleted">
-      <i class="fas fa-check-circle success-icon"></i>
+      <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
       <h1>Payment Successful!</h1>
       <p>Your gift card has been sent to the recipient.</p>
     </div>

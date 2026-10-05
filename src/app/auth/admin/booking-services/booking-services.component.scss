@@ -165,12 +165,12 @@
     }
 
     &.add {
-      background-color: #28a745;
+      background-color: var(--fill-success);
       color: white;
     }
 
     &.edit {
-      background-color: #007bff;
+      background-color: var(--primary-color);
       color: white;
     }
 
@@ -180,7 +180,7 @@
     }
 
     &.activate {
-      background-color: #28a745;
+      background-color: var(--fill-success);
       color: white;
     }
 
@@ -190,7 +190,7 @@
     }
 
     &.save {
-      background-color: #28a745;
+      background-color: var(--fill-success);
       color: white;
     }
 
@@ -327,7 +327,7 @@
     tr {
       td {
         padding: 0 5px;
-        color: #6c757d;
+        color: var(--text-muted);
         font-size: 0.875rem;
         border-bottom: 1px solid #e9ecef;
         border-right: 1px solid #e9ecef;
@@ -410,7 +410,7 @@
   font-size: 0.75rem;
   font-weight: 600;
   background: #fff3e0;
-  color: #e65100;
+  color: var(--warning-orange-text);
 }
 
 .action-btn {
@@ -423,7 +423,7 @@
   transition: all 0.2s ease;
 
   &.edit {
-    background: #007bff;
+    background: var(--primary-color);
     color: white;
     
     &:hover {
@@ -441,7 +441,7 @@
   }
 
   &.activate {
-    background-color: #28a745;
+    background-color: var(--fill-success);
     color: white;
 
     &:hover {
@@ -459,7 +459,7 @@
   }
 
   &.add {
-    background: #28a745;
+    background: var(--fill-success);
     color: white;
 
     &:hover {
@@ -468,7 +468,7 @@
   }
 
   &.save {
-    background: #28a745;
+    background: var(--fill-success);
     color: white;
 
     &:hover {
@@ -634,7 +634,7 @@
 
       .copy-btn {
         padding: 8px 16px;
-        background-color: #007bff;
+        background-color: var(--primary-color);
         color: white;
         border: none;
         border-radius: 4px;
@@ -708,7 +708,7 @@
     }
 
     .save-btn {
-      background-color: #28a745;
+      background-color: var(--fill-success);
       color: white;
 
       &:hover {
@@ -792,7 +792,7 @@
       }
 
       .save-btn {
-        background-color: #28a745;
+        background-color: var(--fill-success);
         color: white;
 
         &:hover {
@@ -1109,7 +1109,7 @@
     tbody {
       td {
         padding: 5px;
-        color: #6c757d;
+        color: var(--text-muted-on-tint);
         font-size: 0.875rem;
         border-bottom: 1px solid #e9ecef;
         border-right: 1px solid #e9ecef;
@@ -1259,7 +1259,7 @@
     transition: all 0.2s ease;
     
     &.edit {
-      background: #17a2b8;
+      background: var(--fill-info-cyan);
       color: white;
       
       &:hover {
@@ -1277,7 +1277,7 @@
     }
     
     &.save {
-      background: #28a745;
+      background: var(--fill-success);
       color: white;
       
       &:hover {
@@ -1341,7 +1341,7 @@
       border-color: var(--border-color);
       &::placeholder { color: var(--text-muted); }
     }
-    .form-note { color: var(--text-muted) !important; }
+    .form-note { color: var(--text-muted-on-elevated) !important; }
     .radio-group label { color: var(--text-primary) !important; }
   }
 
@@ -1463,7 +1463,7 @@
   .service-specific-badge { background: rgba(230, 81, 0, 0.35); color: #ffcc80; }
   .badge-warning { background: rgba(255, 193, 7, 0.35); color: #ffe082; }
   .badge-info { background: rgba(23, 162, 184, 0.35); color: #80deea; }
-  .badge-secondary { background: rgba(108, 117, 125, 0.35); color: #b0bec5; }
+  .badge-secondary { background: rgba(108, 117, 125, 0.35); color: var(--text-muted-on-elevated); }
 
   // Poll questions
   .poll-questions-section .subsection { border-color: var(--border-color); }
@@ -1526,7 +1526,7 @@
 }
 
 .muted-cell {
-  color: var(--text-muted);
+  color: var(--text-muted-on-elevated);
 }
 
 .action-btn.pricing {
@@ -1534,7 +1534,7 @@
 
   &.expanded {
     background: var(--soft-blue);
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
   }
 }
 
@@ -1600,7 +1600,7 @@
 // The worked example that pins down what "above included" measures from.
 .pricing-example {
   background: var(--soft-blue);
-  color: var(--primary-color);
+  color: var(--primary-text-elevated);
   border-radius: var(--radius-sm);
   padding: 8px 12px;
 }
@@ -1724,7 +1724,7 @@
   }
 
   .diff-unmatched {
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     font-size: 12px;
     font-weight: var(--fw-semibold);
   }
@@ -1737,7 +1737,7 @@
   }
 
   .diff-new {
-    color: var(--fresh-green);
+    color: var(--mint-fresh-text);
     font-weight: var(--fw-semibold);
   }
 

@@ -3,6 +3,7 @@ import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { StickyCtaService } from '../services/sticky-cta.service';
 import { SpecialOfferService, PublicSpecialOffer } from '../services/special-offer.service';
+import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-keys';
 
 @Component({
   selector: 'app-sticky-mobile-cta',
@@ -39,12 +40,7 @@ export class StickyMobileCtaComponent {
   private loadFirstTimeOffer() {
     this.specialOfferService.getPublicSpecialOffers().subscribe({
       next: (offers) => {
-        const offer = offers?.find(o =>
-          o.requiresFirstTimeCustomer ||
-          o.type === 'FirstTime' ||
-          (o.name?.toLowerCase().includes('first time') ?? false) ||
-          (o.name?.toLowerCase().includes('first-time') ?? false)
-        );
+        const offer = findAdvertisedFirstTimeOffer(offers);
         this.firstTimeDiscountLabel = this.buildDiscountLabel(offer);
       },
       error: () => { this.firstTimeDiscountLabel = ''; }
@@ -77,7 +73,7 @@ export class StickyMobileCtaComponent {
     // residential cleaning, and on a phone it sits directly across the action button these pages
     // exist for — "Sign agreement", "Download the executed agreement". The ADMIN contract section
     // is already covered by '/admin'.
-    const hideOnRoutes = ['/booking', '/booking-confirmation', '/booking-success', '/order', '/admin', '/cleaner/cabinet', '/cleaners-dashboard', '/cleaner-portal', '/contract', '/profile/contracts', '/profile/invoices', '/invoice'];
+    const hideOnRoutes = ['/booking', '/booking-confirmation', '/booking-success', '/order', '/admin', '/cleaner/cabinet', '/cleaners-dashboard', '/cleaner-portal', '/contract', '/profile/contracts', '/profile/invoices', '/invoice', '/pay-invoice'];
     const isOnExcludedRoute = hideOnRoutes.some(route =>
       path === route || path.startsWith(route + '/')
     );

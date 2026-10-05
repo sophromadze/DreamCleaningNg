@@ -1,222 +1,263 @@
-import { Component, Inject, PLATFORM_ID } from '@angular/core';
-import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Component, OnDestroy, inject } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { Meta } from '@angular/platform-browser';
+import { RouterLink } from '@angular/router';
+import { IconComponent } from '../shared/icons/icon.component';
+import { SSR_RESPONSE_CONTEXT } from '../shared/ssr/ssr-response.token';
+import { faHouse } from '../shared/icons/glyphs/faHouse';
+import { faCalendarCheck } from '../shared/icons/glyphs/faCalendarCheck';
+import { faBroom } from '../shared/icons/glyphs/faBroom';
+import { faTag } from '../shared/icons/glyphs/faTag';
+import { faEnvelope } from '../shared/icons/glyphs/faEnvelope';
 
+/** Attributes on the robots tag that carry what an SSR-rendered 404 replaced (see constructor). */
+const NOT_FOUND_MARKER = 'data-not-found';
+const RESTORE_ROBOTS = 'data-restore-robots';
+const RESTORE_DESCRIPTION = 'data-restore-description';
+
+/** Head elements this page takes out while it is shown, with where they sat. */
+interface RemovedHeadElement {
+  element: Element;
+  parent: Node;
+  next: Node | null;
+}
+
+/**
+ * The wildcard ('**') page. During SSR it turns the response into a real HTTP 404 through
+ * SSR_RESPONSE_CONTEXT (same pattern as an unknown blog slug); server.ts then adds
+ * Cache-Control: no-store and X-Robots-Tag: noindex. The title comes from route data
+ * (app.routes.ts) like every other page.
+ *
+ * Head handling: robots is switched to noindex, and the canonical link and meta description are
+ * taken out (a canonical pointing at a URL that does not exist contradicts the 404). AppComponent
+ * skips its canonical update for routes with data.noCanonical. Everything is put back on destroy,
+ * so the next page starts from the same head it would have had without visiting this one.
+ *
+ * No JSON-LD on purpose, and no full-viewport height: the card sits between header and footer.
+ */
 @Component({
   selector: 'app-not-found',
   standalone: true,
-  imports: [CommonModule, RouterModule],
+  imports: [RouterLink, IconComponent],
   template: `
-    <div class="not-found-container">
-      <div class="not-found-content">
-        <div class="error-code">404</div>
-        <h1>Page Not Found</h1>
-        <p class="error-message">
-          Oops! The page you're looking for doesn't exist.
+    <section class="not-found-page" aria-labelledby="not-found-title">
+      <div class="not-found-card">
+        <p class="not-found-code" aria-hidden="true">404</p>
+        <h1 id="not-found-title">Page not found</h1>
+        <p class="not-found-text">
+          Sorry, we couldn't find that page. It may have been moved, or the link may be mistyped.
+          Here are a few places to start instead.
         </p>
-        <p class="error-description">
-          It might have been moved, deleted, or you entered the wrong URL.
-        </p>
-        <div class="actions">
-          <button class="btn-primary" routerLink="/">
-            <i class="fas fa-home"></i>
-            Go to Homepage
-          </button>
-          <button class="btn-secondary" (click)="goBack()">
-            <i class="fas fa-arrow-left"></i>
-            Go Back
-          </button>
+
+        <div class="not-found-actions">
+          <a routerLink="/" class="btn-primary">
+            <i [appIcon]="icons.faHouse" aria-hidden="true"></i>
+            Home
+          </a>
+          <a routerLink="/booking" class="btn-brand">
+            <i [appIcon]="icons.faCalendarCheck" aria-hidden="true"></i>
+            Book Online
+          </a>
         </div>
-        <div class="helpful-links">
-          <h3>You might be looking for:</h3>
-          <ul>
-            <li><a routerLink="/">Homepage</a></li>
-            <li><a routerLink="/service-page">Our Services</a></li>
-            <li><a routerLink="/booking">Book a Cleaning</a></li>
-            <li><a routerLink="/contact">Contact Us</a></li>
-            <li><a routerLink="/about">About Us</a></li>
-          </ul>
-        </div>
+
+        <nav class="not-found-links" aria-label="Helpful pages">
+          <a routerLink="/service-page">
+            <i [appIcon]="icons.faBroom" aria-hidden="true"></i>
+            Services
+          </a>
+          <a routerLink="/pricing-and-discounts">
+            <i [appIcon]="icons.faTag" aria-hidden="true"></i>
+            Pricing
+          </a>
+          <a routerLink="/contact">
+            <i [appIcon]="icons.faEnvelope" aria-hidden="true"></i>
+            Contact
+          </a>
+        </nav>
       </div>
-    </div>
+    </section>
   `,
   styles: [`
-    .not-found-container {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: var(--soft-blue);
-      padding: 20px;
+    .not-found-page {
+      background: var(--page-bg);
+      padding: 4rem 1rem 5rem;
     }
 
-    .not-found-content {
-      background: white;
-      border-radius: 20px;
-      padding: 40px;
+    .not-found-card {
+      max-width: 640px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 10px 30px var(--shadow-color);
+      padding: 2.5rem 2rem;
       text-align: center;
-      max-width: 600px;
-      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
     }
 
-    .error-code {
-      font-size: 120px;
-      font-weight: 900;
-      color: var(--primary-color);
+    .not-found-code {
+      margin: 0 0 0.5rem;
+      font-size: 5.5rem;
+      font-weight: var(--fw-black);
       line-height: 1;
-      margin-bottom: 20px;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+      color: var(--primary-color-text);
     }
 
     h1 {
-      color: #333;
-      margin-bottom: 16px;
+      margin: 0 0 0.75rem;
       font-size: 2rem;
-      font-weight: 700;
+      font-weight: var(--fw-bold);
+      color: var(--text-primary);
     }
 
-    .error-message {
-      font-size: 1.2rem;
-      color: #666;
-      margin-bottom: 12px;
+    .not-found-text {
+      margin: 0 auto 2rem;
+      max-width: 34rem;
+      font-size: 1.0625rem;
       line-height: 1.6;
+      color: var(--text-secondary);
     }
 
-    .error-description {
-      font-size: 1rem;
-      color: #888;
-      margin-bottom: 32px;
-      line-height: 1.6;
-    }
-
-    .actions {
+    .not-found-actions {
       display: flex;
-      gap: 16px;
-      justify-content: center;
-      margin-bottom: 32px;
       flex-wrap: wrap;
+      justify-content: center;
+      gap: 0.75rem;
+      margin-bottom: 2rem;
     }
 
-    .btn-primary, .btn-secondary {
-      padding: 12px 24px;
-      border: none;
-      border-radius: 8px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
+    .not-found-actions a {
+      display: inline-flex;
       align-items: center;
-      gap: 8px;
-      text-decoration: none;
-      font-size: 14px;
+      justify-content: center;
+      gap: 0.5rem;
+      min-width: 10rem;
+      font-weight: var(--fw-semibold);
     }
 
-    .btn-primary {
-      background: var(--btn-primary);
-      color: white;
-      
-      &:hover {
-        background: var(--btn-primary-hover);
-        transform: translateY(-2px);
-        box-shadow: var(--btn-primary-shadow);
-      }
-    }
-
-    .btn-secondary {
-      background: #f8f9fa;
-      color: #333;
-      border: 1px solid #e9ecef;
-      
-      &:hover {
-        background: #e9ecef;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      }
-    }
-
-    .helpful-links {
-      border-top: 2px solid #eee;
-      padding-top: 24px;
-      text-align: left;
-    }
-
-    .helpful-links h3 {
-      color: #333;
-      margin-bottom: 16px;
-      font-size: 1.1rem;
-      text-align: center;
-    }
-
-    .helpful-links ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
+    .not-found-links {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 16px;
+      gap: 0.5rem 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-color);
     }
 
-    .helpful-links li {
-      margin: 0;
-    }
-
-    .helpful-links a {
-      color: var(--primary-color);
+    .not-found-links a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 0.25rem;
+      color: var(--primary-text);
+      font-weight: var(--fw-medium);
       text-decoration: none;
-      font-weight: 500;
-      padding: 8px 16px;
-      border-radius: 6px;
-      transition: all 0.3s ease;
-      display: inline-block;
-      
-      &:hover {
-        color: var(--primary-color-hover);
-        transform: translateY(-1px);
-      }
     }
 
-    @media (max-width: 768px) {
-      .not-found-content {
-        padding: 30px 20px;
+    .not-found-links a:hover {
+      color: var(--primary-color-hover);
+      text-decoration: underline;
+    }
+
+    .not-found-links a:focus-visible {
+      outline: 2px solid var(--primary-color);
+      outline-offset: 2px;
+      border-radius: var(--radius-sm);
+    }
+
+    @media (max-width: 480px) {
+      .not-found-page {
+        padding: 2.5rem 1rem 3rem;
       }
 
-      .error-code {
-        font-size: 80px;
+      .not-found-card {
+        padding: 2rem 1.25rem;
+      }
+
+      .not-found-code {
+        font-size: 4.5rem;
       }
 
       h1 {
-        font-size: 1.5rem;
+        font-size: 1.625rem;
       }
 
-      .actions {
-        flex-direction: column;
-        align-items: center;
-      }
-
-      .btn-primary, .btn-secondary {
-        width: 100%;
-        max-width: 250px;
-        justify-content: center;
-      }
-
-      .helpful-links ul {
-        flex-direction: column;
-        align-items: center;
+      .not-found-actions a {
+        flex: 1 1 100%;
       }
     }
   `]
 })
-export class NotFoundComponent {
-  private isBrowser: boolean;
+export class NotFoundComponent implements OnDestroy {
+  protected readonly icons = { faHouse, faCalendarCheck, faBroom, faTag, faEnvelope };
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {
-    this.isBrowser = isPlatformBrowser(this.platformId);
+  private readonly meta = inject(Meta);
+  private readonly document = inject(DOCUMENT);
+  private readonly previousRobots: string | null;
+  private readonly previousDescription: string | null;
+  private readonly removedHead: RemovedHeadElement[] = [];
+
+  constructor() {
+    // Absent in the browser (only server.ts provides it).
+    const ssrResponse = inject(SSR_RESPONSE_CONTEXT, { optional: true });
+    if (ssrResponse) {
+      ssrResponse.statusCode = 404;
+    }
+
+    // When this page is the SSR landing page, the head the browser receives is the one this page
+    // already rewrote: robots reads noindex and the description is gone. What they replaced
+    // travels on the robots tag itself (data-restore-*), so leaving still restores the real values.
+    const robots = this.meta.getTag('name="robots"');
+    const rewrittenBySsr = robots?.hasAttribute(NOT_FOUND_MARKER) ?? false;
+    this.previousRobots = rewrittenBySsr
+      ? robots!.getAttribute(RESTORE_ROBOTS)
+      : robots?.content ?? null;
+    this.previousDescription = rewrittenBySsr
+      ? robots!.getAttribute(RESTORE_DESCRIPTION)
+      : this.meta.getTag('name="description"')?.content ?? null;
+
+    this.meta.updateTag({
+      name: 'robots',
+      content: 'noindex',
+      [NOT_FOUND_MARKER]: '',
+      ...(this.previousRobots !== null ? { [RESTORE_ROBOTS]: this.previousRobots } : {}),
+      ...(this.previousDescription !== null ? { [RESTORE_DESCRIPTION]: this.previousDescription } : {})
+    });
+
+    this.removeFromHead('link[rel="canonical"]');
+    this.removeFromHead('meta[name="description"]');
   }
 
-  goBack() {
-    if (this.isBrowser) {
-      window.history.back();
+  ngOnDestroy(): void {
+    const robots = this.meta.getTag('name="robots"');
+    for (const attribute of [NOT_FOUND_MARKER, RESTORE_ROBOTS, RESTORE_DESCRIPTION]) {
+      robots?.removeAttribute(attribute);
+    }
+    if (this.previousRobots !== null) {
+      this.meta.updateTag({ name: 'robots', content: this.previousRobots });
+    } else {
+      this.meta.removeTag('name="robots"');
+    }
+
+    // Put back what was taken out, unless the next page already added its own.
+    for (const { element, parent, next } of this.removedHead) {
+      const selector = element.tagName === 'LINK' ? 'link[rel="canonical"]' : 'meta[name="description"]';
+      if (!this.document.head.querySelector(selector)) {
+        parent.insertBefore(element, next && next.parentNode === parent ? next : null);
+      }
+    }
+    this.removedHead.length = 0;
+
+    // SSR landing: there was no element to keep, only the value carried on the robots tag.
+    if (this.previousDescription !== null && !this.meta.getTag('name="description"')) {
+      this.meta.addTag({ name: 'description', content: this.previousDescription });
     }
   }
-} 
+
+  private removeFromHead(selector: string): void {
+    const element = this.document.head.querySelector(selector);
+    if (element?.parentNode) {
+      this.removedHead.push({ element, parent: element.parentNode, next: element.nextSibling });
+      element.remove();
+    }
+  }
+}

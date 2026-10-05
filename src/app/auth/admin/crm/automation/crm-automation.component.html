@@ -8,7 +8,7 @@
 
   <!-- Rules -->
   <section class="rules">
-    <h3>Rules</h3>
+    <h2>Rules</h2>
     <div class="rule-card" *ngFor="let rule of rules; trackBy: trackByRuleId">
       <div class="rule-head">
         <div class="rule-title">
@@ -17,7 +17,7 @@
           <span class="open-count" *ngIf="rule.openAlertCount > 0">{{ rule.openAlertCount }} open</span>
         </div>
         <label class="switch">
-          <input type="checkbox" [checked]="rule.isEnabled"
+          <input type="checkbox" [checked]="rule.isEnabled" [attr.aria-label]="rule.name"
                  [disabled]="savingRuleId === rule.id"
                  (change)="toggleRule(rule)" />
           <span class="slider"></span>
@@ -55,8 +55,8 @@
   <!-- Alerts feed -->
   <section class="alerts">
     <div class="alerts-head">
-      <h3>Review alerts</h3>
-      <select [(ngModel)]="alertStatusFilter" (ngModelChange)="onStatusFilterChange()">
+      <h2>Review alerts</h2>
+      <select aria-label="Filter alerts by status" [(ngModel)]="alertStatusFilter" (ngModelChange)="onStatusFilterChange()">
         <option value="Open">Open</option>
         <option value="Snoozed">Snoozed (scheduled)</option>
         <option value="Done">Done</option>
@@ -93,7 +93,7 @@
 
         <div class="snooze-picker" *ngIf="a.status === 'Open' && snoozingAlertId === a.id">
           <label>Remind me on:</label>
-          <input type="date" [(ngModel)]="snoozeDate" [min]="minSnoozeDate" />
+          <input aria-label="Remind me on:" type="date" [(ngModel)]="snoozeDate" [min]="minSnoozeDate" />
           <button class="btn-done" (click)="confirmSnooze(a)" [disabled]="!snoozeDate">Set</button>
           <button class="btn-dismiss" (click)="cancelSnooze()">Cancel</button>
         </div>
@@ -103,7 +103,7 @@
           <button class="btn-snooze" (click)="startSnooze(a)" *ngIf="snoozingAlertId !== a.id">Change date</button>
           <button class="btn-reopen" (click)="reopenAlert(a)" *ngIf="snoozingAlertId !== a.id">Reopen now</button>
           <ng-container *ngIf="snoozingAlertId === a.id">
-            <input type="date" [(ngModel)]="snoozeDate" [min]="minSnoozeDate" />
+            <input aria-label="Remind me on" type="date" [(ngModel)]="snoozeDate" [min]="minSnoozeDate" />
             <button class="btn-done" (click)="confirmSnooze(a)" [disabled]="!snoozeDate">Set</button>
             <button class="btn-dismiss" (click)="cancelSnooze()">Cancel</button>
           </ng-container>

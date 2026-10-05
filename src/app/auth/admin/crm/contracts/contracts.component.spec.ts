@@ -6,7 +6,9 @@ import { Router, provideRouter } from '@angular/router';
 import { ContractsComponent } from './contracts.component';
 import { ContractFormComponent } from './contract-form.component';
 import { ContractDetailComponent } from './contract-detail.component';
-import { ContractPriceMode, ContractStatus } from '../../../../services/contract.service';
+import {
+  ContractBillingFrequency, ContractPriceMode, ContractPricingBasis, ContractStatus, ScopeDetailMode
+} from '../../../../services/contract.service';
 
 /**
  * The Contracts tab, its form and its detail page. These specs exist mainly to hold the two rules
@@ -310,6 +312,97 @@ describe('ContractFormComponent', () => {
     expect(component.model.contractTemplateId).toBe(2);
   });
 
+  // ── weekly flat fee (template v3.0) ────────────────────────────────────────
+
+  it('defaults to per-visit pricing, and sends the basis and visit count to the preview', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    const first = http.expectOne(r => r.url.endsWith('/pricing-preview'));
+    expect(first.request.body.pricingBasis).toBe(ContractPricingBasis.PerVisit);
+    first.flush({});
+
+    component.model.schedule.visitsPerPeriod = 6;
+    component.model.pricing.pricingBasis = ContractPricingBasis.WeeklyFlatFee;
+    component.onPricingBasisChanged();
+    (component as any).refreshPricingPreview();
+    const weekly = http.expectOne(r => r.url.endsWith('/pricing-preview'));
+    expect(weekly.request.body.pricingBasis).toBe(ContractPricingBasis.WeeklyFlatFee);
+    expect(weekly.request.body.scheduledVisitsPerWeek).toBe(6);
+    weekly.flush({});
+    http.match(r => r.url.endsWith('/pricing-preview')).forEach(r => r.flush({}));
+  });
+
+  it('shows weekly cards, not per-visit ones, and keeps the allocation admin-only', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    flushPricingPreview();
+
+    component.model.pricing.pricingBasis = ContractPricingBasis.WeeklyFlatFee;
+    component.model.billing.frequency = ContractBillingFrequency.Weekly;
+    component.pricingPreview = {
+      pricingBasis: ContractPricingBasis.WeeklyFlatFee,
+      preTaxPrice: 875, salesTaxAmount: 77.66, totalPrice: 952.66,
+      perVisitAllocation: 875 / 6, scheduledVisitsPerFeePeriod: 6,
+      cancellationAmount: 72.92, remainingBalance: 72.91, lockoutFee: 145.83,
+      liabilityCapAmount: 437.5, lateChargeAnnualPercent: 12
+    };
+    if (!component.isOpen('pricing')) component.togglePanel('pricing');
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Weekly flat fee');
+    expect(text).toContain('Weekly pricing');
+    expect(text).toContain('Pre-tax weekly fee');
+    expect(text).toContain('Weekly total');
+    expect(text).toContain('Scheduled visits per week');
+    expect(text).not.toContain('Total per visit');
+    expect(text).toContain('Admin only');
+    expect(text).toContain('145.833333');
+    http.match(r => r.url.endsWith('/pricing-preview')).forEach(r => r.flush({}));
+  });
+
+  it('refuses a weekly fee without weekly invoicing, and switching to weekly offers weekly invoicing', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    flushPricingPreview();
+
+    component.model.billing.frequency = ContractBillingFrequency.Monthly;
+    component.model.pricing.pricingBasis = ContractPricingBasis.WeeklyFlatFee;
+    expect(component.weeklyFlatFeeProblem).toContain('invoiced weekly');
+
+    component.onPricingBasisChanged();
+    expect(component.model.billing.frequency as ContractBillingFrequency).toBe(ContractBillingFrequency.Weekly);
+    expect(component.weeklyFlatFeeProblem).toBeNull();
+    http.match(r => r.url.endsWith('/pricing-preview')).forEach(r => r.flush({}));
+  });
+
+  /**
+   * DCC-2026-12918497: six days ticked, "Visits per period" left at 1, flexible scheduling on -
+   * and no warning, so the agreement said "One (1) scheduled cleaning visit per calendar week".
+   */
+  it('warns when the visit count and the ticked days disagree, even with flexible scheduling, and changes neither', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    flushPricingPreview();
+
+    component.model.schedule.flexibleScheduling = true;
+    component.model.schedule.frequencyUnit = 'calendar week';
+    component.model.schedule.visitsPerPeriod = 1;
+    for (const day of ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Sunday']) {
+      if (!component.isServiceDaySelected(day)) component.toggleServiceDay(day);
+    }
+    for (const day of ['Saturday']) {
+      if (component.isServiceDaySelected(day)) component.toggleServiceDay(day);
+    }
+
+    expect(component.visitCountWarning).toContain('Visits per period is 1 but 6 regular service days');
+    expect(component.model.schedule.visitsPerPeriod).toBe(1);
+    expect(component.selectedServiceDays.length).toBe(6);
+
+    component.model.schedule.visitsPerPeriod = 6;
+    expect(component.visitCountWarning).toBeNull();
+  });
+
   it('copies the scope template rather than sharing it, so toggling never edits the template', () => {
     fixture.detectChanges();
     flushReferenceData();
@@ -361,7 +454,11 @@ describe('ContractFormComponent', () => {
     expect(component.model.advanced.confidentialityYears).toBe(2);
     expect(component.model.advanced.makeupWindowDays).toBe(14);
     expect(component.model.advanced.lockoutWaitMinutes).toBe(20);
-    expect(component.model.advanced.qualityComplaintHours).toBe(48);
+    // The Satisfaction Guarantee: report within 24 hours, with a narrow 72-hour outer limit for an
+    // issue that could not reasonably have been found sooner — the same rule the published policy
+    // and the landing page state.
+    expect(component.model.advanced.qualityComplaintHours).toBe(24);
+    expect(component.model.advanced.qualityLatentDeficiencyLimitHours).toBe(72);
     expect(component.model.pricing.cancellationPercent).toBe(50);
 
     // A MULTIPLE of the per-visit fee, not a lookback in months. A months-based cap moves every
@@ -369,17 +466,15 @@ describe('ContractFormComponent', () => {
     // would silently drift.
     expect(component.model.pricing.liabilityCapMultiple).toBe(13);
 
-    // TERM DEFAULTS (2026-09-15): committed for TEN months, then month-to-month on sixty days
-    // notice. New drafts only — every generated version freezes its own copy, so changing these
-    // can never move a contract that already exists.
+    // TERM DEFAULTS (2026-09-30): NO minimum commitment and THIRTY days' notice. There is no
+    // company-wide commitment; one exists only when specifically agreed with a client. New drafts
+    // only — every generated version freezes its own copy, so nothing already signed moves.
     //
-    // These three MIRROR `TermSnapshot`'s server-side defaults, asserted in
-    // `CommercialBillingUpgradeTests.NewContract_TermDefaults_AreTenSixtyAndMonthToMonth`. The
-    // server fills in a draft that arrives without them, so a number changed on one side only
-    // produces a contract whose preview disagrees with the form that submitted it.
-    expect(component.model.term.initialTermMonths).toBe(10);
-    expect(component.model.term.minimumCommitmentMonths).toBe(10);
-    expect(component.model.term.terminationNoticeDays).toBe(60);
+    // These MIRROR `TermSnapshot`'s server-side defaults, asserted in
+    // `CommercialBillingUpgradeTests.NewContract_TermDefaults_AreNoCommitmentAndThirtyDaysNotice`.
+    expect(component.model.term.minimumCommitmentMonths).toBe(0);
+    expect(component.model.term.initialTermMonths).toBe(0);
+    expect(component.model.term.terminationNoticeDays).toBe(30);
     expect(component.model.term.renewalType).toBe('month-to-month');
 
     // NOT seeded with today. The minimum-commitment and initial-term end dates are both derived
@@ -464,6 +559,77 @@ describe('ContractFormComponent', () => {
   });
 
   /**
+   * EXHIBIT B4'S CLIENT NOTICE EMAIL IS ITS OWN FIELD (2026-10-02).
+   *
+   * The row used to print the client record's email with no input of its own here. It now has
+   * one, between the approval and operational emails, and it is never filled from either of them.
+   * Blank is posted as an empty STRING: the server reads null as "a snapshot from before this
+   * field" and keeps rendering it exactly as before, so the form must never send null.
+   */
+  describe('Exhibit B4 client notice email', () => {
+    function openContacts(): HTMLElement {
+      fixture.detectChanges();
+      flushReferenceData();
+      flushPricingPreview();
+      component.openPanels.add('contacts');
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('sits between the approval email and the operational email, as an email input', () => {
+      const dom = openContacts();
+
+      const input = dom.querySelector<HTMLInputElement>('#contactsClientNoticeEmail');
+      expect(input).not.toBeNull();
+      expect(input!.type).toBe('email');
+      expect(dom.querySelector('label[for="contactsClientNoticeEmail"]')?.textContent?.trim())
+        .toBe('Client notice email');
+
+      const ids = Array.from(dom.querySelectorAll('input'))
+        .map(i => i.id)
+        .filter(id => ['clientApprovalEmail', 'contactsClientNoticeEmail', 'clientOperationalEmail'].includes(id));
+      expect(ids).toEqual(['clientApprovalEmail', 'contactsClientNoticeEmail', 'clientOperationalEmail']);
+    });
+
+    it('stores what is typed on its own, independent of the approval and operational emails', async () => {
+      const dom = openContacts();
+      // A new contract starts with a string, never null.
+      expect(component.model.contacts.clientNoticeEmail).toBe('');
+
+      component.model.contacts.clientApprovalEmail = 'approvals@client.example';
+      component.model.contacts.clientOperationalEmail = 'facilities@client.example';
+      fixture.detectChanges();
+      await fixture.whenStable();
+
+      const input = dom.querySelector<HTMLInputElement>('#contactsClientNoticeEmail')!;
+      input.value = 'legal@client.example';
+      input.dispatchEvent(new Event('input'));
+      fixture.detectChanges();
+
+      expect(component.model.contacts.clientNoticeEmail).toBe('legal@client.example');
+      expect(component.model.contacts.clientApprovalEmail).toBe('approvals@client.example');
+      expect(component.model.contacts.clientOperationalEmail).toBe('facilities@client.example');
+    });
+
+    it('reopens a draft saved before the field existed with a blank string, not null', () => {
+      openContacts();
+
+      (component as any).hydrateFrom({
+        contractTemplateId: 1, contractor: { id: 2 },
+        client: { id: 0, legalEntityName: 'Northline LLC', noticeEmail: 'ap@northline.example' },
+        serviceLocation: { id: 0 }, contractorSigner: {}, clientSigner: {},
+        schedule: { serviceDays: [] }, term: {}, pricing: {}, advanced: {},
+        // What the API returns for an older snapshot: the property is there, and null.
+        contacts: { clientApprovalEmail: 'contracts@northline.example', clientNoticeEmail: null }
+      });
+      http.match(r => r.url.endsWith('/pricing-preview')).forEach(r => r.flush({}));
+
+      expect(component.model.contacts.clientNoticeEmail).toBe('');
+      expect(component.model.contacts.clientApprovalEmail).toBe('contracts@northline.example');
+    });
+  });
+
+  /**
    * Floor materials and the food-service permit holder are OPTIONAL, and the form has to say so.
    *
    * Both used to print a ruled blank and land in the preview's unresolved-token banner when left
@@ -472,7 +638,9 @@ describe('ContractFormComponent', () => {
    * or not the materials were recorded, and Section 26(b) leaves the client responsible for its
    * own permits whether or not a holder was named.
    */
-  it('labels the two fully optional Exhibit A details as optional', () => {
+  // Since 2026-09-30 EVERY site detail is optional - a blank one is left out of the agreement - so
+  // the panel says so once instead of labelling two fields as the exceptions.
+  it('tells the admin that blank site details are left out of the agreement', () => {
     fixture.detectChanges();
     flushReferenceData();
     flushPricingPreview();
@@ -481,11 +649,8 @@ describe('ContractFormComponent', () => {
     fixture.detectChanges();
 
     const dom = fixture.nativeElement as HTMLElement;
-    const floorLabel = dom.querySelector('label[for="floorMaterials"]')?.textContent ?? '';
-    const permitLabel = dom.querySelector('label[for="foodPermitHolder"]')?.textContent ?? '';
-
-    expect(floorLabel).toContain('optional');
-    expect(permitLabel).toContain('optional');
+    expect(dom.textContent).toContain('Blank fields are left out of the agreement.');
+    expect(dom.textContent).not.toContain('prints “None”');
   });
 
   /**
@@ -596,7 +761,7 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    expect(component.termDatesHint).toContain('run from this date');
+    expect(component.termDatesHint).toContain('No minimum commitment');
 
     component.model.term.serviceCommencementDate = '2026-01-31';
     component.model.term.minimumCommitmentMonths = 1;
@@ -604,6 +769,71 @@ describe('ContractFormComponent', () => {
 
     expect(component.termDatesHint).toContain('February 28, 2026');
     expect(component.termDatesHint).toContain('July 30, 2026');
+  });
+
+  // ── contract-specific commitment, supplies and scope detail (2026-09-30) ──────
+
+  it('offers no minimum commitment by default and a custom one on request, with no preset length', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    flushPricingPreview();
+
+    expect(component.hasCustomCommitment).toBeFalse();
+
+    component.setCommitmentMode('custom');
+    expect(component.hasCustomCommitment).toBeTrue();
+    // Nothing is filled in for the admin: the agreed number has to be typed.
+    expect(component.model.term.minimumCommitmentMonths).toBe(0);
+
+    component.model.term.minimumCommitmentMonths = 12;
+    component.onCommitmentMonthsChanged();
+    // The initial term can never end before the earliest date the client may leave.
+    expect(component.model.term.initialTermMonths).toBe(12);
+
+    component.setCommitmentMode('none');
+    expect(component.hasCustomCommitment).toBeFalse();
+    expect(component.model.term.minimumCommitmentMonths).toBe(0);
+    expect(component.model.term.initialTermMonths).toBe(0);
+  });
+
+  it('assigns no supplies or consumables to either party until an admin chooses', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    flushPricingPreview();
+
+    expect(component.model.supplies.equipmentProvidedBy).toBeNull();
+    expect(component.model.supplies.trashLinersProvidedBy).toBeNull();
+    expect(component.model.supplies.paperTowelsProvidedBy).toBeNull();
+    expect(component.model.supplies.toiletTissueProvidedBy).toBeNull();
+    expect(component.model.supplies.otherConsumables).toEqual([]);
+
+    component.addOtherConsumable();
+    expect(component.model.supplies.otherConsumables.length).toBe(1);
+    component.removeOtherConsumable(0);
+    expect(component.model.supplies.otherConsumables.length).toBe(0);
+  });
+
+  it('starts on a detailed Scope of Work and hides the site details for the shorter modes', () => {
+    fixture.detectChanges();
+    flushReferenceData();
+    flushPricingPreview();
+
+    expect(component.model.scopeDetail).toBe(ScopeDetailMode.Detailed);
+
+    const siteDetailsPanel = () => Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('.panel-head span'))
+      .some(el => (el.textContent ?? '').includes('Site details'));
+
+    fixture.detectChanges();
+    expect(siteDetailsPanel()).toBeTrue();
+
+    component.model.scopeDetail = ScopeDetailMode.Simplified;
+    fixture.detectChanges();
+    expect(siteDetailsPanel()).toBeFalse();
+
+    component.model.scopeDetail = ScopeDetailMode.Omitted;
+    fixture.detectChanges();
+    expect(siteDetailsPanel()).toBeFalse();
   });
 
   it('pre-fills the client and signer from a linked customer account', () => {
@@ -1017,14 +1247,45 @@ describe('ContractDetailComponent', () => {
     expect(component.detail?.id).toBe(4);
   });
 
-  it('warns about unfilled placeholders before the document can be sent', () => {
+  it('names genuinely missing information and disables both sends until it is filled', () => {
     component.contractId = 3;
-    component.preloaded = detail({ unresolvedTokens: ['CLIENT_PHONE'] }) as any;
+    component.preloaded = detail({
+      unresolvedTokens: ['PAPER_TOWELS_PROVIDED_BY'],
+      missingFields: ['Supplies: who provides paper towels']
+    }) as any;
+    component.permissions = allPermissions();
     fixture.detectChanges();
 
-    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
-    expect(text).toContain('Unfilled placeholders');
-    expect(text).toContain('CLIENT_PHONE');
+    const host = fixture.nativeElement as HTMLElement;
+    const text = host.textContent ?? '';
+    expect(text).toContain('Missing required information');
+    expect(text).toContain('Supplies: who provides paper towels');
+    expect(text).not.toContain('PAPER_TOWELS_PROVIDED_BY');
+
+    const buttons = Array.from(host.querySelectorAll('button')) as HTMLButtonElement[];
+    const review = buttons.find(b => b.textContent?.includes('Approve & send for client review'));
+    const signing = buttons.find(b => b.textContent?.includes('Send for signature'));
+    expect(review?.disabled).toBeTrue();
+    expect(signing?.disabled).toBeTrue();
+  });
+
+  /**
+   * DCC-2026-49303882 (2026-09-30): a Simplified-scope contract showed "Unfilled placeholders:
+   * ACCESS_METHOD_REFERENCE, BASELINE_WALKTHROUGH, …". The server no longer reports a field the
+   * contract's configuration hides, so nothing is listed and nothing is blocked.
+   */
+  it('shows no banner and allows sending when only hidden or optional fields are blank', () => {
+    component.contractId = 3;
+    component.preloaded = detail({ unresolvedTokens: [], missingFields: [] }) as any;
+    component.permissions = allPermissions();
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.textContent ?? '').not.toContain('Missing required information');
+    expect(host.textContent ?? '').not.toContain('Unfilled placeholders');
+    const review = (Array.from(host.querySelectorAll('button')) as HTMLButtonElement[])
+      .find(b => b.textContent?.includes('Approve & send for client review'));
+    expect(review?.disabled).toBeFalse();
   });
 
   // ── the production-vs-local button mismatch (2026-09-16) ───────────────────

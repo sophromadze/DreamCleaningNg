@@ -16,6 +16,8 @@
  * about semantics, the booking flow's behavior wins.
  */
 
+import { EXTRA_SERVICE_KEYS, extraIs } from '../booking/extra-service-keys';
+
 // ===== Shared constants (mirror: OrderPricingCalculator.cs) =====
 
 /** NYC sales tax. The only place this rate may be defined on the frontend. */
@@ -72,7 +74,10 @@ export const DEEP_CLEANING_CLEANER_HOURLY_RATE = 21;
 export const HEAVY_DUTY_CLEANER_HOURLY_RATE = 25;
 export const FILTHY_CLEANER_HOURLY_RATE = 28;
 
-/** The extra service that adds cleaners is identified by name, like the booking page does. */
+/**
+ * The extra that adds cleaners is identified by its key (EXTRA_SERVICE_KEYS.extraCleaners); this
+ * name is only the fallback for an UNKEYED row (see extra-service-keys.ts).
+ */
 export const EXTRA_CLEANERS_NAME = 'Extra Cleaners';
 
 /** Round to cents, half-up — the rounding used in every price step on both sides. */
@@ -163,12 +168,20 @@ export interface ExtraServiceLineInput {
   hasHours: boolean;
   hasQuantity: boolean;
   name?: string | null;
+  /** ExtraService.extraServiceKey - decides isExtraCleaners when set. */
+  extraServiceKey?: string | null;
   quantity: number;
   hours: number;
 }
 
-export function isExtraCleaners(extra: ExtraServiceLineInput): boolean {
-  return extra.hasQuantity && extra.name === EXTRA_CLEANERS_NAME;
+/**
+ * The Extra Cleaners line: by key, or (unkeyed row) by the exact name. Takes any extra-shaped
+ * object, so the booking surfaces ask the same question the calculator does.
+ * Mirrors ExtraServiceLineInput.IsExtraCleaners in OrderPricingCalculator.cs.
+ */
+export function isExtraCleaners(extra: { hasQuantity: boolean; name?: string | null; extraServiceKey?: string | null }): boolean {
+  return extra.hasQuantity
+    && extraIs(extra, EXTRA_SERVICE_KEYS.extraCleaners, (_lower, name) => name === EXTRA_CLEANERS_NAME);
 }
 
 export interface QuoteInput {
@@ -680,22 +693,10 @@ export function resolveLoyaltyStacking(
  * from the current one — that made the admin editor lag a step behind, so bathrooms 2→1→2 left
  * a 20% promo at 108.10 on a 563.00 subtotal instead of 112.60.
  *
- * KNOWN LIMITATION — this scales a FIXED-amount promo ("$50 off") proportionally, which is
- * wrong for that promo type. Both surfaces have always behaved this way. The component cannot
- * do better today: the order DTO exposes the promo CODE and the resulting dollar amount, but
- * not whether the code is a percentage or a flat amount, so the original ratio is the only
- * available signal. Fixing it properly means exposing the promo type on the order DTO and is
- * deliberately out of scope here.
- *
- * MIRRORED IN C#, but inline rather than as a named function: OrderService.UpdateOrder
- * (~line 447) and CalculateAdditionalAmount (~line 745) run the same
- * `round2(newSubTotal × (storedDiscount / storedSubTotal))` server-side, from the STORED
- * order values, and deliberately ignore the client's discount figures. Change this and those
- * together — the customer order-edit page previews a number the backend then re-derives, so
- * any drift shows up as a total that changes the moment the customer saves.
- *
- * The admin SuperAdmin save path is the exception: it persists the posted discount verbatim
- * without re-deriving anything.
+ * Since 2026-10 this is only the FALLBACK inside resolveEditedDiscounts, for an order with no
+ * recorded booking rule (booked before the rule existed and not backfilled, or a discount a
+ * SuperAdmin typed by hand). Orders that recorded their rule re-apply it exactly instead — see
+ * resolveEditedDiscounts. Mirrored by the Rescale step of OrderPricingCalculator.ResolveEditedDiscounts.
  */
 export function rescaleDiscountToSubTotal(
   originalDiscount: number,
@@ -704,6 +705,82 @@ export function rescaleDiscountToSubTotal(
 ): number {
   if (!(originalSubTotal > 0)) return 0;
   return round2(newSubTotal * (originalDiscount / originalSubTotal));
+}
+
+/**
+ * A percentage discount exactly as booking computes it — mirror of OrderPricingCalculator.PercentOf,
+ * Round2(subTotal × % / 100) in C# decimal. Done in whole CENTS and hundredths of a percent,
+ * because the float product lands a cent off on exact half-cent boundaries (34750¢ × 11.11%).
+ */
+export function percentOf(subTotal: number, percent: number): number {
+  if (!(subTotal > 0) || !(percent > 0)) return 0;
+  const cents = Math.round(subTotal * 100);
+  const hundredths = Math.round(percent * 100);
+  return Math.floor((cents * hundredths + 5000) / 10000) / 100;
+}
+
+/**
+ * A fixed-amount promo / special offer: its face value, capped so the discounted subtotal never
+ * goes below zero once the other surviving discounts are off. Mirror of CapFixedDiscount.
+ */
+export function capFixedDiscount(faceValue: number, subTotal: number, otherDiscounts: number): number {
+  return Math.max(0, Math.min(faceValue, round2(subTotal - otherDiscounts)));
+}
+
+/** The order's discounts as stored, with the booking rule behind each (OrderDto fields). */
+export interface EditDiscountInput {
+  /** The order's subtotal BEFORE the edit — what the stored amounts were derived from. */
+  originalSubTotal: number;
+  newSubTotal: number;
+  discountAmount: number;
+  discountPercent?: number | null;
+  discountFixedAmount?: number | null;
+  subscriptionDiscountAmount: number;
+  subscriptionDiscountPercent?: number | null;
+  loyaltyDiscountPercentage: number;
+  /** Only read when no percentage is locked (pre-snapshot orders). */
+  loyaltyDiscountAmount?: number;
+}
+
+export interface EditedDiscounts {
+  discountAmount: number;
+  subscriptionDiscountAmount: number;
+  loyaltyDiscountAmount: number;
+}
+
+/**
+ * The promo, subscription and loyalty discounts of an EDITED order — the numbers booking would
+ * produce for the new subtotal (2026-10). Mirror of OrderPricingCalculator.ResolveEditedDiscounts,
+ * which the server stores; both editors preview with this so the saved total is the one shown.
+ *
+ * Stacking was decided once, at booking: a rule is recorded only for a slot that survived it, so
+ * an edit never revives a dropped slot. Per slot: a recorded percentage -> percentOf; a recorded
+ * fixed amount -> its face value, capped; no rule -> the old proportional re-scale. Loyalty keeps
+ * its locked percentage (an amount with no percentage re-scales).
+ */
+export function resolveEditedDiscounts(input: EditDiscountInput): EditedDiscounts {
+  const newSub = input.newSubTotal;
+  const rescale = (amount: number) => rescaleDiscountToSubTotal(amount, input.originalSubTotal, newSub);
+
+  const subPct = Number(input.subscriptionDiscountPercent ?? 0) || 0;
+  const subscriptionDiscountAmount = subPct > 0
+    ? percentOf(newSub, subPct)
+    : (input.subscriptionDiscountAmount > 0 ? rescale(input.subscriptionDiscountAmount) : 0);
+
+  const loyaltyPct = Number(input.loyaltyDiscountPercentage) || 0;
+  const storedLoyalty = Number(input.loyaltyDiscountAmount ?? 0) || 0;
+  const loyaltyDiscountAmount = loyaltyPct > 0
+    ? percentOf(newSub, loyaltyPct)
+    : (storedLoyalty > 0 ? rescale(storedLoyalty) : 0);
+
+  const pct = Number(input.discountPercent ?? 0) || 0;
+  const face = Number(input.discountFixedAmount ?? 0) || 0;
+  let discountAmount: number;
+  if (pct > 0) discountAmount = percentOf(newSub, pct);
+  else if (face > 0) discountAmount = capFixedDiscount(face, newSub, subscriptionDiscountAmount + loyaltyDiscountAmount);
+  else discountAmount = input.discountAmount > 0 ? rescale(input.discountAmount) : 0;
+
+  return { discountAmount, subscriptionDiscountAmount, loyaltyDiscountAmount };
 }
 
 // ===== Step 4: tax + total =====
@@ -826,8 +903,21 @@ export function resolveGiftCardAmountToUse(giftCardBalance: number, totalBeforeG
  */
 export function getDefaultCleanerHourlyRate(
   deepCleaningFee: number,
-  serviceTypeName?: string | null
+  serviceTypeName?: string | null,
+  serviceTypeKey?: string | null
 ): number {
+  // A keyed (non-custom) service type is recognised by its ServiceType.serviceKey, so a rename in
+  // admin cannot move a cleaner onto another rate. Callers pass the key only for a NON-custom type:
+  // a custom order's label is the truth for it and stays matched by name below, as does any type
+  // nobody has keyed. Mirrors GetDefaultCleanerHourlyRate's key switch.
+  const key = (serviceTypeKey ?? '').trim();
+  if (key) {
+    if (key === 'filthy') return FILTHY_CLEANER_HOURLY_RATE;
+    if (key === 'heavy-condition' || key === 'post-construction') return HEAVY_DUTY_CLEANER_HOURLY_RATE;
+    if (key === 'move-in-out') return DEEP_CLEANING_CLEANER_HOURLY_RATE;
+    return deepCleaningFee > 0 ? DEEP_CLEANING_CLEANER_HOURLY_RATE : REGULAR_CLEANER_HOURLY_RATE;
+  }
+
   const name = normalizeServiceTypeName(serviceTypeName);
 
   if (name.includes('filthy')) {
@@ -977,6 +1067,7 @@ export interface SelectedExtraServiceLike {
     hasHours: boolean;
     hasQuantity: boolean;
     name?: string | null;
+    extraServiceKey?: string | null;
   };
   quantity: number;
   hours: number;
@@ -995,6 +1086,7 @@ export function mapSelectedExtraInputs(selected: SelectedExtraServiceLike[]): Ex
     hasHours: s.extraService.hasHours,
     hasQuantity: s.extraService.hasQuantity,
     name: s.extraService.name,
+    extraServiceKey: s.extraService.extraServiceKey ?? null,
     quantity: s.quantity,
     hours: s.hours
   }));

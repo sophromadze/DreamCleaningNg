@@ -94,7 +94,7 @@
 
     &:hover {
       background: var(--soft-blue);
-      color: var(--primary-color);
+      color: var(--primary-text-elevated);
     }
   }
 
@@ -145,7 +145,7 @@
 
       &.active {
         background: var(--soft-blue);
-        color: var(--primary-color);
+        color: var(--primary-text-elevated);
         font-weight: 600;
       }
     }
@@ -267,7 +267,7 @@
 
     &.error {
       background: var(--soft-red);
-      color: var(--bright-red);
+      color: var(--soft-red-text);
       border: 1px solid var(--soft-red);
     }
   }
@@ -440,7 +440,7 @@
       font-size: 0.68rem;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      color: var(--primary-color);
+      color: var(--primary-text-elevated);
       font-weight: 700;
     }
   }
@@ -482,7 +482,7 @@
         font-size: 0.66rem;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        color: var(--primary-color);
+        color: var(--primary-text-elevated);
       }
 
       input {
@@ -578,7 +578,7 @@
       padding: 0.05rem 0.4rem;
       border-radius: 999px;
       background: var(--soft-blue);
-      color: var(--primary-color);
+      color: var(--primary-text-elevated);
       font-size: 0.65rem;
       font-weight: 700;
       text-transform: uppercase;
@@ -613,7 +613,7 @@
       &:hover {
         background: var(--soft-blue);
         border-color: var(--primary-color);
-        color: var(--primary-color);
+        color: var(--primary-text-elevated);
       }
 
       /* Confirmed state, cleared after 2s by the component. */
@@ -668,7 +668,7 @@
 
     &.pill-edited {
       background: var(--soft-blue);
-      color: var(--primary-color);
+      color: var(--primary-text-elevated);
     }
 
     &.pill-warn {
@@ -773,7 +773,7 @@
     cursor: pointer;
     text-decoration: underline;
 
-    &.danger { color: var(--bright-red); }
+    &.danger { color: var(--soft-red-text); }
     &:disabled { opacity: 0.6; cursor: not-allowed; }
   }
 }
@@ -867,7 +867,7 @@
   margin-bottom: 1rem;
   background: var(--soft-blue);
   border-radius: 6px;
-  color: var(--primary-color);
+  color: var(--primary-text-elevated);
 
   strong { font-size: 1.1rem; }
 }
@@ -920,7 +920,7 @@
   &:hover:not(:disabled) { background: var(--page-bg); }
 
   &.discard {
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     border-color: var(--soft-red);
     &:hover:not(:disabled) { background: var(--soft-red); }
   }
@@ -964,7 +964,7 @@
   &:hover { color: var(--text-primary); }
 
   &.active {
-    color: var(--primary-color);
+    color: var(--primary-color-text);
     border-bottom-color: var(--primary-color);
   }
 
@@ -1040,7 +1040,7 @@
     padding: 0.05rem 0.5rem;
     border-radius: 999px;
     background: var(--mint-fresh);
-    color: var(--fresh-green);
+    color: var(--mint-fresh-text);
     font-size: 0.78rem;
     font-weight: 600;
   }
@@ -1092,7 +1092,7 @@
     padding: 0.05rem 0.45rem;
     border-radius: 999px;
     background: var(--mint-fresh);
-    color: var(--fresh-green);
+    color: var(--mint-fresh-text);
     font-size: 0.7rem;
     font-weight: 600;
     cursor: help;
@@ -1156,7 +1156,7 @@
     font-size: 0.78rem;
     cursor: pointer;
 
-    &:hover { color: var(--primary-color); border-color: var(--primary-color); }
+    &:hover { color: var(--primary-text-elevated); border-color: var(--primary-color); }
   }
 
   .dest-input {
@@ -1224,7 +1224,7 @@
     color: var(--text-muted);
     font-size: 0.78rem;
 
-    .inst-paid-tick { color: var(--fresh-green); font-weight: 600; }
+    .inst-paid-tick { color: var(--mint-fresh-text); font-weight: 600; }
     .inst-paid-note { font-style: italic; }
   }
 

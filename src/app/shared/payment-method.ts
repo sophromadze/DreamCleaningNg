@@ -3,13 +3,15 @@
 // can round-trip without translation. "Normal" is the Stripe path (existing IsPaid flow);
 // all others are handled outside Stripe.
 
-export type PaymentMethodValue = 'Normal' | 'Cash' | 'Zelle' | 'Check' | 'Other' | 'Invoice';
+export type PaymentMethodValue = 'Normal' | 'Cash' | 'Zelle' | 'Check' | 'BankTransfer' | 'Other' | 'Invoice';
 
 export const PAYMENT_METHOD_OPTIONS: { value: PaymentMethodValue; label: string }[] = [
   { value: 'Normal', label: 'Normal (Stripe)' },
   { value: 'Cash',   label: 'Cash' },
   { value: 'Zelle',  label: 'Zelle' },
   { value: 'Check',  label: 'Check' },
+  // A bank-to-bank transfer read off the statement — settled on record, like Zelle or a cheque.
+  { value: 'BankTransfer', label: 'Bank transfer' },
   { value: 'Other',  label: 'Other' },
   { value: 'Invoice', label: 'Invoice (commercial)' },
 ];
@@ -27,6 +29,12 @@ export const PAYMENT_METHOD_OPTIONS: { value: PaymentMethodValue; label: string 
  */
 export function isSettledOnRecord(method: PaymentMethodValue): boolean {
   return method !== 'Normal' && method !== 'Invoice';
+}
+
+/** Human label for a wire value ("BankTransfer" → "Bank transfer"); unknown values pass through. */
+export function paymentMethodLabel(method: string | null | undefined): string {
+  if (!method) return '';
+  return method === 'BankTransfer' ? 'Bank transfer' : method;
 }
 
 /** True for everything the website does not charge a card for. */

@@ -188,7 +188,7 @@
 
 .error-state {
   background: var(--soft-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   border-radius: var(--radius-md);
   padding: 16px 20px;
   margin-bottom: 20px;
@@ -305,8 +305,8 @@
     font-weight: var(--fw-semibold);
     color: var(--text-muted);
 
-    &.up { color: var(--fresh-green); }
-    &.down { color: var(--bright-red); }
+    &.up { color: var(--mint-fresh-text); }
+    &.down { color: var(--soft-red-text); }
 
     .delta-arrow { font-size: 0.7rem; }
 
@@ -637,8 +637,8 @@
   font-weight: var(--fw-semibold);
   color: var(--text-muted);
 
-  &.up { color: var(--fresh-green); }
-  &.down { color: var(--bright-red); }
+  &.up { color: var(--mint-fresh-text); }
+  &.down { color: var(--soft-red-text); }
 }
 
 .table-wrap {
@@ -1055,7 +1055,7 @@
     padding: 2px 6px;
 
     &:hover {
-      color: var(--bright-red);
+      color: var(--soft-red-text);
     }
   }
 }
@@ -1085,7 +1085,7 @@
 .modal-error {
   margin-top: 12px;
   background: var(--soft-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   border-radius: var(--radius-sm);
   padding: 10px 14px;
   font-size: 0.86rem;

@@ -27,6 +27,7 @@ import {
   normalizePropertyType,
   serviceTypeCollectsPropertyType
 } from '../../booking/property-type.utils';
+import { EXTRA_SERVICE_KEYS, extraIs } from '../../booking/extra-service-keys';
 import {
   EXTRA_CLEANERS_NAME,
   QuoteInput,
@@ -654,7 +655,8 @@ export class RecreateOrderModalComponent implements OnChanges {
     const all = (this.serviceType?.extraServices ?? [])
       .filter(es => !es.isDeepCleaning && !es.isSuperDeepCleaning);
     if (!this.serviceType?.isCustom) return all;
-    return all.filter(es => !es.isSameDayService && es.name !== EXTRA_CLEANERS_NAME);
+    return all.filter(es => !es.isSameDayService
+      && !extraIs(es, EXTRA_SERVICE_KEYS.extraCleaners, (_lower, name) => name === EXTRA_CLEANERS_NAME));
   }
 
   isExtraSelected(extra: ExtraService): boolean {

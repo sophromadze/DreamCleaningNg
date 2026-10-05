@@ -47,61 +47,45 @@ describe('CommercialCleaningComponent', () => {
     expect(component).toBeTruthy();
   });
 
+  const COMMERCIAL_URL = `${environment.apiUrl}/contact/commercial-quote-request`;
+
   it('does not submit an incomplete form', () => {
     component.onSubmit();
-    http.expectNone(`${environment.apiUrl}/contact/quote-request`);
+    http.expectNone(COMMERCIAL_URL);
     expect(component.isSubmitting).toBeFalse();
   });
 
-  // The commercial fields have no columns of their own on QuoteRequestDto — a DTO other
-  // callers share. If this mapping drifts, an admin reads a lead with no company on it.
-  it('maps the commercial fields onto the shared quote-request DTO', () => {
+  // Its own endpoint and DTO. Squeezed into the residential quote-request DTO, the email read
+  // "First Name: <business>", "Last Name: <contact>", "Home Address: <business address>" and
+  // put frequency / size / notes into one Message blob under a "Free Quote" subject.
+  it('posts every field under its own name to the commercial endpoint', () => {
     component.quoteForm.setValue(VALID);
     component.onSubmit();
 
-    const req = http.expectOne(`${environment.apiUrl}/contact/quote-request`);
-    const body = req.request.body;
-
-    expect(body.firstName).toBe('Hudson Dental Group');
-    expect(body.lastName).toBe('Alex Rivera');
-    expect(body.phone).toBe('2125550147');
-    expect(body.email).toBe('alex@hudsondental.com');
-    expect(body.homeAddress).toBe('120 W 45th St, Manhattan');
-    expect(body.cleaningType).toContain('Commercial');
-    expect(body.cleaningType).toContain('Medical / dental');
-
-    // Everything with nowhere else to go has to survive in Message.
-    expect(body.message).toContain('Requested frequency: 5-7 nights a week');
-    expect(body.message).toContain('2400 sq ft');
-    expect(body.message).toContain('Building requires a COI.');
+    http.expectNone(`${environment.apiUrl}/contact/quote-request`);
+    const req = http.expectOne(COMMERCIAL_URL);
+    expect(req.request.body).toEqual({
+      businessName: 'Hudson Dental Group',
+      contactName: 'Alex Rivera',
+      phone: '2125550147',
+      email: 'alex@hudsondental.com',
+      businessAddress: '120 W 45th St, Manhattan',
+      facilityType: 'Medical / dental',
+      squareFootage: '2400',
+      frequency: '5-7 nights a week',
+      notes: 'Building requires a COI.'
+    });
 
     req.flush({});
   });
 
-  // The notification email prints these as labelled rows of its own; repeating them in
-  // Message printed each one twice in the same email.
-  it('keeps out of Message anything the email already has a row for', () => {
-    component.quoteForm.setValue(VALID);
-    component.onSubmit();
-
-    const req = http.expectOne(`${environment.apiUrl}/contact/quote-request`);
-    const message: string = req.request.body.message;
-
-    expect(message).not.toContain('Hudson Dental Group');   // First Name row
-    expect(message).not.toContain('Alex Rivera');           // Last Name row
-    expect(message).not.toContain('120 W 45th St');         // Home Address row
-    expect(message).not.toContain('Medical / dental');      // Cleaning Type row
-
-    req.flush({});
-  });
-
-  it('omits the optional lines when they are blank', () => {
+  it('sends blank optional fields as null', () => {
     component.quoteForm.setValue({ ...VALID, squareFootage: '  ', notes: '' });
     component.onSubmit();
 
-    const req = http.expectOne(`${environment.apiUrl}/contact/quote-request`);
-    expect(req.request.body.message).not.toContain('sq ft');
-    expect(req.request.body.message).not.toContain('Notes:');
+    const req = http.expectOne(COMMERCIAL_URL);
+    expect(req.request.body.squareFootage).toBeNull();
+    expect(req.request.body.notes).toBeNull();
     req.flush({});
   });
 
@@ -110,7 +94,7 @@ describe('CommercialCleaningComponent', () => {
   it('fires the quote_form_submit conversion event on success', () => {
     component.quoteForm.setValue(VALID);
     component.onSubmit();
-    http.expectOne(`${environment.apiUrl}/contact/quote-request`).flush({});
+    http.expectOne(COMMERCIAL_URL).flush({});
 
     expect(analytics.pushEvent).toHaveBeenCalledWith('quote_form_submit', jasmine.objectContaining({
       event_label: 'commercial_quote_request'
@@ -122,7 +106,7 @@ describe('CommercialCleaningComponent', () => {
   it('releases the button and shows a message when the request fails', () => {
     component.quoteForm.setValue(VALID);
     component.onSubmit();
-    http.expectOne(`${environment.apiUrl}/contact/quote-request`)
+    http.expectOne(COMMERCIAL_URL)
       .flush({ message: 'Email service is not configured.' }, { status: 500, statusText: 'Server Error' });
 
     expect(component.isSubmitting).toBeFalse();

@@ -1,0 +1,335 @@
+// Admin → Invoices (regular customer invoices). Rendered inside the admin panel's .tab-content,
+// which supplies the page padding.
+.ci-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.ci-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 4px;
+  }
+}
+
+.ci-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 640px;
+}
+
+.ci-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+
+  input, select {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: 14px;
+  }
+
+  input { flex: 1 1 280px; }
+}
+
+.ci-message {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 12px;
+  font-size: 14px;
+  word-break: break-word;
+
+  &--ok { background: #d4edda; color: #155724; }
+  &--error { background: var(--soft-red); color: var(--soft-red-text); }
+}
+
+.ci-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-muted);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-md);
+}
+
+.ci-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.ci-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+
+  th, td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: top;
+    color: var(--text-primary);
+  }
+
+  th {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-muted-on-tint);
+    background: var(--surface-subtle);
+    white-space: nowrap;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  .num { text-align: right; white-space: nowrap; }
+  .actions { white-space: nowrap; }
+}
+
+.ci-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.ci-warn { color: var(--warning-orange-text); }
+
+.ci-kind {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--soft-blue);
+  color: var(--primary-text-elevated);
+}
+
+.ci-status {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+
+  &.status-sent { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+  &.status-notsent { background: var(--surface-subtle); color: var(--text-secondary); }
+  &.status-paid { background: #d4edda; color: #155724; }
+  &.status-void, &.status-cancelled { background: var(--soft-red); color: var(--soft-red-text); }
+}
+
+.ci-link {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  margin-right: 6px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-color-text);
+  cursor: pointer;
+  text-decoration: none;
+
+  &:hover:not(:disabled) { text-decoration: underline; }
+  &:disabled { opacity: 0.5; cursor: default; }
+  &--strong { color: var(--mint-fresh-text); }
+  &--danger { color: var(--soft-red-text); }
+}
+
+.ci-btn {
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: var(--surface);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+
+  &:disabled { opacity: 0.55; cursor: default; }
+
+  &--primary {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+
+    &:hover:not(:disabled) { background: var(--primary-color-hover); }
+  }
+
+  &--danger {
+    background: var(--bright-red);
+    border-color: var(--bright-red);
+    color: #fff;
+  }
+}
+
+// ── Modals ──────────────────────────────────────────────────────────────────────────────
+.ci-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  overflow-y: auto;
+}
+
+.ci-modal {
+  width: 100%;
+  max-width: 640px;
+  background: var(--surface-elevated, var(--surface));
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+
+  &--small { max-width: 460px; }
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color);
+
+    h3 { margin: 0; font-size: 18px; color: var(--text-primary); }
+  }
+
+  &__body {
+    padding: 16px 20px;
+
+    input[type='text'], input[type='number'], select, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px 10px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--text-primary);
+      font: inherit;
+      font-size: 14px;
+    }
+  }
+
+  &__foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border-color);
+  }
+}
+
+.ci-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.ci-label {
+  display: block;
+  margin: 14px 0 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+
+  &:first-child { margin-top: 0; }
+}
+
+.ci-orders {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.ci-order {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-primary);
+
+  &.selected { border-color: var(--primary-color); background: var(--soft-blue); }
+  &.disabled { opacity: 0.6; cursor: default; }
+
+  input { margin-top: 3px; }
+}
+
+.ci-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  .radio-row { display: flex; gap: 8px; align-items: center; font-size: 14px; color: var(--text-primary); }
+}
+
+.ci-split {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  &__label { min-width: 72px; font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+
+  &__sum { margin-top: 6px; font-size: 13px; color: var(--text-secondary); }
+}
+
+.ci-money {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 1 160px;
+  color: var(--text-secondary);
+}
+
+.ci-send {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 14px;
+  font-size: 14px;
+  color: var(--text-primary);
+
+  label { display: flex; align-items: center; gap: 6px; }
+}
+
+@media (max-width: 600px) {
+  .ci-split__row { flex-wrap: wrap; }
+  .ci-modal__foot { flex-direction: column-reverse; .ci-btn { width: 100%; } }
+}

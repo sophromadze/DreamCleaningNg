@@ -3,6 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { AdminService, UserAdmin } from '../../services/admin.service';
+import { IconComponent } from '../../shared/icons/icon.component';
+import { faTriangleExclamation } from '../../shared/icons/glyphs/faTriangleExclamation';
+import { faXmark } from '../../shared/icons/glyphs/faXmark';
 
 /** Keystroke-to-filter delay. The list must stop moving before the admin reaches for the mouse. */
 export const USER_SEARCH_DEBOUNCE_MS = 200;
@@ -48,11 +51,13 @@ export const USER_LIST_SETTLE_MS = 350;
 @Component({
   selector: 'app-admin-user-search',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, IconComponent],
   templateUrl: './admin-user-search.component.html',
   styleUrls: ['./admin-user-search.component.scss']
 })
 export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
+  protected readonly icons = { faTriangleExclamation, faXmark };
+
   /** Currently selected target user (owned by the booking page). */
   @Input() selectedUser: UserAdmin | null = null;
 

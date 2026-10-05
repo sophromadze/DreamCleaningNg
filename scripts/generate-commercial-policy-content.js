@@ -144,10 +144,14 @@ const shims = {
   Section: (number, title, anchor, blocks) => ({ number, title, anchor, blocks })
 };
 
-// The three shared clause methods, evaluated once and reused - which is precisely the property
-// the generated file has to preserve: the standalone document's sections ARE the complete
-// document's sections 4, 5 and 7, not copies of them.
-for (const name of ['CancellationClauses', 'TerminationClauses', 'PrepaidAndRefundClauses']) {
+// The shared clause methods, evaluated once and reused - which is precisely the property the
+// generated file has to preserve: the standalone document's sections ARE the complete document's
+// cancellation and termination sections, not copies of them. Discovered from the source rather
+// than listed here, so adding or retiring a shared builder in the C# needs no edit to this script.
+const clauseMethods = [...source.matchAll(/private static PolicyBlock\[\] (\w+)\(\) => new\[\]/g)]
+  .map(m => m[1]);
+if (clauseMethods.length === 0) throw new Error(`no shared clause methods found in ${SOURCE}`);
+for (const name of clauseMethods) {
   shims[name] = () => evaluate(toJs(clauseArray(name)));
 }
 

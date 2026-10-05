@@ -17,14 +17,14 @@
 
   h2 {
     margin: 0 0 10px 0;
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
     font-size: 1.2rem;
     font-weight: var(--fw-semibold);
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
 
-    i { color: var(--primary-color); }
+    i { color: var(--primary-text-elevated); }
   }
 
   .td-subtitle {
@@ -44,8 +44,8 @@
   font-size: 0.88rem;
   margin-bottom: 1rem;
 
-  &.td-error  { background: var(--soft-red); color: var(--bright-red); }
-  &.td-notice { background: var(--mint-fresh); color: var(--fresh-green); border: 1px solid var(--mint-fresh-border); }
+  &.td-error  { background: var(--soft-red); color: var(--soft-red-text); }
+  &.td-notice { background: var(--mint-fresh); color: var(--mint-fresh-text); border: 1px solid var(--mint-fresh-border); }
 }
 
 .td-loading, .td-empty {
@@ -87,7 +87,7 @@
     height: 2.5rem;
     border-radius: var(--radius-pill);
     background: var(--surface-subtle);
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -143,7 +143,7 @@
 
   &:hover:not(:disabled) {
     border-color: var(--bright-red);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
     background: var(--soft-red);
   }
 
@@ -230,7 +230,7 @@
     &:hover:not(:disabled) {
       // soft-red is a light pink — in dark mode use a translucent red wash instead.
       background: rgba(239, 68, 68, 0.15);
-      color: var(--bright-red);
+      color: var(--soft-red-text);
       border-color: var(--bright-red);
     }
   }

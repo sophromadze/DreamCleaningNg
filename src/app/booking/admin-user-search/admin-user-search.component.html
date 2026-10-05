@@ -12,7 +12,7 @@
       class="clear-user-btn"
       *ngIf="selectedUser"
       (click)="clearSelectedUser()">
-      <i class="fas fa-times"></i>
+      <i [appIcon]="icons.faXmark"></i>
     </button>
   </div>
 
@@ -49,7 +49,7 @@
   <!-- Settle guard feedback: the click was swallowed on purpose because the list had just
        changed under the cursor. See USER_LIST_SETTLE_MS. -->
   <div class="click-rejected-warning" *ngIf="clickRejected && !selectedUser">
-    <i class="fas fa-triangle-exclamation"></i>
+    <i [appIcon]="icons.faTriangleExclamation"></i>
     <span>The list just updated — please check the name and click again.</span>
   </div>
 </div>

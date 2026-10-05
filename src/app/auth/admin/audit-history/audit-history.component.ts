@@ -15,6 +15,7 @@ import {
 } from '../../../shared/admin/audit-field-display';
 
 import { normalizeAuditValues, meaningfulAuditChanges, auditSummaryFields, auditCollectionChanges } from '../../../shared/admin/audit-presentation';
+import { ORDER_SERVICE_KEYS, orderServiceIs } from '../../../shared/booking/order-service-keys';
 
 @Component({
   selector: 'app-audit-history',
@@ -1182,7 +1183,8 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
 
   // NEW: Helper method to display service quantity with special handling for bedrooms
   getServiceQuantityDisplay(service: any): string {
-    if (service.ServiceName === 'Bedrooms' && service.Quantity === 0) {
+    // By ServiceKey when the snapshot has one; older snapshots by the exact name, as before.
+    if (orderServiceIs(service, ORDER_SERVICE_KEYS.bedrooms, (_, name) => name === 'Bedrooms') && service.Quantity === 0) {
       return 'Studio';
     }
     return service.Quantity.toString();

@@ -1,0 +1,110 @@
+// Profile → Invoices. The card shell (.section) is the profile page's; only the list is styled here.
+.mi-state {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+
+  &--error { color: var(--soft-red-text); }
+}
+
+.mi-owed {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid var(--warning-orange-border);
+  border-radius: var(--radius-md);
+  background: var(--warning-orange-bg);
+  color: var(--warning-orange-text);
+  font-size: 0.92rem;
+}
+
+.mi-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mi-row {
+  padding: 0.85rem 0;
+  border-top: 1px solid var(--border-color);
+
+  &:first-child { border-top: none; }
+  // Void/cancelled invoices are marked by their status badge; no opacity (AA, 2026-10).
+}
+
+.mi-row__main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.mi-number {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-weight: var(--fw-semibold);
+  color: var(--primary-text-elevated);
+  text-decoration: none;
+  margin-right: 0.5rem;
+
+  &:hover { text-decoration: underline; }
+}
+
+.mi-status {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+
+  &--paid { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &--sent, &--notsent { background: var(--warning-orange-bg); color: var(--warning-orange-text); }
+  &--void, &--cancelled { background: var(--soft-red); color: var(--soft-red-text); }
+}
+
+.mi-amount {
+  font-weight: var(--fw-bold, 700);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.mi-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.mi-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.mi-btn {
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--radius-sm, 8px);
+  background: var(--primary-color);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: var(--fw-semibold);
+  text-decoration: none;
+
+  &:hover { background: var(--primary-color-hover); }
+}
+
+.mi-link {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--primary-text-elevated);
+  font-size: 0.85rem;
+  cursor: pointer;
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+}

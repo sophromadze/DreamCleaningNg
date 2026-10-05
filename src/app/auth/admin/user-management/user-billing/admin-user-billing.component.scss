@@ -16,9 +16,9 @@
 
 .aub-muted { color: var(--text-muted); font-size: 0.82rem; }
 .aub-warn { color: var(--soft-yellow-text); font-size: 0.82rem; display: block; }
-.aub-error { color: var(--bright-red); }
+.aub-error { color: var(--soft-red-text); }
 .aub-loading { color: var(--text-muted); padding: 8px 0; }
-.aub-link { background: none; border: 0; color: var(--primary-color); text-decoration: underline; cursor: pointer; }
+.aub-link { background: none; border: 0; color: var(--primary-text-elevated); text-decoration: underline; cursor: pointer; }
 .aub-count { font-size: 0.75rem; color: var(--text-muted); font-weight: var(--fw-medium); }
 
 .aub-chip {
@@ -31,10 +31,10 @@
   color: var(--text-secondary);
   white-space: nowrap;
 
-  &.ok, &.st-succeeded, &.st-paid { background: var(--mint-fresh); color: var(--fresh-green); }
-  &.info { background: var(--soft-blue); color: var(--primary-color); }
+  &.ok, &.st-succeeded, &.st-paid { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+  &.info { background: var(--soft-blue); color: var(--primary-text-elevated); }
   &.warn, &.st-pending, &.st-unknown, &.st-processing, &.st-requiresaction, &.st-requires-action { background: var(--soft-yellow); color: var(--soft-yellow-text); }
-  &.bad, &.st-failed { background: var(--soft-red); color: var(--bright-red); }
+  &.bad, &.st-failed { background: var(--soft-red); color: var(--soft-red-text); }
 }
 
 .aub-issues { display: flex; flex-direction: column; gap: 6px; }
@@ -48,7 +48,7 @@
   background: var(--soft-yellow);
   color: var(--soft-yellow-text);
 
-  &.critical { background: var(--soft-red); color: var(--bright-red); }
+  &.critical { background: var(--soft-red); color: var(--soft-red-text); }
 }
 
 .aub-cards, .aub-arrangements, .aub-list {

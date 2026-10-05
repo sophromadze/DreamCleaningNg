@@ -104,6 +104,15 @@
             *ngIf="userRole === 'SuperAdmin'">
       Rewards
     </button>
+    <!-- Regular customer invoices (2026-09). ALWAYS THE LAST TAB — owner's call; add new tabs
+         above it. Role-gated to match [Authorize(Roles = "Admin,SuperAdmin")] on
+         AdminCustomerInvoicesController, like Chats. -->
+    <button class="tab-btn"
+            [class.active]="activeTab === 'invoices'"
+            (click)="setActiveTab('invoices')"
+            *ngIf="userRole === 'Admin' || userRole === 'SuperAdmin'">
+      Invoices
+    </button>
   </div>
 
   <!-- Messages -->
@@ -141,6 +150,12 @@
            role has loaded. -->
       <ng-container *ngSwitchCase="'rewards'">
         <app-admin-rewards *ngIf="userRole === 'SuperAdmin'"></app-admin-rewards>
+      </ng-container>
+      <ng-container *ngSwitchCase="'invoices'">
+        <app-admin-customer-invoices *ngIf="userRole === 'Admin' || userRole === 'SuperAdmin'"
+                                     [canCreate]="!!userPermissions?.permissions?.canCreate"
+                                     [canUpdate]="!!userPermissions?.permissions?.canUpdate">
+        </app-admin-customer-invoices>
       </ng-container>
     </ng-container>
   </div>

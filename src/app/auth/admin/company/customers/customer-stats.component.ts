@@ -420,7 +420,7 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
       key: 'totalSpend', label: 'Customer spend', group: 'Orders & money',
       format: 'money', betterWhen: 'high',
       get: s => s.totalSpend,
-      hint: 'What customers paid, net of refunds — tax and tips included, unlike the Finances page.'
+      hint: 'What customers paid, net of refunds — tax and tips included, unlike the Finances page. A booked cleaning that is not paid yet counts as an order but adds nothing here.'
     },
     {
       key: 'returningCustomerSpend', label: 'Spend from returning customers',

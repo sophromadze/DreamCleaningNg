@@ -10,7 +10,6 @@
   background: var(--surface);
   border-radius: 20px;
   padding: 1.5rem;
-  font-family: 'Poppins', sans-serif;
 
   @media (max-width: 1200px) {
     padding: 2rem 1rem 1rem 1rem;
@@ -36,7 +35,6 @@
     border-bottom: 2px solid #f0f0f0;
     font-size: 1.2rem;
     font-weight: 500;
-    font-family: 'Poppins', sans-serif;
     margin: 0 0 1rem 0;
     display: flex;
     align-items: center;
@@ -74,7 +72,6 @@
       padding: 5px 0;
       color: #666;
       font-size: 0.95rem;
-      font-family: 'Poppins', sans-serif;
       font-weight: 400;
 
       @media (max-width: 1200px) {
@@ -112,7 +109,6 @@
       padding: 5px 0;
       color: #666;
       font-size: 0.95rem;
-      font-family: 'Poppins', sans-serif;
       font-weight: 400;
 
       @media (max-width: 1200px) {
@@ -155,7 +151,6 @@
       font-weight: 700;
       color: #333;
       padding: 10px 0;
-      font-family: 'Poppins', sans-serif;
 
       @media (max-width: 1200px) {
         font-size: 1.2rem;
@@ -185,7 +180,6 @@
   border-radius: 31px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   padding: 1.5rem;
-  font-family: 'Poppins', sans-serif;
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
@@ -225,7 +219,6 @@
     border-bottom: 2px solid #f0f0f0;
     font-size: 1.3rem;
     font-weight: 600;
-    font-family: 'Poppins', sans-serif;
     word-wrap: break-word;
     overflow-wrap: break-word;
     max-width: 100%;
@@ -269,7 +262,6 @@
       padding: 5px 0;
       color: #666;
       font-size: 0.95rem;
-      font-family: 'Poppins', sans-serif;
       font-weight: 400;
 
       @media (max-width: 1200px) {
@@ -307,7 +299,6 @@
       padding: 5px 0;
       color: #666;
       font-size: 0.95rem;
-      font-family: 'Poppins', sans-serif;
       font-weight: 400;
 
       @media (max-width: 1200px) {
@@ -417,7 +408,6 @@
     font-weight: 700;
     color: #333;
     width: 100%;
-    font-family: 'Poppins', sans-serif;
 
     @media (max-width: 768px) {
       font-size: 1.15rem;
@@ -514,7 +504,6 @@
   margin-top: 2px;
   font-size: 0.8rem;
   line-height: 1.35;
-  font-family: 'Poppins', sans-serif;
   font-weight: 400;
   color: var(--text-secondary, #888);
 
@@ -748,7 +737,7 @@
         color: #c8c8c8 !important;
       }
       .pts-earn-value {
-        color: var(--primary-color) !important;
+        color: var(--primary-color-text) !important;
       }
     }
   }

@@ -365,4 +365,33 @@ describe('ChatWidgetComponent', () => {
       expect(component.requestingHuman).toBeFalse();
     });
   });
+  // ===== Chat photos are private (2026-10) =====
+
+  describe('a photo the visitor sends', () => {
+    it('is shown from the local copy, never from the stored server path', () => {
+      openAsGuest();
+      const file = new File([new Uint8Array([0xff, 0xd8, 0xff])], 'stain.jpg', { type: 'image/jpeg' });
+      const input = document.createElement('input');
+      Object.defineProperty(input, 'files', { value: [file] });
+
+      component.onFileSelected({ target: input } as unknown as Event);
+      http.expectOne(endsWith('/chat/upload-image')).flush({
+        imagePath: '/chat-photos/0123456789abcdef0123456789abcdef.jpg',
+        expiresAt: new Date().toISOString(),
+      });
+      const preview = component.pendingImage!.previewUrl;
+
+      component.send();
+      const request = http.expectOne(endsWith('/chat/message'));
+
+      // The server still gets its opaque reference...
+      expect(request.request.body.imagePath).toBe('/chat-photos/0123456789abcdef0123456789abcdef.jpg');
+      // ...but the bubble shows the visitor's own blob, because that path is no longer served.
+      const bubble = component.messages.find(m => m.role === 'user')!;
+      expect(bubble.imagePath).toBe(preview);
+      expect(bubble.imagePath).toMatch(/^blob:/);
+
+      request.flush({ sessionId: 'session-1', reply: 'Got it', escalated: false });
+    });
+  });
 });

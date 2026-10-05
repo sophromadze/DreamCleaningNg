@@ -363,6 +363,47 @@ describe('BookingComponent', () => {
   });
 
   /**
+   * 2026-09: a customer registered without a phone was picked in Admin Mode while the Phone box
+   * still held the PREVIOUS customer's number. Nobody noticed, create-for-user backfilled that
+   * number onto the new account, and the booking SMS went to a stranger. Picking a customer must
+   * overwrite every contact field — an empty one included.
+   */
+  describe('picking a customer in admin mode', () => {
+    beforeEach(() => {
+      component.isAdminMode = true;
+    });
+
+    it('empties the phone when the customer has none on file', () => {
+      component.selectUser({ id: 1, firstName: 'Ann', lastName: 'Lee', email: 'ann@example.com', phone: '9086555225' } as any);
+      expect(component.contactPhone.value).toBe('9086555225');
+
+      component.selectUser({ id: 2, firstName: 'Raj', lastName: 'Shah', email: 'raj@example.com', phone: null } as any);
+
+      expect(component.contactPhone.value).toBe('');
+      expect(component.contactPhone.hasError('required')).toBeTrue();
+      // Shown at once, so the admin asks for the number instead of finding out at Book Now.
+      expect(component.contactPhone.touched).toBeTrue();
+    });
+
+    it('does not keep a number left in the box from a restored draft or the admin', () => {
+      component.contactPhone.setValue('2125550000');
+
+      component.selectUser({ id: 2, firstName: 'Raj', lastName: 'Shah', email: 'raj@example.com' } as any);
+
+      expect(component.contactPhone.value).toBe('');
+    });
+
+    it('fills the customer\'s own number when they have one', () => {
+      component.contactPhone.setValue('2125550000');
+
+      component.selectUser({ id: 3, firstName: 'Mia', lastName: 'Kim', email: 'mia@example.com', phone: '(732) 954-4448' } as any);
+
+      expect(component.contactPhone.value).toBe('7329544448');
+      expect(component.contactPhone.valid).toBeTrue();
+    });
+  });
+
+  /**
    * Extras on a Custom Pricing ("Pre-Arranged") service type are INFORMATIONAL: they are
    * recorded for the admin panel and the cleaner's job email at $0 / 0 min, and must never
    * move the summary. Two regressions this pins:
@@ -1030,15 +1071,22 @@ describe('BookingComponent', () => {
         document.body.insertBefore(stub, document.body.firstChild);
       };
 
-      afterEach(() => stub?.remove());
+      // The scroll pass runs on the component's 100ms setTimeout. A mocked clock steps exactly
+      // that far, so the result never depends on how busy the browser is (and needs no zone).
+      // These specs used to wait 150ms of REAL time: the booking page's stray HttpClientModule
+      // sent real XHRs that failed inside that window and failed whichever spec was waiting.
+      beforeEach(() => jasmine.clock().install());
+      afterEach(() => {
+        jasmine.clock().uninstall();
+        stub?.remove();
+      });
 
-      // Real timers rather than fakeAsync: the component's own startup requests are in flight
-      // and a fake-async zone turns each of them into "Cannot make XHRs from within a fake
-      // async test". The scroll runs on a 100ms setTimeout, so 150ms is enough.
-      const afterScrollPass = (assert: () => void, done: DoneFn) =>
-        setTimeout(() => { assert(); done(); }, 150);
+      const afterScrollPass = (assert: () => void) => {
+        jasmine.clock().tick(100);
+        assert();
+      };
 
-      it('scrolls to the property-type section when nothing above it is invalid', (done) => {
+      it('scrolls to the property-type section when nothing above it is invalid', () => {
         mountStep1(`
           <div class="form-step active">
             <section class="property-type-section">
@@ -1051,10 +1099,10 @@ describe('BookingComponent', () => {
 
         component.onNextButtonClick();
 
-        afterScrollPass(() => expect(scrollSpy).toHaveBeenCalled(), done);
+        afterScrollPass(() => expect(scrollSpy).toHaveBeenCalled());
       });
 
-      it('scrolls to the levels chips when only the level count is missing', (done) => {
+      it('scrolls to the levels chips when only the level count is missing', () => {
         mountStep1(`
           <div class="form-step active">
             <section class="property-type-section">
@@ -1068,10 +1116,10 @@ describe('BookingComponent', () => {
 
         component.onNextButtonClick();
 
-        afterScrollPass(() => expect(scrollSpy).toHaveBeenCalled(), done);
+        afterScrollPass(() => expect(scrollSpy).toHaveBeenCalled());
       });
 
-      it('still prefers a form error that sits ABOVE the property-type section', (done) => {
+      it('still prefers a form error that sits ABOVE the property-type section', () => {
         mountStep1(`
           <div class="form-step active">
             <input class="ng-invalid ng-touched" />
@@ -1090,7 +1138,7 @@ describe('BookingComponent', () => {
         afterScrollPass(() => {
           expect(inputSpy).toHaveBeenCalled();
           expect(sectionSpy).not.toHaveBeenCalled();
-        }, done);
+        });
       });
     });
   });
@@ -1263,6 +1311,21 @@ describe('BookingComponent', () => {
       component.adminPaymentMethod = 'Normal';
 
       expect(component.submitButtonLabel).toBe('Send for Quote');
+    });
+
+    it('asks a poll form for email and service address as well as name and phone', () => {
+      component.showPollForm = true;
+      component.contactFirstName.setValue('Ana');
+      component.contactPhone.setValue('2125550147');
+      component.contactEmail.setValue('');
+      component.serviceAddress.setValue('');
+
+      expect(component.isPollContactValid()).toBeFalse();
+
+      component.contactEmail.setValue('ana@example.com');
+      component.serviceAddress.setValue('120 W 45th St');
+
+      expect(component.isPollContactValid()).toBeTrue();
     });
 
     it('keeps the customer-facing label while admin mode is on but no customer is picked', () => {
@@ -1530,6 +1593,238 @@ describe('BookingComponent', () => {
       component.showCustomPricing = true;
 
       expect(component.showExtraServicePrices).toBeFalse();
+    });
+  });
+
+  /**
+   * Offers and plans are recognised by offerKey / subscriptionDays / isMostPopular, never by their
+   * names. Fixtures are the production API responses (api/special-offers/public and
+   * api/booking/subscriptions, 2026-10-04); each case is priced again with every name changed and
+   * must come out to the same cent.
+   */
+  describe('offers and plans are identified without their names', () => {
+    // GET api/booking/subscriptions (production), plus the migration's badge on Monthly.
+    const productionPlans = () => [
+      { id: 1, name: 'One Time', description: 'Single cleaning service', discountPercentage: 0, subscriptionDays: 0, isActive: true, isMostPopular: false },
+      { id: 2, name: 'Weekly', description: 'Cleaning every week', discountPercentage: 15, subscriptionDays: 7, isActive: true, isMostPopular: false },
+      { id: 3, name: 'Bi-Weekly', description: 'Cleaning every two weeks', discountPercentage: 10, subscriptionDays: 14, isActive: true, isMostPopular: false },
+      { id: 4, name: 'Monthly', description: 'Cleaning once a month', discountPercentage: 5, subscriptionDays: 30, isActive: true, isMostPopular: true }
+    ] as any[];
+    const renamedPlans = () => productionPlans().map(p => ({ ...p, name: `Plan ${p.id}` }));
+
+    // The production first-time offer as a customer's granted offer, with the migration's key.
+    const productionOffer = (overrides: any = {}) => ({
+      id: 11, specialOfferId: 1, name: 'First Time Customer', description: 'Get 10% off on your first order!',
+      isPercentage: true, discountValue: 10, isUsed: false, offerKey: 'first-time', ...overrides
+    }) as any;
+
+    /** A fixed subtotal through the real calculator: custom pricing, $300 tax-inclusive. */
+    function priceAFixedJob() {
+      component.selectedServiceType = {
+        id: 9, name: 'Pre-Arranged Cleaning', basePrice: 0, timeDuration: 60,
+        isCustom: true, isActive: true, services: [], extraServices: []
+      } as any;
+      component.showCustomPricing = true;
+      component.selectedServices = [];
+      component.selectedExtraServices = [];
+      component.customCleaners.setValue(1);
+      component.customDuration.setValue(180);
+      component.customAmount.setValue('300');
+    }
+
+    function discountsFor(plans: any[], selectedId: number, userSubscription: any | null, offer: any | null) {
+      priceAFixedJob();
+      component.subscriptions = plans;
+      component.selectedSubscription = plans.find(p => p.id === selectedId);
+      component.hasActiveSubscription = !!userSubscription;
+      component.userSubscription = userSubscription;
+      component.removeSpecialOffer();
+      if (offer) component.applySpecialOffer(offer);
+      component.calculateTotal();
+      return {
+        subTotal: component.calculation.subTotal,
+        subscription: component.subscriptionDiscountAmount,
+        offer: component.promoOrFirstTimeDiscountAmount,
+        total: component.calculation.total,
+        firstTimeApplied: component.firstTimeDiscountApplied
+      };
+    }
+
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+
+    it('starts a fresh form on the one-off plan by its period, whatever it is called', () => {
+      component.subscriptions = renamedPlans().reverse();
+      expect((component as any).findOneTimeSubscription().id).toBe(1);
+    });
+
+    it('applies each recurring discount by period, identically after a rename', () => {
+      for (const plan of productionPlans().filter(p => p.subscriptionDays > 0)) {
+        const active = { subscriptionId: plan.id, subscriptionName: plan.name, subscriptionDays: plan.subscriptionDays };
+        const prod = discountsFor(productionPlans(), plan.id, active, null);
+        expect(prod.subscription).toBe(round2(prod.subTotal * plan.discountPercentage / 100));
+
+        const renamed = discountsFor(renamedPlans(), plan.id,
+          { ...active, subscriptionName: `Plan ${plan.id}` }, null);
+        expect(renamed).toEqual(prod);
+      }
+    });
+
+    it('still matches an active plan from an older API response (no subscriptionDays) by its name', () => {
+      const old = discountsFor(productionPlans(), 4, { subscriptionId: 4, subscriptionName: 'Monthly' }, null);
+      const current = discountsFor(productionPlans(), 4, { subscriptionId: 4, subscriptionName: 'Monthly', subscriptionDays: 30 }, null);
+      expect(old).toEqual(current);
+      expect(current.subscription).toBeGreaterThan(0);
+    });
+
+    it('gives no subscription discount on the one-time plan', () => {
+      const oneTime = discountsFor(productionPlans(), 1, null, null);
+      expect(oneTime.subscription).toBe(0);
+      expect(oneTime.offer).toBe(0);
+    });
+
+    it('applies the first-time offer by its key, identically after a rename', () => {
+      const prod = discountsFor(productionPlans(), 1, null, productionOffer());
+      expect(prod.firstTimeApplied).toBeTrue();
+      expect(prod.offer).toBe(round2(prod.subTotal * 0.10));
+
+      const renamed = discountsFor(renamedPlans(), 1, null, productionOffer({ name: 'New Client Deal' }));
+      expect(renamed).toEqual(prod);
+    });
+
+    it('stacks the first-time offer with a recurring plan the same way after a rename', () => {
+      const active = { subscriptionId: 2, subscriptionName: 'Weekly', subscriptionDays: 7 };
+      const prod = discountsFor(productionPlans(), 2, active, productionOffer());
+      const renamed = discountsFor(renamedPlans(), 2, { ...active, subscriptionName: 'Plan 2' },
+        productionOffer({ name: 'New Client Deal' }));
+      expect(renamed).toEqual(prod);
+      expect(prod.subscription).toBeGreaterThan(0);
+      expect(prod.offer).toBeGreaterThan(0);
+    });
+
+    it('does not treat a keyed non-first-time offer as first-time because of its name', () => {
+      expect(component.isFirstTimeOffer(productionOffer({ name: 'First Time Spring Sale', offerKey: 'spring-sale' }))).toBeFalse();
+      // An unkeyed offer (a database nobody has keyed yet) still works by the old name rule.
+      expect(component.isFirstTimeOffer(productionOffer({ offerKey: null }))).toBeTrue();
+    });
+
+    it('takes the first-time percentage from the keyed offer when loading a customer\'s offers', () => {
+      spyOn((component as any).authService, 'isLoggedIn').and.returnValue(true);
+      spyOn((component as any).specialOfferService, 'getMySpecialOffers').and.returnValue(of([
+        productionOffer({ id: 12, name: 'First Time Spring Sale', offerKey: 'spring-sale', discountValue: 25 }),
+        productionOffer({ name: 'New Client Deal', discountValue: 10 })
+      ]));
+
+      component.loadSpecialOffers();
+
+      expect(component.hasFirstTimeDiscountOffer).toBeTrue();
+      expect(component.hasFirstTimeDiscount).toBeTrue();
+      expect(component.firstTimeDiscountPercentage).toBe(10);
+    });
+
+    it('shows the "Most popular" badge on the flagged plan, whatever the plans are called', () => {
+      component.selectedServiceType = {
+        id: 1, name: 'Residential Cleaning', serviceKey: 'residential', basePrice: 90, timeDuration: 120,
+        isCustom: false, isActive: true, services: [], extraServices: []
+      } as any;
+      component.subscriptions = renamedPlans();
+      fixture.detectChanges();
+
+      const badges = Array.from(fixture.nativeElement.querySelectorAll('.subscription-card__badge')) as HTMLElement[];
+      expect(badges.length).toBe(1);
+      expect(badges[0].closest('.subscription-card--popular')?.textContent).toContain('Plan 4');
+    });
+  });
+
+  /**
+   * The first-time discount travels ONLY as the applied special offer. "firstUse" used to be sent
+   * when the first-time flag outlived the offer it belonged to (clear-all-form-data, a restored
+   * reorder) - the server refused it, so the customer could not book at all.
+   */
+  describe('no stale first-time flag, no "firstUse"', () => {
+    const firstTimeOffer = (overrides: any = {}) => ({
+      id: 11, specialOfferId: 1, name: 'First Time Customer', description: 'Get 10% off on your first order!',
+      isPercentage: true, discountValue: 10, isUsed: false, offerKey: 'first-time', ...overrides
+    }) as any;
+
+    function priceAFixedJob() {
+      component.selectedServiceType = {
+        id: 9, name: 'Pre-Arranged Cleaning', basePrice: 0, timeDuration: 60,
+        isCustom: true, isActive: true, services: [], extraServices: []
+      } as any;
+      component.showCustomPricing = true;
+      component.selectedServices = [];
+      component.selectedExtraServices = [];
+      component.customCleaners.setValue(1);
+      component.customDuration.setValue(180);
+      component.customAmount.setValue('300');
+    }
+
+    it('submits the first-time offer as the offer, with the same 10% as before, renamed or not', () => {
+      for (const name of ['First Time Customer', 'New Client Deal']) {
+        priceAFixedJob();
+        component.removeSpecialOffer();
+        component.applySpecialOffer(firstTimeOffer({ name }));
+        component.calculateTotal();
+
+        expect(component.promoOrFirstTimeDiscountAmount).toBe(Math.round(component.calculation.subTotal * 10) / 100);
+        expect(component.resolveSubmittedPromoCode('')).toBeNull();
+        expect(component.selectedSpecialOffer?.specialOfferId).toBe(1);
+      }
+    });
+
+    it('clearing the form clears the first-time flag, so the booking goes through at full price', () => {
+      spyOn(window, 'confirm').and.returnValue(true);
+      priceAFixedJob();
+      component.applySpecialOffer(firstTimeOffer());
+      expect(component.firstTimeDiscountApplied).toBeTrue();
+
+      component.clearAllFormData();
+      priceAFixedJob();
+      component.calculateTotal();
+
+      expect(component.firstTimeDiscountApplied).toBeFalse();
+      expect(component.promoOrFirstTimeDiscountAmount).toBe(0);
+      expect(component.resolveSubmittedPromoCode('')).not.toBe('firstUse' as any);
+      expect(component.resolveSubmittedPromoCode('SAVE10')).toBe('SAVE10');
+
+      // ...and re-applying the offer prices it exactly as the first time.
+      component.applySpecialOffer(firstTimeOffer());
+      component.calculateTotal();
+      expect(component.promoOrFirstTimeDiscountAmount).toBe(Math.round(component.calculation.subTotal * 10) / 100);
+    });
+
+    it('restoring a reorder clears the first-time flag too', () => {
+      component.applySpecialOffer(firstTimeOffer());
+      component.serviceTypes = [{
+        id: 1, name: 'Residential Cleaning', serviceKey: 'residential', basePrice: 100, isActive: true,
+        hasPoll: false, timeDuration: 0, services: [], extraServices: []
+      } as any];
+      spyOn(component['orderService'], 'getOrderById').and.returnValue(of({
+        id: 7, serviceTypeId: 1, services: [], extraServices: [],
+        contactFirstName: '', contactLastName: '', contactEmail: '', contactPhone: '',
+        serviceAddress: '', aptSuite: '', city: '', state: '', zipCode: '',
+        entryMethod: '', specialInstructions: '', tips: 0
+      } as any));
+
+      component.selectOrderToReorder(7);
+
+      expect(component.specialOfferApplied).toBeFalse();
+      expect(component.firstTimeDiscountApplied).toBeFalse();
+      expect(component.resolveSubmittedPromoCode(undefined)).toBeUndefined();
+    });
+
+    it('never prices or sends a first-time discount without an applied offer, even if the flag is set', () => {
+      priceAFixedJob();
+      component.hasFirstTimeDiscount = true;
+      component.firstTimeDiscountPercentage = 10;
+      component.firstTimeDiscountApplied = true;   // the old stale state
+      component.specialOfferApplied = false;
+      component.selectedSpecialOffer = null;
+
+      component.calculateTotal();
+
+      expect(component.promoOrFirstTimeDiscountAmount).toBe(0);
+      expect(component.resolveSubmittedPromoCode('')).toBe('');
     });
   });
 });

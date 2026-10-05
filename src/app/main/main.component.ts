@@ -7,19 +7,58 @@ import {
   ChangeDetectorRef,
   ViewChild,
   ElementRef,
-  inject
+  inject,
+  afterNextRender
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { NavigationStart, Router, RouterLink } from '@angular/router';
+import { GooglePlacesService, aggregateRatingSchema } from '../services/google-reviews.service';
+import { StructuredDataService } from '../services/structured-data.service';
+import { ScrollRestoreService, scrollInstantly } from '../services/scroll-restore.service';
 import { HomeHeroComponent } from '../shared/components/home-hero/home-hero.component';
 import { TestimonialSectionComponent } from '../shared/components/testimonial-section/testimonial-section.component';
 import { SpecialOfferService, PublicSpecialOffer } from '../services/special-offer.service';
 import { AuthService } from '../services/auth.service';
 import { AuthModalService } from '../services/auth-modal.service';
 import { BeforeAfterPhotoService } from '../services/before-after-photo.service';
-import { SERVICE_PRICING } from '../shared/service-pricing.data';
+import { MarketingPricingService } from '../shared/pricing/marketing-pricing.service';
 import { PhoneNumberService } from '../services/phone-number.service';
-import { Subscription } from 'rxjs';
+import { Subscription, filter } from 'rxjs';
+import { IconComponent } from '../shared/icons/icon.component';
+import { faCircleInfo } from '../shared/icons/glyphs/faCircleInfo';
+import { faStar } from '../shared/icons/glyphs/faStar';
+import { faTags } from '../shared/icons/glyphs/faTags';
+import { faUserGroup } from '../shared/icons/glyphs/faUserGroup';
+import { responsiveImage } from '../shared/images/responsive-image.loader';
+import { CardImageDirective } from '../shared/images/card-image.directive';
+import { HomeLayoutMemoryService, SectionHeights } from './home-layout-memory.service';
+import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-keys';
+
+/**
+ * Drawn widths, measured from the rendered images. The About photo is 3:2 inside a 4:3 box with
+ * object-fit: cover, so it is drawn 1.125x its box width:
+ *   <= 900px   one column, box 100vw - 49px
+ *   <= 1294px  two columns, box 50vw - 53px
+ *   wider      box capped at 594px -> drawn 669px
+ */
+const ABOUT_PHOTO_SIZES =
+  '(max-width: 900px) calc(112.5vw - 55px), ' +
+  '(max-width: 1294px) calc(56.25vw - 60px), ' +
+  '669px';
+
+/** Before/after halves: 2 per card, cards per row by window width (see BEFORE_AFTER_WIN_*). */
+const BEFORE_AFTER_HALF_SIZES =
+  '(max-width: 768px) calc(50vw - 32px), ' +
+  '(max-width: 1200px) calc(25vw - 22px), ' +
+  '200px';
+
+/** Carousel sizes read in one go, so the reads and the writes can happen at different times. */
+interface BeforeAfterLayoutMeasure {
+  vp: HTMLElement;
+  gapPx: number;
+  vpContentW: number;
+  layoutW: number;
+}
 
 /** Public-facing before/after photo card — populated from BeforeAfterPhotosController. */
 export interface BeforeAfterPhoto {
@@ -28,6 +67,9 @@ export interface BeforeAfterPhoto {
   subtitle?: string | null;
   beforePhotoUrl: string;
   afterPhotoUrl: string;
+  /** Resized variants from the API; cleared by {@link MainComponent.onBeforeAfterImageError} if one fails. */
+  beforeSrcset?: string | null;
+  afterSrcset?: string | null;
   linkUrl?: string | null;
   displayOrder: number;
 }
@@ -35,22 +77,34 @@ export interface BeforeAfterPhoto {
 @Component({
   selector: 'app-main',
   standalone: true,
-  imports: [CommonModule, RouterLink, HomeHeroComponent, TestimonialSectionComponent],
+  imports: [CommonModule, RouterLink, HomeHeroComponent, TestimonialSectionComponent, IconComponent, CardImageDirective],
   templateUrl: './main.component.html',
   styleUrl: './main.component.scss'
 })
 export class MainComponent implements OnInit, OnDestroy {
+  protected readonly icons = { faCircleInfo, faStar, faTags, faUserGroup };
+  protected readonly aboutPhoto = responsiveImage('/images/dream-cleaning-maids-in-nyc.webp', ABOUT_PHOTO_SIZES);
+  protected readonly beforeAfterHalfSizes = BEFORE_AFTER_HALF_SIZES;
+
   specialOffers: PublicSpecialOffer[] = [];
   isLoggedIn: boolean = false;
   protected readonly phoneNumber = inject(PhoneNumberService);
+  private readonly googlePlacesService = inject(GooglePlacesService);
+  private readonly structuredData = inject(StructuredDataService);
+  private readonly router = inject(Router);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly layoutMemory = inject(HomeLayoutMemoryService);
+  /** Section heights from the reader's previous visit - see HomeLayoutMemoryService. */
+  protected readonly rememberedHeights: SectionHeights =
+    isPlatformBrowser(inject(PLATFORM_ID)) ? this.layoutMemory.recall(window.innerWidth) : { box: {}, content: {} };
   private subscription: Subscription = new Subscription();
   /** Protected (not private) so the template can gate auth-dependent content to the
    *  browser only — see the rewards login note. Prerendered HTML must not contain
    *  auth-dependent branches or hydration leaves a stale node behind (duplicate notes). */
   protected isBrowser: boolean;
 
-  /** Marketing-copy prices (centralized in shared/service-pricing.data.ts). */
-  readonly pricing = SERVICE_PRICING;
+  /** Marketing-copy prices from the booking catalogue; null = fragment left out (MarketingPricingService). */
+  readonly pricing = inject(MarketingPricingService).text;
 
   /** Photos rendered in the "See the difference" gallery. Empty until the
    *  admin uploads pairs in Admin → Before & After. */
@@ -69,6 +123,14 @@ export class MainComponent implements OnInit, OnDestroy {
   beforeAfterSkipTransition = false;
   /** How many before/after cards fit across — driven by window width (see breakpoints below). */
   beforeAfterVisibleCount: 1 | 2 | 3 = 3;
+  /**
+   * Base indices whose cards are rendered: the visible ones plus one neighbour on each side. Every
+   * slide wrapper stays in the track (widths and translate math are unchanged) but the others are
+   * empty, so only these cards' photos load. Held per BASE index, so all three copies of a photo
+   * are rendered together and the instant recenter jump lands on cards that are already drawn.
+   */
+  private beforeAfterRenderedBase = new Set<number>();
+  private beforeAfterPruneTimer: ReturnType<typeof setTimeout> | null = null;
 
   @ViewChild('beforeAfterViewport') beforeAfterViewport?: ElementRef<HTMLElement>;
 
@@ -96,6 +158,13 @@ export class MainComponent implements OnInit, OnDestroy {
     if (this.isBrowser && typeof matchMedia !== 'undefined') {
       this.beforeAfterMotionOk = !matchMedia('(prefers-reduced-motion: reduce)').matches;
     }
+    // Back/Forward to the homepage: put the reader back on the spot they left before the first
+    // paint, rather than on the top of the page until the router's own restore runs. The remembered
+    // section heights above make the page tall enough for it in that same render.
+    const restore = this.isBrowser ? inject(ScrollRestoreService).pendingRestore() : null;
+    if (restore) {
+      afterNextRender({ write: () => scrollInstantly(restore) });
+    }
   }
 
   ngOnInit() {
@@ -103,11 +172,57 @@ export class MainComponent implements OnInit, OnDestroy {
     this.checkAuthStatus();
     // Fetch admin-uploaded before/after photos.
     this.loadBeforeAfterPhotos();
+    this.loadRatingSchema();
+    if (this.isBrowser) {
+      this.subscription.add(
+        this.router.events
+          .pipe(filter(e => e instanceof NavigationStart))
+          .subscribe(() => this.rememberSectionHeights())
+      );
+    }
+  }
+
+  /** `contain-intrinsic-size` for a content-visibility section: its remembered height, if any. */
+  protected rememberedIntrinsicSize(section: string): string | null {
+    const height = this.rememberedHeights.content[section];
+    return height ? `auto ${height}px` : null;
+  }
+
+  /** Taken on NavigationStart, while the page is still on screen - by ngOnDestroy it is gone. */
+  private rememberSectionHeights(): void {
+    const box: Record<string, number> = {};
+    const content: Record<string, number> = {};
+    this.host.nativeElement
+      .querySelectorAll<HTMLElement>('.home-main > section, .home-main > app-testimonial-section')
+      .forEach(el => {
+        const key = el.localName === 'section' ? el.classList[0] : el.localName;
+        const s = getComputedStyle(el);
+        const edges = parseFloat(s.paddingTop) + parseFloat(s.paddingBottom)
+          + parseFloat(s.borderTopWidth) + parseFloat(s.borderBottomWidth);
+        // Unrounded: offsetHeight drops the fraction, and ten sections of it add up to a visible pixel.
+        const height = el.getBoundingClientRect().height;
+        box[key] = height;
+        content[key] = Math.max(0, height - (edges || 0));
+      });
+    this.layoutMemory.save(window.innerWidth, { box, content });
   }
 
   ngOnDestroy() {
     this.subscription.unsubscribe();
     this.disposeBeforeAfterCarouselView();
+    this.structuredData.setBusinessRating(undefined);
+  }
+
+  /**
+   * Homepage AggregateRating, from the shared review stats, written onto the #business node of
+   * index.html's @graph - the page's one LocalBusiness node. index.html carries no hardcoded
+   * rating/count; ngOnDestroy takes it off again, since the @graph block stays for the next page.
+   */
+  private loadRatingSchema() {
+    this.subscription.add(
+      this.googlePlacesService.getStats().subscribe(stats =>
+        this.structuredData.setBusinessRating(aggregateRatingSchema(stats)))
+    );
   }
 
   // ---------- Before/After photos ----------
@@ -122,13 +237,17 @@ export class MainComponent implements OnInit, OnDestroy {
             subtitle: p.subtitle,
             beforePhotoUrl: p.beforePhotoUrl,
             afterPhotoUrl: p.afterPhotoUrl,
+            beforeSrcset: p.beforeSrcset ?? null,
+            afterSrcset: p.afterSrcset ?? null,
             linkUrl: p.linkUrl,
             displayOrder: p.displayOrder
           }));
           this.rebuildBeforeAfterCarousel();
           this.cdr.detectChanges();
           setTimeout(() => {
-            this.updateBeforeAfterLayoutMetrics();
+            // No measuring here: right after the DOM writes above, reading sizes forced a
+            // synchronous layout. The observer's first notification does it instead - it is
+            // delivered after the browser's own layout, when the reads cost nothing.
             this.attachBeforeAfterResizeObserver();
             this.startBeforeAfterAutoplay();
           }, 0);
@@ -146,6 +265,16 @@ export class MainComponent implements OnInit, OnDestroy {
 
   trackBeforeAfterSlideIndex(index: number): number {
     return index;
+  }
+
+  isBeforeAfterSlideRendered(index: number): boolean {
+    return this.beforeAfterBaseLength > 0 && this.beforeAfterRenderedBase.has(index % this.beforeAfterBaseLength);
+  }
+
+  /** A variant that fails to load (e.g. deleted from disk) falls back to the original URL. */
+  onBeforeAfterImageError(photo: BeforeAfterPhoto, side: 'before' | 'after'): void {
+    if (side === 'before' && photo.beforeSrcset) photo.beforeSrcset = null;
+    else if (side === 'after' && photo.afterSrcset) photo.afterSrcset = null;
   }
 
   onBeforeAfterPrev(): void {
@@ -176,6 +305,7 @@ export class MainComponent implements OnInit, OnDestroy {
     this.beforeAfterStepPx = 0;
     this.beforeAfterCarouselSlides = [...base, ...base, ...base];
     this.beforeAfterOffset = this.beforeAfterBaseLength;
+    this.beforeAfterRenderedBase = new Set<number>();
     this.beforeAfterSkipTransition = true;
     this.syncBeforeAfterTranslate();
   }
@@ -196,13 +326,14 @@ export class MainComponent implements OnInit, OnDestroy {
     if (!el || this.beforeAfterCarouselSlides.length === 0) return;
     this.beforeAfterResizeObserver?.disconnect();
     this.beforeAfterResizeObserver = new ResizeObserver(() => {
-      this.scheduleBeforeAfterLayoutFromResize();
+      // Read now (layout is clean inside the callback), write on the next frame.
+      this.scheduleBeforeAfterLayoutFromResize(this.measureBeforeAfterLayout());
     });
     this.beforeAfterResizeObserver.observe(el);
   }
 
-  /** Batches ResizeObserver + layout reads to the next frame to avoid re-entrant CD / SES issues. */
-  private scheduleBeforeAfterLayoutFromResize(): void {
+  /** Batches the ResizeObserver's writes to the next frame to avoid re-entrant CD / SES issues. */
+  private scheduleBeforeAfterLayoutFromResize(measured: BeforeAfterLayoutMeasure | null): void {
     if (!this.isBrowser || this.beforeAfterViewDisposed) return;
     if (this.beforeAfterLayoutRaf !== 0) {
       cancelAnimationFrame(this.beforeAfterLayoutRaf);
@@ -210,7 +341,7 @@ export class MainComponent implements OnInit, OnDestroy {
     this.beforeAfterLayoutRaf = requestAnimationFrame(() => {
       this.beforeAfterLayoutRaf = 0;
       if (this.beforeAfterViewDisposed) return;
-      this.updateBeforeAfterLayoutMetrics();
+      this.applyBeforeAfterLayout(measured);
       this.cdr.detectChanges();
     });
   }
@@ -222,11 +353,16 @@ export class MainComponent implements OnInit, OnDestroy {
   }
 
   private updateBeforeAfterLayoutMetrics(): void {
-    if (this.beforeAfterViewDisposed) return;
+    this.applyBeforeAfterLayout(this.measureBeforeAfterLayout());
+  }
+
+  /** Layout READS only, so callers can take them where layout is already clean. */
+  private measureBeforeAfterLayout(): BeforeAfterLayoutMeasure | null {
+    if (this.beforeAfterViewDisposed) return null;
     const vp = this.beforeAfterViewport?.nativeElement;
-    if (!vp || this.beforeAfterCarouselSlides.length === 0) return;
+    if (!vp || this.beforeAfterCarouselSlides.length === 0) return null;
     const track = vp.querySelector('.before-after-carousel__track') as HTMLElement | null;
-    if (!track) return;
+    if (!track) return null;
 
     const gapStr = getComputedStyle(track).gap || '0px';
     let gapPx = parseFloat(gapStr);
@@ -236,10 +372,17 @@ export class MainComponent implements OnInit, OnDestroy {
     const vpPadH =
       (parseFloat(vpStyle.paddingLeft) || 0) + (parseFloat(vpStyle.paddingRight) || 0);
     const vpContentW = Math.max(0, vp.clientWidth - vpPadH);
-    if (vp.clientWidth <= 0 || vpContentW <= 0) return;
+    if (vp.clientWidth <= 0 || vpContentW <= 0) return null;
 
     const layoutW =
       this.isBrowser && typeof window !== 'undefined' ? window.innerWidth : vpContentW;
+    return { vp, gapPx, vpContentW, layoutW };
+  }
+
+  /** Layout WRITES only, from a {@link measureBeforeAfterLayout} result. */
+  private applyBeforeAfterLayout(measured: BeforeAfterLayoutMeasure | null): void {
+    if (!measured || this.beforeAfterViewDisposed) return;
+    const { vp, gapPx, vpContentW, layoutW } = measured;
     const nextVisible = this.resolveBeforeAfterVisibleCount(layoutW);
     const visibleChanged = nextVisible !== this.beforeAfterVisibleCount;
     this.beforeAfterVisibleCount = nextVisible;
@@ -273,6 +416,36 @@ export class MainComponent implements OnInit, OnDestroy {
   private syncBeforeAfterTranslate(): void {
     const t = this.beforeAfterOffset * this.beforeAfterStepPx;
     this.beforeAfterTranslatePx = Number.isFinite(t) ? t : 0;
+    this.updateBeforeAfterRenderedWindow();
+  }
+
+  private beforeAfterWindow(): Set<number> {
+    const m = this.beforeAfterBaseLength;
+    const window = new Set<number>();
+    if (m === 0) return window;
+    for (let k = this.beforeAfterOffset - 1; k <= this.beforeAfterOffset + this.beforeAfterVisibleCount; k++) {
+      window.add(((k % m) + m) % m);
+    }
+    return window;
+  }
+
+  /**
+   * Adds the new window at once but drops the old one only after the slide transition, so a card
+   * still sliding out (rapid clicks move several steps inside one transition) is never emptied
+   * mid-animation.
+   */
+  private updateBeforeAfterRenderedWindow(): void {
+    const next = this.beforeAfterWindow();
+    this.beforeAfterRenderedBase.forEach(i => next.add(i));
+    this.beforeAfterRenderedBase = next;
+    if (!this.isBrowser) return;
+    if (this.beforeAfterPruneTimer) clearTimeout(this.beforeAfterPruneTimer);
+    this.beforeAfterPruneTimer = setTimeout(() => {
+      this.beforeAfterPruneTimer = null;
+      if (this.beforeAfterViewDisposed) return;
+      this.beforeAfterRenderedBase = this.beforeAfterWindow();
+      this.cdr.detectChanges();
+    }, MainComponent.BEFORE_AFTER_TRANSITION_MS + 50);
   }
 
   private advanceBeforeAfter(delta: 1 | -1): void {
@@ -352,6 +525,10 @@ export class MainComponent implements OnInit, OnDestroy {
 
   private teardownBeforeAfterCarouselTimersOnly(): void {
     this.stopBeforeAfterAutoplay();
+    if (this.beforeAfterPruneTimer) {
+      clearTimeout(this.beforeAfterPruneTimer);
+      this.beforeAfterPruneTimer = null;
+    }
     if (this.beforeAfterRecenterTimer) {
       clearTimeout(this.beforeAfterRecenterTimer);
       this.beforeAfterRecenterTimer = null;
@@ -407,12 +584,7 @@ export class MainComponent implements OnInit, OnDestroy {
 
   /** First-time customer offer from the public special offers (percentage is admin-configurable, never hardcoded). */
   get firstTimeOffer(): PublicSpecialOffer | undefined {
-    return this.specialOffers?.find(o =>
-      o.requiresFirstTimeCustomer ||
-      o.type === 'FirstTime' ||
-      (o.name?.toLowerCase().includes('first time') ?? false) ||
-      (o.name?.toLowerCase().includes('first-time') ?? false)
-    );
+    return findAdvertisedFirstTimeOffer(this.specialOffers);
   }
 
   /** Display label for the first-time discount, e.g. "10%" or "$20". Empty when no offer is loaded. */

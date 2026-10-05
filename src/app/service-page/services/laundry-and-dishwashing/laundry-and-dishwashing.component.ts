@@ -1,6 +1,7 @@
-import { Component, OnInit, OnDestroy, Inject } from '@angular/core';
-import { CommonModule, DOCUMENT } from '@angular/common';
+import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
+import { StructuredDataService } from '../../../services/structured-data.service';
 
 @Component({
   selector: 'app-laundry-and-dishwashing',
@@ -10,18 +11,14 @@ import { RouterModule } from '@angular/router';
   styleUrl: './laundry-and-dishwashing.component.scss'
 })
 export class LaundryAndDishwashingComponent implements OnInit, OnDestroy {
-  private schemaElement: HTMLScriptElement | null = null;
-
-  constructor(@Inject(DOCUMENT) private document: Document) {}
+  private readonly structuredData = inject(StructuredDataService);
 
   ngOnInit(): void {
     this.injectSchema();
   }
 
   ngOnDestroy(): void {
-    if (this.schemaElement && this.schemaElement.parentNode) {
-      this.schemaElement.parentNode.removeChild(this.schemaElement);
-    }
+    this.structuredData.remove('ld-laundry-and-dishwashing');
   }
 
   private injectSchema(): void {
@@ -57,9 +54,6 @@ export class LaundryAndDishwashingComponent implements OnInit, OnDestroy {
       ]
     };
 
-    this.schemaElement = this.document.createElement('script');
-    this.schemaElement.type = 'application/ld+json';
-    this.schemaElement.textContent = JSON.stringify(schema);
-    this.document.head.appendChild(this.schemaElement);
+    this.structuredData.set('ld-laundry-and-dishwashing', schema);
   }
 }

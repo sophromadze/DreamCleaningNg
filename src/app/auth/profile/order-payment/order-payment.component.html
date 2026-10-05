@@ -84,7 +84,7 @@
            looks like a mistake unless the page says so plainly — and they can settle the whole
            balance here instead, which is the same server-side flow with a different amount. -->
       <div class="partial-payment-notice" *ngIf="paymentType === 'partial'">
-        <h2>{{ isFinalPartialPayment ? 'Final payment' : 'Payment request' }}</h2>
+        <h2>{{ invoiceRequestId ? 'Invoice payment' : (isFinalPartialPayment ? 'Final payment' : 'Payment request') }}</h2>
         <p *ngIf="!isFinalPartialPayment">
           You're paying <strong>${{ orderTotal | number:'1.2-2' }}</strong> of your
           ${{ order.total | number:'1.2-2' }} order now.
@@ -96,7 +96,10 @@
           as soon as it goes through.
         </p>
 
-        <div class="partial-choice" *ngIf="!isFinalPartialPayment || payFullBalance">
+        <!-- Not offered when paying a specific invoice: an invoice bills its own amount, and
+             paying "the full remaining" from one of several split invoices would leave the others
+             reading as owed until the order settles. -->
+        <div class="partial-choice" *ngIf="!invoiceRequestId && (!isFinalPartialPayment || payFullBalance)">
           <label class="pay-option" [class.selected]="!payFullBalance">
             <input type="radio" name="partialAmountChoice" [checked]="!payFullBalance"
                    (change)="selectPayFullBalance(false)" [disabled]="isProcessing || isLoading">
@@ -180,13 +183,13 @@
 
       <!-- Already accepted (page reloaded, or the link opened a second time). -->
       <div class="consent-accepted" *ngIf="consentRequired && consentAccepted">
-        <i class="fas fa-check-circle"></i>
+        <i [appIcon]="icons.faCircleCheck"></i>
         <span>Terms accepted{{ consentAcceptedAt ? ' on ' + formatDateTime(consentAcceptedAt) : '' }}.</span>
       </div>
 
       <!-- Nothing owed: a plain statement, never a payment form (see nothingDue). -->
       <div class="nothing-due-notice" *ngIf="nothingDue" role="status">
-        <i class="fas fa-check-circle" aria-hidden="true"></i>
+        <i [appIcon]="icons.faCircleCheck" aria-hidden="true"></i>
         <div>
           <strong>Nothing to pay.</strong>
           <p>{{ errorMessage }}</p>
@@ -200,7 +203,7 @@
 
         <!-- Fully covered by gift card: no charge required -->
         <div class="fully-covered-notice" *ngIf="fullyCovered">
-          <i class="fas fa-gift"></i>
+          <i [appIcon]="icons.faGift"></i>
           <p>Your gift card covers the full amount. No payment is required — just confirm to complete.</p>
         </div>
 
@@ -233,7 +236,7 @@
 
         <!-- The card WAS charged; only our confirmation is late. Never phrased as a failure. -->
         <div class="finalizing-notice" *ngIf="finalizingPayment" role="status" aria-live="polite">
-          <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+          <i [appIcon]="icons.faCircleNotch" class="fa-spin" aria-hidden="true"></i>
           <div>
             <strong>Your payment went through — we're finalising it.</strong>
             <p>Please don't pay again. If this message stays, refresh the page in a minute.</p>
@@ -269,7 +272,7 @@
   
   <!-- Success Content -->
   <div class="success-content" *ngIf="paymentCompleted">
-    <i class="fas fa-check-circle success-icon"></i>
+    <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
     <h1>Payment Successful!</h1>
 
     <!-- A part-payment that did not settle the order must NOT claim the booking is confirmed —

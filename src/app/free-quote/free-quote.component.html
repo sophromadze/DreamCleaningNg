@@ -15,13 +15,13 @@
   <div class="free-quote-content">
     <!-- Success Message -->
     <div class="alert alert-success" *ngIf="showSuccess">
-      <i class="fas fa-check-circle success-icon"></i>
+      <i [appIcon]="icons.faCircleCheck" class="success-icon"></i>
       <span>Thank you! We've received your request and will call you back soon.</span>
     </div>
 
     <!-- Error Message -->
     <div class="alert alert-error" *ngIf="showError">
-      <i class="fas fa-times-circle error-icon"></i>
+      <i [appIcon]="icons.faCircleXmark" class="error-icon"></i>
       <span>{{ errorMessage }}</span>
     </div>
 

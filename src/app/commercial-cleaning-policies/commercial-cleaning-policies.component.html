@@ -20,7 +20,7 @@
     </ng-container>
   </section>
 
-  <!-- Downloads sit above the contents rather than at the foot of eighteen sections: somebody who
+  <!-- Downloads sit above the contents rather than at the foot of eleven sections: somebody who
        came here to send the policy to their own lawyer should not have to read it first to find
        the button. -->
   <section class="policy-downloads" aria-labelledby="downloads-heading">
@@ -42,7 +42,7 @@
         <span class="download-kind">Cancellation only</span>
         <span class="download-title">Download Cancellation &amp; Termination Policy (PDF)</span>
         <span class="download-detail">
-          A standalone extract of sections 4, 5 and 7 &middot; Version {{ cancellationPolicy.version }}
+          A standalone extract of sections 3 and 4 &middot; Version {{ cancellationPolicy.version }}
         </span>
       </a>
     </div>
@@ -51,8 +51,9 @@
   <nav class="policy-contents" aria-labelledby="contents-heading">
     <h2 id="contents-heading">Contents</h2>
     <ol>
+      <!-- Not a bare href="#…": with <base href="/"> that resolves to the home page. -->
       <li *ngFor="let section of policy.sections; trackBy: trackBySection">
-        <a [href]="'#' + section.anchor">
+        <a routerLink="/commercial-cleaning-policies" [fragment]="section.anchor">
           <span class="contents-number">{{ section.number }}.</span>
           <span class="contents-title">{{ section.title }}</span>
         </a>

@@ -1,6 +1,9 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ShimmerDirective } from '../../directives/shimmer.directive';
+import { IconComponent } from '../../icons/icon.component';
+import { faReceipt } from '../../icons/glyphs/faReceipt';
+import { faTag } from '../../icons/glyphs/faTag';
 
 /** One label/value row of the summary (details or price breakdown). */
 export interface SummaryLine {
@@ -31,11 +34,13 @@ export interface SummaryLine {
 @Component({
   selector: 'app-order-summary-card',
   standalone: true,
-  imports: [CommonModule, ShimmerDirective],
+  imports: [CommonModule, ShimmerDirective, IconComponent],
   templateUrl: './order-summary-card.component.html',
   styleUrls: ['./order-summary-card.component.scss']
 })
 export class OrderSummaryCardComponent {
+  protected readonly icons = { faReceipt, faTag };
+
   /** Card heading; empty string renders no h3 (booking's mobile card). */
   @Input() title = '';
   /** 'mobile' renders booking's .summary-card-mobile look (no toggle). */

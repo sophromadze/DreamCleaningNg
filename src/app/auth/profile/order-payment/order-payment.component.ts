@@ -16,19 +16,27 @@ import {
 } from '../../../shared/booking/consent-texts';
 import {
   buildSupplyChecklistItems,
-  extraServiceNamesOf,
   hasCleaningSuppliesExtra,
   resolveSupplyChecklistFacts
 } from '../../../shared/booking/supply-checklist.utils';
+import { isDeepOrSuperDeepExtra, isSuperDeepExtra } from '../../../shared/booking/extra-service-keys';
+import { OrderExtraService } from '../../../services/order.service';
+import { IconComponent } from '../../../shared/icons/icon.component';
+import { faCircleCheck } from '../../../shared/icons/glyphs/faCircleCheck';
+import { faCircleNotch } from '../../../shared/icons/glyphs/faCircleNotch';
+import { faGift } from '../../../shared/icons/glyphs/faGift';
+import { isBedroomsLine, isCleanersLine } from '../../../shared/booking/order-service-keys';
 
 @Component({
   selector: 'app-order-payment',
   standalone: true,
-  imports: [CommonModule, RouterModule, FormsModule, SaveCardModalComponent],
+  imports: [CommonModule, RouterModule, FormsModule, SaveCardModalComponent, IconComponent],
   templateUrl: './order-payment.component.html',
   styleUrls: ['./order-payment.component.scss']
 })
 export class OrderPaymentComponent implements OnInit, OnDestroy {
+  protected readonly icons = { faCircleCheck, faCircleNotch, faGift };
+
   orderId: number = 0;
   order: Order | null = null;
   isProcessing = false;
@@ -186,8 +194,20 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
     this.cdr.detectChanges();
   }
 
+  /**
+   * Set when the page was opened from a REGULAR customer invoice (/pay-invoice/:token): the id of
+   * that invoice's own part-payment request, so this charge settles exactly that invoice even when
+   * the order is split into several open at once. `invoiceFull` = the invoice bills the whole
+   * balance, so the live amount due is charged rather than the figure frozen at issue.
+   */
+  invoiceRequestId: number | null = null;
+  invoiceFull = false;
+
   ngOnInit() {
     this.guestToken = this.route.snapshot.queryParamMap.get('t');
+    const requestParam = Number(this.route.snapshot.queryParamMap.get('request'));
+    this.invoiceRequestId = Number.isInteger(requestParam) && requestParam > 0 ? requestParam : null;
+    this.invoiceFull = this.route.snapshot.queryParamMap.get('full') === '1';
 
     // Get current user for billing details
     this.authService.currentUser.subscribe(user => {
@@ -254,7 +274,17 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
           this.amountAlreadyPaid = order.amountPaid ?? 0;
 
           const pendingPartial = order.pendingPartialPayment;
-          if (pendingPartial && pendingPartial.status === 'Pending') {
+          if (this.invoiceRequestId) {
+            // Opened from a customer invoice: charge THAT invoice's request. The exact figure
+            // comes back with the intent (the server clamps it to what is owed); until then the
+            // page shows the balance, or the slice when it is the order's current request.
+            this.paymentType = 'partial';
+            this.payFullBalance = this.invoiceFull;
+            this.partialRequest = pendingPartial?.id === this.invoiceRequestId ? pendingPartial : null;
+            this.orderTotal = !this.invoiceFull && this.partialRequest
+              ? Math.min(this.partialRequest.requestedAmount, this.amountDue)
+              : this.amountDue;
+          } else if (pendingPartial && pendingPartial.status === 'Pending') {
             // An admin has asked for a specific slice. Clamped to what is actually owed, so an
             // order edited downward after the request can't charge the old, larger figure.
             this.paymentType = 'partial';
@@ -285,11 +315,11 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
           return;
         }
 
-        const extraNames = extraServiceNamesOf(order.extraServices ?? []);
-        this.hasCleaningSupplies = hasCleaningSuppliesExtra(extraNames);
+        const extras = order.extraServices ?? [];
+        this.hasCleaningSupplies = hasCleaningSuppliesExtra(extras);
         this.isCustomServiceType = this.isCustomServiceTypeOrder(order);
         this.supplyChecklistItems = buildSupplyChecklistItems(
-          resolveSupplyChecklistFacts(extraNames, this.isCustomServiceType)
+          resolveSupplyChecklistFacts(extras, this.isCustomServiceType)
         );
 
         // Consent gate — see the field block above. Only the INITIAL payment of an
@@ -370,7 +400,7 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   createPaymentIntent() {
     const guestToken = this.isGuestMode ? this.guestToken! : undefined;
     const request$ = this.paymentType === 'partial'
-      ? this.bookingService.createPartialPaymentIntent(this.orderId, guestToken, this.payFullBalance)
+      ? this.bookingService.createPartialPaymentIntent(this.orderId, guestToken, this.payFullBalance, this.invoiceRequestId)
       : this.paymentType === 'order'
         ? this.bookingService.createPaymentIntentForOrder(this.orderId, guestToken)
         : this.orderService.createPendingUpdatePaymentIntent(this.orderId, this.orderTotal, guestToken);
@@ -774,30 +804,27 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
 
   getCleaningTypeText(): string {
     const extras = this.order?.extraServices ?? [];
-    const hasSuperDeep = extras.some(s => (s.extraServiceName ?? '').toLowerCase().includes('super deep cleaning'));
-    const hasDeep = extras.some(s => {
-      const n = (s.extraServiceName ?? '').toLowerCase();
-      return n.includes('deep cleaning') && !n.includes('super');
-    });
+    // The Deep / Super Deep flags decide; an unkeyed, un-flagged line by its name as before.
+    const hasSuperDeep = extras.some(s => isSuperDeepExtra(s));
+    const hasDeep = extras.some(s => isDeepOrSuperDeepExtra(s) && !isSuperDeepExtra(s));
     if (hasSuperDeep) return 'Super Deep Cleaning';
     if (hasDeep) return 'Deep Cleaning';
     return 'Regular Cleaning';
   }
 
   /** Deep/super-deep cleaning is shown under Cleaning Type, not as a line item. */
-  private isCleaningTypeExtra(extraServiceName: string): boolean {
-    return (extraServiceName ?? '').toLowerCase().includes('deep cleaning');
+  private isCleaningTypeExtra(extra: OrderExtraService): boolean {
+    return isDeepOrSuperDeepExtra(extra);
   }
 
   getDisplayExtraServices() {
-    return (this.order?.extraServices ?? []).filter(e => !this.isCleaningTypeExtra(e.extraServiceName));
+    return (this.order?.extraServices ?? []).filter(e => !this.isCleaningTypeExtra(e));
   }
 
   /** Quantity label for a service line: "Studio" for bedrooms=0, hours for cleaners, plain qty otherwise. */
-  getServiceQuantityLabel(service: { serviceName: string; quantity: number; duration: number }): string {
-    const name = (service.serviceName ?? '').toLowerCase();
-    if (name.includes('bedroom') && service.quantity === 0) return 'Studio';
-    if (name.includes('cleaner')) return `Qty: ${service.quantity} | Hours: ${service.duration / 60}`;
+  getServiceQuantityLabel(service: { serviceName: string; serviceKey?: string | null; quantity: number; duration: number }): string {
+    if (isBedroomsLine(service) && service.quantity === 0) return 'Studio';
+    if (isCleanersLine(service)) return `Qty: ${service.quantity} | Hours: ${service.duration / 60}`;
     return `Qty: ${service.quantity}`;
   }
 

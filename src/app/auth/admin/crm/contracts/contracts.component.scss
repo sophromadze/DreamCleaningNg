@@ -39,7 +39,7 @@
 
 .alert.error {
   background: var(--soft-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   border-radius: var(--radius-sm);
   padding: 0.7rem 0.95rem;
   font-size: 0.87rem;
@@ -62,7 +62,7 @@
     text-align: left;
     padding: 0.75rem 0.9rem;
     background: var(--surface-subtle);
-    color: var(--text-muted);
+    color: var(--text-muted-on-tint);
     font-size: 0.72rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -103,7 +103,7 @@
   border: 1px solid var(--primary-color);
   border-radius: var(--radius-sm);
   background: var(--surface);
-  color: var(--primary-color);
+  color: var(--primary-color-text);
   font-family: inherit;
   font-size: 0.78rem;
   font-weight: var(--fw-semibold);
@@ -123,12 +123,12 @@
   font-weight: 600;
   white-space: nowrap;
   background: var(--soft-blue);
-  color: var(--primary-color);
+  color: var(--primary-text-elevated);
 
   // Paired foreground with each background, never mixed across states.
   &[data-status="7"], &[data-status="8"] { background: var(--mint-fresh); color: var(--mint-fresh-text); }
   &[data-status="3"] { background: var(--soft-yellow); color: var(--soft-yellow-text); }
-  &[data-status="9"], &[data-status="10"] { background: var(--soft-red); color: var(--bright-red); }
+  &[data-status="9"], &[data-status="10"] { background: var(--soft-red); color: var(--soft-red-text); }
 }
 
 .empty {
@@ -159,7 +159,7 @@
 
 .btn-ghost {
   background: var(--surface);
-  color: var(--primary-color);
+  color: var(--primary-color-text);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   padding: 0.6rem 1.1rem;
@@ -173,7 +173,7 @@
 .back-link {
   background: none;
   border: none;
-  color: var(--primary-color);
+  color: var(--primary-color-text);
   font-size: 0.85rem;
   font-weight: 600;
   padding: 0 0 0.5rem;
@@ -201,7 +201,7 @@
   padding: 0.1rem 0.45rem;
   border-radius: var(--radius-pill);
   background: var(--soft-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.04em;

@@ -6,7 +6,7 @@
       <input type="text" placeholder="Search name, email, phone…"
              [(ngModel)]="searchTerm" (ngModelChange)="onSearchChange()" />
     </div>
-    <select [(ngModel)]="sort" (ngModelChange)="onSortChange()" class="sort-select">
+    <select aria-label="Sort by" [(ngModel)]="sort" (ngModelChange)="onSortChange()" class="sort-select">
       <option value="recent">Most recent</option>
       <option value="value">Highest value</option>
       <option value="orders">Most orders</option>
@@ -50,7 +50,7 @@
           <td class="num">{{ c.orderCount }}</td>
           <td>{{ formatDate(c.lastOrderDate) }}</td>
           <td>
-            <span class="tag-pill" *ngFor="let t of c.tags" [style.background]="t.color || ''">{{ t.label }}</span>
+            <span class="tag-pill" *ngFor="let t of c.tags" [style.background]="t.color || ''" [style.color]="t.color ? labelColor(t.color) : null">{{ t.label }}</span>
           </td>
         </tr>
         <tr *ngIf="!loading && customers.length === 0">
@@ -82,7 +82,7 @@
   <aside class="detail-panel" *ngIf="selected">
     <div class="panel-header">
       <div>
-        <h3>{{ selected.fullName || selected.email }}</h3>
+        <h2>{{ selected.fullName || selected.email }}</h2>
         <span class="lc-badge" [ngClass]="lifecycleClass(selected.lifecycleStage)">{{ selected.lifecycleStage }}</span>
       </div>
       <button class="close-btn" (click)="closePanel()">✕</button>
@@ -118,7 +118,7 @@
 
       <!-- Segments -->
       <section class="seg-section">
-        <h4>Segments</h4>
+        <h3>Segments</h3>
         <div class="seg-pills">
           <span class="seg-pill" *ngFor="let s of selected.segments" [ngClass]="'sp-' + s">{{ segmentLabel(s) }}</span>
           <span *ngIf="selected.segments.length === 0" class="muted">None</span>
@@ -127,9 +127,9 @@
 
       <!-- Tags -->
       <section class="tag-section">
-        <h4>Tags</h4>
+        <h3>Tags</h3>
         <div class="tag-pills">
-          <span class="tag-pill removable" *ngFor="let t of selected.tags" [style.background]="t.color || ''">
+          <span class="tag-pill removable" *ngFor="let t of selected.tags" [style.background]="t.color || ''" [style.color]="t.color ? labelColor(t.color) : null">
             {{ t.label }}<button (click)="removeTag(t.id)" title="Remove">✕</button>
           </span>
           <span *ngIf="selected.tags.length === 0" class="muted">No tags yet</span>
@@ -146,7 +146,7 @@
 
       <!-- Recent orders -->
       <section class="orders-section">
-        <h4>Recent orders</h4>
+        <h3>Recent orders</h3>
         <ul class="order-list">
           <li *ngFor="let o of selected.recentOrders">
             <a [routerLink]="['/admin']" [queryParams]="{ orderId: o.id }" (click)="closePanel()">#{{ o.id }}</a>

@@ -238,7 +238,7 @@
 
 .error-state {
   background: var(--soft-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   border-radius: var(--radius-md);
   padding: 16px 20px;
   margin-bottom: 20px;
@@ -273,11 +273,11 @@
 .hero-value {
   font-size: 2.6rem;
   font-weight: var(--fw-black);
-  color: var(--fresh-green);
+  color: var(--mint-fresh-text);
   line-height: 1.15;
 
   .hero-card.negative & {
-    color: var(--bright-red);
+    color: var(--soft-red-text);
   }
 
   &.shimmer-loading {
@@ -322,7 +322,7 @@
 
     &.down {
       background: var(--soft-red);
-      color: var(--bright-red);
+      color: var(--soft-red-text);
     }
   }
 }
@@ -344,12 +344,11 @@
 
   &.down {
     background: var(--soft-red);
-    color: var(--bright-red);
+    color: var(--soft-red-text);
   }
 
   .compare-label {
     font-weight: var(--fw-medium);
-    opacity: 0.85;
   }
 }
 
@@ -477,7 +476,7 @@
     border-top: none;
 
     .row-amount {
-      color: var(--fresh-green);
+      color: var(--mint-fresh-text);
     }
   }
 
@@ -491,7 +490,7 @@
 
     .row-amount {
       font-size: 1.25rem;
-      color: var(--fresh-green);
+      color: var(--mint-fresh-text);
     }
 
     .row-percent {
@@ -520,7 +519,7 @@
 // A negative bottom line has to read as a loss, not as green income.
 .pnl-row.kind-result .row-amount.negative,
 .pnl-row.kind-base .row-amount.negative {
-  color: var(--bright-red);
+  color: var(--soft-red-text);
 }
 
 .row-side {
@@ -532,7 +531,7 @@
   margin-top: 2px;
   font-size: 0.78rem;
   font-weight: var(--fw-semibold);
-  color: var(--text-muted);
+  color: var(--text-muted-on-tint);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -545,11 +544,11 @@
   white-space: nowrap;
 
   &.up {
-    color: var(--fresh-green);
+    color: var(--mint-fresh-text);
   }
 
   &.down {
-    color: var(--bright-red);
+    color: var(--soft-red-text);
   }
 }
 
@@ -725,7 +724,7 @@
 }
 
 .bar-amount.neg {
-  color: var(--bright-red);
+  color: var(--soft-red-text);
 }
 
 .viz-hint {
@@ -1061,7 +1060,7 @@
 
 
   td.neg {
-    color: var(--bright-red);
+    color: var(--soft-red-text);
   }
 
   td.best {
@@ -1264,7 +1263,7 @@
     padding: 2px 6px;
 
     &:hover {
-      color: var(--bright-red);
+      color: var(--soft-red-text);
     }
   }
 }
@@ -1294,7 +1293,7 @@
 .modal-error {
   margin-top: 12px;
   background: var(--soft-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   border-radius: var(--radius-sm);
   padding: 10px 14px;
   font-size: 0.86rem;

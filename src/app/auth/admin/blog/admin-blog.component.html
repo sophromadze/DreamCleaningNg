@@ -312,7 +312,7 @@
     <div *ngIf="!settingsLoading && settings; else settingsLoadingTpl" class="settings-panel">
       <div class="setting-row">
         <div class="setting-text">
-          <h3>Blog page visible to public</h3>
+          <h2>Blog page visible to public</h2>
           <p>The master switch. When OFF, visitors see a "coming soon" page on /blog, the header keeps the
             "Soon" badge, and the sitemap stays empty — while drafting and publishing here keep working normally.
             Flip it ON when the first articles are ready; the site goes live instantly, no deploy needed.</p>
@@ -327,7 +327,7 @@
 
       <div class="setting-row">
         <div class="setting-text">
-          <h3>Automatic weekly drafts</h3>
+          <h2>Automatic weekly drafts</h2>
           <p>When ON, the AI writer automatically creates one new draft from the top of the Topic Queue every
             {{ settings.generationIntervalDays }} day(s). Drafts always wait for a human to review and publish —
             nothing goes on the website by itself.</p>
@@ -342,9 +342,9 @@
 
       <div class="setting-row">
         <div class="setting-text">
-          <h3>Writer model</h3>
+          <h2>Writer model</h2>
           <p>Which Claude model writes the drafts.</p>
-          <select class="model-select"
+          <select aria-label="Writer model" class="model-select"
                   [ngModel]="settings.generationModel"
                   (ngModelChange)="onModelChange($event)"
                   [disabled]="settingsSaving">

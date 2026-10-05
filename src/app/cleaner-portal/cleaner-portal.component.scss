@@ -100,7 +100,7 @@
 
 .portal-error {
   background: var(--soft-red);
-  color: var(--bright-red);
+  color: var(--soft-red-text);
   border-radius: var(--radius-md);
   padding: 12px 14px;
   margin-bottom: 16px;
@@ -245,7 +245,7 @@
   align-items: center;
   justify-content: center;
   background: var(--surface-subtle);
-  color: var(--text-muted);
+  color: var(--text-muted-on-tint);
   font-size: 0.78rem;
   font-weight: var(--fw-medium);
   border-right: 1px solid var(--border-color);
@@ -289,7 +289,7 @@
   // room to spare: the ring set the floor for everything under it. The colour says the same thing
   // in no space at all and leaves the dots the room they need on a busy day (owner's call).
   &--today .calendar-day-number {
-    color: var(--primary-color);
+    color: var(--primary-text-elevated);
     font-weight: var(--fw-bold);
   }
 
@@ -754,9 +754,9 @@
   white-space: nowrap;
 
   &.status-pending   { background: var(--soft-yellow); color: var(--soft-yellow-text); }
-  &.status-active    { background: var(--soft-blue);   color: var(--primary-color); }
+  &.status-active    { background: var(--soft-blue);   color: var(--primary-text-elevated); }
   &.status-done      { background: var(--mint-fresh);  color: var(--mint-fresh-text); }
-  &.status-cancelled { background: var(--soft-red);    color: var(--bright-red); }
+  &.status-cancelled { background: var(--soft-red);    color: var(--soft-red-text); }
 }
 
 // ── SuperAdmin detail panel (read only) ─────────────────────────────────────────────────
@@ -837,7 +837,7 @@
     margin-top: 6px;
     padding-top: 10px;
 
-    > strong { font-weight: var(--fw-bold); color: var(--primary-color); }
+    > strong { font-weight: var(--fw-bold); color: var(--primary-text-elevated); }
   }
 }
 
@@ -867,7 +867,7 @@
   margin: 20px 0 0;
   padding: 10px 12px;
   background: var(--soft-blue);
-  color: var(--primary-color);
+  color: var(--primary-text-elevated);
   border-radius: var(--radius-md);
   font-size: 0.85rem;
 }

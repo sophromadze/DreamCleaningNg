@@ -23,7 +23,8 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
     description: '',
     discountPercentage: 0,
     subscriptionDays: 30,
-    displayOrder: 0
+    displayOrder: 0,
+    isMostPopular: false
   };
 
   // Sticky header management
@@ -360,7 +361,8 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
       description: '',
       discountPercentage: 0,
       subscriptionDays: 30,
-      displayOrder: 0
+      displayOrder: 0,
+      isMostPopular: false
     };
   }
 
@@ -371,7 +373,8 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
       description: '',
       discountPercentage: 0,
       subscriptionDays: 30,
-      displayOrder: 0
+      displayOrder: 0,
+      isMostPopular: false
     };
   }
 
@@ -385,7 +388,8 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
           description: '',
           discountPercentage: 0,
           subscriptionDays: 30,
-          displayOrder: 0
+          displayOrder: 0,
+          isMostPopular: false
         };
         this.successMessage = 'Subscription added successfully.';
       },
@@ -410,7 +414,8 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
       description: subscription.description,
       discountPercentage: subscription.discountPercentage,
       subscriptionDays: subscription.subscriptionDays,
-      displayOrder: subscription.displayOrder || 0 
+      displayOrder: subscription.displayOrder || 0,
+      isMostPopular: !!subscription.isMostPopular
     };
   
     this.adminService.updateSubscription(subscription.id, updateData).subscribe({

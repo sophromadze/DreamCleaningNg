@@ -6,6 +6,10 @@ import { finalize } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
 import { validatePassword, getPasswordRequirements } from '../../utils/password-validator';
 import { extractApiErrorMessage } from '../../utils/http-error.utils';
+import { IconComponent } from '../../shared/icons/icon.component';
+import { faArrowLeft } from '../../shared/icons/glyphs/faArrowLeft';
+import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
+import { faCircleExclamation } from '../../shared/icons/glyphs/faCircleExclamation';
 
 /**
  * Change password, reached from the profile's Security tab.
@@ -26,11 +30,13 @@ import { extractApiErrorMessage } from '../../utils/http-error.utils';
 @Component({
   selector: 'app-change-password',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, IconComponent],
   templateUrl: './change-password.component.html',
   styleUrls: ['../account-form.scss']
 })
 export class ChangePasswordComponent {
+  protected readonly icons = { faArrowLeft, faCircleCheck, faCircleExclamation };
+
   currentPassword = '';
   newPassword = '';
   confirmPassword = '';
