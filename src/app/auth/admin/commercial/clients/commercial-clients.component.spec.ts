@@ -105,8 +105,8 @@ describe('CommercialClientsComponent', () => {
       start();
 
       expect(component.clients.length).toBe(2);
-      expect(component.isLinked(LINKED)).toBeTrue();
-      expect(component.isLinked(STANDALONE)).toBeFalse();
+      expect(component.isLinked(LINKED)).toBe(true);
+      expect(component.isLinked(STANDALONE)).toBe(false);
     });
 
     it('lists a client with no contracts like any other', () => {
@@ -138,19 +138,19 @@ describe('CommercialClientsComponent', () => {
     it('offers create, edit and delete to an admin who holds them', () => {
       start();
 
-      expect(component.canCreate).toBeTrue();
-      expect(component.canUpdate).toBeTrue();
-      expect(component.canDeactivate).toBeTrue();
+      expect(component.canCreate).toBe(true);
+      expect(component.canUpdate).toBe(true);
+      expect(component.canDeactivate).toBe(true);
     });
 
     it('refuses every action for a view-only admin', () => {
       start({ canCreate: false, canUpdate: false, canDeactivate: false });
 
       component.openCreate();
-      expect(component.modalOpen).toBeFalse();
+      expect(component.modalOpen).toBe(false);
 
       component.openEdit(LINKED);
-      expect(component.modalOpen).toBeFalse();
+      expect(component.modalOpen).toBe(false);
 
       component.askDelete(LINKED);
       expect(component.pendingDelete).toBeNull();
@@ -162,9 +162,9 @@ describe('CommercialClientsComponent', () => {
         { message: 'nope' }, { status: 500, statusText: 'Server Error' });
       httpMock.expectOne(CLIENTS_URL).flush([]);
 
-      expect(component.canCreate).toBeFalse();
-      expect(component.canUpdate).toBeFalse();
-      expect(component.canDeactivate).toBeFalse();
+      expect(component.canCreate).toBe(false);
+      expect(component.canUpdate).toBe(false);
+      expect(component.canDeactivate).toBe(false);
     });
   });
 
@@ -174,7 +174,7 @@ describe('CommercialClientsComponent', () => {
 
       component.openEdit(LINKED);
 
-      expect(component.modalOpen).toBeTrue();
+      expect(component.modalOpen).toBe(true);
       expect(component.editing).toBe(LINKED);
     });
 
@@ -183,7 +183,7 @@ describe('CommercialClientsComponent', () => {
 
       component.openCreate();
 
-      expect(component.modalOpen).toBeTrue();
+      expect(component.modalOpen).toBe(true);
       expect(component.editing).toBeNull();
     });
 
@@ -284,13 +284,13 @@ describe('CommercialClientsComponent', () => {
     describe('the panel opens the customer record in place', () => {
       it('shows the customer half without navigating away', () => {
         const router = TestBed.inject(Router);
-        const navigate = spyOn(router, 'navigate');
+        const navigate = vi.spyOn(router, 'navigate').mockReturnValue(undefined as any);
         start();
         component.openClientDetails(LINKED);
 
         component.setPanelTab('customer');
 
-        expect(component.showsCustomerPanel).toBeTrue();
+        expect(component.showsCustomerPanel).toBe(true);
         expect(navigate).not.toHaveBeenCalled();
       });
 
@@ -303,7 +303,7 @@ describe('CommercialClientsComponent', () => {
         // The tab is still offered — it is where somebody looks for the answer — but there is no
         // account to mount, so the commercial panel stays up and says so.
         expect(component.linkedUserId).toBeNull();
-        expect(component.showsCustomerPanel).toBeFalse();
+        expect(component.showsCustomerPanel).toBe(false);
       });
 
       it('opens every client on its commercial record', () => {
@@ -324,7 +324,7 @@ describe('CommercialClientsComponent', () => {
         component.closeDetailPanel();
 
         expect(component.panelTab).toBe('business');
-        expect(component.showsCustomerPanel).toBeFalse();
+        expect(component.showsCustomerPanel).toBe(false);
       });
     });
 
@@ -467,7 +467,7 @@ describe('CommercialClientsComponent', () => {
   it('carries the client through to the invoice form', () => {
     start();
     const router = TestBed.inject(Router);
-    spyOn(router, 'navigate');
+    vi.spyOn(router, 'navigate').mockReturnValue(undefined as any);
 
     component.createInvoice(LINKED);
 

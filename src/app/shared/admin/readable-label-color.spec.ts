@@ -3,14 +3,14 @@ import { LABEL_ON_DARK, LABEL_ON_LIGHT, readableLabelColor } from './readable-la
 describe('readableLabelColor (admin-chosen badge colours)', () => {
   it('keeps white on dark colours', () => {
     for (const c of ['#000000', '#1d4ed8', '#b91c1c', '#6c757d', '#7e22ce']) {
-      expect(readableLabelColor(c)).withContext(c).toBe(LABEL_ON_DARK);
+      expect(readableLabelColor(c), c).toBe(LABEL_ON_DARK);
     }
   });
 
   it('switches to near-black on light colours that failed with white', () => {
     // The stored offer colours the audit found below AA with white text.
     for (const c of ['#ea8410', '#ff00f7', '#fa0000', '#28a745', '#ffffff', '#fde047']) {
-      expect(readableLabelColor(c)).withContext(c).toBe(LABEL_ON_LIGHT);
+      expect(readableLabelColor(c), c).toBe(LABEL_ON_LIGHT);
     }
   });
 
@@ -23,7 +23,7 @@ describe('readableLabelColor (admin-chosen badge colours)', () => {
     const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
     for (let r = 0; r < 256; r += 17) for (let g = 0; g < 256; g += 17) for (let b = 0; b < 256; b += 17) {
       const bg = '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
-      expect(ratio(readableLabelColor(bg), bg)).withContext(bg).toBeGreaterThanOrEqual(4.5);
+      expect(ratio(readableLabelColor(bg), bg), bg).toBeGreaterThanOrEqual(4.5);
     }
     expect(ratio(readableLabelColor('#fa0000'), '#fa0000')).toBeGreaterThanOrEqual(4.5);
   });

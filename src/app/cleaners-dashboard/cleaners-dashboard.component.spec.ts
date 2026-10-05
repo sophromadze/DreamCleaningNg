@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController } from '@angular/common/http/testing';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
@@ -20,12 +21,12 @@ describe('CleanersDashboardComponent', () => {
   let component: CleanersDashboardComponent;
   let httpMock: HttpTestingController;
   let queryParams$: BehaviorSubject<any>;
-  let navigate: jasmine.Spy;
+  let navigate: Mock;
 
   /** Signs the viewer in as `role` before the component initializes. */
   const asRole = (role: string) => {
-    spyOnProperty(TestBed.inject(AuthService), 'currentUserValue', 'get')
-      .and.returnValue({ role } as any);
+    vi.spyOn(TestBed.inject(AuthService), 'currentUserValue', 'get')
+      .mockReturnValue({ role } as any);
   };
 
   beforeEach(async () => {
@@ -42,7 +43,7 @@ describe('CleanersDashboardComponent', () => {
     fixture = TestBed.createComponent(CleanersDashboardComponent);
     component = fixture.componentInstance;
     httpMock = TestBed.inject(HttpTestingController);
-    navigate = spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
+    navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -65,13 +66,13 @@ describe('CleanersDashboardComponent', () => {
       fixture.detectChanges();
 
       expect(component.activeTab).toBe('dashboard');
-      expect(component.canSeePortal).toBeTrue();
+      expect(component.canSeePortal).toBe(true);
     });
 
     it('offers it to a SuperAdmin too', () => {
       asRole('SuperAdmin');
       fixture.detectChanges();
-      expect(component.canSeePortal).toBeTrue();
+      expect(component.canSeePortal).toBe(true);
     });
 
     /**
@@ -82,7 +83,7 @@ describe('CleanersDashboardComponent', () => {
       asRole('Moderator');
       fixture.detectChanges();
 
-      expect(component.canSeePortal).toBeFalse();
+      expect(component.canSeePortal).toBe(false);
 
       component.setTab('portal');
       expect(component.activeTab).toBe('dashboard');
@@ -117,11 +118,11 @@ describe('CleanersDashboardComponent', () => {
 
       component.setTab('portal');
       expect(navigate).toHaveBeenCalled();
-      expect(navigate.calls.mostRecent().args[1].queryParams).toEqual({ tab: 'portal' });
+      expect(vi.mocked(navigate).mock.lastCall![1].queryParams).toEqual({ tab: 'portal' });
 
       queryParams$.next(convertToParamMap({ tab: 'portal' }));
       component.setTab('dashboard');
-      expect(navigate.calls.mostRecent().args[1].queryParams).toEqual({ tab: null });
+      expect(vi.mocked(navigate).mock.lastCall![1].queryParams).toEqual({ tab: null });
     });
 
     it('closes what was open on the dashboard on the way out', () => {
@@ -136,7 +137,7 @@ describe('CleanersDashboardComponent', () => {
       // A detail panel or a half-filled form still sitting there on the way back is state nobody
       // asked to keep.
       expect(component.selectedDetail).toBeNull();
-      expect(component.formOpen).toBeFalse();
+      expect(component.formOpen).toBe(false);
     });
   });
 
@@ -162,7 +163,7 @@ describe('CleanersDashboardComponent', () => {
         isEmailManagedByAccount: true
       }));
 
-      expect(component.emailLockedByAccount).toBeTrue();
+      expect(component.emailLockedByAccount).toBe(true);
       expect(component.lockedAccountEmail).toBe('nino@example.com');
       // The value still round-trips - the server compares it against what it holds, so a blanked
       // payload would read as an attempt to clear the address.
@@ -171,7 +172,7 @@ describe('CleanersDashboardComponent', () => {
 
     it('leaves it editable for a cleaner with no account', () => {
       component.openEdit(detail());
-      expect(component.emailLockedByAccount).toBeFalse();
+      expect(component.emailLockedByAccount).toBe(false);
     });
 
     /**
@@ -183,20 +184,20 @@ describe('CleanersDashboardComponent', () => {
       component.openEdit(detail({
         linkedUserId: 11, linkedAccountEmail: null, isEmailManagedByAccount: false
       }));
-      expect(component.emailLockedByAccount).toBeFalse();
+      expect(component.emailLockedByAccount).toBe(false);
     });
 
     it('never carries the lock into another form', () => {
       component.openEdit(detail({ linkedUserId: 11, linkedAccountEmail: 'a@b.com', isEmailManagedByAccount: true }));
-      expect(component.emailLockedByAccount).toBeTrue();
+      expect(component.emailLockedByAccount).toBe(true);
 
       component.closeForm();
-      expect(component.emailLockedByAccount).toBeFalse();
+      expect(component.emailLockedByAccount).toBe(false);
 
       // A brand-new cleaner has no account at all.
       component.openEdit(detail({ linkedUserId: 11, linkedAccountEmail: 'a@b.com', isEmailManagedByAccount: true }));
       component.openCreate();
-      expect(component.emailLockedByAccount).toBeFalse();
+      expect(component.emailLockedByAccount).toBe(false);
       expect(component.lockedAccountEmail).toBeNull();
     });
 
@@ -240,7 +241,7 @@ describe('CleanersDashboardComponent', () => {
 
     /** The destination is pasted into a banking app, so the method must not travel with it. */
     it('copies the destination alone, without the method prefix', async () => {
-      const writeText = jasmine.createSpy('writeText').and.returnValue(Promise.resolve());
+      const writeText = vi.fn().mockName('writeText').mockReturnValue(Promise.resolve());
       Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
       component.formModel.paymentMethod = 'Zelle';
@@ -253,7 +254,7 @@ describe('CleanersDashboardComponent', () => {
     });
 
     it('does nothing when the box is empty', () => {
-      const writeText = jasmine.createSpy('writeText');
+      const writeText = vi.fn().mockName('writeText');
       Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
       component.formModel.paymentDetails = null;
@@ -299,7 +300,7 @@ describe('CleanersDashboardComponent', () => {
 
       // The host clicks a ROW and gets the DETAILS; Edit is the panel's own button, sitting next
       // to the record it edits, exactly as on the dashboard. Nothing opens the form on arrival.
-      expect(component.formOpen).toBeFalse();
+      expect(component.formOpen).toBe(false);
 
       component.openEdit(component.selectedDetail!);
 
@@ -317,7 +318,7 @@ describe('CleanersDashboardComponent', () => {
       component.openEdit(component.selectedDetail!);
       fixture.detectChanges();
 
-      expect(component.showsInlineForm).toBeTrue();
+      expect(component.showsInlineForm).toBe(true);
 
       const el: HTMLElement = fixture.nativeElement;
       expect(el.querySelector('.inline-form-wrap')).not.toBeNull();
@@ -336,7 +337,7 @@ describe('CleanersDashboardComponent', () => {
       component.openCreate();
       fixture.detectChanges();
 
-      expect(component.showsInlineForm).toBeFalse();
+      expect(component.showsInlineForm).toBe(false);
       expect(fixture.nativeElement.querySelector('.modal-overlay')).not.toBeNull();
       expect(fixture.nativeElement.querySelector('.inline-form-wrap')).toBeNull();
     });
@@ -344,7 +345,7 @@ describe('CleanersDashboardComponent', () => {
     it('reports a save upward instead of reloading a list it does not have', () => {
       mountEmbedded().flush(detail());
 
-      const changed = jasmine.createSpy('changed');
+      const changed = vi.fn().mockName('changed');
       component.changed.subscribe(changed);
 
       // Every write path ends in loadCleaners(); embedded that is the signal the host's table
@@ -358,7 +359,7 @@ describe('CleanersDashboardComponent', () => {
     it('asks the host to close rather than closing a drawer it does not own', () => {
       mountEmbedded().flush(detail());
 
-      const closed = jasmine.createSpy('closed');
+      const closed = vi.fn().mockName('closed');
       component.closed.subscribe(closed);
 
       component.closeDetail();
@@ -400,7 +401,8 @@ describe('CleanersDashboardComponent', () => {
       fixture.detectChanges();
 
       const imgs = Array.from(fixture.nativeElement.querySelectorAll('.cleaner-card .avatar img')) as HTMLImageElement[];
-      expect(imgs.map(i => i.getAttribute('src'))).toEqual(jasmine.arrayWithExactContents([google, local]));
+      // Same set, any order (was jasmine.arrayWithExactContents).
+      expect(imgs.map(i => i.getAttribute('src')).sort()).toEqual([google, local].sort());
       imgs.forEach(i => expect(i.getAttribute('referrerpolicy')).toBe('no-referrer'));
     });
   });

@@ -3,7 +3,7 @@ import { ALLOWED_HOSTS, rejectedHeader } from './host-guard';
 describe('host-guard (server.ts request allowlist)', () => {
   it('serves the live domains and local runs, with or without a port', () => {
     for (const host of ['dreamcleaningnyc.com', 'www.dreamcleaningnyc.com', 'localhost:4000', '127.0.0.1:4000', 'DreamCleaningNYC.com']) {
-      expect(rejectedHeader({ host })).withContext(host).toBeNull();
+      expect(rejectedHeader({ host }), host).toBeNull();
     }
   });
 
@@ -31,7 +31,7 @@ describe('host-guard (server.ts request allowlist)', () => {
 
   it('refuses hosts that are not a plain name[:port]', () => {
     for (const host of ['dreamcleaningnyc.com.', 'dreamcleaningnyc.com/evil', 'user@dreamcleaningnyc.com', '[::1]:4000', 'dreamcleaningnyc.com:http', 'dreamcleaningnyc.com:123456']) {
-      expect(rejectedHeader({ host })).withContext(host).toBe('host');
+      expect(rejectedHeader({ host }), host).toBe('host');
     }
   });
 

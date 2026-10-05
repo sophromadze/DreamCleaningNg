@@ -26,8 +26,8 @@ describe('AdminCustomerInvoicesComponent (create form)', () => {
 
   it('bills the whole balance by default', () => {
     const c = bare();
-    expect(c.isSplit).toBeFalse();
-    expect(c.canSubmitCreate).toBeTrue();
+    expect(c.isSplit).toBe(false);
+    expect(c.canSubmitCreate).toBe(true);
   });
 
   it('fills the last split with whatever is not allocated yet', () => {
@@ -38,7 +38,7 @@ describe('AdminCustomerInvoicesComponent (create form)', () => {
     expect(c.splitAmounts[1]).toBe(1743.65);
     expect(c.splitTotal).toBe(2743.65);
     expect(c.splitUnallocated).toBe(0);
-    expect(c.canSubmitCreate).toBeTrue();
+    expect(c.canSubmitCreate).toBe(true);
   });
 
   it('refuses a split that asks for more than is owed, or a slice under the $0.50 card minimum', () => {
@@ -46,23 +46,23 @@ describe('AdminCustomerInvoicesComponent (create form)', () => {
     c.splitMode = true;
     c.splitAmounts = [2000, 1000];
     expect(c.splitUnallocated).toBeLessThan(0);
-    expect(c.canSubmitCreate).toBeFalse();
+    expect(c.canSubmitCreate).toBe(false);
 
     c.splitAmounts = [2743.40, 0.25];
-    expect(c.canSubmitCreate).toBeFalse();
+    expect(c.canSubmitCreate).toBe(false);
   });
 
   it('keeps splitting an order that already carries a split invoice — never a whole-balance one beside it', () => {
     const c = bare();
     c.orderOptions = [order({ openInvoiceNumbers: ['DCR-2026-12345678'], availableToInvoice: 1743.65 })];
     c.splitMode = false;
-    expect(c.isSplit).toBeTrue();
+    expect(c.isSplit).toBe(true);
   });
 
   it('cannot submit an order the server said cannot be invoiced', () => {
     const c = bare();
     c.orderOptions = [order({ canInvoice: false, cannotInvoiceReason: 'Already invoiced in full.' })];
-    expect(c.canSubmitCreate).toBeFalse();
+    expect(c.canSubmitCreate).toBe(false);
   });
 });
 
@@ -78,9 +78,9 @@ describe('booking page admin payment choices', () => {
   });
 
   it('never treats a regular invoice as money already received', () => {
-    expect(adminMethodIsSettled('RegularInvoice')).toBeFalse();
-    expect(adminMethodIsSettled('Invoice')).toBeFalse();
-    expect(adminMethodIsSettled('Zelle')).toBeTrue();
+    expect(adminMethodIsSettled('RegularInvoice')).toBe(false);
+    expect(adminMethodIsSettled('Invoice')).toBe(false);
+    expect(adminMethodIsSettled('Zelle')).toBe(true);
   });
 });
 
@@ -92,11 +92,11 @@ describe('CustomerInvoicePageComponent', () => {
   };
 
   it('offers payment only while the invoice is owed', () => {
-    expect(page('Sent', 100).isPayable).toBeTrue();
-    expect(page('NotSent', 100).isPayable).toBeTrue();
-    expect(page('Paid', 0).isPayable).toBeFalse();
-    expect(page('Void', 100).isPayable).toBeFalse();
-    expect(page('Cancelled', 100).isPayable).toBeFalse();
+    expect(page('Sent', 100).isPayable).toBe(true);
+    expect(page('NotSent', 100).isPayable).toBe(true);
+    expect(page('Paid', 0).isPayable).toBe(false);
+    expect(page('Void', 100).isPayable).toBe(false);
+    expect(page('Cancelled', 100).isPayable).toBe(false);
   });
 
   it('reads a service time as a 12-hour clock', () => {

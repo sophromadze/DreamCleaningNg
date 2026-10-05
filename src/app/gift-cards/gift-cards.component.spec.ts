@@ -73,7 +73,7 @@ describe('GiftCardsComponent background', () => {
     answerConfig({ backgroundImagePath: '/uploads/gift-cards/gone.webp' });
 
     expect(fixture.componentInstance.giftCardBackgroundPath).toBe(GIFT_CARD_DEFAULT_BACKGROUND);
-    expect(fixture.componentInstance.isLoadingBackground).toBeFalse();
+    expect(fixture.componentInstance.isLoadingBackground).toBe(false);
   });
 
   it('never paints a cached background that no longer loads', () => {

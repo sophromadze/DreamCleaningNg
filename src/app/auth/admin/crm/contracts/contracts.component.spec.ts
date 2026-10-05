@@ -127,23 +127,23 @@ describe('ContractsComponent', () => {
     // so it cannot see invoice history in the first place.
     expect(component.canCreateNextInvoice(
       { id: 1, status: ContractStatus.Completed, isHidden: false,
-        canCreateNextInvoice: true } as any)).toBeTrue();
+        canCreateNextInvoice: true } as any)).toBe(true);
   });
 
   it('withholds it whenever the server says so, whatever the status looks like', () => {
     expect(component.canCreateNextInvoice(
       { id: 2, status: ContractStatus.Draft, isHidden: false,
-        canCreateNextInvoice: false } as any)).toBeFalse();
+        canCreateNextInvoice: false } as any)).toBe(false);
 
     // Deleted, even though it is Completed.
     expect(component.canCreateNextInvoice(
       { id: 3, status: ContractStatus.Completed, isHidden: true,
-        canCreateNextInvoice: false } as any)).toBeFalse();
+        canCreateNextInvoice: false } as any)).toBe(false);
 
     // The case the old local rule got WRONG: partially signed is not an executed agreement.
     expect(component.canCreateNextInvoice(
       { id: 4, status: ContractStatus.PartiallySigned, isHidden: false,
-        canCreateNextInvoice: false } as any)).toBeFalse();
+        canCreateNextInvoice: false } as any)).toBe(false);
   });
 
   it('renders the button in the row, not only inside the detail view', () => {
@@ -162,7 +162,7 @@ describe('ContractsComponent', () => {
 
     const button: HTMLButtonElement | null =
       fixture.nativeElement.querySelector('.btn-row-action');
-    expect(button).withContext('the list row carries its own billing action').not.toBeNull();
+    expect(button, 'the list row carries its own billing action').not.toBeNull();
     expect(button!.textContent).toContain('Create next invoice');
   });
 
@@ -172,7 +172,7 @@ describe('ContractsComponent', () => {
     flushList();
 
     const router = TestBed.inject(Router);
-    const navigate = spyOn(router, 'navigate');
+    const navigate = vi.spyOn(router, 'navigate').mockReturnValue(undefined as any);
 
     component.createNextInvoice(
       { id: 9, status: ContractStatus.Completed, isHidden: false } as any);
@@ -778,10 +778,10 @@ describe('ContractFormComponent', () => {
     flushReferenceData();
     flushPricingPreview();
 
-    expect(component.hasCustomCommitment).toBeFalse();
+    expect(component.hasCustomCommitment).toBe(false);
 
     component.setCommitmentMode('custom');
-    expect(component.hasCustomCommitment).toBeTrue();
+    expect(component.hasCustomCommitment).toBe(true);
     // Nothing is filled in for the admin: the agreed number has to be typed.
     expect(component.model.term.minimumCommitmentMonths).toBe(0);
 
@@ -791,7 +791,7 @@ describe('ContractFormComponent', () => {
     expect(component.model.term.initialTermMonths).toBe(12);
 
     component.setCommitmentMode('none');
-    expect(component.hasCustomCommitment).toBeFalse();
+    expect(component.hasCustomCommitment).toBe(false);
     expect(component.model.term.minimumCommitmentMonths).toBe(0);
     expect(component.model.term.initialTermMonths).toBe(0);
   });
@@ -825,15 +825,15 @@ describe('ContractFormComponent', () => {
       .some(el => (el.textContent ?? '').includes('Site details'));
 
     fixture.detectChanges();
-    expect(siteDetailsPanel()).toBeTrue();
+    expect(siteDetailsPanel()).toBe(true);
 
     component.model.scopeDetail = ScopeDetailMode.Simplified;
     fixture.detectChanges();
-    expect(siteDetailsPanel()).toBeFalse();
+    expect(siteDetailsPanel()).toBe(false);
 
     component.model.scopeDetail = ScopeDetailMode.Omitted;
     fixture.detectChanges();
-    expect(siteDetailsPanel()).toBeFalse();
+    expect(siteDetailsPanel()).toBe(false);
   });
 
   it('pre-fills the client and signer from a linked customer account', () => {
@@ -1265,8 +1265,8 @@ describe('ContractDetailComponent', () => {
     const buttons = Array.from(host.querySelectorAll('button')) as HTMLButtonElement[];
     const review = buttons.find(b => b.textContent?.includes('Approve & send for client review'));
     const signing = buttons.find(b => b.textContent?.includes('Send for signature'));
-    expect(review?.disabled).toBeTrue();
-    expect(signing?.disabled).toBeTrue();
+    expect(review?.disabled).toBe(true);
+    expect(signing?.disabled).toBe(true);
   });
 
   /**
@@ -1285,7 +1285,7 @@ describe('ContractDetailComponent', () => {
     expect(host.textContent ?? '').not.toContain('Unfilled placeholders');
     const review = (Array.from(host.querySelectorAll('button')) as HTMLButtonElement[])
       .find(b => b.textContent?.includes('Approve & send for client review'));
-    expect(review?.disabled).toBeFalse();
+    expect(review?.disabled).toBe(false);
   });
 
   // ── the production-vs-local button mismatch (2026-09-16) ───────────────────

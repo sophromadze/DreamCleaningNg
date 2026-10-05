@@ -1,3 +1,4 @@
+import type { MockInstance } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { OrdersComponent } from './orders.component';
@@ -76,11 +77,11 @@ describe('OrdersComponent', () => {
         extraServices: []
       } as any;
       component.editOrderFormPrevServiceQuantities = rows.map(r => r.quantity);
-      spyOn<any>(component, 'getEditServiceDefinition').and.callFake((i: number) => rows[i].def);
-      spyOn<any>(component, 'getEditOrderServiceType').and.returnValue({
+      vi.spyOn(component as any, 'getEditServiceDefinition').mockImplementation((i: any) => rows[i].def);
+      vi.spyOn(component as any, 'getEditOrderServiceType').mockReturnValue({
         id: 1, services: [bedroomsDef, sqftDef]
       });
-      spyOn<any>(component, 'recalcSubtotalFromServicesAndExtras');
+      vi.spyOn(component as any, 'recalcSubtotalFromServicesAndExtras').mockReturnValue(undefined);
     }
 
     const rowQuantity = (index: number) => component.editOrderForm.services![index].quantity;
@@ -260,10 +261,10 @@ describe('OrdersComponent', () => {
 
       // The subtotal normally comes from the shared quote; drive it straight off the bathroom
       // quantity so these specs exercise the discount chain, not the service pricing.
-      spyOn<any>(component, 'buildEditQuote').and.returnValue(null);
-      spyOn<any>(component, 'recalcEditDurationAndMaids');
-      spyOn<any>(component, 'recalcCleanerTotalSalary');
-      spyOn<any>(component, 'getEditOrderServiceType').and.returnValue({ id: 1, basePrice: 0, services: [] });
+      vi.spyOn(component as any, 'buildEditQuote').mockReturnValue(null);
+      vi.spyOn(component as any, 'recalcEditDurationAndMaids').mockReturnValue(undefined);
+      vi.spyOn(component as any, 'recalcCleanerTotalSalary').mockReturnValue(undefined);
+      vi.spyOn(component as any, 'getEditOrderServiceType').mockReturnValue({ id: 1, basePrice: 0, services: [] });
     }
 
     /** Set the bathroom count and run the same path a quantity change runs. */
@@ -683,10 +684,10 @@ describe('OrdersComponent', () => {
 
       component.saveOrderEdit();
 
-      expect(component.showSaveConfirm).toBeTrue();
+      expect(component.showSaveConfirm).toBe(true);
       // Still in the editor, nothing sent: the write only happens on confirm.
-      expect(component.savingOrder).toBeFalse();
-      expect(component.editingOrder).toBeTrue();
+      expect(component.savingOrder).toBe(false);
+      expect(component.editingOrder).toBe(true);
       expect(component.saveConfirmChanges.length).toBeGreaterThan(0);
     });
 
@@ -696,10 +697,10 @@ describe('OrdersComponent', () => {
       component.saveOrderEdit();
       component.closeSaveConfirm();
 
-      expect(component.showSaveConfirm).toBeFalse();
+      expect(component.showSaveConfirm).toBe(false);
       expect(component.saveConfirmChanges).toEqual([]);
       // The form stays open so the admin can adjust rather than retype everything.
-      expect(component.editingOrder).toBeTrue();
+      expect(component.editingOrder).toBe(true);
     });
 
     it('sends an ungranted admin straight to approval without a confirmation step', () => {
@@ -708,8 +709,8 @@ describe('OrdersComponent', () => {
       component.saveOrderEdit();
 
       // Their changes are reviewed on the SuperAdmin side; a second review here would be noise.
-      expect(component.showSaveConfirm).toBeFalse();
-      expect(component.savingOrder).toBeTrue();
+      expect(component.showSaveConfirm).toBe(false);
+      expect(component.savingOrder).toBe(true);
     });
 
     it('always shows the Total row, emphasised, even when nothing moved it', () => {
@@ -719,7 +720,7 @@ describe('OrdersComponent', () => {
 
       const total = changes.find(c => c.field === 'Total');
       expect(total).toBeTruthy();
-      expect(total!.emphasised).toBeTrue();
+      expect(total!.emphasised).toBe(true);
       expect(total!.difference).toBe('—');
       // Pinned last so it reads as the bottom line.
       expect(changes[changes.length - 1]).toBe(total!);
@@ -730,7 +731,7 @@ describe('OrdersComponent', () => {
 
       const total = changes.find(c => c.field === 'Total')!;
       expect(total.difference).toBe('+50');
-      expect(total.emphasised).toBeTrue();
+      expect(total.emphasised).toBe(true);
     });
   });
 
@@ -849,7 +850,7 @@ describe('OrdersComponent', () => {
         subTotal: 170, discountAmount: 42.50, pointsRedeemedDiscount: 10
       }));
 
-      expect(component.canEditTotalDirectly()).toBeTrue();
+      expect(component.canEditTotalDirectly()).toBe(true);
 
       // Sanity: the order as it stands reads back as what the panel shows.
       component.recalculateEditPricing();
@@ -870,7 +871,7 @@ describe('OrdersComponent', () => {
     it('inverts through a reward balance the same way', () => {
       openEditorOn(plainOrder({ rewardBalanceUsed: 25 }));
 
-      expect(component.canEditTotalDirectly()).toBeTrue();
+      expect(component.canEditTotalDirectly()).toBe(true);
 
       component.editOrderTotalInput = 100;
       component.onEditTotalChange();
@@ -977,14 +978,14 @@ describe('OrdersComponent', () => {
       // rewards have no such problem.
       openEditorOn(plainOrder());
       component.editGiftCardAmountToUse = 30;
-      expect(component.canEditTotalDirectly()).toBeFalse();
+      expect(component.canEditTotalDirectly()).toBe(false);
 
       component.editGiftCardAmountToUse = 0;
       component.editGiftCardOriginalUsed = 30;
-      expect(component.canEditTotalDirectly()).toBeFalse();
+      expect(component.canEditTotalDirectly()).toBe(false);
 
       component.editGiftCardOriginalUsed = 0;
-      expect(component.canEditTotalDirectly()).toBeTrue();
+      expect(component.canEditTotalDirectly()).toBe(true);
     });
   });
 
@@ -1006,7 +1007,7 @@ describe('OrdersComponent', () => {
     });
 
     it('sends null when the box is cleared, so the row is deleted rather than stored empty', () => {
-      const save = spyOn(adminService, 'updateOrderAdminNotes').and.returnValue(of({ orderId: 7 } as any));
+      const save = vi.spyOn(adminService, 'updateOrderAdminNotes').mockReturnValue(of({ orderId: 7 } as any));
       component.orderNoteDraft = '   ';
       (component as any).orderNoteSaved = 'gate code 4412';
 
@@ -1017,21 +1018,20 @@ describe('OrdersComponent', () => {
     });
 
     it('trims before saving, and a whitespace-only edit of an empty note is not dirty', () => {
-      const save = spyOn(adminService, 'updateOrderAdminNotes').and.returnValue(
-        of({ orderId: 7, notes: 'dog on site' } as any));
+      const save = vi.spyOn(adminService, 'updateOrderAdminNotes').mockReturnValue(of({ orderId: 7, notes: 'dog on site' } as any));
 
       component.orderNoteDraft = '  dog on site  ';
-      expect(component.orderNoteDirty).toBeTrue();
+      expect(component.orderNoteDirty).toBe(true);
 
       component.saveOrderNote();
 
       expect(save).toHaveBeenCalledWith(7, 'dog on site');
       // Saved text is echoed back, so the Save button goes quiet again.
-      expect(component.orderNoteDirty).toBeFalse();
+      expect(component.orderNoteDirty).toBe(false);
     });
 
     it('ignores a response that arrives after the panel moved to another order', () => {
-      spyOn(adminService, 'updateOrderAdminNotes').and.callFake((..._args: any[]) => {
+      vi.spyOn(adminService, 'updateOrderAdminNotes').mockImplementation((..._args: any[]) => {
         component.viewingOrderId = 9;
         return of({ orderId: 7, notes: 'stale' } as any);
       });
@@ -1045,14 +1045,14 @@ describe('OrdersComponent', () => {
     });
 
     it('refuses to save without update rights, mirroring the endpoint permission', () => {
-      const save = spyOn(adminService, 'updateOrderAdminNotes');
+      const save = vi.spyOn(adminService, 'updateOrderAdminNotes').mockReturnValue(undefined as any);
       component.userPermissions.permissions.canUpdate = false;
       component.isSuperAdmin = false;
       component.orderNoteDraft = 'not allowed';
 
       component.saveOrderNote();
 
-      expect(component.canEditOrderNote).toBeFalse();
+      expect(component.canEditOrderNote).toBe(false);
       expect(save).not.toHaveBeenCalled();
     });
   });
@@ -1088,7 +1088,7 @@ describe('OrdersComponent', () => {
     it('shows RefundH for a cancelled order with the fee retained (order #264)', () => {
       const o = order({ totalRefundedAmount: 250.91 });
 
-      expect(component.isPartiallyRefunded(o)).toBeTrue();
+      expect(component.isPartiallyRefunded(o)).toBe(true);
       expect(component.getStatusDisplayLabel(o)).toBe('RefundH');
       expect(component.getStatusClass(o)).toBe('status-refund-partial');
       // RefundH hides the real status, so the tooltip has to name it.
@@ -1102,7 +1102,7 @@ describe('OrdersComponent', () => {
       // would misread an order whose total moved after the charge settled.
       const o = order({ status: 'Refunded', totalRefundedAmount: 320.91 });
 
-      expect(component.isPartiallyRefunded(o)).toBeFalse();
+      expect(component.isPartiallyRefunded(o)).toBe(false);
       expect(component.getStatusDisplayLabel(o)).toBe('Refund');
       expect(component.getStatusClass(o)).toBe('status-cancelled status-refunded');
       expect(component.getStatusTitle(o)).toBe('');
@@ -1121,9 +1121,9 @@ describe('OrdersComponent', () => {
     });
 
     it('ignores an order with no refund recorded', () => {
-      expect(component.isPartiallyRefunded(order({ status: 'Active' }))).toBeFalse();
+      expect(component.isPartiallyRefunded(order({ status: 'Active' }))).toBe(false);
       expect(component.isPartiallyRefunded(order({ status: 'Active', totalRefundedAmount: undefined })))
-        .toBeFalse();
+        .toBe(false);
     });
   });
 
@@ -1425,8 +1425,8 @@ describe('OrdersComponent', () => {
 
         const updated = payroll({ storedTotalSalary: 281.25, totalSalary: 281.25 });
         const svc = TestBed.inject(AdminService);
-        const spy = spyOn(svc, 'updateOrderCleanerPayroll').and.returnValue(of(updated as any));
-        spyOn(svc, 'getOrdersStaffingWarnings').and.returnValue(of({}));
+        const spy = vi.spyOn(svc, 'updateOrderCleanerPayroll').mockReturnValue(of(updated as any));
+        vi.spyOn(svc, 'getOrdersStaffingWarnings').mockReturnValue(of({}));
 
         component.startEditPayrollLine(component.selectedOrderPayroll!.lines[0]);
         component.payrollEditHours = 4.25;
@@ -1468,8 +1468,8 @@ describe('OrdersComponent', () => {
         component.selectedOrderPayroll = payroll() as any;
 
         const svc = TestBed.inject(AdminService);
-        const spy = spyOn(svc, 'updateOrderCleanerPayroll').and.returnValue(of(payroll() as any));
-        spyOn(svc, 'getOrdersStaffingWarnings').and.returnValue(of({}));
+        const spy = vi.spyOn(svc, 'updateOrderCleanerPayroll').mockReturnValue(of(payroll() as any));
+        vi.spyOn(svc, 'getOrdersStaffingWarnings').mockReturnValue(of({}));
 
         component.resetPayrollLineToAutomatic(component.selectedOrderPayroll!.lines[1]);
 
@@ -1504,9 +1504,9 @@ describe('OrdersComponent', () => {
           // it writes an explicit override of the automatic figure onto every line, and an
           // explicit value stops tracking the order when it is re-priced.
           const svc = TestBed.inject(AdminService);
-          const hoursSpy = spyOn(svc, 'updateOrderCleanerHours').and.returnValue(of(payroll() as any));
-          const rateSpy = spyOn(svc, 'updateOrderCleanerHourlyRate').and.returnValue(of(payroll() as any));
-          spyOn(svc, 'getOrdersStaffingWarnings').and.returnValue(of({}));
+          const hoursSpy = vi.spyOn(svc, 'updateOrderCleanerHours').mockReturnValue(of(payroll() as any));
+          const rateSpy = vi.spyOn(svc, 'updateOrderCleanerHourlyRate').mockReturnValue(of(payroll() as any));
+          vi.spyOn(svc, 'getOrdersStaffingWarnings').mockReturnValue(of({}));
 
           component.startEditPayrollForAll();
           component.payrollAllHoursInput = 4.25;
@@ -1518,9 +1518,9 @@ describe('OrdersComponent', () => {
 
         it('sends ONLY the rate when only the rate moved', () => {
           const svc = TestBed.inject(AdminService);
-          const hoursSpy = spyOn(svc, 'updateOrderCleanerHours').and.returnValue(of(payroll() as any));
-          const rateSpy = spyOn(svc, 'updateOrderCleanerHourlyRate').and.returnValue(of(payroll() as any));
-          spyOn(svc, 'getOrdersStaffingWarnings').and.returnValue(of({}));
+          const hoursSpy = vi.spyOn(svc, 'updateOrderCleanerHours').mockReturnValue(of(payroll() as any));
+          const rateSpy = vi.spyOn(svc, 'updateOrderCleanerHourlyRate').mockReturnValue(of(payroll() as any));
+          vi.spyOn(svc, 'getOrdersStaffingWarnings').mockReturnValue(of({}));
 
           component.startEditPayrollForAll();
           component.payrollAllRateInput = 28;
@@ -1535,15 +1535,15 @@ describe('OrdersComponent', () => {
           // rate-then-hours is the order the two decisions were made in.
           const calls: string[] = [];
           const svc = TestBed.inject(AdminService);
-          spyOn(svc, 'updateOrderCleanerHourlyRate').and.callFake(() => {
+          vi.spyOn(svc, 'updateOrderCleanerHourlyRate').mockImplementation(() => {
             calls.push('rate');
             return of(payroll() as any);
           });
-          spyOn(svc, 'updateOrderCleanerHours').and.callFake(() => {
+          vi.spyOn(svc, 'updateOrderCleanerHours').mockImplementation(() => {
             calls.push('hours');
             return of(payroll({ storedTotalSalary: 300 }) as any);
           });
-          spyOn(svc, 'getOrdersStaffingWarnings').and.returnValue(of({}));
+          vi.spyOn(svc, 'getOrdersStaffingWarnings').mockReturnValue(of({}));
 
           component.startEditPayrollForAll();
           component.payrollAllHoursInput = 4.25;
@@ -1559,8 +1559,8 @@ describe('OrdersComponent', () => {
         it('saving an untouched editor writes nothing at all', () => {
           // Two no-op writes would put two rows in the audit log saying nothing happened.
           const svc = TestBed.inject(AdminService);
-          const hoursSpy = spyOn(svc, 'updateOrderCleanerHours');
-          const rateSpy = spyOn(svc, 'updateOrderCleanerHourlyRate');
+          const hoursSpy = vi.spyOn(svc, 'updateOrderCleanerHours').mockReturnValue(undefined as any);
+          const rateSpy = vi.spyOn(svc, 'updateOrderCleanerHourlyRate').mockReturnValue(undefined as any);
 
           component.startEditPayrollForAll();
           component.savePayrollForAll();
@@ -1578,9 +1578,9 @@ describe('OrdersComponent', () => {
           }) as any;
 
           const svc = TestBed.inject(AdminService);
-          const hoursSpy = spyOn(svc, 'updateOrderCleanerHours');
-          const rateSpy = spyOn(svc, 'updateOrderCleanerHourlyRate').and.returnValue(of(payroll() as any));
-          spyOn(svc, 'getOrdersStaffingWarnings').and.returnValue(of({}));
+          const hoursSpy = vi.spyOn(svc, 'updateOrderCleanerHours').mockReturnValue(undefined as any);
+          const rateSpy = vi.spyOn(svc, 'updateOrderCleanerHourlyRate').mockReturnValue(of(payroll() as any));
+          vi.spyOn(svc, 'getOrdersStaffingWarnings').mockReturnValue(of({}));
 
           component.startEditPayrollForAll();
           component.payrollAllRateInput = 28;
@@ -1601,8 +1601,7 @@ describe('OrdersComponent', () => {
 
         it('reports a rejected write beside the block, not in the page banner', () => {
           const svc = TestBed.inject(AdminService);
-          spyOn(svc, 'updateOrderCleanerHours').and.returnValue(
-            throwError(() => ({ error: { message: 'Nobody is assigned to this order yet.' } })));
+          vi.spyOn(svc, 'updateOrderCleanerHours').mockReturnValue(throwError(() => ({ error: { message: 'Nobody is assigned to this order yet.' } })));
 
           component.startEditPayrollForAll();
           component.payrollAllHoursInput = 5;
@@ -1623,9 +1622,9 @@ describe('OrdersComponent', () => {
 
         it('writes the new count and copies it back onto the order', () => {
           const svc = TestBed.inject(AdminService);
-          const spy = spyOn(svc, 'updateOrderMaidsCount')
-            .and.returnValue(of(payroll({ maidsCount: 3 }) as any));
-          spyOn(svc, 'getOrdersStaffingWarnings').and.returnValue(of({}));
+          const spy = vi.spyOn(svc, 'updateOrderMaidsCount')
+            .mockReturnValue(of(payroll({ maidsCount: 3 }) as any));
+          vi.spyOn(svc, 'getOrdersStaffingWarnings').mockReturnValue(of({}));
 
           component.startEditMaidsCount();
           expect(component.maidsCountInput).toBe(2);
@@ -1638,7 +1637,7 @@ describe('OrdersComponent', () => {
         });
 
         it('saving the same count writes nothing', () => {
-          const spy = spyOn(TestBed.inject(AdminService), 'updateOrderMaidsCount');
+          const spy = vi.spyOn(TestBed.inject(AdminService), 'updateOrderMaidsCount').mockReturnValue(undefined as any);
 
           component.startEditMaidsCount();
           component.saveMaidsCount();
@@ -1648,7 +1647,7 @@ describe('OrdersComponent', () => {
         });
 
         it('refuses zero or a fraction without calling the server', () => {
-          const spy = spyOn(TestBed.inject(AdminService), 'updateOrderMaidsCount');
+          const spy = vi.spyOn(TestBed.inject(AdminService), 'updateOrderMaidsCount').mockReturnValue(undefined as any);
 
           component.startEditMaidsCount();
           component.maidsCountInput = 0;
@@ -1791,8 +1790,8 @@ describe('OrdersComponent', () => {
 
     /** Moderators are View-only and do not staff orders; the endpoint would 403 them. */
     it('only fetches for Admin and SuperAdmin', () => {
-      const spy = spyOn(component['adminService'], 'getOrdersStaffingWarnings')
-        .and.returnValue(of({}));
+      const spy = vi.spyOn(component['adminService'], 'getOrdersStaffingWarnings')
+        .mockReturnValue(of({}));
       component.orders = [row()];
 
       component.isSuperAdmin = false;
@@ -1901,22 +1900,22 @@ describe('OrdersComponent', () => {
 
     it('sends the acknowledgement to the server only when it was actually given', () => {
       const cleanerService = (component as any).cleanerService;
-      const spy = spyOn(cleanerService, 'assignCleaners').and.returnValue(of({}));
+      const spy = vi.spyOn(cleanerService, 'assignCleaners').mockReturnValue(of({}));
 
       component.toggleCleanerSelection(1);
       component.assignCleanersToOrder();
-      expect(spy.calls.mostRecent().args[4]).toBe(false);
+      expect(vi.mocked(spy).mock.lastCall![4]).toBe(false);
 
       component.selectedCleaners = [2];
       component.acknowledgeScheduleConflicts = true;
       component.assigningOrderId = 315;
       component.assignCleanersToOrder();
-      expect(spy.calls.mostRecent().args[4]).toBe(true);
+      expect(vi.mocked(spy).mock.lastCall![4]).toBe(true);
     });
 
     it('refuses to fire the request while the acknowledgement is outstanding', () => {
       const cleanerService = (component as any).cleanerService;
-      const spy = spyOn(cleanerService, 'assignCleaners').and.returnValue(of({}));
+      const spy = vi.spyOn(cleanerService, 'assignCleaners').mockReturnValue(of({}));
 
       component.toggleCleanerSelection(2);
       component.assignCleanersToOrder();
@@ -1937,40 +1936,40 @@ describe('OrdersComponent', () => {
     const NOTIFIED = { id: 1, name: 'Maia Niauri', assignmentNotificationSentAt: '2026-08-30T10:00:00Z' };
     const UNNOTIFIED = { id: 2, name: 'Marekh Tabidze', assignmentNotificationSentAt: null };
 
-    let removeSpy: jasmine.Spy;
+    let removeSpy: MockInstance;
 
     beforeEach(() => {
       component.assignedCleanersCache.set(315, [NOTIFIED, UNNOTIFIED] as any);
       component.cleanersLoadedSet.add(315);
 
       const adminService = TestBed.inject(AdminService);
-      spyOn(adminService, 'getAssignedCleanersWithIds').and.returnValue(of([]));
-      spyOn(component as any, 'refreshOrderAfterSave').and.stub();
+      vi.spyOn(adminService, 'getAssignedCleanersWithIds').mockReturnValue(of([]));
+      vi.spyOn(component as any, 'refreshOrderAfterSave').mockImplementation(() => {});
 
       const cleanerService = (component as any).cleanerService;
-      removeSpy = spyOn(cleanerService, 'removeCleanerFromOrder');
+      removeSpy = vi.spyOn(cleanerService, 'removeCleanerFromOrder').mockReturnValue(undefined);
     });
 
     it('warns that no removal email is coming for an un-notified cleaner', () => {
-      const confirmSpy = spyOn(window, 'confirm').and.returnValue(false);
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
       component.removeCleanerFromOrder(315, 2, 'Marekh Tabidze');
 
-      expect(confirmSpy.calls.mostRecent().args[0]).toContain('no removal email will go out');
+      expect(vi.mocked(confirmSpy).mock.lastCall![0]).toContain('no removal email will go out');
       expect(removeSpy).not.toHaveBeenCalled();
     });
 
     it('still promises the email for a cleaner who received the assignment mail', () => {
-      const confirmSpy = spyOn(window, 'confirm').and.returnValue(false);
+      const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
 
       component.removeCleanerFromOrder(315, 1, 'Maia Niauri');
 
-      expect(confirmSpy.calls.mostRecent().args[0]).toContain('will receive an email notification');
+      expect(vi.mocked(confirmSpy).mock.lastCall![0]).toContain('will receive an email notification');
     });
 
     it('reports what the server actually did rather than assuming a send', () => {
-      spyOn(window, 'confirm').and.returnValue(true);
-      removeSpy.and.returnValue(of({ message: 'ok', removalNotificationSent: false }));
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      removeSpy.mockReturnValue(of({ message: 'ok', removalNotificationSent: false }));
 
       component.removeCleanerFromOrder(315, 2, 'Marekh Tabidze');
 
@@ -1978,8 +1977,8 @@ describe('OrdersComponent', () => {
     });
 
     it('says the cleaner was notified when the server sent the mail', () => {
-      spyOn(window, 'confirm').and.returnValue(true);
-      removeSpy.and.returnValue(of({ message: 'ok', removalNotificationSent: true }));
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
+      removeSpy.mockReturnValue(of({ message: 'ok', removalNotificationSent: true }));
 
       component.removeCleanerFromOrder(315, 1, 'Maia Niauri');
 
@@ -2033,7 +2032,7 @@ describe('OrdersComponent — part-payments', () => {
     component.selectedOrder = { id: 7, total: 2743.65 } as any;
     component.partialBalance = { ...BALANCE, canRequestPartialPayment: false, amountPaid: 0 };
 
-    expect(component.showPartialPaymentsCard).toBeFalse();
+    expect(component.showPartialPaymentsCard).toBe(false);
   });
 
   it('shows the Payments card once money has arrived in slices', () => {
@@ -2043,13 +2042,13 @@ describe('OrdersComponent — part-payments', () => {
       isPartiallyPaid: true
     };
 
-    expect(component.showPartialPaymentsCard).toBeTrue();
+    expect(component.showPartialPaymentsCard).toBe(true);
   });
 
   it('refuses an empty amount without troubling the server', () => {
     component.selectedOrder = { id: 7 } as any;
     component.partialBalance = BALANCE;
-    const spy = spyOn(adminService, 'requestPartialPayment');
+    const spy = vi.spyOn(adminService, 'requestPartialPayment').mockReturnValue(undefined as any);
 
     component.partialAmountInput = null;
     component.requestPartialPayment();
@@ -2065,14 +2064,14 @@ describe('OrdersComponent — part-payments', () => {
     component.orders = [{ id: 7, total: 2743.65, amountPaid: 0, isPartiallyPaid: false } as any];
 
     const updated = { ...BALANCE, amountPaid: 1000, amountDue: 1743.65, isPartiallyPaid: true };
-    spyOn(adminService, 'requestPartialPayment').and.returnValue(of({
+    vi.spyOn(adminService, 'requestPartialPayment').mockReturnValue(of({
       message: 'Payment request for $1,000.00: email sent.',
       partialPayment: { id: 3, orderId: 7, requestedAmount: 1000, status: 'Pending', createdAt: '' },
       balance: updated,
       emailSent: true,
       smsSent: false
     }) as any);
-    spyOn(adminService, 'getOrderDetails').and.returnValue(of({
+    vi.spyOn(adminService, 'getOrderDetails').mockReturnValue(of({
       id: 7, total: 2743.65, amountPaid: 1000, amountDue: 1743.65, isPartiallyPaid: true
     }) as any);
 
@@ -2081,7 +2080,7 @@ describe('OrdersComponent — part-payments', () => {
 
     expect(component.partialBalance!.amountDue).toBe(1743.65);
     expect(component.orders[0].amountPaid).toBe(1000);
-    expect(component.orders[0].isPartiallyPaid).toBeTrue();
+    expect(component.orders[0].isPartiallyPaid).toBe(true);
     // The form is cleared so the same amount can't be sent twice by a second click.
     expect(component.partialAmountInput).toBeNull();
   });
@@ -2089,9 +2088,7 @@ describe('OrdersComponent — part-payments', () => {
   it('surfaces the server\'s reason when a request is refused', () => {
     component.selectedOrder = { id: 7 } as any;
     component.partialBalance = BALANCE;
-    spyOn(adminService, 'requestPartialPayment').and.returnValue(
-      throwError(() => ({ error: { message: 'That is more than the $1743.65 still owed on this order.' } }))
-    );
+    vi.spyOn(adminService, 'requestPartialPayment').mockReturnValue(throwError(() => ({ error: { message: 'That is more than the $1743.65 still owed on this order.' } })));
 
     component.partialAmountInput = 5000;
     component.requestPartialPayment();
@@ -2166,7 +2163,7 @@ describe('OrdersComponent — additional amount owed after a down-then-up edit',
 
     expect(component.getTotalAdditionalAmount()).toBe(2243.65);
     expect(component.getUnpaidAdditionalAmount()).toBe(2243.65);
-    expect(component.shouldShowPaymentReminderRow()).toBeTrue();
+    expect(component.shouldShowPaymentReminderRow()).toBe(true);
   });
 
   it('gives the same answer once the decrease is stored clamped at zero', () => {
@@ -2203,7 +2200,7 @@ describe('OrdersComponent — additional amount owed after a down-then-up edit',
     ] as any;
 
     expect(component.getUnpaidAdditionalAmount()).toBe(270);
-    expect(component.shouldShowPaymentReminderRow()).toBeTrue();
+    expect(component.shouldShowPaymentReminderRow()).toBe(true);
   });
 
   it('never reports a negative amount owed on an order that only got cheaper', () => {
@@ -2215,7 +2212,7 @@ describe('OrdersComponent — additional amount owed after a down-then-up edit',
     component.orderUpdateHistory = [DOWN_ROW_LEGACY] as any;
 
     expect(component.getUnpaidAdditionalAmount()).toBe(0);
-    expect(component.shouldShowPaymentReminderRow()).toBeFalse();
+    expect(component.shouldShowPaymentReminderRow()).toBe(false);
   });
 
   /**
@@ -2344,7 +2341,7 @@ describe('OrdersComponent — levels price like booking', () => {
         component.onEditPropertyTypeChange();
 
         expect(levelsRowIndex()).toBe(3); // appended after the order's own rows
-        expect(component.showEditInformationalLevels()).toBeFalse();
+        expect(component.showEditInformationalLevels()).toBe(false);
         // One level is included: a one-level house costs exactly what the apartment did.
         expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(st, selections, 1));
         expect(component.editOrderForm.subTotal).toBe(apartmentSubTotal);
@@ -2364,13 +2361,13 @@ describe('OrdersComponent — levels price like booking', () => {
 
         const dto = (component as any).buildOrderEditDto();
         const added = dto.services.find((s: any) => !s.orderServiceId);
-        expect(added).toEqual(jasmine.objectContaining({ orderServiceId: 0, serviceId: LEVELS_ID + st.id, quantity: 3, cost: 70 }));
+        expect(added).toEqual(expect.objectContaining({ orderServiceId: 0, serviceId: LEVELS_ID + st.id, quantity: 3, cost: 70 }));
         expect(added.duration).toBe(50);
         expect(dto.subTotal).toBe(component.editOrderForm.subTotal);
 
         const changes = component.computeOrderEditChanges(component.selectedOrder, dto);
-        expect(changes.find(c => c.field === 'Levels')).toEqual(jasmine.objectContaining({ current: '—', proposed: '3' }));
-        expect(changes.some(c => c.field === 'Levels (new) (qty/cost)')).toBeTrue();
+        expect(changes.find(c => c.field === 'Levels')).toEqual(expect.objectContaining({ current: '—', proposed: '3' }));
+        expect(changes.some(c => c.field === 'Levels (new) (qty/cost)')).toBe(true);
       });
 
       it('takes the added row away again on Apartment, back to the apartment price', () => {
@@ -2417,8 +2414,8 @@ describe('OrdersComponent — levels price like booking', () => {
     component.onEditPropertyTypeChange();
 
     expect(levelsRowIndex()).toBe(-1);
-    expect(component.showEditInformationalLevels()).toBeTrue();
-    expect(component.editLevelsArePriced()).toBeFalse();
+    expect(component.showEditInformationalLevels()).toBe(true);
+    expect(component.editLevelsArePriced()).toBe(false);
     component.editOrderForm.levelsQuantity = 3;
     component.onEditInformationalLevelsChange();
     expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(HEAVY, selections, null));
@@ -2432,14 +2429,14 @@ describe('OrdersComponent — levels price like booking', () => {
     component.startEditOrder();
 
     // Opening the editor moves nothing...
-    expect(component.showEditInformationalLevels()).toBeTrue();
-    expect(component.editLevelsArePriced()).toBeTrue();
+    expect(component.showEditInformationalLevels()).toBe(true);
+    expect(component.editLevelsArePriced()).toBe(true);
     expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(RESIDENTIAL, selections, null));
 
     // ...and touching the count adds the priced row at that count.
     component.editOrderForm.levelsQuantity = 2;
     component.onEditInformationalLevelsChange();
-    expect(component.showEditInformationalLevels()).toBeFalse();
+    expect(component.showEditInformationalLevels()).toBe(false);
     expect(component.editOrderForm.subTotal).toBe(bookingSubTotal(RESIDENTIAL, selections, 2));
   });
 });
@@ -2533,7 +2530,7 @@ describe('OrdersComponent — edits price like booking (2026-10)', () => {
 
     component.editOrderForm.subTotal = 400;
     component.onEditSubTotalChange();
-    expect(dto().priceTypedByAdmin).toBeTrue();
+    expect(dto().priceTypedByAdmin).toBe(true);
     expect(dto().subTotal).toBe(400);
 
     setQuantity(1, 2);
@@ -2545,6 +2542,6 @@ describe('OrdersComponent — edits price like booking (2026-10)', () => {
     open({ amount: 0 });
     component.editOrderTotalInput = 250;
     component.onEditTotalChange();
-    expect(dto().priceTypedByAdmin).toBeTrue();
+    expect(dto().priceTypedByAdmin).toBe(true);
   });
 });

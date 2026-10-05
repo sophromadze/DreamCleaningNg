@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
@@ -480,7 +480,7 @@ describe('OutgoingPaymentsComponent', () => {
      * paste useless, so only the destination itself travels.
      */
     it('copies the destination alone, without the method prefix', async () => {
-      const writeText = jasmine.createSpy('writeText').and.returnValue(Promise.resolve());
+      const writeText = vi.fn().mockName('writeText').mockReturnValue(Promise.resolve());
       Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
       const c = component.data!.orders[0].cleaners[0];
@@ -506,7 +506,7 @@ describe('OutgoingPaymentsComponent', () => {
     });
 
     it('does nothing when there is no destination on file', () => {
-      const writeText = jasmine.createSpy('writeText');
+      const writeText = vi.fn().mockName('writeText');
       Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
       component.copyPaymentDetails({ ...cleaner(), paymentDetails: null });
@@ -658,7 +658,7 @@ describe('OutgoingPaymentsComponent', () => {
     });
 
     it('undoes an unassigned payout through the slot endpoint', () => {
-      spyOn(window, 'confirm').and.returnValue(true);
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
       const o = heavy();
       component.openPanel(o);
 
@@ -942,17 +942,18 @@ describe('OutgoingPaymentsComponent', () => {
       req.flush(list([]));
     });
 
-    it('debounces the search box and resets to the first page', fakeAsync(() => {
+    it('debounces the search box and resets to the first page', async () => {
+      vi.useFakeTimers();
       component.page = 3;
       component.onSearchChange('Irma');
       httpMock.expectNone(r => r.method === 'GET');
 
-      tick(300);
+      await vi.advanceTimersByTimeAsync(300);
       const req = httpMock.expectOne(r => r.method === 'GET');
       expect(req.request.params.get('search')).toBe('Irma');
       expect(component.page).toBe(1);
       req.flush(list([]));
-    }));
+    });
 
     it('pages a 60-cleaning month into three pages of 20', () => {
       component.data = list([order()], 60);
@@ -1038,7 +1039,7 @@ describe('OutgoingPaymentsComponent', () => {
       });
       renderEmployees(salaryMonth([usd]));
 
-      expect(component.isConverted('USD')).toBeFalse();
+      expect(component.isConverted('USD')).toBe(false);
       expect(fixture.nativeElement.querySelector('.salary-payee-head .salary-usd')).toBeNull();
     });
 
@@ -1126,18 +1127,19 @@ describe('OutgoingPaymentsComponent', () => {
       expect(fixture.nativeElement.querySelector('.salary-block')).toBeNull();
     });
 
-    it('does not refetch salaries when a cleaner filter changes', fakeAsync(() => {
+    it('does not refetch salaries when a cleaner filter changes', async () => {
+      vi.useFakeTimers();
       // Salaries depend only on the month. Refetching them on every debounced keystroke in the
       // cleaner search would be pure waste — and emptying the section mid-search reads as
       // "nobody is owed a salary".
       renderEmployees(salaryMonth([payee()]));
 
       component.onSearchChange('Irma');
-      tick(300);
+      await vi.advanceTimersByTimeAsync(300);
 
       expect(httpMock.match(r => r.url.includes('/salaries')).length).toBe(0);
       flushLoad(list([]));
-    }));
+    });
 
     it('reloads salaries when the month changes', () => {
       renderEmployees(salaryMonth([payee()]));
@@ -1286,9 +1288,9 @@ describe('OutgoingPaymentsComponent', () => {
         renderEmployees(salaryMonth([payee()]));
 
         // Replaces the object rather than spying on the method: `navigator.clipboard` is shared
-        // across the whole suite, so a Jasmine spy on it collides with the cleaner-tab copy test
+        // across the whole suite, so a spy on it collides with the cleaner-tab copy test
         // depending on which spec file runs first. Same pattern that test already uses.
-        const writeText = jasmine.createSpy('writeText').and.returnValue(Promise.resolve());
+        const writeText = vi.fn().mockName('writeText').mockReturnValue(Promise.resolve());
         Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
 
         component.copySalaryDetails(component.salaries!.payees[0]);
@@ -1399,7 +1401,7 @@ describe('OutgoingPaymentsComponent', () => {
       // The month moved for BOTH halves, and the tab you were on is the tab you are still on.
       expect(component.monthLabel).not.toBe(before);
       expect(component.activeTab).toBe('employees');
-      expect(component.isCurrentMonth).toBeFalse();
+      expect(component.isCurrentMonth).toBe(false);
     });
   });
 });

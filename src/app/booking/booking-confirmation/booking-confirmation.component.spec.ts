@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 
 import { of, throwError } from 'rxjs';
@@ -7,7 +8,7 @@ import { BookingDataService } from '../../services/booking-data.service';
 import { BookingService } from '../../services/booking.service';
 import { StripeService } from '../../services/stripe.service';
 import { OrderSoundService } from '../../services/order-sound.service';
-import { Router } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
 import { testProviders } from '../../../testing/test-providers';
@@ -19,7 +20,8 @@ describe('BookingConfirmationComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      providers: [...testProviders],
+      // Its no-data redirect goes to /booking, which the bare test router lacks.
+      providers: [...testProviders, provideRouter([{ path: 'booking', children: [] }])],
       imports: [BookingConfirmationComponent]
     })
     .compileComponents();
@@ -63,7 +65,7 @@ describe('BookingConfirmationComponent', () => {
 
     fixture.detectChanges();
 
-    expect(component.paymentCompleted).toBeFalse();
+    expect(component.paymentCompleted).toBe(false);
     expect(component.bookingData).toBeTruthy();
 
     const content: HTMLElement | null =
@@ -93,17 +95,17 @@ describe('BookingConfirmationComponent', () => {
       component.bookingData = { serviceTypeId: 1, total: 386.16 };
       component.orderTotal = 386.16;
 
-      spyOn(stripeService, 'confirmCardPayment').and.callFake(((): Promise<never> =>
+      vi.spyOn(stripeService, 'confirmCardPayment').mockImplementation(((): Promise<never> =>
         Promise.reject(new Error('the card must never be charged on either of these paths'))) as any);
 
       // Both paths end in handlePaymentSuccess, which navigates and plays a cue. Neither is
       // what these tests are about, and the audio one needs a real device.
-      spyOn(TestBed.inject(Router), 'navigate').and.returnValue(Promise.resolve(true));
-      spyOn(TestBed.inject(OrderSoundService), 'playBookingConfirmed').and.stub();
+      vi.spyOn(TestBed.inject(Router), 'navigate').mockReturnValue(Promise.resolve(true));
+      vi.spyOn(TestBed.inject(OrderSoundService), 'playBookingConfirmed').mockImplementation(() => {});
     });
 
     it('shows the order that the first charge already created, without charging again', async () => {
-      spyOn(bookingService, 'preparePayment').and.returnValue(of({
+      vi.spyOn(bookingService, 'preparePayment').mockReturnValue(of({
         orderId: 369,
         status: 'Active',
         total: 386.16,
@@ -113,19 +115,19 @@ describe('BookingConfirmationComponent', () => {
         alreadyPaidPaymentIntentId: null,
         sessionId: 'prepare_payment_1_638'
       }));
-      const confirm = spyOn(bookingService, 'confirmPayment').and.returnValue(of({ orderId: 369 }));
+      const confirm = vi.spyOn(bookingService, 'confirmPayment').mockReturnValue(of({ orderId: 369 }));
 
       await component.processPayment();
 
       expect(component.orderId).toBe(369);
-      expect(component.paymentCompleted).toBeTrue();
+      expect(component.paymentCompleted).toBe(true);
       expect(stripeService.confirmCardPayment).not.toHaveBeenCalled();
       // The order exists — there is nothing left to confirm either.
       expect(confirm).not.toHaveBeenCalled();
     });
 
     it('confirms against the intent that was already charged rather than paying again', async () => {
-      spyOn(bookingService, 'preparePayment').and.returnValue(of({
+      vi.spyOn(bookingService, 'preparePayment').mockReturnValue(of({
         orderId: 0,
         status: 'Pending',
         total: 386.16,
@@ -135,7 +137,7 @@ describe('BookingConfirmationComponent', () => {
         alreadyPaidPaymentIntentId: 'pi_first',
         sessionId: 'prepare_payment_1_638'
       }));
-      const confirm = spyOn(bookingService, 'confirmPayment').and.returnValue(of({ orderId: 370 }));
+      const confirm = vi.spyOn(bookingService, 'confirmPayment').mockReturnValue(of({ orderId: 370 }));
 
       await component.processPayment();
 
@@ -161,22 +163,22 @@ describe('BookingConfirmationComponent', () => {
       stripeService = TestBed.inject(StripeService);
       component.bookingData = { serviceTypeId: 1, total: 120 };
       component.orderTotal = 120;
-      spyOn(TestBed.inject(Router), 'navigate').and.returnValue(Promise.resolve(true));
-      spyOn(TestBed.inject(OrderSoundService), 'playBookingConfirmed').and.stub();
-      spyOn(bookingService, 'preparePayment').and.returnValue(of({
+      vi.spyOn(TestBed.inject(Router), 'navigate').mockReturnValue(Promise.resolve(true));
+      vi.spyOn(TestBed.inject(OrderSoundService), 'playBookingConfirmed').mockImplementation(() => {});
+      vi.spyOn(bookingService, 'preparePayment').mockReturnValue(of({
         orderId: 0, status: 'Pending', total: 120, requiresPayment: true,
         paymentIntentId: 'pi_charged', paymentClientSecret: 'secret', alreadyPaidPaymentIntentId: null,
         sessionId: 'prepare_payment_1_1'
       }));
-      spyOn(stripeService, 'confirmCardPayment').and.returnValue(Promise.resolve({ id: 'pi_charged', status: 'succeeded' }));
+      vi.spyOn(stripeService, 'confirmCardPayment').mockReturnValue(Promise.resolve({ id: 'pi_charged', status: 'succeeded' }));
     });
 
     it('shows a finalising state instead of an error, keeps Pay disabled, and retries the same intent', async () => {
-      jasmine.clock().install();
+      vi.useFakeTimers();
       try {
-        const markIdle = spyOn(bookingDataService, 'markPaymentIdle').and.callThrough();
+        const markIdle = vi.spyOn(bookingDataService, 'markPaymentIdle');
         let calls = 0;
-        const confirm = spyOn(bookingService, 'confirmPayment').and.callFake((() => {
+        const confirm = vi.spyOn(bookingService, 'confirmPayment').mockImplementation((() => {
           calls++;
           return calls === 1
             ? throwError(() => ({ status: 0, error: null }))   // the response never arrived
@@ -186,32 +188,31 @@ describe('BookingConfirmationComponent', () => {
         await component.processPayment();
         await Promise.resolve();
 
-        expect(component.finalizingPayment).toBeTrue();
+        expect(component.finalizingPayment).toBe(true);
         expect(component.errorMessage).toBe('');
-        expect(component.isProcessing).toBeTrue();       // Pay stays down
+        expect(component.isProcessing).toBe(true);       // Pay stays down
         expect(markIdle).not.toHaveBeenCalled();         // the in-flight guard stays up
 
-        jasmine.clock().tick(2100);
+        vi.advanceTimersByTime(2100);
 
         expect(confirm).toHaveBeenCalledTimes(2);
-        expect(confirm.calls.argsFor(1)).toEqual([0, 'pi_charged', 'prepare_payment_1_1']);
+        expect(vi.mocked(confirm).mock.calls[1]).toEqual([0, 'pi_charged', 'prepare_payment_1_1']);
         expect(component.orderId).toBe(501);
-        expect(component.paymentCompleted).toBeTrue();
-        expect(component.finalizingPayment).toBeFalse();
+        expect(component.paymentCompleted).toBe(true);
+        expect(component.finalizingPayment).toBe(false);
         expect(stripeService.confirmCardPayment).toHaveBeenCalledTimes(1); // never charged twice
       } finally {
-        jasmine.clock().uninstall();
+        vi.useRealTimers();
       }
     });
 
     it('still reports a definite server answer (a 4xx) the way it always did', async () => {
-      spyOn(bookingService, 'confirmPayment').and.returnValue(
-        throwError(() => ({ status: 400, error: { message: 'Payment not completed' } })) as any);
+      vi.spyOn(bookingService, 'confirmPayment').mockReturnValue(throwError(() => ({ status: 400, error: { message: 'Payment not completed' } })) as any);
 
       await component.processPayment();
       await Promise.resolve();
 
-      expect(component.finalizingPayment).toBeFalse();
+      expect(component.finalizingPayment).toBe(false);
       expect(component.errorMessage).toContain('Payment not completed');
     });
   });
@@ -223,7 +224,7 @@ describe('BookingConfirmationComponent', () => {
   describe('the pre-payment save-card modal', () => {
     let bookingService: BookingService;
     let stripeService: StripeService;
-    let prepare: jasmine.Spy;
+    let prepare: Mock;
 
     beforeEach(() => {
       bookingService = TestBed.inject(BookingService);
@@ -233,23 +234,23 @@ describe('BookingConfirmationComponent', () => {
       component.savedCardsFeature = true;
       component.savedCards = [];
       component.selectedCardId = null;
-      spyOn(TestBed.inject(AuthService), 'isLoggedIn').and.returnValue(true);
+      vi.spyOn(TestBed.inject(AuthService), 'isLoggedIn').mockReturnValue(true);
 
-      prepare = spyOn(bookingService, 'preparePayment').and.returnValue(of({
+      prepare = vi.spyOn(bookingService, 'preparePayment').mockReturnValue(of({
         orderId: 0, status: 'Pending', total: 141.54, requiresPayment: true,
         paymentIntentId: 'pi_new', paymentClientSecret: 'secret_new',
         alreadyPaidPaymentIntentId: null, canSaveCard: true, sessionId: 'prepare_1'
       }));
-      spyOn(stripeService, 'confirmCardPayment').and.returnValue(Promise.resolve({ id: 'pi_new' }) as any);
-      spyOn(bookingService, 'confirmPayment').and.returnValue(of({ orderId: 501 }));
-      spyOn(TestBed.inject(Router), 'navigate').and.returnValue(Promise.resolve(true));
-      spyOn(TestBed.inject(OrderSoundService), 'playBookingConfirmed').and.stub();
+      vi.spyOn(stripeService, 'confirmCardPayment').mockReturnValue(Promise.resolve({ id: 'pi_new' }) as any);
+      vi.spyOn(bookingService, 'confirmPayment').mockReturnValue(of({ orderId: 501 }));
+      vi.spyOn(TestBed.inject(Router), 'navigate').mockReturnValue(Promise.resolve(true));
+      vi.spyOn(TestBed.inject(OrderSoundService), 'playBookingConfirmed').mockImplementation(() => {});
     });
 
     it('asks before anything is prepared or charged', () => {
       component.onPayClicked();
 
-      expect(component.showSaveCardModal).toBeTrue();
+      expect(component.showSaveCardModal).toBe(true);
       expect(prepare).not.toHaveBeenCalled();
       expect(stripeService.confirmCardPayment).not.toHaveBeenCalled();
     });
@@ -258,10 +259,10 @@ describe('BookingConfirmationComponent', () => {
       component.onPayClicked();
       component.onSaveCardDismissed();
 
-      expect(component.showSaveCardModal).toBeFalse();
+      expect(component.showSaveCardModal).toBe(false);
       expect(prepare).not.toHaveBeenCalled();
       expect(stripeService.confirmCardPayment).not.toHaveBeenCalled();
-      expect(component.isProcessing).toBeFalse();
+      expect(component.isProcessing).toBe(false);
     });
 
     it('"Save Card & Pay" pays ONCE, with the save applied to that same intent', async () => {
@@ -271,8 +272,8 @@ describe('BookingConfirmationComponent', () => {
 
       expect(prepare).toHaveBeenCalledTimes(1);
       expect(stripeService.confirmCardPayment).toHaveBeenCalledTimes(1);
-      expect((stripeService.confirmCardPayment as jasmine.Spy).calls.mostRecent().args[2]).toBeTrue();
-      expect(component.paymentCompleted).toBeTrue();
+      expect(vi.mocked((stripeService.confirmCardPayment as Mock)).mock.lastCall![2]).toBe(true);
+      expect(component.paymentCompleted).toBe(true);
     });
 
     it('"Pay Without Saving" pays ONCE and saves nothing', async () => {
@@ -281,12 +282,12 @@ describe('BookingConfirmationComponent', () => {
       await fixture.whenStable();
 
       expect(prepare).toHaveBeenCalledTimes(1);
-      expect((stripeService.confirmCardPayment as jasmine.Spy).calls.mostRecent().args[2]).toBeFalse();
-      expect(component.paymentCompleted).toBeTrue();
+      expect(vi.mocked((stripeService.confirmCardPayment as Mock)).mock.lastCall![2]).toBe(false);
+      expect(component.paymentCompleted).toBe(true);
     });
 
     it('never saves when the server says this intent cannot carry the choice', async () => {
-      prepare.and.returnValue(of({
+      prepare.mockReturnValue(of({
         orderId: 0, status: 'Pending', total: 141.54, requiresPayment: true,
         paymentIntentId: 'pi_new', paymentClientSecret: 'secret_new',
         alreadyPaidPaymentIntentId: null, canSaveCard: false, sessionId: 'prepare_1'
@@ -296,8 +297,8 @@ describe('BookingConfirmationComponent', () => {
       component.onSaveCardChoice(true);
       await fixture.whenStable();
 
-      expect((stripeService.confirmCardPayment as jasmine.Spy).calls.mostRecent().args[2]).toBeFalse();
-      expect(component.paymentCompleted).toBeTrue();   // the payment is unaffected
+      expect(vi.mocked((stripeService.confirmCardPayment as Mock)).mock.lastCall![2]).toBe(false);
+      expect(component.paymentCompleted).toBe(true);   // the payment is unaffected
     });
 
     it('does not ask again once answered, and never asks for a SAVED card', () => {
@@ -306,19 +307,19 @@ describe('BookingConfirmationComponent', () => {
       component.showSaveCardModal = false;
 
       component.onPayClicked();
-      expect(component.showSaveCardModal).toBeFalse();   // same attempt, same answer
+      expect(component.showSaveCardModal).toBe(false);   // same attempt, same answer
 
       component.savedCards = [{ id: 7, paymentMethodId: 'pm_saved', isPrimary: true } as any];
       component.selectPaymentMethod(7);
       component.onPayClicked();
-      expect(component.showSaveCardModal).toBeFalse();   // a saved card is already saved
+      expect(component.showSaveCardModal).toBe(false);   // a saved card is already saved
     });
 
     it('asks again when the customer switches from a saved card to a new one', async () => {
       component.savedCards = [{ id: 7, paymentMethodId: 'pm_saved', isPrimary: true } as any];
       component.selectPaymentMethod(7);
       component.onPayClicked();
-      expect(component.showSaveCardModal).toBeFalse();   // a saved card is never asked about
+      expect(component.showSaveCardModal).toBe(false);   // a saved card is never asked about
 
       // Let that attempt settle before the next click — the Pay button is held down while a
       // payment is in flight, which is a separate guarantee from this one.
@@ -328,7 +329,7 @@ describe('BookingConfirmationComponent', () => {
 
       component.selectPaymentMethod(null);
       component.onPayClicked();
-      expect(component.showSaveCardModal).toBeTrue();
+      expect(component.showSaveCardModal).toBe(true);
     });
   });
 });

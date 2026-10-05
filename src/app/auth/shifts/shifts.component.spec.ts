@@ -1,3 +1,4 @@
+import type { MockedObject } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
@@ -20,7 +21,7 @@ import { AdminBonusService, AdminBonusSummary, AdminBonusRates } from '../../ser
 describe('ShiftsComponent', () => {
   let component: ShiftsComponent;
   let fixture: ComponentFixture<ShiftsComponent>;
-  let bonusService: jasmine.SpyObj<AdminBonusService>;
+  let bonusService: MockedObject<AdminBonusService>;
 
   const defaults: AdminBonusRates = {
     administratorNewCustomerRate: 10,
@@ -77,10 +78,9 @@ describe('ShiftsComponent', () => {
   }
 
   beforeEach(async () => {
-    bonusService = jasmine.createSpyObj<AdminBonusService>(
-      'AdminBonusService', ['getBonuses', 'getRates', 'setRates', 'setOverride', 'getForAdmin']);
-    bonusService.getBonuses.and.returnValue(of([]));
-    bonusService.getRates.and.returnValue(of(defaults));
+    bonusService = { getBonuses: vi.fn().mockName('AdminBonusService.getBonuses'), getRates: vi.fn().mockName('AdminBonusService.getRates'), setRates: vi.fn().mockName('AdminBonusService.setRates'), setOverride: vi.fn().mockName('AdminBonusService.setOverride'), getForAdmin: vi.fn().mockName('AdminBonusService.getForAdmin') } as unknown as MockedObject<AdminBonusService>;
+    bonusService.getBonuses.mockReturnValue(of([]));
+    bonusService.getRates.mockReturnValue(of(defaults));
 
     await TestBed.configureTestingModule({
       providers: [
@@ -130,13 +130,13 @@ describe('ShiftsComponent', () => {
     });
 
     it('sends null for a blank field, so it goes back to the company default', () => {
-      bonusService.setOverride.and.returnValue(of(row()));
+      bonusService.setOverride.mockReturnValue(of(row()));
 
       component.startEditingOverride(row());
       component.overrideEdit.ownBookingNewCustomerRate = 12;
       component.saveOverride(row());
 
-      const [, override] = bonusService.setOverride.calls.mostRecent().args;
+      const [, override] = vi.mocked(bonusService.setOverride).mock.lastCall!;
       expect(override.ownBookingNewCustomerRate).toBe(12);
       expect(override.ownBookingExistingCustomerRate).toBeNull();
     });
@@ -144,27 +144,27 @@ describe('ShiftsComponent', () => {
     it('never sends team rates for an administrator', () => {
       // They can never earn on that slot, so a value parked there is a rate nobody chose that a
       // later promotion would start paying.
-      bonusService.setOverride.and.returnValue(of(row()));
+      bonusService.setOverride.mockReturnValue(of(row()));
 
       component.startEditingOverride(row());
       component.overrideEdit.teamBookingNewCustomerRate = 99;
       component.overrideEdit.teamBookingExistingCustomerRate = 99;
       component.saveOverride(row());
 
-      const [, override] = bonusService.setOverride.calls.mostRecent().args;
+      const [, override] = vi.mocked(bonusService.setOverride).mock.lastCall!;
       expect(override.teamBookingNewCustomerRate).toBeNull();
       expect(override.teamBookingExistingCustomerRate).toBeNull();
     });
 
     it('sends both slots for a manager', () => {
-      bonusService.setOverride.and.returnValue(of(manager()));
+      bonusService.setOverride.mockReturnValue(of(manager()));
 
       component.startEditingOverride(manager());
       component.overrideEdit.ownBookingNewCustomerRate = 16;
       component.overrideEdit.teamBookingExistingCustomerRate = 18;
       component.saveOverride(manager());
 
-      const [, override] = bonusService.setOverride.calls.mostRecent().args;
+      const [, override] = vi.mocked(bonusService.setOverride).mock.lastCall!;
       expect(override.ownBookingNewCustomerRate).toBe(16);
       expect(override.teamBookingExistingCustomerRate).toBe(18);
     });
@@ -172,20 +172,20 @@ describe('ShiftsComponent', () => {
     it('treats a typed 0 as a real rate, not as a cleared field', () => {
       // "Earns nothing on new customers" and "follows the company rate" are different
       // instructions; collapsing them would quietly pay somebody who was zeroed out.
-      bonusService.setOverride.and.returnValue(of(row()));
+      bonusService.setOverride.mockReturnValue(of(row()));
 
       component.startEditingOverride(row());
       component.overrideEdit.ownBookingNewCustomerRate = 0;
       component.overrideEdit.ownBookingExistingCustomerRate = 0;
       component.saveOverride(row());
 
-      const [, override] = bonusService.setOverride.calls.mostRecent().args;
+      const [, override] = vi.mocked(bonusService.setOverride).mock.lastCall!;
       expect(override.ownBookingNewCustomerRate).toBe(0);
       expect(override.ownBookingExistingCustomerRate).toBe(0);
     });
 
     it('clears every field when asked to use the default again', () => {
-      bonusService.setOverride.and.returnValue(of(manager()));
+      bonusService.setOverride.mockReturnValue(of(manager()));
 
       component.startEditingOverride(manager({
         ownNewCustomerRate: 16, ownNewCustomerRateIsCustom: true,
@@ -193,7 +193,7 @@ describe('ShiftsComponent', () => {
       }));
       component.clearOverride(manager());
 
-      const [, override] = bonusService.setOverride.calls.mostRecent().args;
+      const [, override] = vi.mocked(bonusService.setOverride).mock.lastCall!;
       expect(override).toEqual({
         ownBookingNewCustomerRate: null,
         ownBookingExistingCustomerRate: null,
@@ -207,8 +207,8 @@ describe('ShiftsComponent', () => {
       // trip to arrive at numbers we have been handed.
       component.bonuses = [row({ adminId: 1 }), manager({ adminId: 2 })];
       const updated = manager({ adminId: 2, bonusAmount: 45 });
-      bonusService.setOverride.and.returnValue(of(updated));
-      bonusService.getBonuses.calls.reset();
+      bonusService.setOverride.mockReturnValue(of(updated));
+      bonusService.getBonuses.mockClear();
 
       component.startEditingOverride(component.bonuses[1]);
       component.saveOverride(component.bonuses[1]);
@@ -227,21 +227,20 @@ describe('ShiftsComponent', () => {
     });
 
     it('keeps the editor open when the server refuses the change', () => {
-      bonusService.setOverride.and.returnValue(
-        throwError(() => ({ error: { message: 'nope' } })));
+      bonusService.setOverride.mockReturnValue(throwError(() => ({ error: { message: 'nope' } })));
 
       component.startEditingOverride(row({ adminId: 7 }));
       component.saveOverride(row({ adminId: 7 }));
 
       expect(component.editingOverrideAdminId).toBe(7);
-      expect(component.isSavingOverride).toBeFalse();
+      expect(component.isSavingOverride).toBe(false);
     });
   });
 
   describe('who may see the company pay table', () => {
     /** A fresh instance whose ngOnInit runs with the given viewer role. */
     function bootAs(isSuperAdmin: boolean): ShiftsComponent {
-      bonusService.getRates.calls.reset();
+      bonusService.getRates.mockClear();
       const f = TestBed.createComponent(ShiftsComponent);
       f.componentInstance.isSuperAdmin = isSuperAdmin;
       f.detectChanges();
@@ -267,7 +266,7 @@ describe('ShiftsComponent', () => {
     it('still shows a regular admin their own rates', () => {
       // Their own row is theirs to know; it arrives on the bonus summary, not on the pay table.
       const mine = manager({ ownNewCustomerRate: 15, ownExistingCustomerRate: 25 });
-      bonusService.getBonuses.and.returnValue(of([mine]));
+      bonusService.getBonuses.mockReturnValue(of([mine]));
 
       const c = bootAs(false);
 
@@ -280,26 +279,26 @@ describe('ShiftsComponent', () => {
     it('restates the month on screen after a rate change', () => {
       // Everybody still on a default has just changed value, so the visible figures are stale
       // until they are refetched.
-      bonusService.setRates.and.returnValue(of({ ...defaults, administratorNewCustomerRate: 11 }));
-      bonusService.getBonuses.calls.reset();
+      bonusService.setRates.mockReturnValue(of({ ...defaults, administratorNewCustomerRate: 11 }));
+      bonusService.getBonuses.mockClear();
 
       component.startEditingRates();
       component.rateEdit.administratorNewCustomerRate = 11;
       component.saveRates();
 
       expect(bonusService.getBonuses).toHaveBeenCalled();
-      expect(component.isEditingRates).toBeFalse();
+      expect(component.isEditingRates).toBe(false);
     });
 
     it('submits all three slots', () => {
       // The manager own-booking pair is its own figure, not the other two added together — if the
       // editor stopped sending it, it would silently freeze at whatever was stored.
-      bonusService.setRates.and.returnValue(of(defaults));
+      bonusService.setRates.mockReturnValue(of(defaults));
 
       component.startEditingRates();
       component.saveRates();
 
-      const [sent] = bonusService.setRates.calls.mostRecent().args;
+      const [sent] = vi.mocked(bonusService.setRates).mock.lastCall!;
       expect(sent.administratorNewCustomerRate).toBe(10);
       expect(sent.managerOwnBookingNewCustomerRate).toBe(15);
       expect(sent.managerOwnBookingExistingCustomerRate).toBe(25);
@@ -323,9 +322,9 @@ describe('ShiftsComponent', () => {
       const administratorOnly = row({ ownNewCustomerCount: 2 });
       const managerOnly = manager({ teamExistingCustomerCount: 3 });
 
-      expect(component.hasBothSides(both)).toBeTrue();
-      expect(component.hasBothSides(administratorOnly)).toBeFalse();
-      expect(component.hasBothSides(managerOnly)).toBeFalse();
+      expect(component.hasBothSides(both)).toBe(true);
+      expect(component.hasBothSides(administratorOnly)).toBe(false);
+      expect(component.hasBothSides(managerOnly)).toBe(false);
     });
 
     it('adds both slots together for the new/returning counts', () => {
@@ -347,17 +346,17 @@ describe('ShiftsComponent', () => {
       const realOverride = row({ ownNewCustomerRateIsCustom: true });
       const managerWithNoTeam = manager({ teamSize: 0, teamNewCustomerRateIsCustom: true });
 
-      expect(component.hasCustomRate(staleTeamOnly)).toBeFalse();
-      expect(component.hasCustomRate(managerWithNoTeam)).toBeFalse();
-      expect(component.hasCustomRate(realOverride)).toBeTrue();
-      expect(component.hasCustomRate(manager({ teamNewCustomerRateIsCustom: true }))).toBeTrue();
+      expect(component.hasCustomRate(staleTeamOnly)).toBe(false);
+      expect(component.hasCustomRate(managerWithNoTeam)).toBe(false);
+      expect(component.hasCustomRate(realOverride)).toBe(true);
+      expect(component.hasCustomRate(manager({ teamNewCustomerRateIsCustom: true }))).toBe(true);
     });
 
     it('hides the team rate from a manager who has nobody reporting to them', () => {
       // Printing "team 5 / 15" for somebody who cannot earn it reads as money they are owed.
-      expect(component.showsTeamRate(manager({ teamSize: 0 }))).toBeFalse();
-      expect(component.showsTeamRate(manager({ teamSize: 1 }))).toBeTrue();
-      expect(component.showsTeamRate(row())).toBeFalse();
+      expect(component.showsTeamRate(manager({ teamSize: 0 }))).toBe(false);
+      expect(component.showsTeamRate(manager({ teamSize: 1 }))).toBe(true);
+      expect(component.showsTeamRate(row())).toBe(false);
     });
 
     it('keeps the team rate visible while it is still earning', () => {
@@ -365,7 +364,7 @@ describe('ShiftsComponent', () => {
       // the window on screen; hiding the rate would leave part of their total unexplained.
       const lostTheirTeamMidMonth = manager({ teamSize: 0, teamExistingCustomerCount: 3 });
 
-      expect(component.showsTeamRate(lostTheirTeamMidMonth)).toBeTrue();
+      expect(component.showsTeamRate(lostTheirTeamMidMonth)).toBe(true);
     });
 
     it('does not wipe a stored team rate when the inputs are hidden', () => {
@@ -376,12 +375,12 @@ describe('ShiftsComponent', () => {
         teamNewCustomerRate: 7, teamNewCustomerRateIsCustom: true,
         teamExistingCustomerRate: 18, teamExistingCustomerRateIsCustom: true
       });
-      bonusService.setOverride.and.returnValue(of(teamless));
+      bonusService.setOverride.mockReturnValue(of(teamless));
 
       component.startEditingOverride(teamless);
       component.saveOverride(teamless);
 
-      const [, override] = bonusService.setOverride.calls.mostRecent().args;
+      const [, override] = vi.mocked(bonusService.setOverride).mock.lastCall!;
       expect(override.teamBookingNewCustomerRate).toBe(7);
       expect(override.teamBookingExistingCustomerRate).toBe(18);
     });

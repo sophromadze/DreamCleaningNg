@@ -31,7 +31,7 @@ describe('order status badge', () => {
 
   it('turns a partial refund into RefundH and names the real status in the tooltip', () => {
     const o = { status: 'Cancelled', totalRefundedAmount: 250.91 };
-    expect(isPartiallyRefundedOrder(o)).toBeTrue();
+    expect(isPartiallyRefundedOrder(o)).toBe(true);
     expect(orderStatusBadgeClass(o)).toBe('status-refund-partial');
     expect(orderStatusBadgeLabel(o)).toBe('RefundH');
     expect(orderStatusBadgeTitle(o)).toBe(
@@ -40,9 +40,9 @@ describe('order status badge', () => {
   });
 
   it('treats only Cancelled and Refunded as no-money statuses', () => {
-    expect(isCancelledOrRefundedStatus('cancelled')).toBeTrue();
-    expect(isCancelledOrRefundedStatus('Refunded')).toBeTrue();
-    expect(isCancelledOrRefundedStatus('Done')).toBeFalse();
-    expect(isCancelledOrRefundedStatus(null)).toBeFalse();
+    expect(isCancelledOrRefundedStatus('cancelled')).toBe(true);
+    expect(isCancelledOrRefundedStatus('Refunded')).toBe(true);
+    expect(isCancelledOrRefundedStatus('Done')).toBe(false);
+    expect(isCancelledOrRefundedStatus(null)).toBe(false);
   });
 });

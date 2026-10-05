@@ -140,10 +140,10 @@ describe('ChatWidgetComponent', () => {
 
       // The handoff reaches the CUSTOMER support desk, which doesn't handle hiring — putting
       // an applicant through would only get them redirected a second time (owner's call).
-      expect(component.showHumanHandoff).toBeFalse();
+      expect(component.showHumanHandoff).toBe(false);
       expect(handoffButton()).toBeNull();
       // Remembered, or a reload would hand it straight back.
-      expect(JSON.parse(localStorage.getItem('chatWidgetSession')!).jobSeekerDeclared).toBeTrue();
+      expect(JSON.parse(localStorage.getItem('chatWidgetSession')!).jobSeekerDeclared).toBe(true);
     });
 
     it('leaves the handoff bar alone for someone booking a cleaning', () => {
@@ -180,7 +180,7 @@ describe('ChatWidgetComponent', () => {
       sendFirstMessage();
 
       // The old rule was `messages.length === 0`, which this send has just falsified.
-      expect(component.showEmailField).toBeTrue();
+      expect(component.showEmailField).toBe(true);
       expect(emailField()).not.toBeNull();
     });
 
@@ -194,7 +194,7 @@ describe('ChatWidgetComponent', () => {
       // The same wording the admin panel gets — "invalid email" would leave the visitor
       // hunting for which character is wrong.
       expect(component.guestEmailError).toContain('@');
-      expect(component.guestEmailSaved).toBeFalse();
+      expect(component.guestEmailSaved).toBe(false);
       expect(emailField()).not.toBeNull();
       // Nothing was sent anywhere — there is no session yet and the value is not usable.
       http.expectNone(endsWith('/guest-email'));
@@ -208,7 +208,7 @@ describe('ChatWidgetComponent', () => {
       fixture.detectChanges();
 
       // Accepted locally: there is no session to POST it against yet.
-      expect(component.guestEmailSaved).toBeTrue();
+      expect(component.guestEmailSaved).toBe(true);
       expect(emailField()).toBeNull();
 
       const request = sendFirstMessage();
@@ -224,7 +224,7 @@ describe('ChatWidgetComponent', () => {
       const request = sendFirstMessage();
 
       expect(request.request.body.guestEmail).toBeNull();
-      expect(component.showEmailField).toBeTrue();
+      expect(component.showEmailField).toBe(true);
     });
 
     it('posts an address submitted mid-conversation to its own endpoint', () => {
@@ -239,7 +239,7 @@ describe('ChatWidgetComponent', () => {
       save.flush({ status: 'saved' });
       fixture.detectChanges();
 
-      expect(component.guestEmailSaved).toBeTrue();
+      expect(component.guestEmailSaved).toBe(true);
       expect(emailField()).toBeNull();
     });
 
@@ -253,11 +253,11 @@ describe('ChatWidgetComponent', () => {
       expect(emailField()).toBeNull();
 
       sendFirstMessage();
-      expect(component.showEmailField).toBeFalse();
+      expect(component.showEmailField).toBe(false);
       expect(emailField()).toBeNull();
 
       // Remembered with the session so a reload doesn't ask again.
-      expect(JSON.parse(localStorage.getItem('chatWidgetSession')!).guestEmailDismissed).toBeTrue();
+      expect(JSON.parse(localStorage.getItem('chatWidgetSession')!).guestEmailDismissed).toBe(true);
     });
 
     it('keeps the field up when the server rejects the address', () => {
@@ -273,7 +273,7 @@ describe('ChatWidgetComponent', () => {
       );
       fixture.detectChanges();
 
-      expect(component.guestEmailSaved).toBeFalse();
+      expect(component.guestEmailSaved).toBe(false);
       expect(component.guestEmailError).toContain('@');
       expect(emailField()).not.toBeNull();
     });
@@ -285,7 +285,7 @@ describe('ChatWidgetComponent', () => {
     it('is offered from the first moment the panel is open, before anything is typed', () => {
       openAsGuest();
 
-      expect(component.showHumanHandoff).toBeTrue();
+      expect(component.showHumanHandoff).toBe(true);
       expect(handoffButton()).not.toBeNull();
     });
 
@@ -296,7 +296,7 @@ describe('ChatWidgetComponent', () => {
       fixture.detectChanges();
 
       // One stray tap must not create a Telegram topic and an escalation email.
-      expect(component.confirmingHumanRequest).toBeTrue();
+      expect(component.confirmingHumanRequest).toBe(true);
       http.expectNone(endsWith('/request-human'));
 
       component.cancelHumanRequest();
@@ -327,8 +327,8 @@ describe('ChatWidgetComponent', () => {
       });
       fixture.detectChanges();
 
-      expect(component.escalated).toBeTrue();
-      expect(component.showHumanHandoff).toBeFalse();
+      expect(component.escalated).toBe(true);
+      expect(component.showHumanHandoff).toBe(false);
       expect(handoffButton()).toBeNull();
     });
 
@@ -349,7 +349,7 @@ describe('ChatWidgetComponent', () => {
       });
       fixture.detectChanges();
 
-      expect(component.escalated).toBeTrue();
+      expect(component.escalated).toBe(true);
     });
 
     it('points at the phone number when the handoff itself fails', () => {
@@ -362,7 +362,7 @@ describe('ChatWidgetComponent', () => {
 
       // Failing to reach the team is exactly when a dead end is least acceptable.
       expect(component.error).toContain('929');
-      expect(component.requestingHuman).toBeFalse();
+      expect(component.requestingHuman).toBe(false);
     });
   });
   // ===== Chat photos are private (2026-10) =====

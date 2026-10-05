@@ -79,7 +79,7 @@ describe('llms.txt generation', () => {
     expect(lines[2]).toMatch(/^> \S/);
     expect(lines.filter(l => l.startsWith('## ')).length).toBeGreaterThanOrEqual(5);
     expect(lines).toContain('## Optional');
-    expect(text.endsWith('\n')).toBeTrue();
+    expect(text.endsWith('\n')).toBe(true);
     expect(text).not.toContain('\r');
     for (const l of lines.filter(x => x.startsWith('- ['))) {
       expect(l).toMatch(/^- \[[^\]]+\]\(https:\/\/[^)\s]+\): \S/);

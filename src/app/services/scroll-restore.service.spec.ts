@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, NavigationStart, Router, Scroll } from '@angular/router';
 import { Subject } from 'rxjs';
@@ -16,8 +17,8 @@ describe('ScrollRestoreService', () => {
   beforeEach(() => {
     events = new Subject();
     TestBed.configureTestingModule({ providers: [{ provide: Router, useValue: { events } }] });
-    spyOnProperty(window, 'scrollY', 'get').and.callFake(() => scrollY);
-    spyOnProperty(window, 'scrollX', 'get').and.returnValue(0);
+    vi.spyOn(window, 'scrollY', 'get').mockImplementation(() => scrollY);
+    vi.spyOn(window, 'scrollX', 'get').mockReturnValue(0);
     service = TestBed.inject(ScrollRestoreService);
     service.start();
   });
@@ -46,7 +47,7 @@ describe('ScrollRestoreService', () => {
   // styles.scss sets `scroll-behavior: smooth`, which turned the router's restore into an animated
   // scroll from the top of the page.
   it('applies a restored position instantly, ignoring the smooth-scroll CSS', () => {
-    const scrollTo = spyOn(window, 'scrollTo') as jasmine.Spy;
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockReturnValue(undefined) as Mock;
     navigate(1, '/', 'imperative');
     const end = new NavigationEnd(2, '/', '/');
 
@@ -56,7 +57,7 @@ describe('ScrollRestoreService', () => {
   });
 
   it('leaves a forward navigation\'s scroll to the router', () => {
-    const scrollTo = spyOn(window, 'scrollTo') as jasmine.Spy;
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockReturnValue(undefined) as Mock;
 
     events.next(new Scroll(new NavigationEnd(2, '/faq', '/faq'), null, null));
 

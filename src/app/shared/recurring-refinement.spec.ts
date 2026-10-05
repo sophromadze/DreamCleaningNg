@@ -40,7 +40,7 @@ describe('Recurring and commercial refinement', () => {
   });
 
   it('uses current contract pricing only on request without saving or sending', () => {
-    const c = form(); spyOn(c, 'saveDraft');
+    const c = form(); vi.spyOn(c, 'saveDraft').mockReturnValue(undefined);
     c.chooseDrift(c.existing!.draftWarnings[0], true);
     expect(c.totals.total).toBe(1000); expect(c.taxRate).toBe(8.875);
     expect(c.driftChoices).toEqual(['CurrentPrice']); expect(c.saveDraft).not.toHaveBeenCalled();
@@ -63,22 +63,22 @@ describe('Recurring and commercial refinement', () => {
 
   it('defaults payment requests on for new series and keeps explicit false on edit', () => {
     const c = new RecurringSeriesPanelComponent({} as RecurringOrderService);
-    c.startSetup(); expect(c.autoRequestPayment).toBeTrue();
+    c.startSetup(); expect(c.autoRequestPayment).toBe(true);
     c.series = { autoRequestPayment: false, anchorDate: '', serviceTime: '', intervalValue: 2,
       intervalUnit: RecurrenceIntervalUnit.Weeks } as RecurringSeries;
-    c.cancelEdit(); expect(c.autoRequestPayment).toBeFalse();
+    c.cancelEdit(); expect(c.autoRequestPayment).toBe(false);
   });
 
   it('requires Keep or Regenerate when editing a populated future schedule', () => {
-    const service = jasmine.createSpyObj('recurring', ['update']);
+    const service = { update: vi.fn().mockName('recurring.update') } as any;
     const c = new RecurringSeriesPanelComponent(service); c.orderId = 1;
     c.series = { id: 1, intervalValue: 1, intervalUnit: RecurrenceIntervalUnit.Weeks,
       anchorDate: '2026-10-01', serviceTime: '09:00:00', endDate: null,
       occurrences: [{ orderId: 2, wasGenerated: true, serviceDate: '2999-10-01', status: 'Pending' }] } as RecurringSeries;
     c.cancelEdit(); c.intervalValue = 2; c.save();
     expect(service.update).not.toHaveBeenCalled(); expect(c.errorMessage).toContain('keep or regenerate');
-    service.update.and.returnValue(of(c.series)); c.futureOrdersAction = 'Keep'; c.save();
-    expect(service.update.calls.mostRecent().args[1].futureOrdersAction).toBe('Keep');
+    service.update.mockReturnValue(of(c.series)); c.futureOrdersAction = 'Keep'; c.save();
+    expect(vi.mocked(service.update).mock.lastCall![1].futureOrdersAction).toBe('Keep');
   });
 
   it('excludes business accounts from Customers while preserving the staff scope', () => {
@@ -107,7 +107,7 @@ describe('Recurring and commercial refinement', () => {
 
     c.contractService = { setBusinessFlag: () => of({ isBusiness: true, message: 'Flagged.' }) };
     c.toggleBusinessFlag(row, true);
-    expect(row.hasActiveBusinessClient).toBeTrue();
+    expect(row.hasActiveBusinessClient).toBe(true);
     expect(c.scopedUsers.length).toBe(0);
 
     c.contractService = { setBusinessFlag: () => of({ isBusiness: false, message: 'Unflagged.' }) };
@@ -126,8 +126,8 @@ describe('Recurring and commercial refinement', () => {
 
     c.toggleBusinessFlag(row, true);
 
-    expect(row.isBusiness).toBeFalse();
-    expect(row.hasActiveBusinessClient).toBeFalse();
+    expect(row.isBusiness).toBe(false);
+    expect(row.hasActiveBusinessClient).toBe(false);
     expect(c.scopedUsers.map((u: any) => u.id)).toEqual([9]);
   });
 
@@ -145,15 +145,15 @@ describe('Recurring and commercial refinement', () => {
     // under test came with it.
     const list = Object.create(ProfileComponent.prototype);
     const order = { recurringSeriesId: 1, status: 'Active', isPaid: true, serviceDate: '2999-10-01' };
-    expect(list.canEditOrder(order)).toBeFalse(); expect(list.canCancelOrder(order)).toBeFalse();
+    expect(list.canEditOrder(order)).toBe(false); expect(list.canCancelOrder(order)).toBe(false);
     const detail = Object.create(OrderDetailsComponent.prototype); detail.order = order;
-    expect(detail.canEditOrder()).toBeFalse(); expect(detail.canCancelOrder()).toBeFalse();
+    expect(detail.canEditOrder()).toBe(false); expect(detail.canCancelOrder()).toBe(false);
     order.recurringSeriesId = 0;
-    expect(list.canEditOrder(order)).toBeTrue(); expect(list.canCancelOrder(order)).toBeTrue();
+    expect(list.canEditOrder(order)).toBe(true); expect(list.canCancelOrder(order)).toBe(true);
   });
 
   it('shows Cleanings Covered read-only only when allocations exist', () => {
-    spyOn(InvoiceDetailComponent.prototype, 'ngOnInit').and.stub();
+    vi.spyOn(InvoiceDetailComponent.prototype, 'ngOnInit').mockImplementation(() => {});
     const fixture = TestBed.createComponent(InvoiceDetailComponent);
     const c = fixture.componentInstance;
     c.loading = false; c.invoice = invoice();

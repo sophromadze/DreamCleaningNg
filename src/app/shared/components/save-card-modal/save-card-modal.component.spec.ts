@@ -77,7 +77,7 @@ describe('SaveCardModalComponent', () => {
     expect(chosen).toBe(0);
     expect(dismissed).toBe(0);   // closing mid-charge must not abandon a payment in flight
     const buttons = Array.from(dialog().querySelectorAll('button')) as HTMLButtonElement[];
-    expect(buttons.every(b => b.disabled)).toBeTrue();
+    expect(buttons.every(b => b.disabled)).toBe(true);
   });
 
   it('asks again after being re-opened for a new attempt', () => {

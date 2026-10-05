@@ -172,11 +172,11 @@ describe('RegisterCustomerModalComponent', () => {
     it('re-enables the form after a failure', () => {
       fillValid();
       component.submit();
-      expect(component.isRegistering).toBeTrue();
+      expect(component.isRegistering).toBe(true);
 
       httpMock.expectOne(REGISTER_URL).flush({ message: 'Boom.' }, { status: 500, statusText: 'Server Error' });
 
-      expect(component.isRegistering).toBeFalse();
+      expect(component.isRegistering).toBe(false);
       expect(component.errorMessage).toBe('Boom.');
     });
   });

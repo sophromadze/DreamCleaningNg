@@ -79,35 +79,35 @@ describe('TrustedDevicesComponent — removing a device signs it out', () => {
     });
 
     expect(localStorage.getItem('token')).toBe('fresh');
-    expect(component.confirmingSignOutOthers).toBeFalse();
-    expect(component.signingOutOthers).toBeFalse();
+    expect(component.confirmingSignOutOthers).toBe(false);
+    expect(component.signingOutOthers).toBe(false);
   });
 
   it('the tab that asked — and its sibling tabs — skip the SessionsEnded probe while the request is in flight', () => {
     const twoFactor = TestBed.inject(TwoFactorService);
     let complete!: () => void;
-    spyOn(twoFactor, 'signOutOtherSessions').and.returnValue(new Observable<any>(sub => {
+    vi.spyOn(twoFactor, 'signOutOtherSessions').mockReturnValue(new Observable<any>(sub => {
       complete = () => { sub.next({ sessionsEnded: true }); sub.complete(); };
     }));
 
-    expect(auth.isSessionReissuePending()).toBeFalse();
+    expect(auth.isSessionReissuePending()).toBe(false);
 
     const component = create();
     component.confirmSignOutOthers();
 
     // In flight: the in-memory counter covers this tab, the localStorage stamp covers siblings.
-    expect(auth.isSessionReissuePending()).toBeTrue();
+    expect(auth.isSessionReissuePending()).toBe(true);
     expect(Number(localStorage.getItem('auth_session_reissue_at'))).toBeGreaterThan(0);
 
     complete();
 
     // Still inside the stamp's window, so a notice arriving just after the response is ignored.
-    expect(auth.isSessionReissuePending()).toBeTrue();
+    expect(auth.isSessionReissuePending()).toBe(true);
   });
 
   it('a browser that never asked (the one being signed out) is not covered by the guard', () => {
     localStorage.setItem('auth_session_reissue_at', String(Date.now() - 60_000));
-    expect(auth.isSessionReissuePending()).toBeFalse();
+    expect(auth.isSessionReissuePending()).toBe(false);
   });
 
   it('an answer without sessionsEnded never touches the stored session', () => {

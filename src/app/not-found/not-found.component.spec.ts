@@ -64,9 +64,9 @@ describe('NotFoundComponent', () => {
 
       const robots = doc.head.querySelector('meta[name="robots"]')!;
       expect(robots.getAttribute('content')).toBe('index, follow');
-      expect(robots.hasAttribute('data-not-found')).toBeFalse();
-      expect(robots.hasAttribute('data-restore-robots')).toBeFalse();
-      expect(robots.hasAttribute('data-restore-description')).toBeFalse();
+      expect(robots.hasAttribute('data-not-found')).toBe(false);
+      expect(robots.hasAttribute('data-restore-robots')).toBe(false);
+      expect(robots.hasAttribute('data-restore-description')).toBe(false);
       expect(doc.head.querySelector('meta[name="description"]')?.getAttribute('content')).toBe('Site default');
     });
 
@@ -122,7 +122,7 @@ describe('NotFoundComponent', () => {
       expect(wildcard.redirectTo).toBeUndefined();
       expect(wildcard.loadComponent).toBeDefined();
       expect(wildcard.data?.['title']).toBe('Page not found | Dream Cleaning');
-      expect(wildcard.data?.['noCanonical']).toBeTrue();
+      expect(wildcard.data?.['noCanonical']).toBe(true);
     });
   });
 });

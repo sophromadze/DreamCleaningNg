@@ -10,7 +10,7 @@ describe('zone-free timers', () => {
 
   it('leaves no pending macrotask in the Angular zone between ticks', () => {
     const handle = zone.run(() => setIntervalOutsideZone(zone, () => {}, 1000));
-    expect(zone.hasPendingMacrotasks).toBeFalse();
+    expect(zone.hasPendingMacrotasks).toBe(false);
     clearInterval(handle);
   });
 

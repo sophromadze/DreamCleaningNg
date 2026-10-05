@@ -84,7 +84,7 @@ describe('CommercialClientModalComponent', () => {
     const overlay = () => fixture.nativeElement.querySelector('.cc-modal-overlay') as HTMLElement;
 
     it('is a centred modal by default', () => {
-      expect(component.panel).toBeFalse();
+      expect(component.panel).toBe(false);
       expect(overlay().classList).not.toContain('as-panel');
     });
 
@@ -235,7 +235,7 @@ describe('CommercialClientModalComponent', () => {
 
       // The button stays live: a blank required field is reported, never silently enforced by a
       // dead button. A client seeded from a business account arrives with several of these.
-      expect(component.canSubmit).toBeTrue();
+      expect(component.canSubmit).toBe(true);
       component.submit();
 
       expect(component.errorMessage).toContain('legal entity name');
@@ -299,7 +299,7 @@ describe('CommercialClientModalComponent', () => {
 
       // finalize, not complete: an HTTP error never reaches complete, which is how a failed save
       // used to leave the form stuck on "Creating…".
-      expect(component.saving).toBeFalse();
+      expect(component.saving).toBe(false);
       expect(component.errorMessage).toContain('not flagged as a business');
     });
   });
@@ -350,22 +350,22 @@ describe('CommercialClientModalComponent', () => {
     it('fills the form from the saved client, field by field', () => {
       openEditing();
 
-      expect(component.isEdit).toBeTrue();
+      expect(component.isEdit).toBe(true);
       expect(component.form.legalEntityName).toBe('Chick Tastic LLC');
       expect(component.form.noticeEmail).toBe('accounts@chicktastic.invalid');
       expect(component.form.contactFirstName).toBe('Casey');
 
       // From primaryLocation's raw fields, never re-parsed out of the formatted display string.
-      expect(component.form.addLocation).toBeTrue();
+      expect(component.form.addLocation).toBe(true);
       expect(component.form.businessBrand).toBe('Chick Tastic');
       expect(component.form.locationAddress).toBe('1569 Flatbush Ave.');
-      expect(component.form.sameAsCompany).toBeFalse();
+      expect(component.form.sameAsCompany).toBe(false);
     });
 
     it('shows the linked account and the contract count', () => {
       openEditing();
 
-      expect(component.isLinked).toBeTrue();
+      expect(component.isLinked).toBe(true);
       expect(component.linkedAccountName).toBe('Casey Client');
       // The account's LOGIN address, deliberately different from the billing one and shown beside
       // it rather than merged into it.
@@ -424,8 +424,8 @@ describe('CommercialClientModalComponent', () => {
       fixture.componentRef.setInput('open', true);
       fixture.detectChanges();
 
-      expect(component.canSubmit).toBeTrue();
-      expect(component.hasBlankRequiredFields).toBeTrue();
+      expect(component.canSubmit).toBe(true);
+      expect(component.hasBlankRequiredFields).toBe(true);
 
       component.submit();
       expect(component.invalidField).toBe('legalEntityName');
@@ -439,7 +439,7 @@ describe('CommercialClientModalComponent', () => {
       component.submit();
 
       httpMock.expectOne(CREATE_URL + '/91').flush(created(91));
-      expect(component.hasBlankRequiredFields).toBeFalse();
+      expect(component.hasBlankRequiredFields).toBe(false);
     });
 
     it('starts clean again when reopened for a new client', () => {
@@ -451,7 +451,7 @@ describe('CommercialClientModalComponent', () => {
       fixture.componentRef.setInput('open', true);
       fixture.detectChanges();
 
-      expect(component.isEdit).toBeFalse();
+      expect(component.isEdit).toBe(false);
       expect(component.form.legalEntityName).toBe('');
       expect(component.contractCount).toBe(0);
     });

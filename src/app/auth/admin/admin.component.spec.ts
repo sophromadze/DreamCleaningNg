@@ -94,7 +94,7 @@ describe('AdminComponent', () => {
       component.activeTab = 'booking-services';
       component.userRole = '';
 
-      expect(component.canOpenTab('booking-services')).toBeFalse();
+      expect(component.canOpenTab('booking-services')).toBe(false);
 
       component.userRole = 'Admin';
       if (!component.canOpenTab(component.activeTab)) {
@@ -108,7 +108,7 @@ describe('AdminComponent', () => {
       component.userRole = 'Admin';
 
       for (const tab of ['orders', 'users', 'discounts', 'scheduling', 'audit-history']) {
-        expect(component.canOpenTab(tab)).toBeTrue();
+        expect(component.canOpenTab(tab)).toBe(true);
       }
     });
   });
@@ -168,7 +168,7 @@ describe('AdminComponent', () => {
       component.setActiveTab('rewards');
 
       expect(component.activeTab).toBe('rewards');
-      expect(component.canOpenTab('rewards')).toBeTrue();
+      expect(component.canOpenTab('rewards')).toBe(true);
     });
 
     // /admin/rewards redirects here as ?tab=rewards, so the old bookmark has to land on the tab

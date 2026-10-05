@@ -1,3 +1,4 @@
+import type { MockedObject } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router } from '@angular/router';
 import { EMPTY, of } from 'rxjs';
@@ -26,8 +27,8 @@ import { testProviders } from '../../../../testing/test-providers';
 describe('OrderPaymentComponent — consent gate', () => {
   let fixture: ComponentFixture<OrderPaymentComponent>;
   let component: OrderPaymentComponent;
-  let bookingService: jasmine.SpyObj<BookingService>;
-  let orderService: jasmine.SpyObj<OrderService>;
+  let bookingService: MockedObject<BookingService>;
+  let orderService: MockedObject<OrderService>;
 
   const USER_ID = 42;
 
@@ -54,26 +55,28 @@ describe('OrderPaymentComponent — consent gate', () => {
   }
 
   function setup(order: Order): void {
-    orderService.getOrderById.and.returnValue(of(order));
+    orderService.getOrderById.mockReturnValue(of(order));
     fixture = TestBed.createComponent(OrderPaymentComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   }
 
   beforeEach(async () => {
-    bookingService = jasmine.createSpyObj<BookingService>('BookingService', [
-      'acceptPaymentConsent', 'createPaymentIntentForOrder', 'confirmPayment'
-    ]);
+    bookingService = {
+      acceptPaymentConsent: vi.fn().mockName('BookingService.acceptPaymentConsent'),
+      createPaymentIntentForOrder: vi.fn().mockName('BookingService.createPaymentIntentForOrder'),
+      confirmPayment: vi.fn().mockName('BookingService.confirmPayment')
+    } as unknown as MockedObject<BookingService>;
     // Never emits: the specs assert the CALL, not the Stripe mounting that follows it.
-    bookingService.createPaymentIntentForOrder.and.returnValue(EMPTY);
-    bookingService.acceptPaymentConsent.and.returnValue(
-      of({ orderId: 7, acceptedAt: '2026-08-18T15:00:00Z' })
-    );
+    bookingService.createPaymentIntentForOrder.mockReturnValue(EMPTY);
+    bookingService.acceptPaymentConsent.mockReturnValue(of({ orderId: 7, acceptedAt: '2026-08-18T15:00:00Z' }));
 
-    orderService = jasmine.createSpyObj<OrderService>('OrderService', [
-      'getOrderById', 'getOrderByIdGuest', 'createPendingUpdatePaymentIntent'
-    ]);
-    orderService.createPendingUpdatePaymentIntent.and.returnValue(EMPTY);
+    orderService = {
+      getOrderById: vi.fn().mockName('OrderService.getOrderById'),
+      getOrderByIdGuest: vi.fn().mockName('OrderService.getOrderByIdGuest'),
+      createPendingUpdatePaymentIntent: vi.fn().mockName('OrderService.createPendingUpdatePaymentIntent')
+    } as unknown as MockedObject<OrderService>;
+    orderService.createPendingUpdatePaymentIntent.mockReturnValue(EMPTY);
 
     await TestBed.configureTestingModule({
       imports: [OrderPaymentComponent],
@@ -87,11 +90,16 @@ describe('OrderPaymentComponent — consent gate', () => {
         },
         {
           provide: StripeService,
-          useValue: jasmine.createSpyObj('StripeService', [
-            'initializeElements', 'createCardElement', 'destroyCardElement',
-            'destroyPaymentRequestButton', 'createPaymentRequest', 'createPaymentRequestButton',
-            'confirmCardPayment', 'confirmPaymentRequest'
-          ])
+          useValue: {
+            initializeElements: vi.fn().mockName('StripeService.initializeElements'),
+            createCardElement: vi.fn().mockName('StripeService.createCardElement'),
+            destroyCardElement: vi.fn().mockName('StripeService.destroyCardElement'),
+            destroyPaymentRequestButton: vi.fn().mockName('StripeService.destroyPaymentRequestButton'),
+            createPaymentRequest: vi.fn().mockName('StripeService.createPaymentRequest'),
+            createPaymentRequestButton: vi.fn().mockName('StripeService.createPaymentRequestButton'),
+            confirmCardPayment: vi.fn().mockName('StripeService.confirmCardPayment'),
+            confirmPaymentRequest: vi.fn().mockName('StripeService.confirmPaymentRequest')
+          }
         },
         {
           provide: BillingService,
@@ -111,9 +119,9 @@ describe('OrderPaymentComponent — consent gate', () => {
   it('blocks the payment intent on an admin-created order until consent is given', () => {
     setup(makeOrder({ bookedByAdmin: true }));
 
-    expect(component.consentRequired).toBeTrue();
-    expect(component.consentAccepted).toBeFalse();
-    expect(component.showPaymentSection).toBeFalse();
+    expect(component.consentRequired).toBe(true);
+    expect(component.consentAccepted).toBe(false);
+    expect(component.showPaymentSection).toBe(false);
     // The gate is only real if no client secret is requested — without one, no card can be charged.
     expect(bookingService.createPaymentIntentForOrder).not.toHaveBeenCalled();
   });
@@ -135,22 +143,22 @@ describe('OrderPaymentComponent — consent gate', () => {
       7, { smsConsent: true, cancellationConsent: true, termsConsent: true }, undefined
     );
     expect(bookingService.createPaymentIntentForOrder).toHaveBeenCalled();
-    expect(component.showPaymentSection).toBeTrue();
+    expect(component.showPaymentSection).toBe(true);
   });
 
   it('does not ask a self-booking customer to consent again', () => {
     setup(makeOrder({ bookedByAdmin: false }));
 
-    expect(component.consentRequired).toBeFalse();
-    expect(component.showPaymentSection).toBeTrue();
+    expect(component.consentRequired).toBe(false);
+    expect(component.showPaymentSection).toBe(true);
     expect(bookingService.createPaymentIntentForOrder).toHaveBeenCalled();
   });
 
   it('skips the gate once consent is already recorded on the order', () => {
     setup(makeOrder({ bookedByAdmin: true, paymentConsentAcceptedAt: '2026-08-17T12:00:00Z' }));
 
-    expect(component.consentAccepted).toBeTrue();
-    expect(component.showPaymentSection).toBeTrue();
+    expect(component.consentAccepted).toBe(true);
+    expect(component.showPaymentSection).toBe(true);
     expect(bookingService.createPaymentIntentForOrder).toHaveBeenCalled();
   });
 
@@ -158,7 +166,7 @@ describe('OrderPaymentComponent — consent gate', () => {
     setup(makeOrder({ bookedByAdmin: true, isPaid: true, pendingUpdateAmount: 40 }));
 
     expect(component.paymentType).toBe('update');
-    expect(component.consentRequired).toBeFalse();
+    expect(component.consentRequired).toBe(false);
     expect(orderService.createPendingUpdatePaymentIntent).toHaveBeenCalled();
   });
 
@@ -167,8 +175,8 @@ describe('OrderPaymentComponent — consent gate', () => {
   it('shows "nothing to pay" and NO payment form when the order is already paid', () => {
     setup(makeOrder({ isPaid: true, pendingUpdateAmount: 0 }));
 
-    expect(component.nothingDue).toBeTrue();
-    expect(component.showPaymentSection).toBeFalse();
+    expect(component.nothingDue).toBe(true);
+    expect(component.showPaymentSection).toBe(false);
     const el: HTMLElement = fixture.nativeElement;
     expect(el.textContent).toContain('Nothing to pay');
     expect(el.querySelector('.pay-btn')).toBeNull();
@@ -178,16 +186,13 @@ describe('OrderPaymentComponent — consent gate', () => {
   it('shows "nothing to pay" for an order settled outside the website', () => {
     setup(makeOrder({ paymentMethod: 'Cash' as any }));
 
-    expect(component.nothingDue).toBeTrue();
+    expect(component.nothingDue).toBe(true);
     expect(fixture.nativeElement.querySelector('.pay-btn')).toBeNull();
   });
 
   it('keeps the payer on the checkboxes when recording consent fails', () => {
     setup(makeOrder({ bookedByAdmin: true }));
-    bookingService.acceptPaymentConsent.and.returnValue(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { subscribe: ({ error }: any) => error({ error: { message: 'nope' } }) } as any
-    );
+    bookingService.acceptPaymentConsent.mockReturnValue({ subscribe: ({ error }: any) => error({ error: { message: 'nope' } }) } as any);
 
     component.smsConsent = true;
     component.cancellationConsent = true;
@@ -195,7 +200,7 @@ describe('OrderPaymentComponent — consent gate', () => {
     component.acceptConsentAndContinue();
 
     expect(component.consentError).toBe('nope');
-    expect(component.consentAccepted).toBeFalse();
+    expect(component.consentAccepted).toBe(false);
     expect(bookingService.createPaymentIntentForOrder).not.toHaveBeenCalled();
   });
 });
@@ -217,9 +222,9 @@ describe('OrderPaymentComponent — consent gate', () => {
 describe('OrderPaymentComponent — part-payments', () => {
   let fixture: ComponentFixture<OrderPaymentComponent>;
   let component: OrderPaymentComponent;
-  let bookingService: jasmine.SpyObj<BookingService>;
-  let orderService: jasmine.SpyObj<OrderService>;
-  let stripeService: jasmine.SpyObj<StripeService>;
+  let bookingService: MockedObject<BookingService>;
+  let orderService: MockedObject<OrderService>;
+  let stripeService: MockedObject<StripeService>;
 
   const USER_ID = 42;
 
@@ -263,7 +268,7 @@ describe('OrderPaymentComponent — part-payments', () => {
   }
 
   function setup(order: Order): void {
-    orderService.getOrderById.and.returnValue(of(order));
+    orderService.getOrderById.mockReturnValue(of(order));
     fixture = TestBed.createComponent(OrderPaymentComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -272,30 +277,38 @@ describe('OrderPaymentComponent — part-payments', () => {
   beforeEach(async () => {
     // Stubbed so the Stripe mount that follows a successful intent is a no-op: these specs are
     // about which amount is charged, not about Elements.
-    stripeService = jasmine.createSpyObj<StripeService>("StripeService", [
-      "initializeElements", "createCardElement", "destroyCardElement",
-      "destroyPaymentRequestButton", "createPaymentRequest", "createPaymentRequestButton",
-      "confirmCardPayment", "confirmPaymentRequest"
-    ]);
-    stripeService.initializeElements.and.returnValue(Promise.resolve() as any);
-    stripeService.createCardElement.and.returnValue({ on: () => {} } as any);
-    stripeService.createPaymentRequest.and.returnValue(Promise.resolve(null) as any);
+    stripeService = {
+      initializeElements: vi.fn().mockName('StripeService.initializeElements'),
+      createCardElement: vi.fn().mockName('StripeService.createCardElement'),
+      destroyCardElement: vi.fn().mockName('StripeService.destroyCardElement'),
+      destroyPaymentRequestButton: vi.fn().mockName('StripeService.destroyPaymentRequestButton'),
+      createPaymentRequest: vi.fn().mockName('StripeService.createPaymentRequest'),
+      createPaymentRequestButton: vi.fn().mockName('StripeService.createPaymentRequestButton'),
+      confirmCardPayment: vi.fn().mockName('StripeService.confirmCardPayment'),
+      confirmPaymentRequest: vi.fn().mockName('StripeService.confirmPaymentRequest')
+    } as unknown as MockedObject<StripeService>;
+    stripeService.initializeElements.mockReturnValue(Promise.resolve() as any);
+    stripeService.createCardElement.mockReturnValue({ on: () => {} } as any);
+    stripeService.createPaymentRequest.mockReturnValue(Promise.resolve(null) as any);
 
-    bookingService = jasmine.createSpyObj<BookingService>('BookingService', [
-      'acceptPaymentConsent', 'createPaymentIntentForOrder', 'confirmPayment',
-      'createPartialPaymentIntent', 'confirmPartialPayment'
-    ]);
-    bookingService.createPaymentIntentForOrder.and.returnValue(EMPTY);
-    bookingService.createPartialPaymentIntent.and.returnValue(EMPTY);
-    bookingService.confirmPartialPayment.and.returnValue(EMPTY);
-    bookingService.acceptPaymentConsent.and.returnValue(
-      of({ orderId: 7, acceptedAt: '2026-09-15T15:00:00Z' })
-    );
+    bookingService = {
+      acceptPaymentConsent: vi.fn().mockName('BookingService.acceptPaymentConsent'),
+      createPaymentIntentForOrder: vi.fn().mockName('BookingService.createPaymentIntentForOrder'),
+      confirmPayment: vi.fn().mockName('BookingService.confirmPayment'),
+      createPartialPaymentIntent: vi.fn().mockName('BookingService.createPartialPaymentIntent'),
+      confirmPartialPayment: vi.fn().mockName('BookingService.confirmPartialPayment')
+    } as unknown as MockedObject<BookingService>;
+    bookingService.createPaymentIntentForOrder.mockReturnValue(EMPTY);
+    bookingService.createPartialPaymentIntent.mockReturnValue(EMPTY);
+    bookingService.confirmPartialPayment.mockReturnValue(EMPTY);
+    bookingService.acceptPaymentConsent.mockReturnValue(of({ orderId: 7, acceptedAt: '2026-09-15T15:00:00Z' }));
 
-    orderService = jasmine.createSpyObj<OrderService>('OrderService', [
-      'getOrderById', 'getOrderByIdGuest', 'createPendingUpdatePaymentIntent'
-    ]);
-    orderService.createPendingUpdatePaymentIntent.and.returnValue(EMPTY);
+    orderService = {
+      getOrderById: vi.fn().mockName('OrderService.getOrderById'),
+      getOrderByIdGuest: vi.fn().mockName('OrderService.getOrderByIdGuest'),
+      createPendingUpdatePaymentIntent: vi.fn().mockName('OrderService.createPendingUpdatePaymentIntent')
+    } as unknown as MockedObject<OrderService>;
+    orderService.createPendingUpdatePaymentIntent.mockReturnValue(EMPTY);
 
     await TestBed.configureTestingModule({
       imports: [OrderPaymentComponent],
@@ -326,7 +339,7 @@ describe('OrderPaymentComponent — part-payments', () => {
     expect(component.paymentType).toBe('partial');
     expect(component.orderTotal).toBe(1000);
     expect(component.remainingAfterPayment).toBe(1743.65);
-    expect(component.isFinalPartialPayment).toBeFalse();
+    expect(component.isFinalPartialPayment).toBe(false);
     expect(bookingService.createPartialPaymentIntent).toHaveBeenCalledWith(7, undefined, false, null);
     expect(bookingService.createPaymentIntentForOrder).not.toHaveBeenCalled();
   });
@@ -348,23 +361,23 @@ describe('OrderPaymentComponent — part-payments', () => {
     setup(orderWithRequest({ total: 600, amountDue: 600 }));
 
     expect(component.orderTotal).toBe(600);
-    expect(component.isFinalPartialPayment).toBeTrue();
+    expect(component.isFinalPartialPayment).toBe(true);
   });
 
   it('lets the payer settle the whole balance instead', () => {
     setup(orderWithRequest());
-    bookingService.createPartialPaymentIntent.calls.reset();
+    bookingService.createPartialPaymentIntent.mockClear();
 
     component.selectPayFullBalance(true);
 
-    expect(component.payFullBalance).toBeTrue();
+    expect(component.payFullBalance).toBe(true);
     // Re-asked rather than re-computed locally: the server decides the amount and cancels the
     // previous client secret before issuing a replacement.
     expect(bookingService.createPartialPaymentIntent).toHaveBeenCalledWith(7, undefined, true, null);
   });
 
   it('adopts the amount the server says it will charge', () => {
-    bookingService.createPartialPaymentIntent.and.returnValue(of({
+    bookingService.createPartialPaymentIntent.mockReturnValue(of({
       orderId: 7, partialPaymentId: 3, amount: 1000, requestedAmount: 1000,
       amountDue: 2743.65, remainingAfterPayment: 1743.65, isFinalPayment: false,
       paymentIntentId: 'pi_1', paymentClientSecret: 'secret', requiresPayment: true
@@ -379,14 +392,12 @@ describe('OrderPaymentComponent — part-payments', () => {
   it('still gates an admin-created order on consent — a deposit is a first payment', () => {
     setup(orderWithRequest({ bookedByAdmin: true }));
 
-    expect(component.consentRequired).toBeTrue();
+    expect(component.consentRequired).toBe(true);
     expect(bookingService.createPartialPaymentIntent).not.toHaveBeenCalled();
   });
 
   it('falls back to the full balance when the request was cancelled underneath the payer', () => {
-    bookingService.createPartialPaymentIntent.and.returnValue(
-      { subscribe: ({ error }: any) => error({ status: 400, error: { noPartialRequest: true } }) } as any
-    );
+    bookingService.createPartialPaymentIntent.mockReturnValue({ subscribe: ({ error }: any) => error({ status: 400, error: { noPartialRequest: true } }) } as any);
 
     setup(orderWithRequest());
 
@@ -401,14 +412,14 @@ describe('OrderPaymentComponent — part-payments', () => {
 
     component['handlePaymentSuccess']({ orderFullyPaid: false, amountDue: 1743.65 });
 
-    expect(component.paymentCompleted).toBeTrue();
+    expect(component.paymentCompleted).toBe(true);
     expect(component.partialPaymentRemaining).toBe(1743.65);
   });
 
   it('confirms the booking once the final slice clears the balance', () => {
     setup(orderWithRequest());
     // A settled order redirects to booking-success; the spy keeps that out of the assertion.
-    spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
 
     // The server hands the last slice to the ordinary confirmation path, whose response has no
     // orderFullyPaid flag at all — absent must read as "settled", not as "still owing".
@@ -428,9 +439,9 @@ describe('OrderPaymentComponent — part-payments', () => {
 describe('OrderPaymentComponent — save-card modal', () => {
   let fixture: ComponentFixture<OrderPaymentComponent>;
   let component: OrderPaymentComponent;
-  let bookingService: jasmine.SpyObj<BookingService>;
-  let orderService: jasmine.SpyObj<OrderService>;
-  let stripeService: jasmine.SpyObj<StripeService>;
+  let bookingService: MockedObject<BookingService>;
+  let orderService: MockedObject<OrderService>;
+  let stripeService: MockedObject<StripeService>;
   let billing: any;
 
   const USER_ID = 42;
@@ -445,38 +456,48 @@ describe('OrderPaymentComponent — save-card modal', () => {
   }
 
   function setup(canSaveCard: boolean, cards: any[] = []): void {
-    orderService.getOrderById.and.returnValue(of(order()));
-    bookingService.createPaymentIntentForOrder.and.returnValue(of({
+    orderService.getOrderById.mockReturnValue(of(order()));
+    bookingService.createPaymentIntentForOrder.mockReturnValue(of({
       paymentIntentId: 'pi_order', paymentClientSecret: 'secret_order', canSaveCard
     } as any));
-    billing.getCards.and.returnValue(of(cards));
+    billing.getCards.mockReturnValue(of(cards));
     fixture = TestBed.createComponent(OrderPaymentComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   }
 
   beforeEach(async () => {
-    stripeService = jasmine.createSpyObj<StripeService>('StripeService', [
-      'initializeElements', 'createCardElement', 'destroyCardElement', 'destroyPaymentRequestButton',
-      'createPaymentRequest', 'createPaymentRequestButton', 'confirmCardPayment', 'confirmPaymentRequest'
-    ]);
-    stripeService.initializeElements.and.returnValue(Promise.resolve(undefined as any));
-    stripeService.createPaymentRequest.and.returnValue(Promise.resolve(null as any));
-    stripeService.confirmCardPayment.and.returnValue(Promise.resolve({ id: 'pi_order' }) as any);
-    stripeService.confirmPaymentRequest.and.returnValue(Promise.resolve({ id: 'pi_order' }) as any);
+    stripeService = {
+      initializeElements: vi.fn().mockName('StripeService.initializeElements'),
+      createCardElement: vi.fn().mockName('StripeService.createCardElement'),
+      destroyCardElement: vi.fn().mockName('StripeService.destroyCardElement'),
+      destroyPaymentRequestButton: vi.fn().mockName('StripeService.destroyPaymentRequestButton'),
+      createPaymentRequest: vi.fn().mockName('StripeService.createPaymentRequest'),
+      createPaymentRequestButton: vi.fn().mockName('StripeService.createPaymentRequestButton'),
+      confirmCardPayment: vi.fn().mockName('StripeService.confirmCardPayment'),
+      confirmPaymentRequest: vi.fn().mockName('StripeService.confirmPaymentRequest')
+    } as unknown as MockedObject<StripeService>;
+    stripeService.initializeElements.mockReturnValue(Promise.resolve(undefined as any));
+    stripeService.createPaymentRequest.mockReturnValue(Promise.resolve(null as any));
+    stripeService.confirmCardPayment.mockReturnValue(Promise.resolve({ id: 'pi_order' }) as any);
+    stripeService.confirmPaymentRequest.mockReturnValue(Promise.resolve({ id: 'pi_order' }) as any);
 
-    bookingService = jasmine.createSpyObj<BookingService>('BookingService', [
-      'acceptPaymentConsent', 'createPaymentIntentForOrder', 'confirmPayment'
-    ]);
-    bookingService.confirmPayment.and.returnValue(of({ orderId: 7, orderFullyPaid: true } as any));
+    bookingService = {
+      acceptPaymentConsent: vi.fn().mockName('BookingService.acceptPaymentConsent'),
+      createPaymentIntentForOrder: vi.fn().mockName('BookingService.createPaymentIntentForOrder'),
+      confirmPayment: vi.fn().mockName('BookingService.confirmPayment')
+    } as unknown as MockedObject<BookingService>;
+    bookingService.confirmPayment.mockReturnValue(of({ orderId: 7, orderFullyPaid: true } as any));
 
-    orderService = jasmine.createSpyObj<OrderService>('OrderService', [
-      'getOrderById', 'getOrderByIdGuest', 'createPendingUpdatePaymentIntent'
-    ]);
+    orderService = {
+      getOrderById: vi.fn().mockName('OrderService.getOrderById'),
+      getOrderByIdGuest: vi.fn().mockName('OrderService.getOrderByIdGuest'),
+      createPendingUpdatePaymentIntent: vi.fn().mockName('OrderService.createPendingUpdatePaymentIntent')
+    } as unknown as MockedObject<OrderService>;
 
-    billing = jasmine.createSpyObj('BillingService', ['savedCardsEnabled', 'getCards', 'saveCardFromPayment']);
-    billing.savedCardsEnabled.and.returnValue(of(true));
-    billing.saveCardFromPayment.and.returnValue(of(null));
+    billing = { savedCardsEnabled: vi.fn().mockName('BillingService.savedCardsEnabled'), getCards: vi.fn().mockName('BillingService.getCards'), saveCardFromPayment: vi.fn().mockName('BillingService.saveCardFromPayment') } as any;
+    billing.savedCardsEnabled.mockReturnValue(of(true));
+    billing.saveCardFromPayment.mockReturnValue(of(null));
 
     await TestBed.configureTestingModule({
       imports: [OrderPaymentComponent],
@@ -496,13 +517,13 @@ describe('OrderPaymentComponent — save-card modal', () => {
     setup(true);
 
     component.onPayClicked();
-    expect(component.showSaveCardModal).toBeTrue();
+    expect(component.showSaveCardModal).toBe(true);
     expect(stripeService.confirmCardPayment).not.toHaveBeenCalled();
 
     component.onSaveCardDismissed();
-    expect(component.showSaveCardModal).toBeFalse();
+    expect(component.showSaveCardModal).toBe(false);
     expect(stripeService.confirmCardPayment).not.toHaveBeenCalled();
-    expect(component.isProcessing).toBeFalse();
+    expect(component.isProcessing).toBe(false);
   });
 
   it('pays once and records the card on "Save Card & Pay"', async () => {
@@ -513,7 +534,7 @@ describe('OrderPaymentComponent — save-card modal', () => {
     await fixture.whenStable();
 
     expect(stripeService.confirmCardPayment).toHaveBeenCalledTimes(1);
-    expect(stripeService.confirmCardPayment.calls.mostRecent().args[2]).toBeTrue();
+    expect(vi.mocked(stripeService.confirmCardPayment).mock.lastCall![2]).toBe(true);
     expect(billing.saveCardFromPayment).toHaveBeenCalledWith('pi_order');
   });
 
@@ -525,7 +546,7 @@ describe('OrderPaymentComponent — save-card modal', () => {
     await fixture.whenStable();
 
     expect(stripeService.confirmCardPayment).toHaveBeenCalledTimes(1);
-    expect(stripeService.confirmCardPayment.calls.mostRecent().args[2]).toBeFalse();
+    expect(vi.mocked(stripeService.confirmCardPayment).mock.lastCall![2]).toBe(false);
     expect(billing.saveCardFromPayment).not.toHaveBeenCalled();
   });
 
@@ -535,7 +556,7 @@ describe('OrderPaymentComponent — save-card modal', () => {
     component.onPayClicked();
     await fixture.whenStable();
 
-    expect(component.showSaveCardModal).toBeFalse();
+    expect(component.showSaveCardModal).toBe(false);
     expect(stripeService.confirmCardPayment).toHaveBeenCalledTimes(1);   // it just pays
   });
 
@@ -545,6 +566,6 @@ describe('OrderPaymentComponent — save-card modal', () => {
 
     component.onPayClicked();
 
-    expect(component.showSaveCardModal).toBeFalse();
+    expect(component.showSaveCardModal).toBe(false);
   });
 });

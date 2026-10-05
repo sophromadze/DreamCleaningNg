@@ -88,14 +88,14 @@ describe('RecurringSeriesPanelComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('no automatic payment requests are sent for this stopped plan');
     button.click();
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [], baseCleaning: 100, loyaltyPercent: 0, loyaltySource: 'None', loyaltyAmount: 0, tax: 8.88, tips: 0, total: 108.88 });
-    expect(component.startingNew).toBeTrue(); expect(component.isActive).toBeTrue();
+    expect(component.startingNew).toBe(true); expect(component.isActive).toBe(true);
     expect(component.anchorDate).toBe('2026-10-18'); // suggested: the next fortnightly Sunday after the source expect(component.needsFutureOrdersChoice).toBeFalse();
-    spyOn(component.ordersGenerated, 'emit');
+    vi.spyOn(component.ordersGenerated, 'emit').mockReturnValue(undefined);
     component.save();
     const request = httpMock.expectOne(CREATE(41));
-    expect(request.request.method).toBe('POST'); expect(request.request.body.isActive).toBeTrue();
+    expect(request.request.method).toBe('POST'); expect(request.request.body.isActive).toBe(true);
     request.flush(series({ id: 4 }));
-    expect(component.series?.id).toBe(4); expect(component.startingNew).toBeFalse();
+    expect(component.series?.id).toBe(4); expect(component.startingNew).toBe(false);
     expect(component.ordersGenerated.emit).toHaveBeenCalled();
     expect(stopped.stoppedAt).toBeTruthy();
   });
@@ -105,8 +105,8 @@ describe('RecurringSeriesPanelComponent', () => {
     component.startSetup(true);
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [] });
     component.cancelEdit();
-    expect(component.editing).toBeFalse(); expect(component.startingNew).toBeFalse();
-    expect(component.series?.id).toBe(3); expect(component.isActive).toBeFalse();
+    expect(component.editing).toBe(false); expect(component.startingNew).toBe(false);
+    expect(component.series?.id).toBe(3); expect(component.isActive).toBe(false);
     httpMock.expectNone(CREATE(41));
   });
 
@@ -114,10 +114,10 @@ describe('RecurringSeriesPanelComponent', () => {
     open(series({ stoppedAt: '2026-09-10T00:00:00', isActive: false }));
     fixture.componentRef.setInput('canCreate', false); fixture.detectChanges();
     expect(fixture.nativeElement.textContent).not.toContain('Start new recurring plan');
-    component.startSetup(true); expect(component.editing).toBeFalse();
+    component.startSetup(true); expect(component.editing).toBe(false);
     component.canCreate = true; component.series!.templateOrderId = 99; fixture.detectChanges();
     expect(fixture.nativeElement.textContent).not.toContain('Start new recurring plan');
-    component.startSetup(true); expect(component.editing).toBeFalse();
+    component.startSetup(true); expect(component.editing).toBe(false);
   });
 
   it('says a one-off cleaning is a one-off cleaning', () => {
@@ -137,7 +137,7 @@ describe('RecurringSeriesPanelComponent', () => {
     component.intervalUnit = RecurrenceIntervalUnit.Days;
     fixture.detectChanges();
 
-    expect(component.dailyNotSupported).toBeTrue();
+    expect(component.dailyNotSupported).toBe(true);
     expect(component.validationError).toContain('Daily recurrence is not supported');
     expect(fixture.nativeElement.textContent).toContain('Daily cleaning is not supported yet');
   });
@@ -162,7 +162,7 @@ describe('RecurringSeriesPanelComponent', () => {
     component.intervalUnit = RecurrenceIntervalUnit.Days;
     component.intervalValue = 3;
 
-    expect(component.dailyNotSupported).toBeFalse();
+    expect(component.dailyNotSupported).toBe(false);
     expect(component.validationError).toBeNull();
   });
 
@@ -315,7 +315,7 @@ describe('RecurringSeriesPanelComponent', () => {
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [], total: 100 });
     component.recurringLoyaltyDiscountAmount = 25;
 
-    expect(component.needsFutureOrdersChoice).toBeTrue();
+    expect(component.needsFutureOrdersChoice).toBe(true);
     component.save();
     httpMock.expectNone(environment.apiUrl + '/admin/recurring-series/3');
 
@@ -342,7 +342,7 @@ describe('RecurringSeriesPanelComponent', () => {
     open(series({ recurringLoyaltyDiscountPercent: null })); component.startSetup();
     httpMock.expectOne(CREATE(41) + '/preview').flush({ sourceDiscounts: [], total: 100 });
     component.recurringLoyaltyDiscountPercent = 15; component.save();
-    expect(component.needsFutureOrdersChoice).toBeTrue();
+    expect(component.needsFutureOrdersChoice).toBe(true);
     httpMock.expectNone(environment.apiUrl + '/admin/recurring-series/3');
     component.futureOrdersAction = 'Regenerate'; component.save();
     const request = httpMock.expectOne(environment.apiUrl + '/admin/recurring-series/3');
@@ -431,7 +431,7 @@ describe('RecurringSeriesPanelComponent', () => {
     startNew();
     for (const bad of [null, 0, 61, 2.5]) {
       component.upcomingOccurrenceTarget = bad;
-      expect(component.validationError).withContext(String(bad)).toContain('upcoming cleanings');
+      expect(component.validationError, String(bad)).toContain('upcoming cleanings');
     }
     component.upcomingOccurrenceTarget = 6;
     expect(component.validationError).toBeNull();
@@ -443,7 +443,7 @@ describe('RecurringSeriesPanelComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('the next 30 days are generated');
     component.startSetup();
     httpMock.expectOne(CREATE(41) + '/preview').flush(PREVIEW);
-    expect(component.isLegacyPattern).toBeTrue();
+    expect(component.isLegacyPattern).toBe(true);
     expect(component.validationError).toBeNull();
     component.notes = 'just a note';
     component.save();
@@ -459,7 +459,7 @@ describe('RecurringSeriesPanelComponent', () => {
     httpMock.expectOne(CREATE(41) + '/preview').flush(PREVIEW);
     component.toggleWeekday(1); component.toggleWeekday(3);
     fixture.detectChanges();
-    expect(component.needsFutureOrdersChoice).toBeTrue();
+    expect(component.needsFutureOrdersChoice).toBe(true);
     const text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
     expect(text).toContain('1 future cleaning(s) are already generated');
     expect(text).toContain('on Sun, Mon, Wed');
@@ -478,7 +478,7 @@ describe('RecurringSeriesPanelComponent', () => {
     startNew({ contractClientId: 7, contracts: [WEEKLY], suggestedContractId: 40 });
 
     expect(component.contractId).toBe(40);
-    expect(component.billingControlledByContract).toBeTrue();
+    expect(component.billingControlledByContract).toBe(true);
     const text = (fixture.nativeElement.textContent as string).replace(/\s+/g, ' ');
     expect(text).toContain('Billing is controlled by the linked commercial contract');
     expect(text).toContain('do not represent separate customer charges');
@@ -489,13 +489,13 @@ describe('RecurringSeriesPanelComponent', () => {
     component.save();
     const body = httpMock.expectOne(CREATE(41)).request.body;
     expect(body.contractId).toBe(40);
-    expect(body.autoRequestPayment).toBeFalse();
+    expect(body.autoRequestPayment).toBe(false);
   });
 
   it('an ordinary residential plan keeps its estimate and its automatic-request switch', () => {
     startNew();
     const text = fixture.nativeElement.textContent as string;
-    expect(component.billingControlledByContract).toBeFalse();
+    expect(component.billingControlledByContract).toBe(false);
     expect(text).toContain('Estimated recurring cleaning');
     expect(text).toContain('Request payment automatically');
   });

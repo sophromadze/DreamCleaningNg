@@ -46,8 +46,7 @@ describe('TokenRefreshService', () => {
         // > 0 as well as <= the ceiling: a 0 or negative delay is the same tight loop by a
         // different route.
         expect(delay).toBeGreaterThan(0);
-        expect(delay)
-          .withContext(`${name} would overflow setInterval and fire in a loop`)
+        expect(delay, `${name} would overflow setInterval and fire in a loop`)
           .toBeLessThanOrEqual(MAX_TIMER_DELAY);
       }
     });

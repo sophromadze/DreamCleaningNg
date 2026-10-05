@@ -81,7 +81,7 @@ describe('InvoiceDetailComponent — void, archive or delete', () => {
     component = fixture.componentInstance;
     http = TestBed.inject(HttpTestingController);
     router = TestBed.inject(Router);
-    spyOn(router, 'navigate').and.resolveTo(true);
+    vi.spyOn(router, 'navigate').mockResolvedValue(true);
   });
 
   afterEach(() => http.verify({ ignoreCancelled: true }));

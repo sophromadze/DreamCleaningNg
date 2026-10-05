@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
@@ -165,50 +166,50 @@ describe('ProfileComponent', () => {
   describe('the actions on a cleaning', () => {
     it('treats a cash/Zelle/Check order as paid, and an unpaid Invoice one as not', () => {
       const c = bare();
-      expect(c.isEffectivelyPaid(order(1, { isPaid: false, paymentMethod: 'Cash' }))).toBeTrue();
-      expect(c.isEffectivelyPaid(order(1, { isPaid: false, paymentMethod: 'Normal' }))).toBeFalse();
+      expect(c.isEffectivelyPaid(order(1, { isPaid: false, paymentMethod: 'Cash' }))).toBe(true);
+      expect(c.isEffectivelyPaid(order(1, { isPaid: false, paymentMethod: 'Normal' }))).toBe(false);
       // Invoice is handled outside Stripe but settles nothing until the invoice is paid.
-      expect(c.isEffectivelyPaid(order(1, { isPaid: false, paymentMethod: 'Invoice' }))).toBeFalse();
+      expect(c.isEffectivelyPaid(order(1, { isPaid: false, paymentMethod: 'Invoice' }))).toBe(false);
       expect(c.isEffectivelyPaid(
-        order(1, { isPaid: false, paymentMethod: 'Invoice', invoicePaidAt: '2026-09-01' }))).toBeTrue();
+        order(1, { isPaid: false, paymentMethod: 'Invoice', invoicePaidAt: '2026-09-01' }))).toBe(true);
     });
 
     it('will not edit or cancel a recurring occurrence', () => {
       const c = bare();
       const occurrence = order(1, { recurringSeriesId: 4, status: 'Active', isPaid: true });
-      expect(c.canEditOrder(occurrence)).toBeFalse();
-      expect(c.canCancelOrder(occurrence)).toBeFalse();
+      expect(c.canEditOrder(occurrence)).toBe(false);
+      expect(c.canCancelOrder(occurrence)).toBe(false);
     });
 
     it('lets the customer cancel an office-booked cash/Zelle cleaning (isPaid stays false)', () => {
       const c = bare();
-      expect(c.canCancelOrder(order(1, { status: 'Active', isPaid: false, paymentMethod: 'Cash' }))).toBeTrue();
-      expect(c.canCancelOrder(order(1, { status: 'Active', isPaid: false, paymentMethod: 'Zelle' }))).toBeTrue();
+      expect(c.canCancelOrder(order(1, { status: 'Active', isPaid: false, paymentMethod: 'Cash' }))).toBe(true);
+      expect(c.canCancelOrder(order(1, { status: 'Active', isPaid: false, paymentMethod: 'Zelle' }))).toBe(true);
       // An unpaid card order is still cancelled through the unpaid-order button, not this modal.
-      expect(c.canCancelOrder(order(1, { status: 'Active', isPaid: false, paymentMethod: 'Normal' }))).toBeFalse();
+      expect(c.canCancelOrder(order(1, { status: 'Active', isPaid: false, paymentMethod: 'Normal' }))).toBe(false);
     });
 
     it('closes editing inside the 48-hour window', () => {
       const c = bare();
       const soon = new Date(Date.now() + 12 * 60 * 60 * 1000);
-      expect(c.canEditOrder(order(1, { status: 'Active', serviceDate: soon as any }))).toBeFalse();
+      expect(c.canEditOrder(order(1, { status: 'Active', serviceDate: soon as any }))).toBe(false);
       const later = new Date(Date.now() + 72 * 60 * 60 * 1000);
-      expect(c.canEditOrder(order(1, { status: 'Active', serviceDate: later as any }))).toBeTrue();
+      expect(c.canEditOrder(order(1, { status: 'Active', serviceDate: later as any }))).toBe(true);
     });
 
     it('never offers to edit a custom-priced cleaning', () => {
       const c = bare();
       const later = new Date(Date.now() + 72 * 60 * 60 * 1000);
       expect(c.canEditOrder(
-        order(1, { status: 'Active', serviceDate: later as any, isCustomServiceType: true }))).toBeFalse();
+        order(1, { status: 'Active', serviceDate: later as any, isCustomServiceType: true }))).toBe(false);
     });
 
     it('warns about the late-cancellation fee only inside 48 hours', () => {
       const c = bare();
       const soon = new Date(Date.now() + 6 * 60 * 60 * 1000);
       const later = new Date(Date.now() + 96 * 60 * 60 * 1000);
-      expect(c.isLateCancellation(order(1, { isPaid: true, serviceDate: soon as any }))).toBeTrue();
-      expect(c.isLateCancellation(order(1, { isPaid: true, serviceDate: later as any }))).toBeFalse();
+      expect(c.isLateCancellation(order(1, { isPaid: true, serviceDate: soon as any }))).toBe(true);
+      expect(c.isLateCancellation(order(1, { isPaid: true, serviceDate: later as any }))).toBe(false);
     });
   });
 
@@ -221,8 +222,8 @@ describe('ProfileComponent', () => {
     expect(c.hasInvoices).toBeUndefined();
     c.hasInvoices = false;
     c.hasContracts = false;
-    expect(c.hasInvoices).toBeFalse();
-    expect(c.hasContracts).toBeFalse();
+    expect(c.hasInvoices).toBe(false);
+    expect(c.hasContracts).toBe(false);
   });
 
   // ── Changing the email address ─────────────────────────────────────────────────────────
@@ -235,16 +236,16 @@ describe('ProfileComponent', () => {
     };
 
     it('is offered on a local account', () => {
-      expect(withProvider('Local').canChangeEmail).toBeTrue();
+      expect(withProvider('Local').canChangeEmail).toBe(true);
     });
 
     it('is offered when the provider is unknown, rather than hidden on a guess', () => {
-      expect(withProvider(undefined).canChangeEmail).toBeTrue();
+      expect(withProvider(undefined).canChangeEmail).toBe(true);
     });
 
     it('is withheld from a Google or Apple account, which the server refuses anyway', () => {
-      expect(withProvider('Google').canChangeEmail).toBeFalse();
-      expect(withProvider('Apple').canChangeEmail).toBeFalse();
+      expect(withProvider('Google').canChangeEmail).toBe(false);
+      expect(withProvider('Apple').canChangeEmail).toBe(false);
     });
   });
 
@@ -256,7 +257,7 @@ describe('ProfileComponent', () => {
       displayOrder: 2, isPreferred: false, isActive: false, ...over
     });
 
-    const withPlanService = (spy: jasmine.Spy) => {
+    const withPlanService = (spy: Mock) => {
       const c = bare();
       (c as any).profileService = { selectPlan: spy, getPlan: () => of({ plans: [], nextCleaningIsFirstOnPlan: true }) };
       c.planSavingId = undefined;
@@ -264,8 +265,7 @@ describe('ProfileComponent', () => {
     };
 
     it('saves the chosen tier', () => {
-      const spy = jasmine.createSpy('selectPlan').and.returnValue(
-        of({ plans: [plan({ isPreferred: true })], preferredSubscriptionId: 2, nextCleaningIsFirstOnPlan: true }));
+      const spy = vi.fn().mockName('selectPlan').mockReturnValue(of({ plans: [plan({ isPreferred: true })], preferredSubscriptionId: 2, nextCleaningIsFirstOnPlan: true }));
       const c = withPlanService(spy);
       c.choosePlan(plan() as any);
       expect(spy).toHaveBeenCalledWith(2);
@@ -273,8 +273,7 @@ describe('ProfileComponent', () => {
     });
 
     it('clears the preference when the chosen tier is tapped again', () => {
-      const spy = jasmine.createSpy('selectPlan').and.returnValue(
-        of({ plans: [plan()], preferredSubscriptionId: null, nextCleaningIsFirstOnPlan: true }));
+      const spy = vi.fn().mockName('selectPlan').mockReturnValue(of({ plans: [plan()], preferredSubscriptionId: null, nextCleaningIsFirstOnPlan: true }));
       const c = withPlanService(spy);
       c.choosePlan(plan({ isPreferred: true }) as any);
       expect(spy).toHaveBeenCalledWith(null);
@@ -283,15 +282,14 @@ describe('ProfileComponent', () => {
     it('promises no charge in the message it shows', () => {
       // The whole point of the tab: choosing a plan costs nothing and books nothing. If this
       // wording ever drifts into sounding like a purchase, the tab is lying.
-      const spy = jasmine.createSpy('selectPlan').and.returnValue(
-        of({ plans: [plan({ isPreferred: true })], preferredSubscriptionId: 2, nextCleaningIsFirstOnPlan: true }));
+      const spy = vi.fn().mockName('selectPlan').mockReturnValue(of({ plans: [plan({ isPreferred: true })], preferredSubscriptionId: 2, nextCleaningIsFirstOnPlan: true }));
       const c = withPlanService(spy);
       c.choosePlan(plan() as any);
       expect(c.successMessage).toContain('nothing has been charged');
     });
 
     it('ignores a second tap while one is already saving', () => {
-      const spy = jasmine.createSpy('selectPlan');
+      const spy = vi.fn().mockName('selectPlan');
       const c = withPlanService(spy);
       c.planSavingId = 3;
       c.choosePlan(plan() as any);
@@ -299,8 +297,7 @@ describe('ProfileComponent', () => {
     });
 
     it('releases the buttons and explains a failure', () => {
-      const spy = jasmine.createSpy('selectPlan').and.returnValue(
-        throwError(() => ({ error: { message: 'Plan unavailable.' } })));
+      const spy = vi.fn().mockName('selectPlan').mockReturnValue(throwError(() => ({ error: { message: 'Plan unavailable.' } })));
       const c = withPlanService(spy);
       c.choosePlan(plan() as any);
       expect(c.planSavingId).toBeUndefined();
@@ -347,7 +344,7 @@ describe('ProfileComponent', () => {
     });
 
     it('does not reach for it during server-side rendering', () => {
-      const spy = jasmine.createSpy('getMyReferralCode');
+      const spy = vi.fn().mockName('getMyReferralCode');
       const c = withReferralService({ getMyReferralCode: spy });
       (c as any).platformId = 'server';
       (c as any).loadReferralCode();

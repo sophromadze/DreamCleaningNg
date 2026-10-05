@@ -97,7 +97,7 @@ describe('edit pricing parity (booking = customer edit = admin edit)', () => {
       const order = storedOrder(rule);
 
       const customer = edit(order, rule, resolveEditedDiscounts({ ...order, newSubTotal: B }));
-      expect(customer).withContext('customer edit').toEqual(expected);
+      expect(customer, 'customer edit').toEqual(expected);
 
       const admin = edit(order, rule, discountsForSubTotal({
         originalSubTotal: order.originalSubTotal, originalDiscount: order.discountAmount,
@@ -105,7 +105,7 @@ describe('edit pricing parity (booking = customer edit = admin edit)', () => {
         discountPercent: order.discountPercent, discountFixedAmount: order.discountFixedAmount,
         subscriptionDiscountPercent: order.subscriptionDiscountPercent
       }, B));
-      expect(admin).withContext('admin edit').toEqual(expected);
+      expect(admin, 'admin edit').toEqual(expected);
     });
   });
 
@@ -133,8 +133,7 @@ describe('edit pricing parity (booking = customer edit = admin edit)', () => {
         { discountAmount: 30, subscriptionDiscountAmount: snapshot.originalSubscriptionDiscount, loyaltyDiscountAmount: 0 });
       const serverDiscounts = discountsForSubTotal(snapshot, solved.subTotal); // what the server re-derives
       expect(serverDiscounts.discountAmount).toBe(30);
-      expect(round2(solved.subTotal - serverDiscounts.discountAmount - serverDiscounts.subscriptionDiscountAmount))
-        .withContext(`typed ${typed}`).toBe(solved.discountedSubTotal);
+      expect(round2(solved.subTotal - serverDiscounts.discountAmount - serverDiscounts.subscriptionDiscountAmount), `typed ${typed}`).toBe(solved.discountedSubTotal);
       expect(round2(solved.discountedSubTotal + solved.tax)).toBe(typed);
     });
   });

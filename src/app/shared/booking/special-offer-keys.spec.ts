@@ -30,26 +30,26 @@ describe('special offer keys', () => {
 
   it('never takes a keyed offer for the first-time one by its name, type or flag', () => {
     const sale = productionOffer({ id: 2, name: 'First Time Spring Sale', type: 'FirstTime', offerKey: 'spring-sale', discountValue: 25 });
-    expect(isFirstTimeOffer(sale)).toBeFalse();
+    expect(isFirstTimeOffer(sale)).toBe(false);
     expect(findFirstTimeOffer([sale, productionOffer()])?.id).toBe(1);
     expect(findAdvertisedFirstTimeOffer([sale, productionOffer()])?.id).toBe(1);
   });
 
   it('judges an unkeyed offer by the old rule in booking, and warns once', () => {
-    const warn = spyOn(console, 'warn');
+    const warn = vi.spyOn(console, 'warn').mockReturnValue(undefined);
     const unkeyed = productionOffer({ offerKey: null });
 
-    expect(isFirstTimeOffer(unkeyed)).toBeTrue();
-    expect(isFirstTimeOffer(unkeyed)).toBeTrue();
+    expect(isFirstTimeOffer(unkeyed)).toBe(true);
+    expect(isFirstTimeOffer(unkeyed)).toBe(true);
     expect(findFirstTimeOffer([unkeyed])?.id).toBe(1);
     expect(warn).toHaveBeenCalledTimes(1);
 
     // A call site's own legacy rule (booking's "first time" in the name) is honoured.
     expect(isFirstTimeOffer(productionOffer({ offerKey: '', name: 'Welcome', requiresFirstTimeCustomer: true }),
-      (_, lower) => lower.includes('first time'))).toBeFalse();
+      (_, lower) => lower.includes('first time'))).toBe(false);
   });
 
   it('trims a key before comparing it', () => {
-    expect(isFirstTimeOffer(productionOffer({ offerKey: ' first-time ' }))).toBeTrue();
+    expect(isFirstTimeOffer(productionOffer({ offerKey: ' first-time ' }))).toBe(true);
   });
 });

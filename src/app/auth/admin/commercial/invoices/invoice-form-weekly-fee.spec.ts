@@ -58,7 +58,7 @@ describe('InvoiceFormComponent — weekly flat fee', () => {
     c.chooseDrift(c.existing!.draftWarnings[0], true);
 
     // The server prices the weeks from the contract; no 6 × $952.66 agreed total is typed.
-    expect(c.negotiatingTotal).toBeFalse();
+    expect(c.negotiatingTotal).toBe(false);
     expect(c.negotiatedGroupTotal).toBeNull();
     const preview = httpMock.expectOne(r => r.url.endsWith('/orders/preview'));
     expect(preview.request.body.negotiatedGroupTotal).toBeNull();
@@ -70,14 +70,14 @@ describe('InvoiceFormComponent — weekly flat fee', () => {
     c.contractId = 40;
     c.chooseDrift(c.existing!.draftWarnings[0], true);
 
-    expect(c.negotiatingTotal).toBeTrue();
+    expect(c.negotiatingTotal).toBe(true);
     expect(c.negotiatedGroupTotal).toBe(900);
   });
 
   it('shows the server\'s weekly pricing: one fee per service week, never the cleanings\' own totals', () => {
     const c = form(true);
     c.contractId = 40;
-    expect(c.contractIsWeeklyFlatFee).toBeTrue();
+    expect(c.contractIsWeeklyFlatFee).toBe(true);
     c.previewAllocation();
     httpMock.expectOne(r => r.url.endsWith('/orders/preview')).flush({
       serviceDates: c.eligibleOrders.map(o => o.serviceDate), invoiceId: 0, invoiceNumber: '',
@@ -85,7 +85,7 @@ describe('InvoiceFormComponent — weekly flat fee', () => {
       items: [{ description: 'Weekly commercial cleaning service fee - 6 scheduled visits per week', quantity: 1, unitPrice: 952.66 }],
       pricedAsWeeklyFlatFee: true, serviceWeekCount: 1
     });
-    expect(c.pricedAsWeeklyFlatFee).toBeTrue();
+    expect(c.pricedAsWeeklyFlatFee).toBe(true);
     expect(c.serviceWeekCount).toBe(1);
     expect(c.lines.length).toBe(1);
     expect(c.totals.total).toBe(952.66);
@@ -103,7 +103,7 @@ describe('InvoiceFormComponent — weekly flat fee', () => {
       pricedAsWeeklyFlatFee: true, serviceWeekCount: 1
     });
     expect(c.allocationWarnings[0]).toContain('Only 3 of 6 scheduled visits');
-    expect(c.canSave).toBeTrue();
+    expect(c.canSave).toBe(true);
   });
 
   it('ticking a contract-scheduled cleaning with no contract chosen selects that contract', () => {

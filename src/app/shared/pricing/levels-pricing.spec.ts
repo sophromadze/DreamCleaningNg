@@ -170,7 +170,7 @@ describe('levels pricing', () => {
       const line = quote.serviceLines.find(l => l.serviceId === LEVELS_ID)!;
       const billable = Math.max(0, levels - 1);
 
-      expect(quote.warnings).withContext(`levels=${levels}`).toEqual([]);
+      expect(quote.warnings, `levels=${levels}`).toEqual([]);
       expect(line.cost).toBe(LEVELS_COST * billable);
       expect(line.duration).toBe(LEVELS_MINUTES * billable);
     });

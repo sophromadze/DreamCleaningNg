@@ -17,8 +17,8 @@ describe('describeEmailProblem', () => {
       'a_b-c@example.io',
       "  spaced@example.com  "  // surrounding whitespace is trimmed, not an error
     ]) {
-      expect(describeEmailProblem(email)).withContext(email).toBeNull();
-      expect(isValidEmailFormat(email)).withContext(email).toBeTrue();
+      expect(describeEmailProblem(email), email).toBeNull();
+      expect(isValidEmailFormat(email), email).toBe(true);
     }
   });
 
@@ -36,9 +36,9 @@ describe('describeEmailProblem', () => {
     for (const email of ['johnexample.com', 'john@@example.com', '@example.com', 'john@', 'john@example', 'jo hn@example.com']) {
       const problem = describeEmailProblem(email);
 
-      expect(problem).withContext(email).toBeTruthy();
-      expect(problem!.toLowerCase()).withContext(email).not.toBe('invalid email address.');
-      expect(problem).withContext(email).toContain(EMAIL_EXAMPLE);
+      expect(problem, email).toBeTruthy();
+      expect(problem!.toLowerCase(), email).not.toBe('invalid email address.');
+      expect(problem, email).toContain(EMAIL_EXAMPLE);
     }
   });
 

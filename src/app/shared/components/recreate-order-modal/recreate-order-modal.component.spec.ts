@@ -194,7 +194,7 @@ describe('RecreateOrderModalComponent', () => {
       openWith();
       component.serviceDate = '2020-01-15';
       component.onScheduleChange();
-      expect(component.isBackDated).toBeTrue();
+      expect(component.isBackDated).toBe(true);
       expect(component.validationError).toBeNull();
     });
   });
@@ -210,12 +210,12 @@ describe('RecreateOrderModalComponent', () => {
       openWith();
       component.step = 'form';
 
-      expect(component.notifyByEmail).toBeFalse();
-      expect(component.notifyBySms).toBeFalse();
+      expect(component.notifyByEmail).toBe(false);
+      expect(component.notifyBySms).toBe(false);
 
       const body = submitWith();
-      expect(body.sendCustomerEmail).toBeFalse();
-      expect(body.sendCustomerSms).toBeFalse();
+      expect(body.sendCustomerEmail).toBe(false);
+      expect(body.sendCustomerSms).toBe(false);
     });
 
     it('are sent as true once the admin ticks them', () => {
@@ -225,8 +225,8 @@ describe('RecreateOrderModalComponent', () => {
       component.notifyBySms = true;
 
       const body = submitWith();
-      expect(body.sendCustomerEmail).toBeTrue();
-      expect(body.sendCustomerSms).toBeTrue();
+      expect(body.sendCustomerEmail).toBe(true);
+      expect(body.sendCustomerSms).toBe(true);
     });
 
     it('cannot be turned on for a channel the customer does not have', () => {
@@ -237,10 +237,10 @@ describe('RecreateOrderModalComponent', () => {
       component.notifyBySms = true;
 
       const body = submitWith();
-      expect(component.canNotifyByEmail).toBeFalse();
-      expect(component.canNotifyBySms).toBeFalse();
-      expect(body.sendCustomerEmail).toBeFalse();
-      expect(body.sendCustomerSms).toBeFalse();
+      expect(component.canNotifyByEmail).toBe(false);
+      expect(component.canNotifyBySms).toBe(false);
+      expect(body.sendCustomerEmail).toBe(false);
+      expect(body.sendCustomerSms).toBe(false);
     });
   });
 
@@ -260,7 +260,7 @@ describe('RecreateOrderModalComponent', () => {
       expect(bookingData.userSpecialOfferId).toBeUndefined();
       expect(bookingData.specialOfferId).toBeUndefined();
       expect(bookingData.pointsToRedeem).toBe(0);
-      expect(bookingData.useCredits).toBeFalse();
+      expect(bookingData.useCredits).toBe(false);
       expect(bookingData.discountAmount).toBe(0);
     });
 
@@ -268,9 +268,9 @@ describe('RecreateOrderModalComponent', () => {
       openWith();
       component.step = 'form';
 
-      expect(component.applyCurrentDiscounts).toBeFalse();
+      expect(component.applyCurrentDiscounts).toBe(false);
       const body = submitWith();
-      expect(body.applyCurrentDiscounts).toBeFalse();
+      expect(body.applyCurrentDiscounts).toBe(false);
     });
 
     it('applies them to the preview total only when the admin opts in', () => {
@@ -290,7 +290,7 @@ describe('RecreateOrderModalComponent', () => {
       expect(component.quoteTotal).toBeLessThan(before);
 
       const body = submitWith();
-      expect(body.applyCurrentDiscounts).toBeTrue();
+      expect(body.applyCurrentDiscounts).toBe(true);
     });
 
     /** The plan itself is job metadata — it is what keeps the order counted as recurring. */
@@ -309,9 +309,9 @@ describe('RecreateOrderModalComponent', () => {
 
       const { bookingData } = submitWith();
       expect(bookingData.serviceTypeId).toBe(1);
-      expect(bookingData.services).toContain(jasmine.objectContaining({ serviceId: 10, quantity: 2 }));
-      expect(bookingData.services).toContain(jasmine.objectContaining({ serviceId: 11, quantity: 1 }));
-      expect(bookingData.extraServices).toContain(jasmine.objectContaining({ extraServiceId: 20 }));
+      expect(bookingData.services).toContainEqual(expect.objectContaining({ serviceId: 10, quantity: 2 }));
+      expect(bookingData.services).toContainEqual(expect.objectContaining({ serviceId: 11, quantity: 1 }));
+      expect(bookingData.extraServices).toContainEqual(expect.objectContaining({ extraServiceId: 20 }));
       expect(bookingData.entryMethod).toBe('Doorman');
       expect(bookingData.serviceAddress).toBe('1 Main St');
       expect(bookingData.tips).toBe(15);
@@ -363,7 +363,7 @@ describe('RecreateOrderModalComponent', () => {
 
     it('offers one button per cleaning type the catalogue actually has', () => {
       openWith();
-      expect(component.showCleaningTypeSelector).toBeTrue();
+      expect(component.showCleaningTypeSelector).toBe(true);
       expect(component.cleaningTypeOptions.map(o => o.value))
         .toEqual(['normal', 'deep', 'superdeep']);
     });
@@ -416,7 +416,7 @@ describe('RecreateOrderModalComponent', () => {
 
       const { bookingData } = submitWith();
       expect(bookingData.extraServices)
-        .toContain(jasmine.objectContaining({ extraServiceId: 30 }));
+        .toContainEqual(expect.objectContaining({ extraServiceId: 30 }));
     });
   });
 
@@ -424,13 +424,13 @@ describe('RecreateOrderModalComponent', () => {
     it('toggles selection on and off', () => {
       openWith();
       const windows = component.selectableExtras.find(e => e.id === 20)!;
-      expect(component.isExtraSelected(windows)).toBeTrue();
+      expect(component.isExtraSelected(windows)).toBe(true);
 
       component.toggleExtra(windows);
-      expect(component.isExtraSelected(windows)).toBeFalse();
+      expect(component.isExtraSelected(windows)).toBe(false);
 
       component.toggleExtra(windows);
-      expect(component.isExtraSelected(windows)).toBeTrue();
+      expect(component.isExtraSelected(windows)).toBe(true);
       expect(component.extraQuantity(windows)).toBe(1);
     });
 
@@ -635,7 +635,7 @@ describe('RecreateOrderModalComponent', () => {
     it('offers the steppers and carries the source order\'s counts through', () => {
       openCustom();
 
-      expect(component.showInformationalBedBath()).toBeTrue();
+      expect(component.showInformationalBedBath()).toBe(true);
       expect(component.informationalBedrooms).toBe(2);
       expect(component.informationalBathrooms).toBe(1);
 
@@ -672,7 +672,7 @@ describe('RecreateOrderModalComponent', () => {
       // control for the same number is what this must never become.
       openWith();
 
-      expect(component.showInformationalBedBath()).toBeFalse();
+      expect(component.showInformationalBedBath()).toBe(false);
       const body = submitWith();
       expect(body.bookingData.bedroomsQuantity).toBe(2);
       expect(body.bookingData.bathroomsQuantity).toBe(1);
@@ -689,6 +689,6 @@ describe('RecreateOrderModalComponent', () => {
       { message: 'Target user not found' }, { status: 404, statusText: 'Not Found' });
 
     expect(component.errorMessage).toContain('Target user not found');
-    expect(component.submitting).toBeFalse();
+    expect(component.submitting).toBe(false);
   });
 });

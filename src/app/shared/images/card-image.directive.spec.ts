@@ -43,8 +43,8 @@ describe('CardImageDirective', () => {
     const fixture = TestBed.configureTestingModule({ imports: [HostComponent] }).createComponent(HostComponent);
     fixture.detectChanges();
     const img: HTMLImageElement = fixture.nativeElement.querySelector('#unknown');
-    expect(img.hasAttribute('srcset')).toBeFalse();
-    expect(img.hasAttribute('sizes')).toBeFalse();
+    expect(img.hasAttribute('srcset')).toBe(false);
+    expect(img.hasAttribute('sizes')).toBe(false);
   });
 });
 

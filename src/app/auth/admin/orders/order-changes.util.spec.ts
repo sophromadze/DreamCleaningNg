@@ -18,8 +18,8 @@ describe('buildOrderChangeEntries', () => {
 
     expect(entry.title).toBe('Order edited');
     expect(entry.lines.length).toBe(4);
-    expect(entry.lines.some(l => l.includes('800') && l.includes('900'))).toBeTrue();
-    expect(entry.lines.some(l => l.includes('1 Main St') && l.includes('2 Main St'))).toBeTrue();
+    expect(entry.lines.some(l => l.includes('800') && l.includes('900'))).toBe(true);
+    expect(entry.lines.some(l => l.includes('1 Main St') && l.includes('2 Main St'))).toBe(true);
   });
 
   it('folds the services row written by the same edit into it, naming added and removed extras', () => {

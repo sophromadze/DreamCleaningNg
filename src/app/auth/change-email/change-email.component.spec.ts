@@ -37,7 +37,7 @@ describe('ChangeEmailComponent', () => {
       // nobody has typed in yet.
       component.newEmail = '';
       expect(component.emailProblem).toBeNull();
-      expect(component.canSubmit).toBeFalse();
+      expect(component.canSubmit).toBe(false);
     });
 
     it('names a missing @ rather than calling it invalid', () => {
@@ -63,19 +63,19 @@ describe('ChangeEmailComponent', () => {
     it('will not submit while the address is malformed', () => {
       component.newEmail = 'nope';
       component.currentPassword = 'Correct1horse';
-      expect(component.canSubmit).toBeFalse();
+      expect(component.canSubmit).toBe(false);
     });
 
     it('will not submit without the current password', () => {
       component.newEmail = 'new@example.com';
       component.currentPassword = '';
-      expect(component.canSubmit).toBeFalse();
+      expect(component.canSubmit).toBe(false);
     });
 
     it('submits once both are filled in', () => {
       component.newEmail = 'new@example.com';
       component.currentPassword = 'Correct1horse';
-      expect(component.canSubmit).toBeTrue();
+      expect(component.canSubmit).toBe(true);
     });
   });
 
@@ -84,7 +84,7 @@ describe('ChangeEmailComponent', () => {
   describe('sending the verification link', () => {
     it('trims the address on the way out', () => {
       const auth = TestBed.inject(AuthService);
-      const spy = spyOn(auth, 'initiateEmailChange').and.returnValue(of({ message: 'Sent.' }));
+      const spy = vi.spyOn(auth, 'initiateEmailChange').mockReturnValue(of({ message: 'Sent.' }));
       component.newEmail = '  new@example.com  ';
       component.currentPassword = 'Correct1horse';
       component.onSubmit();
@@ -95,7 +95,7 @@ describe('ChangeEmailComponent', () => {
       // The next thing the customer does is go looking for mail at that address; blanking it
       // takes away the only way to check they typed it correctly.
       const auth = TestBed.inject(AuthService);
-      spyOn(auth, 'initiateEmailChange').and.returnValue(of({ message: 'Sent.' }));
+      vi.spyOn(auth, 'initiateEmailChange').mockReturnValue(of({ message: 'Sent.' }));
       component.newEmail = 'new@example.com';
       component.currentPassword = 'Correct1horse';
       component.onSubmit();
@@ -108,18 +108,17 @@ describe('ChangeEmailComponent', () => {
       // `finalize`, not the `complete` callback — RxJS never calls `complete` on an HTTP error,
       // which is how a form ends up stuck on "Sending...".
       const auth = TestBed.inject(AuthService);
-      spyOn(auth, 'initiateEmailChange').and.returnValue(
-        throwError(() => ({ error: { message: 'Current password is incorrect' } })));
+      vi.spyOn(auth, 'initiateEmailChange').mockReturnValue(throwError(() => ({ error: { message: 'Current password is incorrect' } })));
       component.newEmail = 'new@example.com';
       component.currentPassword = 'wrong';
       component.onSubmit();
-      expect(component.isSubmitting).toBeFalse();
+      expect(component.isSubmitting).toBe(false);
       expect(component.errorMessage).toBe('Current password is incorrect');
     });
 
     it('reads a ValidationProblemDetails body instead of showing transport noise', () => {
       const auth = TestBed.inject(AuthService);
-      spyOn(auth, 'initiateEmailChange').and.returnValue(throwError(() => ({
+      vi.spyOn(auth, 'initiateEmailChange').mockReturnValue(throwError(() => ({
         status: 400,
         message: 'Http failure response for /api/auth/initiate-email-change: 400 Bad Request',
         error: { title: 'One or more validation errors occurred.', errors: { NewEmail: ['The NewEmail field is not a valid e-mail address.'] } }
@@ -133,7 +132,7 @@ describe('ChangeEmailComponent', () => {
 
     it('does nothing at all when the form is not submittable', () => {
       const auth = TestBed.inject(AuthService);
-      const spy = spyOn(auth, 'initiateEmailChange');
+      const spy = vi.spyOn(auth, 'initiateEmailChange').mockReturnValue(undefined as any);
       component.newEmail = 'nope';
       component.currentPassword = 'Correct1horse';
       component.onSubmit();
@@ -151,8 +150,8 @@ describe('ChangeEmailComponent', () => {
     it('leaves both inputs editable from the keyboard', () => {
       const email: HTMLInputElement = fixture.nativeElement.querySelector('#newEmailField');
       const password: HTMLInputElement = fixture.nativeElement.querySelector('#currentPasswordField');
-      expect(email.hasAttribute('readonly')).toBeFalse();
-      expect(password.hasAttribute('readonly')).toBeFalse();
+      expect(email.hasAttribute('readonly')).toBe(false);
+      expect(password.hasAttribute('readonly')).toBe(false);
     });
 
     it('has no focus handler that could blank what was typed', () => {
@@ -167,20 +166,19 @@ describe('ChangeEmailComponent', () => {
   describe('the verification screen', () => {
     it('explains a refused token rather than showing a blank success', () => {
       const auth = TestBed.inject(AuthService);
-      spyOn(auth, 'confirmEmailChange').and.returnValue(
-        throwError(() => ({ error: { message: 'Invalid or expired email change token' } })));
+      vi.spyOn(auth, 'confirmEmailChange').mockReturnValue(throwError(() => ({ error: { message: 'Invalid or expired email change token' } })));
       component.confirmEmailChange('stale-token');
-      expect(component.isError).toBeTrue();
-      expect(component.isSuccess).toBeFalse();
+      expect(component.isError).toBe(true);
+      expect(component.isSuccess).toBe(false);
       expect(component.verificationErrorMessage).toBe('Invalid or expired email change token');
     });
 
     it('ends the session on success, because the sign-in address has changed', () => {
       const auth = TestBed.inject(AuthService);
-      spyOn(auth, 'confirmEmailChange').and.returnValue(of({ message: 'Email changed' }));
-      const logout = spyOn(auth, 'logout');
+      vi.spyOn(auth, 'confirmEmailChange').mockReturnValue(of({ message: 'Email changed' }));
+      const logout = vi.spyOn(auth, 'logout').mockReturnValue(undefined);
       component.confirmEmailChange('good-token');
-      expect(component.isSuccess).toBeTrue();
+      expect(component.isSuccess).toBe(true);
       expect(logout).toHaveBeenCalled();
     });
   });

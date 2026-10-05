@@ -1,4 +1,5 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import type { MockedObject } from 'vitest';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { CleanerPortalComponent } from './cleaner-portal.component';
@@ -27,7 +28,7 @@ import { testProviders } from '../../testing/test-providers';
 describe('CleanerPortalComponent', () => {
   let component: CleanerPortalComponent;
   let fixture: ComponentFixture<CleanerPortalComponent>;
-  let portal: jasmine.SpyObj<CleanerPortalService>;
+  let portal: MockedObject<CleanerPortalService>;
 
   const job = (over: Partial<any> = {}) => ({
     orderId: 91,
@@ -53,19 +54,18 @@ describe('CleanerPortalComponent', () => {
   });
 
   beforeEach(async () => {
-    portal = jasmine.createSpyObj('CleanerPortalService',
-      ['getContext', 'getMyJobs', 'getAllJobs', 'getOrderDetail', 'setLanguage']);
-    portal.getContext.and.returnValue(of({
+    portal = { getContext: vi.fn().mockName('CleanerPortalService.getContext'), getMyJobs: vi.fn().mockName('CleanerPortalService.getMyJobs'), getAllJobs: vi.fn().mockName('CleanerPortalService.getAllJobs'), getOrderDetail: vi.fn().mockName('CleanerPortalService.getOrderDetail'), setLanguage: vi.fn().mockName('CleanerPortalService.setLanguage') } as any;
+    portal.getContext.mockReturnValue(of({
       isCleanerView: true, isSystemWideView: false, cleanerId: 7, cleanerName: 'Maria K',
       language: 'en', preferredLanguage: null
     }));
-    portal.getMyJobs.and.returnValue(of({
+    portal.getMyJobs.mockReturnValue(of({
       current: [job()],
       past: [job({ orderId: 4, serviceDate: '2026-08-01T00:00:00', isCompleted: true })]
     }));
-    portal.setLanguage.and.returnValue(of({ language: 'ka', preferredLanguage: 'ka' }));
-    portal.getAllJobs.and.returnValue(of([]));
-    portal.getOrderDetail.and.returnValue(of({ cleanerView: job(), order: {} as any, assignedCleaners: [] }));
+    portal.setLanguage.mockReturnValue(of({ language: 'ka', preferredLanguage: 'ka' }));
+    portal.getAllJobs.mockReturnValue(of([]));
+    portal.getOrderDetail.mockReturnValue(of({ cleanerView: job(), order: {} as any, assignedCleaners: [] }));
 
     await TestBed.configureTestingModule({
       imports: [CleanerPortalComponent],
@@ -115,16 +115,16 @@ describe('CleanerPortalComponent', () => {
    */
   describe('embedded in the Cleaners page', () => {
     it('is off by default, and changes nothing about the view when on', () => {
-      expect(component.embedded).toBeFalse();
+      expect(component.embedded).toBe(false);
 
       component.embedded = true;
-      portal.getContext.and.returnValue(of({
+      portal.getContext.mockReturnValue(of({
         isCleanerView: false, isSystemWideView: true, cleanerId: null,
         cleanerName: null, language: 'en', preferredLanguage: null
       } as any));
       fixture.detectChanges();
 
-      expect(component.context?.isSystemWideView).toBeTrue();
+      expect(component.context?.isSystemWideView).toBe(true);
       expect(portal.getAllJobs).toHaveBeenCalled();
     });
   });
@@ -141,7 +141,7 @@ describe('CleanerPortalComponent', () => {
     });
 
     it('loads every cleaning for a SuperAdmin, and never the single-cleaner endpoint', () => {
-      portal.getContext.and.returnValue(of({ isCleanerView: false, isSystemWideView: true, cleanerId: null }));
+      portal.getContext.mockReturnValue(of({ isCleanerView: false, isSystemWideView: true, cleanerId: null }));
       fixture.detectChanges();
 
       expect(portal.getAllJobs).toHaveBeenCalled();
@@ -151,8 +151,8 @@ describe('CleanerPortalComponent', () => {
 
   describe('a cleaner account nobody has linked yet', () => {
     it('reports no cleanerId rather than an empty job list', () => {
-      portal.getContext.and.returnValue(of({ isCleanerView: true, isSystemWideView: false, cleanerId: null }));
-      portal.getMyJobs.and.returnValue(of({ current: [], past: [] }));
+      portal.getContext.mockReturnValue(of({ isCleanerView: true, isSystemWideView: false, cleanerId: null }));
+      portal.getMyJobs.mockReturnValue(of({ current: [], past: [] }));
       fixture.detectChanges();
 
       // The template keys the "ask the office to link your account" notice off this. An empty
@@ -167,13 +167,13 @@ describe('CleanerPortalComponent', () => {
     // pinned inside September 2026. Unpinned, these specs only passed while the real date was in
     // September: from October the 10th is not on screen and every cell lookup came back undefined.
     beforeEach(() => {
-      jasmine.clock().install();
-      jasmine.clock().mockDate(new Date('2026-09-15T16:00:00Z'));
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-09-15T16:00:00Z'));
     });
-    afterEach(() => jasmine.clock().uninstall());
+    afterEach(() => vi.useRealTimers());
 
     it('files a job under its NY service date, so the dot lands on the day it is worked', () => {
-      portal.getMyJobs.and.returnValue(of({
+      portal.getMyJobs.mockReturnValue(of({
         current: [job({ orderId: 1, serviceTime: '14:30' }), job({ orderId: 2, serviceTime: '09:00' })],
         past: []
       }));
@@ -208,7 +208,7 @@ describe('CleanerPortalComponent', () => {
       component.selectDay('2026-11-03');
 
       expect(component.calendarMonthLabel).toBe('November 2026');
-      expect(component.calendarCells.some(c => c.key === '2026-11-03' && c.inMonth)).toBeTrue();
+      expect(component.calendarCells.some(c => c.key === '2026-11-03' && c.inMonth)).toBe(true);
     });
 
     /**
@@ -217,7 +217,7 @@ describe('CleanerPortalComponent', () => {
      * "4 Cleanings". What gives way on a busy day is the dot SIZE, never a dot.
      */
     it('draws one dot per cleaning, however many there are', () => {
-      portal.getMyJobs.and.returnValue(of({
+      portal.getMyJobs.mockReturnValue(of({
         current: [
           job({ orderId: 1 }), job({ orderId: 2 }), job({ orderId: 3 }),
           job({ orderId: 4 }), job({ orderId: 5 })
@@ -236,7 +236,7 @@ describe('CleanerPortalComponent', () => {
 
     it('shrinks the dots as the day fills up, so the square keeps its shape', () => {
       const bandFor = (count: number) => {
-        portal.getMyJobs.and.returnValue(of({
+        portal.getMyJobs.mockReturnValue(of({
           current: Array.from({ length: count }, (_, i) => job({ orderId: i + 1 })),
           past: []
         }));
@@ -264,7 +264,7 @@ describe('CleanerPortalComponent', () => {
       const august = component.calendarCells.find(c => c.key === '2026-08-01');
       component.selectDay('2026-08-01');
       expect(component.selectedDayJobs.length).toBe(1);
-      expect(august === undefined || august.jobCount === 1).toBeTrue();
+      expect(august === undefined || august.jobCount === 1).toBe(true);
     });
 
     it('marks the dot done rather than active, and never opens a briefing for it', () => {
@@ -272,7 +272,7 @@ describe('CleanerPortalComponent', () => {
 
       component.selectDay('2026-08-01');
       const done = component.selectedDayJobs[0];
-      expect(done.isCompleted).toBeTrue();
+      expect(done.isCompleted).toBe(true);
 
       // Nothing to open: the side card stays on whatever it was, and is null on a day of only
       // finished work.
@@ -317,7 +317,7 @@ describe('CleanerPortalComponent', () => {
     };
 
     it('names the items whether or not the cleaner is the one bringing them', () => {
-      portal.getMyJobs.and.returnValue(of({
+      portal.getMyJobs.mockReturnValue(of({
         current: [job({ bringCleaningSupplies: false, bringCleaningEssentials: false })],
         past: []
       }));
@@ -345,7 +345,7 @@ describe('CleanerPortalComponent', () => {
      * exactly the drift the key-based payload exists to prevent.
      */
     it('renders the keys the server sent rather than deriving its own list', () => {
-      portal.getMyJobs.and.returnValue(of({
+      portal.getMyJobs.mockReturnValue(of({
         current: [job({ suppliesItemKeys: ['sponge'], essentialsItemKeys: ['broom'] })],
         past: []
       }));
@@ -357,7 +357,7 @@ describe('CleanerPortalComponent', () => {
     });
 
     it("translates the items into the cleaner's own language", () => {
-      portal.getContext.and.returnValue(of({
+      portal.getContext.mockReturnValue(of({
         isCleanerView: true, isSystemWideView: false, cleanerId: 7, cleanerName: 'Nino',
         language: 'ka', preferredLanguage: null
       }));
@@ -380,8 +380,7 @@ describe('CleanerPortalComponent', () => {
       for (const language of PORTAL_LANGUAGES) {
         const strings = portalStrings(language);
         for (const key of keys) {
-          expect(strings.supplyItems[key])
-            .withContext(`${language} is missing supply item '${key}'`)
+          expect(strings.supplyItems[key], `${language} is missing supply item '${key}'`)
             .toBeTruthy();
         }
       }
@@ -397,7 +396,7 @@ describe('CleanerPortalComponent', () => {
 
   describe('the language a cleaner reads in', () => {
     it('takes the language from the SERVER, not from the browser', () => {
-      portal.getContext.and.returnValue(of({
+      portal.getContext.mockReturnValue(of({
         isCleanerView: true, isSystemWideView: false, cleanerId: 7, cleanerName: 'Nino',
         language: 'ka', preferredLanguage: null
       }));
@@ -421,15 +420,13 @@ describe('CleanerPortalComponent', () => {
         const s = portalStrings(language);
         const greetings = [s.greetingMorning, s.greetingAfternoon, s.greetingEvening];
 
-        expect(greetings.every(g => !!g && g.trim().length > 0))
-          .withContext(`${language} is missing a greeting`).toBeTrue();
-        expect(new Set(greetings).size)
-          .withContext(`${language} reuses one greeting for two times of day`).toBe(3);
+        expect(greetings.every(g => !!g && g.trim().length > 0), `${language} is missing a greeting`).toBe(true);
+        expect(new Set(greetings).size, `${language} reuses one greeting for two times of day`).toBe(3);
       }
     });
 
     it('reads the greeting off the resolved time of day', () => {
-      portal.getContext.and.returnValue(of({
+      portal.getContext.mockReturnValue(of({
         isCleanerView: true, isSystemWideView: false, cleanerId: 7, cleanerName: 'Nino Beridze',
         language: 'ka', preferredLanguage: 'ka'
       }));
@@ -455,7 +452,7 @@ describe('CleanerPortalComponent', () => {
     });
 
     it('clears back to Automatic with a null, never with the current default', () => {
-      portal.setLanguage.and.returnValue(of({ language: 'ru', preferredLanguage: null }));
+      portal.setLanguage.mockReturnValue(of({ language: 'ru', preferredLanguage: null }));
       fixture.detectChanges();
 
       component.onLanguageChange('');
@@ -467,7 +464,7 @@ describe('CleanerPortalComponent', () => {
     });
 
     it('counts and names things in the chosen language', () => {
-      portal.getContext.and.returnValue(of({
+      portal.getContext.mockReturnValue(of({
         isCleanerView: true, isSystemWideView: false, cleanerId: 7, language: 'ru', preferredLanguage: 'ru'
       }));
       fixture.detectChanges();
@@ -491,7 +488,7 @@ describe('CleanerPortalComponent', () => {
     });
 
     it('opens for a SuperAdmin', () => {
-      portal.getContext.and.returnValue(of({ isCleanerView: false, isSystemWideView: true, cleanerId: null }));
+      portal.getContext.mockReturnValue(of({ isCleanerView: false, isSystemWideView: true, cleanerId: null }));
       fixture.detectChanges();
 
       component.openDetail(91);
@@ -533,17 +530,17 @@ describe('CleanerPortalComponent', () => {
 
   describe('failures', () => {
     it('says something went wrong instead of leaving a blank page', () => {
-      portal.getContext.and.returnValue(throwError(() => ({ status: 500 })));
+      portal.getContext.mockReturnValue(throwError(() => ({ status: 500 })));
       fixture.detectChanges();
 
       expect(component.errorMessage).toBeTruthy();
-      expect(component.loading).toBeFalse();
+      expect(component.loading).toBe(false);
     });
   });
 
   describe('the SuperAdmin calendar and search', () => {
     const asSuperAdmin = () => {
-      portal.getContext.and.returnValue(of({ isCleanerView: false, isSystemWideView: true, cleanerId: null }));
+      portal.getContext.mockReturnValue(of({ isCleanerView: false, isSystemWideView: true, cleanerId: null }));
       fixture.detectChanges();
     };
 
@@ -574,7 +571,7 @@ describe('CleanerPortalComponent', () => {
       });
 
       it('shows the cleaner-facing text in the previewed language', () => {
-        portal.getAllJobs.and.returnValue(of([
+        portal.getAllJobs.mockReturnValue(of([
           { ...job(), status: 'Active', assignedCleaners: ['A'], maidsCount: 1, isPaid: true }
         ]));
         asSuperAdmin();
@@ -609,7 +606,7 @@ describe('CleanerPortalComponent', () => {
         asSuperAdmin();
         component.onLanguageChange('ru');
 
-        portal.getContext.and.returnValue(of({
+        portal.getContext.mockReturnValue(of({
           isCleanerView: true, isSystemWideView: false, cleanerId: 7, cleanerName: 'Nino',
           language: 'ka', preferredLanguage: 'ka'
         }));
@@ -617,59 +614,60 @@ describe('CleanerPortalComponent', () => {
         cleanerView.detectChanges();
 
         expect(cleanerView.componentInstance.language).toBe('ka');
-        expect(cleanerView.componentInstance.isLanguagePreview).toBeFalse();
+        expect(cleanerView.componentInstance.isLanguagePreview).toBe(false);
       });
     });
 
     it('loads ONE MONTH at a time, not every cleaning ever booked', () => {
       asSuperAdmin();
 
-      const [from, to, search] = portal.getAllJobs.calls.mostRecent().args;
+      const [from, to, search] = vi.mocked(portal.getAllJobs).mock.lastCall!;
       // The calendar is the navigation, so the fetch follows the visible month. An unbounded
       // fetch here would return the whole history of the company to draw one grid.
       expect(from).toMatch(/^\d{4}-\d{2}-01$/);
       expect(to).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(search).toBeNull();
-      expect(component.showSchedule).toBeTrue();
+      expect(component.showSchedule).toBe(true);
     });
 
     it('refetches when the month moves', () => {
       asSuperAdmin();
-      portal.getAllJobs.calls.reset();
+      portal.getAllJobs.mockClear();
 
       component.nextMonth();
 
-      expect(portal.getAllJobs.calls.count()).toBe(1);
+      expect(vi.mocked(portal.getAllJobs).mock.calls.length).toBe(1);
     });
 
-    it('searches ACROSS ALL TIME, not within the visible month', fakeAsync(() => {
+    it('searches ACROSS ALL TIME, not within the visible month', async () => {
+      vi.useFakeTimers();
       asSuperAdmin();
-      portal.getAllJobs.calls.reset();
+      portal.getAllJobs.mockClear();
 
       component.onSearchChanged('br');
       component.onSearchChanged('bro');
       component.onSearchChanged('brook');
-      tick(300);
+      await vi.advanceTimersByTimeAsync(300);
 
       // Debounced to one request...
-      expect(portal.getAllJobs.calls.count()).toBe(1);
+      expect(vi.mocked(portal.getAllJobs).mock.calls.length).toBe(1);
       // ...and unbounded: somebody looking a customer up does not know which month to stand in.
       expect(portal.getAllJobs).toHaveBeenCalledWith(null, null, 'brook');
       // The calendar steps aside for the results rather than describing a set it is not showing.
-      expect(component.isSearchMode).toBeTrue();
-      expect(component.showSchedule).toBeFalse();
-    }));
+      expect(component.isSearchMode).toBe(true);
+      expect(component.showSchedule).toBe(false);
+    });
 
     it('puts the month back when the search is cleared', () => {
       asSuperAdmin();
       component.onSearchChanged('brook');
-      portal.getAllJobs.calls.reset();
+      portal.getAllJobs.mockClear();
 
       component.clearSearch();
 
-      expect(component.isSearchMode).toBeFalse();
-      expect(component.showSchedule).toBeTrue();
-      expect(portal.getAllJobs.calls.mostRecent().args[2]).toBeNull();
+      expect(component.isSearchMode).toBe(false);
+      expect(component.showSchedule).toBe(true);
+      expect(vi.mocked(portal.getAllJobs).mock.lastCall![2]).toBeNull();
     });
 
     // Clicking a card BROWSES; the detail panel is a decision and takes its own click (owner's
@@ -696,7 +694,7 @@ describe('CleanerPortalComponent', () => {
     });
 
     it('does NOT throw the detail panel open when a month simply finishes loading', () => {
-      portal.getAllJobs.and.returnValue(of([
+      portal.getAllJobs.mockReturnValue(of([
         { ...job(), status: 'Active', assignedCleaners: ['A'], maidsCount: 1, isPaid: true }
       ]));
       asSuperAdmin();

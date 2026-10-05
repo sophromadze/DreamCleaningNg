@@ -1,4 +1,5 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import type { MockedObject } from 'vitest';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError } from 'rxjs';
 
 import { CleanerAccountsComponent } from './cleaner-accounts.component';
@@ -26,7 +27,7 @@ import { testProviders } from '../../../../testing/test-providers';
 describe('CleanerAccountsComponent', () => {
   let component: CleanerAccountsComponent;
   let fixture: ComponentFixture<CleanerAccountsComponent>;
-  let admin: jasmine.SpyObj<AdminService>;
+  let admin: MockedObject<AdminService>;
 
   const account = (over: Partial<CleanerAccount> = {}): CleanerAccount => ({
     userId: 12,
@@ -64,18 +65,23 @@ describe('CleanerAccountsComponent', () => {
   });
 
   beforeEach(async () => {
-    admin = jasmine.createSpyObj('AdminService', [
-      'getUserPermissions', 'getCleanerAccounts', 'getLinkableCleaners',
-      'getPromotableUsers', 'linkCleanerAccount', 'unlinkCleanerAccount', 'updateUserRole'
-    ]);
+    admin = {
+      getUserPermissions: vi.fn().mockName('AdminService.getUserPermissions'),
+      getCleanerAccounts: vi.fn().mockName('AdminService.getCleanerAccounts'),
+      getLinkableCleaners: vi.fn().mockName('AdminService.getLinkableCleaners'),
+      getPromotableUsers: vi.fn().mockName('AdminService.getPromotableUsers'),
+      linkCleanerAccount: vi.fn().mockName('AdminService.linkCleanerAccount'),
+      unlinkCleanerAccount: vi.fn().mockName('AdminService.unlinkCleanerAccount'),
+      updateUserRole: vi.fn().mockName('AdminService.updateUserRole')
+    } as any;
 
-    admin.getUserPermissions.and.returnValue(of(permissions(true) as any));
-    admin.getCleanerAccounts.and.returnValue(of([account()]));
-    admin.getLinkableCleaners.and.returnValue(of([cleaner()]));
-    admin.getPromotableUsers.and.returnValue(of([]));
-    admin.linkCleanerAccount.and.returnValue(of(account({ cleanerId: 5, cleanerName: 'Maria K', cleanerEmail: 'maria@example.com' })));
-    admin.unlinkCleanerAccount.and.returnValue(of(account()));
-    admin.updateUserRole.and.returnValue(of({}));
+    admin.getUserPermissions.mockReturnValue(of(permissions(true) as any));
+    admin.getCleanerAccounts.mockReturnValue(of([account()]));
+    admin.getLinkableCleaners.mockReturnValue(of([cleaner()]));
+    admin.getPromotableUsers.mockReturnValue(of([]));
+    admin.linkCleanerAccount.mockReturnValue(of(account({ cleanerId: 5, cleanerName: 'Maria K', cleanerEmail: 'maria@example.com' })));
+    admin.unlinkCleanerAccount.mockReturnValue(of(account()));
+    admin.updateUserRole.mockReturnValue(of({}));
 
     await TestBed.configureTestingModule({
       imports: [CleanerAccountsComponent],
@@ -94,14 +100,14 @@ describe('CleanerAccountsComponent', () => {
   describe('who may change anything', () => {
     it('follows the permission map, not the role name', () => {
       fixture.detectChanges();
-      expect(component.canUpdate).toBeTrue();
+      expect(component.canUpdate).toBe(true);
     });
 
     it('leaves a Moderator read-only', () => {
-      admin.getUserPermissions.and.returnValue(of(permissions(false) as any));
+      admin.getUserPermissions.mockReturnValue(of(permissions(false) as any));
       fixture.detectChanges();
 
-      expect(component.canUpdate).toBeFalse();
+      expect(component.canUpdate).toBe(false);
 
       // Every write is refused client-side too, so a stray call cannot reach the API.
       component.startLinking(component.accounts[0]);
@@ -115,7 +121,7 @@ describe('CleanerAccountsComponent', () => {
   describe('linking', () => {
     it('opens the picker on the full roster', () => {
       fixture.detectChanges();
-      admin.getLinkableCleaners.calls.reset();
+      admin.getLinkableCleaners.mockClear();
 
       component.startLinking(component.accounts[0]);
 
@@ -124,26 +130,27 @@ describe('CleanerAccountsComponent', () => {
       expect(component.cleanerResults.length).toBe(1);
     });
 
-    it('searches the roster on the SERVER, debounced', fakeAsync(() => {
+    it('searches the roster on the SERVER, debounced', async () => {
+      vi.useFakeTimers();
       fixture.detectChanges();
       component.startLinking(component.accounts[0]);
-      admin.getLinkableCleaners.calls.reset();
+      admin.getLinkableCleaners.mockClear();
 
       component.onCleanerSearchChanged('mar');
       component.onCleanerSearchChanged('maria');
-      tick(300);
+      await vi.advanceTimersByTimeAsync(300);
 
       // One request for the settled term - the roster is the authority on who exists, so this is
       // never a filter over whatever the client already happened to hold.
-      expect(admin.getLinkableCleaners.calls.count()).toBe(1);
+      expect(vi.mocked(admin.getLinkableCleaners).mock.calls.length).toBe(1);
       expect(admin.getLinkableCleaners).toHaveBeenCalledWith('maria');
-    }));
+    });
 
     it('refuses a cleaner already attached to another account, but still shows them', () => {
       fixture.detectChanges();
 
       const taken = cleaner({ cleanerId: 9, linkedUserId: 44, linkedUserEmail: 'someone@else.com' });
-      expect(component.isCleanerTaken(taken, 12)).toBeTrue();
+      expect(component.isCleanerTaken(taken, 12)).toBe(true);
 
       // Picking one is refused too, not merely styled as unavailable.
       component.linkCleanerChoice = null;
@@ -152,7 +159,7 @@ describe('CleanerAccountsComponent', () => {
 
       // Their own current link is not "taken" - re-opening the editor must show the row selected.
       const own = cleaner({ cleanerId: 5, linkedUserId: 12 });
-      expect(component.isCleanerTaken(own, 12)).toBeFalse();
+      expect(component.isCleanerTaken(own, 12)).toBe(false);
       component.chooseCleaner(own, 12);
       expect(component.linkCleanerChoice as number | null).toBe(5);
     });
@@ -185,9 +192,7 @@ describe('CleanerAccountsComponent', () => {
 
     it('surfaces the server message when a link is refused', () => {
       fixture.detectChanges();
-      admin.linkCleanerAccount.and.returnValue(
-        throwError(() => ({ error: { message: 'That cleaner is already linked to another account.' } }))
-      );
+      admin.linkCleanerAccount.mockReturnValue(throwError(() => ({ error: { message: 'That cleaner is already linked to another account.' } })));
       component.startLinking(component.accounts[0]);
       component.linkCleanerChoice = 5;
 
@@ -206,12 +211,12 @@ describe('CleanerAccountsComponent', () => {
 
       expect(admin.updateUserRole).toHaveBeenCalledWith(3, 'Cleaner');
       // Reloaded rather than optimistically inserted - the new row needs its link state.
-      expect(admin.getCleanerAccounts.calls.count()).toBeGreaterThan(1);
+      expect(vi.mocked(admin.getCleanerAccounts).mock.calls.length).toBeGreaterThan(1);
     });
 
     it('drops a demoted account out of this tab straight away', () => {
       fixture.detectChanges();
-      spyOn(window, 'confirm').and.returnValue(true);
+      vi.spyOn(window, 'confirm').mockReturnValue(true);
 
       component.demote(component.accounts[0]);
 
@@ -222,7 +227,7 @@ describe('CleanerAccountsComponent', () => {
 
     it('does not demote when the confirmation is declined', () => {
       fixture.detectChanges();
-      spyOn(window, 'confirm').and.returnValue(false);
+      vi.spyOn(window, 'confirm').mockReturnValue(false);
 
       component.demote(component.accounts[0]);
 
@@ -231,20 +236,21 @@ describe('CleanerAccountsComponent', () => {
   });
 
   describe('promote search', () => {
-    it('debounces, and asks for nothing under two characters', fakeAsync(() => {
+    it('debounces, and asks for nothing under two characters', async () => {
+      vi.useFakeTimers();
       fixture.detectChanges();
 
       component.onPromoteSearchChanged('a');
-      tick(300);
+      await vi.advanceTimersByTimeAsync(300);
       expect(admin.getPromotableUsers).not.toHaveBeenCalled();
 
       component.onPromoteSearchChanged('an');
       component.onPromoteSearchChanged('ana');
-      tick(300);
+      await vi.advanceTimersByTimeAsync(300);
 
-      expect(admin.getPromotableUsers.calls.count()).toBe(1);
+      expect(vi.mocked(admin.getPromotableUsers).mock.calls.length).toBe(1);
       expect(admin.getPromotableUsers).toHaveBeenCalledWith('ana');
-    }));
+    });
   });
 
   describe('filters and paging', () => {
@@ -261,7 +267,7 @@ describe('CleanerAccountsComponent', () => {
       }));
 
     it('shows 20 accounts a page', () => {
-      admin.getCleanerAccounts.and.returnValue(of(many(45)));
+      admin.getCleanerAccounts.mockReturnValue(of(many(45)));
       fixture.detectChanges();
 
       expect(component.pagedAccounts.length).toBe(20);
@@ -273,7 +279,7 @@ describe('CleanerAccountsComponent', () => {
     });
 
     it('never leaves the viewer stranded past the last page after a filter narrows the list', () => {
-      admin.getCleanerAccounts.and.returnValue(of(many(45)));
+      admin.getCleanerAccounts.mockReturnValue(of(many(45)));
       fixture.detectChanges();
 
       component.goToPage(3);
@@ -281,26 +287,26 @@ describe('CleanerAccountsComponent', () => {
       component.onFilterChanged();
 
       expect(component.currentPage).toBe(1);
-      expect(component.pagedAccounts.every(a => a.firstName.startsWith('Cleaner7'))).toBeTrue();
+      expect(component.pagedAccounts.every(a => a.firstName.startsWith('Cleaner7'))).toBe(true);
     });
 
     it('filters by status and by whether a cleaner record is linked', () => {
-      admin.getCleanerAccounts.and.returnValue(of(many(9)));
+      admin.getCleanerAccounts.mockReturnValue(of(many(9)));
       fixture.detectChanges();
 
       component.statusFilter = 'inactive';
       component.onFilterChanged();
-      expect(component.pagedAccounts.every(a => !a.isActive)).toBeTrue();
+      expect(component.pagedAccounts.every(a => !a.isActive)).toBe(true);
 
       component.statusFilter = 'all';
       component.linkFilter = 'unlinked';
       component.onFilterChanged();
       expect(component.pagedAccounts.length).toBeGreaterThan(0);
-      expect(component.pagedAccounts.every(a => !a.cleanerId)).toBeTrue();
+      expect(component.pagedAccounts.every(a => !a.cleanerId)).toBe(true);
     });
 
     it('searches the account name, email, phone, linked cleaner and id', () => {
-      admin.getCleanerAccounts.and.returnValue(of([
+      admin.getCleanerAccounts.mockReturnValue(of([
         account({ userId: 1, firstName: 'Nino', lastName: 'B', email: 'nino@x.com', phone: '5550001', cleanerId: 7, cleanerName: 'Nino Beridze' }),
         account({ userId: 2, firstName: 'Giorgi', lastName: 'T', email: 'giorgi@y.com', phone: '5559999', cleanerId: null, cleanerName: null })
       ]));
@@ -309,15 +315,14 @@ describe('CleanerAccountsComponent', () => {
       for (const term of ['nino', 'nino@x', '5550001', 'Beridze', '1']) {
         component.searchTerm = term;
         component.onFilterChanged();
-        expect(component.pagedAccounts.some(a => a.userId === 1))
-          .withContext(`"${term}" should match account #1`).toBeTrue();
+        expect(component.pagedAccounts.some(a => a.userId === 1), `"${term}" should match account #1`).toBe(true);
       }
     });
 
     it('searches the linked cleaner record\'s phone as well as the account\'s own', () => {
       // The row can be SHOWING the record's number (see the block below), so an admin must be able
       // to search for the number they can read.
-      admin.getCleanerAccounts.and.returnValue(of([
+      admin.getCleanerAccounts.mockReturnValue(of([
         account({ userId: 1, phone: null, cleanerId: 80, cleanerName: 'Teo Akhobadze', cleanerPhone: '7185731923' })
       ]));
       fixture.detectChanges();
@@ -340,7 +345,7 @@ describe('CleanerAccountsComponent', () => {
         account({ phone: null, cleanerId: 80, cleanerPhone: '7185731923' }));
 
       expect(resolved.value).toBe('7185731923');
-      expect(resolved.fromCleanerRecord).toBeTrue();
+      expect(resolved.fromCleanerRecord).toBe(true);
     });
 
     it('prefers the account\'s own phone - the two are allowed to differ', () => {
@@ -348,7 +353,7 @@ describe('CleanerAccountsComponent', () => {
         account({ phone: '5551234567', cleanerId: 80, cleanerPhone: '7185731923' }));
 
       expect(resolved.value).toBe('5551234567');
-      expect(resolved.fromCleanerRecord).toBeFalse();
+      expect(resolved.fromCleanerRecord).toBe(false);
     });
 
     it('reports no phone when neither side has one', () => {
@@ -369,8 +374,7 @@ describe('CleanerAccountsComponent', () => {
   describe('opening the cleaner record', () => {
     beforeEach(() => {
       // A LINKED account, because an unlinked one is the case with no record to open.
-      admin.getCleanerAccounts.and.returnValue(
-        of([account({ userId: 12, cleanerId: 80, cleanerName: 'Maria K' })]));
+      admin.getCleanerAccounts.mockReturnValue(of([account({ userId: 12, cleanerId: 80, cleanerName: 'Maria K' })]));
       fixture.detectChanges();
     });
 
@@ -404,7 +408,7 @@ describe('CleanerAccountsComponent', () => {
     });
 
     it('reloads the accounts after a save or delete inside the panel', () => {
-      admin.getCleanerAccounts.calls.reset();
+      admin.getCleanerAccounts.mockClear();
 
       // The row's linked-cleaner NAME, and whether it is linked at all, both live on the cleaner
       // record - so the table underneath is stale the moment the panel writes to it.

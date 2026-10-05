@@ -1,3 +1,4 @@
+import type { MockedObject } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { of, throwError } from 'rxjs';
@@ -19,7 +20,7 @@ import {
 describe('PublicInvoiceComponent — payment', () => {
   let fixture: ComponentFixture<PublicInvoiceComponent>;
   let component: PublicInvoiceComponent;
-  let service: jasmine.SpyObj<InvoiceService>;
+  let service: MockedObject<InvoiceService>;
 
   const baseInvoice = (): PublicInvoice => ({
     invoiceNumber: 'DCI-2026-10713354',
@@ -74,9 +75,8 @@ describe('PublicInvoiceComponent — payment', () => {
   };
 
   function setUp(invoice: PublicInvoice, queryParams: Record<string, string> = {}) {
-    service = jasmine.createSpyObj<InvoiceService>('InvoiceService',
-      ['getPublic', 'startCheckout', 'downloadPublicPdf']);
-    service.getPublic.and.returnValue(of(invoice));
+    service = { getPublic: vi.fn().mockName('InvoiceService.getPublic'), startCheckout: vi.fn().mockName('InvoiceService.startCheckout'), downloadPublicPdf: vi.fn().mockName('InvoiceService.downloadPublicPdf') } as unknown as MockedObject<InvoiceService>;
+    service.getPublic.mockReturnValue(of(invoice));
 
     TestBed.configureTestingModule({
       imports: [PublicInvoiceComponent],
@@ -106,8 +106,8 @@ describe('PublicInvoiceComponent — payment', () => {
   it('offers Pay from Bank when Stripe ACH is available', () => {
     setUp(baseInvoice());
 
-    expect(component.options?.stripeAchAvailable).toBeTrue();
-    expect(component.isProcessing).toBeFalse();
+    expect(component.options?.stripeAchAvailable).toBe(true);
+    expect(component.isProcessing).toBe(false);
 
     const html = fixture.nativeElement.textContent as string;
     expect(html).toContain('Pay from Bank');
@@ -143,7 +143,7 @@ describe('PublicInvoiceComponent — payment', () => {
     };
     setUp(invoice);
 
-    expect(component.manualAchExpanded).toBeFalse();
+    expect(component.manualAchExpanded).toBe(false);
     expect(fixture.nativeElement.textContent).not.toContain('000000000');
 
     component.toggleManualAch();
@@ -175,7 +175,7 @@ describe('PublicInvoiceComponent — payment', () => {
     };
     setUp(invoice);
 
-    expect(component.isProcessing).toBeTrue();
+    expect(component.isProcessing).toBe(true);
 
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Payment processing');
@@ -192,9 +192,9 @@ describe('PublicInvoiceComponent — payment', () => {
     const invoice = baseInvoice();          // server says: nothing in flight
     setUp(invoice, { payment: 'processing' });
 
-    expect(component.justReturnedFromCheckout).toBeTrue();
+    expect(component.justReturnedFromCheckout).toBe(true);
     // ...but the page does not claim a payment is processing.
-    expect(component.isProcessing).toBeFalse();
+    expect(component.isProcessing).toBe(false);
     expect(fixture.nativeElement.textContent).toContain('Pay from Bank');
   });
 
@@ -202,7 +202,7 @@ describe('PublicInvoiceComponent — payment', () => {
   it('never shows Paid on the strength of a redirect', () => {
     setUp(baseInvoice(), { payment: 'processing' });
 
-    expect(component.isPaid).toBeFalse();
+    expect(component.isPaid).toBe(false);
     const text = fixture.nativeElement.textContent as string;
     expect(text).not.toContain('Paid in full');
     expect(text).toContain('925.43');
@@ -211,7 +211,7 @@ describe('PublicInvoiceComponent — payment', () => {
   it('says so when the customer cancelled', () => {
     setUp(baseInvoice(), { payment: 'cancelled' });
 
-    expect(component.checkoutCancelled).toBeTrue();
+    expect(component.checkoutCancelled).toBe(true);
     expect(fixture.nativeElement.textContent).toContain('Nothing has been charged.');
   });
 
@@ -219,12 +219,12 @@ describe('PublicInvoiceComponent — payment', () => {
 
   it('sends no amount when starting checkout — the server decides it', () => {
     setUp(baseInvoice());
-    service.startCheckout.and.returnValue(of({
+    service.startCheckout.mockReturnValue(of({
       checkoutUrl: 'https://checkout.stripe.com/c/pay/test', attemptId: 1,
       amount: 925.43, processingFee: 5, totalCharged: 930.43
     }));
     // Intercepted: the real one navigates away and would disconnect the test runner.
-    const redirect = spyOn<any>(component, 'redirectToCheckout');
+    const redirect = vi.spyOn(component as any, 'redirectToCheckout').mockReturnValue(undefined);
 
     component.payFromBank();
 
@@ -234,14 +234,14 @@ describe('PublicInvoiceComponent — payment', () => {
       'a'.repeat(48), InvoicePaymentRecordMethod.AchBankTransfer);
 
     // Two arguments only: the token and the method. There is nowhere to put an amount.
-    const args = service.startCheckout.calls.mostRecent().args;
+    const args = vi.mocked(service.startCheckout).mock.lastCall!;
     expect(args.length).toBe(2);
   });
 
   it('falls back to the manual details when online payment cannot be started', () => {
     setUp(baseInvoice());
 
-    service.startCheckout.and.returnValue(throwError(() => new HttpErrorResponse({
+    service.startCheckout.mockReturnValue(throwError(() => new HttpErrorResponse({
       status: 503,
       error: {
         message: 'Online bank payment is temporarily unavailable. '
@@ -252,7 +252,7 @@ describe('PublicInvoiceComponent — payment', () => {
     component.payFromBank();
     fixture.detectChanges();
 
-    expect(component.startingPayment).toBeFalse();
+    expect(component.startingPayment).toBe(false);
     expect(component.paymentError).toContain('temporarily unavailable');
 
     // The page re-reads, so the buttons reflect whatever the server now says.
@@ -262,11 +262,11 @@ describe('PublicInvoiceComponent — payment', () => {
   /** A double-click must not open two Checkout Sessions. */
   it('does not start a second checkout while one is starting', () => {
     setUp(baseInvoice());
-    service.startCheckout.and.returnValue(of({
+    service.startCheckout.mockReturnValue(of({
       checkoutUrl: 'https://checkout.stripe.com/c/pay/test', attemptId: 1,
       amount: 925.43, processingFee: 5, totalCharged: 930.43
     }));
-    spyOn<any>(component, 'redirectToCheckout');
+    vi.spyOn(component as any, 'redirectToCheckout').mockReturnValue(undefined);
 
     component.startingPayment = true;
     component.payFromBank();
@@ -505,15 +505,15 @@ describe('PublicInvoiceComponent — payment', () => {
     expect(fixture.nativeElement.textContent).not.toContain('ACH Processing Fee');
 
     // With nothing extra to confirm, the button does not interpose a confirmation step.
-    spyOn<any>(component, 'redirectToCheckout');
-    service.startCheckout.and.returnValue(of({
+    vi.spyOn(component as any, 'redirectToCheckout').mockReturnValue(undefined);
+    service.startCheckout.mockReturnValue(of({
       checkoutUrl: 'https://checkout.stripe.com/c/pay/test',
       attemptId: 1, amount: 925.43, processingFee: 0, totalCharged: 925.43
     }));
 
     component.payFromBank();
 
-    expect(component.confirmingBankPayment).toBeFalse();
+    expect(component.confirmingBankPayment).toBe(false);
     expect(service.startCheckout).toHaveBeenCalled();
   });
 
@@ -525,7 +525,7 @@ describe('PublicInvoiceComponent — payment', () => {
    */
   it('confirms the total bank debit before opening Stripe', () => {
     setUp(withAchFee());
-    service.startCheckout.and.returnValue(of({
+    service.startCheckout.mockReturnValue(of({
       checkoutUrl: 'https://checkout.stripe.com/c/pay/test',
       attemptId: 1, amount: 925.43, processingFee: 5, totalCharged: 930.43
     }));
@@ -533,7 +533,7 @@ describe('PublicInvoiceComponent — payment', () => {
     component.payFromBank();
     fixture.detectChanges();
 
-    expect(component.confirmingBankPayment).toBeTrue();
+    expect(component.confirmingBankPayment).toBe(true);
     expect(service.startCheckout).not.toHaveBeenCalled();
 
     const text = fixture.nativeElement.textContent as string;
@@ -542,11 +542,11 @@ describe('PublicInvoiceComponent — payment', () => {
     expect(text).toContain('$930.43');
 
     // Confirming is what actually starts it.
-    spyOn<any>(component, 'redirectToCheckout');
+    vi.spyOn(component as any, 'redirectToCheckout').mockReturnValue(undefined);
     component.confirmBankPayment();
 
     expect(service.startCheckout)
-      .toHaveBeenCalledWith(jasmine.any(String), InvoicePaymentRecordMethod.AchBankTransfer);
+      .toHaveBeenCalledWith(expect.any(String), InvoicePaymentRecordMethod.AchBankTransfer);
   });
 
   it('lets the customer back out of the confirmation without charging anything', () => {
@@ -556,7 +556,7 @@ describe('PublicInvoiceComponent — payment', () => {
     component.cancelBankPayment();
     fixture.detectChanges();
 
-    expect(component.confirmingBankPayment).toBeFalse();
+    expect(component.confirmingBankPayment).toBe(false);
     expect(service.startCheckout).not.toHaveBeenCalled();
   });
 
@@ -574,10 +574,10 @@ describe('PublicInvoiceComponent — payment', () => {
       Array.from(fixture.nativeElement.querySelectorAll('.pay-confirm-actions button'));
     const cancel = buttons.find(b => b.textContent?.trim() === 'Cancel');
 
-    expect(cancel).withContext('the confirmation offers a way out').toBeDefined();
+    expect(cancel, 'the confirmation offers a way out').toBeDefined();
     expect(cancel!.className).toContain('btn-pay-cancel');
     // .btn-pay is the primary treatment; Cancel must not borrow it.
-    expect(cancel!.classList.contains('btn-pay')).toBeFalse();
+    expect(cancel!.classList.contains('btn-pay')).toBe(false);
   });
 
   /**
@@ -587,7 +587,7 @@ describe('PublicInvoiceComponent — payment', () => {
    */
   it('reveals the confirmation once and does not yank the page on a second press', () => {
     setUp(withAchFee());
-    const reveal = spyOn<any>(component, 'revealConfirmation').and.stub();
+    const reveal = vi.spyOn(component as any, 'revealConfirmation').mockImplementation(() => {});
 
     component.payFromBank();
     fixture.detectChanges();
@@ -595,7 +595,7 @@ describe('PublicInvoiceComponent — payment', () => {
 
     component.payFromBank();
     fixture.detectChanges();
-    expect(component.confirmingBankPayment).toBeTrue();
+    expect(component.confirmingBankPayment).toBe(true);
     expect(reveal).toHaveBeenCalledTimes(1);
   });
 
@@ -613,7 +613,7 @@ describe('PublicInvoiceComponent — payment', () => {
   it('stays payable after the customer abandons the Stripe page', () => {
     setUp(baseInvoice(), { payment: 'cancelled' });
 
-    expect(component.isProcessing).toBeFalse();
+    expect(component.isProcessing).toBe(false);
 
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Pay from Bank');
@@ -644,7 +644,7 @@ describe('PublicInvoiceComponent — payment', () => {
 
     const breakdown: HTMLElement | null =
       fixture.nativeElement.querySelector('.processing-breakdown');
-    expect(breakdown).withContext('the banner shows what the bank will debit').not.toBeNull();
+    expect(breakdown, 'the banner shows what the bank will debit').not.toBeNull();
 
     const text = breakdown!.textContent as string;
     expect(text).toContain('Invoice payment');
@@ -683,13 +683,13 @@ describe('PublicInvoiceComponent — payment', () => {
 
     const toggle: HTMLElement | null = fixture.nativeElement.querySelector('.manual-toggle');
     expect(toggle).not.toBeNull();
-    expect(toggle!.querySelector('.manual-icon')).withContext('bank icon').not.toBeNull();
+    expect(toggle!.querySelector('.manual-icon'), 'bank icon').not.toBeNull();
     expect(toggle!.querySelector('.manual-title')!.textContent)
       .toContain('Pay by Manual ACH Transfer');
     expect(toggle!.querySelector('.manual-sub')!.textContent!.trim().length).toBeGreaterThan(0);
 
     const badge: HTMLElement | null = toggle!.querySelector('.manual-badge');
-    expect(badge).withContext('a chip, not a loose sentence').not.toBeNull();
+    expect(badge, 'a chip, not a loose sentence').not.toBeNull();
     expect(badge!.textContent).toContain('No processing fee from Dream Cleaning NYC');
 
     // The old loose-sentence element is gone for good.

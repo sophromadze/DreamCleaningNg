@@ -9,6 +9,8 @@ describe('AppComponent', () => {
       providers: [...testProviders],
       imports: [AppComponent],
     }).compileComponents();
+    // AttributionService reports the visit with sendBeacon; "queued" keeps it off the network.
+    vi.spyOn(navigator, 'sendBeacon').mockReturnValue(true);
   });
 
   it('should create the app', () => {

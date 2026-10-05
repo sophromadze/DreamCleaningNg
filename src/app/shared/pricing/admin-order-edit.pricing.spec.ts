@@ -165,11 +165,11 @@ describe('admin order edit pricing', () => {
 
   it('covers both service types and both cleaning levels', () => {
     expect(PRICING_FIXTURES.length).toBe(100);
-    expect(PRICING_FIXTURES.some(f => f.serviceTypeName.startsWith('Residential'))).toBeTrue();
-    expect(PRICING_FIXTURES.some(f => f.serviceTypeName.startsWith('Move'))).toBeTrue();
-    expect(PRICING_FIXTURES.some(f => f.expectedMinimumPriceApplied)).toBeTrue();
-    expect(PRICING_FIXTURES.some(f => f.levels == null)).toBeTrue();
-    [1, 2, 3, 4].forEach(n => expect(PRICING_FIXTURES.some(f => f.levels === n)).toBeTrue());
+    expect(PRICING_FIXTURES.some(f => f.serviceTypeName.startsWith('Residential'))).toBe(true);
+    expect(PRICING_FIXTURES.some(f => f.serviceTypeName.startsWith('Move'))).toBe(true);
+    expect(PRICING_FIXTURES.some(f => f.expectedMinimumPriceApplied)).toBe(true);
+    expect(PRICING_FIXTURES.some(f => f.levels == null)).toBe(true);
+    [1, 2, 3, 4].forEach(n => expect(PRICING_FIXTURES.some(f => f.levels === n)).toBe(true));
   });
 
   it('returns row index maps so per-line costs can be written back in place', () => {
@@ -258,7 +258,7 @@ describe('admin order edit pricing', () => {
       expect(built.input.services.length).toBe(2);            // cleaner + synthetic hours
       expect(built.serviceRowIndices).toEqual([0]);            // only the real row is writable
       expect(built.input.services[1].serviceRelationType).toBe('hours');
-      expect(calculateQuote(built.input).serviceLines[1].shouldAddToOrder).toBeFalse();
+      expect(calculateQuote(built.input).serviceLines[1].shouldAddToOrder).toBe(false);
     });
 
     it('does not synthesise an hours line for orders without a cleaner service', () => {
@@ -269,7 +269,7 @@ describe('admin order edit pricing', () => {
         3
       );
 
-      expect(built!.input.services.every(s => s.serviceRelationType !== 'hours')).toBeTrue();
+      expect(built!.input.services.every(s => s.serviceRelationType !== 'hours')).toBe(true);
     });
   });
 
@@ -294,8 +294,8 @@ describe('admin order edit pricing', () => {
 
     // The exact numbers the admin must see instead of the unfloored 112.50 / 210.00.
     expect(residential.subTotal).toBe(130.00);
-    expect(residential.minimumPriceApplied).toBeTrue();
+    expect(residential.minimumPriceApplied).toBe(true);
     expect(moveInOut.subTotal).toBe(245.00);
-    expect(moveInOut.minimumPriceApplied).toBeTrue();
+    expect(moveInOut.minimumPriceApplied).toBe(true);
   });
 });

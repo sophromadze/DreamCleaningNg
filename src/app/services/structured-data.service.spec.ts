@@ -61,6 +61,6 @@ describe('StructuredDataService', () => {
 
     const graph = siteGraph();
     expect(graph.length).toBe(2);
-    expect('aggregateRating' in graph[0]).toBeFalse();
+    expect('aggregateRating' in graph[0]).toBe(false);
   });
 });

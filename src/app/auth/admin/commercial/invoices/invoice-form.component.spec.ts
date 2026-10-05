@@ -153,15 +153,15 @@ describe('InvoiceFormComponent', () => {
     expect(component.totals.preTaxTotal).toBe(2549.98); expect(component.totals.taxAmount).toBe(226.31);
     expect(component.balanceDue).toBe(2776.29);
     expect(fixture.nativeElement.querySelector('.service-dates')).toBeNull();
-    expect(fixture.nativeElement.querySelector('#serviceStart').disabled).toBeTrue();
-    expect(fixture.nativeElement.querySelector('#serviceEnd').disabled).toBeTrue();
+    expect(fixture.nativeElement.querySelector('#serviceStart').disabled).toBe(true);
+    expect(fixture.nativeElement.querySelector('#serviceEnd').disabled).toBe(true);
     expect(fixture.nativeElement.querySelector('.totals').textContent).toContain('$2,549.98');
     component.toggleOrder(component.eligibleOrders[2]);
     expect(component.serviceEndDate).toBe('2026-09-27'); expect(component.totals.total).toBe(1850.86);
     httpMock.expectOne(PREVIEW_URL).flush(previewResponse(component.eligibleOrders.slice(0, 2)));
     component.clearOrderSelection(); fixture.detectChanges(); await fixture.whenStable(); fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('.service-dates')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('#serviceStart').disabled).toBeFalse();
+    expect(fixture.nativeElement.querySelector('#serviceStart').disabled).toBe(false);
     expect(component.lines[0].description).toBe('Cloned old single line');
     expect(component.serviceDates).toEqual(['2026-09-13']);
   });
@@ -191,7 +191,7 @@ describe('InvoiceFormComponent', () => {
   it('saves the selection and invoice together without a second mutating selection request', () => {
     prepareLinkedDraft(); component.selectAllEligible();
     httpMock.expectOne(PREVIEW_URL).flush(previewResponse(component.eligibleOrders));
-    spyOn(TestBed.inject(Router), 'navigate').and.resolveTo(true);
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
     component.saveDraft();
     const request = httpMock.expectOne(`${environment.apiUrl}/admin/commercial/invoices`);
     expect(request.request.method).toBe('POST');
@@ -267,10 +267,10 @@ describe('InvoiceFormComponent', () => {
 
   describe('the "New client" button', () => {
     it('is offered to an admin who holds Create', () => {
-      expect(component.canCreateClient).toBeTrue();
+      expect(component.canCreateClient).toBe(true);
 
       component.openClientModal();
-      expect(component.showClientModal).toBeTrue();
+      expect(component.showClientModal).toBe(true);
     });
 
     it('does nothing for a view-only admin', () => {
@@ -278,7 +278,7 @@ describe('InvoiceFormComponent', () => {
 
       component.openClientModal();
 
-      expect(component.showClientModal).toBeFalse();
+      expect(component.showClientModal).toBe(false);
     });
 
     it('does nothing once the invoice is monetarily locked', () => {
@@ -287,7 +287,7 @@ describe('InvoiceFormComponent', () => {
 
       component.openClientModal();
 
-      expect(component.showClientModal).toBeFalse();
+      expect(component.showClientModal).toBe(false);
     });
   });
 });

@@ -181,10 +181,8 @@ describe('CustomerStatsComponent', () => {
       // range ending later today — nothing here is month-specific.
       (['day', 'week', 'month', 'year'] as const).forEach(unit => {
         component.compareUnit = unit;
-        expect(resolve(future()).unfinished)
-          .withContext(`${unit} in the future`).toBe(true);
-        expect(resolve(past).unfinished)
-          .withContext(`${unit} in the past`).toBe(false);
+        expect(resolve(future()).unfinished, `${unit} in the future`).toBe(true);
+        expect(resolve(past).unfinished, `${unit} in the past`).toBe(false);
       });
     });
 

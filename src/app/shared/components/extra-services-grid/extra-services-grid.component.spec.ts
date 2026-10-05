@@ -59,7 +59,7 @@ describe('ExtraServicesGridComponent', () => {
     it('renders no price by default', () => {
       fixture.detectChanges();
 
-      expect(component.showPrices).toBeFalse();
+      expect(component.showPrices).toBe(false);
       expect(renderedPrices()).toEqual([]);
     });
 

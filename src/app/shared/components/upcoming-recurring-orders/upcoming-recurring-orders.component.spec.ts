@@ -105,7 +105,7 @@ describe('UpcomingRecurringOrdersComponent', () => {
 
     const payButtons: NodeListOf<HTMLElement> =
       fixture.nativeElement.querySelectorAll('.uro-item .uro-pay-btn');
-    expect(payButtons.length).withContext('only the head of the queue is payable').toBe(1);
+    expect(payButtons.length, 'only the head of the queue is payable').toBe(1);
   });
 
   it('says WHY the later ones are not payable, rather than leaving them inert', () => {
@@ -128,7 +128,7 @@ describe('UpcomingRecurringOrdersComponent', () => {
 
     load(data);
 
-    expect(component.orders[0].isPaid).toBeTrue();
+    expect(component.orders[0].isPaid).toBe(true);
     const payButtons: NodeListOf<HTMLElement> =
       fixture.nativeElement.querySelectorAll('.uro-item .uro-pay-btn');
     expect(payButtons.length).toBe(1);
@@ -171,7 +171,7 @@ describe('UpcomingRecurringOrdersComponent', () => {
   it('renders nothing at all for a customer with no recurring plan', () => {
     load(upcoming({ orders: [], payAllCount: 0, payAllTotal: 0, canPayAll: false }));
 
-    expect(component.hasAny).toBeFalse();
+    expect(component.hasAny).toBe(false);
     expect(fixture.nativeElement.querySelector('.uro')).toBeNull();
   });
 
@@ -179,7 +179,7 @@ describe('UpcomingRecurringOrdersComponent', () => {
     load(); component.showPayAll = true;
     component.closePayAll();
     httpMock.expectOne(UPCOMING_URL).flush(upcoming()); fixture.detectChanges();
-    expect(component.showPayAll).toBeFalse();
+    expect(component.showPayAll).toBe(false);
     expect(fixture.nativeElement.querySelector('.uro-payall-btn')).not.toBeNull();
     expect(fixture.nativeElement.querySelectorAll('.uro-item .uro-pay-btn').length).toBe(1);
     expect(fixture.nativeElement.textContent).not.toContain('Payment is already being processed');
@@ -201,7 +201,7 @@ describe('UpcomingRecurringOrdersComponent', () => {
   it('never tells the customer the payment failed when Stripe.js throws instead of answering', async () => {
     load();
     const stripe = TestBed.inject(StripeService);
-    spyOn(stripe, 'confirmCardPayment').and.returnValue(Promise.reject(new Error('network down')));
+    vi.spyOn(stripe, 'confirmCardPayment').mockReturnValue(Promise.reject(new Error('network down')));
     (component as any).clientSecret = 'secret_1';
 
     await component.confirmPayAll();
@@ -209,13 +209,13 @@ describe('UpcomingRecurringOrdersComponent', () => {
     expect(component.payAllError).toBe(PAY_ALL_UNCONFIRMED_MESSAGE);
     expect(component.payAllError).toContain("don't pay again");
     expect(component.payAllError).not.toMatch(/could not be completed|declined|failed/i);
-    expect(component.payingAll).toBeFalse();
+    expect(component.payingAll).toBe(false);
   });
 
   it('still reports a genuine card decline as a decline', async () => {
     load();
     const stripe = TestBed.inject(StripeService);
-    spyOn(stripe, 'confirmCardPayment').and.returnValue(Promise.resolve({ error: { message: 'Your card was declined.' } } as any));
+    vi.spyOn(stripe, 'confirmCardPayment').mockReturnValue(Promise.resolve({ error: { message: 'Your card was declined.' } } as any));
     (component as any).clientSecret = 'secret_1';
 
     await component.confirmPayAll();

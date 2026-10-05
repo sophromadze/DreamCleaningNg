@@ -45,7 +45,7 @@ describe('HeaderComponent — stable layout from the first paint', () => {
 
   it('renders an admin\'s time pill and the WHOLE points badge before auth has resolved', async () => {
     const { header, el } = await create('ua');
-    expect(header.showAuthUI).toBeFalse();
+    expect(header.showAuthUI).toBe(false);
     expect(el.querySelector('.ny-time-clock')?.textContent?.trim()).toMatch(/^\d{1,2}:\d{2}$/);
     // Drawn, not just reserved (2026-10): frame, bubbles and "POINTS" are there; only the number
     // slot is empty until the summary loads.
@@ -93,7 +93,7 @@ describe('HeaderComponent — stable layout from the first paint', () => {
     header.currentUser = null;
     fixture.detectChanges();
     expect(el.querySelector('app-bubble-badge')).toBeNull();
-    expect(header.clockVisible).toBeFalse();
+    expect(header.clockVisible).toBe(false);
   });
 
   it('drops the badge slot when the points system turns out to be off', async () => {

@@ -41,33 +41,33 @@ describe('BookingServicesComponent', () => {
       component.userPermissions.permissions.canUpdate = true;
       component.userPermissions.permissions.canCreate = true;
       component.selectedServiceType = { id: 1, name: 'Residential', extraServices: [] } as unknown as ServiceType;
-      spyOn(component, 'loadServiceTypes').and.stub();
+      vi.spyOn(component, 'loadServiceTypes').mockImplementation(() => {});
     });
 
     it('sends the key with every save, blank meaning "no key"', () => {
-      const update = spyOn(admin, 'updateExtraService').and.returnValue(of(extra({})));
+      const update = vi.spyOn(admin, 'updateExtraService').mockReturnValue(of(extra({})));
       component.saveExtraService(extra({ name: 'We Bring a Hoover' }));
-      expect(update.calls.mostRecent().args[1].extraServiceKey).toBe('vacuum-cleaner');
+      expect(vi.mocked(update).mock.lastCall![1].extraServiceKey).toBe('vacuum-cleaner');
 
       component.saveExtraService(extra({ extraServiceKey: null }));
-      expect(update.calls.mostRecent().args[1].extraServiceKey).toBeNull();
+      expect(vi.mocked(update).mock.lastCall![1].extraServiceKey).toBeNull();
     });
 
     it('shows the server\'s reason when a key is refused', () => {
-      spyOn(admin, 'updateExtraService').and.returnValue(throwError(() => new HttpErrorResponse({
+      vi.spyOn(admin, 'updateExtraService').mockReturnValue(throwError(() => new HttpErrorResponse({
         status: 400, error: { message: 'Extra service key must be lowercase (for example "move-in-out").' }
       })));
-      spyOn(console, 'error');
+      vi.spyOn(console, 'error').mockReturnValue(undefined);
       component.saveExtraService(extra({ extraServiceKey: 'Vacuum' }));
       expect(component.extraServiceMessage.error).toContain('must be lowercase');
     });
 
     it('sends the key when creating', () => {
-      const create = spyOn(admin, 'createExtraService').and.returnValue(of(extra({ id: 9 })));
+      const create = vi.spyOn(admin, 'createExtraService').mockReturnValue(of(extra({ id: 9 })));
       component.newExtraService.name = 'Oven';
       component.newExtraService.extraServiceKey = 'oven';
       component.addExtraService();
-      expect(create.calls.mostRecent().args[0].extraServiceKey).toBe('oven');
+      expect(vi.mocked(create).mock.lastCall![0].extraServiceKey).toBe('oven');
     });
 
     it('offers a copy only of extras the type does not already have, by key first', () => {

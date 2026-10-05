@@ -45,7 +45,7 @@ describe('hero choice cookie', () => {
 
     it('reads anything off-format as no choice', () => {
       for (const bad of ['', 'garbage', '2.1.n.-.', '1.1.x.-.', '1.1.n.z.', '1.1.n.-.1-', '1.1.n.-.a-1', '1.1.n.-.1-1;x', '1.-1.n.-.']) {
-        expect(decodeHeroChoice(bad)).withContext(bad).toBeNull();
+        expect(decodeHeroChoice(bad), bad).toBeNull();
       }
     });
   });

@@ -91,6 +91,28 @@
                   "with": "src/environments/environment.development.ts"
                 }
               ]
+            },
+            "test": {
+              "aot": false,
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "polyfills": [
+                "zone.js",
+                "zone.js/testing",
+                "zone.js/plugins/vitest-patch"
+              ],
+              "inlineStyleLanguage": "scss",
+              "assets": [
+                {
+                  "glob": "**/*",
+                  "input": "public"
+                }
+              ],
+              "styles": [
+                "src/styles.scss"
+              ],
+              "scripts": []
             }
           },
           "defaultConfiguration": "production"
@@ -114,24 +136,31 @@
           "builder": "@angular/build:extract-i18n"
         },
         "test": {
-          "builder": "@angular/build:karma",
+          "builder": "@angular/build:unit-test",
           "options": {
-            "polyfills": [
-              "zone.js",
-              "zone.js/testing"
-            ],
+            "buildTarget": "::test",
             "tsConfig": "tsconfig.spec.json",
-            "inlineStyleLanguage": "scss",
-            "assets": [
-              {
-                "glob": "**/*",
-                "input": "public"
-              }
+            "runnerConfig": "vitest-base.config.mts",
+            "setupFiles": [
+              "src/testing/vitest-setup.ts"
             ],
-            "styles": [
-              "src/styles.scss"
-            ],
-            "scripts": []
+            "exclude": [
+              "app/shared/components/recurring-series-panel/recurring-series-panel.component.spec.ts",
+              "app/contract/contract-sign/contract-sign.component.spec.ts"
+            ]
+          },
+          "configurations": {
+            "browser": {
+              "include": [
+                "app/shared/components/recurring-series-panel/recurring-series-panel.component.spec.ts",
+                "app/contract/contract-sign/contract-sign.component.spec.ts"
+              ],
+              "exclude": [],
+              "runnerConfig": "vitest-browser.config.mts",
+              "browsers": [
+                "chromiumHeadless"
+              ]
+            }
           }
         }
       }

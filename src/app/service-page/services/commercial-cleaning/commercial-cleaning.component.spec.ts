@@ -1,3 +1,4 @@
+import type { MockedObject } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController } from '@angular/common/http/testing';
 
@@ -10,7 +11,7 @@ describe('CommercialCleaningComponent', () => {
   let component: CommercialCleaningComponent;
   let fixture: ComponentFixture<CommercialCleaningComponent>;
   let http: HttpTestingController;
-  let analytics: jasmine.SpyObj<AnalyticsService>;
+  let analytics: MockedObject<AnalyticsService>;
 
   const VALID = {
     businessName: 'Hudson Dental Group',
@@ -25,7 +26,7 @@ describe('CommercialCleaningComponent', () => {
   };
 
   beforeEach(async () => {
-    analytics = jasmine.createSpyObj<AnalyticsService>('AnalyticsService', ['pushEvent']);
+    analytics = { pushEvent: vi.fn().mockName('AnalyticsService.pushEvent') } as unknown as MockedObject<AnalyticsService>;
 
     await TestBed.configureTestingModule({
       imports: [CommercialCleaningComponent],
@@ -52,7 +53,7 @@ describe('CommercialCleaningComponent', () => {
   it('does not submit an incomplete form', () => {
     component.onSubmit();
     http.expectNone(COMMERCIAL_URL);
-    expect(component.isSubmitting).toBeFalse();
+    expect(component.isSubmitting).toBe(false);
   });
 
   // Its own endpoint and DTO. Squeezed into the residential quote-request DTO, the email read
@@ -96,11 +97,11 @@ describe('CommercialCleaningComponent', () => {
     component.onSubmit();
     http.expectOne(COMMERCIAL_URL).flush({});
 
-    expect(analytics.pushEvent).toHaveBeenCalledWith('quote_form_submit', jasmine.objectContaining({
+    expect(analytics.pushEvent).toHaveBeenCalledWith('quote_form_submit', expect.objectContaining({
       event_label: 'commercial_quote_request'
     }));
-    expect(component.showSuccess).toBeTrue();
-    expect(component.isSubmitting).toBeFalse();
+    expect(component.showSuccess).toBe(true);
+    expect(component.isSubmitting).toBe(false);
   });
 
   it('releases the button and shows a message when the request fails', () => {
@@ -109,8 +110,8 @@ describe('CommercialCleaningComponent', () => {
     http.expectOne(COMMERCIAL_URL)
       .flush({ message: 'Email service is not configured.' }, { status: 500, statusText: 'Server Error' });
 
-    expect(component.isSubmitting).toBeFalse();
-    expect(component.showError).toBeTrue();
+    expect(component.isSubmitting).toBe(false);
+    expect(component.showError).toBe(true);
     expect(component.errorMessage).toContain('Email service is not configured.');
     expect(analytics.pushEvent).not.toHaveBeenCalled();
   });
@@ -172,7 +173,7 @@ describe('CommercialCleaningComponent', () => {
       expect(coupon.querySelector('.hero-offer-coupon__percent')!.textContent!.trim())
         .toBe(`${component.firstMonthDiscountPercent}%`);
 
-      const scrolled = spyOn(component, 'scrollToQuoteForm');
+      const scrolled = vi.spyOn(component, 'scrollToQuoteForm').mockReturnValue(undefined);
       coupon.click();
       expect(scrolled).toHaveBeenCalled();
     });

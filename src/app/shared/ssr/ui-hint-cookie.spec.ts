@@ -20,23 +20,23 @@ describe('dc_ui layout hint', () => {
   });
 
   it('a signed-in visitor has the points badge unless the points system said off', () => {
-    expect(decodeUiHint('u').pointsBadge).toBeTrue();
-    expect(decodeUiHint('ua').pointsBadge).toBeTrue();
-    expect(decodeUiHint('un').pointsBadge).toBeFalse();
+    expect(decodeUiHint('u').pointsBadge).toBe(true);
+    expect(decodeUiHint('ua').pointsBadge).toBe(true);
+    expect(decodeUiHint('un').pointsBadge).toBe(false);
   });
 
   it('still reads the first release\'s "u[a][f][b]" cookies as signed in, so nobody renders anonymous for a visit', () => {
     for (const legacy of ['ufb', 'uafb', 'ub', 'uab', 'uf', 'uaf']) {
       const hint = decodeUiHint(legacy);
-      expect(hint.signedIn).withContext(legacy).toBeTrue();
-      expect(hint.admin).withContext(legacy).toBe(legacy.startsWith('ua'));
-      expect(hint.pointsBadge).withContext(legacy).toBeTrue();
+      expect(hint.signedIn, legacy).toBe(true);
+      expect(hint.admin, legacy).toBe(legacy.startsWith('ua'));
+      expect(hint.pointsBadge, legacy).toBe(true);
     }
   });
 
   it('reads anything unexpected as anonymous', () => {
     for (const raw of [null, '', 'x', 'ua1', 'UAFB', 'ubfa', 'una', 'u a', '%75', '<script>']) {
-      expect(decodeUiHint(raw as any)).withContext(String(raw)).toEqual(ANONYMOUS_UI_HINT);
+      expect(decodeUiHint(raw as any), String(raw)).toEqual(ANONYMOUS_UI_HINT);
     }
     expect(encodeUiHint(ANONYMOUS_UI_HINT)).toBeNull();
   });
@@ -44,14 +44,14 @@ describe('dc_ui layout hint', () => {
   it('finds the hint among other cookies', () => {
     expect(readUiHint('a=1; dc_ui=un; dc_hero_choice=1.1.n.-.')).toEqual(
       { signedIn: true, admin: false, pointsBadge: false });
-    expect(hasUiHint('a=1')).toBeFalse();
-    expect(hasUiHint('dc_ui=u')).toBeTrue();
+    expect(hasUiHint('a=1')).toBe(false);
+    expect(hasUiHint('dc_ui=u')).toBe(true);
   });
 
   it('derives the hint from the role and the badge state only', () => {
     expect(uiHintForUser({ role: 'Admin' }, true)).toEqual({ signedIn: true, admin: true, pointsBadge: true });
-    expect(uiHintForUser({ role: 'SuperAdmin' }, false).admin).toBeTrue();
-    expect(uiHintForUser({ role: 'Moderator' }, false).admin).toBeFalse();
+    expect(uiHintForUser({ role: 'SuperAdmin' }, false).admin).toBe(true);
+    expect(uiHintForUser({ role: 'Moderator' }, false).admin).toBe(false);
     expect(uiHintForUser(null, true)).toEqual(ANONYMOUS_UI_HINT);
   });
 

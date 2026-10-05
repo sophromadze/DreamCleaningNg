@@ -42,14 +42,14 @@ describe('service types in the admin tables are recognised by key', () => {
 
   it('filters every production type into the same category it got by name', () => {
     for (const t of PRODUCTION_TYPES) {
-      expect(orders.getServiceTypeFilterKey(order(t.name, t.key))).withContext(t.name).toBe(t.filter);
-      expect(orders.getServiceTypeFilterKey(order(t.name, null))).withContext(`${t.name} unkeyed`).toBe(t.filter);
+      expect(orders.getServiceTypeFilterKey(order(t.name, t.key)), t.name).toBe(t.filter);
+      expect(orders.getServiceTypeFilterKey(order(t.name, null)), `${t.name} unkeyed`).toBe(t.filter);
     }
   });
 
   it('keeps each keyed type in its category after a rename', () => {
     PRODUCTION_TYPES.forEach((t, i) => {
-      expect(orders.getServiceTypeFilterKey(order('Renamed Service', t.key, 100 + i))).withContext(t.key).toBe(t.filter);
+      expect(orders.getServiceTypeFilterKey(order('Renamed Service', t.key, 100 + i)), t.key).toBe(t.filter);
     });
   });
 
@@ -63,21 +63,20 @@ describe('service types in the admin tables are recognised by key', () => {
   it('gives the Users table the same short label by key as by name, and after a rename', () => {
     PRODUCTION_TYPES.forEach((t, i) => {
       const user = { id: 500 + i, lastCleaningServiceType: t.name, lastCleaningServiceTypeKey: t.key };
-      expect(users.getCompactServiceType(t.name, user)).withContext(t.name).toBe(t.compact);
-      expect(users.getCompactServiceType(t.name, { id: 600 + i, lastCleaningServiceType: t.name }))
-        .withContext(`${t.name} unkeyed`).toBe(t.compact);
+      expect(users.getCompactServiceType(t.name, user), t.name).toBe(t.compact);
+      expect(users.getCompactServiceType(t.name, { id: 600 + i, lastCleaningServiceType: t.name }), `${t.name} unkeyed`).toBe(t.compact);
       if (t.key !== 'filthy' && t.key !== 'custom') {
         // Filthy/Custom have no short label of their own - their (renamed) name is what shows.
         const renamed = { id: 700 + i, lastCleaningServiceType: 'Renamed', lastCleaningServiceTypeKey: t.key };
-        expect(users.getCompactServiceType('Renamed', renamed)).withContext(`${t.key} renamed`).toBe(t.compact);
+        expect(users.getCompactServiceType('Renamed', renamed), `${t.key} renamed`).toBe(t.compact);
       }
     });
   });
 
   it('decides Residential by key in the shared short label', () => {
-    expect(isResidentialServiceTypeOrKey('Home Cleaning', 'residential')).toBeTrue();
-    expect(isResidentialServiceTypeOrKey('Residential Cleaning', 'office')).toBeFalse();
-    expect(isResidentialServiceTypeOrKey('Residential Cleaning', null)).toBeTrue();
+    expect(isResidentialServiceTypeOrKey('Home Cleaning', 'residential')).toBe(true);
+    expect(isResidentialServiceTypeOrKey('Residential Cleaning', 'office')).toBe(false);
+    expect(isResidentialServiceTypeOrKey('Residential Cleaning', null)).toBe(true);
     expect(resolveServiceTypeShortLabel({ serviceTypeName: 'Home Cleaning', serviceTypeKey: 'residential', isDeepCleaning: true }))
       .toBe('Deep');
   });

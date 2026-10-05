@@ -45,18 +45,19 @@ describe('BookingComponent — HTTP goes through the app HttpClient', () => {
     }).compileComponents();
   });
 
-  it("routes the page-level BookingService's requests through the app interceptors", () => {
+  it("routes the page-level BookingService's requests through the app interceptors", async () => {
     const fixture = TestBed.createComponent(BookingComponent);
     fixture.detectChanges();
+    // The startup loaders run from afterNextRender; let that render settle first.
+    await fixture.whenStable();
 
     // The component's OWN instance (providers: [BookingService]), not the root one.
     const pageService = fixture.debugElement.injector.get(BookingService);
     pageService.getUserSubscription().subscribe();
 
-    expect(seen.some(u => u.includes('/booking/user-subscription')))
-      .withContext(`interceptor saw: ${seen.join(', ')}`).toBeTrue();
+    expect(seen.some(u => u.includes('/booking/user-subscription')), `interceptor saw: ${seen.join(', ')}`).toBe(true);
     // ...and the startup catalogue load went the same way.
-    expect(seen.some(u => u.includes('/booking/service-types'))).toBeTrue();
+    expect(seen.some(u => u.includes('/booking/service-types'))).toBe(true);
 
     // Both reached the testing backend rather than a real network.
     const http = TestBed.inject(HttpTestingController);

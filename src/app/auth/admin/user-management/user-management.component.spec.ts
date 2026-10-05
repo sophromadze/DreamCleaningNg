@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HttpTestingController } from '@angular/common/http/testing';
 
 import { UserManagementComponent } from './user-management.component';
@@ -76,11 +76,12 @@ describe('UserManagementComponent — panel-only mode', () => {
     sessionStorage.clear();
   });
 
-  it('draws the panel and none of the list', fakeAsync(() => {
+  it('draws the panel and none of the list', async () => {
+    vi.useFakeTimers();
     fixture.componentRef.setInput('embeddedUserId', 55);
     fixture.detectChanges();
     drain();
-    tick(200);
+    await vi.advanceTimersByTimeAsync(200);
     fixture.detectChanges();
     drain();
 
@@ -90,8 +91,8 @@ describe('UserManagementComponent — panel-only mode', () => {
     expect(fixture.nativeElement.querySelector('.detail-panel.open')).not.toBeNull();
     expect(component.selectedUser?.id).toBe(55);
 
-    tick(500);
-  }));
+    await vi.advanceTimersByTimeAsync(500);
+  });
 
   it('opens through the same path the ?userId= deep link uses', () => {
     fixture.componentRef.setInput('embeddedUserId', 55);
@@ -99,16 +100,17 @@ describe('UserManagementComponent — panel-only mode', () => {
 
     // Not a second way for a record to arrive in the panel — the deep-link seat, taken.
     expect(component.openUserId).toBe(55);
-    expect(component.isEmbedded).toBeTrue();
+    expect(component.isEmbedded).toBe(true);
 
     drain();
   });
 
-  it('leaves the click-away overlay to the host', fakeAsync(() => {
+  it('leaves the click-away overlay to the host', async () => {
+    vi.useFakeTimers();
     fixture.componentRef.setInput('embeddedUserId', 55);
     fixture.detectChanges();
     drain();
-    tick(200);
+    await vi.advanceTimersByTimeAsync(200);
     fixture.detectChanges();
     drain();
 
@@ -116,8 +118,8 @@ describe('UserManagementComponent — panel-only mode', () => {
     // the first and swallow the click.
     expect(fixture.nativeElement.querySelector('.detail-overlay')).toBeNull();
 
-    tick(500);
-  }));
+    await vi.advanceTimersByTimeAsync(500);
+  });
 
   it('tells the host when it is closed from the inside', () => {
     fixture.componentRef.setInput('embeddedUserId', 55);
@@ -150,7 +152,7 @@ describe('UserManagementComponent — panel-only mode', () => {
     fixture.detectChanges();
     drain();
 
-    expect(component.isEmbedded).toBeFalse();
+    expect(component.isEmbedded).toBe(false);
     expect(fixture.nativeElement.querySelector('.user-management-section')).not.toBeNull();
   });
 });
@@ -196,8 +198,8 @@ describe('UserManagementComponent — the CTO role lock', () => {
   });
 
   it('refuses a SuperAdmin — the caller the lock exists for', () => {
-    expect(component.canModifyUserRole(CTO)).toBeFalse();
-    expect(component.canChangeUserRole(CTO as any, 'Admin')).toBeFalse();
+    expect(component.canModifyUserRole(CTO)).toBe(false);
+    expect(component.canChangeUserRole(CTO as any, 'Admin')).toBe(false);
   });
 
   it('says why, instead of leaving the panel with no Role control at all', () => {
@@ -207,19 +209,19 @@ describe('UserManagementComponent — the CTO role lock', () => {
   it('locks on the TITLE, not on being a SuperAdmin', () => {
     // A CEO and an untitled SuperAdmin stay exactly as demotable as they were. Only CTO carries
     // the lock, because only CTO governs who may hold a title at all.
-    expect(component.canModifyUserRole(CEO)).toBeTrue();
-    expect(component.canModifyUserRole(PLAIN_SUPERADMIN)).toBeTrue();
+    expect(component.canModifyUserRole(CEO)).toBe(true);
+    expect(component.canModifyUserRole(PLAIN_SUPERADMIN)).toBe(true);
   });
 
   it('leaves a CTO on the Admin role alone', () => {
     // There is no SuperAdmin to protect there, and locking an ordinary Admin's role would be a
     // surprise nobody asked for.
-    expect(component.isCtoRoleLocked({ role: 'Admin', orgTitle: 'CTO' } as any)).toBeFalse();
+    expect(component.isCtoRoleLocked({ role: 'Admin', orgTitle: 'CTO' } as any)).toBe(false);
   });
 
   it('drops the lock the moment the title is cleared', () => {
     // The only way out, and it is the officer title rather than an override on the role itself.
-    expect(component.isCtoRoleLocked({ ...CTO, orgTitle: 'None' } as any)).toBeFalse();
+    expect(component.isCtoRoleLocked({ ...CTO, orgTitle: 'None' } as any)).toBe(false);
   });
 });
 
@@ -302,11 +304,11 @@ describe('UserManagementComponent — History lists cancelled and refunded order
     sessionStorage.clear();
   });
 
-  function openHistory(): HTMLElement {
+  async function openHistory(): Promise<HTMLElement> {
     fixture.componentRef.setInput('embeddedUserId', 55);
     fixture.detectChanges();
     drain();
-    tick(200);
+    await vi.advanceTimersByTimeAsync(200);
     fixture.detectChanges();
     drain();
     fixture.detectChanges();
@@ -315,8 +317,9 @@ describe('UserManagementComponent — History lists cancelled and refunded order
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('shows every order with the Orders tab pill', fakeAsync(() => {
-    const el = openHistory();
+  it('shows every order with the Orders tab pill', async () => {
+    vi.useFakeTimers();
+    const el = await openHistory();
 
     const rows = Array.from(el.querySelectorAll('.history-row'));
     expect(rows.length).toBe(4);
@@ -332,8 +335,8 @@ describe('UserManagementComponent — History lists cancelled and refunded order
     // Cancelled and refunded rows are dimmed; the part-refunded one is still a cancellation.
     expect(rows.map(r => r.classList.contains('cancelled'))).toEqual([false, true, true, true]);
 
-    tick(500);
-  }));
+    await vi.advanceTimersByTimeAsync(500);
+  });
 
   const historyTab = (el: HTMLElement) => Array.from(el.querySelectorAll('.detail-tabs .tab'))
     .find(t => t.textContent!.includes('History')) as HTMLElement;
@@ -341,8 +344,9 @@ describe('UserManagementComponent — History lists cancelled and refunded order
     .find(s => s.querySelector('.stat-label')!.textContent!.trim() === label)!
     .querySelector('.stat-value')!.textContent!.trim();
 
-  it('counts only real orders on the History tab, with no cancelled/refunded note (2026-10)', fakeAsync(() => {
-    const el = openHistory();
+  it('counts only real orders on the History tab, with no cancelled/refunded note (2026-10)', async () => {
+    vi.useFakeTimers();
+    const el = await openHistory();
 
     const tab = historyTab(el);
     expect(tab.querySelector('.badge')!.textContent!.trim()).toBe('1');
@@ -351,45 +355,49 @@ describe('UserManagementComponent — History lists cancelled and refunded order
     // ...while the list itself still shows all four.
     expect(el.querySelectorAll('.history-row').length).toBe(4);
 
-    tick(500);
-  }));
+    await vi.advanceTimersByTimeAsync(500);
+  });
 
-  it('shows Total Jobs and Total Spent from the server, which excludes cancelled and refunded money', fakeAsync(() => {
-    const el = openHistory();
+  it('shows Total Jobs and Total Spent from the server, which excludes cancelled and refunded money', async () => {
+    vi.useFakeTimers();
+    const el = await openHistory();
     component.setDetailTab('details');
     fixture.detectChanges();
 
     expect(stat(el, 'Total Jobs')).toBe('1');
     expect(stat(el, 'Total Spent')).toContain('659.70');
 
-    tick(500);
-  }));
+    await vi.advanceTimersByTimeAsync(500);
+  });
 
-  it('still counts real orders when the statistics read fails', fakeAsync(() => {
+  it('still counts real orders when the statistics read fails', async () => {
+    vi.useFakeTimers();
     PROFILE_FAILS = true;
-    const el = openHistory();
+    const el = await openHistory();
     component.setDetailTab('details');
     fixture.detectChanges();
 
     expect(stat(el, 'Total Jobs')).toBe('1');
 
-    tick(500);
-  }));
+    await vi.advanceTimersByTimeAsync(500);
+  });
 
-  it('offers Recreate on cancelled and refunded rows too', fakeAsync(() => {
-    const el = openHistory();
+  it('offers Recreate on cancelled and refunded rows too', async () => {
+    vi.useFakeTimers();
+    const el = await openHistory();
     expect(el.querySelectorAll('.history-row .history-recreate').length).toBe(4);
-    tick(500);
-  }));
+    await vi.advanceTimersByTimeAsync(500);
+  });
 
-  it('no longer counts the refunded order in the totals (2026-10)', fakeAsync(() => {
-    openHistory();
+  it('no longer counts the refunded order in the totals (2026-10)', async () => {
+    vi.useFakeTimers();
+    await openHistory();
     // Only the Done order is a real job; the refunded $103 was not spent. The browser used to
     // add Done + Refunded itself (2 jobs, $204) - the figures now come from the server.
     expect(component.selectedUser!.totalOrders).toBe(1);
     expect(component.selectedUser!.totalSpent).toBe(659.70);
-    tick(500);
-  }));
+    await vi.advanceTimersByTimeAsync(500);
+  });
 });
 
 describe('UserManagementComponent — points taken back (2026-10)', () => {

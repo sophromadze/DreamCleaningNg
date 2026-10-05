@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 
 import { GiftCardConfirmationComponent } from './gift-card-confirmation.component';
 
@@ -10,7 +11,8 @@ describe('GiftCardConfirmationComponent', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      providers: [...testProviders],
+      // Its no-data redirect goes to /gift-cards, which the bare test router lacks.
+      providers: [...testProviders, provideRouter([{ path: 'gift-cards', children: [] }])],
       imports: [GiftCardConfirmationComponent]
     })
     .compileComponents();

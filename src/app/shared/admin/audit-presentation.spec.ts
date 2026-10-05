@@ -14,7 +14,7 @@ describe('Audit content and privacy regression', () => {
   beforeEach(() => TestBed.configureTestingModule({ providers: [...testProviders], imports: [AuditHistoryComponent] }));
 
   function render(action: string, values: any, entityType = 'Order') {
-    spyOn(AuditHistoryComponent.prototype, 'ngOnInit').and.stub();
+    vi.spyOn(AuditHistoryComponent.prototype, 'ngOnInit').mockImplementation(() => {});
     const fixture = TestBed.createComponent(AuditHistoryComponent);
     const c = fixture.componentInstance;
     c.auditLogs = c.processAuditLogs([{ id: 1, entityId: 7, entityType, action, createdAt: new Date().toISOString(),
@@ -90,7 +90,7 @@ describe('Audit content and privacy regression', () => {
     'EmailVerificationTokenExpiry', 'EmailChangeToken', 'LoginOtpCode', 'TwoFactorPinHash', 'EmailCodeHash', 'RefreshSession',
     'RefreshTokenExpiryTime', 'ApiKey', 'ClientSecret', 'WebhookSecret', 'PrivateKeyPem']) {
     it(`never displays populated ${field}`, () => {
-      expect(shouldShowAuditField(field)).toBeFalse();
+      expect(shouldShowAuditField(field)).toBe(false);
       expect(formatAuditValue('secret-sentinel', field)).toBe('Hidden');
       expect(JSON.stringify(normalizeAuditValues({ [field]: 'secret-sentinel', Nested: { [field]: 'secret-sentinel' }, Total: 10 }))).not.toContain('secret-sentinel');
     });

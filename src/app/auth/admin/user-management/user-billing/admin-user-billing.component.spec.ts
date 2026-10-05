@@ -1,3 +1,4 @@
+import type { MockedObject } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SimpleChange } from '@angular/core';
 import { of } from 'rxjs';
@@ -8,7 +9,7 @@ import { testProviders } from '../../../../../testing/test-providers';
 
 describe('AdminUserBillingComponent', () => {
   let fixture: ComponentFixture<AdminUserBillingComponent>;
-  let billing: jasmine.SpyObj<BillingService>;
+  let billing: MockedObject<BillingService>;
 
   const data: AdminUserBilling = {
     featureEnabled: true,
@@ -31,8 +32,8 @@ describe('AdminUserBillingComponent', () => {
   };
 
   beforeEach(async () => {
-    billing = jasmine.createSpyObj('BillingService', ['getAdminUserBilling']);
-    billing.getAdminUserBilling.and.returnValue(of(data));
+    billing = { getAdminUserBilling: vi.fn().mockName('BillingService.getAdminUserBilling') } as any;
+    billing.getAdminUserBilling.mockReturnValue(of(data));
     await TestBed.configureTestingModule({
       imports: [AdminUserBillingComponent],
       providers: [...testProviders, { provide: BillingService, useValue: billing }]
@@ -45,7 +46,7 @@ describe('AdminUserBillingComponent', () => {
   });
 
   it('loads this customer only', () => {
-    expect(billing.getAdminUserBilling).toHaveBeenCalledOnceWith(77);
+    expect(billing.getAdminUserBilling).toHaveBeenCalledExactlyOnceWith(77);
   });
 
   it('shows each arrangement separately, never one blanket ON/OFF', () => {

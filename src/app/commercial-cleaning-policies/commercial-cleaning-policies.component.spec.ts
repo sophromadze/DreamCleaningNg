@@ -10,7 +10,7 @@ import { testProviders } from '../../testing/test-providers';
  *
  * The WORDING is not asserted here — it is asserted once, on the backend, against the canonical
  * source this page's content module is generated from (`CommercialPolicyContentTests`). Repeating
- * those assertions in Karma would create a second place to update whenever a policy changes, which
+ * those assertions in the frontend specs would create a second place to update whenever a policy changes, which
  * is the drift the generated module exists to prevent. What this spec covers is the part only the
  * browser can get wrong: that every section reaches the DOM, that the contents list actually links
  * to the sections it names, and that a `Note` is rendered as a callout rather than flattened into
@@ -45,8 +45,7 @@ describe('CommercialCleaningPoliciesComponent', () => {
 
     COMMERCIAL_POLICY_CONTENT.complete.sections.forEach(section => {
       const rendered = el().querySelector(`#${section.anchor}`);
-      expect(rendered)
-        .withContext(`section ${section.number} (${section.anchor}) is missing`).not.toBeNull();
+      expect(rendered, `section ${section.number} (${section.anchor}) is missing`).not.toBeNull();
       expect(rendered!.textContent).toContain(section.title);
     });
   });
@@ -58,8 +57,7 @@ describe('CommercialCleaningPoliciesComponent', () => {
         // Compared on letters alone: the template is free to wrap, and the DOM collapses
         // whitespace differently from the source string.
         const haystack = letters(rendered.textContent ?? '');
-        expect(haystack)
-          .withContext(`${section.anchor}: "${block.text.slice(0, 60)}…" is missing`)
+        expect(haystack, `${section.anchor}: "${block.text.slice(0, 60)}…" is missing`)
           .toContain(letters(block.text));
       });
     });
@@ -96,9 +94,8 @@ describe('CommercialCleaningPoliciesComponent', () => {
 
     links.forEach(link => {
       const fragment = (link.getAttribute('href') ?? '').replace(/^.*#/, '');
-      expect(fragment).withContext('a contents link with no fragment').not.toBe('');
-      expect(el().querySelector(`#${fragment}`))
-        .withContext(`contents links to #${fragment}, which is not on the page`).not.toBeNull();
+      expect(fragment, 'a contents link with no fragment').not.toBe('');
+      expect(el().querySelector(`#${fragment}`), `contents links to #${fragment}, which is not on the page`).not.toBeNull();
     });
   });
 
@@ -160,7 +157,7 @@ describe('CommercialCleaningPoliciesComponent', () => {
     const link = Array.from(footer.querySelectorAll('a'))
       .find(a => (a.textContent ?? '').includes('Terms'));
 
-    expect(link).withContext('no link to the residential terms').toBeTruthy();
+    expect(link, 'no link to the residential terms').toBeTruthy();
     expect(link!.getAttribute('href')).toBe('/terms-and-conditions');
   });
 

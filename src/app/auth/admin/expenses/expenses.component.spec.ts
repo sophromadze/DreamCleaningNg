@@ -76,7 +76,7 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
   it('asks who a new salary is for instead of assuming', () => {
     component.openAddForm(SALARIES_CATEGORY_ID);
 
-    expect(component.isSalaryForm).toBeTrue();
+    expect(component.isSalaryForm).toBe(true);
     // '' is "not answered", which is not the same claim as "nobody" — saving must be refused.
     expect(component.staffChoice).toBe('');
     component.save();
@@ -90,7 +90,7 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
     component.form.amount = 900;
 
     // The name field gives way to the account's own name — there is nothing left to type.
-    expect(component.showsNameField).toBeFalse();
+    expect(component.showsNameField).toBe(false);
     expect(component.selectedStaff?.fullName).toBe('Nino Beridze');
 
     component.save();
@@ -106,7 +106,7 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
     component.openAddForm(SALARIES_CATEGORY_ID);
     component.staffChoice = 'custom';
 
-    expect(component.showsNameField).toBeTrue();
+    expect(component.showsNameField).toBe(true);
     component.form.name = 'Weekend receptionist';
     component.form.amount = 200;
     component.save();
@@ -124,7 +124,7 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
     component.openEditForm(salaryRow({ staffUserId: null, name: 'Old payroll line' }));
 
     expect(component.staffChoice).toBe('custom');
-    expect(component.showsNameField).toBeTrue();
+    expect(component.showsNameField).toBe(true);
     expect(component.form.name).toBe('Old payroll line');
   });
 
@@ -150,13 +150,13 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
     // The server refuses to store a link on any other category; the form must agree with it.
     expect(component.staffChoice).toBe('');
     expect(component.form.staffUserId).toBeNull();
-    expect(component.showsNameField).toBeTrue();
+    expect(component.showsNameField).toBe(true);
   });
 
   it('does not ask a non-salary expense who it was paid to', () => {
     component.openAddForm(1);
-    expect(component.isSalaryForm).toBeFalse();
-    expect(component.showsNameField).toBeTrue();
+    expect(component.isSalaryForm).toBe(false);
+    expect(component.showsNameField).toBe(true);
     expect(component.selectedStaff).toBeNull();
   });
 
@@ -166,10 +166,10 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
     // A supplier invoice or an ad bill arrives in dollars; a toggle there is an invitation to
     // mis-tag one and report it at roughly 2.7x its real cost.
     component.openAddForm(SALARIES_CATEGORY_ID);
-    expect(component.canChooseCurrency).toBeTrue();
+    expect(component.canChooseCurrency).toBe(true);
 
     component.openAddForm(1); // Supplies
-    expect(component.canChooseCurrency).toBeFalse();
+    expect(component.canChooseCurrency).toBe(false);
   });
 
   it('defaults a new expense to USD and sends what was picked', () => {
@@ -200,7 +200,7 @@ describe('ExpensesComponent — salaries are paid to a named person', () => {
     // The server forces USD on every other category; the form must agree rather than showing a
     // lari amount that is about to be reported as dollars.
     expect(component.formCurrency).toBe('USD');
-    expect(component.canChooseCurrency).toBeFalse();
+    expect(component.canChooseCurrency).toBe(false);
   });
 
   it('reopens a saved salary in the currency it was entered in', () => {

@@ -38,8 +38,7 @@ describe('cleaner total salary', () => {
         // rather than $0, which is the only way the payout can go up.
         if (total / maids < DURATION_ROUNDING_MINUTES) continue;
 
-        expect(calculateCleanerTotalSalary(total, maids, false, RATE))
-          .withContext(`${total} min across ${maids} cleaners`)
+        expect(calculateCleanerTotalSalary(total, maids, false, RATE), `${total} min across ${maids} cleaners`)
           .toBeLessThanOrEqual(atOne);
       }
     }
@@ -96,8 +95,7 @@ describe('cleaner total salary', () => {
           // Skips the documented zero-pay guard, the only case that may exceed the total.
           if (shown / maids < DURATION_ROUNDING_MINUTES) continue;
 
-          expect(maids * calculatePerCleanerBillableMinutes(total, maids, false))
-            .withContext(`${total} min shown as ${shown}, across ${maids} cleaners`)
+          expect(maids * calculatePerCleanerBillableMinutes(total, maids, false), `${total} min shown as ${shown}, across ${maids} cleaners`)
             .toBeLessThanOrEqual(shown);
         }
       }

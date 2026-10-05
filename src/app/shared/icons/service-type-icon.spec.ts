@@ -24,15 +24,15 @@ const PRODUCTION_TYPES = [
 describe('serviceTypeIcon', () => {
   it('gives every production type the icon it had by name', () => {
     for (const t of PRODUCTION_TYPES) {
-      expect(serviceTypeIcon(t)).withContext(t.name).toBe(t.icon);
+      expect(serviceTypeIcon(t), t.name).toBe(t.icon);
       // The name rule alone (an unkeyed copy, not flagged custom) agrees.
-      expect(serviceTypeIcon({ name: t.name })).withContext(`${t.name} by name`).toBe(t.icon);
+      expect(serviceTypeIcon({ name: t.name }), `${t.name} by name`).toBe(t.icon);
     }
   });
 
   it('keeps each keyed type on its icon after a rename', () => {
     for (const t of PRODUCTION_TYPES.filter(x => x.serviceKey)) {
-      expect(serviceTypeIcon({ ...t, name: 'Renamed Service' })).withContext(t.serviceKey!).toBe(t.icon);
+      expect(serviceTypeIcon({ ...t, name: 'Renamed Service' }), t.serviceKey!).toBe(t.icon);
     }
   });
 

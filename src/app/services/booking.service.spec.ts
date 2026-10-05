@@ -29,6 +29,6 @@ describe('BookingService', () => {
 
     const [plain, optedOut] = http.match(r => r.url.endsWith('/booking/service-types'));
     expect(plain.request.transferCache).toBeUndefined();
-    expect(optedOut.request.transferCache).toBeFalse();
+    expect(optedOut.request.transferCache).toBe(false);
   });
 });

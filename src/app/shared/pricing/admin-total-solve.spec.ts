@@ -103,7 +103,7 @@ describe('solveSubTotalForTypedTotal', () => {
       { originalSubTotal: 100, originalDiscount: 100, originalSubscriptionDiscount: 0, loyaltyPercentage: 0 },
       { discountAmount: 100, subscriptionDiscountAmount: 0, loyaltyDiscountAmount: 0 });
 
-    expect(Number.isFinite(solved.subTotal)).toBeTrue();
+    expect(Number.isFinite(solved.subTotal)).toBe(true);
     expect(solved.discountAmount).toBe(100);
     expect(chargedTotal(solved).total).toBe(200);
   });

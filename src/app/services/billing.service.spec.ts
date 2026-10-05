@@ -32,8 +32,8 @@ describe('BillingService', () => {
     const req = http.expectOne(r => r.url.endsWith('/billing/config'));
     req.flush('boom', { status: 500, statusText: 'Server Error' });
 
-    expect(first).toBeFalse();
-    expect(second).toBeFalse();
+    expect(first).toBe(false);
+    expect(second).toBe(false);
   });
 
   // The card is recorded AFTER the payment is confirmed, so a failure here is not a payment

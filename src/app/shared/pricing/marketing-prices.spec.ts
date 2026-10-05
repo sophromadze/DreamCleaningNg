@@ -176,8 +176,8 @@ describe('marketing prices', () => {
   });
 
   it('resolves nothing from a refused or missing body', () => {
-    expect(hasAnyMarketingPrice(extractMarketingPrices({ message: 'Unauthorized' }).prices)).toBeFalse();
-    expect(hasAnyMarketingPrice(extractMarketingPrices(null).prices)).toBeFalse();
+    expect(hasAnyMarketingPrice(extractMarketingPrices({ message: 'Unauthorized' }).prices)).toBe(false);
+    expect(hasAnyMarketingPrice(extractMarketingPrices(null).prices)).toBe(false);
   });
 
   it('leaves filthy cleaning unpriced without a complete display price', () => {

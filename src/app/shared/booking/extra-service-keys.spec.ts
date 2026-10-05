@@ -21,26 +21,26 @@ describe('extra service keys', () => {
 
   it('decides by the key when there is one, never by the name', () => {
     expect(extraIs({ name: 'Our Products', extraServiceKey: 'cleaning-supplies' },
-      EXTRA_SERVICE_KEYS.cleaningSupplies, legacyCleaningSupplies)).toBeTrue();
+      EXTRA_SERVICE_KEYS.cleaningSupplies, legacyCleaningSupplies)).toBe(true);
     expect(extraIs({ name: 'Cleaning Supplies', extraServiceKey: 'closets' },
-      EXTRA_SERVICE_KEYS.cleaningSupplies, legacyCleaningSupplies)).toBeFalse();
+      EXTRA_SERVICE_KEYS.cleaningSupplies, legacyCleaningSupplies)).toBe(false);
   });
 
   it('falls back to the name for an unkeyed row, and warns once per name', () => {
-    const warn = spyOn(console, 'warn');
+    const warn = vi.spyOn(console, 'warn').mockReturnValue(undefined);
     const unkeyed = { name: 'Cleaning Supplies', extraServiceKey: null };
-    expect(extraIs(unkeyed, EXTRA_SERVICE_KEYS.cleaningSupplies, legacyCleaningSupplies)).toBeTrue();
-    expect(extraIs(unkeyed, EXTRA_SERVICE_KEYS.cleaningSupplies, legacyCleaningSupplies)).toBeTrue();
+    expect(extraIs(unkeyed, EXTRA_SERVICE_KEYS.cleaningSupplies, legacyCleaningSupplies)).toBe(true);
+    expect(extraIs(unkeyed, EXTRA_SERVICE_KEYS.cleaningSupplies, legacyCleaningSupplies)).toBe(true);
     expect(warn).toHaveBeenCalledTimes(1);
   });
 
   it('keeps Extra Cleaners working through a rename', () => {
-    expect(isExtraCleaners({ name: 'More People', extraServiceKey: 'extra-cleaners', hasQuantity: true })).toBeTrue();
-    expect(isExtraCleaners({ name: 'Extra Cleaners', extraServiceKey: 'pets', hasQuantity: true })).toBeFalse();
+    expect(isExtraCleaners({ name: 'More People', extraServiceKey: 'extra-cleaners', hasQuantity: true })).toBe(true);
+    expect(isExtraCleaners({ name: 'Extra Cleaners', extraServiceKey: 'pets', hasQuantity: true })).toBe(false);
     // Unkeyed: the calculator's exact, case-sensitive rule, as before.
-    spyOn(console, 'warn');
-    expect(isExtraCleaners({ name: 'Extra Cleaners', hasQuantity: true })).toBeTrue();
-    expect(isExtraCleaners({ name: 'extra cleaners', hasQuantity: true })).toBeFalse();
+    vi.spyOn(console, 'warn').mockReturnValue(undefined);
+    expect(isExtraCleaners({ name: 'Extra Cleaners', hasQuantity: true })).toBe(true);
+    expect(isExtraCleaners({ name: 'extra cleaners', hasQuantity: true })).toBe(false);
   });
 
   it('drives the customer checklist from keys', () => {
@@ -63,11 +63,11 @@ describe('extra service keys', () => {
   it('reads Deep / Super Deep from the flags on an order line', () => {
     const deep = { extraServiceName: 'Thorough clean', extraServiceKey: 'deep-cleaning', isDeepCleaning: true };
     const superDeep = { extraServiceName: 'Top to bottom', extraServiceKey: 'super-deep', isSuperDeepCleaning: true };
-    expect(isDeepOrSuperDeepExtra(deep)).toBeTrue();
-    expect(isSuperDeepExtra(deep)).toBeFalse();
-    expect(isSuperDeepExtra(superDeep)).toBeTrue();
+    expect(isDeepOrSuperDeepExtra(deep)).toBe(true);
+    expect(isSuperDeepExtra(deep)).toBe(false);
+    expect(isSuperDeepExtra(superDeep)).toBe(true);
     // A keyed, un-flagged row named like deep cleaning is not deep.
-    expect(isDeepOrSuperDeepExtra({ extraServiceName: 'Deep Cleaning of Ovens', extraServiceKey: 'oven' })).toBeFalse();
+    expect(isDeepOrSuperDeepExtra({ extraServiceName: 'Deep Cleaning of Ovens', extraServiceKey: 'oven' })).toBe(false);
   });
 
   it('keeps a renamed keyed extra\'s icon and tooltip', () => {

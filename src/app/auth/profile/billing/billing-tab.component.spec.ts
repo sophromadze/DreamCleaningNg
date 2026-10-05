@@ -1,3 +1,4 @@
+import type { MockedObject } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
 
@@ -29,28 +30,39 @@ function overview(extra: Partial<AutoPayOverview> = {}): AutoPayOverview {
 describe('BillingTabComponent', () => {
   let fixture: ComponentFixture<BillingTabComponent>;
   let component: BillingTabComponent;
-  let billing: jasmine.SpyObj<BillingService>;
+  let billing: MockedObject<BillingService>;
 
   function setup(cards: SavedCard[], autoPay = overview()) {
-    billing.getCards.and.returnValue(of(cards));
-    billing.getAutoPay.and.returnValue(of(autoPay));
+    billing.getCards.mockReturnValue(of(cards));
+    billing.getAutoPay.mockReturnValue(of(autoPay));
     fixture.detectChanges();
   }
 
   beforeEach(async () => {
-    billing = jasmine.createSpyObj('BillingService', [
-      'config', 'getCards', 'getAutoPay', 'getNotifications', 'getOutstanding', 'getHistory',
-      'setPrimary', 'setBackup', 'removeCard', 'getTerms', 'enableAutoPay', 'authorize', 'disableAutoPay'
-    ]);
-    billing.config.and.returnValue(of({ savedCardsEnabled: true, autoPayEnabled: true }));
-    billing.getNotifications.and.returnValue(of([]));
-    billing.getOutstanding.and.returnValue(of([]));
-    billing.getHistory.and.returnValue(of({ items: [], page: 1, pageSize: 10, totalCount: 0 }));
+    billing = {
+      config: vi.fn().mockName('BillingService.config'),
+      getCards: vi.fn().mockName('BillingService.getCards'),
+      getAutoPay: vi.fn().mockName('BillingService.getAutoPay'),
+      getNotifications: vi.fn().mockName('BillingService.getNotifications'),
+      getOutstanding: vi.fn().mockName('BillingService.getOutstanding'),
+      getHistory: vi.fn().mockName('BillingService.getHistory'),
+      setPrimary: vi.fn().mockName('BillingService.setPrimary'),
+      setBackup: vi.fn().mockName('BillingService.setBackup'),
+      removeCard: vi.fn().mockName('BillingService.removeCard'),
+      getTerms: vi.fn().mockName('BillingService.getTerms'),
+      enableAutoPay: vi.fn().mockName('BillingService.enableAutoPay'),
+      authorize: vi.fn().mockName('BillingService.authorize'),
+      disableAutoPay: vi.fn().mockName('BillingService.disableAutoPay')
+    } as any;
+    billing.config.mockReturnValue(of({ savedCardsEnabled: true, autoPayEnabled: true }));
+    billing.getNotifications.mockReturnValue(of([]));
+    billing.getOutstanding.mockReturnValue(of([]));
+    billing.getHistory.mockReturnValue(of({ items: [], page: 1, pageSize: 10, totalCount: 0 }));
 
     await TestBed.configureTestingModule({
       imports: [BillingTabComponent],
       providers: [...testProviders, { provide: BillingService, useValue: billing },
-        { provide: StripeService, useValue: jasmine.createSpyObj('StripeService', ['destroyCardElement']) }]
+        { provide: StripeService, useValue: { destroyCardElement: vi.fn().mockName('StripeService.destroyCardElement') } }]
     }).compileComponents();
 
     fixture = TestBed.createComponent(BillingTabComponent);
@@ -86,7 +98,7 @@ describe('BillingTabComponent', () => {
     expect(component.removeDialog!.newPrimaryId).toBe(3);
     expect(component.removeConsequence()).toContain('Choose the card that should replace it');
 
-    billing.removeCard.and.returnValue(of({ message: 'ok', cards: [], autoPayEnabled: false }));
+    billing.removeCard.mockReturnValue(of({ message: 'ok', cards: [], autoPayEnabled: false }));
     component.removeDialog!.newPrimaryId = null;
     component.confirmRemove();
     expect(billing.removeCard).not.toHaveBeenCalled();
@@ -102,31 +114,31 @@ describe('BillingTabComponent', () => {
   it('cannot turn Automatic Payments on without a usable Primary card', () => {
     setup([]);
     const toggle: HTMLButtonElement = fixture.nativeElement.querySelector('.switch');
-    expect(toggle.disabled).toBeTrue();
+    expect(toggle.disabled).toBe(true);
   });
 
   it('requires all three booking consents before authorising office-booked charges', () => {
     setup([card(1, { isPrimary: true })]);
-    billing.getTerms.and.returnValue(of({ scope: 'office', version: 'v1', text: 'terms' }));
+    billing.getTerms.mockReturnValue(of({ scope: 'office', version: 'v1', text: 'terms' }));
     component.openTerms('arrangement', component.autoPay!.arrangements[0]);
 
     component.terms!.accepted = true;
-    expect(component.termsCanSubmit).toBeFalse();
+    expect(component.termsCanSubmit).toBe(false);
     component.terms!.smsConsent = true;
     component.terms!.cancellationFeeConsent = true;
-    expect(component.termsCanSubmit).toBeFalse();
+    expect(component.termsCanSubmit).toBe(false);
     component.terms!.termsOfServiceConsent = true;
-    expect(component.termsCanSubmit).toBeTrue();
+    expect(component.termsCanSubmit).toBe(true);
   });
 
   it('sends the version of the terms the customer actually read', () => {
     setup([card(1, { isPrimary: true })]);
-    billing.getTerms.and.returnValue(of({ scope: 'general', version: '2026-09.1', text: 'general terms' }));
-    billing.enableAutoPay.and.returnValue(of(overview({ autoPayEnabled: true })));
+    billing.getTerms.mockReturnValue(of({ scope: 'general', version: '2026-09.1', text: 'general terms' }));
+    billing.enableAutoPay.mockReturnValue(of(overview({ autoPayEnabled: true })));
     component.openTerms('general', null);
     component.terms!.accepted = true;
     component.submitTerms();
     expect(billing.enableAutoPay).toHaveBeenCalledWith('2026-09.1');
-    expect(component.autoPay!.autoPayEnabled).toBeTrue();
+    expect(component.autoPay!.autoPayEnabled).toBe(true);
   });
 });

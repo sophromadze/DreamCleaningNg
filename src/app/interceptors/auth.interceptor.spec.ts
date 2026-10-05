@@ -1,3 +1,4 @@
+import type { Mock } from 'vitest';
 import { TestBed } from '@angular/core/testing';
 import { HttpClient, HttpErrorResponse, HttpHeaders, provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -25,7 +26,7 @@ import { environment } from '../../environments/environment';
 describe('authInterceptor — revoked sessions', () => {
   let http: HttpClient;
   let backend: HttpTestingController;
-  let logout: jasmine.Spy;
+  let logout: Mock;
 
   beforeEach(() => {
     // The settle stamp is module state plus a localStorage key — it outlives TestBed.
@@ -45,7 +46,7 @@ describe('authInterceptor — revoked sessions', () => {
 
     http = TestBed.inject(HttpClient);
     backend = TestBed.inject(HttpTestingController);
-    logout = spyOn(TestBed.inject(AuthService), 'logout').and.stub();
+    logout = vi.spyOn(TestBed.inject(AuthService), 'logout').mockImplementation(() => {});
   });
 
   afterEach(() => backend.verify());
@@ -92,7 +93,7 @@ describe('authInterceptor — revoked sessions', () => {
       { status: 401, statusText: 'Unauthorized', headers: new HttpHeaders({ [SESSION_REVOKED_HEADER]: '1' }) }
     );
 
-    expect(received instanceof HttpErrorResponse).toBeTrue();
+    expect(received instanceof HttpErrorResponse).toBe(true);
     expect((received as HttpErrorResponse).status).toBe(401);
   });
 });
@@ -115,8 +116,8 @@ describe('authInterceptor — renewing an expired token', () => {
   let http: HttpClient;
   let backend: HttpTestingController;
   let auth: AuthService;
-  let logout: jasmine.Spy;
-  let refresh: jasmine.Spy;
+  let logout: Mock;
+  let refresh: Mock;
 
   beforeEach(() => {
     // The settle stamp is module state plus a localStorage key — it outlives TestBed.
@@ -138,9 +139,9 @@ describe('authInterceptor — renewing an expired token', () => {
     backend = TestBed.inject(HttpTestingController);
     auth = TestBed.inject(AuthService);
 
-    logout = spyOn(auth, 'logout').and.stub();
-    spyOn(auth, 'isLoggedIn').and.returnValue(true);
-    refresh = spyOn(auth, 'refreshToken').and.returnValue(of({ token: 'fresh-token' } as any));
+    logout = vi.spyOn(auth, 'logout').mockImplementation(() => {});
+    vi.spyOn(auth, 'isLoggedIn').mockReturnValue(true);
+    refresh = vi.spyOn(auth, 'refreshToken').mockReturnValue(of({ token: 'fresh-token' } as any));
   });
 
   afterEach(() => backend.verify());
@@ -167,7 +168,7 @@ describe('authInterceptor — renewing an expired token', () => {
     // token, so a second concurrent refresh is answered "Invalid refresh token" and ends the
     // session that the first one had just renewed.
     const pending = new Subject<any>();
-    refresh.and.returnValue(pending.asObservable());
+    refresh.mockReturnValue(pending.asObservable());
 
     const urls = ['/api/admin/orders', '/api/admin/users', '/api/admin/permissions'];
 
@@ -188,7 +189,7 @@ describe('authInterceptor — renewing an expired token', () => {
   });
 
   it('logs out when the refresh failed AND the session really is gone', () => {
-    refresh.and.returnValue(throwError(() => new HttpErrorResponse({ status: 401 })));
+    refresh.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 401 })));
 
     let received: unknown;
     http.get('/api/admin/orders').subscribe({ next: () => {}, error: (err) => (received = err) });
@@ -253,8 +254,8 @@ describe('authInterceptor — the intermittent auto-logout', () => {
   let http: HttpClient;
   let backend: HttpTestingController;
   let auth: AuthService;
-  let logout: jasmine.Spy;
-  let refresh: jasmine.Spy;
+  let logout: Mock;
+  let refresh: Mock;
 
   beforeEach(() => {
     resetRefreshState();
@@ -275,9 +276,9 @@ describe('authInterceptor — the intermittent auto-logout', () => {
     backend = TestBed.inject(HttpTestingController);
     auth = TestBed.inject(AuthService);
 
-    logout = spyOn(auth, 'logout').and.stub();
-    spyOn(auth, 'isLoggedIn').and.returnValue(true);
-    refresh = spyOn(auth, 'refreshToken').and.returnValue(of({ token: 'fresh-token' } as any));
+    logout = vi.spyOn(auth, 'logout').mockImplementation(() => {});
+    vi.spyOn(auth, 'isLoggedIn').mockReturnValue(true);
+    refresh = vi.spyOn(auth, 'refreshToken').mockReturnValue(of({ token: 'fresh-token' } as any));
   });
 
   afterEach(() => {
@@ -310,7 +311,7 @@ describe('authInterceptor — the intermittent auto-logout', () => {
     // "Invalid refresh token" is the EXPECTED answer for the loser of a rotation race — another
     // tab, or another request in this one, already renewed. Ending the session here is what
     // produced the random logouts.
-    refresh.and.returnValue(throwError(() => new HttpErrorResponse(
+    refresh.mockReturnValue(throwError(() => new HttpErrorResponse(
       { status: 401, error: { message: 'Invalid refresh token' } })));
 
     let body: unknown;
@@ -331,7 +332,7 @@ describe('authInterceptor — the intermittent auto-logout', () => {
   it('does not probe a revoked session — that one is genuinely over', () => {
     // The revoke dropped the refresh token server-side, so the probe would be refused too and the
     // admin who made the change expects the person out now.
-    refresh.and.returnValue(throwError(() => new HttpErrorResponse({
+    refresh.mockReturnValue(throwError(() => new HttpErrorResponse({
       status: 401,
       headers: new HttpHeaders({ [SESSION_REVOKED_HEADER]: '1' }),
     })));
@@ -396,7 +397,7 @@ describe('authInterceptor — cookie auth and the transfer cache', () => {
       '/api/maintenancemode/is-enabled',
       '/api/maintenancemode/status'
     ]) {
-      expect(credentialsFor('GET', url)).withContext(url).toBeFalse();
+      expect(credentialsFor('GET', url), url).toBe(false);
     }
   });
 
@@ -409,9 +410,9 @@ describe('authInterceptor — cookie auth and the transfer cache', () => {
       '/api/googlereviews/sync',
       '/api/maintenancemode/toggle'
     ]) {
-      expect(credentialsFor('GET', url)).withContext(url).toBeTrue();
+      expect(credentialsFor('GET', url), url).toBe(true);
     }
-    expect(credentialsFor('POST', '/api/blog/status')).toBeTrue();
-    expect(credentialsFor('POST', '/api/maintenancemode/status')).toBeTrue();
+    expect(credentialsFor('POST', '/api/blog/status')).toBe(true);
+    expect(credentialsFor('POST', '/api/maintenancemode/status')).toBe(true);
   });
 });

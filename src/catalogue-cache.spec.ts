@@ -8,7 +8,7 @@ describe('catalogue cache', () => {
   let respond: () => Promise<Response>;
   const fetchImpl = (() => { calls++; return respond(); }) as unknown as typeof fetch;
   const ok = (body: unknown) => () => Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
-  const log = { warn: jasmine.createSpy('warn') };
+  const log = { warn: vi.fn().mockName('warn') };
   const make = () => createCatalogueCache('http://backend/api/booking/service-types', { now: () => now, fetchImpl, log });
   /** Lets a background refresh settle. */
   const flush = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -16,7 +16,7 @@ describe('catalogue cache', () => {
   beforeEach(() => {
     now = 1_000_000;
     calls = 0;
-    log.warn.calls.reset();
+    log.warn.mockClear();
   });
 
   it('waits for the first fetch on a cold cache, then answers from memory within the TTL', async () => {
@@ -68,7 +68,7 @@ describe('catalogue cache', () => {
     now += 30_001;
     await cache.get(1000);
     expect(calls).toBe(2);
-    expect(log.warn.calls.all().filter(c => String(c.args[0]).includes('unavailable')).length).toBe(1);
+    expect(vi.mocked(log.warn).mock.calls.filter(c => String(c[0]).includes('unavailable')).length).toBe(1);
   });
 
   it('warns about missing service keys, without repeating itself every refresh', async () => {
@@ -78,7 +78,7 @@ describe('catalogue cache', () => {
     now += CATALOGUE_TTL_MS + 1;
     await cache.get(0);
     await flush();
-    const keyWarnings = log.warn.calls.all().filter(c => String(c.args[0]).includes('ServiceKey "residential"'));
+    const keyWarnings = vi.mocked(log.warn).mock.calls.filter(c => String(c[0]).includes('ServiceKey "residential"'));
     expect(keyWarnings.length).toBe(1);
   });
 });
@@ -89,11 +89,11 @@ describe('public offers cache', () => {
   let calls = 0;
   let respond: () => Promise<Response>;
   const fetchImpl = (() => { calls++; return respond(); }) as unknown as typeof fetch;
-  const log = { warn: jasmine.createSpy('warn') };
+  const log = { warn: vi.fn().mockName('warn') };
   const make = () => createPublicOffersCache('http://backend/api/special-offers/public', { now: () => now, fetchImpl, log });
   const OFFERS = [{ id: 1, offerKey: 'first-time', discountValue: 10 }];
 
-  beforeEach(() => { now = 1_000_000; calls = 0; log.warn.calls.reset(); });
+  beforeEach(() => { now = 1_000_000; calls = 0; log.warn.mockClear(); });
 
   it('answers from memory within the TTL and keeps the last good copy through a failure', async () => {
     respond = () => Promise.resolve(new Response(JSON.stringify(OFFERS), { status: 200 }));
@@ -104,7 +104,7 @@ describe('public offers cache', () => {
     expect(await cache.get(1000)).toEqual(OFFERS);
     await new Promise(r => setTimeout(r, 0));
     expect(log.warn).toHaveBeenCalledTimes(1);
-    expect(log.warn.calls.mostRecent().args[0]).toContain('[special offers]');
+    expect(vi.mocked(log.warn).mock.lastCall![0]).toContain('[special offers]');
     now += CATALOGUE_MAX_AGE_MS;
     expect(await cache.get(0)).toBeNull();
   });
