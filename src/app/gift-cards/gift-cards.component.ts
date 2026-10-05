@@ -1,4 +1,4 @@
-import { Component, OnInit, Inject, PLATFORM_ID, afterNextRender, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, PLATFORM_ID, afterNextRender, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -25,6 +25,15 @@ const GIFT_CARD_DRAFT_TTL_MS = 30 * 60 * 1000;
   styleUrls: ['./gift-cards.component.scss']
 })
 export class GiftCardsComponent implements OnInit {
+  private fb = inject(FormBuilder);
+  private giftCardService = inject(GiftCardService);
+  private authService = inject(AuthService);
+  private authModalService = inject(AuthModalService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private http = inject(HttpClient);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   giftCardForm: FormGroup;
   previewGiftCard: any = null;
   isLoading = false;
@@ -49,16 +58,7 @@ export class GiftCardsComponent implements OnInit {
   // Predefined amounts for selection
   predefinedAmounts = [100, 200, 300, 400, 500, 1000];
 
-  constructor(
-    private fb: FormBuilder,
-    private giftCardService: GiftCardService,
-    private authService: AuthService,
-    private authModalService: AuthModalService,
-    private router: Router,
-    private route: ActivatedRoute,
-    private http: HttpClient,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
 
     // The server always renders "send now" (it can't see sessionStorage or the signed-in user), so

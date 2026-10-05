@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -16,13 +16,11 @@ export interface ToggleMaintenanceModeRequest {
   message?: string;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class MaintenanceModeService {
-  private apiUrl = `${environment.apiUrl}/maintenancemode`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) { }
+  private apiUrl = `${environment.apiUrl}/maintenancemode`;
 
   getStatus(): Observable<MaintenanceModeStatus> {
     return this.http.get<MaintenanceModeStatus>(`${this.apiUrl}/status`);

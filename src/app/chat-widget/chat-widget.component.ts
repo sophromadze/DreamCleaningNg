@@ -1,4 +1,4 @@
-import { Component, ElementRef, Inject, NgZone, OnDestroy, OnInit, PLATFORM_ID, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ElementRef, NgZone, OnDestroy, OnInit, PLATFORM_ID, ViewChild, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router } from '@angular/router';
@@ -28,6 +28,7 @@ import { faPowerOff } from '../shared/icons/glyphs/faPowerOff';
 import { faSpinner } from '../shared/icons/glyphs/faSpinner';
 import { faXmark } from '../shared/icons/glyphs/faXmark';
 import { setIntervalOutsideZone } from '../shared/zone-free-timers';
+import { debugTimersPaused } from '../shared/debug-timers';
 
 interface WidgetMessage {
   id: string | null; // null = optimistic local copy not yet seen from the server
@@ -63,6 +64,12 @@ interface WidgetMessage {
   styleUrl: './chat-widget.component.scss'
 })
 export class ChatWidgetComponent implements OnInit, OnDestroy {
+  private chatService = inject(ChatWidgetService);
+  private authService = inject(AuthService);
+  private stickyCtaService = inject(StickyCtaService);
+  private router = inject(Router);
+  private ngZone = inject(NgZone);
+
   protected readonly icons = { faBroom, faCheck, faCircleCheck, faCircleExclamation, faCirclePause, faComments, faHeadset, faPaperclip, faPaperPlane, faPowerOff, faSpinner, faXmark };
 
   private static readonly POLL_INTERVAL_MS = 4000;        // panel open, escalated
@@ -165,14 +172,9 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   @ViewChild('messageList') private messageList?: ElementRef<HTMLDivElement>;
   @ViewChild('messageInput') private messageInput?: ElementRef<HTMLInputElement>;
 
-  constructor(
-    private chatService: ChatWidgetService,
-    private authService: AuthService,
-    private stickyCtaService: StickyCtaService,
-    private router: Router,
-    private ngZone: NgZone,
-    @Inject(PLATFORM_ID) platformId: Object
-  ) {
+  constructor() {
+    const platformId = inject<Object>(PLATFORM_ID);
+
     this.isBrowser = isPlatformBrowser(platformId);
   }
 
@@ -794,7 +796,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   // the customer just sent, so there is nothing to discover in the background.
 
   private startPolling(): void {
-    if (this.pollHandle || !this.isOpen) return;
+    if (this.pollHandle || !this.isOpen || debugTimersPaused()) return;
     this.pollHandle = setIntervalOutsideZone(this.ngZone, () => this.pollOnce(), ChatWidgetComponent.POLL_INTERVAL_MS);
   }
 
@@ -806,7 +808,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   }
 
   private startBackgroundPolling(): void {
-    if (this.bgPollHandle || this.isOpen || !this.escalated || !this.sessionId || this.conversationEnded) return;
+    if (this.bgPollHandle || this.isOpen || !this.escalated || !this.sessionId || this.conversationEnded || debugTimersPaused()) return;
     this.bgPollHandle = setIntervalOutsideZone(this.ngZone, () => this.pollOnce(), ChatWidgetComponent.BG_POLL_INTERVAL_MS);
   }
 

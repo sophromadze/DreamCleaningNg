@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, OnInit, OnDestroy, OnChanges, SimpleChanges, ChangeDetectionStrategy, inject } from '@angular/core';
 import { StripeService } from '../../services/stripe.service';
 
 @Component({
@@ -10,6 +10,8 @@ import { StripeService } from '../../services/stripe.service';
   styleUrls: ['./payment.component.scss']
 })
 export class PaymentComponent implements OnInit, OnDestroy, OnChanges {
+  private stripeService = inject(StripeService);
+
   @Input() amount!: number;
   @Input() clientSecret!: string;
   @Input() billingDetails?: any;
@@ -22,8 +24,6 @@ export class PaymentComponent implements OnInit, OnDestroy, OnChanges {
   showApplePay = false;
   private applePayInited = false;
   private previousClientSecret: string | null = null;
-
-  constructor(private stripeService: StripeService) {}
 
   ngOnInit() {
     this.initializeStripeElements();

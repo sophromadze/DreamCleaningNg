@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -37,11 +37,11 @@ export interface ShiftAdmin {
   shiftColor?: string;
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class ShiftService {
-  private apiUrl = `${environment.apiUrl}/admin/shifts`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private apiUrl = `${environment.apiUrl}/admin/shifts`;
 
   getShiftAdmins(): Observable<ShiftAdmin[]> {
     return this.http.get<ShiftAdmin[]>(`${this.apiUrl}/admins`);

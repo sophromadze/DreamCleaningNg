@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -138,11 +138,11 @@ export interface GroupedExpenses {
   categories: GroupedCategory[];
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class ExpenseService {
-  private apiUrl = `${environment.apiUrl}/expenses`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private apiUrl = `${environment.apiUrl}/expenses`;
 
   getAll(): Observable<Expense[]> {
     return this.http.get<Expense[]>(this.apiUrl);

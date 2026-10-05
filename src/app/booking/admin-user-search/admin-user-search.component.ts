@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { AdminService, UserAdmin } from '../../services/admin.service';
@@ -56,6 +56,8 @@ export const USER_LIST_SETTLE_MS = 350;
   styleUrls: ['./admin-user-search.component.scss']
 })
 export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
+  private adminService = inject(AdminService);
+
   protected readonly icons = { faTriangleExclamation, faXmark };
 
   /** Currently selected target user (owned by the booking page). */
@@ -108,8 +110,6 @@ export class AdminUserSearchComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly minSearchChars = USER_SEARCH_MIN_CHARS;
   readonly maxResults = USER_SEARCH_MAX_RESULTS;
-
-  constructor(private adminService: AdminService) {}
 
   ngOnInit(): void {
     this.searchTerm$

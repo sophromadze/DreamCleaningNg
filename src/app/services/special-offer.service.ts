@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, shareReplay } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -95,13 +95,11 @@ export enum OfferType {
 }
 
 // Service
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class SpecialOfferService {
-  private apiUrl = environment.apiUrl;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private apiUrl = environment.apiUrl;
 
   // Admin methods
   getAllSpecialOffers(): Observable<SpecialOffer[]> {

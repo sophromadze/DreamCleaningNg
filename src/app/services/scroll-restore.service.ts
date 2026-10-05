@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { NavigationEnd, NavigationStart, Router, Scroll } from '@angular/router';
 
 /**
@@ -19,7 +19,7 @@ import { NavigationEnd, NavigationStart, Router, Scroll } from '@angular/router'
  *
  * Started once in the browser from app.config.ts, before the first navigation.
  */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class ScrollRestoreService {
   private readonly router = inject(Router);
   private readonly store: Record<number, [number, number]> = {};

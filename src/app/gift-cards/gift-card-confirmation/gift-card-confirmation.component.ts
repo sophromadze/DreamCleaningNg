@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { GiftCardService, CreateGiftCard } from '../../services/gift-card.service';
@@ -17,6 +17,12 @@ import { faEnvelope } from '../../shared/icons/glyphs/faEnvelope';
   styleUrls: ['./gift-card-confirmation.component.scss']
 })
 export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
+  private router = inject(Router);
+  private authService = inject(AuthService);
+  private giftCardService = inject(GiftCardService);
+  private stripeService = inject(StripeService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   protected readonly icons = { faCircleCheck, faEnvelope };
 
   giftCardId: number = 0;
@@ -33,13 +39,7 @@ export class GiftCardConfirmationComponent implements OnInit, OnDestroy {
   showApplePay = false;
   private isBrowser: boolean;
 
-  constructor(
-    private router: Router,
-    private authService: AuthService,
-    private giftCardService: GiftCardService,
-    private stripeService: StripeService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
     // Try to get state from navigation
     const navigation = this.router.getCurrentNavigation();

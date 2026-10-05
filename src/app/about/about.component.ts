@@ -24,10 +24,10 @@ const TEAM_PHOTO_SIZES =
   styleUrl: './about.component.scss'
 })
 export class AboutComponent {
+  private router = inject(Router);
+
   readonly pricing = inject(MarketingPricingService).text;
   protected readonly teamPhoto = responsiveImage('/images/dream-cleaning-maids-in-nyc.webp', TEAM_PHOTO_SIZES);
-
-  constructor(private router: Router) {}
 
   navigateToBooking() {
     this.router.navigate(['/booking']);

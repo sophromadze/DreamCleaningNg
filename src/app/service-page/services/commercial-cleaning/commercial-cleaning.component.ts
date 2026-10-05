@@ -1,13 +1,4 @@
-import {
-  Component,
-  OnInit,
-  OnDestroy,
-  Inject,
-  PLATFORM_ID,
-  inject,
-  DOCUMENT,
-  ChangeDetectionStrategy
-} from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, inject, DOCUMENT, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -67,6 +58,11 @@ const SECTOR_PHOTO_SIZES = '(max-width: 580px) calc(100vw - 49px), 365px';
   ]
 })
 export class CommercialCleaningComponent implements OnInit, OnDestroy {
+  private fb = inject(FormBuilder);
+  private http = inject(HttpClient);
+  private orderSound = inject(OrderSoundService);
+  private document = inject<Document>(DOCUMENT);
+
   protected readonly phoneNumber = inject(PhoneNumberService);
   private readonly analytics = inject(AnalyticsService);
 
@@ -98,13 +94,9 @@ export class CommercialCleaningComponent implements OnInit, OnDestroy {
   private readonly isBrowser: boolean;
   private readonly structuredData = inject(StructuredDataService);
 
-  constructor(
-    private fb: FormBuilder,
-    private http: HttpClient,
-    private orderSound: OrderSoundService,
-    @Inject(DOCUMENT) private document: Document,
-    @Inject(PLATFORM_ID) platformId: Object
-  ) {
+  constructor() {
+    const platformId = inject<Object>(PLATFORM_ID);
+
     this.isBrowser = isPlatformBrowser(platformId);
     this.quoteForm = this.fb.group({
       businessName: ['', [Validators.required]],

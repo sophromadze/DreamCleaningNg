@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ElementRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -21,6 +21,9 @@ import {
   styleUrls: ['./traffic.component.scss']
 })
 export class TrafficComponent implements OnInit {
+  private trafficService = inject(CrmTrafficService);
+  private host = inject(ElementRef);
+
   rows: TrafficDailyRow[] = [];
   breakdown: TrafficChannelBreakdownRow[] = [];
   totals: TrafficTotals | null = null;
@@ -62,8 +65,6 @@ export class TrafficComponent implements OnInit {
   displayChannel(channel: string): string {
     return TrafficComponent.DISPLAY[channel] ?? channel;
   }
-
-  constructor(private trafficService: CrmTrafficService, private host: ElementRef) {}
 
   ngOnInit(): void {
     this.load();

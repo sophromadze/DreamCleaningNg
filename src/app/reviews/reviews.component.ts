@@ -26,6 +26,8 @@ interface DisplayReview extends Review {
   styleUrl: './reviews.component.scss'
 })
 export class ReviewsComponent implements OnInit, OnDestroy {
+  private googlePlacesService = inject(GooglePlacesService);
+
   reviews: DisplayReview[] = [];
   overallRating = 0;
   totalReviews = 0;
@@ -85,10 +87,6 @@ export class ReviewsComponent implements OnInit, OnDestroy {
       time: new Date('2026-03-30')
     }
   ];
-
-  constructor(
-    private googlePlacesService: GooglePlacesService
-  ) {}
 
   ngOnInit(): void {
     this.loadStats();

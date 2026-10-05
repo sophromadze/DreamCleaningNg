@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, Output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, OnInit, Output, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CrmCallService, CallRecord, CallSummary } from '../../../../services/crm-call.service';
@@ -12,6 +12,8 @@ import { CrmCallService, CallRecord, CallSummary } from '../../../../services/cr
   styleUrls: ['./crm-calls.component.scss']
 })
 export class CrmCallsComponent implements OnInit {
+  private callService = inject(CrmCallService);
+
   /** Emits a leadId when a linked lead is clicked, so the parent can open it in the Leads tab. */
   @Output() openLead = new EventEmitter<number>();
 
@@ -35,8 +37,6 @@ export class CrmCallsComponent implements OnInit {
   pageSize = 20;
   totalCount = 0;
   totalPages = 0;
-
-  constructor(private callService: CrmCallService) {}
 
   ngOnInit(): void {
     const now = new Date();

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -24,13 +24,11 @@ export interface AvailableCleaner {
   createdAt?: string;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class CleanerService {
-  private adminApiUrl = `${environment.apiUrl}/admin`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private adminApiUrl = `${environment.apiUrl}/admin`;
 
   getAvailableCleaners(orderId: number): Observable<AvailableCleaner[]> {
     return this.http.get<AvailableCleaner[]>(`${this.adminApiUrl}/orders/${orderId}/available-cleaners`);

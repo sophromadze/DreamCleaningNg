@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -149,11 +149,11 @@ export interface CleanerPortalOrderDetail {
   adminNotes?: string | null;
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class CleanerPortalService {
-  private readonly apiUrl = `${environment.apiUrl}/cleaner-portal`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private readonly apiUrl = `${environment.apiUrl}/cleaner-portal`;
 
   getContext(): Observable<CleanerPortalContext> {
     return this.http.get<CleanerPortalContext>(`${this.apiUrl}/context`);

@@ -1,4 +1,4 @@
-import { computed, inject, Injectable, makeStateKey, PLATFORM_ID, signal, TransferState } from '@angular/core';
+import { computed, inject, makeStateKey, PLATFORM_ID, signal, TransferState, Service } from '@angular/core';
 import { isPlatformServer } from '@angular/common';
 import { BookingService } from '../../services/booking.service';
 import { SSR_CATALOGUE } from '../ssr/ssr-catalogue.token';
@@ -54,7 +54,7 @@ function shortDisplayPrice(price: MarketingDisplayPrice): string {
  *   browser fetch the catalogue itself - and only then loads the derivation (marketing-prices.ts
  *   and the booking calculator behind it), so neither is part of the initial bundle.
  */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class MarketingPricingService {
   private readonly state = signal<MarketingPrices>(NO_MARKETING_PRICES);
 

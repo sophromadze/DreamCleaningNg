@@ -16,6 +16,7 @@ import { isDeepOrSuperDeepExtra, isSuperDeepExtra } from '../../../shared/bookin
 import { OrderExtraService } from '../../../services/order.service';
 import { isBedroomsLine, isCleanersLine, KeyedOrderService } from '../../../shared/booking/order-service-keys';
 import { setIntervalOutsideZone } from '../../../shared/zone-free-timers';
+import { debugTimersPaused } from '../../../shared/debug-timers';
 
 @Component({
   selector: 'app-order-details',
@@ -26,6 +27,14 @@ import { setIntervalOutsideZone } from '../../../shared/zone-free-timers';
   styleUrls: ['./order-details.component.scss']
 })
 export class OrderDetailsComponent implements OnInit, OnDestroy {
+  private orderService = inject(OrderService);
+  private bookingService = inject(BookingService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private authService = inject(AuthService);
+  private shiftService = inject(ShiftService);
+  private elementRef = inject(ElementRef);
+
   private readonly zone = inject(NgZone);
   order: Order | null = null;
   isLoading = true;
@@ -42,16 +51,6 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
   showAdminEditor = false;
   isSavingAssignedAdmin = false;
 
-  constructor(
-    private orderService: OrderService,
-    private bookingService: BookingService,
-    private route: ActivatedRoute,
-    private router: Router,
-    private authService: AuthService,
-    private shiftService: ShiftService,
-    private elementRef: ElementRef
-  ) {}
-
   ngOnInit() {
     const orderId = this.route.snapshot.params['id'];
     this.loadOrder(orderId);
@@ -64,9 +63,11 @@ export class OrderDetailsComponent implements OnInit, OnDestroy {
     }
 
     // Update current time every minute
-    this.timeUpdateInterval = setIntervalOutsideZone(this.zone, () => {
-      this.now = new Date();
-    }, 60000);
+    if (!debugTimersPaused()) {
+      this.timeUpdateInterval = setIntervalOutsideZone(this.zone, () => {
+        this.now = new Date();
+      }, 60000);
+    }
 
     if (this.order) {
       const serviceDate = new Date(this.order.serviceDate);

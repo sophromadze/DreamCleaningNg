@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -42,11 +42,11 @@ export interface AutomationAlert {
   resolvedByAdminName?: string;
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class CrmAutomationService {
-  private apiUrl = `${environment.apiUrl}/crm/automation`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private apiUrl = `${environment.apiUrl}/crm/automation`;
 
   getRules(): Observable<AutomationRule[]> {
     return this.http.get<AutomationRule[]>(`${this.apiUrl}/rules`);

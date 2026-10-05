@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -821,7 +821,7 @@ export interface InvoiceListFilters {
   pageSize?: number;
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class InvoiceService {
   private http = inject(HttpClient);
 

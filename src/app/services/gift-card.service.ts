@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -89,16 +89,12 @@ export interface GiftCardUsage {
   orderReference: string;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class GiftCardService {
-  private apiUrl = environment.apiUrl;
+  private http = inject(HttpClient);
+  private authService = inject(AuthService);
 
-  constructor(
-    private http: HttpClient,
-    private authService: AuthService
-  ) {}
+  private apiUrl = environment.apiUrl;
 
   private getAuthHeaders(): HttpHeaders {
     const token = this.authService.getToken();

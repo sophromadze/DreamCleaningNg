@@ -144,6 +144,7 @@
             "setupFiles": [
               "src/testing/vitest-setup.ts"
             ],
+            "providersFile": "src/testing/test-env-providers.ts",
             "exclude": [
               "app/shared/components/recurring-series-panel/recurring-series-panel.component.spec.ts",
               "app/contract/contract-sign/contract-sign.component.spec.ts"

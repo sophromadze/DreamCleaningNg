@@ -1,10 +1,10 @@
 import { MyInvoicesTabComponent } from './invoices/my-invoices-tab.component';
 import { MyGiftCardsTabComponent } from './gift-cards/my-gift-cards-tab.component';
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
-import { Inject, PLATFORM_ID } from '@angular/core';
+import { PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import {
   ProfileService, Profile, Apartment, CreateApartment, PlanOption, PlanOverview
@@ -58,6 +58,20 @@ export const ORDERS_PER_PAGE = 10;
 })
 
 export class ProfileComponent implements OnInit {
+  private profileService = inject(ProfileService);
+  private authService = inject(AuthService);
+  private locationService = inject(LocationService);
+  private orderService = inject(OrderService);
+  private router = inject(Router);
+  private specialOfferService = inject(SpecialOfferService);
+  private platformId = inject<Object>(PLATFORM_ID);
+  private route = inject(ActivatedRoute);
+  private billingService = inject(BillingService);
+  private invoiceService = inject(InvoiceService);
+  private contractService = inject(ContractService);
+  private formPersistenceService = inject(FormPersistenceService);
+  private bubbleRewardsService = inject(BubbleRewardsService);
+
   // ── Tabs (2026-09 redesign) — every section that used to stack on one page, one tab each. ──
   //
   // There is deliberately NO "Orders" tab. The customer's cleanings live on Overview, which is
@@ -172,22 +186,6 @@ export class ProfileComponent implements OnInit {
 
   /** Offer badge colours are chosen by an admin; the label adapts so it stays readable on any of them. */
   readonly badgeLabelColor = readableLabelColor;
-
-  constructor(
-    private profileService: ProfileService,
-    private authService: AuthService,
-    private locationService: LocationService,
-    private orderService: OrderService,
-    private router: Router,
-    private specialOfferService: SpecialOfferService,
-    @Inject(PLATFORM_ID) private platformId: Object,
-    private route: ActivatedRoute,
-    private billingService: BillingService,
-    private invoiceService: InvoiceService,
-    private contractService: ContractService,
-    private formPersistenceService: FormPersistenceService,
-    private bubbleRewardsService: BubbleRewardsService
-  ) {}
 
   ngOnInit() {
     // ?tab=billing (from a billing email / notice) opens that tab directly; the query param also

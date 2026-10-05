@@ -1,4 +1,4 @@
-import { Injectable, inject, DOCUMENT } from '@angular/core';
+import { inject, DOCUMENT, Service } from '@angular/core';
 
 
 /** `id` of the site-wide @graph block in index.html (LocalBusiness + Organization + WebSite). */
@@ -16,7 +16,7 @@ export const BUSINESS_NODE_ID = 'https://dreamcleaningnyc.com/#business';
  * second run added a copy of every block. Google read the home page's two copies as one business
  * with two AggregateRatings ("Review has multiple aggregate ratings").
  */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class StructuredDataService {
   private readonly document = inject(DOCUMENT);
 

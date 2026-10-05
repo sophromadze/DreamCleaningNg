@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -6,10 +6,12 @@ import { loadStripe, Stripe, StripeElements, StripeCardElement } from '@stripe/s
 import { AuthService } from './auth.service';
 import { ThemeService } from './theme.service';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class StripeService {
+  private http = inject(HttpClient);
+  private authService = inject(AuthService);
+  private themeService = inject(ThemeService);
+
   private stripe: Stripe | null = null;
   private elements: StripeElements | null = null;
   private cardElement: StripeCardElement | null = null;
@@ -17,11 +19,7 @@ export class StripeService {
   private paymentRequest: any = null;
   private prButton: any = null;
 
-  constructor(
-    private http: HttpClient,
-    private authService: AuthService,
-    private themeService: ThemeService
-  ) {
+  constructor() {
     this.initializeStripe();
 
     // The card field lives in a Stripe iframe, so CSS can't reach it — its colors are baked

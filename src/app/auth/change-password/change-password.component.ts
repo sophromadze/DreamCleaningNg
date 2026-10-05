@@ -1,4 +1,4 @@
-import { Component, ViewChild, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ViewChild, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule, NgModel } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { finalize } from 'rxjs/operators';
@@ -35,6 +35,9 @@ import { faCircleExclamation } from '../../shared/icons/glyphs/faCircleExclamati
   styleUrls: ['../account-form.scss']
 })
 export class ChangePasswordComponent {
+  private authService = inject(AuthService);
+  private router = inject(Router);
+
   protected readonly icons = { faArrowLeft, faCircleCheck, faCircleExclamation };
 
   currentPassword = '';
@@ -53,11 +56,6 @@ export class ChangePasswordComponent {
   @ViewChild('currentPasswordField') currentPasswordField?: NgModel;
   @ViewChild('newPasswordField') newPasswordField?: NgModel;
   @ViewChild('confirmPasswordField') confirmPasswordField?: NgModel;
-
-  constructor(
-    private authService: AuthService,
-    private router: Router
-  ) {}
 
   validateNewPassword() {
     const validation = validatePassword(this.newPassword ?? '');

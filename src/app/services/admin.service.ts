@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service as NgService } from '@angular/core';
 import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -1220,13 +1220,11 @@ export interface LoyaltyDiscountSettingsDto {
   minDaysFromLastUseBeforeReActivation: number;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+@NgService()
 export class AdminService {
-  private apiUrl = `${environment.apiUrl}/admin`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) { }
+  private apiUrl = `${environment.apiUrl}/admin`;
 
   getUserPermissions(): Observable<UserPermissions> {
     return this.http.get<UserPermissions>(`${this.apiUrl}/permissions`);

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Service } from '@angular/core';
 
 /** Remembered section heights, by section class (or host tag for the testimonial section). */
 export interface SectionHeights {
@@ -26,7 +26,7 @@ const NONE: SectionHeights = { box: {}, content: {} };
  *
  * In memory only: a reload starts from the prerendered page, which has no gallery to reserve.
  */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class HomeLayoutMemoryService {
   private width = 0;
   private heights: SectionHeights = NONE;

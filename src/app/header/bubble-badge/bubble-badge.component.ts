@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, EventEmitter, Output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, EventEmitter, Output, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { Subject, Subscription } from 'rxjs';
@@ -15,6 +15,11 @@ import { AuthService } from '../../services/auth.service';
   styleUrl: './bubble-badge.component.scss'
 })
 export class BubbleBadgeComponent implements OnInit, OnDestroy {
+  private bubbleRewardsService = inject(BubbleRewardsService);
+  private authService = inject(AuthService);
+  private router = inject(Router);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   summary: HeaderSummary | null = null;
   /**
    * Whether the points system is on for this account, reported after each load so the header can
@@ -37,12 +42,7 @@ export class BubbleBadgeComponent implements OnInit, OnDestroy {
   private destroy$ = new Subject<void>();
   private visibilityHandler?: () => void;
 
-  constructor(
-    private bubbleRewardsService: BubbleRewardsService,
-    private authService: AuthService,
-    private router: Router,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 

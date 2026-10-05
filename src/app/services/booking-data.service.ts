@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Service } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 
 /**
@@ -14,9 +14,7 @@ import { BehaviorSubject } from 'rxjs';
  */
 export type BookingPaymentPhase = 'idle' | 'in-flight' | 'completed';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class BookingDataService {
   private bookingDataSubject = new BehaviorSubject<any>(null);
   bookingData$ = this.bookingDataSubject.asObservable();

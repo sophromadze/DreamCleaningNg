@@ -1,4 +1,4 @@
-import { Injectable, computed } from '@angular/core';
+import { computed, Service } from '@angular/core';
 
 /** A phone number in both its human-readable and tel: forms. */
 export interface PhoneNumberInfo {
@@ -29,7 +29,7 @@ export const MAIN_NUMBER: PhoneNumberInfo = {
  * Ad attribution is handled entirely by Google's call-reporting tag in the GTM container,
  * which replaces the displayed main number client-side for ad visitors.
  */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class PhoneNumberService {
   /** Display string for templates, e.g. "(929) 930-1525". */
   readonly displayNumber = computed(() => MAIN_NUMBER.display);

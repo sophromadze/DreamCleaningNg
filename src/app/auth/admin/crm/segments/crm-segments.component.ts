@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit, Output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, OnInit, Output, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { CrmCustomerService, CrmSegment } from '../../../../services/crm-customer.service';
 
@@ -11,14 +11,14 @@ import { CrmCustomerService, CrmSegment } from '../../../../services/crm-custome
   styleUrls: ['./crm-segments.component.scss']
 })
 export class CrmSegmentsComponent implements OnInit {
+  private customerService = inject(CrmCustomerService);
+
   /** Emits the segment key when a card is opened, so the shell can switch to the filtered list. */
   @Output() selectSegment = new EventEmitter<string>();
 
   segments: CrmSegment[] = [];
   loading = false;
   errorMessage = '';
-
-  constructor(private customerService: CrmCustomerService) {}
 
   ngOnInit(): void {
     this.loading = true;

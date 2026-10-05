@@ -25,6 +25,8 @@ import { findAdvertisedFirstTimeOffer } from '../../../shared/booking/special-of
   styleUrl: './deep-cleaning.component.scss'
 })
 export class DeepCleaningComponent implements OnInit, OnDestroy {
+  private specialOfferService = inject(SpecialOfferService);
+
   protected readonly icons = { faBed, faHouse, faListCheck, faMagnifyingGlass, faTags, faTriangleExclamation };
 
   private readonly marketingPricing = inject(MarketingPricingService);
@@ -36,10 +38,6 @@ export class DeepCleaningComponent implements OnInit, OnDestroy {
    *  admin-configurable (never hardcoded) — the hero line only renders once it loads. */
   specialOffers: PublicSpecialOffer[] = [];
   private subscription = new Subscription();
-
-  constructor(
-    private specialOfferService: SpecialOfferService
-  ) {}
 
   ngOnInit(): void {
     this.injectSchema();

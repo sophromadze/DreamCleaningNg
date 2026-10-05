@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, AuditLog, AuditMetadata, UserPermissions } from '../../../services/admin.service';
@@ -26,6 +26,8 @@ import { ORDER_SERVICE_KEYS, orderServiceIs } from '../../../shared/booking/orde
   styleUrls: ['./audit-history.component.scss']
 })
 export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
+  private adminService = inject(AdminService);
+
   @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
   @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
   
@@ -113,8 +115,6 @@ export class AuditHistoryComponent implements OnInit, AfterViewInit, OnDestroy {
       ...this.metadata.actions.map(a => ({ value: a, label: getAuditActionLabel(a) })),
     ];
   }
-
-  constructor(private adminService: AdminService) {}
 
   ngOnInit() {
     this.loadUserPermissions();

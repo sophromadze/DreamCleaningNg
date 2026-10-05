@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, computed, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, computed, inject, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -36,6 +36,12 @@ interface RecurringPlan {
   styleUrl: './pricing-and-discounts.component.scss'
 })
 export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
+  private specialOfferService = inject(SpecialOfferService);
+  private bookingService = inject(BookingService);
+  private authService = inject(AuthService);
+  private authModalService = inject(AuthModalService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   protected readonly icons = { faCalendarCheck, faCheck, faCreditCard, faGift, faStar, faTags, faUnlockKeyhole, faUserGroup };
 
   /** Prices from the booking catalogue (MarketingPricingService); null = left out / neutral wording. */
@@ -62,13 +68,7 @@ export class PricingAndDiscountsComponent implements OnInit, OnDestroy {
   private readonly structuredData = inject(StructuredDataService);
   private authSub?: Subscription;
 
-  constructor(
-    private specialOfferService: SpecialOfferService,
-    private bookingService: BookingService,
-    private authService: AuthService,
-    private authModalService: AuthModalService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 

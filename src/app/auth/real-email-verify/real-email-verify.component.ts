@@ -1,4 +1,4 @@
-import { Component, Inject, PLATFORM_ID, OnInit, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
+import { Component, PLATFORM_ID, OnInit, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -17,6 +17,11 @@ type Step = 'email' | 'code' | 'account-found' | 'merge-email' | 'merge-success'
   styleUrls: ['./real-email-verify.component.scss']
 })
 export class RealEmailVerifyComponent implements OnInit {
+  private fb = inject(FormBuilder);
+  private authService = inject(AuthService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+
   private readonly zone = inject(NgZone);
   step: Step = 'email';
   emailForm: FormGroup;
@@ -39,13 +44,9 @@ export class RealEmailVerifyComponent implements OnInit {
 
   isBrowser = false;
 
-  constructor(
-    private fb: FormBuilder,
-    private authService: AuthService,
-    private router: Router,
-    private route: ActivatedRoute,
-    @Inject(PLATFORM_ID) platformId: Object
-  ) {
+  constructor() {
+    const platformId = inject<Object>(PLATFORM_ID);
+
     this.isBrowser = isPlatformBrowser(platformId);
     this.emailForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]]

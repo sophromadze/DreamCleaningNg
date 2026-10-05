@@ -1,4 +1,4 @@
-import { Component, OnInit, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { ShimmerDirective } from '../shared/directives/shimmer.directive';
@@ -21,6 +21,9 @@ import {
   styleUrl: './rewards.component.scss'
 })
 export class RewardsComponent implements OnInit {
+  private svc = inject(BubbleRewardsService);
+  private router = inject(Router);
+
   summary: RewardsSummary | null = null;
   summaryLoading = true;
 
@@ -34,11 +37,9 @@ export class RewardsComponent implements OnInit {
 
   isBrowser: boolean;
 
-  constructor(
-    private svc: BubbleRewardsService,
-    private router: Router,
-    @Inject(PLATFORM_ID) platformId: Object
-  ) {
+  constructor() {
+    const platformId = inject<Object>(PLATFORM_ID);
+
     this.isBrowser = isPlatformBrowser(platformId);
   }
 

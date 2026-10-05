@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -13,6 +13,11 @@ import { passwordValidator } from '../../utils/password-validator';
   styleUrls: ['./reset-password.component.scss']
 })
 export class ResetPasswordComponent implements OnInit {
+  private fb = inject(FormBuilder);
+  private route = inject(ActivatedRoute);
+  private authService = inject(AuthService);
+  private router = inject(Router);
+
   resetForm: FormGroup;
   isLoading = false;
   isSuccess = false;
@@ -29,12 +34,7 @@ export class ResetPasswordComponent implements OnInit {
   showPassword = false;
   showConfirmPassword = false;
 
-  constructor(
-    private fb: FormBuilder,
-    private route: ActivatedRoute,
-    private authService: AuthService,
-    private router: Router
-  ) {
+  constructor() {
     this.resetForm = this.fb.group({
       password: ['', [Validators.required, passwordValidator()]],
       confirmPassword: ['', Validators.required]

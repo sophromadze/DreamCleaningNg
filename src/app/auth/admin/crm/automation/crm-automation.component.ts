@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -13,6 +13,8 @@ import { CrmAutomationService, AutomationRule, AutomationAlert } from '../../../
   styleUrls: ['./crm-automation.component.scss']
 })
 export class CrmAutomationComponent implements OnInit {
+  private automationService = inject(CrmAutomationService);
+
   rules: AutomationRule[] = [];
   alerts: AutomationAlert[] = [];
   loading = false;
@@ -28,8 +30,6 @@ export class CrmAutomationComponent implements OnInit {
   snoozingAlertId: number | null = null;
   snoozeDate = '';
   minSnoozeDate = '';
-
-  constructor(private automationService: CrmAutomationService) {}
 
   ngOnInit(): void {
     // Earliest selectable remind date = tomorrow (the backend requires a future date).

@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { ActivatedRoute, RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import {
@@ -27,6 +27,8 @@ import { faXmark } from '../shared/icons/glyphs/faXmark';
   styleUrl: './cleaning-checklist.component.scss',
 })
 export class CleaningChecklistComponent implements OnInit, OnDestroy {
+  private route = inject(ActivatedRoute);
+
   protected readonly icons = { faBan, faCheck, faCircleInfo, faPlus, faXmark };
 
   readonly comparisonSections = CHECKLIST_COMPARISON_SECTIONS;
@@ -37,8 +39,6 @@ export class CleaningChecklistComponent implements OnInit, OnDestroy {
 
   activeRoom: ChecklistRoomKey = 'kitchen';
   private fragmentSubscription?: Subscription;
-
-  constructor(private route: ActivatedRoute) {}
 
   ngOnInit(): void {
     this.fragmentSubscription = this.route.fragment.subscribe((fragment) => {

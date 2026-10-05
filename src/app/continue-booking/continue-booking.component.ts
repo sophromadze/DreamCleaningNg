@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, HostListener, ElementRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, HostListener, ElementRef, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { FormPersistenceService, BookingFormData } from '../services/form-persistence.service';
@@ -15,6 +15,12 @@ import { Subject, takeUntil, filter } from 'rxjs';
   styleUrl: './continue-booking.component.scss'
 })
 export class ContinueBookingComponent implements OnInit, OnDestroy {
+  formPersistenceService = inject(FormPersistenceService);
+  private router = inject(Router);
+  private activatedRoute = inject(ActivatedRoute);
+  private elementRef = inject(ElementRef);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   private destroy$ = new Subject<void>();
   public isBrowser: boolean;
   
@@ -24,13 +30,7 @@ export class ContinueBookingComponent implements OnInit, OnDestroy {
   userDismissed = false; // User clicked X to fully hide
   private hasVisitedBookingPage = false; // Only true after user visits booking page in this session
 
-  constructor(
-    public formPersistenceService: FormPersistenceService,
-    private router: Router,
-    private activatedRoute: ActivatedRoute,
-    private elementRef: ElementRef,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 

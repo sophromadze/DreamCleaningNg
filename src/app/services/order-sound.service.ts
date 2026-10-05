@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { PLATFORM_ID, inject, Service } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 
 /**
@@ -11,12 +11,14 @@ import { isPlatformBrowser } from '@angular/common';
  * All synthesis stays in this service so callers just pick a cue. SSR-safe:
  * every entry point no-ops when not running in the browser.
  */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class OrderSoundService {
+  private platformId = inject<Object>(PLATFORM_ID);
+
   private isBrowser: boolean;
   private ctx: AudioContext | null = null;
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 

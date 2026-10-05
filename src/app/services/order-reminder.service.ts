@@ -1,10 +1,11 @@
-import { Injectable, Inject, PLATFORM_ID, NgZone, inject } from '@angular/core';
+import { PLATFORM_ID, NgZone, inject, Service } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject, combineLatest } from 'rxjs';
 import { AuthService } from './auth.service';
 import { AdminService } from './admin.service';
 import { SignalRService } from './signalr.service';
 import { setIntervalOutsideZone } from '../shared/zone-free-timers';
+import { debugTimersPaused } from '../shared/debug-timers';
 
 export interface OrderReminder {
   orderId: number;
@@ -21,10 +22,13 @@ interface OrderData {
   status: string;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class OrderReminderService {
+  private authService = inject(AuthService);
+  private adminService = inject(AdminService);
+  private signalRService = inject(SignalRService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   private readonly zone = inject(NgZone);
   private isBrowser: boolean;
   private orders: OrderData[] = [];
@@ -54,12 +58,7 @@ export class OrderReminderService {
   /** Queue of modal reminders waiting to be shown */
   private modalQueue: OrderReminder[] = [];
 
-  constructor(
-    private authService: AuthService,
-    private adminService: AdminService,
-    private signalRService: SignalRService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
 
     if (this.isBrowser) {
@@ -205,6 +204,7 @@ export class OrderReminderService {
   }
 
   private startPeriodicChecks(): void {
+    if (debugTimersPaused()) return;
     this.checkInterval = setIntervalOutsideZone(this.zone, () => this.checkReminders(), 30000);
     this.refreshInterval = setIntervalOutsideZone(this.zone, () => {
       this.adminService.getAllOrders().subscribe({

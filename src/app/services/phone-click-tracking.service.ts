@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { PLATFORM_ID, inject, Service } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { AnalyticsService } from './analytics.service';
 
@@ -6,14 +6,14 @@ import { AnalyticsService } from './analytics.service';
  * Service to track phone link clicks for Google Ads conversion tracking.
  * Pushes a `phone_click` event to the GTM dataLayer; the GTM tags own the send.
  */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class PhoneClickTrackingService {
+  private analytics = inject(AnalyticsService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   private isBrowser: boolean;
 
-  constructor(
-    private analytics: AnalyticsService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 

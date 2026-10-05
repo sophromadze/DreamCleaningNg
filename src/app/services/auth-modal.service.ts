@@ -1,9 +1,7 @@
-import { Injectable } from '@angular/core';
+import { Service } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class AuthModalService {
   private isOpenSubject = new BehaviorSubject<boolean>(false);
   private initialModeSubject = new BehaviorSubject<'login' | 'register'>('login');

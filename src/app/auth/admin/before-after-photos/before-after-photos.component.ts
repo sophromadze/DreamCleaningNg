@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   BeforeAfterPhotoService,
@@ -36,6 +36,8 @@ interface EditState {
   styleUrl: './before-after-photos.component.scss'
 })
 export class BeforeAfterPhotosComponent implements OnInit {
+  private service = inject(BeforeAfterPhotoService);
+
   photos: BeforeAfterPhotoDto[] = [];
   isLoading = false;
   errorMessage = '';
@@ -46,8 +48,6 @@ export class BeforeAfterPhotosComponent implements OnInit {
   createForm: CreateForm = this.emptyCreateForm();
 
   editing: EditState | null = null;
-
-  constructor(private service: BeforeAfterPhotoService) {}
 
   ngOnInit() {
     this.load();

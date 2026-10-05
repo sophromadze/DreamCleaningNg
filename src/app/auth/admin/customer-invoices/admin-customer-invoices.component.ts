@@ -1,4 +1,4 @@
-import { Component, Input, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, takeUntil } from 'rxjs';
@@ -42,6 +42,8 @@ export const MANUAL_PAYMENT_OPTIONS = [
   styleUrls: ['./admin-customer-invoices.component.scss']
 })
 export class AdminCustomerInvoicesComponent implements OnInit, OnDestroy {
+  private invoiceService = inject(CustomerInvoiceService);
+
   @Input() canCreate = false;
   @Input() canUpdate = false;
 
@@ -85,8 +87,6 @@ export class AdminCustomerInvoicesComponent implements OnInit, OnDestroy {
   voidingInvoice: CustomerInvoice | null = null;
   voidReason = '';
   voiding = false;
-
-  constructor(private invoiceService: CustomerInvoiceService) {}
 
   ngOnInit(): void {
     this.search$.pipe(debounceTime(300), takeUntil(this.destroy$)).subscribe(() => this.load());

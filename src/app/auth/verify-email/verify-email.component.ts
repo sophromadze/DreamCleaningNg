@@ -1,5 +1,5 @@
 // src/app/auth/verify-email/verify-email.component.ts
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 
@@ -12,15 +12,13 @@ import { AuthService } from '../../services/auth.service';
   styleUrls: ['./verify-email.component.scss']
 })
 export class VerifyEmailComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private authService = inject(AuthService);
+  private router = inject(Router);
+
   isVerifying = true;
   isSuccess = false;
   errorMessage = '';
-
-  constructor(
-    private route: ActivatedRoute,
-    private authService: AuthService,
-    private router: Router
-  ) {}
 
   ngOnInit() {
     const raw = this.route.snapshot.queryParams['token'];

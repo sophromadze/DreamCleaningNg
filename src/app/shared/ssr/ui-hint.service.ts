@@ -1,5 +1,5 @@
 import { isPlatformBrowser } from '@angular/common';
-import { Injectable, PLATFORM_ID, inject, DOCUMENT } from '@angular/core';
+import { PLATFORM_ID, inject, DOCUMENT, Service } from '@angular/core';
 import { SSR_RESPONSE_CONTEXT } from './ssr-response.token';
 import { UiHint, readUiHint, uiHintForUser, writeUiHintCookie } from './ui-hint-cookie';
 
@@ -11,7 +11,7 @@ import { UiHint, readUiHint, uiHintForUser, writeUiHintCookie } from './ui-hint-
  * the real auth state only after hydration - the header once showAuthUI flips, the hero once
  * auth has initialized after its first render.
  */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class UiHintService {
   private readonly doc = inject(DOCUMENT);
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));

@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
 import { finalize } from 'rxjs/operators';
@@ -45,6 +45,8 @@ import { getAdminAvatarColor, getAdminAvatarInitials } from '../../../shared/adm
   ]
 })
 export class CleanerAccountsComponent implements OnInit, OnDestroy {
+  private adminService = inject(AdminService);
+
   accounts: CleanerAccount[] = [];
 
   loading = true;
@@ -105,8 +107,6 @@ export class CleanerAccountsComponent implements OnInit, OnDestroy {
   private readonly promoteSearch$ = new Subject<string>();
   private readonly cleanerSearch$ = new Subject<string>();
   private readonly destroy$ = new Subject<void>();
-
-  constructor(private adminService: AdminService) {}
 
   ngOnInit(): void {
     this.promoteSearch$

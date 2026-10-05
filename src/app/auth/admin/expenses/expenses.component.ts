@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -24,6 +24,9 @@ import { allowsCurrencyChoice, currencySymbol, isSalaryCategory } from '../../..
   styleUrls: ['./expenses.component.scss']
 })
 export class ExpensesComponent implements OnInit {
+  private expenseService = inject(ExpenseService);
+  private authService = inject(AuthService);
+
   // Grouped Category → Name → entries view, scoped to the selected month.
   grouped: GroupedExpenses | null = null;
   categories: ExpenseCategory[] = [];
@@ -89,10 +92,7 @@ export class ExpensesComponent implements OnInit {
   /** SuperAdmins can edit; Admins granted view-only access see the page read-only. */
   canEdit = false;
 
-  constructor(
-    private expenseService: ExpenseService,
-    private authService: AuthService
-  ) {
+  constructor() {
     this.canEdit = this.authService.currentUserValue?.role === 'SuperAdmin';
   }
 

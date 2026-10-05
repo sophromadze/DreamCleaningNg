@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
 import { BlogService, BlogPostListItem } from '../services/blog.service';
 
@@ -16,6 +16,10 @@ import { BlogService, BlogPostListItem } from '../services/blog.service';
   styleUrl: './blog.component.scss'
 })
 export class BlogComponent implements OnInit {
+  private blogService = inject(BlogService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+
   posts: BlogPostListItem[] = [];
   categories: string[] = [];
   selectedCategory: string | null = null;
@@ -26,12 +30,6 @@ export class BlogComponent implements OnInit {
   loadFailed = false;
   /** Admin master switch is OFF — render the friendly coming-soon page. */
   comingSoon = false;
-
-  constructor(
-    private blogService: BlogService,
-    private route: ActivatedRoute,
-    private router: Router
-  ) {}
 
   ngOnInit(): void {
     this.route.queryParamMap.subscribe(params => {

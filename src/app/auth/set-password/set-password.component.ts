@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -293,6 +293,9 @@ import { validatePassword } from '../../utils/password-validator';
   `]
 })
 export class SetPasswordComponent {
+  private authService = inject(AuthService);
+  private router = inject(Router);
+
   newPassword = '';
   confirmPassword = '';
   errorMessage = '';
@@ -301,11 +304,6 @@ export class SetPasswordComponent {
   passwordErrors: string[] = [];
   showPassword = false;
   showConfirmPassword = false;
-
-  constructor(
-    private authService: AuthService,
-    private router: Router
-  ) {}
 
   validateNewPassword() {
     if (this.newPassword) {

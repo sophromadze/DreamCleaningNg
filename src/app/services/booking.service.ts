@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service as NgService } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Router } from '@angular/router';
@@ -203,15 +203,14 @@ export interface BookingCalculation {
   totalDuration: number;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+@NgService()
 export class BookingService {
-  private apiUrl = environment.apiUrl;
+  private http = inject(HttpClient);
+  private router = inject(Router);
+  private authService = inject(AuthService);
+  private attributionService = inject(AttributionService);
 
-  constructor(private http: HttpClient, private router: Router,
-    private authService: AuthService,
-    private attributionService: AttributionService) { }
+  private apiUrl = environment.apiUrl;
 
   /** Merge first-touch + converting-session attribution onto a self-service booking payload. Admin
    *  create-for-user does NOT call this — the backend stamps those "Phone/Unknown" / null. */

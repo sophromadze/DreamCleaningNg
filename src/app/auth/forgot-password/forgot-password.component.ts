@@ -1,5 +1,5 @@
 // src/app/auth/forgot-password/forgot-password.component.ts
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -13,15 +13,15 @@ import { AuthService } from '../../services/auth.service';
   styleUrls: ['./forgot-password.component.scss']
 })
 export class ForgotPasswordComponent {
+  private fb = inject(FormBuilder);
+  private authService = inject(AuthService);
+
   forgotForm: FormGroup;
   isLoading = false;
   isSuccess = false;
   errorMessage = '';
 
-  constructor(
-    private fb: FormBuilder,
-    private authService: AuthService
-  ) {
+  constructor() {
     this.forgotForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]]
     });

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AdminService, OrderStatistics, DailyStatistics, MonthlyFinancialRate } from '../../services/admin.service';
@@ -64,6 +64,11 @@ interface MonthlyExpenseCategory {
   styleUrls: ['./statistics.component.scss']
 })
 export class StatisticsComponent implements OnInit, OnDestroy {
+  private adminService = inject(AdminService);
+  private authService = inject(AuthService);
+  private cdr = inject(ChangeDetectorRef);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   @ViewChild('ordersChart') ordersCanvas!: ElementRef<HTMLCanvasElement>;
   @ViewChild('revenueChart') revenueCanvas!: ElementRef<HTMLCanvasElement>;
 
@@ -96,12 +101,7 @@ export class StatisticsComponent implements OnInit, OnDestroy {
   /** SuperAdmins can override FX/bonus rates; view-only Admins see the page read-only. */
   canEdit = false;
 
-  constructor(
-    private adminService: AdminService,
-    private authService: AuthService,
-    private cdr: ChangeDetectorRef,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
     this.canEdit = this.authService.currentUserValue?.role === 'SuperAdmin';
   }

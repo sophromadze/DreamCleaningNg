@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnDestroy, OnInit, Output, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, OnDestroy, OnInit, Output, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { finalize } from 'rxjs/operators';
@@ -47,6 +47,11 @@ export const PAY_ALL_UNCONFIRMED_MESSAGE =
  * with what they cost and a quiet "available once the one before it is paid", not four Pay buttons.
  */
 export class UpcomingRecurringOrdersComponent implements OnInit, OnDestroy {
+  private recurring = inject(RecurringOrderService);
+  private stripe = inject(StripeService);
+  private router = inject(Router);
+  private billing = inject(BillingService);
+
   /** Raised after a combined payment settles, so the host can reload its list. */
   @Output() paid = new EventEmitter<void>();
 
@@ -68,13 +73,6 @@ export class UpcomingRecurringOrdersComponent implements OnInit, OnDestroy {
   saveCardChoice: boolean | null = null;
   canSaveCard = false;
   private cardMounted = false;
-
-  constructor(
-    private recurring: RecurringOrderService,
-    private stripe: StripeService,
-    private router: Router,
-    private billing: BillingService
-  ) {}
 
   ngOnInit(): void {
     this.load();

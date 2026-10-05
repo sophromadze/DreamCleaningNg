@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { PLATFORM_ID, inject, Service } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { isPlatformBrowser } from '@angular/common';
 
@@ -6,12 +6,14 @@ export type Theme = 'light' | 'dark';
 
 const STORAGE_KEY = 'dreamcleaning-theme';
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class ThemeService {
+  private platformId = inject<Object>(PLATFORM_ID);
+
   private readonly currentTheme$ = new BehaviorSubject<Theme>('light');
   private readonly isBrowser: boolean;
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
     if (this.isBrowser) {
       const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;

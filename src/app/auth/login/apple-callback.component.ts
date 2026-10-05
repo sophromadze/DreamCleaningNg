@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -69,16 +69,16 @@ declare const AppleID: any;
   `]
 })
 export class AppleCallbackComponent implements OnInit {
+  private platformId = inject<Object>(PLATFORM_ID);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private authService = inject(AuthService);
+
   isBrowser = false;
   isProcessing = true;
   errorMessage: string | null = null;
 
-  constructor(
-    @Inject(PLATFORM_ID) private platformId: Object,
-    private route: ActivatedRoute,
-    private router: Router,
-    private authService: AuthService
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 

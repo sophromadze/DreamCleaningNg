@@ -1,5 +1,5 @@
 // src/app/auth/profile/order-edit/order-edit.component.ts
-import { Component, OnDestroy, OnInit, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormArray, FormControl, Validators } from '@angular/forms';
 import { RouterModule, ActivatedRoute, Router } from '@angular/router';
@@ -84,6 +84,17 @@ interface SelectedExtraService {
   styleUrls: ['../../../booking/booking.component.scss', './order-edit.component.scss']
 })
 export class OrderEditComponent implements OnInit, OnDestroy {
+  private fb = inject(FormBuilder);
+  private orderService = inject(OrderService);
+  private bookingService = inject(BookingService);
+  private locationService = inject(LocationService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private authService = inject(AuthService);
+  private stripeService = inject(StripeService);
+  private bubbleRewardsService = inject(BubbleRewardsService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   order: Order | null = null;
   orderForm: FormGroup;
   private isBrowser: boolean;
@@ -216,18 +227,7 @@ export class OrderEditComponent implements OnInit, OnDestroy {
   private updateData: UpdateOrder | null = null;
 
 
-  constructor(
-    private fb: FormBuilder,
-    private orderService: OrderService,
-    private bookingService: BookingService,
-    private locationService: LocationService,
-    private route: ActivatedRoute,
-    private router: Router,
-    private authService: AuthService,
-    private stripeService: StripeService,
-    private bubbleRewardsService: BubbleRewardsService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
     
     // Initialize form

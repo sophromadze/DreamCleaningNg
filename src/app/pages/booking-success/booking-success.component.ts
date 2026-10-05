@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -25,6 +25,14 @@ import { setIntervalOutsideZone } from '../../shared/zone-free-timers';
   styleUrls: ['./booking-success.component.scss']
 })
 export class BookingSuccessComponent implements OnInit, OnDestroy {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private orderService = inject(OrderService);
+  private authService = inject(AuthService);
+  private bubbleRewardsService = inject(BubbleRewardsService);
+  private analytics = inject(AnalyticsService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   private readonly zone = inject(NgZone);
   protected readonly icons = { faCircleCheck, faEnvelopeOpenText };
 
@@ -58,16 +66,6 @@ export class BookingSuccessComponent implements OnInit, OnDestroy {
   resendCooldown = 0;
   private resendTimer: any;
   loginEmail = '';
-
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private orderService: OrderService,
-    private authService: AuthService,
-    private bubbleRewardsService: BubbleRewardsService,
-    private analytics: AnalyticsService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {}
 
   ngOnInit() {
     this.orderId = this.route.snapshot.paramMap.get('orderId') ?? '';

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { Observable, of, catchError, map, shareReplay } from 'rxjs';
 import { BlogService } from './blog.service';
 
@@ -12,13 +12,13 @@ import { BlogService } from './blog.service';
  *   the admin toggle is reflected for the next page load / new visitor immediately.
  * Errors resolve to hidden (false) — the safe default matches the disabled state.
  */
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class BlogStatusService {
   readonly publicVisible$: Observable<boolean>;
 
-  constructor(blogService: BlogService) {
+  constructor() {
+    const blogService = inject(BlogService);
+
     this.publicVisible$ = blogService.getStatus().pipe(
       map(status => !!status?.publicVisible),
       catchError(() => of(false)),

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable, of, tap } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -36,13 +36,14 @@ export interface UpdateBeforeAfterPhotoDto {
   isActive?: boolean;
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class BeforeAfterPhotoService {
+  private http = inject(HttpClient);
+  private authService = inject(AuthService);
+
   private apiUrl = environment.apiUrl;
   /** The public list once loaded in this tab - see getPublic(). Cleared by every admin write. */
   private publicList: BeforeAfterPhotoDto[] | null = null;
-
-  constructor(private http: HttpClient, private authService: AuthService) {}
 
   private authHeaders(): HttpHeaders {
     const token = this.authService.getToken();

@@ -1,4 +1,4 @@
-import { Component, Inject, PLATFORM_ID, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, PLATFORM_ID, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterModule, Router, ActivatedRoute } from '@angular/router';
@@ -19,6 +19,12 @@ type LoginStep = 'email' | 'password' | 'otp';
   styleUrl: './login.component.scss'
 })
 export class LoginComponent implements OnInit {
+  private fb = inject(FormBuilder);
+  private authService = inject(AuthService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   isLoginMode = true;
   loginStep: LoginStep = 'email';
 
@@ -41,13 +47,7 @@ export class LoginComponent implements OnInit {
   /** Email entered in step 1, passed forward to step 2 */
   checkedEmail = '';
 
-  constructor(
-    private fb: FormBuilder,
-    private authService: AuthService,
-    private router: Router,
-    private route: ActivatedRoute,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
     this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/';
 

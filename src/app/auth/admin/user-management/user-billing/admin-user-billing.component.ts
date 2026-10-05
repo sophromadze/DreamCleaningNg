@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnDestroy, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, OnChanges, OnDestroy, SimpleChanges, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Subject, takeUntil } from 'rxjs';
 import { AdminUserBilling, BillingService, cardExpiry, cardLabel } from '../../../../services/billing.service';
@@ -22,6 +22,8 @@ import { extractApiErrorMessage } from '../../../../utils/http-error.utils';
   styleUrls: ['./admin-user-billing.component.scss']
 })
 export class AdminUserBillingComponent implements OnChanges, OnDestroy {
+  private billing = inject(BillingService);
+
   @Input({ required: true }) userId!: number;
 
   readonly cardLabel = cardLabel;
@@ -33,8 +35,6 @@ export class AdminUserBillingComponent implements OnChanges, OnDestroy {
 
   private destroy$ = new Subject<void>();
   private request$ = new Subject<void>();
-
-  constructor(private billing: BillingService) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['userId'] && this.userId) this.load();

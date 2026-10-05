@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -49,11 +49,11 @@ export interface TrafficQuery {
   channels?: string; // export-only: mirrors the on-screen channel filter ('' = none)
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class CrmTrafficService {
-  private apiUrl = `${environment.apiUrl}/crm/traffic`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private apiUrl = `${environment.apiUrl}/crm/traffic`;
 
   getDaily(q: TrafficQuery): Observable<TrafficDailyResponse> {
     return this.http.get<TrafficDailyResponse>(`${this.apiUrl}/daily`, { params: this.toParams(q) });

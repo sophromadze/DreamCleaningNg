@@ -1,4 +1,4 @@
-import { Component, OnInit, Inject, PLATFORM_ID, HostListener, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
+import { Component, OnInit, PLATFORM_ID, HostListener, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -22,6 +22,10 @@ import { setIntervalOutsideZone } from '../../shared/zone-free-timers';
   styleUrls: ['./two-factor-challenge.component.scss']
 })
 export class TwoFactorChallengeComponent implements OnInit {
+  private twoFactor = inject(TwoFactorService);
+  private auth = inject(AuthService);
+  private router = inject(Router);
+
   private readonly zone = inject(NgZone);
   protected readonly icons = { faArrowRight, faCheck, faCircleExclamation, faCircleInfo, faShieldHalved, faSpinner };
 
@@ -47,12 +51,9 @@ export class TwoFactorChallengeComponent implements OnInit {
 
   private isBrowser: boolean;
 
-  constructor(
-    private twoFactor: TwoFactorService,
-    private auth: AuthService,
-    private router: Router,
-    @Inject(PLATFORM_ID) platformId: Object
-  ) {
+  constructor() {
+    const platformId = inject<Object>(PLATFORM_ID);
+
     this.isBrowser = isPlatformBrowser(platformId);
   }
 

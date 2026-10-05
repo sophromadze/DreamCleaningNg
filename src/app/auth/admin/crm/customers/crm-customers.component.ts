@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, OnInit, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, OnChanges, OnInit, SimpleChanges, ChangeDetectionStrategy, inject } from '@angular/core';
 import { readableLabelColor } from '../../../../shared/admin/readable-label-color';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -16,6 +16,8 @@ import {
   styleUrls: ['./crm-customers.component.scss']
 })
 export class CrmCustomersComponent implements OnInit, OnChanges {
+  private customerService = inject(CrmCustomerService);
+
   /** Colours here are chosen by admins/users and shown as stored; the text on them adapts (AA, 2026-10). */
   readonly labelColor = readableLabelColor;
   /** Set by the CRM shell when a segment card is clicked. Empty = all customers. */
@@ -40,8 +42,6 @@ export class CrmCustomersComponent implements OnInit, OnChanges {
   newTagLabel = '';
   tagSuggestions: string[] = [];
   addingTag = false;
-
-  constructor(private customerService: CrmCustomerService) {}
 
   ngOnInit(): void {
     this.load();

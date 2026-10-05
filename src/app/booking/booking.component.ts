@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, Inject, PLATFORM_ID, afterNextRender, Injector, runInInjectionContext, ViewChild, ElementRef, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, PLATFORM_ID, afterNextRender, Injector, runInInjectionContext, ViewChild, ElementRef, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
@@ -131,6 +131,7 @@ import { faUserPlus } from '../shared/icons/glyphs/faUserPlus';
 import { faUserShield } from '../shared/icons/glyphs/faUserShield';
 import { faXmark } from '../shared/icons/glyphs/faXmark';
 import { setIntervalOutsideZone } from '../shared/zone-free-timers';
+import { debugTimersPaused } from '../shared/debug-timers';
 
 /** Address-name presets. Anything that isn't one of the fixed labels is "Other" (free text). */
 type AddressNameType = 'Home' | 'Office' | 'Other';
@@ -196,6 +197,29 @@ export function adminMethodIsSettled(method: AdminBookingPaymentMethod): boolean
   styleUrl: './booking.component.scss'
 })
 export class BookingComponent implements OnInit, OnDestroy {
+  private fb = inject(FormBuilder);
+  private bookingService = inject(BookingService);
+  private authService = inject(AuthService);
+  private authModalService = inject(AuthModalService);
+  private profileService = inject(ProfileService);
+  private locationService = inject(LocationService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private bookingDataService = inject(BookingDataService);
+  private specialOfferService = inject(SpecialOfferService);
+  formPersistenceService = inject(FormPersistenceService);
+  private pollService = inject(PollService);
+  private sanitizer = inject(DomSanitizer);
+  private cdr = inject(ChangeDetectorRef);
+  private ngZone = inject(NgZone);
+  private orderService = inject(OrderService);
+  private adminService = inject(AdminService);
+  private platformId = inject<Object>(PLATFORM_ID);
+  private injector = inject(Injector);
+  private googleMapsLoader = inject(GoogleMapsLoaderService);
+  private bubbleRewardsService = inject(BubbleRewardsService);
+  private invoiceService = inject(InvoiceService);
+
   protected readonly icons = { faBolt, faBroom, faCheck, faChevronDown, faCircleCheck, faCircleInfo, faCoins, faLock, faPiggyBank, faPlus, faShieldHalved, faSprayCanSparkles, faStar, faTag, faTriangleExclamation, faUserCheck, faUserPlus, faUserShield, faXmark };
 
   private destroy$ = new Subject<void>();
@@ -641,31 +665,7 @@ export class BookingComponent implements OnInit, OnDestroy {
   /** Set by discardAdminDraftIfPresent() — drives the "session was not restored" banner. */
   adminDraftDiscarded = false;
 
-  constructor(
-    private fb: FormBuilder,
-    private bookingService: BookingService,
-    private authService: AuthService,
-    private authModalService: AuthModalService,
-    private profileService: ProfileService,
-    private locationService: LocationService,
-    private router: Router,
-    private route: ActivatedRoute,
-    private bookingDataService: BookingDataService,
-    private specialOfferService: SpecialOfferService,
-    public formPersistenceService: FormPersistenceService,
-    private pollService: PollService,
-    private sanitizer: DomSanitizer,
-    private cdr: ChangeDetectorRef,
-    private ngZone: NgZone,
-    private orderService: OrderService,
-    private adminService: AdminService,
-    @Inject(PLATFORM_ID) private platformId: Object,
-    private injector: Injector,
-    private googleMapsLoader: GoogleMapsLoaderService,
-    private bubbleRewardsService: BubbleRewardsService,
-    // Only used by the Invoice payment method's commercial-client picker in Admin Mode.
-    private invoiceService: InvoiceService
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
     
     this.bookingForm = this.fb.group({
@@ -755,7 +755,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.updateExtraServicesContainerMaxWidth();
     
     // Set up periodic check for same day service availability (every minute)
-    const intervalId = setIntervalOutsideZone(this.ngZone, () => {
+    const intervalId = debugTimersPaused() ? undefined : setIntervalOutsideZone(this.ngZone, () => {
       this.checkSameDayServiceAvailability();
     }, 60000); // Check every minute
     

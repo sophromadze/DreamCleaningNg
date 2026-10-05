@@ -1,4 +1,4 @@
-import { Component, Inject, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -44,6 +44,9 @@ interface TermsDialog {
   styleUrls: ['./billing-tab.component.scss']
 })
 export class BillingTabComponent implements OnInit, OnDestroy {
+  private billing = inject(BillingService);
+  private stripe = inject(StripeService);
+
   readonly cardLabel = cardLabel;
   readonly cardExpiry = cardExpiry;
 
@@ -87,11 +90,9 @@ export class BillingTabComponent implements OnInit, OnDestroy {
   private readonly isBrowser: boolean;
   private destroy$ = new Subject<void>();
 
-  constructor(
-    private billing: BillingService,
-    private stripe: StripeService,
-    @Inject(PLATFORM_ID) platformId: Object
-  ) {
+  constructor() {
+    const platformId = inject<Object>(PLATFORM_ID);
+
     this.isBrowser = isPlatformBrowser(platformId);
   }
 

@@ -1,19 +1,5 @@
 import { findResidentialServiceType } from '../../booking/service-type-keys';
-import {
-  Component,
-  OnInit,
-  OnDestroy,
-  Input,
-  Inject,
-  Injector,
-  PLATFORM_ID,
-  TransferState,
-  afterNextRender,
-  inject,
-  makeStateKey,
-  DOCUMENT,
-  ChangeDetectionStrategy
-} from '@angular/core';
+import { Component, OnInit, OnDestroy, Input, Injector, PLATFORM_ID, TransferState, afterNextRender, inject, makeStateKey, DOCUMENT, ChangeDetectionStrategy } from '@angular/core';
 import { NgOptimizedImage, isPlatformBrowser } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
@@ -199,6 +185,13 @@ export function trimServiceTypesForHero(types: ServiceType[] | null | undefined)
   styleUrl: './home-hero.component.scss'
 })
 export class HomeHeroComponent implements OnInit, OnDestroy {
+  private googlePlacesService = inject(GooglePlacesService);
+  private specialOfferService = inject(SpecialOfferService);
+  private bookingService = inject(BookingService);
+  private formPersistenceService = inject(FormPersistenceService);
+  private router = inject(Router);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   protected readonly icons = { faBroom, faCalendarCheck, faChevronDown, faCircleCheck, faLock, faSprayCanSparkles };
 
   /** Location shown in the H1 accent ("Professional Cleaning Services in <accent>"). */
@@ -283,14 +276,7 @@ export class HomeHeroComponent implements OnInit, OnDestroy {
   /** Same per-tab memory for the public offers, so the coupon is there on a return visit. */
   private static lastOffers: PublicSpecialOffer[] | null = null;
 
-  constructor(
-    private googlePlacesService: GooglePlacesService,
-    private specialOfferService: SpecialOfferService,
-    private bookingService: BookingService,
-    private formPersistenceService: FormPersistenceService,
-    private router: Router,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
     this.hydrating = this.isBrowser && !this.router.navigated;
   }

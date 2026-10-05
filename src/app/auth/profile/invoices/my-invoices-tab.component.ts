@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { finalize } from 'rxjs';
 import {
@@ -22,13 +22,13 @@ import { extractApiErrorMessage } from '../../../utils/http-error.utils';
   styleUrls: ['./my-invoices-tab.component.scss']
 })
 export class MyInvoicesTabComponent implements OnInit {
+  private invoiceService = inject(CustomerInvoiceService);
+
   invoices: MyCustomerInvoice[] = [];
   loading = true;
   error = '';
 
   readonly statusLabels = CUSTOMER_INVOICE_STATUS_LABELS;
-
-  constructor(private invoiceService: CustomerInvoiceService) {}
 
   ngOnInit(): void {
     this.load();

@@ -1,4 +1,4 @@
-import { ApplicationConfig, PLATFORM_ID, APP_ID, provideZoneChangeDetection, provideAppInitializer, inject } from '@angular/core';
+import { ApplicationConfig, PLATFORM_ID, APP_ID, provideZoneChangeDetection, provideCheckNoChangesConfig, provideAppInitializer, inject } from '@angular/core';
 import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import { provideHttpClient, withFetch, withInterceptorsFromDi, withInterceptors } from '@angular/common/http';
 import { routes } from './app.routes';
@@ -63,7 +63,12 @@ export const appConfig: ApplicationConfig = {
       withInterceptors([authInterceptor])
     ),
     provideZoneChangeDetection({ eventCoalescing: true }),
-    
+    // Dev and debug builds only (a no-op once optimized): after every change detection pass, and
+    // every second on a timer, re-check EVERY view - OnPush and not-dirty ones included - and throw
+    // NG0100 for any binding whose value moved without Angular being told. That is how a missed
+    // signal or markForCheck shows up during development instead of as a stale screen in production.
+    provideCheckNoChangesConfig({ exhaustive: true, interval: 1000 }),
+
     // Client hydration with event replay. Incremental hydration is ON by default since Angular 22
     // (before that it was `withIncrementalHydration()`): `@defer (hydrate on ...)` blocks (footer,
     // below-the-fold home sections) are server-rendered in full but stay dehydrated - no JS

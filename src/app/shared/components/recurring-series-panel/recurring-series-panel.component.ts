@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
@@ -101,6 +101,8 @@ import { extractApiErrorMessage } from '../../../utils/http-error.utils';
  * orders itself.
  */
 export class RecurringSeriesPanelComponent implements OnChanges {
+  private recurring = inject(RecurringOrderService);
+
   @Input() orderId: number | null = null;
 
   /** Whether the signed-in admin may set a series up (Permission.Create on the backend). */
@@ -235,8 +237,6 @@ export class RecurringSeriesPanelComponent implements OnChanges {
   ];
 
   readonly Units = RecurrenceIntervalUnit;
-
-  constructor(private recurring: RecurringOrderService) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['orderId']) this.load();

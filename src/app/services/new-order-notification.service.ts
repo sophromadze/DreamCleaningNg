@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID, OnDestroy, NgZone, inject } from '@angular/core';
+import { PLATFORM_ID, OnDestroy, NgZone, inject, Service } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject, combineLatest } from 'rxjs';
 import { AuthService } from './auth.service';
@@ -7,6 +7,7 @@ import { SignalRService } from './signalr.service';
 import { OrderSoundService } from './order-sound.service';
 import { parseUtcDate } from '../shared/ny-time.util';
 import { setIntervalOutsideZone } from '../shared/zone-free-timers';
+import { debugTimersPaused } from '../shared/debug-timers';
 
 /**
  * How long an order counts as "new", measured from when it was CREATED.
@@ -31,10 +32,14 @@ const EXPIRY_SWEEP_MS = 60 * 1000;
  * Moderators are not an audience for this at all: the service only initializes for Admin and
  * SuperAdmin, and `addUnviewed` refuses while uninitialized so a stray broadcast cannot seed it.
  */
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class NewOrderNotificationService implements OnDestroy {
+  private authService = inject(AuthService);
+  private adminService = inject(AdminService);
+  private signalRService = inject(SignalRService);
+  private orderSound = inject(OrderSoundService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   private readonly zone = inject(NgZone);
   private isBrowser: boolean;
   private initialized = false;
@@ -54,13 +59,7 @@ export class NewOrderNotificationService implements OnDestroy {
   /** Count of unviewed new orders */
   unviewedCount$ = new BehaviorSubject<number>(0);
 
-  constructor(
-    private authService: AuthService,
-    private adminService: AdminService,
-    private signalRService: SignalRService,
-    private orderSound: OrderSoundService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
 
     if (this.isBrowser) {
@@ -169,7 +168,7 @@ export class NewOrderNotificationService implements OnDestroy {
    * app-wide, so a lapsed order has to stop being counted without anyone reloading the page.
    */
   private startExpirySweep(): void {
-    if (this.sweepHandle !== null) return;
+    if (this.sweepHandle !== null || debugTimersPaused()) return;
     this.sweepHandle = setIntervalOutsideZone(this.zone, () => this.pruneExpired(), EXPIRY_SWEEP_MS);
   }
 

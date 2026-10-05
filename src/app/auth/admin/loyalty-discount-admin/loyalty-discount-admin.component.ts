@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -24,6 +24,8 @@ import { formatNyDateTime } from '../../../shared/ny-time.util';
   styleUrls: ['./loyalty-discount-admin.component.scss'],
 })
 export class LoyaltyDiscountAdminComponent implements OnInit {
+  private adminService = inject(AdminService);
+
   // ── Panel A: settings ──────────────────────────────────────────────────────────
   settings: LoyaltyDiscountSettingsDto = this.defaultSettings();
   loadingSettings = false;
@@ -48,8 +50,6 @@ export class LoyaltyDiscountAdminComponent implements OnInit {
   // gets a standing discount and how big it is. The audit panel below stays visible to them
   // (read-only by design).
   canManageSettings = false;
-
-  constructor(private adminService: AdminService) {}
 
   ngOnInit(): void {
     this.adminService.getUserPermissions().subscribe({

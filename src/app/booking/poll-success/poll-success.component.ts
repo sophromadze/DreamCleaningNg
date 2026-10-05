@@ -1,5 +1,5 @@
 // src/app/poll-success/poll-success.component.ts
-import { Component, OnInit, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AnalyticsService } from '../../services/analytics.service';
@@ -125,16 +125,14 @@ import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
   `]
 })
 export class PollSuccessComponent implements OnInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private analytics = inject(AnalyticsService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   protected readonly icons = { faCircleCheck };
 
   serviceType = '';
-
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private analytics: AnalyticsService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {}
 
   ngOnInit() {
     this.serviceType = this.route.snapshot.queryParams['serviceType'] || 'your service';

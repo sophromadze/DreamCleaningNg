@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -36,6 +36,15 @@ import { isBedroomsLine, isCleanersLine } from '../../../shared/booking/order-se
   styleUrls: ['./order-payment.component.scss']
 })
 export class OrderPaymentComponent implements OnInit, OnDestroy {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private authService = inject(AuthService);
+  private bookingService = inject(BookingService);
+  private orderService = inject(OrderService);
+  private stripeService = inject(StripeService);
+  private billingService = inject(BillingService);
+  private cdr = inject(ChangeDetectorRef);
+
   protected readonly icons = { faCircleCheck, faCircleNotch, faGift };
 
   orderId: number = 0;
@@ -136,17 +145,6 @@ export class OrderPaymentComponent implements OnInit, OnDestroy {
   /** The card was charged; only our confirmation is late. See confirmCharged(). */
   finalizingPayment = false;
   readonly cardLabel = cardLabel;
-
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private authService: AuthService,
-    private bookingService: BookingService,
-    private orderService: OrderService,
-    private stripeService: StripeService,
-    private billingService: BillingService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   get selectedCard(): SavedCard | null {
     return this.savedCards.find(c => c.id === this.selectedCardId) ?? null;

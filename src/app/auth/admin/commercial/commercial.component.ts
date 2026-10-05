@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../../services/auth.service';
@@ -24,10 +24,10 @@ import { AuthService } from '../../../services/auth.service';
   styleUrls: ['./commercial.component.scss']
 })
 export class CommercialComponent implements OnInit, OnDestroy {
+  private auth = inject(AuthService);
+
   currentUser: any = null;
   private sub?: Subscription;
-
-  constructor(private auth: AuthService) {}
 
   ngOnInit(): void {
     this.sub = this.auth.currentUser.subscribe(u => this.currentUser = u);

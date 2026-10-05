@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID, inject, DOCUMENT } from '@angular/core';
+import { PLATFORM_ID, inject, DOCUMENT, Service } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
 import { isPlatformBrowser } from '@angular/common';
 import { writeHeroChoiceCookie } from '../shared/booking/hero-choice-cookie';
@@ -92,10 +92,10 @@ export interface BookingFormData {
   wasAdminMode?: boolean;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class FormPersistenceService {
+  private platformId = inject<Object>(PLATFORM_ID);
+
   private readonly STORAGE_KEY = 'booking_form_data';
   private readonly FORM_TTL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
   
@@ -104,7 +104,7 @@ export class FormPersistenceService {
   private isBrowser: boolean;
   private readonly document = inject(DOCUMENT);
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
     
     // Only load data and set up listeners in browser environment

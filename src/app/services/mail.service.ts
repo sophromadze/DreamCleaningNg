@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -77,11 +77,11 @@ export interface MailStatsDto {
 
 export { ROLES };
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class MailService {
-  private api = `${environment.apiUrl}/Admin/mails`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private api = `${environment.apiUrl}/Admin/mails`;
 
   getMails(status?: number): Observable<ScheduledMailDto[]> {
     const q = status != null ? `?status=${status}` : '';

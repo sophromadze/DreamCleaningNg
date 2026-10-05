@@ -1,4 +1,4 @@
-import { Pipe, PipeTransform } from '@angular/core';
+import { Pipe, PipeTransform, inject } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 
 /**
@@ -18,6 +18,8 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
  */
 @Pipe({ name: 'chatMarkdown', standalone: true })
 export class ChatMarkdownPipe implements PipeTransform {
+  private sanitizer = inject(DomSanitizer);
+
   private static readonly Bold = /\*\*([^*]+)\*\*/g;
 
   // Combined link pass. Alternative 1 (groups 1+2): markdown [label](url).
@@ -29,8 +31,6 @@ export class ChatMarkdownPipe implements PipeTransform {
     '|' + String.raw`https?:\/\/[^\s<>"')\]]+` +
     '|' + String.raw`(?<![@\w.-])(?:[a-zA-Z0-9-]+\.)+(?:com|net|org|nyc|io|co|us)\b(?:\/[^\s<>"')\]]*)?`,
     'g');
-
-  constructor(private sanitizer: DomSanitizer) {}
 
   transform(value: string | null | undefined): SafeHtml {
     if (!value) return '';

@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import { ShiftService, AdminShift, ShiftAdmin } from '../../services/shift.service';
@@ -21,6 +21,10 @@ const FALLBACK_COLORS = [
   styleUrls: ['./shifts.component.scss']
 })
 export class ShiftsComponent implements OnInit {
+  private shiftService = inject(ShiftService);
+  private authService = inject(AuthService);
+  private adminBonusService = inject(AdminBonusService);
+
   /** Colours here are chosen by admins/users and shown as stored; the text on them adapts (AA, 2026-10). */
   readonly labelColor = readableLabelColor;
 
@@ -99,12 +103,6 @@ export class ShiftsComponent implements OnInit {
     teamBookingNewCustomerRate: null,
     teamBookingExistingCustomerRate: null
   };
-
-  constructor(
-    private shiftService: ShiftService,
-    private authService: AuthService,
-    private adminBonusService: AdminBonusService
-  ) {}
 
   ngOnInit(): void {
     const user = this.authService.currentUserValue;

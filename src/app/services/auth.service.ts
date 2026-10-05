@@ -1,4 +1,4 @@
-import { Injectable, Inject, Injector, PLATFORM_ID } from '@angular/core';
+import { Injector, PLATFORM_ID, inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { BehaviorSubject, Observable, of, throwError, timeout, from, defer } from 'rxjs';
 import { map, tap, catchError, switchMap, filter, take, first, finalize } from 'rxjs/operators';
@@ -100,10 +100,12 @@ interface RegisterData {
   referralCode?: string;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class AuthService {
+  private http = inject(HttpClient);
+  private router = inject(Router);
+  private injector = inject(Injector);
+
   private apiUrl = environment.apiUrl;
   private useCookieAuth = environment.useCookieAuth || false; // Add this to environment
   private currentUserSubject: BehaviorSubject<UserDto | null>;
@@ -134,12 +136,9 @@ export class AuthService {
     if (this.isBrowser) void this.socialAuthService;
   }
 
-  constructor(
-    private http: HttpClient,
-    private router: Router,
-    @Inject(PLATFORM_ID) platformId: Object,
-    private injector: Injector
-  ) {
+  constructor() {
+    const platformId = inject<Object>(PLATFORM_ID);
+
     this.isBrowser = isPlatformBrowser(platformId);
 
     // Initialize stored user

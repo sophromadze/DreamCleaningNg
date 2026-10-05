@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -43,11 +43,11 @@ export interface ChatSessionHistory {
  * Visibility is decided SERVER-side (admin-controlled VisibilityMode +
  * the caller's validated role) — the widget only renders what this says.
  */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class ChatWidgetService {
-  private apiUrl = `${environment.apiUrl}/chat`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private apiUrl = `${environment.apiUrl}/chat`;
 
   getVisibility(): Observable<ChatWidgetVisibility> {
     return this.http.get<ChatWidgetVisibility>(`${this.apiUrl}/widget-visibility`);

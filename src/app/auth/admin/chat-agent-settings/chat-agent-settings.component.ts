@@ -1,4 +1,4 @@
-import { Component, ElementRef, HostListener, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ElementRef, HostListener, OnDestroy, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import {
   ChatAgentAdminService,
@@ -28,6 +28,9 @@ interface VisibilityOption {
   styleUrl: './chat-agent-settings.component.scss'
 })
 export class ChatAgentSettingsComponent implements OnDestroy {
+  private adminService = inject(ChatAgentAdminService);
+  private host = inject<ElementRef<HTMLElement>>(ElementRef);
+
   readonly visibilityOptions: VisibilityOption[] = [
     { mode: 'Disabled', label: 'Disabled', description: 'Hidden from everyone — the chat button does not appear and the chat API is closed.' },
     { mode: 'AdminOnly', label: 'Admin Only', description: 'Visible only to logged-in admins, for testing. Customers never see it.' },
@@ -42,11 +45,6 @@ export class ChatAgentSettingsComponent implements OnDestroy {
   errorMessage: string | null = null;
 
   private successTimer: ReturnType<typeof setTimeout> | null = null;
-
-  constructor(
-    private adminService: ChatAgentAdminService,
-    private host: ElementRef<HTMLElement>
-  ) {}
 
   ngOnDestroy(): void {
     if (this.successTimer) clearTimeout(this.successTimer);

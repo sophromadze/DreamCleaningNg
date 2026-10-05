@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -24,6 +24,10 @@ interface CategoryGroup {
   styleUrl: './admin-rewards.component.scss'
 })
 export class AdminRewardsComponent implements OnInit {
+  private bubbleRewardsService = inject(BubbleRewardsService);
+  private adminService = inject(AdminService);
+  private authService = inject(AuthService);
+
   activeTab: 'settings' | 'stats' = 'settings';
 
   // Settings tab
@@ -57,11 +61,7 @@ export class AdminRewardsComponent implements OnInit {
    *  than assuming the surrounding gate. */
   canEdit = false;
 
-  constructor(
-    private bubbleRewardsService: BubbleRewardsService,
-    private adminService: AdminService,
-    private authService: AuthService
-  ) {
+  constructor() {
     this.canEdit = this.authService.currentUserValue?.role === 'SuperAdmin';
   }
 

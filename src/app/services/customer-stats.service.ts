@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -127,11 +127,11 @@ export interface CustomerTrendPoint {
   returningRate: number;
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class CustomerStatsService {
-  private apiUrl = `${environment.apiUrl}/admin/customer-statistics`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private apiUrl = `${environment.apiUrl}/admin/customer-statistics`;
 
   getStatistics(from?: string, to?: string): Observable<CustomerStatistics> {
     let params = new HttpParams();

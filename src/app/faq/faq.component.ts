@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, inject, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BubbleFieldComponent } from '../bubble-field/bubble-field.component';
 import { StructuredDataService } from '../services/structured-data.service';
@@ -14,6 +14,8 @@ import { listStartingPrices } from '../shared/pricing/marketing-price-format';
   styleUrls: ['./faq.component.scss']
 })
 export class FaqComponent implements OnInit, OnDestroy {
+  private platformId = inject<Object>(PLATFORM_ID);
+
   openItems: Set<number> = new Set();
   /**
    * Every price on this page, including the "Cleaning Supplies" / "Vacuum Cleaner" extras, comes
@@ -23,10 +25,6 @@ export class FaqComponent implements OnInit, OnDestroy {
   readonly pricing = inject(MarketingPricingService).text;
 
   private readonly structuredData = inject(StructuredDataService);
-
-  constructor(
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) { }
 
   ngOnInit(): void {
     if (isPlatformBrowser(this.platformId)) {

@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -851,15 +851,15 @@ export interface MyContractListItem {
  * gated) and the client one under /contracts (anonymous, addressed only by opaque token). The
  * client methods are the ones the review and signing pages call and must never require a login.
  */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class ContractService {
+  private http = inject(HttpClient);
+
   private readonly adminUrl = `${environment.apiUrl}/crm/contracts`;
   private readonly directoryUrl = `${environment.apiUrl}/crm/contract-directory`;
   private readonly publicUrl = `${environment.apiUrl}/contracts`;
   private readonly myUrl = `${environment.apiUrl}/my-contracts`;
   private readonly accessUrl = `${environment.apiUrl}/admin`;
-
-  constructor(private http: HttpClient) {}
 
   // ── Permissions (the server's matrix, never re-derived here) ──
 

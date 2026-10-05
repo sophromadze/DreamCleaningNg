@@ -110,7 +110,7 @@
   <!-- ═══ Step 2: the mailed link landed here ═══ -->
   @if (currentStep === 'verification') {
   <div class="account-form-card account-form-status">
-    <div class="status-icon" [ngClass]="{'success': isSuccess, 'error': isError, 'loading': isVerifying}">
+    <div class="status-icon" [class]="{'success': isSuccess, 'error': isError, 'loading': isVerifying}">
       @if (isVerifying) {
       <svg class="spinner" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"

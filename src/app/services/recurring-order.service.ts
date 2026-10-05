@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -178,12 +178,12 @@ export interface RecurringPricePreview {
   loyaltyIsFixedAmount?: boolean;
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class RecurringOrderService {
+  private http = inject(HttpClient);
+
   private readonly admin = `${environment.apiUrl}/admin/recurring-series`;
   private readonly mine = `${environment.apiUrl}/my-recurring-orders`;
-
-  constructor(private http: HttpClient) {}
 
   // ── Admin ──────────────────────────────────────────────────────────────────────────────────
 

@@ -159,6 +159,19 @@ export interface PaymentTimelineRow {
   styleUrls: ['./orders.component.scss']
 })
 export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
+  private adminService = inject(AdminService);
+  private orderService = inject(OrderService);
+  private cleanerService = inject(CleanerService);
+  private bookingService = inject(BookingService);
+  orderReminderService = inject(OrderReminderService);
+  newOrderNotificationService = inject(NewOrderNotificationService);
+  private bubbleRewardsService = inject(BubbleRewardsService);
+  private billingService = inject(BillingService);
+  private cdr = inject(ChangeDetectorRef);
+  private shiftService = inject(ShiftService);
+  private invoiceService = inject(InvoiceService);
+  private customerInvoiceService = inject(CustomerInvoiceService);
+
   private readonly appRef = inject(ApplicationRef);
   @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
   @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
@@ -600,23 +613,6 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   showHiddenOrders = false;
   hideConfirmOrder: AdminOrderList | null = null;
   isHidingOrder = false;
-
-  constructor(
-    private adminService: AdminService,
-    private orderService: OrderService,
-    private cleanerService: CleanerService,
-    private bookingService: BookingService,
-    public orderReminderService: OrderReminderService,
-    public newOrderNotificationService: NewOrderNotificationService,
-    private bubbleRewardsService: BubbleRewardsService,
-    private billingService: BillingService,
-    private cdr: ChangeDetectorRef,
-    private shiftService: ShiftService,
-    // Only used by the Invoice payment method's commercial-client picker.
-    private invoiceService: InvoiceService,
-    // Regular (non-commercial) customer invoices: the Payments card and the Send Invoice modal.
-    private customerInvoiceService: CustomerInvoiceService
-  ) {}
 
   ngOnInit() {
     this.loadUserPermissions();

@@ -1,14 +1,4 @@
-import {
-  Component,
-  OnInit,
-  OnDestroy,
-  Inject,
-  PLATFORM_ID,
-  ChangeDetectorRef,
-  ChangeDetectionStrategy,
-  NgZone,
-  inject
-} from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy, NgZone, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Subscription, concat, map, of } from 'rxjs';
@@ -16,6 +6,7 @@ import { environment } from '../../../../environments/environment';
 import { GooglePlacesService, Review } from '../../../services/google-reviews.service';
 import { responsiveSrc, responsiveSrcset } from '../../images/responsive-image.loader';
 import { setIntervalOutsideZone } from '../../zone-free-timers';
+import { debugTimersPaused } from '../../debug-timers';
 
 const TESTIMONIAL_PHOTO = '/images/couch-cleaning-in-nyc.webp';
 
@@ -59,6 +50,10 @@ const FIRST_PAGE_SIZE = 2;
   styleUrl: './testimonial-section.component.scss'
 })
 export class TestimonialSectionComponent implements OnInit, OnDestroy {
+  private googlePlacesService = inject(GooglePlacesService);
+  private cdr = inject(ChangeDetectorRef);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   private readonly zone = inject(NgZone);
   reviews: ExtendedReview[] = [];
 
@@ -117,11 +112,7 @@ export class TestimonialSectionComponent implements OnInit, OnDestroy {
     }
   ];
 
-  constructor(
-    private googlePlacesService: GooglePlacesService,
-    private cdr: ChangeDetectorRef,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 
@@ -201,6 +192,7 @@ export class TestimonialSectionComponent implements OnInit, OnDestroy {
     if (!this.isBrowser) return;
     if (this.reviewSliderTimer) clearInterval(this.reviewSliderTimer);
     if (this.reviews.length <= 1) return;
+    if (debugTimersPaused()) return;
     this.reviewSliderTimer = setIntervalOutsideZone(this.zone, () => {
       if (this.reviewSliderPaused || this.reviews.length === 0) return;
       this.currentReviewIndex = (this.currentReviewIndex + 1) % this.reviews.length;

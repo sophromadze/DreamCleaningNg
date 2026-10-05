@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -155,13 +155,11 @@ export interface UpdateBlogSettings {
   generationModel?: string;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class BlogService {
-  private apiUrl = environment.apiUrl;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private apiUrl = environment.apiUrl;
 
   // ===== Public =====
 

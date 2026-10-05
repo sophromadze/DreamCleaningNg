@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { TwoFactorService, TrustedDevice } from '../../services/two-factor.service';
 import { AuthService } from '../../services/auth.service';
 import { formatNy } from '../../shared/ny-time.util';
@@ -12,6 +12,9 @@ import { formatNy } from '../../shared/ny-time.util';
   styleUrls: ['./trusted-devices.component.scss']
 })
 export class TrustedDevicesComponent implements OnInit {
+  private twoFactor = inject(TwoFactorService);
+  private auth = inject(AuthService);
+
   devices: TrustedDevice[] = [];
   loading = false;
   error = '';
@@ -29,11 +32,6 @@ export class TrustedDevicesComponent implements OnInit {
   // Only render the section for staff roles — customers don't have 2FA so the list is
   // always empty for them anyway, but we hide it to avoid confusion.
   showSection = false;
-
-  constructor(
-    private twoFactor: TwoFactorService,
-    private auth: AuthService
-  ) {}
 
   ngOnInit(): void {
     const role = this.auth.currentUserValue?.role;

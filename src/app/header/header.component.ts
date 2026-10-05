@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ElementRef, Inject, Injector, PLATFORM_ID, OnDestroy, NgZone, inject, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, Injector, PLATFORM_ID, OnDestroy, NgZone, inject, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { RouterLink, RouterLinkActive, Router, NavigationEnd, NavigationStart } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
 import { BubbleBadgeComponent } from './bubble-badge/bubble-badge.component';
@@ -23,6 +23,7 @@ import { environment } from '../../environments/environment';
 import { HeaderAccountMenuComponent } from './header-account-menu/header-account-menu.component';
 import { UiHintService } from '../shared/ssr/ui-hint.service';
 import { setIntervalOutsideZone } from '../shared/zone-free-timers';
+import { debugTimersPaused } from '../shared/debug-timers';
 
 interface HeaderAccountServices {
   orders: OrderService;
@@ -43,6 +44,19 @@ interface HeaderAccountServices {
   styleUrl: './header.component.scss'
 })
 export class HeaderComponent implements OnInit, OnDestroy {
+  private authService = inject(AuthService);
+  private authModalService = inject(AuthModalService);
+  private stickyCtaService = inject(StickyCtaService);
+  themeService = inject(ThemeService);
+  private router = inject(Router);
+  private elementRef = inject(ElementRef);
+  private cdr = inject(ChangeDetectorRef);
+  private blogStatusService = inject(BlogStatusService);
+  phoneNumber = inject(PhoneNumberService);
+  private injector = inject(Injector);
+  private uiHint = inject(UiHintService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   private readonly zone = inject(NgZone);
   private destroy$ = new Subject<void>();
   isMenuOpen = false;
@@ -84,20 +98,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   public isBrowser: boolean;
   private accountServices: Promise<HeaderAccountServices> | null = null;
 
-  constructor(
-    private authService: AuthService,
-    private authModalService: AuthModalService,
-    private stickyCtaService: StickyCtaService,
-    public themeService: ThemeService,
-    private router: Router,
-    private elementRef: ElementRef,
-    private cdr: ChangeDetectorRef,
-    private blogStatusService: BlogStatusService,
-    public phoneNumber: PhoneNumberService,
-    private injector: Injector,
-    private uiHint: UiHintService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
     // An admin's time pill is part of the server render when the layout hint says so, so the
     // first frame already holds it at its final width (see clockVisible).
@@ -358,6 +359,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private startNyTimeClock(): void {
     if (!this.isBrowser) return;
     this.updateNyTime();
+    if (debugTimersPaused()) return;
     this.nyTimeInterval = setIntervalOutsideZone(this.zone, () => this.updateNyTime(), 1000);
   }
 

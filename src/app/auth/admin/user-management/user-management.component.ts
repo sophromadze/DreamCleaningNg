@@ -1,8 +1,4 @@
-import {
-  Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input, Output,
-  EventEmitter,
-  ChangeDetectionStrategy
-} from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, Input, Output, EventEmitter, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -62,6 +58,13 @@ type DetailTab = 'details' | 'history' | 'photos' | 'notes' | 'tasks' | 'invoice
   styleUrls: ['./user-management.component.scss']
 })
 export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy {
+  private adminService = inject(AdminService);
+  private orderService = inject(OrderService);
+  private bubbleRewardsService = inject(BubbleRewardsService);
+  private adminBonusService = inject(AdminBonusService);
+  private contractService = inject(ContractService);
+  private invoiceService = inject(InvoiceService);
+
   @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
   @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
 
@@ -249,15 +252,6 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   adminBonusAllTime: AdminBonusSummary | null = null;
   adminBonusThisMonth: AdminBonusSummary | null = null;
   loadingAdminBonus = false;
-
-  constructor(
-    private adminService: AdminService,
-    private orderService: OrderService,
-    private bubbleRewardsService: BubbleRewardsService,
-    private adminBonusService: AdminBonusService,
-    private contractService: ContractService,
-    private invoiceService: InvoiceService
-  ) {}
 
   ngOnInit() {
     // Panel-only mode opens straight onto its account, through the SAME path the ?userId= deep

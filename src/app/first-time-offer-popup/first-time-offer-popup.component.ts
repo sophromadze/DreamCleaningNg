@@ -1,4 +1,4 @@
-import { Component, Inject, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -28,6 +28,11 @@ import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-ke
   styleUrl: './first-time-offer-popup.component.scss'
 })
 export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
+  private router = inject(Router);
+  private specialOfferService = inject(SpecialOfferService);
+  private authService = inject(AuthService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   protected readonly icons = { faGift, faXmark };
 
   /** Scroll distance (px) past which we reveal the popup. */
@@ -45,12 +50,7 @@ export class FirstTimeOfferPopupComponent implements OnInit, OnDestroy {
   private subscriptions = new Subscription();
   private scrollHandler = () => this.onScroll();
 
-  constructor(
-    private router: Router,
-    private specialOfferService: SpecialOfferService,
-    private authService: AuthService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 

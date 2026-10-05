@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { OrderReminderService, OrderReminder } from '../services/order-reminder.service';
@@ -18,6 +18,10 @@ import { faCircleStop } from '../shared/icons/glyphs/faCircleStop';
   styleUrls: ['./order-reminder.component.scss']
 })
 export class OrderReminderComponent implements OnInit, OnDestroy {
+  private reminderService = inject(OrderReminderService);
+  private authService = inject(AuthService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   protected readonly icons = { faCheck };
 
   activeReminders: OrderReminder[] = [];
@@ -27,11 +31,7 @@ export class OrderReminderComponent implements OnInit, OnDestroy {
 
   private subscriptions: Subscription[] = [];
 
-  constructor(
-    private reminderService: OrderReminderService,
-    private authService: AuthService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 

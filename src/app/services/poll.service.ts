@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -39,13 +39,11 @@ export interface PollSubmission {
   }>;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class PollService {
-  private apiUrl = environment.apiUrl;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) { }
+  private apiUrl = environment.apiUrl;
 
   getPollQuestions(serviceTypeId: number): Observable<PollQuestion[]> {
     return this.http.get<PollQuestion[]>(`${this.apiUrl}/poll/questions/${serviceTypeId}`);

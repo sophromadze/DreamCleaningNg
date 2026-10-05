@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectorRef, DOCUMENT, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectorRef, DOCUMENT, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { PlatformLocation } from '@angular/common';
 import { RouterOutlet, Router, NavigationEnd, ActivatedRoute } from '@angular/router';
@@ -104,6 +104,20 @@ function isSocialStickyHiddenRoute(url: string): boolean {
   styleUrl: './app.component.scss'
 })
 export class AppComponent implements OnInit, OnDestroy {
+  private authService = inject(AuthService);
+  private authModalService = inject(AuthModalService);
+  private tokenRefreshService = inject(TokenRefreshService);
+  private attributionService = inject(AttributionService);
+  private marketingPricing = inject(MarketingPricingService);
+  private router = inject(Router);
+  private activatedRoute = inject(ActivatedRoute);
+  private titleService = inject(Title);
+  private metaService = inject(Meta);
+  private cdr = inject(ChangeDetectorRef);
+  private platformLocation = inject(PlatformLocation);
+  private platformId = inject<Object>(PLATFORM_ID);
+  private document = inject<Document>(DOCUMENT);
+
   protected readonly icons = { faFacebookF, faInstagram, faTiktok };
 
   title = 'DreamCleaning';
@@ -142,24 +156,7 @@ export class AppComponent implements OnInit, OnDestroy {
     return this.isBrowser && !isChatHiddenRoute(this._path);
   }
 
-  constructor(
-    private authService: AuthService,
-    private authModalService: AuthModalService,
-    private tokenRefreshService: TokenRefreshService,
-    private attributionService: AttributionService,
-    // Injected here so every render - whatever the route - resolves the marketing prices and ships
-    // them in TransferState: priced route descriptions need them, and the browser then never
-    // has to fetch them on a later client-side navigation.
-    private marketingPricing: MarketingPricingService,
-    private router: Router,
-    private activatedRoute: ActivatedRoute,
-    private titleService: Title,
-    private metaService: Meta,
-    private cdr: ChangeDetectorRef,
-    private platformLocation: PlatformLocation,
-    @Inject(PLATFORM_ID) private platformId: Object,
-    @Inject(DOCUMENT) private document: Document
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
     this._path = this.getInitialPath();
   }

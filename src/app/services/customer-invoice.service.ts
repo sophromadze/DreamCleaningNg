@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -166,12 +166,12 @@ export const CUSTOMER_INVOICE_STATUS_LABELS: Record<CustomerInvoiceStatus, strin
   Cancelled: 'Order cancelled'
 };
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class CustomerInvoiceService {
+  private http = inject(HttpClient);
+
   private adminUrl = `${environment.apiUrl}/admin/customer-invoices`;
   private publicUrl = `${environment.apiUrl}/public/customer-invoices`;
-
-  constructor(private http: HttpClient) {}
 
   list(filters: { search?: string; status?: string; userId?: number; orderId?: number } = {}): Observable<CustomerInvoice[]> {
     let params = new HttpParams();

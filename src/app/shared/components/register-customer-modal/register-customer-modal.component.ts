@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs/operators';
 import { AdminService } from '../../../services/admin.service';
@@ -44,6 +44,8 @@ export interface RegisteredCustomer {
   styleUrls: ['./register-customer-modal.component.scss']
 })
 export class RegisterCustomerModalComponent implements OnChanges {
+  private adminService = inject(AdminService);
+
   /** Host-controlled visibility. Every false→true transition resets the form. */
   @Input() open = false;
 
@@ -56,8 +58,6 @@ export class RegisterCustomerModalComponent implements OnChanges {
   form = { firstName: '', lastName: '', email: '', phone: '', noEmail: false };
   errorMessage = '';
   isRegistering = false;
-
-  constructor(private adminService: AdminService) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['open'] && changes['open'].currentValue && !changes['open'].previousValue) {

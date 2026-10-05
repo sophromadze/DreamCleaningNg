@@ -24,6 +24,10 @@ import { faPhone } from '../shared/icons/glyphs/faPhone';
   styleUrl: './contact.component.scss'
 })
 export class ContactComponent implements OnInit {
+  private fb = inject(FormBuilder);
+  private http = inject(HttpClient);
+  private authService = inject(AuthService);
+
   protected readonly icons = { faCircleCheck, faCircleXmark, faEnvelope, faFacebook, faInstagram, faPhone };
 
   contactForm: FormGroup;
@@ -35,11 +39,7 @@ export class ContactComponent implements OnInit {
   protected readonly phoneNumber = inject(PhoneNumberService);
   private readonly analytics = inject(AnalyticsService);
 
-  constructor(
-    private fb: FormBuilder,
-    private http: HttpClient,
-    private authService: AuthService
-  ) {
+  constructor() {
     this.contactForm = this.fb.group({
       fullName: ['', [Validators.required]],
       email: [{value: '', disabled: false}, [Validators.required, Validators.email]],

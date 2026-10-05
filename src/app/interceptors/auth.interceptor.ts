@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID, Injector, inject } from '@angular/core';
+import { PLATFORM_ID, Injector, inject, Service } from '@angular/core';
 import { HttpRequest, HttpHandler, HttpEvent, HttpEventType, HttpInterceptor, HttpErrorResponse, HttpHandlerFn } from '@angular/common/http';
 import { Observable, throwError, of, BehaviorSubject } from 'rxjs';
 import { catchError, defaultIfEmpty, filter, take, switchMap, map, tap, shareReplay } from 'rxjs/operators';
@@ -402,18 +402,19 @@ function applyToken(
  * Do NOT register both. Two interceptors refreshing the same rotating refresh token is the
  * failure `refreshOnce` exists to prevent.
  */
-@Injectable()
+@Service({ autoProvided: false })
 export class AuthInterceptor implements HttpInterceptor {
+  private authService = inject(AuthService);
+  private router = inject(Router);
+
   private isBrowser: boolean;
   private isRefreshing = false;
   private refreshTokenSubject: BehaviorSubject<any> = new BehaviorSubject<any>(null);
   private useCookieAuth = environment.useCookieAuth || false;
 
-  constructor(
-    @Inject(PLATFORM_ID) platformId: Object,
-    private authService: AuthService,
-    private router: Router
-  ) {
+  constructor() {
+    const platformId = inject<Object>(PLATFORM_ID);
+
     this.isBrowser = isPlatformBrowser(platformId);
   }
 

@@ -13,6 +13,12 @@ import { OrderDetailsComponent } from '../auth/profile/order-details/order-detai
 describe('Recurring and commercial refinement', () => {
   beforeEach(() => TestBed.configureTestingModule({ providers: [...testProviders] }));
 
+  /** The panel injects RecurringOrderService; build it in an injection context around the given double. */
+  function panel(service: RecurringOrderService): RecurringSeriesPanelComponent {
+    TestBed.overrideProvider(RecurringOrderService, { useValue: service });
+    return TestBed.runInInjectionContext(() => new RecurringSeriesPanelComponent());
+  }
+
   function invoice(): InvoiceDetail {
     return {
       id: 1, status: InvoiceStatus.Draft, invoiceNumber: 'DCI-2026-12345678',
@@ -62,7 +68,7 @@ describe('Recurring and commercial refinement', () => {
   });
 
   it('defaults payment requests on for new series and keeps explicit false on edit', () => {
-    const c = new RecurringSeriesPanelComponent({} as RecurringOrderService);
+    const c = panel({} as RecurringOrderService);
     c.startSetup(); expect(c.autoRequestPayment).toBe(true);
     c.series = { autoRequestPayment: false, anchorDate: '', serviceTime: '', intervalValue: 2,
       intervalUnit: RecurrenceIntervalUnit.Weeks } as RecurringSeries;
@@ -71,7 +77,7 @@ describe('Recurring and commercial refinement', () => {
 
   it('requires Keep or Regenerate when editing a populated future schedule', () => {
     const service = { update: vi.fn().mockName('recurring.update') } as any;
-    const c = new RecurringSeriesPanelComponent(service); c.orderId = 1;
+    const c = panel(service); c.orderId = 1;
     c.series = { id: 1, intervalValue: 1, intervalUnit: RecurrenceIntervalUnit.Weeks,
       anchorDate: '2026-10-01', serviceTime: '09:00:00', endDate: null,
       occurrences: [{ orderId: 2, wasGenerated: true, serviceDate: '2999-10-01', status: 'Pending' }] } as RecurringSeries;

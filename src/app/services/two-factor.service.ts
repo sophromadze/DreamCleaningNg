@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { PLATFORM_ID, inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { isPlatformBrowser } from '@angular/common';
@@ -87,15 +87,16 @@ export interface TrustedDevice {
 // (which imports this file's device-token helpers).
 export type RevokeSessionsResult = import('./auth.service').ReissuedSessionResponse;
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class TwoFactorService {
+  private http = inject(HttpClient);
+
   private apiUrl = environment.apiUrl;
   private isBrowser: boolean;
 
-  constructor(
-    private http: HttpClient,
-    @Inject(PLATFORM_ID) platformId: Object
-  ) {
+  constructor() {
+    const platformId = inject<Object>(PLATFORM_ID);
+
     this.isBrowser = isPlatformBrowser(platformId);
   }
 

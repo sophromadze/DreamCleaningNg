@@ -25,6 +25,8 @@ import { StructuredDataService } from '../../../services/structured-data.service
   styleUrls: ['./queens-cleaning.component.scss']
 })
 export class QueensCleaningComponent implements OnInit, OnDestroy {
+  private googlePlacesService = inject(GooglePlacesService);
+
   /** Google review count/rating (shared /stats endpoint); null until loaded or in local dev. */
   stats: ReviewStats | null = null;
   showGoogleReviews = environment.production;
@@ -35,10 +37,6 @@ export class QueensCleaningComponent implements OnInit, OnDestroy {
   /** Prices from the booking catalogue; null = fragment left out (MarketingPricingService). */
   readonly pricing = this.marketingPricing.text;
   private readonly structuredData = inject(StructuredDataService);
-
-  constructor(
-    private googlePlacesService: GooglePlacesService
-  ) {}
 
   ngOnInit() {
     if (this.showGoogleReviews) {

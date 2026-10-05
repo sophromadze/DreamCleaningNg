@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ElementRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -21,6 +21,9 @@ import {
   styleUrls: ['./keywords.component.scss']
 })
 export class KeywordsComponent implements OnInit {
+  private keywordsService = inject(CrmKeywordsService);
+  private host = inject(ElementRef);
+
   // Organic (Search Console)
   organic: OrganicKeywordRow[] = [];
   organicTotals: OrganicTotals | null = null;
@@ -54,8 +57,6 @@ export class KeywordsComponent implements OnInit {
     { key: 'year', label: 'This year' },
     { key: 'all', label: 'All time' }
   ];
-
-  constructor(private keywordsService: CrmKeywordsService, private host: ElementRef) {}
 
   ngOnInit(): void {
     this.loadAll();

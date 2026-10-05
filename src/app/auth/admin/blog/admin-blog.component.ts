@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -40,6 +40,10 @@ interface SuggestionRow extends SuggestedTopic {
   styleUrl: './admin-blog.component.scss'
 })
 export class AdminBlogComponent implements OnInit, OnDestroy {
+  private blogService = inject(BlogService);
+  private sanitizer = inject(DomSanitizer);
+  private authService = inject(AuthService);
+
   readonly BlogPostStatus = BlogPostStatus;
   readonly BlogTopicStatus = BlogTopicStatus;
   readonly categories = ['Guides', 'NYC Living', 'Checklists', 'Seasonal'];
@@ -83,12 +87,6 @@ export class AdminBlogComponent implements OnInit, OnDestroy {
   guideLang: GuideLang = 'ka';
 
   private subscription = new Subscription();
-
-  constructor(
-    private blogService: BlogService,
-    private sanitizer: DomSanitizer,
-    private authService: AuthService
-  ) {}
 
   /** Settings tab and Delete actions are SuperAdmin-only (mirrored server-side —
    *  the endpoints 403 other roles; this just keeps the UI honest). */

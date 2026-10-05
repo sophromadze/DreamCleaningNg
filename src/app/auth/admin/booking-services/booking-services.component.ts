@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -39,6 +39,9 @@ export interface CreatePollQuestion {
   styleUrls: ['./booking-services.component.scss']
 })
 export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestroy {
+  private adminService = inject(AdminService);
+  private cdr = inject(ChangeDetectorRef);
+
   @ViewChild('serviceTypesTableWrapper', { static: false }) serviceTypesTableWrapper!: ElementRef<HTMLDivElement>;
   @ViewChild('serviceTypesTableHeader', { static: false }) serviceTypesTableHeader!: ElementRef<HTMLTableSectionElement>;
   @ViewChild('pollTableWrapper', { static: false }) pollTableWrapper!: ElementRef<HTMLDivElement>;
@@ -197,11 +200,6 @@ export class BookingServicesComponent implements OnInit, AfterViewInit, OnDestro
 
   // Messages for poll questions
   pollQuestionMessage = { success: '', error: '' };
-
-  constructor(
-    private adminService: AdminService,
-    private cdr: ChangeDetectorRef
-  ) {}
 
   // Helper method to clear messages
   private clearMessages() {

@@ -1,4 +1,4 @@
-import { Component, Inject, PLATFORM_ID, OnInit, Output, EventEmitter, ChangeDetectionStrategy } from '@angular/core';
+import { Component, PLATFORM_ID, OnInit, Output, EventEmitter, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { environment } from '../../../environments/environment';
 
@@ -81,13 +81,15 @@ declare const AppleID: any;
   `]
 })
 export class AppleSigninButtonComponent implements OnInit {
+  private platformId = inject<Object>(PLATFORM_ID);
+
   isBrowser = false;
   isLoading = false;
   
   @Output() appleSignIn = new EventEmitter<any>();
   @Output() appleError = new EventEmitter<any>();
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 

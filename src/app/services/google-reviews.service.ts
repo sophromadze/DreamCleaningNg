@@ -1,4 +1,4 @@
-import { Injectable, PLATFORM_ID, TransferState, inject, makeStateKey } from '@angular/core';
+import { PLATFORM_ID, TransferState, inject, makeStateKey, Service } from '@angular/core';
 import { isPlatformServer, isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map, catchError, of, shareReplay, tap } from 'rxjs';
@@ -76,10 +76,10 @@ export function googleAvatarUrl(url: string, size: number = REVIEW_AVATAR_SIZE):
   return `${url.slice(0, eq + 1)}${options.join('-')}`;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class GooglePlacesService {
+  private http = inject(HttpClient);
+
   private apiUrl = environment.apiUrl;
 
   /** Shared, session-cached stats stream so every badge / counter / schema block on a page
@@ -89,8 +89,6 @@ export class GooglePlacesService {
   private sliderReviews: Review[] | null = null;
   private readonly transferState = inject(TransferState);
   private readonly platformId = inject(PLATFORM_ID);
-
-  constructor(private http: HttpClient) { }
 
   /**
    * Google review count + rating from the backend `/stats` endpoint. Emits null when there is

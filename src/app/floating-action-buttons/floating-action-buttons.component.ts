@@ -1,4 +1,4 @@
-import { Component, HostListener, ElementRef, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, HostListener, ElementRef, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { PhoneClickTrackingService } from '../services/phone-click-tracking.service';
@@ -13,17 +13,17 @@ import { PhoneNumberService } from '../services/phone-number.service';
   styleUrl: './floating-action-buttons.component.scss'
 })
 export class FloatingActionButtonsComponent {
+  private router = inject(Router);
+  private elementRef = inject(ElementRef);
+  private phoneTracking = inject(PhoneClickTrackingService);
+  private phoneNumber = inject(PhoneNumberService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   isExpanded = false;
   contactLetters = 'CONTACT'.split('');
   private isBrowser: boolean;
   
-  constructor(
-    private router: Router, 
-    private elementRef: ElementRef,
-    private phoneTracking: PhoneClickTrackingService,
-    private phoneNumber: PhoneNumberService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
   

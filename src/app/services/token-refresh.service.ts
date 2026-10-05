@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID, NgZone, OnDestroy, inject } from '@angular/core';
+import { PLATFORM_ID, NgZone, OnDestroy, inject, Service } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { interval, Subscription, Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
@@ -13,10 +13,10 @@ import { refreshOnce } from '../interceptors/auth.interceptor';
 import { environment } from '../../environments/environment';
 import { setTimeoutOutsideZone, subscribeOutsideZone } from '../shared/zone-free-timers';
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class TokenRefreshService implements OnDestroy {
+  private authService = inject(AuthService);
+
   private readonly zone = inject(NgZone);
   private refreshSubscription?: Subscription;
   private inactivityCheckSubscription?: Subscription;
@@ -58,10 +58,9 @@ export class TokenRefreshService implements OnDestroy {
     return Math.min(Math.max(delayMs, 0), TokenRefreshService.MAX_TIMER_DELAY);
   }
 
-  constructor(
-    private authService: AuthService,
-    @Inject(PLATFORM_ID) platformId: Object
-  ) {
+  constructor() {
+    const platformId = inject<Object>(PLATFORM_ID);
+
     this.isBrowser = isPlatformBrowser(platformId);
   }
 

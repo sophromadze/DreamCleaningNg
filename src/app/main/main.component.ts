@@ -1,17 +1,4 @@
-import {
-  Component,
-  OnInit,
-  OnDestroy,
-  Inject,
-  PLATFORM_ID,
-  ChangeDetectorRef,
-  ViewChild,
-  ElementRef,
-  inject,
-  NgZone,
-  afterNextRender,
-  ChangeDetectionStrategy
-} from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectorRef, ViewChild, ElementRef, inject, NgZone, afterNextRender, ChangeDetectionStrategy } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { NavigationStart, Router, RouterLink } from '@angular/router';
 import { GooglePlacesService, aggregateRatingSchema } from '../services/google-reviews.service';
@@ -36,6 +23,7 @@ import { CardImageDirective } from '../shared/images/card-image.directive';
 import { HomeLayoutMemoryService, SectionHeights } from './home-layout-memory.service';
 import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-keys';
 import { setIntervalOutsideZone } from '../shared/zone-free-timers';
+import { debugTimersPaused } from '../shared/debug-timers';
 
 /**
  * Drawn widths, measured from the rendered images. The About photo is 3:2 inside a 4:3 box with
@@ -86,6 +74,13 @@ export interface BeforeAfterPhoto {
   styleUrl: './main.component.scss'
 })
 export class MainComponent implements OnInit, OnDestroy {
+  private specialOfferService = inject(SpecialOfferService);
+  private authService = inject(AuthService);
+  private authModalService = inject(AuthModalService);
+  private cdr = inject(ChangeDetectorRef);
+  private beforeAfterPhotoService = inject(BeforeAfterPhotoService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   protected readonly icons = { faCircleInfo, faStar, faTags, faUserGroup };
   protected readonly aboutPhoto = responsiveImage('/images/dream-cleaning-maids-in-nyc.webp', ABOUT_PHOTO_SIZES);
   protected readonly beforeAfterHalfSizes = BEFORE_AFTER_HALF_SIZES;
@@ -151,14 +146,7 @@ export class MainComponent implements OnInit, OnDestroy {
   private static readonly BEFORE_AFTER_WIN_WIDE = 1200;
   private static readonly BEFORE_AFTER_WIN_NARROW = 768;
 
-  constructor(
-    private specialOfferService: SpecialOfferService,
-    private authService: AuthService,
-    private authModalService: AuthModalService,
-    private cdr: ChangeDetectorRef,
-    private beforeAfterPhotoService: BeforeAfterPhotoService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
     if (this.isBrowser && typeof matchMedia !== 'undefined') {
       this.beforeAfterMotionOk = !matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -511,6 +499,7 @@ export class MainComponent implements OnInit, OnDestroy {
     this.stopBeforeAfterAutoplay();
     if (!this.isBrowser || !this.beforeAfterMotionOk) return;
     if (this.beforeAfterBaseLength === 0) return;
+    if (debugTimersPaused()) return;
     this.beforeAfterAutoplayTimer = setIntervalOutsideZone(this.zone, () => {
       this.advanceBeforeAfter(1);
       this.cdr.detectChanges();

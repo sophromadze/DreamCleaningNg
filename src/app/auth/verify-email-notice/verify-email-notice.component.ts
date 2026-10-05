@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
@@ -12,6 +12,10 @@ import { AuthService } from '../../services/auth.service';
   styleUrls: ['./verify-email-notice.component.scss']
 })
 export class VerifyEmailNoticeComponent {
+  private fb = inject(FormBuilder);
+  private authService = inject(AuthService);
+  private router = inject(Router);
+
   otpForm: FormGroup;
   isVerifying = false;
   isResending = false;
@@ -19,11 +23,7 @@ export class VerifyEmailNoticeComponent {
   errorMessage = '';
   userEmail: string = '';
 
-  constructor(
-    private fb: FormBuilder,
-    private authService: AuthService,
-    private router: Router
-  ) {
+  constructor() {
     // Email comes from the logged-in user (auto-logged in during registration)
     this.userEmail = this.authService.currentUserValue?.email || '';
 

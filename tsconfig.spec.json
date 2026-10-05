@@ -16,7 +16,10 @@
     "extendedDiagnostics": {
       "checks": {
         "nullishCoalescingNotNullable": "suppress",
-        "optionalChainNotNullable": "suppress"
+        "optionalChainNotNullable": "suppress",
+        "interpolatedSignalNotInvoked": "error",
+        "uninvokedFunctionInTextInterpolation": "error",
+        "uninvokedFunctionInEventBinding": "error"
       }
     }
   }

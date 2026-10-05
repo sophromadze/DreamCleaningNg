@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { PLATFORM_ID, inject, Service } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { environment } from '../../environments/environment';
 
@@ -32,8 +32,10 @@ interface SessionAttribution {
   ts: number;
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class AttributionService {
+  private platformId = inject<Object>(PLATFORM_ID);
+
   private static readonly COOKIE_NAME = 'dc_attribution';
   private static readonly MAX_AGE_DAYS = 30;
 
@@ -69,7 +71,7 @@ export class AttributionService {
 
   private readonly isBrowser: boolean;
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 

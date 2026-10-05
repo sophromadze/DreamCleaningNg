@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -70,11 +70,11 @@ export interface SmsStatsDto {
   totalSmsSent: number;
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class ScheduledSmsService {
-  private api = `${environment.apiUrl}/Admin/sms`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private api = `${environment.apiUrl}/Admin/sms`;
 
   getList(status?: number): Observable<ScheduledSmsDto[]> {
     const q = status != null ? `?status=${status}` : '';

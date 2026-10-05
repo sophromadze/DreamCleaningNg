@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -67,11 +67,11 @@ export interface KeywordsQuery {
   pageSize?: number;
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class CrmKeywordsService {
-  private apiUrl = `${environment.apiUrl}/crm/keywords`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private apiUrl = `${environment.apiUrl}/crm/keywords`;
 
   getOrganic(q: KeywordsQuery): Observable<OrganicKeywordResponse> {
     return this.http.get<OrganicKeywordResponse>(`${this.apiUrl}/organic`, { params: this.toParams(q) });

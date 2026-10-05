@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { Subject, takeUntil } from 'rxjs';
@@ -24,6 +24,15 @@ import { faGift } from '../../shared/icons/glyphs/faGift';
   styleUrls: ['./booking-confirmation.component.scss']
 })
 export class BookingConfirmationComponent implements OnInit, OnDestroy {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private authService = inject(AuthService);
+  private bookingService = inject(BookingService);
+  private bookingDataService = inject(BookingDataService);
+  private stripeService = inject(StripeService);
+  private orderSound = inject(OrderSoundService);
+  private billingService = inject(BillingService);
+
   protected readonly icons = { faCircleCheck, faCircleNotch, faGift };
 
   orderId: number = 0;
@@ -68,17 +77,6 @@ export class BookingConfirmationComponent implements OnInit, OnDestroy {
    * successful charge is precisely what made customers pay twice (2026-09-16).
    */
   finalizingPayment = false;
-
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private authService: AuthService,
-    private bookingService: BookingService,
-    private bookingDataService: BookingDataService,
-    private stripeService: StripeService,
-    private orderSound: OrderSoundService,
-    private billingService: BillingService
-  ) {}
 
   get selectedCard(): SavedCard | null {
     return this.savedCards.find(c => c.id === this.selectedCardId) ?? null;

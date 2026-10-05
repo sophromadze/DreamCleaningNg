@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 
 export interface BubbleConfig {
@@ -16,10 +16,10 @@ const MOBILE_BREAKPOINT_PX = 768;
   styleUrl: './bubble-field.component.scss'
 })
 export class BubbleFieldComponent implements OnInit, OnDestroy {
+  private platformId = inject<Object>(PLATFORM_ID);
+
   bubbles: BubbleConfig[] = [];
   private resizeListener: (() => void) | null = null;
-
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {}
 
   ngOnInit(): void {
     if (!isPlatformBrowser(this.platformId)) {

@@ -1,5 +1,5 @@
 // admin-gift-cards.component.ts
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from '../../../services/admin.service';
 import { formatNyDateTime } from '../../../shared/ny-time.util';
@@ -50,6 +50,8 @@ interface GiftCardUsage {
   styleUrl: './admin-gift-cards.component.scss'
 })
 export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy {
+  private adminService = inject(AdminService);
+
   @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
   @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
   
@@ -108,8 +110,6 @@ export class AdminGiftCardsComponent implements OnInit, AfterViewInit, OnDestroy
       canDeactivate: false
     }
   };
-
-  constructor(private adminService: AdminService) {}
 
   ngOnInit() {
     this.checkUserRole();

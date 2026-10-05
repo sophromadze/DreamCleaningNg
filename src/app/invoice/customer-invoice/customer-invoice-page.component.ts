@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { finalize } from 'rxjs';
@@ -34,6 +34,10 @@ import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
   styleUrls: ['./customer-invoice-page.component.scss']
 })
 export class CustomerInvoicePageComponent implements OnInit, OnDestroy {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private invoiceService = inject(CustomerInvoiceService);
+
   protected readonly icons = { faBuildingColumns, faCircleCheck, faCreditCard, faFilePdf, faHourglassHalf, faMoneyBillTransfer, faSpinner };
 
   invoice: PublicCustomerInvoice | null = null;
@@ -56,12 +60,6 @@ export class CustomerInvoicePageComponent implements OnInit, OnDestroy {
   paymentHint: 'processing' | 'cancelled' | null = null;
 
   readonly statusLabels = CUSTOMER_INVOICE_STATUS_LABELS;
-
-  constructor(
-    private route: ActivatedRoute,
-    private router: Router,
-    private invoiceService: CustomerInvoiceService
-  ) {}
 
   ngOnInit(): void {
     const token = this.route.snapshot.paramMap.get('token') ?? '';

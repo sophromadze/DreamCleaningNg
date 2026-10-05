@@ -1,16 +1,4 @@
-import {
-  Component,
-  Inject,
-  PLATFORM_ID,
-  OnInit,
-  OnDestroy,
-  Output,
-  EventEmitter,
-  ViewChild,
-  ElementRef,
-  AfterViewInit,
-  ChangeDetectionStrategy
-} from '@angular/core';
+import { Component, PLATFORM_ID, OnInit, OnDestroy, Output, EventEmitter, ViewChild, ElementRef, AfterViewInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Subscription } from 'rxjs';
 import { filter, take } from 'rxjs/operators';
@@ -145,6 +133,10 @@ import { ThemeService } from '../../services/theme.service';
   `]
 })
 export class GoogleSigninWrapperComponent implements OnInit, AfterViewInit, OnDestroy {
+  private platformId = inject<Object>(PLATFORM_ID);
+  private socialAuthService = inject(SocialAuthService);
+  private themeService = inject(ThemeService);
+
   @Output() googleSignInError = new EventEmitter<string>();
   @ViewChild('googleBtnContainer') googleBtnContainerRef!: ElementRef<HTMLElement>;
 
@@ -155,11 +147,7 @@ export class GoogleSigninWrapperComponent implements OnInit, AfterViewInit, OnDe
   private initSub: Subscription | null = null;
   private themeSub: Subscription | null = null;
 
-  constructor(
-    @Inject(PLATFORM_ID) private platformId: Object,
-    private socialAuthService: SocialAuthService,
-    private themeService: ThemeService
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 

@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { ActivatedRoute, ParamMap } from '@angular/router';
 import { skip } from 'rxjs/operators';
 import { AdminService, UserPermissions } from '../../services/admin.service';
@@ -39,6 +39,11 @@ import { AdminCustomerInvoicesComponent } from './customer-invoices/admin-custom
   styleUrls: ['./admin.component.scss']
 })
 export class AdminComponent implements OnInit {
+  private adminService = inject(AdminService);
+  private maintenanceModeService = inject(MaintenanceModeService);
+  private liveChatService = inject(LiveChatService);
+  private route = inject(ActivatedRoute);
+
   // Permissions
   userRole: string = '';
   userPermissions: any = {
@@ -105,13 +110,6 @@ export class AdminComponent implements OnInit {
   // Live Chat toggle
   chatEnabled = true;
   isTogglingChat = false;
-
-  constructor(
-    private adminService: AdminService,
-    private maintenanceModeService: MaintenanceModeService,
-    private liveChatService: LiveChatService,
-    private route: ActivatedRoute
-  ) {}
 
   ngOnInit() {
     // If orderId query param is present, go straight to orders tab and auto-open that order

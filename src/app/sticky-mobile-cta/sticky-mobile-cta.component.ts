@@ -1,4 +1,4 @@
-import { Component, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { StickyCtaService } from '../services/sticky-cta.service';
@@ -14,17 +14,17 @@ import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-ke
   styleUrl: './sticky-mobile-cta.component.scss'
 })
 export class StickyMobileCtaComponent {
+  private router = inject(Router);
+  private stickyCtaService = inject(StickyCtaService);
+  private specialOfferService = inject(SpecialOfferService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   isVisible = false;
   /** Display label for the first-time discount, e.g. "10%" or "$20". Empty until loaded. */
   firstTimeDiscountLabel = '';
   private isBrowser: boolean;
 
-  constructor(
-    private router: Router,
-    private stickyCtaService: StickyCtaService,
-    private specialOfferService: SpecialOfferService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 

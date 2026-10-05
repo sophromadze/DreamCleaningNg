@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -23,6 +23,10 @@ import { describeEmailProblem } from '../../../utils/email.utils';
   styleUrls: ['./my-gift-cards-tab.component.scss']
 })
 export class MyGiftCardsTabComponent implements OnInit, OnDestroy {
+  private giftCardService = inject(GiftCardService);
+  private authService = inject(AuthService);
+  private fb = inject(FormBuilder);
+
   cards: MyGiftCard[] = [];
   loading = true;
   error = '';
@@ -47,11 +51,7 @@ export class MyGiftCardsTabComponent implements OnInit, OnDestroy {
   readonly recipientNameMax = 15;
   readonly messageMax = 70;
 
-  constructor(
-    private giftCardService: GiftCardService,
-    private authService: AuthService,
-    private fb: FormBuilder
-  ) {
+  constructor() {
     this.sendForm = this.fb.group({
       recipientName: ['', [Validators.required, Validators.maxLength(this.recipientNameMax)]],
       recipientEmail: ['', [Validators.required, Validators.maxLength(255)]],

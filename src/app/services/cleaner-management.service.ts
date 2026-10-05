@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -176,11 +176,11 @@ export interface CleanerImageUploadResult {
   sizeBytes: number;
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class CleanerManagementService {
-  private apiUrl = `${environment.apiUrl}/admin/cleaners`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private apiUrl = `${environment.apiUrl}/admin/cleaners`;
 
   getAll(options: { includeInactive?: boolean; search?: string } = {}): Observable<CleanerListItem[]> {
     let params = new HttpParams();

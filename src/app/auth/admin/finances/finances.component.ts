@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, from, of, Subject } from 'rxjs';
@@ -177,6 +177,11 @@ interface CompareRow {
   styleUrls: ['./finances.component.scss']
 })
 export class FinancesComponent implements OnInit, OnDestroy {
+  private adminService = inject(AdminService);
+  private themeService = inject(ThemeService);
+  private cdr = inject(ChangeDetectorRef);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   @ViewChild('donutCanvas') donutCanvas!: ElementRef<HTMLCanvasElement>;
 
   stats: OrderStatistics | null = null;
@@ -255,12 +260,7 @@ export class FinancesComponent implements OnInit, OnDestroy {
     { key: 'all', label: 'All Time' }
   ];
 
-  constructor(
-    private adminService: AdminService,
-    private themeService: ThemeService,
-    private cdr: ChangeDetectorRef,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
     // Skeleton rows so the receipt structure is visible (labels + shimmer values)
     // while the first load resolves — per the "shimmer the value, not the label" rule.

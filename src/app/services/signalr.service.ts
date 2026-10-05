@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID, NgZone, inject } from '@angular/core';
+import { PLATFORM_ID, NgZone, inject, Service } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HubConnection, HubConnectionBuilder, LogLevel, HttpTransportType } from '@microsoft/signalr';
 import { BehaviorSubject, Observable } from 'rxjs';
@@ -15,10 +15,11 @@ export interface UserNotification {
   data?: any;
 }
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class SignalRService {
+  private authService = inject(AuthService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   private readonly zone = inject(NgZone);
   private static instanceCount = 0;
   private static authSubscriptionSetup = false;
@@ -42,10 +43,7 @@ export class SignalRService {
   public newOrderViewed$ = SignalRService.globalNewOrderViewed.asObservable();
   public tasksUpdated$ = SignalRService.globalTasksUpdated.asObservable();
 
-  constructor(
-    private authService: AuthService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
     
     // Only initialize in browser context

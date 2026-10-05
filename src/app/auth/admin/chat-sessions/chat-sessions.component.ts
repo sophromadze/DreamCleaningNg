@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -27,6 +27,8 @@ import { ChatMarkdownPipe } from '../../../shared/pipes/chat-markdown.pipe';
   styleUrl: './chat-sessions.component.scss'
 })
 export class ChatSessionsComponent implements OnInit {
+  private adminService = inject(ChatAgentAdminService);
+
   /** Passed from the admin shell — hard-delete is gated to SuperAdmin only. */
   @Input() userRole = '';
 
@@ -61,8 +63,6 @@ export class ChatSessionsComponent implements OnInit {
   nameEdits: { [telegramUserId: number]: string } = {};
   newTelegramUserId = '';
   newDisplayName = '';
-
-  constructor(private adminService: ChatAgentAdminService) {}
 
   ngOnInit(): void {
     this.loadSessions();

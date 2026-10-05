@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ROLES } from '../../../services/mail.service';
 import { AdminService, UserPermissions } from '../../../services/admin.service';
@@ -25,6 +25,9 @@ const STATUS_SENT = 2;
   styleUrls: ['./sms.component.scss']
 })
 export class SmsComponent implements OnInit, AfterViewInit, OnDestroy {
+  private adminService = inject(AdminService);
+  private scheduledSmsService = inject(ScheduledSmsService);
+
   @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
   @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
   
@@ -66,10 +69,7 @@ export class SmsComponent implements OnInit, AfterViewInit, OnDestroy {
   error = '';
   success = '';
 
-  constructor(
-    private adminService: AdminService,
-    private scheduledSmsService: ScheduledSmsService
-  ) {
+  constructor() {
     ROLES.forEach(r => this.selectedRoles[r] = false);
   }
 

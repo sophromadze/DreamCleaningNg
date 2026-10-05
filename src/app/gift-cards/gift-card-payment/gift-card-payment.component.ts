@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, ActivatedRoute } from '@angular/router';
 import { GiftCardService } from '../../services/gift-card.service';
@@ -16,6 +16,11 @@ import { faCircleCheck } from '../../shared/icons/glyphs/faCircleCheck';
   styleUrls: ['./gift-card-payment.component.scss']
 })
 export class GiftCardPaymentComponent implements OnInit {
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private giftCardService = inject(GiftCardService);
+  private authService = inject(AuthService);
+
   protected readonly icons = { faCircleCheck };
 
   giftCardId: number | null = null;
@@ -24,13 +29,6 @@ export class GiftCardPaymentComponent implements OnInit {
   paymentCompleted = false;
   errorMessage: string | null = null;
   currentUser: any;
-
-  constructor(
-    private router: Router,
-    private route: ActivatedRoute,
-    private giftCardService: GiftCardService,
-    private authService: AuthService
-  ) {}
 
   ngOnInit() {
     this.route.queryParams.subscribe(params => {

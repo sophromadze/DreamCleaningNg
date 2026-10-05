@@ -1,7 +1,4 @@
-import {
-  Component, OnInit, OnDestroy, ViewChild, ElementRef, Inject, PLATFORM_ID, ChangeDetectorRef,
-  ChangeDetectionStrategy
-} from '@angular/core';
+import { Component, OnInit, OnDestroy, ViewChild, ElementRef, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, from, of, Subject } from 'rxjs';
@@ -237,6 +234,12 @@ const VIEW_STORAGE_PREFIX = 'dreamcleaning-customers-view';
   styleUrls: ['./customer-stats.component.scss']
 })
 export class CustomerStatsComponent implements OnInit, OnDestroy {
+  private customerStats = inject(CustomerStatsService);
+  private themeService = inject(ThemeService);
+  private authService = inject(AuthService);
+  private cdr = inject(ChangeDetectorRef);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   @ViewChild('trendCanvas') trendCanvas!: ElementRef<HTMLCanvasElement>;
 
   stats: CustomerStatistics | null = null;
@@ -564,13 +567,7 @@ export class CustomerStatsComponent implements OnInit, OnDestroy {
   /** Stable tooltip id per metric, so the same row owns the same id in every view. */
   private readonly tooltipIds = new Map<string, number>();
 
-  constructor(
-    private customerStats: CustomerStatsService,
-    private themeService: ThemeService,
-    private authService: AuthService,
-    private cdr: ChangeDetectorRef,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
     const thisYear = new Date().getFullYear();
     this.yearOptions = Array.from({ length: 6 }, (_, i) => thisYear - i);

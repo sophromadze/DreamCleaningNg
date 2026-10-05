@@ -1,4 +1,4 @@
-import { Component, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -23,6 +23,10 @@ import { faSpinner } from '../../shared/icons/glyphs/faSpinner';
   styleUrls: ['./setup-pin.component.scss']
 })
 export class SetupPinComponent {
+  private twoFactor = inject(TwoFactorService);
+  private auth = inject(AuthService);
+  private router = inject(Router);
+
   protected readonly icons = { faCircleCheck, faCircleExclamation, faCircleInfo, faEye, faEyeSlash, faLock, faShieldHalved, faSpinner };
 
   // Backend rule: 4–12 digits, digits-only.
@@ -38,12 +42,9 @@ export class SetupPinComponent {
 
   private isBrowser: boolean;
 
-  constructor(
-    private twoFactor: TwoFactorService,
-    private auth: AuthService,
-    private router: Router,
-    @Inject(PLATFORM_ID) platformId: Object
-  ) {
+  constructor() {
+    const platformId = inject<Object>(PLATFORM_ID);
+
     this.isBrowser = isPlatformBrowser(platformId);
   }
 

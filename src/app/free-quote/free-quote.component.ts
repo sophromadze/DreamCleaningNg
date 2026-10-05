@@ -20,6 +20,10 @@ import { faCircleXmark } from '../shared/icons/glyphs/faCircleXmark';
   styleUrl: './free-quote.component.scss'
 })
 export class FreeQuoteComponent implements OnInit {
+  private fb = inject(FormBuilder);
+  private http = inject(HttpClient);
+  private orderSound = inject(OrderSoundService);
+
   protected readonly icons = { faCircleCheck, faCircleXmark };
 
   quoteForm: FormGroup;
@@ -30,11 +34,7 @@ export class FreeQuoteComponent implements OnInit {
   protected readonly phoneNumber = inject(PhoneNumberService);
   private readonly analytics = inject(AnalyticsService);
 
-  constructor(
-    private fb: FormBuilder,
-    private http: HttpClient,
-    private orderSound: OrderSoundService
-  ) {
+  constructor() {
     this.quoteForm = this.fb.group({
       firstName: ['', [Validators.required]],
       lastName: [''],

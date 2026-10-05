@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -74,11 +74,11 @@ export interface CustomerListFilters {
   pageSize?: number;
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class CrmCustomerService {
-  private apiUrl = `${environment.apiUrl}/crm/customers`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private apiUrl = `${environment.apiUrl}/crm/customers`;
 
   getCustomers(filters?: CustomerListFilters): Observable<CrmCustomerPage> {
     let params = new HttpParams();

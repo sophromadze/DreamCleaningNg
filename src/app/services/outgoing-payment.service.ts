@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -257,11 +257,11 @@ export interface UpdateCleanerPayrollPayload {
   updateBillableMinutes: boolean;
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class OutgoingPaymentService {
-  private apiUrl = `${environment.apiUrl}/admin/outgoing-payments`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private apiUrl = `${environment.apiUrl}/admin/outgoing-payments`;
 
   getPayments(query: OutgoingPaymentQuery = {}): Observable<OutgoingPaymentList> {
     let params = new HttpParams();

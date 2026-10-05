@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, ChangeDetectionStrategy } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -100,6 +100,9 @@ type CleaningType = 'normal' | 'deep' | 'superdeep';
   styleUrls: ['./recreate-order-modal.component.scss']
 })
 export class RecreateOrderModalComponent implements OnChanges {
+  private adminService = inject(AdminService);
+  private bookingService = inject(BookingService);
+
   /** The order to recreate. Loading starts when this and `open` are both set. */
   @Input() sourceOrderId: number | null = null;
   @Input() open = false;
@@ -189,11 +192,6 @@ export class RecreateOrderModalComponent implements OnChanges {
   // expects, not a widened `string`.
   readonly apartmentType: PropertyType = PROPERTY_TYPE_APARTMENT;
   readonly houseType: PropertyType = PROPERTY_TYPE_HOUSE;
-
-  constructor(
-    private adminService: AdminService,
-    private bookingService: BookingService
-  ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if ((changes['open'] || changes['sourceOrderId']) && this.open && this.sourceOrderId) {

@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { PLATFORM_ID, inject, Service } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { HubConnection, HubConnectionBuilder, LogLevel, HttpTransportType } from '@microsoft/signalr';
@@ -22,10 +22,11 @@ export type ChatStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 const SESSION_KEY = 'livechat_session';
 const MSGS_KEY = (sessionId: string) => `livechat_msgs_${sessionId}`;
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class LiveChatService {
+  private platformId = inject<Object>(PLATFORM_ID);
+  private http = inject(HttpClient);
+
   private hubConnection?: HubConnection;
   private isBrowser: boolean;
   private sessionId: string | null = null;
@@ -40,10 +41,7 @@ export class LiveChatService {
   public error$ = this.errorSubject.asObservable();
   public chatEnabled$ = this.chatEnabledSubject.asObservable();
 
-  constructor(
-    @Inject(PLATFORM_ID) private platformId: Object,
-    private http: HttpClient
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 

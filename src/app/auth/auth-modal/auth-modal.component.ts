@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, HostListener, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -26,6 +26,12 @@ type LoginStep = 'email' | 'password' | 'otp';
   styleUrl: './auth-modal.component.scss'
 })
 export class AuthModalComponent implements OnInit, OnDestroy {
+  private fb = inject(FormBuilder);
+  private authService = inject(AuthService);
+  private router = inject(Router);
+  private authModalService = inject(AuthModalService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   isLoginMode = true;
   loginStep: LoginStep = 'email';
 
@@ -48,13 +54,7 @@ export class AuthModalComponent implements OnInit, OnDestroy {
   private subscriptions = new Subscription();
   private googleSignInListening = false;
 
-  constructor(
-    private fb: FormBuilder,
-    private authService: AuthService,
-    private router: Router,
-    private authModalService: AuthModalService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
 
     this.emailForm = this.fb.group({

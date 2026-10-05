@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { PLATFORM_ID, inject, Service } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 
 /**
@@ -66,11 +66,13 @@ export type AnalyticsParams =
   Partial<Record<typeof FLAT_PARAM_KEYS[number], string | number>> &
   { user_data?: AnalyticsUserData };
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class AnalyticsService {
+  private platformId = inject<Object>(PLATFORM_ID);
+
   private readonly isBrowser: boolean;
 
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 

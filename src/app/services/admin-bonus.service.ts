@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -83,11 +83,11 @@ export interface AdminBonusOverride {
   teamBookingExistingCustomerRate: number | null;
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class AdminBonusService {
-  private apiUrl = `${environment.apiUrl}/admin-bonus`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private apiUrl = `${environment.apiUrl}/admin-bonus`;
 
   /** Calendar-month default when from/to are omitted (UTC, matches the shifts view). */
   getBonuses(from?: string, to?: string, adminId?: number): Observable<AdminBonusSummary[]> {

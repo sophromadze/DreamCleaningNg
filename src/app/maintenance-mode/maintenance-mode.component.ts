@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { MaintenanceModeService, MaintenanceModeStatus } from '../services/maintenance-mode.service';
 import { formatNyDateTime } from '../shared/ny-time.util';
 
@@ -131,9 +131,9 @@ import { formatNyDateTime } from '../shared/ny-time.util';
   `]
 })
 export class MaintenanceModeComponent implements OnInit {
-  status: MaintenanceModeStatus | null = null;
+  private maintenanceModeService = inject(MaintenanceModeService);
 
-  constructor(private maintenanceModeService: MaintenanceModeService) { }
+  status: MaintenanceModeStatus | null = null;
 
   ngOnInit() {
     this.loadMaintenanceStatus();

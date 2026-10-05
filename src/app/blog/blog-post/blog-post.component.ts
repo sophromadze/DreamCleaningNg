@@ -1,4 +1,4 @@
-import { Component, Inject, OnDestroy, OnInit, Optional, inject, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnDestroy, OnInit, inject, ChangeDetectionStrategy } from '@angular/core';
 import { RouterModule, ActivatedRoute } from '@angular/router';
 import { Meta, Title, DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subscription, take } from 'rxjs';
@@ -25,6 +25,14 @@ const BASE_URL = 'https://dreamcleaningnyc.com';
   styleUrl: './blog-post.component.scss'
 })
 export class BlogPostComponent implements OnInit, OnDestroy {
+  private route = inject(ActivatedRoute);
+  private blogService = inject(BlogService);
+  private blogStatusService = inject(BlogStatusService);
+  private titleService = inject(Title);
+  private metaService = inject(Meta);
+  private sanitizer = inject(DomSanitizer);
+  private ssrResponse = inject<SsrResponseContext | null>(SSR_RESPONSE_CONTEXT, { optional: true });
+
   post: BlogPostDetail | null = null;
   safeContent: SafeHtml | null = null;
   loading = true;
@@ -37,16 +45,6 @@ export class BlogPostComponent implements OnInit, OnDestroy {
   private readonly structuredData = inject(StructuredDataService);
   /** OG/article tags added by this page — removed on destroy so they don't leak. */
   private readonly managedMetaSelectors: string[] = [];
-
-  constructor(
-    private route: ActivatedRoute,
-    private blogService: BlogService,
-    private blogStatusService: BlogStatusService,
-    private titleService: Title,
-    private metaService: Meta,
-    private sanitizer: DomSanitizer,
-    @Optional() @Inject(SSR_RESPONSE_CONTEXT) private ssrResponse: SsrResponseContext | null
-  ) {}
 
   ngOnInit(): void {
     this.subscription.add(

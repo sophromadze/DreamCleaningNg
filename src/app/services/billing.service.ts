@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { PLATFORM_ID, inject, Service } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { Observable, of, shareReplay, catchError, map } from 'rxjs';
@@ -190,13 +190,17 @@ export function cardExpiry(card: { expMonth: number | null; expYear: number | nu
  * all comes from `config()`, which reflects the SERVER's rollout switches — the old compile-time
  * frontend flag is gone.
  */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class BillingService {
+  private http = inject(HttpClient);
+
   private readonly api = `${environment.apiUrl}/billing`;
   private config$?: Observable<BillingConfig>;
   private readonly isBrowser: boolean;
 
-  constructor(private http: HttpClient, @Inject(PLATFORM_ID) platformId: Object) {
+  constructor() {
+    const platformId = inject<Object>(PLATFORM_ID);
+
     this.isBrowser = isPlatformBrowser(platformId);
   }
 

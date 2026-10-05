@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -199,16 +199,14 @@ export interface OrderSearchResult {
 
 // ── Service ──
 
-@Injectable({
-  providedIn: 'root'
-})
+@Service()
 export class TaskService {
+  private http = inject(HttpClient);
+
   private apiUrl = `${environment.apiUrl}/admin/tasks`;
   private personalTasksUrl = `${environment.apiUrl}/admin/personal-tasks`;
   private interactionsUrl = `${environment.apiUrl}/admin/client-interactions`;
   private handoverUrl = `${environment.apiUrl}/admin/handover-notes`;
-
-  constructor(private http: HttpClient) {}
 
   // ── Search ──
 

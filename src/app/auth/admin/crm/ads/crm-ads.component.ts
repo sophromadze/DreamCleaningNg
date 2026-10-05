@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ElementRef, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CrmAdsService, AdsDailyRow, AdsTotals, AdsPeriod, AdsQuery } from '../../../../services/crm-ads.service';
@@ -12,6 +12,9 @@ import { CrmAdsService, AdsDailyRow, AdsTotals, AdsPeriod, AdsQuery } from '../.
   styleUrls: ['./crm-ads.component.scss']
 })
 export class CrmAdsComponent implements OnInit {
+  private adsService = inject(CrmAdsService);
+  private host = inject(ElementRef);
+
   rows: AdsDailyRow[] = [];
   totals: AdsTotals | null = null;
   loading = false;
@@ -41,8 +44,6 @@ export class CrmAdsComponent implements OnInit {
     { key: 'year', label: 'This year' },
     { key: 'all', label: 'All time' }
   ];
-
-  constructor(private adsService: CrmAdsService, private host: ElementRef) {}
 
   ngOnInit(): void {
     this.load(); // defaults to "Last 30 days"

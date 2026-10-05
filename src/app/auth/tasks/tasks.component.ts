@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, HostListener, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -34,6 +34,11 @@ import { debounceTime, distinctUntilChanged, switchMap, filter } from 'rxjs/oper
   styleUrls: ['./tasks.component.scss']
 })
 export class TasksComponent implements OnInit, OnDestroy {
+  private taskService = inject(TaskService);
+  private adminService = inject(AdminService);
+  private authService = inject(AuthService);
+  private signalRService = inject(SignalRService);
+
 
   private signalRSub?: Subscription;
 
@@ -205,13 +210,6 @@ export class TasksComponent implements OnInit, OnDestroy {
   showInteractionClientDropdown = false;
   interactionClientSelected = false;
   private interactionClientSearch$ = new Subject<string>();
-
-  constructor(
-    private taskService: TaskService,
-    private adminService: AdminService,
-    private authService: AuthService,
-    private signalRService: SignalRService
-  ) {}
 
   ngOnInit(): void {
     const user = this.authService.currentUserValue;

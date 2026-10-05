@@ -1,4 +1,4 @@
-import { Component, Input, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -16,6 +16,9 @@ import { AuthService } from '../../../../services/auth.service';
   styleUrls: ['./leads-pipeline.component.scss']
 })
 export class LeadsPipelineComponent implements OnInit {
+  private leadService = inject(CrmLeadService);
+  private authService = inject(AuthService);
+
   /** When set (e.g. from the Calls tab deep-link), auto-open this lead's detail panel on load. */
   @Input() openLeadId?: number;
 
@@ -75,8 +78,6 @@ export class LeadsPipelineComponent implements OnInit {
   prefillError = '';
   prefillLoadedOrderId: number | null = null;
   private prefillDebounce: any;
-
-  constructor(private leadService: CrmLeadService, private authService: AuthService) {}
 
   ngOnInit(): void {
     this.isSuperAdmin = this.authService.currentUserValue?.role === 'SuperAdmin';

@@ -1,4 +1,4 @@
-import { Directive, HostListener, Inject, PLATFORM_ID } from '@angular/core';
+import { Directive, HostListener, PLATFORM_ID, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { PhoneClickTrackingService } from '../services/phone-click-tracking.service';
 
@@ -12,12 +12,12 @@ import { PhoneClickTrackingService } from '../services/phone-click-tracking.serv
   standalone: true
 })
 export class TelClickTrackingDirective {
+  private phoneTracking = inject(PhoneClickTrackingService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   private isBrowser: boolean;
 
-  constructor(
-    private phoneTracking: PhoneClickTrackingService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {
+  constructor() {
     this.isBrowser = isPlatformBrowser(this.platformId);
   }
 

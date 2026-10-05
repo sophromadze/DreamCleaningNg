@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -85,11 +85,11 @@ export interface TelegramAgentDisplayNamesResponse {
 }
 
 /** Admin API for the AI chat agent: runtime settings + chat history viewer (SuperAdmin/Admin only). */
-@Injectable({ providedIn: 'root' })
+@Service()
 export class ChatAgentAdminService {
-  private apiUrl = `${environment.apiUrl}/admin/chat-agent`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private apiUrl = `${environment.apiUrl}/admin/chat-agent`;
 
   getSettings(): Observable<ChatAgentSettings> {
     return this.http.get<ChatAgentSettings>(`${this.apiUrl}/settings`);

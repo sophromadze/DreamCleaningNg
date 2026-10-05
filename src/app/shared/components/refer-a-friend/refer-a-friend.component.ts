@@ -1,4 +1,4 @@
-import { Component, Inject, Input, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 
 /**
@@ -44,7 +44,9 @@ export class ReferAFriendComponent {
 
   private readonly isBrowser: boolean;
 
-  constructor(@Inject(PLATFORM_ID) platformId: Object) {
+  constructor() {
+    const platformId = inject<Object>(PLATFORM_ID);
+
     this.isBrowser = isPlatformBrowser(platformId);
   }
 

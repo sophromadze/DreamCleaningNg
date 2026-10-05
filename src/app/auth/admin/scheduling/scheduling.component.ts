@@ -1,4 +1,4 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminService } from '../../../services/admin.service';
 
@@ -28,6 +28,8 @@ const ALL_TIME_SLOTS = [
   styleUrls: ['./scheduling.component.scss']
 })
 export class SchedulingComponent implements OnInit {
+  private adminService = inject(AdminService);
+
   blockedSlots: BlockedSlot[] = [];
   isLoading = false;
   errorMessage = '';
@@ -42,8 +44,6 @@ export class SchedulingComponent implements OnInit {
   formReason = '';
 
   allTimeSlots = ALL_TIME_SLOTS;
-
-  constructor(private adminService: AdminService) {}
 
   ngOnInit() {
     this.loadBlockedSlots();

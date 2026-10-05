@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { inject, Service } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
@@ -43,11 +43,11 @@ export interface AdsQuery {
   pageSize?: number;
 }
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class CrmAdsService {
-  private apiUrl = `${environment.apiUrl}/crm/ads`;
+  private http = inject(HttpClient);
 
-  constructor(private http: HttpClient) {}
+  private apiUrl = `${environment.apiUrl}/crm/ads`;
 
   getDaily(q: AdsQuery): Observable<AdsDailyResponse> {
     return this.http.get<AdsDailyResponse>(`${this.apiUrl}/daily`, { params: this.toParams(q) });

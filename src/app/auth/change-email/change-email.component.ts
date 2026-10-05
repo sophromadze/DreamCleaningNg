@@ -1,5 +1,5 @@
-import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnInit, ChangeDetectionStrategy, inject } from '@angular/core';
+
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { finalize } from 'rxjs/operators';
@@ -38,12 +38,16 @@ import { faPaperPlane } from '../../shared/icons/glyphs/faPaperPlane';
 @Component({
   selector: 'app-change-email',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule, IconComponent],
+  imports: [FormsModule, RouterModule, IconComponent],
   templateUrl: './change-email.component.html',
   changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['../account-form.scss', './change-email.component.scss']
 })
 export class ChangeEmailComponent implements OnInit {
+  private authService = inject(AuthService);
+  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+
   protected readonly icons = { faArrowLeft, faCircleExclamation, faPaperPlane };
 
   // Form step
@@ -62,11 +66,7 @@ export class ChangeEmailComponent implements OnInit {
   isError = false;
   verificationErrorMessage = '';
 
-  constructor(
-    private authService: AuthService,
-    private router: Router,
-    private route: ActivatedRoute
-  ) {
+  constructor() {
     this.currentUser = this.authService.currentUserValue;
   }
 

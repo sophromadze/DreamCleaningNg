@@ -1,4 +1,4 @@
-import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, AfterViewInit, OnDestroy, ViewChild, ElementRef, HostListener, ChangeDetectionStrategy, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdminService, CreateSubscription, UpdateSubscription, UserPermissions } from '../../../services/admin.service';
 import { Subscription } from '../../../services/booking.service';
@@ -12,6 +12,8 @@ import { Subscription } from '../../../services/booking.service';
   styleUrls: ['./subscriptions.component.scss']
 })
 export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy {
+  private adminService = inject(AdminService);
+
   @ViewChild('tableWrapper', { static: false }) tableWrapper!: ElementRef<HTMLDivElement>;
   @ViewChild('tableHeader', { static: false }) tableHeader!: ElementRef<HTMLTableSectionElement>;
   
@@ -58,8 +60,6 @@ export class SubscriptionsComponent implements OnInit, AfterViewInit, OnDestroy 
   // UI State
   errorMessage = '';
   successMessage = '';
-
-  constructor(private adminService: AdminService) {}
 
   ngOnInit() {
     this.loadUserPermissions();

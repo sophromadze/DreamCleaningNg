@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, Input, Output, EventEmitter, HostBinding, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, Input, Output, EventEmitter, HostBinding, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -107,6 +107,12 @@ const DAY_LABEL: Record<DayKey, string> = {
   styleUrls: ['./cleaners-dashboard.component.scss']
 })
 export class CleanersDashboardComponent implements OnInit, OnDestroy {
+  private cleanerService = inject(CleanerManagementService);
+  private cdr = inject(ChangeDetectorRef);
+  private authService = inject(AuthService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+
   // ── EMBEDDED MODE (2026-09) ────────────────────────────────────────────────────────
   //
   // Admin -> Users -> Cleaners lists the login ACCOUNTS; clicking one has to show the PERSON -
@@ -396,14 +402,6 @@ export class CleanersDashboardComponent implements OnInit, OnDestroy {
    * get no tab strip at all rather than a strip with one tab in it.
    */
   canSeePortal = false;
-
-  constructor(
-    private cleanerService: CleanerManagementService,
-    private cdr: ChangeDetectorRef,
-    private authService: AuthService,
-    private route: ActivatedRoute,
-    private router: Router
-  ) {}
 
   ngOnInit(): void {
     this.canSeePortal = isSystemWideRole(this.authService.currentUserValue?.role);

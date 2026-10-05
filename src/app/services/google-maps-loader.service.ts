@@ -1,15 +1,15 @@
-import { Injectable, Inject, PLATFORM_ID } from '@angular/core';
+import { PLATFORM_ID, inject, Service } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { environment } from '../../environments/environment';
 
-@Injectable({ providedIn: 'root' })
+@Service()
 export class GoogleMapsLoaderService {
+  private platformId = inject<Object>(PLATFORM_ID);
+
   private loaded = false;
   private loading: Promise<void> | null = null;
   /** Cached places namespace (from importLibrary('places') or google.maps.places). */
   private placesLibrary: any = null;
-
-  constructor(@Inject(PLATFORM_ID) private platformId: Object) {}
 
   load(): Promise<void> {
     if (!isPlatformBrowser(this.platformId)) {

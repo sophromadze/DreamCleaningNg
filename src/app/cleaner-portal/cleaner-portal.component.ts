@@ -1,4 +1,4 @@
-import { Component, Inject, Input, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, debounceTime, distinctUntilChanged, takeUntil } from 'rxjs';
@@ -78,6 +78,9 @@ export interface CleanerCalendarCell {
   styleUrls: ['./cleaner-portal.component.scss']
 })
 export class CleanerPortalComponent implements OnInit, OnDestroy {
+  private portal = inject(CleanerPortalService);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   /**
    * Rendered INSIDE another page (the Cleaners section's Portal tab) rather than as a route of its
    * own. It drops this component's page padding and its own title, because the host already
@@ -169,11 +172,6 @@ export class CleanerPortalComponent implements OnInit, OnDestroy {
   /** Debounced so a typed search costs one request, not one per keystroke. */
   private readonly searchInput$ = new Subject<string>();
   private readonly destroy$ = new Subject<void>();
-
-  constructor(
-    private portal: CleanerPortalService,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {}
 
   ngOnInit(): void {
     this.searchInput$

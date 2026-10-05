@@ -1,4 +1,4 @@
-import { Directive, ElementRef, Input, OnChanges, OnDestroy, Renderer2, SimpleChanges } from '@angular/core';
+import { Directive, ElementRef, Input, OnChanges, OnDestroy, Renderer2, SimpleChanges, inject } from '@angular/core';
 
 /**
  * Classic shimmer directive.
@@ -11,12 +11,10 @@ import { Directive, ElementRef, Input, OnChanges, OnDestroy, Renderer2, SimpleCh
   standalone: true,
 })
 export class ShimmerDirective implements OnChanges, OnDestroy {
-  @Input() shimmer: boolean = true;
+  private el = inject<ElementRef<HTMLElement>>(ElementRef);
+  private renderer = inject(Renderer2);
 
-  constructor(
-    private el: ElementRef<HTMLElement>,
-    private renderer: Renderer2
-  ) {}
+  @Input() shimmer: boolean = true;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (!('shimmer' in changes)) return;

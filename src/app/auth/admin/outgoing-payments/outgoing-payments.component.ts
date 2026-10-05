@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, Inject, PLATFORM_ID, ChangeDetectionStrategy } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, PLATFORM_ID, ChangeDetectionStrategy, inject } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
@@ -59,6 +59,10 @@ import { resolveServiceTypeShortLabel } from '../../../shared/admin/service-type
   styleUrls: ['../orders/orders.component.scss', './outgoing-payments.component.scss']
 })
 export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
+  private service = inject(OutgoingPaymentService);
+  private cdr = inject(ChangeDetectorRef);
+  private platformId = inject<Object>(PLATFORM_ID);
+
   data: OutgoingPaymentList | null = null;
   loading = false;
   error = '';
@@ -178,12 +182,6 @@ export class OutgoingPaymentsComponent implements OnInit, OnDestroy {
    */
   copiedCleanerId: number | null = null;
   private copiedTimer: ReturnType<typeof setTimeout> | null = null;
-
-  constructor(
-    private service: OutgoingPaymentService,
-    private cdr: ChangeDetectorRef,
-    @Inject(PLATFORM_ID) private platformId: Object
-  ) {}
 
   ngOnInit(): void {
     this.search$
