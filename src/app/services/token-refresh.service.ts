@@ -1,4 +1,4 @@
-import { Injectable, Inject, PLATFORM_ID, NgZone, inject } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID, NgZone, OnDestroy, inject } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { interval, Subscription, Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
@@ -16,10 +16,16 @@ import { setTimeoutOutsideZone, subscribeOutsideZone } from '../shared/zone-free
 @Injectable({
   providedIn: 'root'
 })
-export class TokenRefreshService {
+export class TokenRefreshService implements OnDestroy {
   private readonly zone = inject(NgZone);
   private refreshSubscription?: Subscription;
   private inactivityCheckSubscription?: Subscription;
+  /**
+   * The one-second wait before the timers start (2026-10). It is part of the running state:
+   * stopping cancels it, and while it is queued a second start is a no-op — otherwise a sign-out
+   * in that second still started both timers, and a stop + start queued two sets of them.
+   */
+  private pendingStart?: ReturnType<typeof setTimeout>;
   private isBrowser: boolean;
   private isInitialized = false; // Add flag to prevent multiple initializations
   /**
@@ -62,8 +68,8 @@ export class TokenRefreshService {
   startTokenRefresh(): void {
     if (!this.isBrowser) return;
 
-    // Prevent multiple initializations
-    if (this.isInitialized) {
+    // Prevent multiple initializations — a start still waiting out its delay counts as one
+    if (this.isInitialized || this.pendingStart !== undefined) {
       return;
     }
 
@@ -77,8 +83,9 @@ export class TokenRefreshService {
 
     // Delay the first check to avoid conflicts during page load (outside the zone, so the wait
     // does not hold up hydration - the callback itself still runs inside it)
-    setTimeoutOutsideZone(this.zone, () => {
-      
+    this.pendingStart = setTimeoutOutsideZone(this.zone, () => {
+      this.pendingStart = undefined;
+
       // Set up periodic token refresh
       this.refreshSubscription = subscribeOutsideZone(this.zone, interval(this.clampTimerDelay(this.TOKEN_REFRESH_INTERVAL)), () => {
         this.performTokenRefresh();
@@ -102,7 +109,11 @@ export class TokenRefreshService {
   }
 
   stopTokenRefresh(): void {
-    
+    if (this.pendingStart !== undefined) {
+      clearTimeout(this.pendingStart);
+      this.pendingStart = undefined;
+    }
+
     if (this.refreshSubscription) {
       this.refreshSubscription.unsubscribe();
       this.refreshSubscription = undefined;
@@ -115,6 +126,11 @@ export class TokenRefreshService {
 
     // Reset initialization flag
     this.isInitialized = false;
+  }
+
+  /** A destroyed service (app teardown, a TestBed reset) leaves no timer behind. */
+  ngOnDestroy(): void {
+    this.stopTokenRefresh();
   }
 
   private checkInactivity(): boolean {

@@ -16,6 +16,27 @@
  *    keeps the real implementation. Specs that assert on these still spy on them as before.
  */
 
+import { getTestBed } from '@angular/core/testing';
+
+/**
+ * Fails the test that just finished. Vitest skips the after-hooks still to run once one throws —
+ * Angular's TestBed reset among them — so reset first, or the NEXT test fails too with "Cannot
+ * configure the test module when the test module has already been instantiated".
+ */
+function failFinishedTest(message: string): never {
+  getTestBed().resetTestingModule();
+  throw new Error(message);
+}
+
+// Every spec FILE starts from empty storage. Files share one jsdom window per worker (isolate:
+// false, as in Karma's single page), and which files share one depends on scheduling — so a login
+// one file left behind could change how an unrelated file starts, run to run. (This hook runs once
+// per file; tests inside a file still share storage the way they always did.)
+beforeAll(() => {
+  localStorage.clear();
+  sessionStorage.clear();
+});
+
 const networkAttempts: string[] = [];
 
 function refuse(api: string): never {
@@ -63,7 +84,7 @@ afterEach(async () => {
     try {
       for (let turn = 0; turn < 20 && vi.getTimerCount() > 0; turn++) await vi.runOnlyPendingTimersAsync();
       const left = vi.getTimerCount();
-      if (left) throw new Error(`${left} periodic timer(s) still queued at the end of the test (fakeAsync would have failed).`);
+      if (left) failFinishedTest(`${left} periodic timer(s) still queued at the end of the test (fakeAsync would have failed).`);
     } finally {
       vi.useRealTimers();
     }
@@ -73,7 +94,7 @@ afterEach(async () => {
 afterEach(() => {
   if (networkAttempts.length) {
     const attempts = networkAttempts.splice(0);
-    throw new Error(`Real network access from this test: ${attempts.join(', ')}`);
+    failFinishedTest(`Real network access from this test: ${attempts.join(', ')}`);
   }
 });
 

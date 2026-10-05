@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 
 import { TokenRefreshService } from './token-refresh.service';
+import { AuthService } from './auth.service';
 
 import { testProviders } from '../../testing/test-providers';
 
@@ -67,6 +68,85 @@ describe('TokenRefreshService', () => {
       expect(clamp(-1)).toBe(0);
       // Anything already in range is untouched.
       expect(clamp(60_000)).toBe(60_000);
+    });
+  });
+
+  /**
+   * THE DELAYED START BELONGS TO THE SERVICE'S LIFECYCLE (2026-10).
+   *
+   * `startTokenRefresh()` waits a second before it starts its two intervals (refresh +
+   * inactivity). `stopTokenRefresh()` used to cancel only the intervals, so the wait it had already
+   * queued still fired: signing out in that first second started both timers for a signed-out
+   * tab, and a stop + start inside it queued a second wait — two sets of timers racing the same
+   * rotating refresh token. Nothing stopped the service on destroy either. Found by the Vitest
+   * migration: a start left behind by one spec fired inside a later spec's fake clock.
+   */
+  describe('lifecycle of the delayed start', () => {
+    const START_DELAY_MS = 1000;
+    const TIMERS_PER_START = 2; // the refresh interval + the inactivity interval
+
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.spyOn(TestBed.inject(AuthService), 'isLoggedIn').mockReturnValue(true);
+      // The start-up expiry check talks to the server; it is not what these tests are about.
+      vi.spyOn(service as any, 'checkTokenExpiry').mockImplementation(() => {});
+    });
+
+    it('starts both timers a second after a signed-in start', async () => {
+      service.startTokenRefresh();
+      await vi.advanceTimersByTimeAsync(START_DELAY_MS);
+
+      expect(vi.getTimerCount()).toBe(TIMERS_PER_START);
+      service.stopTokenRefresh();
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('starts nothing when the user signs out within the first second', async () => {
+      service.startTokenRefresh();
+      service.stopTokenRefresh();
+      await vi.advanceTimersByTimeAsync(START_DELAY_MS * 5);
+
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('runs ONE set of timers after a stop + start within the first second', async () => {
+      service.startTokenRefresh();
+      service.stopTokenRefresh();
+      service.startTokenRefresh();
+      await vi.advanceTimersByTimeAsync(START_DELAY_MS * 5);
+
+      expect(vi.getTimerCount()).toBe(TIMERS_PER_START);
+      service.stopTokenRefresh();
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('runs ONE set of timers when start is called twice', async () => {
+      service.startTokenRefresh();
+      service.startTokenRefresh();
+      await vi.advanceTimersByTimeAsync(START_DELAY_MS * 5);
+      service.startTokenRefresh();
+
+      expect(vi.getTimerCount()).toBe(TIMERS_PER_START);
+      service.stopTokenRefresh();
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('stops everything when it is destroyed, pending start included', async () => {
+      service.startTokenRefresh();
+      TestBed.resetTestingModule(); // destroys the root injector, and the service with it
+      await vi.advanceTimersByTimeAsync(START_DELAY_MS * 5);
+
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it('stops its running timers when it is destroyed', async () => {
+      service.startTokenRefresh();
+      await vi.advanceTimersByTimeAsync(START_DELAY_MS);
+      expect(vi.getTimerCount()).toBe(TIMERS_PER_START);
+
+      TestBed.resetTestingModule();
+
+      expect(vi.getTimerCount()).toBe(0);
     });
   });
 });
