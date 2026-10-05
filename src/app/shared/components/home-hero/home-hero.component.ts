@@ -10,9 +10,10 @@ import {
   TransferState,
   afterNextRender,
   inject,
-  makeStateKey
+  makeStateKey,
+  DOCUMENT
 } from '@angular/core';
-import { CommonModule, DOCUMENT, NgOptimizedImage, isPlatformBrowser } from '@angular/common';
+import { CommonModule, NgOptimizedImage, isPlatformBrowser } from '@angular/common';
 import { RouterLink, Router } from '@angular/router';
 import { FormsModule, ReactiveFormsModule, FormControl, Validators } from '@angular/forms';
 import { Observable, of, Subscription, throwError, timeout } from 'rxjs';

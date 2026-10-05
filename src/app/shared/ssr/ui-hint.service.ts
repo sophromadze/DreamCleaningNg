@@ -1,5 +1,5 @@
-import { DOCUMENT, isPlatformBrowser } from '@angular/common';
-import { Injectable, PLATFORM_ID, inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
+import { Injectable, PLATFORM_ID, inject, DOCUMENT } from '@angular/core';
 import { SSR_RESPONSE_CONTEXT } from './ssr-response.token';
 import { UiHint, readUiHint, uiHintForUser, writeUiHintCookie } from './ui-hint-cookie';
 

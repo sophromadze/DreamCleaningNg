@@ -1,5 +1,5 @@
-import { Injectable, inject } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
+import { Injectable, inject, DOCUMENT } from '@angular/core';
+
 
 /** `id` of the site-wide @graph block in index.html (LocalBusiness + Organization + WebSite). */
 export const SITE_SCHEMA_ID = 'site-schema';

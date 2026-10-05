@@ -1,5 +1,5 @@
-import { Component, OnDestroy, inject } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
+import { Component, OnDestroy, inject, DOCUMENT } from '@angular/core';
+
 import { Meta } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
 import { IconComponent } from '../shared/icons/icon.component';

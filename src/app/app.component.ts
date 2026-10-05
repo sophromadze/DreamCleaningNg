@@ -1,5 +1,5 @@
-import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectorRef } from '@angular/core';
-import { DOCUMENT, CommonModule, isPlatformBrowser } from '@angular/common';
+import { Component, OnInit, OnDestroy, Inject, PLATFORM_ID, ChangeDetectorRef, DOCUMENT } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { PlatformLocation } from '@angular/common';
 import { RouterOutlet, Router, NavigationEnd, ActivatedRoute } from '@angular/router';
 import { Title, Meta } from '@angular/platform-browser';

@@ -343,3 +343,75 @@ describe('authInterceptor — the intermittent auto-logout', () => {
     expect(logout).toHaveBeenCalled();
   });
 });
+
+/**
+ * THE TRANSFER CACHE MUST STILL ANSWER THE PUBLIC GETS (2026-10, Angular 20).
+ *
+ * Since Angular 20.3 the HTTP transfer cache skips any request sent with credentials, and cookie
+ * auth adds them to everything - so the server-rendered blog list, reviews list, blog status and
+ * maintenance check were fetched a second time by the browser right after hydration. Those
+ * anonymous GETs go out without credentials; everything else keeps them.
+ */
+describe('authInterceptor — cookie auth and the transfer cache', () => {
+  let http: HttpClient;
+  let backend: HttpTestingController;
+  const cookieAuthBefore = environment.useCookieAuth;
+
+  beforeEach(() => {
+    resetRefreshState();
+    (environment as { useCookieAuth: boolean }).useCookieAuth = true;
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(withInterceptors([authInterceptor])),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        {
+          provide: 'SocialAuthServiceConfig',
+          useValue: { autoLogin: false, providers: [], onError: () => {} } as SocialAuthServiceConfig,
+        },
+      ],
+    });
+    http = TestBed.inject(HttpClient);
+    backend = TestBed.inject(HttpTestingController);
+  });
+
+  afterEach(() => {
+    backend.verify();
+    (environment as { useCookieAuth: boolean }).useCookieAuth = cookieAuthBefore;
+  });
+
+  const credentialsFor = (method: 'GET' | 'POST', url: string) => {
+    (method === 'GET' ? http.get(url) : http.post(url, {})).subscribe();
+    const req = backend.expectOne(url).request;
+    return req.withCredentials;
+  };
+
+  it('sends the public, server-rendered GETs without credentials', () => {
+    for (const url of [
+      '/api/blog/status',
+      '/api/blog/posts?page=1&pageSize=9',
+      '/api/blog/posts/how-to-clean-an-oven',
+      'https://dreamcleaningnyc.com/api/googlereviews/stats',
+      '/api/googlereviews/all?page=1&pageSize=9',
+      '/api/maintenancemode/is-enabled',
+      '/api/maintenancemode/status'
+    ]) {
+      expect(credentialsFor('GET', url)).withContext(url).toBeFalse();
+    }
+  });
+
+  it('keeps credentials on everything else', () => {
+    for (const url of [
+      '/api/auth/current-user',
+      '/api/blog/posts/x/comments',
+      '/api/blog/statuses',
+      '/api/admin/blog/posts',
+      '/api/googlereviews/sync',
+      '/api/maintenancemode/toggle'
+    ]) {
+      expect(credentialsFor('GET', url)).withContext(url).toBeTrue();
+    }
+    expect(credentialsFor('POST', '/api/blog/status')).toBeTrue();
+    expect(credentialsFor('POST', '/api/maintenancemode/status')).toBeTrue();
+  });
+});

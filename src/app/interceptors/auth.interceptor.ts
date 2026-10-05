@@ -122,6 +122,23 @@ function isSignalRUrl(url: string): boolean {
       || (url.includes('?id=') && url.includes('access_token='));
 }
 
+/**
+ * Public GETs that server renders make and hand to the browser through the HTTP transfer cache.
+ * Since Angular 20.3 the transfer cache skips every request sent WITH CREDENTIALS, and cookie
+ * auth below puts `withCredentials` on every request - so these were rendered on the server and
+ * then fetched again by the browser straight after hydration (the /blog and /reviews lists
+ * re-rendered, the blog-status / maintenance checks ran twice). All of them are
+ * [AllowAnonymous] and answer the same for everybody, so they go out without credentials.
+ * (Same-origin requests still carry the cookie anyway: that is fetch's default.)
+ * Matches the relative and the absolute API URL, with or without a query string.
+ */
+const PUBLIC_TRANSFER_CACHED_GET =
+  /\/api\/(blog\/status|blog\/posts(\/[^/?]+)?|googlereviews\/(stats|all)|maintenancemode\/(is-enabled|status))(\?|$)/i;
+
+export function isPublicTransferCachedGet(req: HttpRequest<unknown>): boolean {
+  return req.method === 'GET' && PUBLIC_TRANSFER_CACHED_GET.test(req.url);
+}
+
 // Functional interceptor approach for Angular 17+
 export function authInterceptor(
   req: HttpRequest<unknown>,
@@ -161,10 +178,13 @@ export function authInterceptor(
 
   // Handle based on auth method
   if (useCookieAuth) {
-    // For cookie auth, always include credentials
-    req = req.clone({
-      withCredentials: true
-    });
+    // For cookie auth, include credentials - except on the public GETs the transfer cache
+    // must be able to answer (see isPublicTransferCachedGet).
+    if (!isPublicTransferCachedGet(req)) {
+      req = req.clone({
+        withCredentials: true
+      });
+    }
   } else {
     // For localStorage auth, add bearer token
     let token: string | null = null;

@@ -1,6 +1,6 @@
-import { Injectable, Inject, PLATFORM_ID, inject } from '@angular/core';
+import { Injectable, Inject, PLATFORM_ID, inject, DOCUMENT } from '@angular/core';
 import { BehaviorSubject } from 'rxjs';
-import { DOCUMENT, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import { writeHeroChoiceCookie } from '../shared/booking/hero-choice-cookie';
 
 export interface BookingFormData {

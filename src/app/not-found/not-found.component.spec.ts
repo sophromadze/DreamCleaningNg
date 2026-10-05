@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { DOCUMENT } from '@angular/common';
+import { DOCUMENT } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { NotFoundComponent } from './not-found.component';
 import { SSR_RESPONSE_CONTEXT, SsrResponseContext } from '../shared/ssr/ssr-response.token';

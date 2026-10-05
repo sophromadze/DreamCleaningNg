@@ -11,6 +11,7 @@ import type { ServiceType } from './app/services/booking.service';
 import type { PublicSpecialOffer } from './app/services/special-offer.service';
 import { renderLlmsTxt } from './llms-txt';
 import { CATALOGUE_TTL_MS, createCatalogueCache, createPublicOffersCache } from './catalogue-cache';
+import { ALLOWED_HOSTS, rejectedHeader } from './host-guard';
 
 // Same loopback convention as server-url.interceptor.ts: SSR-side calls to the
 // backend go through localhost, never the public domain (Cloudflare loopback trap).
@@ -31,6 +32,25 @@ export function app(): express.Express {
 
   server.set('view engine', 'html');
   server.set('views', browserDistFolder);
+
+  // Apache (same box, loopback) is the only proxy: req.protocol follows its X-Forwarded-Proto.
+  // A forwarded header from anywhere else is ignored.
+  server.set('trust proxy', 'loopback');
+
+  // Unknown or malformed Host / X-Forwarded-* -> 400 before any route. See host-guard.ts.
+  server.use((req, res, next) => {
+    const header = (name: string) => req.headers[name] as string | undefined;
+    if (rejectedHeader({
+      host: req.headers.host,
+      forwardedHost: header('x-forwarded-host'),
+      forwardedProto: header('x-forwarded-proto'),
+      forwardedPort: header('x-forwarded-port')
+    })) {
+      res.status(400).type('text/plain').set('Cache-Control', 'no-store').send('Bad Request');
+      return;
+    }
+    next();
+  });
 
   // The public service catalogue, held in memory for the whole process and shared by every
   // render (home hero form, marketing prices, route meta, JSON-LD) and /llms.txt, so an admin
@@ -148,10 +168,14 @@ export function app(): express.Express {
     };
 
     renderApplication(
-      () => import('./main.server').then(m => m.default()),
+      // renderApplication hands the bootstrap a per-request BootstrapContext (its own platform);
+      // main.server must receive it, or every render would share one platform.
+      (context) => import('./main.server').then(m => m.default(context)),
       {
         document: indexHtmlContent,
         url: `${protocol}://${headers.host}${originalUrl}`,
+        // Already enforced by the guard above; renderApplication checks again (and throws).
+        allowedHosts: [...ALLOWED_HOSTS],
         platformProviders: [
           { provide: APP_BASE_HREF, useValue: baseUrl },
           { provide: SSR_RESPONSE_CONTEXT, useValue: responseContext },
@@ -188,9 +212,11 @@ function run(): void {
   const port = process.env['PORT'] || 4000;
 
   // Start up the Node server
+  // Loopback only: Apache on the same box is the one client (ProxyPass http://127.0.0.1:4000/),
+  // so nobody can reach Node directly and hand it their own X-Forwarded-* headers.
   const server = app();
-  server.listen(port, () => {
-    console.log(`Node Express server listening on http://localhost:${port}`);
+  server.listen(Number(port), '127.0.0.1', () => {
+    console.log(`Node Express server listening on http://127.0.0.1:${port}`);
   });
 }
 
