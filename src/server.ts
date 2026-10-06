@@ -12,6 +12,7 @@ import { renderLlmsTxt } from './llms-txt';
 import { CATALOGUE_TTL_MS, createCatalogueCache, createPublicOffersCache } from './catalogue-cache';
 import { ALLOWED_HOSTS, rejectedHeader } from './host-guard';
 import { removeNoscriptStylesheet } from './noscript-stylesheet';
+import { isMissingFileRequest, isStaticFileRequest, permanentRedirectLocation, staticCacheControl } from './server-routing';
 import { environment } from './environments/environment';
 
 // Same backend as server-url.interceptor.ts (environment.ssrApiOrigin - production:
@@ -31,9 +32,6 @@ export function app(): express.Express {
   const browserDistFolder = resolve(serverDistFolder, '../browser');
   const indexHtml = join(browserDistFolder, 'index.html');
   const indexHtmlContent = removeNoscriptStylesheet(readFileSync(indexHtml, 'utf-8').toString());
-
-  server.set('view engine', 'html');
-  server.set('views', browserDistFolder);
 
   // Apache (same box, loopback) is the only proxy: req.protocol follows its X-Forwarded-Proto.
   // A forwarded header from anywhere else is ignored.
@@ -63,7 +61,7 @@ export function app(): express.Express {
   const publicOffers = createPublicOffersCache(`${BACKEND_URL}/api/special-offers/public`);
 
   // /llms.txt is generated, not a file: its prices are the same MarketingPrices the pages show.
-  // Registered before the *.* static handler and the 404 guard below. Any backend failure
+  // Registered before the static handler and the 404 guard below. Any backend failure
   // (including a 401 from a gated backend) serves the same document without the price lines -
   // never an error, never HTML. Browser/Cloudflare caching matches the catalogue TTL (.txt is
   // on Cloudflare's default cached-extension list, so a longer max-age would outlive it).
@@ -74,7 +72,7 @@ export function app(): express.Express {
        .send(renderLlmsTxt(prices));
   });
 
-  // Dynamic blog sitemap — proxied to the backend BEFORE the *.* static handler
+  // Dynamic blog sitemap — proxied to the backend BEFORE the static handler
   // (there is no such file on disk; the backend generates and caches it).
   // Referenced by the sitemap index at /sitemap.xml.
   server.get('/sitemap-blog.xml', async (req, res) => {
@@ -93,65 +91,52 @@ export function app(): express.Express {
     }
   });
 
-  // Serve static files from /browser
-  server.get('*.*', express.static(browserDistFolder, {
+  // Every route below is '/{*path}' (Express 5: matches '/' too) and decides from req.path in
+  // server-routing.ts. The wildcard also keeps Express 4's 400 for a malformed %-escape.
+
+  // Serve static files from /browser. Cache-Control per file: see staticCacheControl
+  // (an hour for unhashed text files and fontawesome.css, a day for /images, else the year).
+  const serveBrowserFiles = express.static(browserDistFolder, {
     maxAge: '1y',
-    // Unhashed, hand-edited files (robots.txt, sitemaps, the web manifest): edits must reach
-    // Cloudflare and browsers within the hour. Hashed JS/CSS keep the year. fontawesome.css is
-    // the on-demand admin/profile icon bundle (angular.json, `inject: false`), which Angular
-    // emits without a content hash, so a Font Awesome upgrade must not sit cached for a year.
-    // /fonts/*.woff2 keep the year: their names carry the font version.
-    // /images/* (public/images: unhashed, hand-maintained site images) get ONE DAY plus the
-    // ETag/Last-Modified express.static already sends (2026-10). Apache used to alias /images to
-    // the uploads folder; with that gone, an image edited in place must reach browsers within a
-    // day, and a revalidation after that costs a 304. /img/responsive/* names carry a content
-    // hash, so they keep the year.
     setHeaders: (res, filePath) => {
-      if (/.(txt|xml|webmanifest)$/i.test(filePath) || /[\\/]fontawesome\.css$/i.test(filePath)) {
-        res.setHeader('Cache-Control', 'public, max-age=3600');
-      } else if (/^images[\\/]/.test(relative(browserDistFolder, filePath))) {
-        res.setHeader('Cache-Control', 'public, max-age=86400');
+      const cacheControl = staticCacheControl(relative(browserDistFolder, filePath));
+      if (cacheControl) {
+        res.setHeader('Cache-Control', cacheControl);
       }
     }
-  }));
+  });
+  server.get('/{*path}', (req, res, next) => {
+    if (isStaticFileRequest(req.path)) {
+      serveBrowserFiles(req, res, next);
+      return;
+    }
+    next();
+  });
 
   // Static-file and /.well-known/* requests that express.static could not satisfy get a real
-  // 404 here. Without this they fall through to the Angular render below, which answers 200
-  // with the home page - Lighthouse then parses HTML as llms.txt / ai-catalog.json, and a
-  // stale chunk URL gets HTML back. Scoped to known file extensions so no page route (none
-  // contains a dot) and no token URL can match.
-  const STATIC_FILE_EXT = /.(txt|md|xml|json|webmanifest|ico|png|jpe?g|gif|webp|avif|svg|css|js|mjs|map|woff2?|ttf|otf|eot|pdf|mp4|webm)$/i;
-  server.get('*', (req, res, next) => {
-    if (req.path.startsWith('/.well-known/') || STATIC_FILE_EXT.test(req.path)) {
+  // 404 here instead of the Angular render's 200 home page. See isMissingFileRequest.
+  server.get('/{*path}', (req, res, next) => {
+    if (isMissingFileRequest(req.path)) {
       res.status(404).type('text/plain').set('Cache-Control', 'public, max-age=300').send('Not Found');
       return;
     }
     next();
   });
 
-  // Real 301s for retired or commonly guessed public URLs, answered before the Angular render.
-  // Angular's redirectTo routes for the same paths stay in app.routes.ts as the fallback for
-  // in-app navigation, but on a full request they would answer 200 with the target page.
-  // Keys are lowercase without a trailing slash (Express matching is case-insensitive and
-  // ignores one trailing slash). The query string is carried over unchanged. One hour of
-  // caching rather than the browser default (indefinite), so a mistaken entry can be undone.
-  const PERMANENT_REDIRECTS: Record<string, string> = {
-    '/services': '/service-page',
-    '/commercial-cleaning': '/services/commercial-cleaning',
-  };
-  server.get(Object.keys(PERMANENT_REDIRECTS), (req, res, next) => {
-    const target = PERMANENT_REDIRECTS[req.path.toLowerCase().replace(/\/$/, '')];
-    if (!target) {
+  // Real 301s for retired or commonly guessed public URLs (PERMANENT_REDIRECTS), answered
+  // before the Angular render. One hour of caching rather than the browser default
+  // (indefinite), so a mistaken entry can be undone.
+  server.get('/{*path}', (req, res, next) => {
+    const location = permanentRedirectLocation(req.path, req.originalUrl);
+    if (!location) {
       next();
       return;
     }
-    const queryStart = req.originalUrl.indexOf('?');
-    const query = queryStart === -1 ? '' : req.originalUrl.slice(queryStart);
-    res.set('Cache-Control', 'public, max-age=3600').redirect(301, target + query);
+    res.set('Cache-Control', 'public, max-age=3600').redirect(301, location);
   });
 
   // All regular routes use Angular Universal
-  server.get('*', async (req, res, next) => {
+  server.get('/{*path}', async (req, res, next) => {
     const { protocol, originalUrl, baseUrl, headers } = req;
 
     // Fresh per-request context; a component (e.g. blog post with an unknown
@@ -217,7 +202,13 @@ function run(): void {
   // Loopback only: Apache on the same box is the one client (ProxyPass http://127.0.0.1:4000/),
   // so nobody can reach Node directly and hand it their own X-Forwarded-* headers.
   const server = app();
-  server.listen(Number(port), '127.0.0.1', () => {
+  // Express 5 hands a listen failure (port taken) to this callback instead of throwing it:
+  // rethrow, so the process fails loudly (exit 1, EADDRINUSE) instead of logging "listening"
+  // and exiting 0 without a socket.
+  server.listen(Number(port), '127.0.0.1', (error?: Error) => {
+    if (error) {
+      throw error;
+    }
     console.log(`Node Express server listening on http://127.0.0.1:${port}`);
   });
 }
