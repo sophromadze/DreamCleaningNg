@@ -171,6 +171,9 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   private stickyHeaderInitialized = false;
   private initializationRetries = 0;
   private readonly maxRetries = 20;
+  // The set-up runs from timers (post-load, retries, resize) that can fire after ngOnDestroy,
+  // which would attach a window scroll listener nothing removes.
+  private destroyed = false;
 
   get headerStickyOffset(): number {
     if (window.innerWidth <= 768) {
@@ -276,7 +279,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   private initializeStickyHeader() {
     // No table in panel-only mode — without this the retry loop below ticks through all of its
     // attempts on every load, waiting for an element that is never going to be drawn.
-    if (this.isEmbedded) return;
+    if (this.isEmbedded || this.destroyed) return;
 
     const tableWrapper = this.tableWrapper();
     const tableHeader = this.tableHeader();
@@ -305,6 +308,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   ngOnDestroy() {
+    this.destroyed = true;
     if (this.scrollListener) {
       window.removeEventListener('scroll', this.scrollListener, true);
     }
@@ -348,6 +352,7 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
   }
 
   private updateStickyHeader() {
+    if (this.destroyed) return;
     const tableWrapper = this.tableWrapper();
     const tableHeader = this.tableHeader();
     if (!tableWrapper || !tableHeader) return;

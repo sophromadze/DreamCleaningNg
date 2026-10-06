@@ -422,3 +422,68 @@ describe('UserManagementComponent — points taken back (2026-10)', () => {
     expect(c.pointsReversals[0].description).toContain('order #10');
   });
 });
+
+/**
+ * STICKY HEADER TIMERS AFTER DESTROY (2026-10).
+ *
+ * loadUsers schedules the sticky-header set-up 150ms after the list arrives, and the set-up
+ * retries every 50ms while the table is missing. Leaving the Users tab inside that window used to
+ * run the set-up on a destroyed component: ngOnDestroy had already reset it, so it attached a
+ * fresh window scroll listener that nothing ever removed (and in the test runner it fired after
+ * the environment was gone - the intermittent "window is not defined").
+ */
+describe('UserManagementComponent — sticky header after destroy', () => {
+  let fixture: ComponentFixture<UserManagementComponent>;
+  let httpMock: HttpTestingController;
+
+  beforeEach(async () => {
+    sessionStorage.clear();
+    await TestBed.configureTestingModule({
+      imports: [UserManagementComponent],
+      providers: [...testProviders]
+    }).compileComponents();
+    fixture = TestBed.createComponent(UserManagementComponent);
+    httpMock = TestBed.inject(HttpTestingController);
+  });
+
+  function drain(): void {
+    for (const request of httpMock.match(() => true)) {
+      const url = request.request.url;
+      if (url.includes('/admin/permissions')) {
+        request.flush({
+          role: 'Admin',
+          permissions: {
+            canView: true, canCreate: true, canUpdate: true,
+            canDelete: false, canActivate: true, canDeactivate: true
+          }
+        });
+      } else if (url.endsWith('/admin/users')) {
+        request.flush({
+          users: [{ id: 8, firstName: 'Robin', lastName: 'Regular', email: 'robin@example.invalid', role: 'Customer', isActive: true }],
+          currentUserRole: 'Admin'
+        });
+      } else {
+        request.flush([]);
+      }
+    }
+  }
+
+  afterEach(() => {
+    httpMock.verify();
+    sessionStorage.clear();
+  });
+
+  it('attaches no window scroll listener once the component is gone', async () => {
+    vi.useFakeTimers();
+    fixture.detectChanges();
+    drain();
+    fixture.detectChanges();
+
+    // The list has arrived; its 150ms set-up timer is pending. Leave the tab now.
+    const added = vi.spyOn(window, 'addEventListener');
+    fixture.destroy();
+    await vi.advanceTimersByTimeAsync(2000);
+
+    expect(added.mock.calls.filter(([type]) => type === 'scroll')).toEqual([]);
+  });
+});
