@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectorRef, ElementRef, inject, NgZone, afterNextRender, ChangeDetectionStrategy, viewChild, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectorRef, ElementRef, inject, afterNextRender, ChangeDetectionStrategy, viewChild, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { NavigationStart, Router, RouterLink } from '@angular/router';
 import { GooglePlacesService, aggregateRatingSchema } from '../services/google-reviews.service';
@@ -22,7 +22,6 @@ import { responsiveImage } from '../shared/images/responsive-image.loader';
 import { CardImageDirective } from '../shared/images/card-image.directive';
 import { HomeLayoutMemoryService, SectionHeights } from './home-layout-memory.service';
 import { findAdvertisedFirstTimeOffer } from '../shared/booking/special-offer-keys';
-import { setIntervalOutsideZone } from '../shared/zone-free-timers';
 import { debugTimersPaused } from '../shared/debug-timers';
 
 /**
@@ -87,7 +86,6 @@ export class MainComponent implements OnInit, OnDestroy {
 
   readonly specialOffers = signal<PublicSpecialOffer[]>([]);
   readonly isLoggedIn = signal<boolean>(false);
-  private readonly zone = inject(NgZone);
   protected readonly phoneNumber = inject(PhoneNumberService);
   private readonly googlePlacesService = inject(GooglePlacesService);
   private readonly structuredData = inject(StructuredDataService);
@@ -500,7 +498,7 @@ export class MainComponent implements OnInit, OnDestroy {
     if (!this.isBrowser || !this.beforeAfterMotionOk) return;
     if (this.beforeAfterBaseLength() === 0) return;
     if (debugTimersPaused()) return;
-    this.beforeAfterAutoplayTimer = setIntervalOutsideZone(this.zone, () => {
+    this.beforeAfterAutoplayTimer = setInterval(() => {
       this.advanceBeforeAfter(1);
       this.cdr.detectChanges();
     }, MainComponent.BEFORE_AFTER_AUTO_MS);

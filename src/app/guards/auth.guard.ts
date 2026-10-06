@@ -27,7 +27,7 @@ export const authGuard: CanActivateFn = (route, state) => {
       }
       // Brief delay so app can show route-loading shimmer before navigating to login (same idea as header)
       // pendingUntilEvent: the app counts as busy until the redirect fires, so server rendering and
-      // hydration wait for it (zone.js used to give that for free by tracking the timer).
+      // hydration wait for it (without zone.js nothing else tracks a timer).
       return timer(200).pipe(
         pendingUntilEvent(injector),
         map(() => {

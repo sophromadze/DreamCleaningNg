@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ElementRef, Injector, PLATFORM_ID, OnDestroy, NgZone, inject, ChangeDetectorRef, ChangeDetectionStrategy, signal } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef, Injector, PLATFORM_ID, OnDestroy, inject, ChangeDetectorRef, ChangeDetectionStrategy, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink, RouterLinkActive, Router, NavigationEnd, NavigationStart } from '@angular/router';
 import { isPlatformBrowser } from '@angular/common';
@@ -23,7 +23,6 @@ import { takeUntil, filter, debounceTime, map } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { HeaderAccountMenuComponent } from './header-account-menu/header-account-menu.component';
 import { UiHintService } from '../shared/ssr/ui-hint.service';
-import { setIntervalOutsideZone } from '../shared/zone-free-timers';
 import { debugTimersPaused } from '../shared/debug-timers';
 
 interface HeaderAccountServices {
@@ -62,7 +61,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
   private uiHint = inject(UiHintService);
   private platformId = inject<Object>(PLATFORM_ID);
 
-  private readonly zone = inject(NgZone);
   private destroy$ = new Subject<void>();
   readonly isMenuOpen = signal(false);
   readonly isUserMenuOpen = signal(false);
@@ -365,7 +363,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     if (!this.isBrowser) return;
     this.updateNyTime();
     if (debugTimersPaused()) return;
-    this.nyTimeInterval = setIntervalOutsideZone(this.zone, () => this.updateNyTime(), 1000);
+    this.nyTimeInterval = setInterval(() => this.updateNyTime(), 1000);
   }
 
   /**

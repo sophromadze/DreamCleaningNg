@@ -1,4 +1,4 @@
-import { PLATFORM_ID, OnDestroy, NgZone, inject, Service, signal } from '@angular/core';
+import { PLATFORM_ID, OnDestroy, inject, Service, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject, combineLatest } from 'rxjs';
 import { AuthService } from './auth.service';
@@ -6,7 +6,6 @@ import { AdminService } from './admin.service';
 import { SignalRService } from './signalr.service';
 import { OrderSoundService } from './order-sound.service';
 import { parseUtcDate } from '../shared/ny-time.util';
-import { setIntervalOutsideZone } from '../shared/zone-free-timers';
 import { debugTimersPaused } from '../shared/debug-timers';
 
 /**
@@ -40,7 +39,6 @@ export class NewOrderNotificationService implements OnDestroy {
   private orderSound = inject(OrderSoundService);
   private platformId = inject<Object>(PLATFORM_ID);
 
-  private readonly zone = inject(NgZone);
   private isBrowser: boolean;
   private initialized = false;
 
@@ -172,7 +170,7 @@ export class NewOrderNotificationService implements OnDestroy {
    */
   private startExpirySweep(): void {
     if (this.sweepHandle !== null || debugTimersPaused()) return;
-    this.sweepHandle = setIntervalOutsideZone(this.zone, () => this.pruneExpired(), EXPIRY_SWEEP_MS);
+    this.sweepHandle = setInterval(() => this.pruneExpired(), EXPIRY_SWEEP_MS);
   }
 
   private stopExpirySweep(): void {

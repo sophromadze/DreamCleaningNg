@@ -1,10 +1,9 @@
-import { PLATFORM_ID, NgZone, inject, Service } from '@angular/core';
+import { PLATFORM_ID, inject, Service } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { BehaviorSubject, combineLatest } from 'rxjs';
 import { AuthService } from './auth.service';
 import { AdminService } from './admin.service';
 import { SignalRService } from './signalr.service';
-import { setIntervalOutsideZone } from '../shared/zone-free-timers';
 import { debugTimersPaused } from '../shared/debug-timers';
 import { ReactiveMap } from '../shared/reactive-map';
 
@@ -30,7 +29,6 @@ export class OrderReminderService {
   private signalRService = inject(SignalRService);
   private platformId = inject<Object>(PLATFORM_ID);
 
-  private readonly zone = inject(NgZone);
   private isBrowser: boolean;
   private orders: OrderData[] = [];
   private checkInterval: any;
@@ -207,8 +205,8 @@ export class OrderReminderService {
 
   private startPeriodicChecks(): void {
     if (debugTimersPaused()) return;
-    this.checkInterval = setIntervalOutsideZone(this.zone, () => this.checkReminders(), 30000);
-    this.refreshInterval = setIntervalOutsideZone(this.zone, () => {
+    this.checkInterval = setInterval(() => this.checkReminders(), 30000);
+    this.refreshInterval = setInterval(() => {
       this.adminService.getAllOrders().subscribe({
         next: (orders) => {
           this.orders = orders as OrderData[];
@@ -221,7 +219,7 @@ export class OrderReminderService {
     // Safety net: SignalR delivers acknowledgments instantly, but if an admin's
     // connection dropped the event, poll the DB-backed acknowledged set so a reminder
     // any admin already dismissed is suppressed for everyone within ~1 minute.
-    this.ackSyncInterval = setIntervalOutsideZone(this.zone, () => this.syncAcknowledged(), 60 * 1000);
+    this.ackSyncInterval = setInterval(() => this.syncAcknowledged(), 60 * 1000);
   }
 
   /** Pull the authoritative acknowledged set and drop any reminder another admin has dismissed. */
@@ -612,7 +610,7 @@ export class OrderReminderService {
       this.titleFlashInterval = true;
       this.timerWorker.postMessage({ command: 'startTitle' });
     } else {
-      this.titleFlashInterval = setIntervalOutsideZone(this.zone, () => this.onWorkerTitleTick(), 1500);
+      this.titleFlashInterval = setInterval(() => this.onWorkerTitleTick(), 1500);
     }
   }
 
@@ -641,7 +639,7 @@ export class OrderReminderService {
       this.timerWorker.postMessage({ command: 'startNotify' });
     } else {
       this.sendRepeatingNotification();
-      this.notificationInterval = setIntervalOutsideZone(this.zone, () => this.onWorkerNotifyTick(), 3000);
+      this.notificationInterval = setInterval(() => this.onWorkerNotifyTick(), 3000);
     }
   }
 

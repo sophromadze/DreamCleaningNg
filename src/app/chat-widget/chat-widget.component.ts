@@ -1,4 +1,4 @@
-import { Component, ElementRef, NgZone, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject, viewChild, signal, computed } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, PLATFORM_ID, ChangeDetectionStrategy, inject, viewChild, signal, computed } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { NavigationEnd, Router } from '@angular/router';
@@ -27,7 +27,6 @@ import { faPaperPlane } from '../shared/icons/glyphs/faPaperPlane';
 import { faPowerOff } from '../shared/icons/glyphs/faPowerOff';
 import { faSpinner } from '../shared/icons/glyphs/faSpinner';
 import { faXmark } from '../shared/icons/glyphs/faXmark';
-import { setIntervalOutsideZone } from '../shared/zone-free-timers';
 import { debugTimersPaused } from '../shared/debug-timers';
 
 interface WidgetMessage {
@@ -68,7 +67,6 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
   private authService = inject(AuthService);
   private stickyCtaService = inject(StickyCtaService);
   private router = inject(Router);
-  private ngZone = inject(NgZone);
 
   protected readonly icons = { faBroom, faCheck, faCircleCheck, faCircleExclamation, faCirclePause, faComments, faHeadset, faPaperclip, faPaperPlane, faPowerOff, faSpinner, faXmark };
 
@@ -208,11 +206,9 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     this.routerSub = this.router.events
       .pipe(filter(e => e instanceof NavigationEnd))
       .subscribe(() => this.onSiteActivity());
-    // Registered OUTSIDE Angular's zone: a document-wide click listener would otherwise
-    // trigger a change-detection cycle on every click anywhere on the site, and the fast
-    // path here is just a timestamp write that no template reads.
-    this.ngZone.runOutsideAngular(() =>
-      document.addEventListener('click', this.onDocumentClick));
+    // A plain listener, not a HostListener: it does not mark the view dirty, so a click anywhere on
+    // the site costs no change detection - the fast path is just a timestamp write no template reads.
+    document.addEventListener('click', this.onDocumentClick);
   }
 
   ngOnDestroy(): void {
@@ -798,7 +794,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
 
   private startPolling(): void {
     if (this.pollHandle || !this.isOpen() || debugTimersPaused()) return;
-    this.pollHandle = setIntervalOutsideZone(this.ngZone, () => this.pollOnce(), ChatWidgetComponent.POLL_INTERVAL_MS);
+    this.pollHandle = setInterval(() => this.pollOnce(), ChatWidgetComponent.POLL_INTERVAL_MS);
   }
 
   private stopPolling(): void {
@@ -810,7 +806,7 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
 
   private startBackgroundPolling(): void {
     if (this.bgPollHandle || this.isOpen() || !this.escalated() || !this.sessionId || this.conversationEnded() || debugTimersPaused()) return;
-    this.bgPollHandle = setIntervalOutsideZone(this.ngZone, () => this.pollOnce(), ChatWidgetComponent.BG_POLL_INTERVAL_MS);
+    this.bgPollHandle = setInterval(() => this.pollOnce(), ChatWidgetComponent.BG_POLL_INTERVAL_MS);
   }
 
   private stopBackgroundPolling(): void {
@@ -830,16 +826,15 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     this.lastActivityAt = Date.now();
   }
 
-  /** Document-wide click handler, running OUTSIDE Angular's zone. The overwhelmingly
-   *  common path is a bare timestamp write (no template state, no change detection);
-   *  only the rare resume-from-silent-pause re-enters the zone, because catching up
-   *  can touch template-bound state (badge, messages). */
+  /** Document-wide click handler. The overwhelmingly common path is a bare timestamp write
+   *  (no template state, no change detection); only the rare resume-from-silent-pause touches
+   *  template-bound state (badge, messages), and that goes through signals. */
   private readonly onDocumentClick = (): void => {
     if (!this.paused()) {
       this.registerActivity();
       return;
     }
-    this.ngZone.run(() => this.onSiteActivity());
+    this.onSiteActivity();
   };
 
   /** Site-wide activity (route navigation, any document click): keeps the idle clock
@@ -1049,13 +1044,11 @@ export class ChatWidgetComponent implements OnInit, OnDestroy {
     const viewport = window.visualViewport;
     if (!viewport) return; // CSS fallbacks (100%/100dvh) cover unsupported browsers
 
-    const sync = () => this.ngZone.run(() => this.syncViewportVars(viewport));
-    // Outside Angular: these fire on every keyboard animation frame and only write
-    // CSS vars — the zone re-entry above happens only for the scroll-to-bottom.
-    this.ngZone.runOutsideAngular(() => {
-      viewport.addEventListener('resize', sync);
-      viewport.addEventListener('scroll', sync);
-    });
+    const sync = () => this.syncViewportVars(viewport);
+    // Plain listeners: these fire on every keyboard animation frame and mostly only write CSS
+    // vars, so they must not trigger change detection by themselves.
+    viewport.addEventListener('resize', sync);
+    viewport.addEventListener('scroll', sync);
     this.detachViewportSync = () => {
       viewport.removeEventListener('resize', sync);
       viewport.removeEventListener('scroll', sync);

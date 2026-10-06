@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ChangeDetectorRef, NgZone, PLATFORM_ID, afterNextRender, Injector, runInInjectionContext, ElementRef, inject, ChangeDetectionStrategy, viewChild, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, ChangeDetectorRef, PLATFORM_ID, afterNextRender, Injector, runInInjectionContext, ElementRef, inject, ChangeDetectionStrategy, viewChild, signal, computed } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, FormControl, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { Router, RouterModule, ActivatedRoute } from '@angular/router';
@@ -130,7 +130,6 @@ import { faUserCheck } from '../shared/icons/glyphs/faUserCheck';
 import { faUserPlus } from '../shared/icons/glyphs/faUserPlus';
 import { faUserShield } from '../shared/icons/glyphs/faUserShield';
 import { faXmark } from '../shared/icons/glyphs/faXmark';
-import { setIntervalOutsideZone } from '../shared/zone-free-timers';
 import { debugTimersPaused } from '../shared/debug-timers';
 import { formViewRefresher } from '../shared/forms/form-view-refresher';
 
@@ -214,7 +213,6 @@ export class BookingComponent implements OnInit, OnDestroy {
   private pollService = inject(PollService);
   private sanitizer = inject(DomSanitizer);
   private cdr = inject(ChangeDetectorRef);
-  private ngZone = inject(NgZone);
   private orderService = inject(OrderService);
   private adminService = inject(AdminService);
   private platformId = inject<Object>(PLATFORM_ID);
@@ -769,7 +767,7 @@ export class BookingComponent implements OnInit, OnDestroy {
     this.updateExtraServicesContainerMaxWidth();
     
     // Set up periodic check for same day service availability (every minute)
-    const intervalId = debugTimersPaused() ? undefined : setIntervalOutsideZone(this.ngZone, () => {
+    const intervalId = debugTimersPaused() ? undefined : setInterval(() => {
       this.checkSameDayServiceAvailability();
     }, 60000); // Check every minute
     
@@ -2048,31 +2046,29 @@ export class BookingComponent implements OnInit, OnDestroy {
     const fullAddress = streetNumber ? `${streetNumber} ${route}` : route;
     const matchedCity = this.VALID_CITIES.find(vc => vc.toLowerCase() === city.toLowerCase());
 
-    this.ngZone.run(() => {
-      if (fullAddress) {
-        this.bookingForm.patchValue({ serviceAddress: fullAddress });
-      } else if (place.formattedAddress) {
-        this.bookingForm.patchValue({ serviceAddress: place.formattedAddress });
-      }
-      if (matchedCity) {
-        this.bookingForm.patchValue({ city: matchedCity });
-      } else if (city) {
-        console.warn(`"${city}" is outside our service area`);
-      }
-      if (state) this.bookingForm.patchValue({ state: state });
-      if (zipCode) this.bookingForm.patchValue({ zipCode: zipCode });
+    if (fullAddress) {
+      this.bookingForm.patchValue({ serviceAddress: fullAddress });
+    } else if (place.formattedAddress) {
+      this.bookingForm.patchValue({ serviceAddress: place.formattedAddress });
+    }
+    if (matchedCity) {
+      this.bookingForm.patchValue({ city: matchedCity });
+    } else if (city) {
+      console.warn(`"${city}" is outside our service area`);
+    }
+    if (state) this.bookingForm.patchValue({ state: state });
+    if (zipCode) this.bookingForm.patchValue({ zipCode: zipCode });
 
-      ['serviceAddress', 'city', 'state', 'zipCode'].forEach(field => {
-        this.bookingForm.get(field)?.markAsTouched();
-        this.bookingForm.get(field)?.markAsDirty();
-      });
-
-      setTimeout(() => {
-        const aptField = document.querySelector('[formControlName="aptSuite"]') as HTMLElement
-          || document.getElementById('aptSuite');
-        aptField?.focus();
-      }, 100);
+    ['serviceAddress', 'city', 'state', 'zipCode'].forEach(field => {
+      this.bookingForm.get(field)?.markAsTouched();
+      this.bookingForm.get(field)?.markAsDirty();
     });
+
+    setTimeout(() => {
+      const aptField = document.querySelector('[formControlName="aptSuite"]') as HTMLElement
+        || document.getElementById('aptSuite');
+      aptField?.focus();
+    }, 100);
   }
 
   /**
@@ -6302,10 +6298,8 @@ loadBubblePointsOptions(): void {
     if (this.summaryJustOpened) return; // Don't close on scroll from open-button scrollIntoView
     if (this.summaryCodeActionInProgress) return; // Don't close on layout shift from promo/gift card apply/remove
     if (typeof window === 'undefined' || window.innerWidth > 1200) return;
-    this.ngZone.run(() => {
-      this.isSummaryCollapsed.set(true);
-      this.cdr.detectChanges();
-    });
+    this.isSummaryCollapsed.set(true);
+    this.cdr.detectChanges();
   };
 
   /**

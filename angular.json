@@ -20,9 +20,6 @@
             "outputPath": "dist/dream-cleaning-ng",
             "index": "src/index.html",
             "browser": "src/main.ts",
-            "polyfills": [
-              "zone.js"
-            ],
             "tsConfig": "tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
@@ -97,11 +94,6 @@
               "optimization": false,
               "extractLicenses": false,
               "sourceMap": true,
-              "polyfills": [
-                "zone.js",
-                "zone.js/testing",
-                "zone.js/plugins/vitest-patch"
-              ],
               "inlineStyleLanguage": "scss",
               "assets": [
                 {

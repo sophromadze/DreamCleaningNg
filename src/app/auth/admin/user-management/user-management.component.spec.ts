@@ -64,6 +64,10 @@ describe('UserManagementComponent — panel-only mode', () => {
         });
       } else if (url.endsWith('/admin/users')) {
         request.flush({ users: [CUSTOMER, OTHER], currentUserRole: 'Admin' });
+      } else if (url.includes('/invoices/client-for-user/')) {
+        // An object or null, never a list. `[]` made the invoices card read a field of an array
+        // and throw while rendering - which zone.js used to swallow, and zoneless rethrows.
+        request.flush(null);
       } else {
         request.flush([]);
       }

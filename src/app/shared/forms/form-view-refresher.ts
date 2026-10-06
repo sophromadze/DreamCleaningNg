@@ -6,7 +6,7 @@ import { AbstractControl } from '@angular/forms';
  * Reactive forms are not signals. A patchValue / reset / setErrors / markAllAsTouched made outside a
  * template event - an HTTP callback filling a saved address, a Places selection, a timer - changes what
  * the template shows (validation messages, disabled buttons, the booking summary) without Angular being
- * told. zone.js used to refresh the page after any such callback; an OnPush view does not.
+ * told. zone.js used to refresh the page after any such callback; without it nothing does.
  *
  * Create one per component in a field initializer and hand it every form the template reads, right after
  * the form is built:

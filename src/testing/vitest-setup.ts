@@ -1,6 +1,6 @@
 /**
  * Global setup for `ng test` (angular.json -> test.options.setupFiles), loaded before every spec
- * file. Runs after the polyfills (zone.js) and the Angular TestBed initialisation.
+ * file. Runs after the Angular TestBed initialisation.
  *
  * 1. NO REAL NETWORK. Karma ran in a real browser and jsdom implements XMLHttpRequest for real,
  *    so an HttpClient call that escaped HttpTestingController would leave the machine (the local

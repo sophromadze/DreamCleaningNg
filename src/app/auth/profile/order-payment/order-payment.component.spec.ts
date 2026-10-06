@@ -511,6 +511,9 @@ describe('OrderPaymentComponent — save-card modal', () => {
         { provide: ActivatedRoute, useValue: { params: of({ id: '7' }), snapshot: { queryParamMap: { get: () => null } } } }
       ]
     }).compileComponents();
+    // A completed payment redirects to booking-success, a route this test router does not have;
+    // the rejected navigation used to be absorbed by zone.js and now surfaces as unhandled.
+    vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
   });
 
   it('asks before charging, and closing it charges nothing', () => {

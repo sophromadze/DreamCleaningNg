@@ -1,4 +1,3 @@
-import 'zone.js/node';
 import { APP_BASE_HREF } from '@angular/common';
 import { renderApplication } from '@angular/platform-server';
 import express from 'express';

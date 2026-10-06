@@ -1,11 +1,10 @@
-import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy, NgZone, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, PLATFORM_ID, ChangeDetectorRef, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { Subscription, concat, map, of } from 'rxjs';
 import { environment } from '../../../../environments/environment';
 import { GooglePlacesService, Review } from '../../../services/google-reviews.service';
 import { responsiveSrc, responsiveSrcset } from '../../images/responsive-image.loader';
-import { setIntervalOutsideZone } from '../../zone-free-timers';
 import { debugTimersPaused } from '../../debug-timers';
 
 const TESTIMONIAL_PHOTO = '/images/couch-cleaning-in-nyc.webp';
@@ -54,7 +53,6 @@ export class TestimonialSectionComponent implements OnInit, OnDestroy {
   private cdr = inject(ChangeDetectorRef);
   private platformId = inject<Object>(PLATFORM_ID);
 
-  private readonly zone = inject(NgZone);
   readonly reviews = signal<ExtendedReview[]>([]);
 
   protected readonly photoSrc = responsiveSrc(TESTIMONIAL_PHOTO);
@@ -193,7 +191,7 @@ export class TestimonialSectionComponent implements OnInit, OnDestroy {
     if (this.reviewSliderTimer) clearInterval(this.reviewSliderTimer);
     if (this.reviews().length <= 1) return;
     if (debugTimersPaused()) return;
-    this.reviewSliderTimer = setIntervalOutsideZone(this.zone, () => {
+    this.reviewSliderTimer = setInterval(() => {
       if (this.reviewSliderPaused || this.reviews().length === 0) return;
       this.currentReviewIndex.set((this.currentReviewIndex() + 1) % this.reviews().length);
       this.updateRenderedReviews();

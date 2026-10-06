@@ -1,4 +1,4 @@
-import { ApplicationConfig, PLATFORM_ID, APP_ID, provideZoneChangeDetection, provideCheckNoChangesConfig, provideAppInitializer, inject } from '@angular/core';
+import { ApplicationConfig, PLATFORM_ID, APP_ID, provideZonelessChangeDetection, provideCheckNoChangesConfig, provideAppInitializer, inject } from '@angular/core';
 import { provideRouter, withInMemoryScrolling } from '@angular/router';
 import { provideHttpClient, withFetch, withInterceptorsFromDi, withInterceptors } from '@angular/common/http';
 import { routes } from './app.routes';
@@ -62,7 +62,10 @@ export const appConfig: ApplicationConfig = {
       withFetch(),
       withInterceptors([authInterceptor])
     ),
-    provideZoneChangeDetection({ eventCoalescing: true }),
+    // No zone.js: change detection runs when a signal a view reads changes, a template event fires, an
+    // async pipe emits, or markForCheck() is called - and SSR waits only for PendingTasks (HttpClient
+    // and the router register their own).
+    provideZonelessChangeDetection(),
     // Dev and debug builds only (a no-op once optimized): after every change detection pass, and
     // every second on a timer, re-check EVERY view - OnPush and not-dirty ones included - and throw
     // NG0100 for any binding whose value moved without Angular being told. That is how a missed

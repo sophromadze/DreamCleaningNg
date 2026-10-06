@@ -1,4 +1,4 @@
-import { PLATFORM_ID, NgZone, OnDestroy, inject, Service } from '@angular/core';
+import { PLATFORM_ID, OnDestroy, inject, Service } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { interval, Subscription, Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
@@ -11,13 +11,11 @@ import { AuthService } from './auth.service';
 // below no longer rotates twice.
 import { refreshOnce } from '../interceptors/auth.interceptor';
 import { environment } from '../../environments/environment';
-import { setTimeoutOutsideZone, subscribeOutsideZone } from '../shared/zone-free-timers';
 
 @Service()
 export class TokenRefreshService implements OnDestroy {
   private authService = inject(AuthService);
 
-  private readonly zone = inject(NgZone);
   private refreshSubscription?: Subscription;
   private inactivityCheckSubscription?: Subscription;
   /**
@@ -80,18 +78,17 @@ export class TokenRefreshService implements OnDestroy {
       return;
     }
 
-    // Delay the first check to avoid conflicts during page load (outside the zone, so the wait
-    // does not hold up hydration - the callback itself still runs inside it)
-    this.pendingStart = setTimeoutOutsideZone(this.zone, () => {
+    // Delay the first check to avoid conflicts during page load
+    this.pendingStart = setTimeout(() => {
       this.pendingStart = undefined;
 
       // Set up periodic token refresh
-      this.refreshSubscription = subscribeOutsideZone(this.zone, interval(this.clampTimerDelay(this.TOKEN_REFRESH_INTERVAL)), () => {
+      this.refreshSubscription = interval(this.clampTimerDelay(this.TOKEN_REFRESH_INTERVAL)).subscribe(() => {
         this.performTokenRefresh();
       });
 
       // Set up periodic inactivity check (every hour)
-      this.inactivityCheckSubscription = subscribeOutsideZone(this.zone, interval(this.clampTimerDelay(this.INACTIVITY_CHECK_INTERVAL)), () => {
+      this.inactivityCheckSubscription = interval(this.clampTimerDelay(this.INACTIVITY_CHECK_INTERVAL)).subscribe(() => {
         if (this.checkInactivity()) {
           this.authService.logout();
         }
