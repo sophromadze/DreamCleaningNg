@@ -184,6 +184,11 @@ export interface CreateForUserOptions {
    * invoice would sit Pending forever with nothing able to settle it.
    */
   contractClientId?: number | null;
+  /**
+   * Regular (false) or Commercial (true) as chosen in Admin Mode. Omitted = the server derives it
+   * from the customer. Only this admin endpoint accepts it; the self-service booking cannot.
+   */
+  isCommercial?: boolean;
 }
 
 export interface BlockedTimeSlot {

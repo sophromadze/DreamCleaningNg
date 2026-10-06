@@ -1,0 +1,290 @@
+/* Company → Order Sources. Same visual system as the Traffic and Customers tabs: surface cards,
+   border-color rules, theme tokens only, so day/night follows the toggle with no override. */
+:host { display: block; }
+
+.order-sources { position: relative; }
+
+/* ── Toolbar ── */
+.os-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  margin-bottom: 8px;
+}
+
+.os-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  label {
+    font-size: 0.78rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+  }
+
+  select,
+  input {
+    padding: 7px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    min-height: 36px;
+  }
+}
+
+.os-btn {
+  padding: 7px 14px;
+  min-height: 36px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+
+  &:hover:not(:disabled) { background: var(--surface-subtle); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; }
+}
+
+.os-scope {
+  margin: 0 0 16px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.os-error {
+  background: var(--soft-red);
+  color: var(--soft-red-text);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
+}
+
+.os-state {
+  padding: 32px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+/* ── Headline cards ── */
+.os-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.os-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+
+  &__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+  }
+
+  &__value {
+    font-size: 1.6rem;
+    font-weight: var(--fw-bold);
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  &__sub {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+  }
+}
+
+.os-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  flex: none;
+  vertical-align: middle;
+}
+
+/* ── Panels ── */
+.os-panel {
+  background: var(--surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px 18px;
+  margin-bottom: 20px;
+
+  h3 {
+    margin: 0 0 4px;
+    font-size: 1rem;
+    color: var(--text-primary);
+  }
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+}
+
+.os-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.os-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+
+  button {
+    padding: 6px 12px;
+    border: none;
+    background: var(--surface);
+    color: var(--text-primary);
+    font-size: 0.82rem;
+    cursor: pointer;
+
+    & + button { border-left: 1px solid var(--border-color); }
+    &:hover:not(.active) { background: var(--surface-subtle); }
+    &.active {
+      background: var(--primary-color);
+      color: #fff;
+    }
+  }
+}
+
+.os-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 12px 0 4px;
+  padding: 0;
+  list-style: none;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+
+  li { display: inline-flex; align-items: center; }
+}
+
+.os-chart {
+  position: relative;
+  height: 300px;
+  margin-top: 8px;
+
+  canvas {
+    width: 100% !important;
+    height: 100% !important;
+  }
+
+  @media (max-width: 600px) { height: 240px; }
+}
+
+.os-period-table {
+  margin-top: 12px;
+
+  summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    // The link colour that holds its contrast on a dark surface (primary-color does not).
+    color: var(--active-nav-link);
+  }
+
+  .os-table-wrap { margin-top: 10px; }
+}
+
+/* ── Tables ── */
+.os-table-wrap {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+.os-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+
+  th, td {
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+  }
+
+  thead th {
+    background: var(--surface-subtle);
+    color: var(--text-secondary);
+    font-weight: var(--fw-semibold);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  tbody th {
+    font-weight: var(--fw-medium);
+    color: var(--text-primary);
+  }
+
+  td { color: var(--text-primary); }
+
+  tbody tr:last-child th,
+  tbody tr:last-child td { border-bottom: none; }
+
+  tfoot th,
+  tfoot td {
+    border-top: 2px solid var(--border-color);
+    border-bottom: none;
+    background: var(--surface-subtle);
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .os-muted { color: var(--text-secondary); }
+}
+
+/* ── Help ── */
+.os-help {
+  margin-top: 8px;
+
+  summary {
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: var(--fw-semibold);
+    color: var(--text-primary);
+  }
+
+  &__body {
+    margin-top: 8px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: 0.86rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+
+    p { margin: 0 0 8px; }
+    ol { margin: 0 0 8px; padding-left: 20px; }
+    li { margin-bottom: 4px; }
+  }
+}

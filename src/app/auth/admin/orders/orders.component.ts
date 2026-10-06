@@ -1,7 +1,9 @@
-import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ElementRef, HostListener, input, ChangeDetectionStrategy, ApplicationRef, inject, viewChild, signal, computed } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef, AfterViewInit, OnDestroy, ElementRef, HostListener, input, ChangeDetectionStrategy, ApplicationRef, inject, viewChild, signal, computed, DestroyRef } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderAdminNote, OrderTransferInfo, UserAdmin, OrderRefundSummary, OrderRefundInfo, OrderCleanerPayroll, OrderCleanerPayrollLine, OrderStaffingWarningsMap } from '../../../services/admin.service';
+import { AdminService, OrderUpdateHistory, UserPermissions, SuperAdminUpdateOrderDto, PendingOrderEditListDto, PendingOrderEditDetailDto, AssignedCleanerAdmin, UserCleaningPhoto, OrderAdminNote, OrderTransferInfo, UserAdmin, OrderRefundSummary, OrderRefundInfo, OrderCleanerPayroll, OrderCleanerPayrollLine, OrderStaffingWarningsMap, OrderChangeRequest, OrderStatusChangeResult } from '../../../services/admin.service';
 import { environment } from '../../../../environments/environment';
 import { OrderService, Order, OrderList, OrderPartialPayment, OrderPaymentBalance } from '../../../services/order.service';
 import { CleanerService, AvailableCleaner } from '../../../services/cleaner.service';
@@ -74,6 +76,7 @@ import { buildCustomServiceTypeNameOptions } from '../../../shared/booking/custo
 import { composeTime24h, parseTime12h } from '../../../shared/booking/extra-service-display.utils';
 // Aliased: the component has a field of the same name holding the resolved answer.
 import { canSaveOrderEditsDirectly as canSaveOrderEditsDirectlyFor } from '../../../shared/order-edit-approval.policy';
+import { doneMoveNeedsRequest } from '../../../shared/order-done-approval.policy';
 import {
   RecurringSeriesPanelComponent
 } from '../../../shared/components/recurring-series-panel/recurring-series-panel.component';
@@ -131,6 +134,30 @@ export interface AdminOrderList extends OrderList {
   totalRefundedAmount?: number;
   /** Soft-hidden from the default list view. Only populated when includeHidden was requested. */
   isHidden?: boolean;
+  /** Regular (false) or Commercial (true): which Orders sub-tab lists the order. */
+  isCommercial?: boolean;
+  /** A Done request is waiting for approval — the row shows "Done requested" instead of the
+   *  Done button, so nobody sends a duplicate. */
+  hasPendingDoneRequest?: boolean;
+}
+
+/** The Orders tab's two sub-tabs (2026-10). Kept in the URL as `?ordersTab=`. */
+export type OrdersSubTab = 'regular' | 'commercial';
+
+/** Everything an admin can set on the list itself — search, filters, sort and page — which each
+ *  sub-tab keeps for itself so switching tabs never loses what was set on the other one. */
+interface OrdersListViewState {
+  searchTerm: string;
+  statusFilter: string;
+  dateFilter: string;
+  customDateFrom: string;
+  customDateTo: string;
+  serviceTypeFilter: string;
+  bookedByFilter: string;
+  paymentMethodFilter: string;
+  sortColumn: string;
+  sortDirection: 'asc' | 'desc';
+  currentPage: number;
 }
 
 /** One row of the order panel's single Payments list (see `paymentTimeline`). */
@@ -172,6 +199,28 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   private customerInvoiceService = inject(CustomerInvoiceService);
 
   private readonly appRef = inject(ApplicationRef);
+  private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
+
+  // ── Regular / Commercial sub-tabs (2026-10) ──
+  /** Which sub-tab is showing. Mirrored into `?ordersTab=` so Back and refresh restore it. */
+  readonly ordersSubTab = signal<OrdersSubTab>('regular');
+  /** The view state each sub-tab had when the admin last left it. */
+  private readonly subTabViewStates = new Map<OrdersSubTab, OrdersListViewState>();
+  readonly regularOrderCount = computed(() => this.orders().filter(o => !o.isCommercial).length);
+  readonly commercialOrderCount = computed(() => this.orders().filter(o => !!o.isCommercial).length);
+  readonly ordersSubTabs: ReadonlyArray<{ key: OrdersSubTab; label: string }> = [
+    { key: 'regular', label: 'Regular' },
+    { key: 'commercial', label: 'Commercial' }
+  ];
+  /** The order whose Regular/Commercial move is on the wire. */
+  readonly movingOrderTypeId = signal<number | null>(null);
+
+  // ── Change requests on the open order (edits + Done requests, any status) ──
+  readonly orderChangeRequests = signal<OrderChangeRequest[]>([]);
+  /** Decided requests are kept short; waiting ones are always listed. */
+  readonly showAllOrderChangeRequests = signal(false);
   readonly tableWrapper = viewChild<ElementRef<HTMLDivElement>>('tableWrapper');
   readonly tableHeader = viewChild<ElementRef<HTMLTableSectionElement>>('tableHeader');
 
@@ -310,6 +359,8 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   // Mark as Done modal
   readonly showDoneModal = signal(false);
   readonly doneModalOrder = signal<AdminOrderList | null>(null);
+  /** Optional note for the reviewer when the Done modal sends a REQUEST. */
+  readonly doneRequestReason = signal('');
   sendingReview = false;
 
   // Phase 1 manual payment tracking — Done modal payment method block.
@@ -612,6 +663,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly isHidingOrder = signal(false);
 
   ngOnInit() {
+    this.applyOrdersSubTab(this.parseOrdersSubTab(this.route.snapshot.queryParamMap.get('ordersTab')), false);
+    // Back / Forward between the sub-tabs changes only the query string; follow it.
+    this.route.queryParamMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(params => {
+        const tab = this.parseOrdersSubTab(params.get('ordersTab'));
+        if (tab !== this.ordersSubTab()) this.applyOrdersSubTab(tab, false);
+      });
     this.loadUserPermissions();
     this.bubbleRewardsService.getSummary().subscribe({
       next: (s) => {
@@ -2119,7 +2178,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
    *  pass (no template-bound state is mutated), which fixes NG0100 on search. */
   private get stats() {
     const key = [
-      this.statsVersion(), this.orders().length, this.searchTerm(),
+      this.statsVersion(), this.orders().length, this.ordersSubTab(), this.searchTerm(),
       this.statusFilter(), this.paymentMethodFilter(), this.dateFilter(),
       this.customDateFrom(), this.customDateTo(),
       this.serviceTypeFilter(), this.bookedByFilter()
@@ -3142,6 +3201,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.resetPayrollEditState();
     this.loadOrderInvoices(orderId);
     this.loadPartialPayments(orderId);
+    this.loadOrderChangeRequests(orderId);
     // The breakdown under "Cleaners Total Salary". Admin and SuperAdmin since 2026-09 — the
     // people who staff the job are the ones told it ran long. Moderators are View-only and the
     // server answers them 403, so the call is gated on the same test as the block that shows it.
@@ -4977,10 +5037,19 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     newStatus: string,
     paymentMethod: string | null = null,
     paymentReference: string | null = null,
-    paymentNotes: string | null = null
+    paymentNotes: string | null = null,
+    request: { sendReviewRequest?: boolean; reason?: string | null } = {}
   ) {
-    this.adminService.updateOrderStatus(order.id, newStatus, paymentMethod, paymentReference, paymentNotes).subscribe({
-      next: () => {
+    this.adminService.updateOrderStatus(order.id, newStatus, paymentMethod, paymentReference, paymentNotes, request).subscribe({
+      next: (result: OrderStatusChangeResult | null) => {
+        // The server turned the move into a Done REQUEST (OrderDoneApprovalPolicy): nothing about
+        // the order changed, so only the "Done requested" state is recorded here.
+        if (result?.doneRequested) {
+          this.markDoneRequested(order.id);
+          this.successMessage.set(`Done request for order #${order.id} sent for approval.`);
+          this.clearMessagesAfterDelay();
+          return;
+        }
         order.status = newStatus;
         // Mirror the payment-method update locally so the DoneM badge + filter pick up the
         // change without a full list reload. Only mutate when the caller actually passed a
@@ -5007,10 +5076,32 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
         this.clearMessagesAfterDelay();
       },
       error: (error) => {
+        // 409: a Done request is already waiting — show that state rather than a failure.
+        if (error?.status === 409 && error?.error?.doneRequested) {
+          this.markDoneRequested(order.id);
+          this.errorMessage.set(extractApiErrorMessage(error, 'A Done request is already waiting for approval.'));
+          return;
+        }
         console.error('Error updating order status:', error);
-        this.errorMessage.set('Failed to update order status.');
+        this.errorMessage.set(extractApiErrorMessage(error, 'Failed to update order status.'));
       }
     });
+  }
+
+  /** True when this caller's Done on this order goes to a reviewer as a request. */
+  doneNeedsRequest(order: { status?: string | null } | null | undefined): boolean {
+    return !!order && doneMoveNeedsRequest(this.canSaveOrderEditsDirectly(), order.status);
+  }
+
+  /** Records "a Done request is waiting" on the list row and refreshes the open panel's list. */
+  private markDoneRequested(orderId: number): void {
+    const row = this.orders().find(o => o.id === orderId);
+    if (row) {
+      row.hasPendingDoneRequest = true;
+      this.orders.set(this.orders());
+    }
+    if (this.viewingOrderId() === orderId) this.loadOrderChangeRequests(orderId);
+    this.loadPendingOrderEdits();
   }
 
   markOrderAsDone(order: AdminOrderList) {
@@ -5021,6 +5112,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.donePaymentMethod.set(((order.paymentMethod as PaymentMethodValue) || 'Normal'));
     this.donePaymentReference.set(order.paymentReference || '');
     this.donePaymentNotes.set(order.paymentNotes || '');
+    this.doneRequestReason.set('');
     this.showDoneModal.set(true);
   }
 
@@ -5032,6 +5124,21 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   confirmDone(sendReview: boolean) {
     const order = this.doneModalOrder();
     if (!order) return;
+
+    // A Done REQUEST carries the review-link choice to the reviewer: the link is sent when the
+    // request is approved, never before the order really is Done.
+    if (this.doneNeedsRequest(order)) {
+      this.updateOrderStatus(
+        order,
+        'Done',
+        this.donePaymentMethod(),
+        this.donePaymentMethod() !== 'Normal' ? this.donePaymentReference() : null,
+        this.donePaymentMethod() !== 'Normal' ? this.donePaymentNotes() : null,
+        { sendReviewRequest: sendReview, reason: this.doneRequestReason().trim() || null }
+      );
+      this.closeDoneModal();
+      return;
+    }
 
     // Phase 1 — pass payment method through so the backend can persist it on the Done
     // transition. Reference/Notes are sent only for manual methods (Normal ignores them).
@@ -5205,7 +5312,10 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
 
   /** Applies search/status/payment/date filters + sort. Pure function of component state. */
   private filterOrders(): AdminOrderList[] {
-    let filtered = this.orders();
+    // The sub-tab comes first: every filter, the search, the sort, the page and the header
+    // cards below then describe Regular or Commercial work only.
+    const commercial = this.ordersSubTab() === 'commercial';
+    let filtered = this.orders().filter(order => !!order.isCommercial === commercial);
 
     // Search filter
     const search = this.searchTerm().trim().toLowerCase();
@@ -5223,7 +5333,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     // Phase 1: Payment Method filter. Treat missing paymentMethod as 'Normal' so legacy
-    // rows (pre-migration cache) don't disappear when admin filters to "Normal (Stripe)".
+    // rows (pre-migration cache) don't disappear when admin filters to "Normal (Card)".
     if (this.paymentMethodFilter() !== 'all') {
       filtered = filtered.filter(o => (o.paymentMethod || 'Normal') === this.paymentMethodFilter());
     }
@@ -7379,14 +7489,6 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     this.resetSaveConfirmState();
   }
 
-  /**
-   * Pending edits for the currently selected order (for template; avoids arrow fn in template).
-   * Empty for an admin who cannot review, because the list is never fetched for them.
-   */
-  getPendingEditsForSelectedOrder(): PendingOrderEditListDto[] {
-    if (!this.selectedOrder()) return [];
-    return this.pendingOrderEdits().filter(p => p.orderId === this.selectedOrder()!.id);
-  }
 
   /** Optional free-text reason an Admin gives when submitting an edit for approval. */
   readonly orderEditRequestReason = signal('');
@@ -7478,19 +7580,14 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   approvePendingOrderEdit(id: number): void {
     if (this.approvingPendingId() != null) return;
     this.approvingPendingId.set(id);
+    // Read BEFORE closing the modal: closing clears selectedPendingEdit, and checking it after
+    // (as this used to) meant the open panel was never refreshed after an approval.
+    const decided = this.selectedPendingEdit();
     this.adminService.approvePendingOrderEdit(id).subscribe({
-      next: () => {
-        this.successMessage.set('Order edit approved and applied.');
+      next: (res) => {
+        this.successMessage.set(res?.message || 'Order edit approved and applied.');
         this.closePendingEditDetail();
-        if (this.selectedOrder() && this.selectedPendingEdit() && this.selectedOrder()!.id === this.selectedPendingEdit()!.orderId) {
-          this.adminService.getOrderDetails(this.selectedOrder()!.id).subscribe({
-            next: (o) => {
-              this.selectedOrder.set(o);
-              this.customerNames.set(o.id, `${o.contactFirstName} ${o.contactLastName}`);
-              this.customerDetails.set(o.id, { id: o.userId, email: o.contactEmail });
-            }
-          });
-        }
+        if (decided) this.afterChangeRequestDecided(decided.orderId);
         this.calculateStatistics();
         setTimeout(() => { this.successMessage.set(''); }, 5000);
       },
@@ -7505,10 +7602,12 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   rejectPendingOrderEdit(id: number, reason?: string): void {
     if (this.rejectingPendingId() != null) return;
     this.rejectingPendingId.set(id);
+    const decided = this.selectedPendingEdit();
     this.adminService.rejectPendingOrderEdit(id, reason).subscribe({
       next: () => {
-        this.successMessage.set('Order edit rejected.');
+        this.successMessage.set(this.pendingEditIsDoneRequest() ? 'Done request rejected.' : 'Order edit rejected.');
         this.closePendingEditDetail();
+        if (decided) this.afterChangeRequestDecided(decided.orderId);
         setTimeout(() => { this.successMessage.set(''); }, 5000);
       },
       error: (err) => {
@@ -7558,6 +7657,24 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
   getPendingEditChanges(): OrderEditChange[] {
     const d = this.selectedPendingEdit();
     if (!d) return [];
+
+    // A Done request is a status move, not a field edit: its rows are stored by the server, and
+    // the only thing that can drift underneath it is the order's status.
+    if (d.kind === 'Done') {
+      const liveStatus = d.currentOrder?.status ?? '';
+      return (d.requestedChanges ?? []).map(s => {
+        const isStatus = s.field === 'Status';
+        return {
+          field: s.field,
+          current: s.current || '—',
+          proposed: s.proposed,
+          difference: s.difference || '—',
+          emphasised: s.emphasised,
+          liveCurrent: isStatus ? liveStatus : undefined,
+          hasDrifted: isStatus && !!liveStatus && liveStatus.toLowerCase() !== (s.current || '').toLowerCase(),
+        } as OrderEditChange;
+      });
+    }
 
     const live = this.computeLivePendingEditChanges();
 
@@ -8001,8 +8118,9 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
       this.selectedOrder()!.id, dto, fieldChanges, this.orderEditRequestReason().trim() || undefined
     ).subscribe({
       next: () => {
-        this.successMessage.set('Your changes have been sent to SAdmin for approval. You will see the update once a SAdmin confirms.');
+        this.successMessage.set('Your changes have been sent for approval. They appear on the order once a reviewer approves them.');
         this.editingOrder.set(false);
+        this.loadOrderChangeRequests(this.selectedOrder()!.id);
         this.orderEditRequestReason.set('');
         setTimeout(() => { this.successMessage.set(''); }, 5000);
       },
@@ -8027,6 +8145,7 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
     if (!this.selectedOrder()) return;
     const orderId = this.selectedOrder()!.id;
     this.loadUpdateHistory(orderId);
+    this.loadOrderChangeRequests(orderId);
     this.refreshPartialBalanceQuietly(orderId);
     this.loadOrderSavedCardInfo(orderId);
     this.loadSingleOrderCleaners(orderId);
@@ -8072,9 +8191,204 @@ export class OrdersComponent implements OnInit, AfterViewInit, OnDestroy {
           updatedOrder.tips = o.tips;
           this.orders.set(this.orders());
           updatedOrder.companyDevelopmentTips = o.companyDevelopmentTips;
+          updatedOrder.isCommercial = !!o.isCommercial;
           this.orders.set(this.orders());
           if (this.isSuperAdmin()) this.calculateStatistics();
         }
+      }
+    });
+  }
+
+  // ── Regular / Commercial sub-tabs ─────────────────────────────────────────────────────
+
+  private parseOrdersSubTab(raw: string | null): OrdersSubTab {
+    return raw === 'commercial' ? 'commercial' : 'regular';
+  }
+
+  /** Switches sub-tab from a click. Writes `?ordersTab=` as a new history entry, so Back
+   *  returns to the previous sub-tab. */
+  selectOrdersSubTab(tab: OrdersSubTab): void {
+    if (tab === this.ordersSubTab()) return;
+    this.applyOrdersSubTab(tab, true);
+  }
+
+  private applyOrdersSubTab(tab: OrdersSubTab, writeUrl: boolean): void {
+    if (tab !== this.ordersSubTab()) {
+      this.subTabViewStates.set(this.ordersSubTab(), this.captureListViewState());
+      this.ordersSubTab.set(tab);
+      this.restoreListViewState(this.subTabViewStates.get(tab));
+    }
+    if (writeUrl) {
+      // Only ordersTab is written. The admin shell's own deep-link params (orderId, tab,
+      // userId, ...) are cleared at the same time: it re-applies them on every query-string
+      // change, and a stale ?tab= would otherwise move the admin off the Orders tab.
+      this.router.navigate([], {
+        relativeTo: this.route,
+        queryParams: {
+          ordersTab: tab === 'regular' ? null : tab,
+          orderId: null, tab: null, userId: null, usersTab: null, clientId: null
+        },
+        queryParamsHandling: 'merge'
+      });
+    }
+  }
+
+  private captureListViewState(): OrdersListViewState {
+    return {
+      searchTerm: this.searchTerm(),
+      statusFilter: this.statusFilter(),
+      dateFilter: this.dateFilter(),
+      customDateFrom: this.customDateFrom(),
+      customDateTo: this.customDateTo(),
+      serviceTypeFilter: this.serviceTypeFilter(),
+      bookedByFilter: this.bookedByFilter(),
+      paymentMethodFilter: this.paymentMethodFilter(),
+      sortColumn: this.sortColumn(),
+      sortDirection: this.sortDirection(),
+      currentPage: this.currentPage()
+    };
+  }
+
+  /** A sub-tab never visited starts from the defaults, not from the other tab's filters. */
+  private restoreListViewState(state: OrdersListViewState | undefined): void {
+    this.searchTerm.set(state?.searchTerm ?? '');
+    this.statusFilter.set(state?.statusFilter ?? 'all');
+    this.dateFilter.set(state?.dateFilter ?? 'all');
+    this.customDateFrom.set(state?.customDateFrom ?? '');
+    this.customDateTo.set(state?.customDateTo ?? '');
+    this.serviceTypeFilter.set(state?.serviceTypeFilter ?? 'all');
+    this.bookedByFilter.set(state?.bookedByFilter ?? 'all');
+    this.paymentMethodFilter.set(state?.paymentMethodFilter ?? 'all');
+    this.sortColumn.set(state?.sortColumn ?? 'serviceDate');
+    this.sortDirection.set(state?.sortDirection ?? 'desc');
+    this.currentPage.set(state?.currentPage ?? 1);
+  }
+
+  orderTypeLabel(order: { isCommercial?: boolean } | null | undefined): string {
+    return order?.isCommercial ? 'Commercial' : 'Regular';
+  }
+
+  /**
+   * Moves an order to the other sub-tab. Stored on the order, so the move survives any later
+   * change to the customer's business flag. The row stays visible until the list re-filters,
+   * which it does at once — the success line names where it went.
+   */
+  moveOrderType(orderId: number, toCommercial: boolean): void {
+    if (this.movingOrderTypeId() != null || !this.userPermissions().permissions.canUpdate) return;
+    this.movingOrderTypeId.set(orderId);
+    this.adminService.updateOrderType(orderId, toCommercial).pipe(
+      finalize(() => this.movingOrderTypeId.set(null))
+    ).subscribe({
+      next: (res) => {
+        const row = this.orders().find(o => o.id === orderId);
+        if (row) {
+          row.isCommercial = res.isCommercial;
+          this.orders.set(this.orders());
+        }
+        const open = this.selectedOrder();
+        if (open && open.id === orderId) {
+          open.isCommercial = res.isCommercial;
+          this.selectedOrder.set(open);
+        }
+        this.calculateStatistics();
+        // The current page may now be past the end of a shorter list.
+        if (this.currentPage() > Math.max(1, this.totalPages)) this.currentPage.set(Math.max(1, this.totalPages));
+        this.successMessage.set(res.message || `Order #${orderId} moved to ${toCommercial ? 'Commercial' : 'Regular'}.`);
+        this.clearMessagesAfterDelay();
+      },
+      error: (err) => {
+        this.errorMessage.set(extractApiErrorMessage(err, 'Could not move the order.'));
+        this.clearMessagesAfterDelay();
+      }
+    });
+  }
+
+  // ── Change requests on the open order ─────────────────────────────────────────────────
+
+  loadOrderChangeRequests(orderId: number): void {
+    // Moderators are View-only and the endpoint is Admin + SuperAdmin.
+    if (this.userRole() !== 'Admin' && this.userRole() !== 'SuperAdmin') {
+      this.orderChangeRequests.set([]);
+      return;
+    }
+    this.adminService.getOrderChangeRequests(orderId).subscribe({
+      next: (list) => {
+        if (this.viewingOrderId() !== orderId) return;
+        this.orderChangeRequests.set(list);
+        this.showAllOrderChangeRequests.set(false);
+        // Keep the list row's "Done requested" pill honest with what the server says.
+        const row = this.orders().find(o => o.id === orderId);
+        const waiting = list.some(r => r.kind === 'Done' && r.status === 'Pending');
+        if (row && !!row.hasPendingDoneRequest !== waiting) {
+          row.hasPendingDoneRequest = waiting;
+          this.orders.set(this.orders());
+        }
+      },
+      error: () => { if (this.viewingOrderId() === orderId) this.orderChangeRequests.set([]); }
+    });
+  }
+
+  /** Waiting requests always, then the three most recent decisions unless expanded. */
+  visibleOrderChangeRequests(): OrderChangeRequest[] {
+    const all = this.orderChangeRequests();
+    if (this.showAllOrderChangeRequests()) return all;
+    const waiting = all.filter(r => r.status === 'Pending');
+    const decided = all.filter(r => r.status !== 'Pending').slice(0, 3);
+    return [...waiting, ...decided];
+  }
+
+  hiddenOrderChangeRequestCount(): number {
+    return this.orderChangeRequests().length - this.visibleOrderChangeRequests().length;
+  }
+
+  changeRequestKindLabel(r: OrderChangeRequest): string {
+    return r.kind === 'Done' ? 'Done request' : 'Edit request';
+  }
+
+  changeRequestStatusLabel(r: OrderChangeRequest): string {
+    switch (r.status) {
+      case 'Pending': return 'Waiting for approval';
+      case 'Approved': return 'Approved';
+      case 'Rejected': return 'Rejected';
+      default: return r.status;
+    }
+  }
+
+  /** The open order has a Done request waiting. */
+  selectedOrderHasPendingDoneRequest(): boolean {
+    const order = this.selectedOrder();
+    if (!order) return false;
+    if (this.orderChangeRequests().some(r => r.orderId === order.id && r.kind === 'Done' && r.status === 'Pending')) return true;
+    return !!this.orders().find(o => o.id === order.id)?.hasPendingDoneRequest;
+  }
+
+  /** The list row for the open order (the Done modal and the row actions work on rows). */
+  selectedOrderListRow(): AdminOrderList | null {
+    const order = this.selectedOrder();
+    return order ? this.orders().find(o => o.id === order.id) ?? null : null;
+  }
+
+  pendingEditIsDoneRequest(): boolean {
+    return this.selectedPendingEdit()?.kind === 'Done';
+  }
+
+  /** After a reviewer decides any request: the list row and, when it is open, the panel. */
+  private afterChangeRequestDecided(orderId: number): void {
+    this.adminService.getOrderDetails(orderId).subscribe({
+      next: (o) => {
+        const row = this.orders().find(r => r.id === orderId);
+        if (row) {
+          row.status = o.status;
+          row.paymentMethod = o.paymentMethod;
+          row.paymentReference = o.paymentReference;
+          row.paymentNotes = o.paymentNotes;
+          row.total = o.total;
+          row.isCommercial = !!o.isCommercial;
+          row.hasPendingDoneRequest = false;
+          this.orders.set(this.orders());
+          this.calculateStatistics();
+        }
+        if (this.selectedOrder()?.id === orderId) this.refreshOrderAfterSave();
       }
     });
   }

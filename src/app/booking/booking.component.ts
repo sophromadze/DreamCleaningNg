@@ -628,6 +628,12 @@ export class BookingComponent implements OnInit, OnDestroy {
   readonly termsConsentLead = TERMS_CONSENT_LEAD;
   // Search box UI lives in AdminUserSearchComponent; the page owns the selection.
   readonly selectedTargetUser = signal<UserAdmin | null>(null);
+  /**
+   * Admin Mode: is this order Regular or Commercial work? Starts Regular and follows the picked
+   * customer — a business customer switches it to Commercial — and the admin can still change it.
+   * The server stores it (Order.IsCommercial); it moves no price.
+   */
+  readonly adminOrderIsCommercial = signal(false);
   /** True after an admin-mode / target-user change wiped applied discounts, so the admin is told to re-apply. */
   readonly discountsClearedForAccountSwitch = signal(false);
 
@@ -3948,7 +3954,7 @@ private updateDateRestrictions() {
         // cash/Zelle/cheque/other and not for Invoice — which is unpaid by definition.
         adminMethodIsSettled(this.adminPaymentMethod()) ? this.adminPaymentReference() : null,
         adminMethodIsSettled(this.adminPaymentMethod()) ? this.adminPaymentNotes() : null,
-        { contractClientId: this.adminContractClientId }
+        { contractClientId: this.adminContractClientId, isCommercial: this.adminOrderIsCommercial() }
       ).subscribe({
         next: (response) => {
           this.isLoading.set(false);
@@ -4671,6 +4677,9 @@ loadBubblePointsOptions(): void {
     this.clearAppliedDiscountsForAccountSwitch();
 
     this.selectedTargetUser.set(user);
+    // A business customer's booking is Commercial work by default; anybody else's is Regular.
+    // Re-derived on every pick, so switching customers never carries the last one's choice over.
+    this.adminOrderIsCommercial.set(!!user.isBusiness);
     // A different customer: "Commercial invoice" is only offered when THIS one has a business client.
     if (this.adminPaymentMethod() === 'Invoice') this.adminPaymentMethod.set('Normal');
     this.loadAdminBusinessClient(user);
@@ -4767,6 +4776,7 @@ loadBubblePointsOptions(): void {
   // off, target user changes, or booking submission completes — keeps stale Zelle/Cash values
   // from leaking onto the next booking.
   resetAdminPaymentFields(): void {
+    this.adminOrderIsCommercial.set(false);
     this.adminPaymentMethod.set('Normal');
     this.adminPaymentReference.set('');
     this.adminPaymentNotes.set('');

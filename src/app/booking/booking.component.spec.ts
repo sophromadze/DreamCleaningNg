@@ -401,6 +401,29 @@ describe('BookingComponent', () => {
       expect(component.contactPhone.value).toBe('7329544448');
       expect(component.contactPhone.valid).toBe(true);
     });
+
+    // Regular vs Commercial (2026-10): the order type follows the picked customer, and the admin
+    // can still override it. Each pick re-derives it, so one customer's choice never carries over.
+    it("starts a business customer's order as Commercial and anybody else's as Regular", () => {
+      expect(component.adminOrderIsCommercial()).toBe(false);
+
+      component.selectUser({ id: 7, firstName: 'Acme', lastName: 'LLC', email: 'ops@acme.example', isBusiness: true } as any);
+      expect(component.adminOrderIsCommercial()).toBe(true);
+
+      component.adminOrderIsCommercial.set(false);   // the admin's override
+      expect(component.adminOrderIsCommercial()).toBe(false);
+
+      component.selectUser({ id: 8, firstName: 'Hal', lastName: 'Home', email: 'hal@example.com' } as any);
+      expect(component.adminOrderIsCommercial()).toBe(false);
+      component.selectUser({ id: 7, firstName: 'Acme', lastName: 'LLC', email: 'ops@acme.example', isBusiness: true } as any);
+      expect(component.adminOrderIsCommercial()).toBe(true);
+    });
+
+    it('drops the order type with the rest of the admin fields when Admin Mode is turned off', () => {
+      component.selectUser({ id: 7, firstName: 'Acme', lastName: 'LLC', email: 'ops@acme.example', isBusiness: true } as any);
+      component.toggleAdminMode();
+      expect(component.adminOrderIsCommercial()).toBe(false);
+    });
   });
 
   /**

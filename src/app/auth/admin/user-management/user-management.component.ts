@@ -2107,8 +2107,10 @@ export class UserManagementComponent implements OnInit, AfterViewInit, OnDestroy
     this.recreateSourceOrderId.set(null);
   }
 
-  onOrderRecreated(result: { orderId: number; total: number }): void {
-    this.recreateSuccessMessage.set(`Order #${result.orderId} created. It is on this customer's history below.`);
+  onOrderRecreated(result: { orderId: number; total: number; doneRequested?: boolean }): void {
+    this.recreateSuccessMessage.set(result.doneRequested
+      ? `Order #${result.orderId} created. Marking it Done needs approval, so a Done request was sent — it is on this customer's history below.`
+      : `Order #${result.orderId} created. It is on this customer's history below.`);
     // The new order belongs in the list the admin is looking at, and the header's order count and
     // lifetime total are derived from that same list — reloading is what keeps all three honest.
     if (this.selectedUser()) this.loadUserOrders(this.selectedUser()!.id);

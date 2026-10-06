@@ -1,0 +1,211 @@
+<div class="order-sources">
+  <h2 class="sr-only">Order sources</h2>
+
+  <!-- Range + bucket size -->
+  <div class="os-toolbar">
+    <div class="os-field">
+      <label for="os-preset">Period</label>
+      <select id="os-preset" [ngModel]="preset()" (ngModelChange)="onPresetChange($event)">
+        @for (p of presets; track p.key) {
+        <option [value]="p.key">{{ p.label }}</option>
+        }
+      </select>
+    </div>
+
+    <div class="os-field">
+      <label for="os-from">From</label>
+      <input id="os-from" type="date" [ngModel]="fromDate()" (ngModelChange)="fromDate.set($event); preset.set('custom')">
+    </div>
+    <div class="os-field">
+      <label for="os-to">To</label>
+      <input id="os-to" type="date" [ngModel]="toDate()" (ngModelChange)="toDate.set($event); preset.set('custom')">
+    </div>
+    <button type="button" class="os-btn" (click)="applyCustom()" [disabled]="loading()">Apply</button>
+
+    <div class="os-field">
+      <label for="os-grain">Show</label>
+      <select id="os-grain" [ngModel]="grain()" (ngModelChange)="onGrainChange($event)">
+        @for (g of grains; track g.key) {
+        <option [value]="g.key">{{ g.label }}</option>
+        }
+      </select>
+    </div>
+  </div>
+
+  <p class="os-scope">
+    Completed (Done) orders by service date, hidden orders excluded. Revenue is company revenue —
+    after discounts and refunds, without tips or sales tax.
+  </p>
+
+  @if (errorMessage()) {
+  <div class="os-error" role="alert">{{ errorMessage() }}</div>
+  }
+
+  @if (loading()) {
+  <div class="os-state" role="status">Loading…</div>
+  }
+
+  @if (!loading() && report(); as r) {
+    @if (r.totalOrders === 0) {
+    <div class="os-state">No completed orders in this period.</div>
+    } @else {
+    <!-- The question the tab answers first: paid ads vs organic search. -->
+    <div class="os-cards">
+      <div class="os-card">
+        <span class="os-card__label">All completed orders</span>
+        <span class="os-card__value">{{ r.totalOrders | number }}</span>
+        <span class="os-card__sub">{{ r.totalRevenue | currency:'USD' }}</span>
+      </div>
+      @if (paidRow(); as paid) {
+      <div class="os-card">
+        <span class="os-card__label">
+          <i class="os-dot" [style.background]="colorVar('paid')" aria-hidden="true"></i>
+          Paid ads
+        </span>
+        <span class="os-card__value">{{ paid.orders | number }}</span>
+        <span class="os-card__sub">{{ paid.revenue | currency:'USD' }} · {{ paid.orderShare }}% of orders</span>
+      </div>
+      }
+      @if (organicRow(); as organic) {
+      <div class="os-card">
+        <span class="os-card__label">
+          <i class="os-dot" [style.background]="colorVar('organic')" aria-hidden="true"></i>
+          Organic search
+        </span>
+        <span class="os-card__value">{{ organic.orders | number }}</span>
+        <span class="os-card__sub">{{ organic.revenue | currency:'USD' }} · {{ organic.orderShare }}% of orders</span>
+      </div>
+      }
+    </div>
+
+    <!-- Over time -->
+    <section class="os-panel" aria-labelledby="os-chart-title">
+      <div class="os-panel__head">
+        <div>
+          <h3 id="os-chart-title">Over time</h3>
+          <p class="os-hint">
+            {{ chartMetric() === 'orders' ? 'Orders' : 'Revenue' }} per
+            {{ r.granularity === 'month' ? 'month' : r.granularity === 'week' ? 'week (starting Monday)' : 'day' }}, by source.
+          </p>
+        </div>
+        <div class="os-toggle" role="group" aria-label="Chart shows">
+          <button type="button" [class.active]="chartMetric() === 'orders'" [attr.aria-pressed]="chartMetric() === 'orders'"
+                  (click)="setChartMetric('orders')">Orders</button>
+          <button type="button" [class.active]="chartMetric() === 'revenue'" [attr.aria-pressed]="chartMetric() === 'revenue'"
+                  (click)="setChartMetric('revenue')">Revenue</button>
+        </div>
+      </div>
+      <ul class="os-legend" aria-label="Sources in the chart">
+        @for (s of activeSources(); track s.key) {
+        <li><i class="os-dot" [style.background]="colorVar(s.key)" aria-hidden="true"></i>{{ s.label }}</li>
+        }
+      </ul>
+      <div class="os-chart">
+        <canvas #chartCanvas role="img" [attr.aria-label]="chartSummary()"></canvas>
+      </div>
+
+      <details class="os-period-table">
+        <summary>Show the numbers per period</summary>
+        <div class="os-table-wrap">
+          <table class="os-table">
+            <thead>
+              <tr>
+                <th scope="col">Period</th>
+                @for (s of activeSources(); track s.key) {
+                <th scope="col" class="num">{{ s.label }}</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (p of r.periods; track p.periodStart) {
+              <tr>
+                <th scope="row">{{ periodLabel(p.periodStart) }}</th>
+                @for (s of activeSources(); track s.key) {
+                <td class="num">
+                  {{ p.orders[s.key] || 0 }}
+                  @if ((p.orders[s.key] || 0) > 0) {
+                  <span class="os-muted">· {{ p.revenue[s.key] | currency:'USD':'symbol':'1.0-0' }}</span>
+                  }
+                </td>
+                }
+              </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+
+    <!-- Every source -->
+    <section class="os-panel" aria-labelledby="os-table-title">
+      <h3 id="os-table-title">By source</h3>
+      <div class="os-table-wrap">
+        <table class="os-table">
+          <thead>
+            <tr>
+              <th scope="col">Source</th>
+              <th scope="col" class="num">Orders</th>
+              <th scope="col" class="num">% of orders</th>
+              <th scope="col" class="num">Revenue</th>
+              <th scope="col" class="num">% of revenue</th>
+              <th scope="col" class="num">Avg. order</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (s of r.sources; track s.key) {
+            <tr [class.is-empty]="s.orders === 0">
+              <th scope="row">
+                <i class="os-dot" [style.background]="colorVar(s.key)" aria-hidden="true"></i>{{ s.label }}
+              </th>
+              <td class="num">{{ s.orders | number }}</td>
+              <td class="num">{{ s.orderShare }}%</td>
+              <td class="num">{{ s.revenue | currency:'USD' }}</td>
+              <td class="num">{{ s.revenueShare }}%</td>
+              <td class="num">{{ s.orders > 0 ? (s.averageOrderValue | currency:'USD') : '—' }}</td>
+            </tr>
+            }
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row">Total</th>
+              <td class="num">{{ r.totalOrders | number }}</td>
+              <td class="num">100%</td>
+              <td class="num">{{ r.totalRevenue | currency:'USD' }}</td>
+              <td class="num">100%</td>
+              <td class="num">{{ r.totalOrders > 0 ? ((r.totalRevenue / r.totalOrders) | currency:'USD') : '—' }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+    }
+  }
+
+  <!-- How an order gets its source. -->
+  <section class="os-help">
+    <details>
+      <summary>How an order's source is decided</summary>
+      <div class="os-help__body">
+        <p>
+          The source is the customer's <strong>first visit</strong> to the site (kept for 90 days), saved on the
+          order when they book. The first rule that matches wins:
+        </p>
+        <ol>
+          <li><strong>Admin-booked</strong> — an admin created the order (Admin Mode, recreate, recurring).</li>
+          <li><strong>Paid ads</strong> — the first visit came from an ad click (Google Ads gclid / gbraid / wbraid,
+            Microsoft Ads msclkid) or a paid campaign link (utm_medium cpc, ppc, paid…).</li>
+          <li><strong>AI assistant</strong>, <strong>Email</strong>, <strong>Social</strong> — ChatGPT, Gemini, Claude…;
+            our email links; Facebook, Instagram, TikTok…</li>
+          <li><strong>Organic search</strong> — Google, Bing, DuckDuckGo… with no ad click.</li>
+          <li><strong>Direct</strong> — typed the address or used a bookmark.</li>
+          <li><strong>Referral</strong> — a link on another site (Yelp, a blog, a partner…).</li>
+          <li><strong>Unknown</strong> — nothing was recorded.</li>
+        </ol>
+        <p>
+          Older orders, booked before click ids were recorded, use the channel saved at the time (or filled in later
+          from Google Analytics). Orders from before any of that existed show as <strong>Unknown</strong>.
+        </p>
+      </div>
+    </details>
+  </section>
+</div>

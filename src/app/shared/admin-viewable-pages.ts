@@ -20,6 +20,7 @@ export const ADMIN_VIEWABLE_PAGES: AdminViewablePage[] = [
   { key: 'expenses', label: 'Expenses', route: '/admin/company/expenses' },
   { key: 'finances', label: 'Finances', route: '/admin/company/finances' },
   { key: 'ads', label: 'Ads', route: '/admin/company/ads' },
+  { key: 'order-sources', label: 'Order Sources', route: '/admin/company/order-sources' },
   { key: 'traffic', label: 'Traffic', route: '/admin/company/traffic' },
   { key: 'keywords', label: 'Keywords', route: '/admin/company/keywords' },
   { key: 'customer-stats', label: 'Customers', route: '/admin/company/customers' },

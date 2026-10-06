@@ -250,9 +250,15 @@
             <select [(ngModel)]="orderStatus" (ngModelChange)="onStatusChange()">
               <option value="Pending">Pending — awaiting payment</option>
               <option value="Active">Active — booked, not yet done</option>
-              <option value="Done">Done — the cleaning already happened</option>
+              <option value="Done">{{ canMarkDoneDirectly() ? 'Done — the cleaning already happened' : 'Done — request approval (cleaning already happened)' }}</option>
             </select>
           </label>
+          @if (orderStatus() === 'Done' && !canMarkDoneDirectly()) {
+          <p class="rom-note">
+            Marking an order Done needs approval: it is created as Pending (Active for a payment
+            already received) and a Done request goes to a reviewer.
+          </p>
+          }
         </div>
         <!-- Reference and notes describe money that has ALREADY changed hands, so they are
              offered for cash/Zelle/cheque/other and NOT for Invoice — an invoice-billed order has

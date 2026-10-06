@@ -224,6 +224,10 @@ export interface MonthlyFinancialRate {
 export interface AdminOrderList {
   id: number;
   userId: number;
+  /** Regular (false) or Commercial (true) — the Orders sub-tab the order is listed under. */
+  isCommercial?: boolean;
+  /** A Done request is waiting for approval on this order. */
+  hasPendingDoneRequest?: boolean;
   contactEmail: string;
   contactFirstName: string;
   contactLastName: string;
@@ -821,6 +825,78 @@ export interface PendingOrderEditListDto {
   requestedByName: string;
   requestedAt: string;
   status: string;
+  /** Edit (a field edit) or Done (a request to mark the order Done). Absent = Edit. */
+  kind?: OrderChangeRequestKind;
+}
+
+export type OrderChangeRequestKind = 'Edit' | 'Done';
+
+/** What a Done request asks for — the Done modal's choices, applied on approval. */
+export interface DoneRequestPayload {
+  paymentMethod?: string | null;
+  paymentReference?: string | null;
+  paymentNotes?: string | null;
+  sendReviewRequest?: boolean;
+}
+
+/**
+ * One change request on an order (edit or Done), waiting or decided, as the order's own panel
+ * lists it. Readable by every Admin — it is how the person who sent a request sees it waiting,
+ * and later what became of it.
+ */
+export interface OrderChangeRequest {
+  id: number;
+  orderId: number;
+  kind: OrderChangeRequestKind;
+  status: 'Pending' | 'Approved' | 'Rejected' | string;
+  requestedByUserId: number;
+  requestedByName: string;
+  requestedAt: string;
+  reason?: string | null;
+  requestedChanges?: PendingOrderEditFieldChange[] | null;
+  reviewedByName?: string | null;
+  reviewedAt?: string | null;
+  rejectReason?: string | null;
+  isMine: boolean;
+}
+
+/**
+ * The answer to a status change. A caller without Done rights who moves an order into Done gets
+ * `doneRequested: true` (HTTP 202) — the order did NOT change; a request went to a reviewer.
+ */
+export interface OrderStatusChangeResult {
+  message: string;
+  doneRequested?: boolean;
+  requestId?: number;
+}
+
+/** Company → Order Sources. */
+export type OrderSourceKey = 'paid' | 'organic' | 'direct' | 'referral' | 'social' | 'email' | 'ai' | 'admin' | 'unknown';
+
+export interface OrderSourceRow {
+  key: OrderSourceKey;
+  label: string;
+  orders: number;
+  revenue: number;
+  orderShare: number;
+  revenueShare: number;
+  averageOrderValue: number;
+}
+
+export interface OrderSourcePeriod {
+  periodStart: string;
+  orders: Record<string, number>;
+  revenue: Record<string, number>;
+}
+
+export interface OrderSourcesReport {
+  from: string;
+  to: string;
+  granularity: 'day' | 'week' | 'month';
+  totalOrders: number;
+  totalRevenue: number;
+  sources: OrderSourceRow[];
+  periods: OrderSourcePeriod[];
 }
 
 /**
@@ -851,8 +927,13 @@ export interface PendingOrderEditDetailDto {
   requestedByName: string;
   requestedAt: string;
   status: string;
+  /** Edit or Done. Absent on servers that predate Done requests = Edit. */
+  kind?: OrderChangeRequestKind;
   currentOrder?: Order;
+  /** The edit payload; null for a Done request. */
   proposedChanges?: SuperAdminUpdateOrderDto;
+  /** The Done payload; null for an edit request. */
+  doneRequest?: DoneRequestPayload | null;
   /** What was asked for, as captured at submit time. Absent on requests predating the payload. */
   requestedChanges?: PendingOrderEditFieldChange[] | null;
   /** True when this request has no readable submit-time payload (legacy row, e.g. order #296). */
@@ -1697,13 +1778,20 @@ export class AdminService {
     return this.http.get<ReorderPreview>(`${this.apiUrl}/orders/${orderId}/reorder-preview`);
   }
 
+  /**
+   * Changes an order's status. For a caller who may not mark orders Done themselves, a move into
+   * Done (other than from Active) comes back as `doneRequested: true` — the server queued a Done
+   * request instead (OrderDoneApprovalPolicy). `sendReviewRequest` / `reason` travel on that
+   * request; a direct change ignores them.
+   */
   updateOrderStatus(
     orderId: number,
     status: string,
     paymentMethod: string | null = null,
     paymentReference: string | null = null,
-    paymentNotes: string | null = null
-  ): Observable<any> {
+    paymentNotes: string | null = null,
+    request: { sendReviewRequest?: boolean; reason?: string | null } = {}
+  ): Observable<OrderStatusChangeResult> {
     // Phase 1 manual payment tracking. paymentMethod/Reference/Notes are admin-supplied via
     // the Done modal. When omitted, existing order values are preserved server-side (no
     // clobber). Reference/Notes are sent only for manual methods.
@@ -1715,7 +1803,26 @@ export class AdminService {
         body.paymentNotes = paymentNotes;
       }
     }
-    return this.http.put(`${this.apiUrl}/orders/${orderId}/status`, body);
+    if (request.sendReviewRequest) body.sendReviewRequest = true;
+    if (request.reason) body.reason = request.reason;
+    return this.http.put<OrderStatusChangeResult>(`${this.apiUrl}/orders/${orderId}/status`, body);
+  }
+
+  /** Every change request on one order (edits and Done requests), newest first. Any Admin. */
+  getOrderChangeRequests(orderId: number): Observable<OrderChangeRequest[]> {
+    return this.http.get<OrderChangeRequest[]>(`${this.apiUrl}/orders/${orderId}/change-requests`);
+  }
+
+  /** Moves an order between the Regular and Commercial sub-tabs. */
+  updateOrderType(orderId: number, isCommercial: boolean): Observable<{ message: string; isCommercial: boolean }> {
+    return this.http.put<{ message: string; isCommercial: boolean }>(
+      `${this.apiUrl}/orders/${orderId}/order-type`, { isCommercial });
+  }
+
+  /** Company → Order Sources. Dates are yyyy-MM-dd service dates, both inclusive. */
+  getOrderSources(from: string, to: string, granularity: 'auto' | 'day' | 'week' | 'month' = 'auto'): Observable<OrderSourcesReport> {
+    const params = new HttpParams().set('from', from).set('to', to).set('granularity', granularity);
+    return this.http.get<OrderSourcesReport>(`${this.apiUrl}/order-sources`, { params });
   }
 
   cancelOrder(orderId: number, reason: string): Observable<any> {

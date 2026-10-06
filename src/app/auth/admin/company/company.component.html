@@ -23,6 +23,10 @@
     <a class="company-tab"
        routerLink="ads" routerLinkActive="active">Ads</a>
     }
+    @if (canView('order-sources')) {
+    <a class="company-tab"
+       routerLink="order-sources" routerLinkActive="active">Order Sources</a>
+    }
     @if (canView('traffic')) {
     <a class="company-tab"
        routerLink="traffic" routerLinkActive="active">Traffic</a>

@@ -19,6 +19,7 @@ const TAB_ORDER: { key: string; path: string }[] = [
   { key: 'expenses', path: 'expenses' },
   { key: 'finances', path: 'finances' },
   { key: 'ads', path: 'ads' },
+  { key: 'order-sources', path: 'order-sources' },
   { key: 'traffic', path: 'traffic' },
   { key: 'keywords', path: 'keywords' },
   { key: 'customer-stats', path: 'customers' }

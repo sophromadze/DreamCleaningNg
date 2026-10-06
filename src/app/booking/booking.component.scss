@@ -218,7 +218,7 @@
         margin-bottom: 1.5rem;
         text-align: center;
 
-        h3 {
+        h2 {
           color: #333;
           font-size: 1.5rem;
           font-weight: 700;
@@ -379,7 +379,7 @@
         border-radius: 10px;
 
         .user-selector-header {
-          h3 {
+          h2 {
             font-size: 1.25rem;
           }
 
@@ -601,7 +601,7 @@
       border-color: var(--border-color);
       box-shadow: 0 4px 20px var(--shadow-color);
       .user-selector-header {
-        h3 {
+        h2 {
           background: none;
           -webkit-text-fill-color: unset;
           color: var(--text-primary);
@@ -8321,5 +8321,29 @@
   .error-message {
     margin-top: 0.75rem;
     margin-bottom: 0;
+  }
+}
+
+// Admin Mode "Order type" (Regular / Commercial, 2026-10). It reuses the Payment Method block's
+// look by carrying .payment-method-section; these rules only undo what a <fieldset> / <legend>
+// brings by default, so the group is announced as one question without changing the layout.
+fieldset.order-type-section {
+  margin: 0;
+  min-width: 0;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+
+  legend.payment-method-heading {
+    float: left;
+    width: 100%;
+    padding: 0;
+  }
+
+  .payment-method-options { clear: both; }
+
+  .payment-method-hint {
+    display: block;
+    margin: 0.5rem 0 0;
   }
 }

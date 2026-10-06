@@ -105,12 +105,20 @@ export class RecreateOrderModalComponent implements OnChanges {
   /** The order to recreate. Loading starts when this and `open` are both set. */
   readonly sourceOrderId = input<number | null>(null);
   readonly open = input(false);
+  /**
+   * Whether the admin may mark orders Done themselves (the direct-save grant). When they may not,
+   * choosing "Done" creates the order in its ordinary status and sends a Done request for
+   * approval instead — the server decides that either way; this only lets the form say so.
+   */
+  readonly canMarkDoneDirectly = input(true);
 
   readonly closed = output<void>();
   /** Emitted after the new order is created, so the host can refresh its list. */
   readonly created = output<{
     orderId: number;
     total: number;
+    /** The order was NOT created Done: a Done request went to a reviewer instead. */
+    doneRequested?: boolean;
 }>();
 
   readonly step = signal<Step>('loading');
@@ -900,7 +908,7 @@ export class RecreateOrderModalComponent implements OnChanges {
       .pipe(finalize(() => { this.submitting.set(false); }))
       .subscribe({
         next: (response) => {
-          this.created.emit({ orderId: response.orderId, total: response.total });
+          this.created.emit({ orderId: response.orderId, total: response.total, doneRequested: !!response.doneRequested });
           this.close();
         },
         error: (err) => {

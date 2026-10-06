@@ -144,17 +144,6 @@
       }
     }
 
-    .pending-edits-inline {
-      margin-top: 0.75rem;
-      padding: 0.75rem 1rem;
-      background: #f0f4f8;
-      border-radius: 6px;
-      border: 1px solid #c5d3e0;
-      h4 { margin: 0 0 0.5rem 0; font-size: 0.95rem; color: #1e3a5f; }
-      .pending-item { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
-      .pending-by { font-size: 0.9rem; color: #495057; }
-      .action-btn.primary { background: #0d6efd; color: #fff; border: none; }
-    }
   
     // Filters Section (matches the Users tab)
     .filters-section {
@@ -3091,14 +3080,6 @@
       }
     }
   }
-
-  .pending-edits-inline {
-    background: var(--surface-elevated, #2d2d2d) !important;
-    border-color: var(--border-color) !important;
-    h4 { color: var(--text-primary) !important; }
-    .pending-by { color: var(--text-secondary) !important; }
-    .action-btn.primary { background: #0d6efd !important; color: #fff !important; }
-  }
 }
 
 // ── Order Reminder Indicators ─────────────────────────
@@ -4044,14 +4025,6 @@ $order-header-mobile: 60px;
       }
     }
 
-    .pending-edits-inline {
-      margin-bottom: 1.25rem;
-      padding: 0.85rem 1rem;
-      border: 1px solid var(--soft-yellow, #fef3c7);
-      background: var(--soft-yellow-background, #fffbeb);
-      border-radius: 10px;
-      .pending-item { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.4rem; }
-    }
 
     .detail-actions {
       display: flex;
@@ -6513,4 +6486,126 @@ tr.row-hidden-order {
   background: var(--soft-blue);
   color: var(--text-primary);
   font-size: 0.9rem;
+}
+
+// ── Regular / Commercial sub-tabs (2026-10) ─────────────────────────────────────────────
+// The shared admin text-tab strip, so the Orders sub-tabs look exactly like Users' and
+// Commercial's. The count is plain text in the tab — no coloured chip to keep legible.
+.orders-subtabs {
+  @include admin-tab-nav('.tab-btn');
+
+  .subtab-count {
+    margin-left: 0.35rem;
+    font-variant-numeric: tabular-nums;
+    color: inherit;
+  }
+}
+
+// "Done requested": a Done request is waiting, so the row offers no second Done button.
+.done-requested-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: var(--fw-semibold, 600);
+  white-space: nowrap;
+  background: var(--soft-yellow);
+  color: var(--soft-yellow-text);
+}
+
+// The reviewer queue names what each request is.
+.pending-edit-row .pending-kind {
+  font-size: 0.72rem;
+  font-weight: var(--fw-semibold, 600);
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--soft-blue);
+  color: var(--primary-color);
+  white-space: nowrap;
+
+  &.is-done-request {
+    background: var(--soft-yellow);
+    color: var(--soft-yellow-text);
+  }
+}
+
+// Change requests on the open order — edits and Done requests, waiting or decided.
+.order-requests {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--surface);
+
+  h4 {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+    color: var(--text-primary);
+  }
+
+  &__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  &__more {
+    margin-top: 0.4rem;
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--active-nav-link);
+    cursor: pointer;
+    font-size: 0.85rem;
+    text-decoration: underline;
+  }
+}
+
+.order-request {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+
+  &__kind { font-weight: var(--fw-semibold, 600); }
+
+  &__status {
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: var(--fw-semibold, 600);
+    background: var(--soft-blue);
+    color: var(--primary-color);
+
+    &.is-pending { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+    &.is-approved { background: var(--mint-fresh); color: var(--mint-fresh-text); }
+    &.is-rejected { background: var(--soft-red); color: var(--soft-red-text); }
+  }
+
+  &__meta { color: var(--text-primary); }
+
+  &__note {
+    flex-basis: 100%;
+    color: var(--text-primary);
+
+    &--rejected { font-weight: var(--fw-medium, 500); }
+  }
+
+  &__review { margin-left: auto; }
+}
+
+// The Done modal, when the Done is a request.
+.done-request-explainer {
+  margin: 0 0 0.75rem;
+  color: var(--text-primary);
+  line-height: 1.45;
 }

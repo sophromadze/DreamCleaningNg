@@ -524,6 +524,11 @@ export const routes: Routes = [
         loadComponent: () => import('./auth/admin/crm/ads/crm-ads.component').then(m => m.CrmAdsComponent)
       },
       {
+        path: 'order-sources',
+        canActivate: [pageViewGuard('order-sources')],
+        loadComponent: () => import('./auth/admin/company/order-sources/order-sources.component').then(m => m.OrderSourcesComponent)
+      },
+      {
         path: 'traffic',
         canActivate: [pageViewGuard('traffic')],
         loadComponent: () => import('./auth/admin/company/traffic/traffic.component').then(m => m.TrafficComponent)

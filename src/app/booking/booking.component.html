@@ -64,7 +64,7 @@
     @if (isAdminMode()) {
     <div class="admin-user-selector">
       <div class="user-selector-header">
-        <h3>Create Booking For User</h3>
+        <h2>Create Booking For User</h2>
         <p>Select a user to create a booking on their behalf</p>
       </div>
       
@@ -88,8 +88,32 @@
             </div>
           </div>
 
+          <!-- Regular or Commercial work (2026-10): which Orders sub-tab the booking lands in.
+               Follows the picked customer (a business account starts Commercial); the admin may
+               override it either way. -->
+          <fieldset class="payment-method-section order-type-section">
+            <legend class="payment-method-heading">Order type</legend>
+            <div class="payment-method-options">
+              <label class="radio-row">
+                <input type="radio" name="adminOrderType"
+                       [checked]="!adminOrderIsCommercial()"
+                       (change)="adminOrderIsCommercial.set(false)">
+                <span>Regular</span>
+              </label>
+              <label class="radio-row">
+                <input type="radio" name="adminOrderType"
+                       [checked]="adminOrderIsCommercial()"
+                       (change)="adminOrderIsCommercial.set(true)">
+                <span>Commercial</span>
+              </label>
+            </div>
+            @if (selectedTargetUser.isBusiness) {
+            <small class="payment-method-hint">This customer is a business, so the order starts as Commercial.</small>
+            }
+          </fieldset>
+
           <div class="payment-method-section">
-            <h4 class="payment-method-heading">Payment Method</h4>
+            <h3 class="payment-method-heading">Payment Method</h3>
             <p class="payment-method-hint">
               Select how the customer will pay. <strong>Normal</strong> sends them a Pay Now link;
               <strong>Invoice</strong> sends them an invoice they can pay by card or bank transfer;
@@ -196,6 +220,7 @@
             </span>
           </span>
           <span class="admin-target-banner__method">
+            {{ adminOrderIsCommercial() ? 'Commercial' : 'Regular' }} ·
             {{ adminPaymentMethod() === 'Normal' ? 'Payment request'
                : adminPaymentMethod() === 'RegularInvoice' ? 'Invoice'
                : adminPaymentMethod() === 'Invoice' ? 'Commercial invoice'

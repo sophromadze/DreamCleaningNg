@@ -570,6 +570,7 @@ export const AUDIT_ENTITY_LABELS: { [entityType: string]: string } = {
   OrderRefundAction: 'Refund',
   OrderAdminNote: 'Order Note',
   OrderVisibility: 'Order Visibility',
+  OrderType: 'Order Type',
   OrderTransferAction: 'Order Transfer',
   OrderEditRequest: 'Change Request',
   OrderPaymentAction: 'Order Payment',

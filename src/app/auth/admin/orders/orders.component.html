@@ -17,6 +17,24 @@
     </div>
   </div>
 
+  <!-- Regular / Commercial (2026-10). Every filter, the search, sorting, paging and the header
+       cards below work inside the chosen sub-tab, and each sub-tab remembers its own. The choice
+       lives in ?ordersTab=, so Back and refresh return to it. -->
+  <nav class="orders-subtabs" aria-label="Order types">
+    @for (tab of ordersSubTabs; track tab.key) {
+    <button type="button"
+            class="tab-btn"
+            [class.active]="ordersSubTab() === tab.key"
+            [attr.aria-pressed]="ordersSubTab() === tab.key"
+            (click)="selectOrdersSubTab(tab.key)">
+      {{ tab.label }}
+      @if (!loadingStates().orders) {
+      <span class="subtab-count">{{ tab.key === 'commercial' ? commercialOrderCount() : regularOrderCount() }}</span>
+      }
+    </button>
+    }
+  </nav>
+
   <!-- Statistics Section for SuperAdmin -->
   @if (isSuperAdmin() && !loadingStates().orders) {
   <div class="stats-section">
@@ -57,6 +75,7 @@
     <div class="pending-edits-list">
       @for (pe of pendingOrderEdits(); track pe.id) {
       <div class="pending-edit-row">
+        <span class="pending-kind" [class.is-done-request]="pe.kind === 'Done'">{{ pe.kind === 'Done' ? 'Done request' : 'Edit' }}</span>
         <span class="pending-summary">{{ pe.orderSummary }}</span>
         <span class="pending-meta">Requested by {{ pe.requestedByName }} · {{ formatUtcDateTime(pe.requestedAt) }}</span>
         <button class="action-btn primary small" (click)="openPendingEditDetail(pe.id)">Review &amp; confirm</button>
@@ -136,7 +155,7 @@
            Status (so admin can see e.g. all Active Zelle orders or all Done Cash orders). -->
       <select [(ngModel)]="paymentMethodFilter" class="filter-select" aria-label="Filter by payment method">
         <option value="all">All Methods</option>
-        <option value="Normal">Normal (Stripe)</option>
+        <option value="Normal">Normal (Card)</option>
         <option value="Cash">Cash</option>
         <option value="Zelle">Zelle</option>
         <option value="Check">Check</option>
@@ -282,15 +301,37 @@
               @if (userPermissions().permissions.canUpdate) {
               <td class="actions" (click)="$event.stopPropagation()">
                 <div class="row-actions">
-                  <!-- Mark as Done (Active/Pending orders) -->
+                  <!-- Mark as Done (Active/Pending orders). For an Admin without the direct-save
+                       grant a Pending order's Done is a REQUEST (OrderDoneApprovalPolicy) — the
+                       button says so, and while one is waiting it is replaced by a pill so a
+                       second request cannot be sent. -->
                   @if (order.status.toLowerCase() === 'active' || order.status.toLowerCase() === 'pending') {
+                  @if (order.hasPendingDoneRequest) {
+                  <span class="done-requested-pill" title="A Done request is waiting for approval">Done requested</span>
+                  } @else {
                   <button
                           class="icon-btn ok"
+                          [class.is-request]="doneNeedsRequest(order)"
                           (click)="markOrderAsDone(order)"
-                          title="Mark as Done">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                          [title]="doneNeedsRequest(order) ? 'Request Done (sent for approval)' : 'Mark as Done'"
+                          [attr.aria-label]="doneNeedsRequest(order) ? 'Request Done for order ' + order.id : 'Mark order ' + order.id + ' as Done'">
+                    @if (doneNeedsRequest(order)) {
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="20 6 9 17 4 12"/><path d="M17 3h4v4"/></svg>
+                    } @else {
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                    }
                   </button>
                   }
+                  }
+                  <!-- Move between the Regular and Commercial sub-tabs (stored on the order). -->
+                  <button
+                          class="icon-btn muted"
+                          (click)="moveOrderType(order.id, !order.isCommercial)"
+                          [disabled]="movingOrderTypeId() === order.id"
+                          [title]="order.isCommercial ? 'Move to Regular' : 'Move to Commercial'"
+                          [attr.aria-label]="(order.isCommercial ? 'Move order ' + order.id + ' to Regular' : 'Move order ' + order.id + ' to Commercial')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                  </button>
                   <!-- Cancel -->
                   @if (order.status.toLowerCase() !== 'cancelled' && order.status.toLowerCase() !== 'done') {
                   <button
@@ -578,7 +619,7 @@
                           @if (isSettledPaymentMethod(paymentMethodEdit())) {
                           <p class="pm-editor-hint">
                             The order moves to the manual-payment flow: treated as paid outside the
-                            website, no Stripe fees in statistics, and a Pending order becomes Active.
+                            website, no card processing fees in statistics, and a Pending order becomes Active.
                           </p>
                           }
                           @if (paymentMethodEdit() === 'RegularInvoice') {
@@ -598,8 +639,8 @@
                           }
                           @if (paymentMethodEdit() === 'Normal' && (selectedOrder()!.paymentMethod || 'Normal') !== 'Normal') {
                           <p class="pm-editor-hint">
-                            The order returns to the Stripe flow: it counts as awaiting online payment
-                            again (an Active unpaid order goes back to Pending).
+                            The order returns to online card payment: it counts as awaiting online
+                            payment again (an Active unpaid order goes back to Pending).
                           </p>
                           }
                           <div class="manual-pay-actions">
@@ -617,26 +658,54 @@
                   </div>
                   }
 
-                  <!-- Reviewers only: pending edits for this order (quick link) -->
-                  @if (canSaveOrderEditsDirectly() && !editingOrder() && getPendingEditsForSelectedOrder().length > 0) {
-                  <div class="pending-edits-inline">
-                    <h4>Pending edit(s) for this order</h4>
-                    @for (pe of getPendingEditsForSelectedOrder(); track pe.id) {
-                    <div class="pending-item">
-                      <span class="pending-by">{{ pe.requestedByName }} at {{ formatUtcDateTime(pe.requestedAt) }}</span>
-                      <button class="action-btn primary" (click)="openPendingEditDetail(pe.id)">Review &amp; confirm</button>
-                    </div>
+                  <!-- Change requests on this order (2026-10): edits and Done requests, waiting or
+                       decided. Every Admin sees them — it is how whoever SENT a request sees it
+                       waiting and, later, the outcome and the reviewer's reason. Reviewers get the
+                       Review button on the waiting ones. -->
+                  @if (!editingOrder() && orderChangeRequests().length > 0) {
+                  <section class="order-requests" aria-label="Change requests on this order">
+                    <h4>Change requests</h4>
+                    <ul class="order-requests__list">
+                      @for (r of visibleOrderChangeRequests(); track r.id) {
+                      <li class="order-request" [class.is-pending]="r.status === 'Pending'">
+                        <span class="order-request__kind">{{ changeRequestKindLabel(r) }}</span>
+                        <span class="order-request__status"
+                              [class.is-pending]="r.status === 'Pending'"
+                              [class.is-approved]="r.status === 'Approved'"
+                              [class.is-rejected]="r.status === 'Rejected'">{{ changeRequestStatusLabel(r) }}</span>
+                        <span class="order-request__meta">
+                          by {{ r.isMine ? 'you' : r.requestedByName }} · {{ formatUtcDateTime(r.requestedAt) }}
+                          @if (r.reviewedByName && r.status !== 'Pending') {
+                          · {{ r.status === 'Approved' ? 'approved' : 'rejected' }} by {{ r.reviewedByName }}
+                          }
+                        </span>
+                        @if (r.reason) {
+                        <span class="order-request__note">Note: {{ r.reason }}</span>
+                        }
+                        @if (r.status === 'Rejected' && r.rejectReason) {
+                        <span class="order-request__note order-request__note--rejected">Reason: {{ r.rejectReason }}</span>
+                        }
+                        @if (canSaveOrderEditsDirectly() && r.status === 'Pending') {
+                        <button type="button" class="action-btn primary small order-request__review" (click)="openPendingEditDetail(r.id)">Review &amp; confirm</button>
+                        }
+                      </li>
+                      }
+                    </ul>
+                    @if (hiddenOrderChangeRequestCount() > 0) {
+                    <button type="button" class="link-btn order-requests__more" (click)="showAllOrderChangeRequests.set(true)">
+                      Show {{ hiddenOrderChangeRequestCount() }} older
+                    </button>
                     }
-                  </div>
+                  </section>
                   }
 
                   <!-- Order Edit Form (SuperAdmin: direct save; Admin: submit for approval) -->
                   @if (editingOrder() && canEditOrder) {
                   <div class="superadmin-order-edit">
-                    <h4>Edit Order @if (isSuperAdmin()) {
+                    <h4>Edit Order @if (canSaveOrderEditsDirectly()) {
                     <span>— all changes are recorded in Audit logs</span>
-                    }@if (!isSuperAdmin()) {
-                    <span>— your changes will be sent to SAdmin for approval</span>
+                    } @else {
+                    <span>— your changes will be sent for approval</span>
                     }</h4>
                     <div class="edit-group edit-group--contact">
                         <h5>Contact</h5>
@@ -1038,6 +1107,28 @@
                     }
 
                     <div class="order-header-pills">
+                    <!-- Regular / Commercial: which Orders sub-tab the order is listed under.
+                         Stored on the order; Admins and SuperAdmins move it with a click. -->
+                    <div class="assigned-admin-pill order-type-pill" (click)="$event.stopPropagation()">
+                      @if (userPermissions().permissions.canUpdate) {
+                      <button
+                              type="button"
+                              class="assigned-admin-trigger"
+                              (click)="moveOrderType(selectedOrder()!.id, !selectedOrder()!.isCommercial)"
+                              [disabled]="movingOrderTypeId() === selectedOrder()!.id"
+                              [title]="selectedOrder()!.isCommercial ? 'Move to Regular' : 'Move to Commercial'">
+                        <span class="assigned-admin-by">Type:</span>
+                        <span class="assigned-admin-name">{{ movingOrderTypeId() === selectedOrder()!.id ? 'Moving…' : orderTypeLabel(selectedOrder()) }}</span>
+                        <span class="assigned-admin-caret" aria-hidden="true">⇄</span>
+                      </button>
+                      } @else {
+                      <span class="assigned-admin-trigger assigned-admin-readonly">
+                        <span class="assigned-admin-by">Type:</span>
+                        <span class="assigned-admin-name">{{ orderTypeLabel(selectedOrder()) }}</span>
+                      </span>
+                      }
+                    </div>
+
                     <!-- Booked-by pill: who created the order (admin create-for-user vs customer
                          self-booked). SuperAdmin clicks to toggle — exists to backfill orders that
                          predate BookedByAdminUserId (2026-07); new orders are stamped automatically. -->
@@ -2790,7 +2881,7 @@
 <div class="modal-overlay pending-edit-modal-overlay" (click)="closePendingEditDetail()">
   <div class="modal-content pending-edit-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>Review order edit — Order #{{ selectedPendingEdit()!.orderId }}</h3>
+      <h3>{{ pendingEditIsDoneRequest() ? 'Review Done request' : 'Review order edit' }} — Order #{{ selectedPendingEdit()!.orderId }}</h3>
       <button class="close-btn" (click)="closePendingEditDetail()">×</button>
     </div>
     @if (selectedPendingEdit(); as selectedPendingEdit) {
@@ -2824,7 +2915,14 @@
       }
 
       @if (!pendingEditIsDecided()) {
-      <p class="pending-edit-hint">Review every change below. Approve to apply to the order, or Reject to discard.</p>
+      <p class="pending-edit-hint">
+        @if (pendingEditIsDoneRequest()) {
+        Approving marks the order Done exactly as the Done button would — payment method, points and
+        the review link if it was asked for. Rejecting leaves it as it is.
+        } @else {
+        Review every change below. Approve to apply to the order, or Reject to discard.
+        }
+      </p>
       }
 
       <!-- The order moved after the request was made. Approving now applies a change measured
@@ -2894,7 +2992,7 @@
     <div class="modal-actions">
       @if (!pendingEditIsDecided()) {
       <button class="action-btn btn-approve" (click)="approvePendingOrderEdit(selectedPendingEdit()!.id)" [disabled]="approvingPendingId() === selectedPendingEdit()!.id">
-        {{ approvingPendingId() === selectedPendingEdit()!.id ? 'Applying...' : 'Approve & apply' }}
+        {{ approvingPendingId() === selectedPendingEdit()!.id ? 'Applying...' : (pendingEditIsDoneRequest() ? 'Approve — mark Done' : 'Approve & apply') }}
       </button>
       }
       @if (!pendingEditIsDecided()) {
@@ -3114,7 +3212,7 @@
 <div class="modal-overlay" (click)="closeDoneModal()">
   <div class="modal-content done-review-modal" (click)="$event.stopPropagation()">
     <div class="modal-header">
-      <h3>Mark Order #{{ doneModalOrder()?.id }} as Done</h3>
+      <h3>{{ doneNeedsRequest(doneModalOrder()) ? 'Request Done for Order #' : 'Mark Order #' }}{{ doneModalOrder()?.id }}{{ doneNeedsRequest(doneModalOrder()) ? '' : ' as Done' }}</h3>
       <button class="close-btn" (click)="closeDoneModal()">&times;</button>
     </div>
     <div class="modal-body">
@@ -3153,11 +3251,31 @@
 
       <hr class="done-modal-divider"/>
 
+      @if (doneNeedsRequest(doneModalOrder())) {
+      <!-- A pending order's Done goes to a reviewer. Nothing changes until it is approved; the
+           review link (if chosen) is sent on approval, never before. -->
+      <p class="done-request-explainer">
+        This order is still Pending, so marking it Done needs approval. Your request goes to a
+        reviewer; the order stays Pending until it is approved.
+      </p>
+      <div class="field">
+        <label for="doneRequestReason">Note for the reviewer (optional)</label>
+        <input id="doneRequestReason" type="text" maxlength="1000"
+               [(ngModel)]="doneRequestReason"
+               placeholder="e.g. paid in cash on site">
+      </div>
+      <p>Send the customer a review link once it is approved?</p>
+      <div class="modal-actions done-modal-actions">
+        <button class="btn-success" (click)="confirmDone(true)">Request Done + review link</button>
+        <button class="btn-danger" (click)="confirmDone(false)">Request Done only</button>
+      </div>
+      } @else {
       <p>Would you like to send a review link to the customer?</p>
       <div class="modal-actions done-modal-actions">
         <button class="btn-success" (click)="confirmDone(true)">Yes, Send Review Link</button>
         <button class="btn-danger" (click)="confirmDone(false)">No, Just Mark Done</button>
       </div>
+      }
     </div>
   </div>
 </div>

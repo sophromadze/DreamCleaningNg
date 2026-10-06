@@ -73,6 +73,9 @@ export interface OrderList {
   /** The commercial client an Invoice-method order is billed to. Null otherwise. */
   contractClientId?: number | null;
 
+  /** Regular (false) or Commercial (true) — the admin Orders sub-tab the order sits under. */
+  isCommercial?: boolean;
+
   // ── Recurring series ──────────────────────────────────────────────────────────────────
   // All three are null/false on every ordinary one-off booking, which is every order that
   // existed before the feature — nothing was backfilled.
@@ -150,6 +153,9 @@ export interface Order {
 
   /** The commercial client an Invoice-method order is billed to. Null for every other method. */
   contractClientId?: number | null;
+
+  /** Regular (false) or Commercial (true) — see Order.IsCommercial on the backend. */
+  isCommercial?: boolean;
 
   /**
    * Set when a fully-paid commercial invoice settled this order. Only ever present on an

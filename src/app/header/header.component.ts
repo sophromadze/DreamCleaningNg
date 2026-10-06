@@ -338,6 +338,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
       || this.canViewPage('expenses')
       || this.canViewPage('finances')
       || this.canViewPage('ads')
+      || this.canViewPage('order-sources')
       || this.canViewPage('traffic')
       || this.canViewPage('keywords')
       || this.canViewPage('customer-stats');
